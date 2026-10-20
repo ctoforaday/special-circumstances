@@ -44,8 +44,8 @@ func TestEveryProbeBoardStillBuilds(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// A BARE DIRECTORY, ON PURPOSE — not newRun(t). This gate exists to prove the probe's
 			// boards still build, so it must give Build exactly what the probe gives it: nothing.
-			// Staging a class registry here made the gate green on the day every real dispatch
-			// died on its first mint, because the fixture was configured a way the probe never is.
+			// A fixture configured a way the probe never is can hold the gate green on a day every
+			// real dispatch dies on its first act.
 			runDir := recordtest.TmpRun(t)
 			t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 			// seatprobe.Build, not a second copy of it. The harness dispatches through that

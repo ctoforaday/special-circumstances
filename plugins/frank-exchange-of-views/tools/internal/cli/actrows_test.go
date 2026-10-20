@@ -41,7 +41,7 @@ func actFixture(t *testing.T) string {
 		}
 	}
 	seedBlueReport(t, runDir)
-	if g := mintGap(t, runDir, "corr-seed", "self-attestation"); g != onlyID(t, runDir, "G") {
+	if g := mintGap(t, runDir, "corr-seed", "spec_underspecification"); g != onlyID(t, runDir, "G") {
 		t.Fatalf("the fixture mints %s and the run holds another gap — every row names the one gap as G1", g)
 	}
 	return runDir

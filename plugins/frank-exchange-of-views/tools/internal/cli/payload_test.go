@@ -41,10 +41,10 @@ func TestPayloadArrivesIntactThroughReason(t *testing.T) {
 // evidence) — the WORD collapsed to --reason, the schema did not.
 func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "long-form", "payload-channel")
+	id := mintGap(t, runDir, "long-form", "spec_underspecification")
 	// The STATE each verb needs, not just the referent. A ruling answers a motion, so M1 is
 	// filed for the rule case to answer; the file case contests a DIFFERENT gap.
-	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
+	undisputed := mintGap(t, runDir, "undisputed", "spec_underspecification")
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low", "--reason", "b"); err != nil {
 		t.Fatal(err)

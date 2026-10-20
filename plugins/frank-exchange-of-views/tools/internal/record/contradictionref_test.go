@@ -110,7 +110,7 @@ func TestTheWriteRefusesAReferenceTheRuleDoesNotAdmit(t *testing.T) {
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-00000002", id)); err == nil || !strings.Contains(err.Error(), "already raised, by finding F-00000001") || !strings.Contains(err.Error(), "--found-by F-00000001") {
 		t.Errorf("a second raise of contradiction %s: %v, want a refusal naming F-00000001 and the gap that answers it", id, err)
 	}
-	mint := &recordpb.Mint{GapId: proto.String("G-00000001"), Class: proto.String("scope-creep"), Problem: proto.String("p"),
+	mint := &recordpb.Mint{GapId: proto.String("G-00000001"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), AcceptanceCheck: proto.String("c"),
 		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum(),
 		AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(id)}

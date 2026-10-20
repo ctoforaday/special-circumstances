@@ -29,7 +29,7 @@ func stageEvents(t *testing.T, runDir string, more ...*record.Event) {
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
-		at("red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"), Problem: proto.String("p"),
+		at("red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 	}

@@ -86,11 +86,11 @@ export const exchanges = (parties, n = 0) => [...new Set(parties.flatMap((p) => 
 // does not state its blockers relays a plan the schema accepts and the engine routes as before. A
 // plan with no party and no PASS states its own.
 const heldBy = (parties) => parties.flatMap((p) => (p.gap_ids.length ? p.gap_ids.map((g) => ({ kind: 'material_gap', subject: g, owner: p.seat_id })) : [{ kind: 'lens_ready', subject: p.seat_id, owner: p.seat_id }]))
-// keyed is a stub plan carrying its key, as the verb prints one: equal for two stubs that are equal in
+// withKey is a stub plan carrying its key, as the verb prints one: equal for two stubs that are equal in
 // every field. A stub's epoch is its own fixed 1 whatever sitting relays it, so the key a stub carries
 // is the same in two sittings exactly when the record's would be. A test that states a key keeps it.
-export const keyed = (p) => ({ key: createHash('sha256').update(JSON.stringify({ ...p, key: undefined })).digest('hex').slice(0, 16), ...p })
-export const plan = (parties = [], over = {}) => keyed({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
+export const withKey = (p) => ({ key: createHash('sha256').update(JSON.stringify({ ...p, key: undefined })).digest('hex').slice(0, 16), ...p })
+export const plan = (parties = [], over = {}) => withKey({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G-00000001: at impasse, ruled remanded — at its limit'], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over })

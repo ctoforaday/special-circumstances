@@ -740,8 +740,8 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	return nil
 }
 
-// validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
-// and the requirements no schema can express. Error strings are matched verbatim — seats read
+// validate mirrors the oracle's append-time checks: anchors, lineage existence, the gap class's
+// enum check, and the requirements no schema can express. Error strings are matched verbatim — seats read
 // them, and the golden suite compares them.
 //
 // IT SWITCHES ON THE BODY, NOT ON A TYPE STRING. The type and the fields are one fact now, so an
@@ -784,10 +784,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	//
 	// WHICH IS WHY A MINT'S CLASS MATERIAL IS STAMPED FIRST. The field is required and the tool is
 	// its only writer, so the required-field walk would otherwise ask the seat for a value it may
-	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
-	// (an unknown class, an unstaged registry, a seat-supplied value).
+	// not supply; stamped here, every caller of validation gets the same stamp and the same refusal
+	// of a seat-supplied value.
 	if m, ok := body.(*recordpb.Mint); ok {
-		if err := stampClassMaterial(w, m); err != nil {
+		if err := stampClassMaterial(m); err != nil {
 			return err
 		}
 	}
@@ -820,13 +820,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetLocation() == "" {
 			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
 		}
-	case *recordpb.ClassNew:
-		return validateClassNew(w, b)
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
 		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
 		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
 		// --distinct-from reference stay on.
+		if err := requireUnclassifiedReason(b); err != nil {
+			return err
+		}
 		if err := requireMintWithinBudget(w, seatID); err != nil {
 			return err
 		}
@@ -880,9 +881,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 		if err := refuseMintReportVoice(b); err != nil {
-			return err
-		}
-		if err := validateClass(w, b); err != nil {
 			return err
 		}
 		ids, err := allGapIDs(q)
@@ -1577,4 +1575,25 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its
+// `char(9, 10, 13)` — so the write and the database refuse the same reasons
+// (TestTheWriteAndTheDatabaseAgreeOnABlankReason).
+const reasonBlank = " \t\n\r"
+
+// requireUnclassifiedReason refuses a catch-all mint that says nothing about why no class fits, in
+// the words of Mint's own (check) — the database refuses the row whatever writes it, and this names
+// the duty to the seat rather than leaving it a constraint's column name.
+func requireUnclassifiedReason(m *recordpb.Mint) error {
+	if m.GetClass() != recordpb.GapClass_GAP_CLASS_UNCLASSIFIED || strings.Trim(m.GetMintReason(), reasonBlank) != "" {
+		return nil
+	}
+	why := "a gap no class fits says why in --reason"
+	for _, c := range recordsql.MessageChecks(m.ProtoReflect().Descriptor()) {
+		if strings.Contains(c.GetExpr(), "'unclassified'") {
+			why = c.GetWhy()
+		}
+	}
+	return fmt.Errorf("--class unclassified requires --reason — %s", why)
 }

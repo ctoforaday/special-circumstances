@@ -282,13 +282,11 @@ var EnumFields = map[string][]EnumField{
 		Optional: true,
 		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
-	// `class new`, and the DEFAULT is where a coined class's gaps start: every mint of the class is
-	// stamped with it, and it decides whether an open gap of the class holds the PASS gate.
-	"class_new": {{
-		Key: "material_default", Flag: flags.MaterialDefault, Optional: true, Values: evsOf(recordpb.ClassMaterial(0).Descriptor()),
-		Why: "the default is stamped on every gap minted under the class and decides whether an open one holds the PASS gate, so a word outside the set would leave the gate to guess",
-	}},
 	"mint": {
+		{
+			Key: "class", Flag: flags.Class, Values: evsOf(recordpb.GapClass(0).Descriptor()),
+			Why: "the class is the KIND of defect, and its material default decides whether an open gap of it holds the PASS gate",
+		},
 		{
 			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",

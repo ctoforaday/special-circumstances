@@ -63,8 +63,8 @@ func gapIsOpen(t *testing.T, runDir, id string) bool {
 // board loses every genuinely-open gap the judge touched.
 func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	runDir := seatRun(t)
-	carried := mintGap(t, runDir, "bench-carries-this", "carry-vs-close")
-	closed := mintGap(t, runDir, "bench-closes-that", "carry-vs-close")
+	carried := mintGap(t, runDir, "bench-carries-this", "spec_underspecification")
+	closed := mintGap(t, runDir, "bench-closes-that", "spec_underspecification")
 
 	for _, c := range []struct{ id, as, principle string }{
 		{carried, "remanded", "the repair is unverified at the leaf; it needs another round"},
@@ -86,7 +86,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 // an accepted dispute that never moves the grade is agreement with no consequence.
 func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "grade-moves", "dispute-to-regrade")
+	id := mintGap(t, runDir, "grade-moves", "doctrine_vs_implementation")
 
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
@@ -233,8 +233,8 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 // gap. Losing the successor turns a partial repair into a clean one on the board.
 func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	runDir := seatRun(t)
-	first := mintGap(t, runDir, "partial-repair", "residue-carrying")
-	next := mintGap(t, runDir, "the-residue", "residue-carrying")
+	first := mintGap(t, runDir, "partial-repair", "policy_without_mechanism")
+	next := mintGap(t, runDir, "the-residue", "policy_without_mechanism")
 
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", first, "--as", "repaired",
@@ -273,7 +273,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// the separate verb exists to close off. The ruling that could carry it is
 	// `motion docket rule --as` now; the property is the same and so is the word that must
 	// be refused.
-	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
+	id := mintGap(t, runDir, "not-haltable", "partial_control_coverage")
 	m := docketFile(t, runDir, "red-chair", id, "put before the bench")
 	args := benchRuleArgs(m, "halt", "p")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
@@ -297,7 +297,7 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	// The gap has to exist: `close --id` is a reference the record checks, and G1 is what the
 	// first mint of the round is assigned.
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--class", "x", "--check-kind", "document", "--check", "c",
+		"--class", "risk_coverage_omission", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("lens mint: %v", err)
 	}

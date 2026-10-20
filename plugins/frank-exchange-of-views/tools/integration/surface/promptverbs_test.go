@@ -41,7 +41,7 @@ import (
 // The ternary's close is `'feov-record'}`, and the anchor is that, not a bare `}`: a bare brace
 // also ends `${epoch}`, and "after ${epoch} chair sitting(s)" is prose, not an invocation.
 // A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
-// subgroups — `blue inquiry propose`, `lens class new` — so a pattern taking exactly one
+// subgroups — `blue inquiry propose`, `chair inquiry review` — so a pattern taking exactly one
 // word after the role reads `blue inquiry propose` as the GROUP `blue inquiry`,
 // which is not an invocable path. The forward gate then reports a verb the prompt names correctly
 // as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
@@ -127,7 +127,7 @@ var promptMotion = regexp.MustCompile(
 // So: the role-less form of every real command path, generated from the tree. ONE-WORD paths are
 // excluded — `mint`, `close`, `edit`, `verify`, `log` are ordinary English and matching them
 // bare would fire on prose describing the act, which is the register the prompts are supposed to
-// be written in. Two-or-more-word paths (`show board`, `class new`, `inquiry propose`) are
+// be written in. Two-or-more-word paths (`show board`, `inquiry review`, `inquiry propose`) are
 // not English; they are invocations with the role filed off.
 func promptRolelessPaths(real map[string]bool) *regexp.Regexp {
 	seen := map[string]bool{}

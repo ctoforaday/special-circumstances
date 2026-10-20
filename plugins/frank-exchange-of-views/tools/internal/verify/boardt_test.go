@@ -37,7 +37,7 @@ func (b *boardT) fam(t *testing.T) record.Family {
 			g.ID = id
 		}
 		ordered = append(ordered, g)
-		evs = append(evs, recordtest.Event(t, record.HarnessSeat, &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"),
+		evs = append(evs, recordtest.Event(t, record.HarnessSeat, &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}

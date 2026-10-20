@@ -113,10 +113,9 @@ func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }
 
-// ClassMaterialOf resolves a class's materiality default — `always`, `never` or `by_grade` — as
-// the registry row and `class new --material-default` spell it.
-func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
-	return enumOf[recordpb.ClassMaterial](recordpb.ClassMaterial(0).Descriptor(), word)
+// GapClassOf resolves a gap class word, as `mint --class` spells it.
+func GapClassOf(word string) (recordpb.GapClass, bool) {
+	return enumOf[recordpb.GapClass](recordpb.GapClass(0).Descriptor(), word)
 }
 
 // SeatLogTypeEnum is the `log --type` set narrowed to what a seat may file, so the generated help

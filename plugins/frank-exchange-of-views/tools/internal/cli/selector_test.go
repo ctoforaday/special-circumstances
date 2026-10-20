@@ -163,7 +163,7 @@ func TestTheChangeLogCarriesTheDiffAndIsSelectable(t *testing.T) {
 // of them matched".
 func TestTheBoardIsSelectableAndKeepsItsEmptyArrays(t *testing.T) {
 	runDir := seatRun(t)
-	mintGap(t, runDir, "board-sel", "c")
+	mintGap(t, runDir, "board-sel", "spec_underspecification")
 	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair", "--match", "no-such-class-anywhere")
 	if err != nil {
 		t.Fatal(err)

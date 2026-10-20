@@ -48,7 +48,7 @@ func recordWithEpochs(t *testing.T, n int) string {
 		// fixture used to name four; the other three were absent and nothing said so.
 		evs = append(evs, recordtest.At(t, seat, seat+":mint:G"+itoa(r), &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G" + itoa(r)),
-			Class:           proto.String("scope-creep"),
+			Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 			Problem:         proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -337,7 +337,7 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 		at("red-chair", &recordpb.Register{}),
 		at("red-chair", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
 		at("red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
-			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
@@ -422,7 +422,7 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	}
 	mint := func(g string) *record.Event {
 		return at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(g), Problem: proto.String("p"),
-			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}

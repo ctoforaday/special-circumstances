@@ -22,7 +22,7 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 	const ordinal = "91 is stated as the twenty-seventh semiprime and the second of the form 7·q; both ordinals are wrong."
 	mint := func(seat, gap, problem string, answer func(*recordpb.Mint)) (*recordpb.Mint, string) {
 		m := &recordpb.Mint{
-			GapId: proto.String(gap), Class: proto.String("c"),
+			GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:     proto.String(problem),
 			Location:    proto.String("91 is the twenty-seventh semiprime."),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),

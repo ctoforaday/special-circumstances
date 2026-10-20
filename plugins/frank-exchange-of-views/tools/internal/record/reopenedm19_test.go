@@ -41,7 +41,7 @@ func m19Owner(r reopened) string {
 }
 
 // m19At is m19 as it stood after event n: the archive's first n events replayed, in order, into a
-// run of its own beside the archive's inputs and class registry. The replay stores each act's
+// run of its own beside the archive's inputs. The replay stores each act's
 // sitting by the write path's own rule, so every reader below reads a record, not a slice.
 func m19At(t *testing.T, whole []*Event, n int) Run {
 	t.Helper()

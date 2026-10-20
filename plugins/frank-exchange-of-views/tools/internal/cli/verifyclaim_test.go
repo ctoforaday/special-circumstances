@@ -150,7 +150,7 @@ func TestARefutingVerificationIsRaisedByAFindingAtItsSentence(t *testing.T) {
 		t.Fatalf("%d contradiction(s) held after the finding alone, want 1 — a source the report misstates is material by its class", got)
 	}
 	if out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--found-by", raising,
-		"--class", "self-attestation", "--quote", verifiedSentence, "--problem", "the source says the sky is green, and the reader relies on the colour",
+		"--class", "citation_figure_misattribution", "--quote", verifiedSentence, "--problem", "the source says the sky is green, and the reader relies on the colour",
 		"--fix", "say what the source says", "--check-kind", "source", "--check", "the sentence matches the source",
 		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
 		t.Fatalf("mint --found-by %s: %v\n%s", raising, err, out)

@@ -89,6 +89,8 @@ YOURS. Read the telemetry series before you weigh it; its own page says what eac
   itself") is the phase change. Findings continuing is normal and is NOT a reason to keep
   going; findings becoming internal means the rest is cheaper to shake out in execution than
   in review. In telemetry this is `new_mint.by_class` moving, and `class_repeat_rate` rising.
+  A high `unclassified_rate` is a different signal: the closed class vocabulary is missing a
+  class this run's findings need, so `by_class` and `class_repeat_rate` undercount their kind.
 - **A stable core under churn is a stopping signal.** If the part that answers the original
   question has gone several sittings unchallenged, the live dispute is about accretion — and
   accretion is scope, not defect.
@@ -328,7 +330,7 @@ JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §7
 
-OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:[{class,count}],class_repeat_rate,unclassified_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 ========
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive

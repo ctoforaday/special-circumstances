@@ -106,9 +106,6 @@ func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
 // UnplacedLocation is record.UnplacedLocation asked of the landing record.
 func (l *Landing) UnplacedLocation(id string) (string, error) { return unplacedLocationAt(l.w.q, id) }
 
-// ClassCoinedInRun is record.ClassCoinedInRun asked of the landing record.
-func (l *Landing) ClassCoinedInRun(slug string) bool { return classCoinedAt(l.w.q, slug) }
-
 // UntilTheOutcome is the guard of a write the run's end closes — a log entry the tool writes for a
 // seat: on a record that holds an outcome it writes nothing (ErrWritesNothing). Asked under the write
 // lock, because the bench's outcome can commit between a check made before it and the entry, which

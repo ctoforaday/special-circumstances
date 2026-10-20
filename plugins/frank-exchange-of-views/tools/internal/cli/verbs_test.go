@@ -33,7 +33,7 @@ func seedReferents(t *testing.T, runDir string) {
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
 		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
+			"--key", fmt.Sprintf("seed-%d", i), "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +56,7 @@ func seedReferents(t *testing.T, runDir string) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
+		"--key", "seed-archived", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}

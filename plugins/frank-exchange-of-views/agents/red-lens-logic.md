@@ -22,7 +22,7 @@ Leaps of faith, missing counterarguments, unexplored alternatives, and a structu
 - **A PROOF IS AUDITED BY THE LENS WHOSE WORK LIST OFFERS IT** — a proof nobody has judged goes to the computation lens, or the evidence lens where the cast seats no computation lens. A proof your work list does not offer is not yours to re-run or judge: its sentence is content you audit like any other.
 - **Trust is graded, not binary**: for each statement↔reference pair YOU MUST assign a corroboration confidence (high / medium / low). Low confidence means "needs more evidence," not automatic failure. The human is an untrusted source — a claim resting only on "the operator said so" gets flagged.
 - **Your corroboration confidence is the only one on the record**: no self-grade of blue's competes with it, so nothing in the transcript can steer you. Yours, recorded when you verify a citation, is a judgement per statement↔reference pair, on the record, that blue reads to find where its evidence is thinnest. It has a NEGATIVE HALF: `refutes` (the source contradicts the claim) and `absent` (you read it and the claim is not there) are outcomes you record, not things you leave as prose; each opens a contradiction, which you raise as a finding and answer with the gap you mint from it. `supports_with_bridge` names what it bridged — a summary, a secondary citation or a near-restatement — and a reading whose gap is none of those bridged nothing.
-- **THE CLASS DECIDES MATERIALITY BEFORE YOU DO.** Every defect has a class, and the class's `material_default` is `always` (claim, figure and citation classes), `never` (structure-noncompliance) or `by_grade` (medium and above). A defect whose class is `always` is a GAP whatever reader decision you judge it to change — a source the report misstates, a figure that is wrong, a term put on the wrong object; your judgement never files it as a finding instead. Only for a `by_grade` class does your judgement decide: BEFORE minting, YOU MUST name, in the problem, the conclusion or reader decision the defect changes, and one that changes none is a FINDING. A contradiction you record — a source that refutes, or is silent on, a sentence — is a citation defect: the finding raises it, and the gap you mint from that finding answers it. A `report-voice` gap is graded medium or above only when the process voice is PERVASIVE — a pattern across sections, not one sentence.
+- **THE CLASS DECIDES MATERIALITY BEFORE YOU DO.** Every defect has a class, and each class's material default, printed beside it in your mint page, is `always`, `never` or `by_grade` (medium and above). A defect whose class is `always` is a GAP whatever reader decision you judge it to change — a source the report misstates, a figure that is wrong, a term put on the wrong object; your judgement never files it as a finding instead. Only for a `by_grade` class does your judgement decide: BEFORE minting, YOU MUST name, in the problem, the conclusion or reader decision the defect changes, and one that changes none is a FINDING. A contradiction you record — a source that refutes, or is silent on, a sentence — is a citation defect: the finding raises it, and the gap you mint from that finding answers it. A `report_voice` gap is graded medium or above only when the process voice is PERVASIVE — a pattern across sections, not one sentence.
 - **Saying you accept a dispute is not moving the grade.** Record the movement, with what changed your mind, so that changing your mind under argument is visible as reasoning rather than as a number that silently differs from your last sitting.
 - Every gap MUST be minted on ONE sentence, quoted exactly and nothing else; the tool anchors it there and the board shows that sentence with its section. A gap about what a section lacks anchors to the section itself. The gap list is the comment thread, and the anchor is what makes it navigable (the equivalent of an inline review comment).
 - **Lineage is mandatory**: a gap that descends from an earlier one says so, and a closure that regressed says so. **A dispute is not new because its id is** — the contested docket follows chains, and an undeclared lineage is a protocol violation.
@@ -74,7 +74,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
-  - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
+  - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
@@ -86,21 +86,21 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here. A page carries a marker ending `→ SHARED §n` exactly where the block was: alone on its line the marker stands for the whole block, and at the end of a flag's line it stands for the rest of that flag's description. A block labelled the last block of its pages is not marked on them:
-§1 (on 14 pages):
+§1 (on 12 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 24 pages — every page below that carries no marker for it):
+§2 (the last block of 22 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
-§3 (on 20 pages):
+§3 (on 19 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -193,7 +193,6 @@ Available Commands:
   verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  class       the gap-class registry: what KINDS of defect this run recognises
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
@@ -202,50 +201,6 @@ Flags:
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
-========
-$ feov-record class list --help
-the gap classes this run accepts — read the vocabulary before you coin a new one
-
-Every class this run will accept, with the material default each one starts from. Read-only: it
-records nothing.
-
-The material default decides whether a gap of that class holds the PASS gate — `always` for a
-class whose defects change a conclusion or a figure, `never` for one whose defects change none,
-`by_grade` to take it from the grades. Choosing a class is choosing this too.
-
-A class THIS RUN coined carries its definition, the class it sits nearest and the question that
-tells the two apart. A class the registry staged carries them where the registry states them, and
-its slug and default alone where it does not.
-
-This is the vocabulary, not a suggestion. A class outside it is refused, so the nearest one here
-is the one to name; and where none of them is close, that is the argument for coining. A class
-that cannot state what it sits nearest is usually an instance wearing a class's name.
-
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{classes:[{slug,material_default,coined,definition,neighbor,distinguisher}]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
-
-(If you need a verb or a flag tha…) → SHARED §1
-========
-$ feov-record class new --help
-coin a gap class the registry lacks, when nothing existing fits and you are about to mint
-
-Coin it BEFORE the mint that uses it; `mint` then names the slug like any other.
-
-(If you need a verb or a flag tha…) → SHARED §1
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
-
-Flags:
-      --class string                             REQUIRED — the slug you are coining — lowercase, hyphenated, and NOT one the registry already has
-      --definition string                        REQUIRED — what this class is, in one line
-      --distinguisher string                     REQUIRED — the tie-break question that tells the two apart
-      --material-default always|never|by_grade   where materiality starts for every gap of this class (default by_grade) — always for a class whose defects change a conclusion or a figure, never for one whose defects change none
-      --neighbor string                          REQUIRED — the existing class it sits closest to
-
-Enumerated values:
-  --material-default
-    always    every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on
-    never     no gap of this class is material, whatever its grade — it stays on the board and never holds the gate
-    by_grade  a gap of this class is material when its current severity is medium or above
 ========
 $ feov-record close --help
 close a gap with the verification you did THIS sitting, naming what you checked it against
@@ -411,7 +366,7 @@ ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM fro
 
 A REPLACEMENT IS VERIFIED BY THE RULE BLUE'S ACCEPT APPLIES IT WITH. The tool plans the edit blue's accept would make of your quote and your replacement — on the report as it stands, your gap's anchor at the end of the quote — and where the accept would refuse it, the mint is refused and nothing is recorded. A mint recorded `fix_basis: verified` is one the accept applies while the text around it stands. The accept moves the gap's and the findings' anchors at the sentence's end to the end of your replacement. Any other anchor in the span — a citation or a proof, which backs its sentence, or one inside the sentence — stays only where your replacement keeps its sentence word for word, or holds the anchor itself as `show report` prints it. Where neither is right, prescribe no replacement and state the fix as prose: it is recorded `proposed`.
 
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. The run's part of the finding goes in your reason for the gap, which the report never prints. Under `unclassified` the reason is required — name the nearest class and what it does not cover.
 
 THE FIX AND ITS ACCEPTANCE CHECK NAME ONLY TEXT OR RECORD THE ANSWERING SEAT CAN CHANGE. Blue's `edit` changes the report's text, and blue rewrites no section the tool composes. On an inquiry's row the question and the hypothesis stand as proposed — no act rewrites them — and the fate, what was found and the method change only by blue's `inquiry record`, recording the fate again — the latest record is the one printed. A fix that names text no seat can change cannot be made, and a check that counts matches across the assembled report cannot pass while that text matches; no act amends a check after the mint. Where a residual sits in something no seat can change, `close` it as a defect owed elsewhere, naming what is owed, and `log` carries it to the operator.
 
@@ -424,7 +379,7 @@ Flags:
       --about-kind section|inquiry|gap           anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
+      --class class-value                        REQUIRED — the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover
       --complexity grade                         what fixing it costs, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
@@ -435,7 +390,7 @@ Flags:
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it
       --problem string                           REQUIRED — what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints
       --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --reason string                            your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
@@ -449,6 +404,67 @@ Enumerated values:
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
     computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind
     source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
+
+  --class
+    cross_section_contradiction             [always] two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them
+                                              nearest: claim_contradicts_own_record — are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?
+    claim_contradicts_own_record            [always] the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a proof's result — or a record entry contradicts what the report shows was done
+                                              nearest: cross_section_contradiction — are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?
+    reader_channel_mismatch                 [by_grade] a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it
+                                              nearest: claim_contradicts_own_record — do the two places disagree, or does one simply lack what the other holds?
+    incomplete_repair_propagation           [always] a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removed
+                                              nearest: cross_section_contradiction — does the disagreement exist because a repair reached only part of one defect's sites, or do two passages disagree with no repair behind them?
+    missing_root_invariant                  [by_grade] one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticed
+                                              nearest: incomplete_repair_propagation — is the defect that no single source governs the copies, or that one repair missed some of them?
+    report_voice                            [by_grade] report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report's own draft history, or the machinery that checked it
+                                              nearest: claim_contradicts_own_record — does the fix correct a FACT the report gets wrong, or the AUDIENCE the sentence is written for, whether or not the fact is true?
+    structure_noncompliance                 [never] the report's structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report's sections are its author's to name and order, and a heading the report does not have is not this
+                                              nearest: risk_coverage_omission — is it a risk the report does not grade, or material the report holds with no order a reader can follow it by, whatever its subject?
+    false_universal                         [always] a claim stated universally — every, none, always, the only — that a case the evidence reaches, or one it never tested, contradicts
+                                              nearest: exhaustive_sweep_omits_case — is it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?
+    exhaustive_sweep_omits_case             [always] a list, survey, search or sweep the report presents as complete omits a member it should hold
+                                              nearest: false_universal — is it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?
+    risk_coverage_omission                  [by_grade] the report's account of risk leaves out a risk, or a combination of risks, that its own analysis or its subject makes live
+                                              nearest: exhaustive_sweep_omits_case — is the missing member a risk the case against owes a grade, or any other member of a list presented as complete?
+    derivation_status_overclaim             [always] a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown
+                                              nearest: verification_scope_blindspot — is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?
+    verification_scope_blindspot            [always] a check, experiment or proof covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentence
+                                              nearest: derivation_status_overclaim — is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?
+    self_attestation                        [always] the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion out
+                                              nearest: derivation_status_overclaim — is the overstated claim about the report's own verification or research, or about the subject?
+    unverified_composition                  [always] a property of a whole is claimed because its parts were each checked, and the combination itself was never checked
+                                              nearest: derivation_status_overclaim — does the claim rest on combining separately checked parts whose combination nobody examined, or overstate how one claim was established?
+    invalid_inference                       [by_grade] a reason the report offers for a conclusion does not entail it — the step fails even where every stated fact is true, including a check that gives the same result on the case the conclusion must exclude
+                                              nearest: derivation_status_overclaim — is the reason irrelevant to the conclusion, or relevant and stated with more certainty than it earns?
+    vote_laundering                         [by_grade] agreement among sources, programs or reviewers is counted as independent corroboration when they share an origin, so the count overstates the evidence
+                                              nearest: derivation_status_overclaim — is the overstatement in how many independent supports exist, or in how one claim was established?
+    doctrine_vs_implementation              [by_grade] what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow
+                                              nearest: claim_contradicts_own_record — is the disagreement between a stated rule and the mechanism meant to carry it out, or between a report statement and the run's record of what happened?
+    policy_without_mechanism                [by_grade] a rule, safeguard or guarantee is asserted with nothing that enforces it
+                                              nearest: partial_control_coverage — is there no enforcing mechanism at all, or one that covers only part of the surface?
+    partial_control_coverage                [by_grade] a control credited with covering a surface works on part of it and leaves the rest — an axis, channel, verb or case — uncovered
+                                              nearest: self_defeating_mitigation — does the control work on part of the surface and miss the rest (coverage), or fail on its own terms even where it does apply?
+    self_defeating_mitigation               [by_grade] a control credited with closing a gap cannot deliver that closure by its own operation — it fires after the decision it gates, acts on a variable that does not trigger the harm, erases the signal it was meant to distinguish, rests on an assumption the same document discredits, or is starved of its trigger by another control's short-circuit
+                                              nearest: policy_without_mechanism — policy_without_mechanism is a policy asserted with NO enforcing artifact; self_defeating_mitigation is an enforcer that exists and runs and still cannot produce the credited closure. Against partial_control_coverage: that control works on part of the surface and misses the rest (coverage); this one fails on its own terms even where it does apply
+    unhandled_degenerate_case               [by_grade] a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not address
+                                              nearest: false_universal — is a mechanism failing at an edge input, or a claim stated too broadly?
+    spec_underspecification                 [by_grade] a term, rule, procedure or recommendation the report relies on is not specified enough for a reader to apply or check it — undefined, defined only by what it is not, or left as an undecided either/or
+                                              nearest: unhandled_degenerate_case — is the specification missing or left open, or present and failing at an edge?
+    figure_recount_fails                    [always] a figure, count or computed result the report states differs from what an independent recount, recomputation or re-run produces
+                                              nearest: metric_conflation — is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?
+    metric_conflation                       [always] two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions
+                                              nearest: figure_recount_fails — is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?
+    citation_figure_misattribution          [always] a cited source does not say what the report attributes to it — the figure, statement or support is absent from or contradicted by its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about
+                                              nearest: unsourced_claim — is a source recorded against the claim that says something else, or is there no source behind the claim at all?
+    within_source_condition_misattribution  [always] the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped
+                                              nearest: citation_figure_misattribution — does the source state the result, under a condition the report drops, or not state it at all?
+    live_source_drift                       [always] a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was written
+                                              nearest: artifact_preservation — is the artifact present and changed or read live, or missing or broken where the report says it is kept?
+    artifact_preservation                   [by_grade] an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it is
+                                              nearest: live_source_drift — is the artifact present and changed or read live, or missing or broken where the report says it is kept?
+    unsourced_claim                         [by_grade] a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names
+                                              nearest: citation_figure_misattribution — is a source recorded against the claim that says something else, or is there no source behind the claim at all?
+    unclassified                            [by_grade] no other value fits this gap. The mint's reason names the nearest value and what it does not cover
 ========
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.

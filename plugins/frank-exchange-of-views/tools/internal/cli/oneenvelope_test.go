@@ -120,7 +120,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		// A FLAG GROUP has no row: no seat verb declares a group a call can violate (see
 		// TestAFlagGroupViolatedIsRefusedWithItsFlagsLines). mint without --problem is now a missing
 		// required flag.
-		{kind: "missing required flag", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "scope-creep", "--check-kind", "document",
+		{kind: "missing required flag", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "spec_underspecification", "--check-kind", "document",
 			"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low", "--fix", "f", "--reason", "r"},
 			verb: "mint", path: "mint", role: "lens", code: "missing_field", short: true, logged: true},
 

@@ -35,7 +35,7 @@ func requireNotAnOpenGap(q recordsql.Querier, m *recordpb.Mint) error {
 	// THE SCREEN JUDGES WHAT A SEAT MAY DO NEXT; an archived mint is what a seat DID. A mint recorded
 	// before the screen existed carries neither answer and can be given none by a replay, so under
 	// Migrating the match below is not asked — only the distinction check, which is structure (a
-	// reference to a gap nobody minted), stays on. b8 (2026-09-11) holds a report-voice mint scoring
+	// reference to a gap nobody minted), stays on. b8 (2026-09-11) holds a report_voice mint scoring
 	// 0.56 against an open gap of another class, and ten events that name it fall with it if this
 	// asks (#1214). A replayed mint with no distinction to check leaves before the board is read:
 	// FamilyOf is a full-record read, once per mint of the archive.

@@ -229,15 +229,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// THE CLASS REGISTRY IS VALIDATED BEFORE ANY RUN STATE: it is
-	// the caller's copy, it can be older than this binary, and a row without its material default
-	// would leave every gap of that class with no materiality to start from.
-	if err := ValidateClassRegistry(filepath.Join(cfg.Cwd, "feov-memory")); err != nil {
-		fmt.Fprintln(stderr, "run-setup: CLASS REGISTRY REFUSED — refusing to create the run:")
-		fmt.Fprintf(stderr, "  %v\n", err)
-		return 2
-	}
-
 	// RESOLVED ONCE, BEFORE ANYTHING IS WRITTEN. Everything below used to take the raw string
 	// and each site decided for itself whether to make it absolute — so a run was laid out with
 	// a mix of spellings, and the one absolute form was computed sixty lines later with a silent
@@ -276,10 +267,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
 	}
 	pinned := BuildPinned(run, head, cfg.Cites)
-
-	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
-	// anything at all (#299).
-	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
 
 	terms := record.DefaultParams
 	if cfg.K > 0 {
@@ -339,12 +326,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  pin validation: %s\n", pv.Skipped)
 	} else {
 		fmt.Fprintf(stdout, "  pin validation: %d cite(s) verified at their pins\n", pv.Checked)
-	}
-	// The registry decides whether `--class` means anything this run.
-	if registry.Written {
-		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; the lens's `class new` extends it\n", registry.Files)
-	} else {
-		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
 	}
 	if law.Written {
 		fmt.Fprintf(stdout, "  law: %d file(s) mirrored (statute > precedent > argument)\n", law.Files)

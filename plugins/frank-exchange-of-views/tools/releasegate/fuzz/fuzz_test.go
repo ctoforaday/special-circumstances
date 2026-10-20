@@ -114,9 +114,84 @@ var (
 	mootSpent   atomic.Bool
 )
 
-// classDefaultTurn alternates the sweep's `always` and `never` coinings between runs (see mint's
-// class coining). Package-level for the same reason as mootPending: the runs are concurrent.
-var classDefaultTurn atomic.Int64
+// mintPoolClasses are the GapClass words a random mint draws from: every value whose
+// material_default is `by_grade`, bar the catch-all, which has its own drive (r.mint). Read off the
+// enum, so a value added to the closed set joins the pool or the deliberate drive by its facet.
+var mintPoolClasses, mintDrivenClasses = gapClassesByMateriality()
+
+// gapClassesByMateriality splits the GapClass vocabulary by its material_default facet: the
+// `by_grade` words (the catch-all excepted) and the `always`/`never` words.
+func gapClassesByMateriality() (byGrade, fixed []string) {
+	vals := recordpb.GapClass(0).Descriptor().Values()
+	for i := 0; i < vals.Len(); i++ {
+		c := recordpb.GapClass(vals.Get(i).Number())
+		if c == recordpb.GapClass_GAP_CLASS_UNSPECIFIED || c == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+			continue
+		}
+		switch recordpb.MaterialDefault(c) {
+		case recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE:
+			byGrade = append(byGrade, recordpb.Word(c))
+		case recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, recordpb.ClassMaterial_CLASS_MATERIAL_NEVER:
+			fixed = append(fixed, recordpb.Word(c))
+		}
+	}
+	return byGrade, fixed
+}
+
+// classDrive carries the sweep's deliberate mints: each `always`/`never` class is minted ONCE per
+// sweep, as closeGap closes as `moot`. Sweep-wide for the same reason, and reset by TestFuzzDebate.
+// pending is what is still owed; landed is what a mint landed under.
+var classDrive struct {
+	mu      sync.Mutex
+	pending []string
+	landed  map[string]bool
+}
+
+// resetClassDrive arms the sweep's deliberate class mints.
+func resetClassDrive() {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	classDrive.pending = slices.Clone(mintDrivenClasses)
+	classDrive.landed = map[string]bool{}
+}
+
+// takeClassDrive hands out one owed class, or false when none is owed.
+func takeClassDrive() (string, bool) {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	if len(classDrive.pending) == 0 {
+		return "", false
+	}
+	c := classDrive.pending[0]
+	classDrive.pending = classDrive.pending[1:]
+	return c, true
+}
+
+// settleClassDrive records a deliberate class's mint: landed spends it; a refusal puts it back,
+// because the word's whole coverage is this one drive.
+func settleClassDrive(c string, landed bool) {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	if landed {
+		classDrive.landed[c] = true
+		return
+	}
+	classDrive.pending = append(classDrive.pending, c)
+}
+
+// unlandedClassDrive is the deliberate classes no mint landed under, sorted.
+func unlandedClassDrive() []string {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	var out []string
+	for _, c := range mintDrivenClasses {
+		if !classDrive.landed[c] {
+			out = append(out, c)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
 
 // lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
 //
@@ -212,8 +287,8 @@ func (g *gapSet) has(id string) bool {
 
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
-	// mu guards every mutable field below that has no guard of its own (classMu, and each
-	// gapSet's lock, are named where they sit). The seats run concurrently as of #630 phase 3, and
+	// mu guards every mutable field below that has no guard of its own (each gapSet's lock is
+	// named where it sits). The seats run concurrently as of #630 phase 3, and
 	// these were single-threaded by accident rather than by design. It is held around the state
 	// itself and NEVER across r.exec — a lock spanning a subprocess would put the serialization
 	// back one layer down and buy nothing but a slower version of the old behaviour.
@@ -324,6 +399,10 @@ type runner struct {
 	// budgetRefused counts the mints the tool refused a lens holding its whole mint budget open.
 	// The sweep gates it at zero.
 	budgetRefused int
+	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
+	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
+	// both at zero.
+	unclassifiedMinted, unclassifiedRefused int
 	// repeatErr is the first repeated act the tool admitted, or refused without naming the act
 	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
 	// second is where a seat learns what answers a wrong one.
@@ -347,13 +426,6 @@ type runner struct {
 	// CHECKS its reference against the record, so a drive needs a real one — a composed id
 	// would drive the refusal and never the success.
 	inquiryIDs []string
-	// classMu guards classMade and is HELD ACROSS THE COIN, the one lock here that spans a
-	// subprocess, because the coin is a dependency rather than a contention: every mint names
-	// `--class fuzzcls`, and a lens minting while another is still coining it is refused "unknown
-	// class" — a mint that silently never reaches the board. Held once per run until it succeeds;
-	// after that it is a flag read.
-	classMu   sync.Mutex
-	classMade bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
 	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
 	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
@@ -1014,12 +1086,12 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return debatejs.Keyed(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
+		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	// THE MACHINE FORM IS THE PLAN ALONE, copied whole into the envelope as a live chair copies it.
 	var plan map[string]any
 	if err := json.Unmarshal([]byte(out), &plan); err != nil || plan == nil {
-		return debatejs.Keyed(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
+		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -1863,56 +1935,30 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	} else if !proposing {
 		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
-	// COINING IS ITS OWN VERB (`lens class new`), so the fuzz drives it as one. It used to be
-	// four flags on the first mint, which meant the coining path ran exactly once per run and
-	// only ever in company with a mint.
-	r.classMu.Lock()
-	if !r.classMade {
-		r.classMade = true
-		// THE COIN'S FAILURE IS NOT OPTIONAL, and swallowing it made this file lie about what it
-		// drove. `classMade` is set BEFORE the call and the error was discarded, so a coin that
-		// failed for ANY reason left the flag latched and every later `--class fuzzcls` refused
-		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
-		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
-		// from the symptom and invisible from the log.
-		// READ THE REGISTRY BEFORE COINING ONE. `class list` was the single command path no seat
-		// reached across 40 runs, and a real lens does reach it: measured on the 2026-09-25 smoke, a
-		// lens ran `class list` before minting under a class it was unsure of. Coining without
-		// looking is also how a seat invents a rival slug for a class that already exists.
-		_, _ = r.exec("class", "list", "--seat-id", seatID)
-		coin := []string{"class", "new", "--seat-id", seatID,
-			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
-			// nothing objected while the registry was absent, so the coining path ran green for
-			// its whole life against a neighbour that did not exist.
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"}
-		// BOTH SPELLINGS OF by_grade: the verb writes it when the coiner says nothing, and the
-		// flag says it outright. Either way every mint of the run's class is graded by severity,
-		// so the board this sweep measures is the one it always measured.
-		if r.coin(50) {
-			coin = append(coin, "--material-default", "by_grade")
-		}
-		if _, err := r.exec(coin...); err != nil {
-			r.noteApplyMiss("class new refused: " + err.Error())
-			r.classMade = false // let a later seat try again rather than latching the run dead
-		} else {
-			// THE OTHER TWO DEFAULTS ARE COINED BESIDE IT AND NOTHING IS MINTED UNDER THEM. A run
-			// whose one class went `always` or `never` would move every gap's materiality, and with
-			// it the boards, the epochs and the terminal verdicts the sweep's other gates count on
-			// — a coverage drive that displaces the sweep's other coverage is a trade (see closeGap's
-			// `moot`). Alternated across the sweep by construction, not drawn.
-			md := "always"
-			if classDefaultTurn.Add(1)%2 == 0 {
-				md = "never"
-			}
-			if _, err := r.exec("class", "new", "--seat-id", seatID, "--class", "fuzzcls-"+md,
-				"--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q",
-				"--material-default", md); err != nil {
-				r.noteApplyMiss("class new --material-default " + md + " refused: " + err.Error())
-			}
-		}
+	// THE CLASS IS A WORD OF THE CLOSED SET, and the pool is `by_grade` on purpose: an `always` or
+	// `never` class in the pool would move a share of every run's gaps out of grade, and with them
+	// the boards, the epochs and the terminal verdicts the sweep's other gates count on — a
+	// coverage drive that displaces the sweep's other coverage is a trade (see closeGap's `moot`).
+	// So each `always`/`never` class is minted ONCE per sweep, deliberately, outside the forced
+	// runs, whose verdicts are their drive. ONE MINT IN TEN takes the catch-all `unclassified` (also
+	// `by_grade`), and half of those first try it without --reason, which the record refuses.
+	unclassified := r.coin(10)
+	driven := ""
+	if !unclassified && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
+		driven, _ = takeClassDrive()
 	}
-	r.classMu.Unlock()
-	args = append(args, "--class", "fuzzcls")
+	switch {
+	case unclassified:
+		args = append(args, "--class", "unclassified")
+	case driven != "":
+		args = append(args, "--class", driven)
+	default:
+		args = append(args, "--class", pick(r.rng, mintPoolClasses))
+	}
+	landed := false
+	if driven != "" {
+		defer func() { settleClassDrive(driven, landed) }()
+	}
 	if r.coin(40) {
 		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
 		// returns the first id rather than minting twice. Never driven.
@@ -1970,6 +2016,25 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if !r.coin(10) {
 		first = distinct(args)
 	}
+	// A GAP NO CLASS FITS SAYS WHY. Tried without --reason, the catch-all is refused by the record's
+	// own check, naming the duty; the refusal is counted only when it says so.
+	if unclassified && r.coin(50) {
+		var bare []string
+		for k := 0; k < len(first); k++ {
+			if first[k] == "--reason" {
+				k++
+				continue
+			}
+			bare = append(bare, first[k])
+		}
+		if out, err := r.exec(bare...); err != nil && strings.Contains(out, "a gap no class fits says why") {
+			r.mu.Lock()
+			r.unclassifiedRefused++
+			r.mu.Unlock()
+		} else if err == nil {
+			r.noteApplyMiss("an unclassified mint without --reason landed")
+		}
+	}
 	out, err := r.exec(first...)
 	if err != nil && strings.Contains(out, "already holds an open gap") {
 		out, err = r.exec(distinct(args)...)
@@ -1991,7 +2056,13 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		return ""
 	}
 	if env.Result.GapID != "" {
+		landed = true
 		r.noteMint(seatID, env.Result.GapID)
+		if unclassified {
+			r.mu.Lock()
+			r.unclassifiedMinted++
+			r.mu.Unlock()
+		}
 	}
 	if kind == "computation" && env.Result.GapID != "" {
 		r.computationGaps.add(env.Result.GapID)
@@ -2055,7 +2126,7 @@ func (r *runner) mintEstopped(seatID string) {
 			"the 40-char overlap the guard requires")
 		return
 	}
-	_, err := r.exec("mint", "--seat-id", seatID, "--class", "fuzzcls",
+	_, err := r.exec("mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
 		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
@@ -3405,6 +3476,9 @@ type outcome struct {
 	// budgetRefused is the mints the tool refused a lens holding its whole budget open
 	// (runner.budgetRefused).
 	budgetRefused int
+	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
+	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
+	unclassifiedMinted, unclassifiedRefused int
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
@@ -3807,9 +3881,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	stageRun, srErr := record.NewRun(runDir)
 	if srErr != nil {
 		return outcome{seed: seed, runDir: runDir, err: "resolve the run: " + srErr.Error()}
-	}
-	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
-		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
 	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): every area — the lenses this
 	// driver mints through — the chair, the lanes, the bookends. Every register and every
@@ -4577,6 +4648,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.budgetRefused = r.budgetRefused
+	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT THAT OWES NONE — read off the record, so a refusal
@@ -4721,12 +4793,11 @@ var verbsWithEvents = []string{
 	"log",
 	// The motion collapse (#344): filed by any seat, ruled by one.
 	"motion", "motion_rule",
-	// Added 2026-08-04 by a census of every type record.Append can write: these three were
-	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
-	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
-	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
-	// write, `outcome` is the bench's.
-	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// Added 2026-08-04 by a census of every type record.Append can write: these two were
+	// APPENDABLE BUT UNGATED, so a regression that stopped emitting either would have left the
+	// sweep green. `anchor` is the finding-marker's own record (the immortal-marker detector's
+	// EXPECTED set is exactly these), `outcome` is the bench's.
+	"blue_edit", "anchor", "outcome", "proof",
 	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
 	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
 	"base_ingest",
@@ -4801,9 +4872,6 @@ func TestFuzzHaltPath(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte(seedReport), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
-	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
-		t.Fatalf("staging the class registry: %v", err)
-	}
 	haltCast, haltLanes := record.CastFor(nil, 3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: haltCast, LaneSeatIds: haltLanes}); err != nil {
 		t.Fatalf("write the cast: %v", err)
@@ -4916,7 +4984,6 @@ var reportExemptions = map[string]string{
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
 	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly ships as written; rendering it as an entry of its own would duplicate the whole document",
-	"class_new":   "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// THE DISPATCH MACHINERY (plans/roundless.md §III.B.1). A cast names who may sit; a dispatch
 	// records who the chair relayed for one epoch. Both are attribution and routing, and both
 	// reach the reader through what the dispatched seats then record — never as entries of
@@ -5224,6 +5291,7 @@ func TestFuzzDebate(t *testing.T) {
 	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
 	mootPending.Store(true)
 	mootSpent.Store(false)
+	resetClassDrive()
 
 	n := surfaceQuorum
 	if testing.Short() {
@@ -5255,30 +5323,31 @@ func TestFuzzDebate(t *testing.T) {
 	limitExits, limitForced := 0, false
 	whyHist := map[string]int{} // verdict → first stated reason, with the gap id folded
 	dcov := map[string]int{}
-	citeAnchors, cacheFiles := 0, 0               // dialectic-event coverage across all runs (proves the fuzz emits them)
-	editAnswers := 0                              // #267: blue_edit events that carried the provenance key
-	forcedVerdict, forcedWhy := "", ""            // what the FORCED-UNVERIFIED seed actually ended as
-	verifiedVerdict, verifiedWhy := "", ""        // and the FORCED-VERIFIED seed
-	verifiedBasis := 0                            // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
-	creditedMints := 0                            // mints accepted with a found_by naming a recorded finding
-	verbatimApplied := 0                          // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
-	typedVerbatim := 0                            // those blue typed rather than accepted
-	estoppels := 0                                // the TOOL's own refusals of a mint against text blue applied verbatim
-	inquiryRecords := 0                           // fates accepted on an inquiry id read from a propose result
-	quotesRefused := 0                            // corroborations refused for a quote the report does not hold
-	bridgesRefused, bridgesNamed := 0, 0          // supports_with_bridge refused for no --bridge / recorded with one
-	ordersRefused := 0                            // edits refused for a section out of the order the report ships in
-	positionsRefused := 0                         // positions refused a lane, the frontier or the synthesizer
-	reopenedReadied, reopenedPlans := 0, 0        // plans that readied every reopened blocker's owner, of those holding one
-	proofReopenedReadied := map[string]int{}      // reopened proofs whose owner a plan readied, by owner
-	owedKeptBy := map[string]int{}                // those folds, by each kind of debt they held
-	owedKept, proofOwedKept := 0, 0               // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
-	ownerOfferedRuns, fallbackOfferedRuns := 0, 0 // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
-	repeatsRefused := 0                           // second acts refused in a sitting that holds one, naming the answering act
-	budgetRefused := 0                            // mints refused a lens holding its whole mint budget open
-	rulerFilingsRefused := 0                      // filings refused the seat that rules their subject
-	applyMisses := map[string]int{}               // and why it did not, by cause — a bare 0 above named none of them
-	estoppelMisses := map[string]int{}            // and why the estoppel drive declined, for the same reason
+	citeAnchors, cacheFiles := 0, 0                 // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                                // #267: blue_edit events that carried the provenance key
+	forcedVerdict, forcedWhy := "", ""              // what the FORCED-UNVERIFIED seed actually ended as
+	verifiedVerdict, verifiedWhy := "", ""          // and the FORCED-VERIFIED seed
+	verifiedBasis := 0                              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	creditedMints := 0                              // mints accepted with a found_by naming a recorded finding
+	verbatimApplied := 0                            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	typedVerbatim := 0                              // those blue typed rather than accepted
+	estoppels := 0                                  // the TOOL's own refusals of a mint against text blue applied verbatim
+	inquiryRecords := 0                             // fates accepted on an inquiry id read from a propose result
+	quotesRefused := 0                              // corroborations refused for a quote the report does not hold
+	bridgesRefused, bridgesNamed := 0, 0            // supports_with_bridge refused for no --bridge / recorded with one
+	ordersRefused := 0                              // edits refused for a section out of the order the report ships in
+	positionsRefused := 0                           // positions refused a lane, the frontier or the synthesizer
+	reopenedReadied, reopenedPlans := 0, 0          // plans that readied every reopened blocker's owner, of those holding one
+	proofReopenedReadied := map[string]int{}        // reopened proofs whose owner a plan readied, by owner
+	owedKeptBy := map[string]int{}                  // those folds, by each kind of debt they held
+	owedKept, proofOwedKept := 0, 0                 // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
+	ownerOfferedRuns, fallbackOfferedRuns := 0, 0   // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
+	repeatsRefused := 0                             // second acts refused in a sitting that holds one, naming the answering act
+	budgetRefused := 0                              // mints refused a lens holding its whole mint budget open
+	unclassifiedMinted, unclassifiedRefused := 0, 0 // catch-all mints landed; refused for want of a reason
+	rulerFilingsRefused := 0                        // filings refused the seat that rules their subject
+	applyMisses := map[string]int{}                 // and why it did not, by cause — a bare 0 above named none of them
+	estoppelMisses := map[string]int{}              // and why the estoppel drive declined, for the same reason
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -5369,6 +5438,8 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			repeatsRefused += o.repeatsRefused
 			budgetRefused += o.budgetRefused
+			unclassifiedMinted += o.unclassifiedMinted
+			unclassifiedRefused += o.unclassifiedRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
@@ -5406,6 +5477,8 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", owedKept, proofOwedKept, owedKeptBy)
+	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", unclassifiedMinted, unclassifiedRefused)
+	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive()))
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -5535,6 +5608,16 @@ func TestFuzzDebate(t *testing.T) {
 		if budgetRefused == 0 {
 			t.Errorf("fuzz drove ZERO mints refused for budget across %d runs — no lens held its whole mint budget open and minted again, so the cap on open gaps is unexercised (false green)", completed)
 		}
+		// THE CATCH-ALL GATE. A gap no class fits is minted `unclassified` with a reason, and the
+		// record refuses one without. The `mint` verb gate is satisfied by every other class, so a
+		// catch-all that stopped landing — or a reason check that stopped refusing — would hide
+		// behind a green sweep.
+		if unclassifiedMinted == 0 {
+			t.Errorf("fuzz minted ZERO gaps under unclassified across %d runs — the catch-all is unexercised (false green)", completed)
+		}
+		if unclassifiedRefused == 0 {
+			t.Errorf("fuzz drove ZERO unclassified mints refused for want of a reason across %d runs — the record's reason check is unexercised (false green)", completed)
+		}
 		// THE RULER-FILES-NOTHING GATE. The chair's grade motion and the bench's docket motion are
 		// refused at the surface; a drive that stopped reaching for them would leave the refusal
 		// unreached behind a green sweep.
@@ -5649,6 +5732,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
+		}
+		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
+		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.
+		if un := unlandedClassDrive(); len(un) > 0 {
+			t.Errorf("the sweep's deliberate class mints landed no gap under %d of %d `always`/`never` class(es): %s — no run minted with them owed, or every attempt was refused. Each word's whole coverage is that one drive",
+				len(un), len(mintDrivenClasses), strings.Join(un, ", "))
 		}
 		// AND THE FLAGS INHERITED ONTO EVERY COMMAND, which this gate could not see at all until
 		// PersistentFlagNames existed: CommandFlags reports local flags only, so `--json`,
@@ -6346,12 +6435,6 @@ func seatOfRole(role string) string {
 	}[role]
 }
 
-// fuzzClasses is the vocabulary every fuzz run declares. Deliberately SMALL: the fuzz mints
-// under one coined slug, and the registry is here so the coining path has a real neighbour to
-// name and the mint has a real registry to be checked against — not to give the generator a
-// menu to pick from, which would test the picking rather than the check.
-var fuzzClasses = []string{"self-attestation", "policy-without-mechanism", "metric-conflation"}
-
 // TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically.
 //
 // IT USED TO BE LUCK. debate.js computes UNVERIFIED only for a run that is not halted, whose red
@@ -6390,16 +6473,13 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
-	// which is correct and is not this path. Without the class registry every `mint` is refused
-	// for an unknown class. And without INGESTING the report (#709) every verb that reads it is
-	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
+	// which is correct and is not this path. And without INGESTING the report (#709) every verb that
+	// reads it is refused with "no base has been ingested". runOne does both before it drives; so
+	// does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte(seedReport), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
-	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
-		t.Fatalf("staging the class registry: %v", err)
-	}
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
 	// and the run reached UNVERIFIED without one seat dispatched — through the refusal, not the path.

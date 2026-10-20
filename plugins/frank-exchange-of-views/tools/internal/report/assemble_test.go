@@ -1149,3 +1149,16 @@ func renderedPrompt(t *testing.T, seat string) string {
 	}
 	return string(b)
 }
+
+// THE OPEN GAP'S ROW NAMES ITS CLASS WORD. The row passes the class through `grade`, which takes
+// `any` and prints `—` for anything but a string: a bare GapClass would print `class —`.
+func TestTheOpenGapRowNamesItsClassWord(t *testing.T) {
+	board := &boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{
+		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(),
+			Problem: proto.String("a universal claim a case contradicts")}},
+	}}
+	got := boardSection(board.fam())
+	if !strings.Contains(got, "class false_universal") || strings.Contains(got, "class —") {
+		t.Errorf("the open gap's row must carry `class false_universal`:\n%s", got)
+	}
+}

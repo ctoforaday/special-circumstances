@@ -19,7 +19,7 @@ func mintRow(t *testing.T, db *sql.DB, ord int32, id string, kind recordpb.Check
 	t.Helper()
 	m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String(id),
-		Class:           proto.String("scope-creep"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
 		CheckKind:       kind.Enum(),

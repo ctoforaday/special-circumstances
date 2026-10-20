@@ -39,9 +39,6 @@ func newShapeSource(t *testing.T, base string) *shapeSource {
 	dir := recordtest.TmpRun(t)
 	s := &shapeSource{t: t, dir: dir, run: runtest.Open(t, dir)}
 	s.add(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{shapeLens, shapeBlue}})
-	if err := record.StageForRunWithDefaults(s.run, map[string]recordpb.ClassMaterial{"overclaim": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE}); err != nil {
-		t.Fatal(err)
-	}
 	for _, seat := range []string{shapeLens, shapeBlue} {
 		if _, _, err := record.RegisterSeat(record.Identity{Run: s.run, SeatID: seat}, "", ""); err != nil {
 			t.Fatal(err)
@@ -60,7 +57,7 @@ func (s *shapeSource) add(seat string, body proto.Message) {
 
 func (s *shapeSource) mint(id, quote string) {
 	s.t.Helper()
-	s.add(shapeLens, &recordpb.Mint{GapId: proto.String(id), Class: proto.String("overclaim"), Location: proto.String(quote),
+	s.add(shapeLens, &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(quote),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(), DistinctFrom: s.open()})

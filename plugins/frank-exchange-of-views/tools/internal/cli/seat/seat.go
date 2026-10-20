@@ -1018,6 +1018,7 @@ var ReasonIs = map[string]string{
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"mint":         "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"spot-check":   "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
 	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
