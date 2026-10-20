@@ -293,7 +293,7 @@ THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography en
 IF WHAT YOU RECORDED WAS WRONG, say so in a new citation.
 
 Flags:
-      --key string         your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. Only cite, edit and prove take a handle: no other verb on this surface has this flag
+      --key string         your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --url or --ocr-quote is refused: a handle names one citation. Only cite, edit and prove take a handle: no other verb on this surface has this flag
       --ocr-quote string   for OCR-derived text, and required there: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on
       --quote string       REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string      why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report

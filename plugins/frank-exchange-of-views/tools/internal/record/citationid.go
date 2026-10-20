@@ -206,15 +206,15 @@ func citationLabelsOf(events []*Event) []string {
 	return out
 }
 
-// ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
-// same --key, so a crash-retried `blue cite` returns its existing anchor label instead of
-// minting a duplicate. Mirrors FindingByKey: the retry dedup is a short-circuit
+// ExistingCiteByKey returns the prior blue cite this seat recorded under the same --key, nil for
+// none, so a crash-retried `blue cite` returns its existing anchor label instead of minting a
+// duplicate — and the verb can hold the retry to the cite it claims to repeat. Mirrors FindingByKey: the retry dedup is a short-circuit
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
-func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
+func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 	if key == "" {
-		return "", nil
+		return nil, nil
 	}
 	// key is non-empty (guarded above), so a NULL cite_key can never match it — the same
 	// property the fold's absent-key zero value had, held by the comparison itself.
@@ -222,10 +222,10 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 	if _, err := queryRow(run, []any{&label},
 		`SELECT c."label" FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
 		  WHERE e."seat_id" = ? AND c."cite_key" = ? ORDER BY c."event_id" LIMIT 1`,
-		seatID, key); err != nil {
-		return "", err
+		seatID, key); err != nil || label.String == "" {
+		return nil, err
 	}
-	return label.String, nil
+	return CiteByLabel(run, label.String)
 }
 
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
@@ -382,9 +382,9 @@ func ProofAt(run Run, anchorID string) (Proof, error) {
 	return Proof{}, fmt.Errorf("--anchor names %s, which no proof on this record carries (%d proof(s)) — it takes the id inside a proof's token in the report; `show evidence` lists every proof by its anchor", anchorID, len(proofs))
 }
 
-// ExistingCorroborationLabel returns the label this seat already minted for the same source and
-// the same claim, so a crash-retried `lens corroborate` returns its anchor instead of splicing a
-// second one.
+// ExistingCorroboration returns the labelled corroboration this seat already recorded for the same
+// source and the same claim, nil for none, so a crash-retried `lens corroborate` returns its anchor
+// instead of splicing a second one — and the verb can hold the retry to the reading it repeats.
 //
 // IT REPLACES AN IDEMPOTENCY THE LABEL TOOK AWAY. A corroboration used to key on its `url`, so a
 // retry collided and was refused — the same mechanism that also capped one source at one claim
@@ -395,19 +395,28 @@ func ProofAt(run Run, anchorID string) (Proof, error) {
 // Keyed on (source, claim) rather than on a seat-supplied `--key` like blue's cite, because the
 // pair IS the act — corroborating one claim from one source twice is one corroboration, and a
 // retry should not need the seat to have anticipated it.
-func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, error) {
+func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify, error) {
 	if url == "" || claim == "" {
-		return "", nil
+		return nil, nil
 	}
 	var label string
 	if _, err := queryRow(run, []any{&label},
 		`SELECT v."label" FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
 		  WHERE e."seat_id" = ? AND v."url" = ? AND v."claim" = ? AND COALESCE(v."label", '') != ''
 		  ORDER BY v."event_id" LIMIT 1`,
-		seatID, url, claim); err != nil {
-		return "", err
+		seatID, url, claim); err != nil || label == "" {
+		return nil, err
 	}
-	return label, nil
+	m, err := MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range m.Events {
+		if v := e.GetVerify(); v != nil && v.GetLabel() == label {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("corroboration %s is in the record's verify table and in none of its events", label)
 }
 
 // contradictionsOf is every contradiction red recorded, in the order the record opened them, each
