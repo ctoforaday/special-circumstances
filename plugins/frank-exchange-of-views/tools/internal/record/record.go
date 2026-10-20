@@ -139,9 +139,11 @@ type Identity struct {
 // RegisterSeat is every seat's FIRST record action, and it returns the dispatch number: the rank of
 // the sitting this register belongs to among its seat's sittings.
 //
-// ONCE PER DISPATCH. An agent id names one dispatch (a resumed dispatch arrives under a new one), so
-// a second register by the same agent as the same seat is the same registration asked again: it
-// answers with the stored one and writes nothing. Measured on universe-m31: every repeat was a seat
+// ONCE PER SITTING. An agent id names one dispatch until its stop: a second register by the same
+// agent as the same seat, with no stop of that agent recorded since the first, is the same
+// registration asked again — it answers with the stored one and writes nothing. A warm session
+// resumed for a later sitting keeps its agent id, and the stop recorded between its sittings is what
+// makes its next register open the next sitting. Measured on universe-m31: every repeat was a seat
 // whose first act had already registered it (requireBound's autoRegister) calling `register`
 // itself, and each repeat advanced the dispatch count — a chair's 12th sitting printed
 // "dispatch 13". A register with no agent id cannot be tied to a dispatch, so each one opens a
@@ -318,7 +320,8 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 }
 
 // registeredSitting is the sitting this agent's earlier register as seatID belongs to, if it made
-// one. No agent id finds nothing: such a register cannot be tied to a dispatch.
+// one and no stop of the agent (a sitting_close naming it) is on the record since. No agent id finds
+// nothing: such a register cannot be tied to a sitting.
 //
 // A REPEAT THAT NAMES A DIFFERENT OCCASION IS REFUSED, not answered. The bench states what its
 // sitting was convened for once, and a second word for the same dispatch contradicts the record.
@@ -330,7 +333,9 @@ func registeredSitting(tx *sql.Tx, agentID, seatID string, occ *recordpb.Occasio
 	var stored string
 	err := tx.QueryRow(
 		`SELECT e."sitting_id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
-		  WHERE r."agent_id" = ? AND e."seat_id" = ? ORDER BY e."id" DESC LIMIT 1`,
+		  WHERE r."agent_id" = ? AND e."seat_id" = ?
+		    AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id")
+		  ORDER BY e."id" DESC LIMIT 1`,
 		agentID, seatID).Scan(&sitting, &stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, nil

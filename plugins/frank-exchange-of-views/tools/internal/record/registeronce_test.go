@@ -7,12 +7,14 @@ package record_test
 // dispatch count, so the chair's 12th sitting printed "dispatch 13".
 
 import (
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
 func registersOf(t *testing.T, run record.Run, seat string) int {
@@ -143,5 +145,22 @@ func TestABenchRepeatNamingAnotherOccasionIsRefused(t *testing.T) {
 	}
 	if after := eventCount(t, run); after != before {
 		t.Errorf("the refused repeat wrote %d event(s)", after-before)
+	}
+}
+
+// A WARM SESSION KEEPS ITS AGENT ID ACROSS SITTINGS, and the stop recorded between them is what
+// makes its next register the next sitting rather than a repeat of the last.
+func TestARegisterAfterTheAgentsStopOpensTheNextSitting(t *testing.T) {
+	dir, run := bracketedRun(t)
+	blue := record.Identity{Run: run, SeatID: "blue-respond"}
+	t.Setenv(seatenv.AgentVar, "agent_blue_warm")
+	if d, _, err := record.RegisterSeat(blue, "", ""); err != nil || d != 1 {
+		t.Fatalf("the first sitting's register = dispatch %d, %v; want 1", d, err)
+	}
+	if err := sittingwrite.Write(sittingwrite.Sitting{RunDir: dir, Phase: sittingwrite.Close, AgentID: "agent_blue_warm", AgentType: "frank-exchange-of-views:blue-researcher"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if d, _, err := record.RegisterSeat(blue, "", ""); err != nil || d != 2 {
+		t.Errorf("the register after the agent's stop = dispatch %d, %v; want 2", d, err)
 	}
 }
