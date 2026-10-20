@@ -75,7 +75,7 @@ $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid
 exit 2
 stderr:
 feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
+This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 

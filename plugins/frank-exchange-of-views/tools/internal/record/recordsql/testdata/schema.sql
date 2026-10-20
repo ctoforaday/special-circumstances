@@ -228,7 +228,7 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL,
   "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
@@ -296,6 +296,14 @@ CREATE TABLE "enum_confidence" (
 INSERT INTO "enum_confidence" ("value", "means") VALUES ('high', 'you read the source at the leaf and would defend this determination as it stands');
 INSERT INTO "enum_confidence" ("value", "means") VALUES ('low', 'your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further');
 INSERT INTO "enum_confidence" ("value", "means") VALUES ('medium', 'you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement');
+
+CREATE TABLE "enum_bridge_kind" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_bridge_kind" ("value", "means") VALUES ('near_restatement', 'the source says the same thing in other words: every term names the same object it names in the claim, and nothing the claim asserts is added, dropped or reversed');
+INSERT INTO "enum_bridge_kind" ("value", "means") VALUES ('secondary_citation', 'the source reports the claim on another work''s authority — it cites the work that makes it — so the support is second-hand');
+INSERT INTO "enum_bridge_kind" ("value", "means") VALUES ('summary', 'the source summarises what the claim states in detail, or the claim summarises the source: the same assertion, at a different length');
 
 CREATE TABLE "enum_soundness" (
   "value" TEXT PRIMARY KEY,
@@ -671,10 +679,12 @@ CREATE TABLE "verify" (
   "reading_render_sha" TEXT,
   "work_status" TEXT,
   "source_completeness" TEXT,
+  "bridge" TEXT,
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
-  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
+  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
+  FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value")
 ) STRICT;
 
 CREATE TABLE "proof" (
