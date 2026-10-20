@@ -223,8 +223,14 @@ func emptyOnlyWithOf(fs []record.PlanField) (string, []prop, error) {
 	// a new data location, so the plan's `type` does not reach it, and the harness's strict-types
 	// compile (ajv's strictTypes) warns at launch on a `minItems` with no `type: "array"`. The enum
 	// states its type for the same reading.
-	rule := "[" + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"type", js("boolean")}, prop{"enum", "[true]"})})}) +
-		", " + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"type", js("array")}, prop{"minItems", "1"})})}) + "]"
+	//
+	// THE LIST'S BRANCH COMES FIRST, because the harness prints a refusal's errors in branch order
+	// and ahead of every other keyword's: with the boolean's branch first, every refused relay at m30
+	// opened on "/plan/pass_permitted: must be equal to one of the allowed values: [true]" — a legal
+	// false read as forbidden — where the defect was the list, absent or emptied. The clause stays:
+	// the schema's refusal is one the chair retries in its sitting, and requirePlan's ends the run.
+	rule := "[" + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"type", js("array")}, prop{"minItems", "1"})})}) +
+		", " + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"type", js("boolean")}, prop{"enum", "[true]"})})}) + "]"
 	return rule, rules, nil
 }
 
