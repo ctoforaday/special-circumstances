@@ -255,6 +255,8 @@ A `refutes` OR `absent` READING OPENS A CONTRADICTION, which holds a PASS until 
 
 YOUR TITLE IS PRINTED IN THE REPORT whenever the corroboration becomes a footnote — every outcome except refutes, absent and unreachable: it prints in the source's note and its Bibliography entry, beside its URL and the date you read it. Give the source's own title — author, work, publisher — not a note about how you found it or which seat you are. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in a title that prints. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. How you found the source goes in your reason, which the report never prints.
 
+A CORROBORATION IS ONE PER SOURCE AND CLAIM. Repeating one that backs the claim, from the same source on the same sentence, returns the citation already placed, as it is recorded — when the repeat reads the source the same way (the same outcome, bridge and confidence) and the write would admit it. A repeat that reads it differently is refused, naming the reading on the record; a changed reading of that source is a `verify` of the citation it placed.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -840,7 +842,7 @@ Flags:
       --as as-value                                          → SHARED §5
       --bridge summary|secondary_citation|near_restatement   → SHARED §6
       --confidence high|medium|low                           → SHARED §7
-      --page int                                             for a citation with pages: the page whose image you checked, drawn first with render-page
+      --page int                                             for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none and on a corroboration, which holds none
       --reason string                                        → SHARED §4
 
 (Enumerated values:) → SHARED §8

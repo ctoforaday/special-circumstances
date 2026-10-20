@@ -110,7 +110,7 @@ func newVerify() *cobra.Command {
 	// A verification is keyed on the citation it names.
 	seat.KeysOn(c, "anchor")
 	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (citedSentence)")
-	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
+	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none and on a corroboration, which holds none")
 	verifyAxes(c)
 	return c
 }
@@ -157,11 +157,20 @@ func checkedPage(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) erro
 		return err
 	}
 	cite, err := record.CiteByLabel(run, body.GetAnchor())
-	if err != nil || cite == nil {
+	if err != nil {
 		return err
 	}
-	pages := cite.GetPages()
 	given := seat.Given(cmd, flags.Page)
+	// A CORROBORATION HOLDS NO PAGES. Its quote is the report's sentence, never a span located in
+	// an OCR reading, so a page names no image the corroboration was read from — and admitted, the
+	// flag would be dropped with nothing recorded, which is the silent no-op `fetch --at` refuses.
+	if cite == nil {
+		if given {
+			return feov.Errorf(feov.Validation, "--page names a page image, and %s is a corroboration — its quote is the report's sentence, not a span located in an OCR reading, so there is no image to check", body.GetAnchor())
+		}
+		return nil
+	}
+	pages := cite.GetPages()
 	page, _ := cmd.Flags().GetInt(flags.Page)
 	if len(pages) == 0 {
 		if given {
@@ -391,15 +400,26 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
 		// a second event — the duplication the url key used to prevent. Checked before the mint,
 		// as blue's cite checks its --key before the fetch.
-		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
+		if prior, err := record.ExistingCorroboration(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
-		} else if prior != "" {
-			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
-			// the retry, at the claim it stored.
-			if err := seat.PlaceOwed(s, prior, ""); err != nil {
+		} else if prior != nil {
+			// A RETRY IS THE SAME ACT, held to every rule the first write was and to the reading it
+			// repeats: a retry the write would refuse is refused, and one that reads the source
+			// differently is a second reading, which this seat records by verifying the citation.
+			// What comes back is the STORED row, never the request.
+			if err := record.WouldRefuse(run, s.SeatID, recordpb.EventType_EVENT_TYPE_VERIFY, body); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Bridge: bridgeWord(body), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
+			if !sameReading(prior, body) {
+				return nil, feov.Errorf(feov.Conflict, "you corroborated %s on this claim already, as citation %s: %s. A corroboration is one per source and claim, and its retry repeats it; a different reading of the same source is a verification of that citation — `verify --anchor %s`",
+					body.GetUrl(), prior.GetLabel(), readingWords(prior), prior.GetLabel())
+			}
+			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
+			// the retry, at the claim it stored.
+			if err := seat.PlaceOwed(s, prior.GetLabel(), ""); err != nil {
+				return nil, err
+			}
+			return verifyResult{Label: prior.GetLabel(), Source: prior.GetTitle(), Outcome: recordpb.Word(prior.GetOutcome()), Bridge: bridgeWord(prior), Claim: prior.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
@@ -442,6 +462,22 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		Claim:      body.GetClaim(),
 		VoiceTells: tells,
 	}, nil
+}
+
+// sameReading reports whether a corroboration retry reads the source as the stored one did: the
+// same outcome, bridge and confidence.
+func sameReading(stored, retry *recordpb.Verify) bool {
+	return stored.GetOutcome() == retry.GetOutcome() && bridgeWord(stored) == bridgeWord(retry) &&
+		stored.GetConfidence() == retry.GetConfidence()
+}
+
+// readingWords renders a stored reading for the refusal that names it.
+func readingWords(v *recordpb.Verify) string {
+	out := "--as " + recordpb.Word(v.GetOutcome())
+	if b := bridgeWord(v); b != "" {
+		out += " --bridge " + b
+	}
+	return out + " --confidence " + recordpb.Word(v.GetConfidence())
 }
 
 // bridgeWord is the bridge a reading names, "" where it names none.
