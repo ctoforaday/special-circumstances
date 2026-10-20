@@ -25,7 +25,7 @@ The class becomes an ordinary record enum, `GapClass`, declared in `record.proto
 closed set: each value carries its definition (`(means)`), its materiality, its nearest neighbour and
 the question that tells them apart, and `mint --help` prints all four. A catch-all value takes a gap
 no value fits. Coining (`class new`), the class list (`class list`), the registry file, its per-run
-staging, its generator and its harvest are deleted. The event-schema epoch moves to **E = 34** (the next free epoch at implementation; `main` is 33 after #1500), one
+staging, its generator and its harvest are deleted. The event-schema epoch moves to **E = 35** (the next free epoch at implementation; `main` is 34 after #1522), one
 above `main`'s 32 (§II), and `migrate` carries every archived run onto the enum.
 
 **Rulings this plan implements (settled — #1134 last comment).**
@@ -128,7 +128,7 @@ sentence and every merge is a migrate translation. One PR, as ruled.
 - **Event-schema epoch** `record.EventSchema` = 32 on `main` at `b283d1e8` (Slim-fast's #1481 took
   32), generated from `plugins/frank-exchange-of-views/requirements.json` `eventSchema` by
   `scripts/schemagen`. Changing `Mint.class`'s type, deleting `EVENT_TYPE_CLASS_NEW`/`ClassNew`, and
-  deleting Mint fields 4–7 change the event shape: **epoch E = 34**.
+  deleting Mint fields 4–7 change the event shape: **epoch E = 35**.
 - **migrate** (`internal/record/migrate`): re-drives an archived record's events through the live
   write path. Old words translate through `Entries()` (a `Registry` of event words → `Translate`, or
   `Loss`); an archived enum word resolves through `valueRenames[<enum full name>]` then the schema's
@@ -295,7 +295,7 @@ No archived mint uses a dropped class, so DROP costs no archived gap its class.
 
 ```
 plugins/frank-exchange-of-views/
-  requirements.json                                   [MODIFY] eventSchema 33 → 34
+  requirements.json                                   [MODIFY] eventSchema 34 → 35
   docs/seat-command-triggers.md                       [MODIFY] rows `lens class list`, `lens class new` deleted
   docs/seat-surface-naming.md                         [MODIFY] `class new` dropped from the merge row
   docs/vocabulary.md                                  [MODIFY] regenerated (vocabdoc)
@@ -307,7 +307,7 @@ plugins/frank-exchange-of-views/
   tests/simulator/testdata/prompt-red-lens-*.golden (4) [MODIFY] regenerated
   tools/internal/record/recordpb/record.proto         [MODIFY] GapClass, options, Mint, Event, NewMint
   tools/internal/record/recordpb/{record.pb.go,record.proto.sha256} [MODIFY] protogen
-  tools/internal/record/recordpb/schema_gen.go        [MODIFY] schemagen (epoch 34)
+  tools/internal/record/recordpb/schema_gen.go        [MODIFY] schemagen (epoch 35)
   tools/internal/record/recordpb/facets.go            [MODIFY] enum-valued facet kind
   tools/internal/record/recordpb/gapclass.go          [NEW]    MaterialDefault(GapClass), Neighbor, Distinguisher
   tools/internal/record/recordpb/gapclass_test.go     [NEW]
@@ -424,7 +424,7 @@ docs/local-development.md                             [MODIFY] `report-voice` �
   every `REFERENCES "enum_x"` inside `CREATE TABLE "enum_y"` has `enum_x`'s `CREATE` earlier). The
   `schema.sql` golden shows the position (`enum_class_material` ahead of `enum_gap_class`); it is
   regenerated and every changed line read.
-- `requirements.json` `eventSchema` 34; `go -C scripts run ./schemagen`; `go -C scripts run ./protogen`.
+- `requirements.json` `eventSchema` 35; `go -C scripts run ./schemagen`; `go -C scripts run ./protogen`.
 
 ### III.5 The record [MODIFY]/[DELETE]
 
@@ -1572,7 +1572,7 @@ remainder verified no-change above.
 | R6 | Definitions trip the vocabulary gate (`TestVocabularyProse` bans variants such as "the debate") | Med | Gate red | Low | run the gate early; Table A already avoids run-voice words |
 | R7 | The fixture pass changes what a test asserts (a placeholder becomes an `always` class and masks severity) | Med | A test passes for the wrong reason | Med | III.10's rule keeps every placeholder `by_grade`; `ClassFor` ties a hand-set stamp to its class; §V.9's "stamp `always` unconditionally" mutation |
 | R8 | A carrier still teaches coining (agent prose, prompt, docs) | Med | Seats look for a verb that is gone | Low | §V.8 sweep; C4/C5/C11 re-run; rendered constitutions grepped |
-| R9 | The universe carries published content, not this checkout | Med (it has happened) | False pass of §V.7 | Low | §V.7 checks the installed binary's `--schema` equals 34, an epoch no published release carries; the installed `red-lens-logic.md` is grepped for the deleted verb |
+| R9 | The universe carries published content, not this checkout | Med (it has happened) | False pass of §V.7 | Low | §V.7 checks the installed binary's `--schema` equals 35, an epoch no published release carries; the installed `red-lens-logic.md` is grepped for the deleted verb |
 | R10 | Seat environment leaks into tests | High in an agent session | Reads as a code defect | Low | every §V step starts with the `FEOV_*` unset |
 | R11 | Smoke lenses never choose `unclassified` | High | Criterion 7 unmet by the run alone | Low | §V.7 drives one catch-all mint by hand on a copy of the finished run |
 | R12 | `by_severity` changes from an object keyed by grade to `[{grade,count}]` (D8) — a seat reading the object breaks | Low (the help has always documented the array; `dashboard` reads the typed row) | A bench `jq` returns null | Low | the constitutions inline the regenerated help; `TestTelemetryHelpTreeMatchesAnEmittedLine` pins help = bytes |
@@ -1589,7 +1589,7 @@ goes to a file; read the fail count, not the exit code. Check the box load befor
 timing.
 
 1. **Generators.** `go -C $W/scripts run ./protogen && go -C $W/scripts run ./schemagen && go -C $W/scripts run ./agentgen && go -C $W/scripts run ./vocabdoc`
-   then the `check` gates covering them (`agentgen -check`, `schemagen -check`, the protogen sha, `TestVocabularyProse`) → green. `feov-record --schema` → 34 (`requirements.json`'s `eventSchema`, one above `main`'s 33 after #1500). · re-armed by: `record.proto`,
+   then the `check` gates covering them (`agentgen -check`, `schemagen -check`, the protogen sha, `TestVocabularyProse`) → green. `feov-record --schema` → 35 (`requirements.json`'s `eventSchema`, one above `main`'s 34 after #1522). · re-armed by: `record.proto`,
    `requirements.json`, `agentgen/src/**`, `terms.json`.
 2. **FEOV tests, uncached.** `go -C $T vet ./... && go -C $T test -count=1 ./... > ~/.claude/scratch/relocations/gapenum/test.out 2>&1; grep -c -- '--- FAIL' …/test.out`
    → 0; `grep -c '^ok' …/test.out` equals the package count. Includes `recordpb/gapclass_test.go`,
@@ -1640,7 +1640,7 @@ timing.
    ```
    $W/scripts/universe.sh build
    U=~/.claude/scratch/universe/plugins/cache/special-circumstances/frank-exchange-of-views
-   ls $U/*/bin/feov-record && $U/*/bin/feov-record --schema            # → 34: no published release carries it, so this is the checkout
+   ls $U/*/bin/feov-record && $U/*/bin/feov-record --schema            # → 35: no published release carries it, so this is the checkout
    grep -c 'class new' $U/*/agents/red-lens-logic.md                        # 0
    MODEL=haiku JUDGMENT_MODEL=haiku LANES=1 $W/scripts/universe.sh run "is 91 prime" --mint-budget 3 --k-max 2
    ```
