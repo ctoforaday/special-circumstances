@@ -2255,14 +2255,33 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
 	args := []string{"close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as " + as,
 		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"}
-	// THE GAP'S OWN ANCHOR IS ONE THE RECORD HOLDS, so a closure naming it is admitted; one naming an
-	// anchor nobody placed is refused at the write, and the gap stays open for another close.
+	// A CLOSURE NAMES WHAT IT WAS VERIFIED WITH: another gap the record holds is admitted. Two anchors
+	// are refused at the write — one no act placed, and the gap being closed, which is not evidence of
+	// its own repair — and the closer reads the refusal and closes again in the same sitting without
+	// it, as a seat does. A refused close left for a later sitting stays open when this sitting is the
+	// lens's last, which the terminal-fate oracle reads as work done and never finished — and whether a
+	// later sitting comes is the interleaving's call, so the sweep goes red on a draw, not a defect.
 	if r.coin(40) {
-		named := id
-		if r.coin(15) {
-			named = "C-ffffffff"
+		var held []string
+		for _, g := range append(r.openGaps(), r.closedGapIDs()...) {
+			if g != id {
+				held = append(held, g)
+			}
 		}
-		args = append(args, "--anchor", named)
+		named := ""
+		switch {
+		case r.coin(15):
+			named = "C-ffffffff"
+		case r.coin(15):
+			named = id
+		case len(held) > 0:
+			named = held[r.rng.Intn(len(held))]
+		}
+		if named != "" {
+			if _, err := r.exec(append(args, "--anchor", named)...); err == nil {
+				return
+			}
+		}
 	}
 	_, _ = r.exec(args...)
 }
