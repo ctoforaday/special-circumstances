@@ -438,7 +438,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 //     A source that contradicts or is silent on a claim is a citation defect, and citation classes
 //     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
 //     finding alone — which holds no gate and obliges nobody — does not discharge it. The gap's
-//     class then decides its materiality, as for every gap.
+//     class then decides its materiality, as for every gap. A gap its RAISER mints this way takes
+//     no mint of that lens's budget (ownAnswersAt).
 //
 // THE REFERENCE IS THE ANSWER THAT SURVIVES AN EDIT. A quote must be the report's text at the
 // write, so once blue edits the contradicted sentence away no finding can quote it — the case that
@@ -461,8 +462,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 	var out []*contradiction
 	open := map[string]*contradiction{} // claim -> its open contradiction
-	raise := func(c *contradiction, by string) {
-		c.raisedBy = by
+	raise := func(c *contradiction, by, seat string) {
+		c.raisedBy, c.raiser = by, seat
 		delete(open, c.claim)
 	}
 	for i, e := range evs {
@@ -484,14 +485,14 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 				for _, c := range out {
 					if c.raisedBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
-						raise(c, b.GetId())
+						raise(c, b.GetId(), e.GetSeatId())
 					}
 				}
 			}
 			if loc := strings.TrimSpace(b.GetLocation()); loc != "" {
 				for _, c := range out {
 					if start, _ := anchortext.LocateSpan(loc, c.claim); c.raisedBy == "" && start >= 0 {
-						raise(c, b.GetId())
+						raise(c, b.GetId(), e.GetSeatId())
 					}
 				}
 			}
@@ -578,12 +579,14 @@ func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 // contradiction is one contradiction red recorded: its id (the events.id of the reading that opened
 // it), the claim, the seat whose reading last joined it — the lens whose act raises it — and where
 // that reading sits, which is when the lens came to owe it. anchor is the citation the opening
-// reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it, and
-// answeredBy the id of the gap minted from that finding.
+// reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it and
+// raiser the seat that recorded that finding; answeredBy is the id of the gap minted from that
+// finding.
 type contradiction struct {
 	id                           int64
 	claim, reader                string
 	anchor, raisedBy, answeredBy string
+	raiser                       string
 	since                        int64
 }
 

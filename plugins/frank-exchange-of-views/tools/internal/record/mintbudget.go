@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -30,6 +31,14 @@ import (
 // mint and a defect found after the cap is a finding now and a gap once a slot is free. A count of
 // every mint never refilled: a lens that had minted its budget and closed two of the three was
 // refused the next real defect while holding one open, and a finding obliges nobody.
+//
+// A GAP THAT ANSWERS A CONTRADICTION ITS OWN LENS RAISED IS OUTSIDE THE BUDGET (gblock, 2026-10-20:
+// the lens can always answer what it raised). A contradiction is raised by a finding and answered
+// only by the gap minted from that finding (contradictionsOf); counted, a lens at its cap could
+// raise one and never answer it, and the contradiction held the PASS until a slot freed — a CEILING
+// made by the bound, not by the report. The link is the mint's own found_by, so no field marks the
+// gap: the fold says which gap answered which raise, and whose. Every other mint counts — one
+// crediting another seat's raising finding, or a finding that raised nothing.
 //
 // ONE TABLE. The check, the refusal and the tests all read mintScales; an area with no row is an
 // error, never a default — a default would size an unknown lens by some other lens's unit.
@@ -260,7 +269,7 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 //
 // THE STANDING IS lensMintStanding'S, the reading the work list states (WorkOfSeat), so the count a
 // lens is shown and the count it is refused on are one read by one function.
-func requireMintWithinBudget(w writeView, seatID string) error {
+func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error {
 	// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another
 	// role is not a lens spending a budget; an id with no role is no seat at all, and is refused by
 	// name rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
@@ -291,6 +300,13 @@ func requireMintWithinBudget(w writeView, seatID string) error {
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
 	// one gap more than its budget admits. The report it is measured on is the write's landing
 	// report, rendered before the lock where nothing has moved it since.
+	// AN ANSWER TO ITS OWN RAISE IS ADMITTED AT ANY STANDING, before the standing is read: it takes
+	// no mint, so neither the count nor the measure decides it.
+	if own, err := answersOwnRaiseAt(w.q, seatID, m.GetFoundBy()); err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's contradictions could not be read, so whether this mint answers one %s raised cannot be told: %v", seatID, err)
+	} else if own != "" {
+		return nil
+	}
 	st, err := lensMintStanding(w.q, w.report, w.files.params, seatID, area)
 	if err != nil {
 		return err
@@ -320,13 +336,58 @@ func requireMintWithinBudget(w writeView, seatID string) error {
 // mintRefusedNext is what a lens refused for budget does with what it found, on both refusals: the
 // defect is recorded as a finding, and the finding is what the later mint credits.
 const mintRefusedNext = "Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by. " +
-	"You can still verify, record findings, and regrade or close the gaps you minted"
+	"You can still verify, record findings, and regrade or close the gaps you minted. " +
+	mintAnswerOutsideBudget
+
+// mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
+// work list, the PASS blocker and the help say one sentence.
+const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction answers it and takes no mint: it is admitted at the cap, and does not count while it is open"
+
+// answersOwnRaiseAt is the contradiction a mint by seatID crediting foundBy would answer that seatID's
+// own finding raised — its id, or "" where it answers none. It is the fold's own question asked of
+// the record before the mint (contradictionsOf), so the mint it admits is the gap the count then
+// leaves out (ownAnswersAt). A raise another seat recorded, or one already answered, is none.
+func answersOwnRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (string, error) {
+	if len(foundBy) == 0 {
+		return "", nil
+	}
+	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	if err != nil {
+		return "", err
+	}
+	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
+		if c.raiser == seatID && c.answeredBy == "" && slices.Contains(foundBy, c.raisedBy) {
+			return c.idWord(), nil
+		}
+	}
+	return "", nil
+}
+
+// ownAnswersAt is the gaps that answer a contradiction seatID's own finding raised. Those seatID
+// minted are the gaps its budget does not count (lensMintStanding); one another seat minted from
+// that finding answers it all the same, and counts against its own minter's budget.
+func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
+	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
+		if c.answeredBy != "" && c.raiser == seatID {
+			out[c.answeredBy] = true
+		}
+	}
+	return out, nil
+}
 
 // mintStanding is where a lens stands against its mint budget: the gaps it minted that are open
 // now, and its budget with every term. MeasureErr is why the allowance above the floor could not be
 // read; Budget then holds the area, the unit, the ratio and the floor, and no units or total.
 type mintStanding struct {
-	Open       int
+	Open int
+	// Answering is the open gaps this seat minted that answer a contradiction it raised: open, and
+	// outside Open.
+	Answering  int
 	Budget     LensBudget
 	MeasureErr error
 }
@@ -364,8 +425,20 @@ func lensMintStanding(q recordsql.Querier, report func() (string, error), params
 		return mintStanding{}, err
 	}
 	var st mintStanding
-	if _, err := queryRowAt(q, []any{&st.Open},
-		`SELECT count(*) FROM "gap" WHERE "open" AND "minted_by" = ?`, seatID); err != nil {
+	open, err := openGapsMintedBy(q, seatID)
+	if err == nil {
+		var own map[string]bool
+		if own, err = ownAnswersAt(q, seatID); err == nil {
+			for _, id := range open {
+				if own[id] {
+					st.Answering++
+				} else {
+					st.Open++
+				}
+			}
+		}
+	}
+	if err != nil {
 		// CODED AND SAID AS THE MINT'S REFUSAL, as the duplicate screen says its own failed read.
 		return mintStanding{}, feov.Wrap(feov.Conflict, err, "the board could not be read, so the gaps %s holds open cannot be counted against its mint budget: %v", seatID, err)
 	}
@@ -373,12 +446,36 @@ func lensMintStanding(q recordsql.Querier, report func() (string, error), params
 	return st, nil
 }
 
+// openGapsMintedBy is the ids of the gaps seatID minted that are open on the gap view.
+func openGapsMintedBy(q recordsql.Querier, seatID string) ([]string, error) {
+	if noRecord(q) {
+		return nil, nil
+	}
+	rows, err := q.Query(`SELECT "gap_id" FROM "gap" WHERE "open" AND "minted_by" = ?`, seatID)
+	if err != nil {
+		return nil, fmt.Errorf("asking the record: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 // MintBudgetJSON is a lens's standing against its mint budget, as its work list carries it
 // (SittingJSON.MintBudget): the terms of LensBudget's arithmetic, what the seat holds open, and
 // what is left.
 type MintBudgetJSON struct {
-	// Open is the gaps this seat minted that are open now (the gap view's "open").
+	// Open is the gaps this seat minted that are open now (the gap view's "open"), less Answering.
 	Open int `json:"open"`
+	// Answering is the open gaps this seat minted that answer a contradiction its own finding
+	// raised: they take no mint, so Open leaves them out and Left does not spend on them.
+	Answering int `json:"answering"`
 	// Budget is max(floor, ceil(units × mints / per)) — or, where Measured is false, the floor alone.
 	Budget int `json:"budget"`
 	// Left is how many more mints the write path admits now: Budget less Open, never below 0.
@@ -415,20 +512,24 @@ func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
 	}
 	b := st.Budget
 	left, measured := st.Left()
-	j := &MintBudgetJSON{Open: st.Open, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Mints: b.Mints, Per: b.Per, Measured: measured}
+	j := &MintBudgetJSON{Open: st.Open, Answering: st.Answering, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Mints: b.Mints, Per: b.Per, Measured: measured}
 	leftWords := "NO mint is left to you"
 	if left > 0 {
 		leftWords = fmt.Sprintf("%d mint(s) are left to you", left)
 	}
 	if !measured {
 		j.Budget = b.Floor
-		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then",
-			st.Open, b.Floor, b.Rate(), st.MeasureErr, leftWords)
+		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then. %s",
+			st.Open, b.Floor, b.Rate(), st.MeasureErr, leftWords, mintAnswerOutsideBudget)
 	}
 	tail := "every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one, and the budget grows as the report does"
 	if left == 0 {
 		tail = "what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then; the budget grows as the report does"
 	}
-	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d — %s — so %s; %s",
-		st.Open, b.Budget, b.Arithmetic(), leftWords, tail)
+	answering := ""
+	if st.Answering > 0 {
+		answering = fmt.Sprintf(", and %d more that answer contradictions you raised", st.Answering)
+	}
+	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d%s — %s — so %s; %s. %s",
+		st.Open, b.Budget, answering, b.Arithmetic(), leftWords, tail, mintAnswerOutsideBudget)
 }
