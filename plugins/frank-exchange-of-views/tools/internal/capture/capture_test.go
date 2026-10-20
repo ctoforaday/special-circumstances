@@ -195,9 +195,12 @@ func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
 	}
 }
 
-// AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison.
+// AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison. A citation leaves
+// the report by blue's retire, which takes its anchor out with the sentence.
 func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
+	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("a claim"),
+		Reason: proto.String("the source does not hold it"), Anchors: []string{"C-00000001"}}))
 	write(t, filepath.Join(dir, "report.md"), "A claim, now sourced elsewhere.[^1]\n\n[^1]: https://example.test/other\n")
 
 	got := AssemblyScreen(runtest.Open(t, dir))
@@ -206,9 +209,71 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	}
 	// The PASS must still SAY what it screened. "PASS" over an empty comparison is the shape
 	// this check spent two releases in.
-	if !strings.Contains(got.Detail, "1 found against") {
+	if !strings.Contains(got.Detail, "1 ever found against") {
 		t.Errorf("the PASS does not state what it compared: %s", got.Detail)
 	}
+}
+
+// A REFUTATION BLUE ANSWERED IS NOT A SOURCE RED REJECTS. m30: the adversary refuted C-4f4b8cfa
+// against an inverted sentence (event 401), blue rewrote the sentence (431), and the adversary and
+// the evidence lens each read the new one as supported (447, 450). The screen read "any refutation
+// ever recorded" and failed the run; the citation's standing is that it holds.
+func TestAssemblyScreenJudgesTheCitationsStandingNotItsHistory(t *testing.T) {
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-r1", screenCite("C-00000001", "https://example.test/fermat")),
+		recordtest.Event(t, "red-lens-adversary", &recordpb.Register{AgentId: proto.String("adversary-1")}),
+		recordtest.Event(t, "red-lens-adversary", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)),
+	)
+	write(t, filepath.Join(dir, "report.md"), "The liar.[^1]\n\n[^1]: https://example.test/fermat\n")
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "FAIL" {
+		t.Fatalf("a standing refutation of the sentence the report carries: want FAIL, got %s (%s)", got.Verdict, got.Detail)
+	}
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("the inverted sentence"), New: proto.String("the fixed sentence"),
+			Text: proto.String("the base is the liar"), Reopened: []string{"C-00000001"}}),
+		recordtest.Event(t, "red-lens-adversary", &recordpb.Register{AgentId: proto.String("adversary-2")}),
+		recordtest.Event(t, "red-lens-adversary", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)),
+	)
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" {
+		t.Errorf("a refutation answered by an edit and a fresh supporting check: want PASS, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// KEYED BY THE CITATION, NOT ITS URL. m30's C-3b8d7782 and C-f0ae536b cite the url C-4f4b8cfa does,
+// so a screen keyed by url fails on a sibling's footnote after the refuted citation itself is gone,
+// and names the wrong citation while the refuted one stands.
+func TestAssemblyScreenKeysByTheCitationNotItsURL(t *testing.T) {
+	const url = "https://example.test/shared"
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-r1", screenCite("C-00000001", url)),
+		recordtest.Event(t, "blue-r1", screenCite("C-00000002", url)),
+		recordtest.Event(t, "red-lens-evidence", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)),
+		recordtest.Event(t, "red-lens-evidence", screenVerify("C-00000002", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)),
+	)
+	write(t, filepath.Join(dir, "report.md"), "One.[^1] Two.[^1]\n\n[^1]: "+url+"\n")
+	got := AssemblyScreen(runtest.Open(t, dir))
+	if got.Verdict != "FAIL" || !strings.Contains(got.Detail, "C-00000001") || strings.Contains(got.Detail, "C-00000002") {
+		t.Fatalf("want FAIL naming C-00000001 alone; got %s (%s)", got.Verdict, got.Detail)
+	}
+	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("one"),
+		Reason: proto.String("the source does not hold it"), Anchors: []string{"C-00000001"}}))
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" {
+		t.Errorf("the refuted citation retired, its sibling of the same url still cited: want PASS, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// screenCite is a blue citation of url at label.
+func screenCite(label, url string) *recordpb.Cite {
+	return &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
+		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(label), Url: proto.String(url), Title: proto.String("A Source")}
+}
+
+// screenVerify is red's reading of the citation at anchor.
+func screenVerify(anchor string, outcome recordpb.SourceOutcome) *recordpb.Verify {
+	return &recordpb.Verify{Anchor: proto.String(anchor), Claim: proto.String("the sentence " + anchor + " backs"), Outcome: outcome.Enum(),
+		Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it at the leaf")}
 }
 
 // A SUPPORTED CITATION IS NOT SCREENED OUT. `weak` is thin support, not contradiction, and

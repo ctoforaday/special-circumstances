@@ -43,11 +43,12 @@ func newClose() *cobra.Command {
 		p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
 		p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
 		p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
-		// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds:
-		// capture's attestation audit joins each to the closing seat's tool calls, and an id read
-		// back out of --verified-with's words would be a guess at what the seat meant.
+		// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds —
+		// a report anchor or an inquiry: capture's attestation audit joins each to the other tool
+		// calls of the closer's sitting, and an id read back out of --verified-with's words would be
+		// a guess at what the seat meant.
 		for _, a := range anchors.Value() {
-			v := flags.AnchorID()
+			v := flags.ClosureAnchorID()
 			if err := v.Set(a); err != nil {
 				return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.Anchor, err)
 			}
@@ -82,7 +83,7 @@ func newClose() *cobra.Command {
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
 	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
 	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in")
-	c.Flags().Var(&anchors, flags.Anchor, "the `ids` of the report's anchors you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("P-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token, or the token itself, of an act on this record. Capture's attestation audit holds each to your tool calls this sitting; a closure verified against no anchor names none")
+	c.Flags().Var(&anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("P-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
 	// unanchored one that spent the seat's turn before saying so.

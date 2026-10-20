@@ -269,6 +269,9 @@ var journalFraming = map[string]string{
 	"content":          "a transcript message's content blocks",
 	"type":             "a transcript content block's kind",
 	"input":            "a tool-use block's input",
+	"id":               "a tool-use block's id, which its result names",
+	"tool_use_id":      "a tool-result block's call: the tool-use block's id",
+	"timestamp":        "a transcript row's stamp, which places a seat's close among its calls",
 	"assemble":         "the dashboard's seat-class counter, keyed by the class word",
 	"Integrity audits": "capture's fold of the run document, keyed by section heading",
 }

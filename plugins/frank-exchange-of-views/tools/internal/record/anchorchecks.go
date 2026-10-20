@@ -219,3 +219,28 @@ func verifyClears(o recordpb.SourceOutcome) bool {
 func verifyHolds(o recordpb.SourceOutcome) bool {
 	return verifyClears(o) && !contradicts(o)
 }
+
+// CitationsFoundAgainst is each citation red finds against NOW, in the order the record placed
+// them: a check of the sentence as the report carries it stands (anchorStanding.stands) and does
+// not hold — a standing `refutes` or `absent`. win supplies each event's events.id and sitting.
+//
+// IT IS THE STANDING, NOT THE HISTORY. A reading of a sentence an edit has since replaced is not a
+// finding against the sentence the report carries, and a retired anchor is no longer cited; both
+// are answered by the ledger, which is the one fold of a check's standing. The question is keyed by
+// the citation's anchor, never its url: two citations of one url back two sentences, and one of
+// them refuted says nothing of the other.
+func CitationsFoundAgainst(evs []*Event, win WindowIndex) []string {
+	var out []string
+	for _, s := range anchorChecksOf(evs, win).order {
+		if s.proof {
+			continue
+		}
+		for _, c := range s.standing() {
+			if !c.holds {
+				out = append(out, s.anchor)
+				break
+			}
+		}
+	}
+	return out
+}

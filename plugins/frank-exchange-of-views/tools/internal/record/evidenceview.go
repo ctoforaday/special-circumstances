@@ -269,8 +269,9 @@ type EvidenceJSON struct {
 		ProofsUnverified int `json:"proofs_unverified"`
 		// SourcesUnverified is its citation twin: cited, and nobody has checked it.
 		SourcesUnverified int `json:"sources_unverified"`
-		// SourcesRefuted counts the citations red found AGAINST — refuted or absent. It is the
-		// number the assembly screen acts on, and the one the old ledger could not produce.
+		// SourcesRefuted counts the citations red has EVER found against — refuted or absent, by
+		// any reading, answered or not. What red finds against NOW is the ledger's standing
+		// (CitationsFoundAgainst), which the assembly screen acts on.
 		SourcesRefuted int `json:"sources_refuted"`
 		Verifications  int `json:"verifications"`
 	} `json:"counts"`

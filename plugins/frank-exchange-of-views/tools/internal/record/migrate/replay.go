@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -329,6 +330,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 			if err := proseRefs(source, batch.Querier(), body); err != nil {
 				return nil, err
+			}
+			// A CLOSURE IS NOT ITS OWN ANCHOR. Before the write refused it, a close could name the gap it
+			// closed among the ids it was verified with (m30: three closures of seven). That id attests
+			// nothing a reader could check, so it is not carried; the closure's other anchors are.
+			if c, ok := body.(*recordpb.Close); ok {
+				c.Anchors = slices.DeleteFunc(c.Anchors, func(a string) bool { return a == c.GetGapId() })
 			}
 			anchorAfter, err := place.step(body)
 			if err != nil {
