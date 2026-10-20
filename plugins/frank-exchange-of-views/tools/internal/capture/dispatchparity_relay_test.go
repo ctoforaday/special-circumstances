@@ -242,8 +242,8 @@ func TestTheValveStopsOnTheKeyTheRecordRepeats(t *testing.T) {
 	}
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
 			e["plan"] = js[min(chair, len(js))-1]["plan"]

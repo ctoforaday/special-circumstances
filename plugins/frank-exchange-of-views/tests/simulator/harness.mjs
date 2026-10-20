@@ -102,7 +102,7 @@ export const gap = (id, over = {}) => ({
 export const judgeEnv = (over = {}) => ({ dispositions: [], ...over })
 export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. Lenses answer in free text.
-export const assembleEnv = (over = {}) => ({ synopsis: 'synopsis', open_gaps: 0, ...over })
+export const assembleEnv = (over = {}) => ({ open_gaps: 0, ...over })
 export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()], petition = [petitionRulingEnv()], assemble = [assembleEnv()] } = {}) {
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {

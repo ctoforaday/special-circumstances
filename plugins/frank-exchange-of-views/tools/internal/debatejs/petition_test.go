@@ -32,8 +32,8 @@ func drivePlans(t *testing.T, plans []map[string]any, extra Envelope) ([]Dispatc
 	t.Helper()
 	chair := 0
 	backend := func(seatID, label, prompt string) Envelope {
-		e := Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		e := Envelope{"rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "open_gaps": 0}
 		for k, v := range extra {
 			e[k] = v
 		}
@@ -132,7 +132,7 @@ func TestABenchPartyWithoutAnOccasionIsRefused(t *testing.T) {
 	chair := 0
 	_, _, err := CaptureRun(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
 		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: func(seatID, label, prompt string) Envelope {
-			e := Envelope{"saturation_reached": false, "rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
+			e := Envelope{"rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
 			if seatID == "red-chair" {
 				chair++
 				e["plan"] = planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition})
