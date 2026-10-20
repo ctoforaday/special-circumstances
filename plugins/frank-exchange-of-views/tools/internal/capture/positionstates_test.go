@@ -42,7 +42,7 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 	chairSat := []act{{"red-chair", &recordpb.Register{AgentId: proto.String("chair-agent")}}, {"red-chair", position},
 		{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("chair-agent")}}}
 	mint := act{"red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
-		RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+		RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}}
 	dispatch := act{"red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}}

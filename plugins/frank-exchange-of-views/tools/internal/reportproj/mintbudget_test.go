@@ -43,9 +43,6 @@ func b4Report() string {
 // floor of 1, through the renderer this package registers.
 func TestTheB4MintBudgets(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	if err := record.StageForRun(runtest.Open(t, runDir), "x"); err != nil {
-		t.Fatalf("stage the class registry: %v", err)
-	}
 	if err := os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +79,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 19; i++ {
-		_, err := record.Append(voice, &recordpb.Mint{GapId: proto.String(fmt.Sprintf("G%d", i)), Class: proto.String("x"), Problem: proto.String("p"),
+		_, err := record.Append(voice, &recordpb.Mint{GapId: proto.String(fmt.Sprintf("G%d", i)), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		if i <= 18 && err != nil {

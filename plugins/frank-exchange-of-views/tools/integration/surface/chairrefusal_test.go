@@ -262,15 +262,8 @@ func (b *board) seed() record.Run {
 func convergedBoard(t *testing.T) *board {
 	const lens = "red-lens-evidence"
 	dir := recordtest.TmpRun(t)
-	run, err := record.NewRun(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := record.StageForRun(run, "x"); err != nil {
-		t.Fatal(err)
-	}
 	mint := func(id string, g recordpb.Grade) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"), Problem: proto.String("p"),
+		return &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Severity: g.Enum(), Likelihood: g.Enum(), Impact: g.Enum()}
 	}

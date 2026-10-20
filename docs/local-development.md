@@ -218,7 +218,7 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   every gate. Check seat exit codes and output-token counts, not just that the run finished.
 - **`VERIFIED` does not mean every dimension was audited.** A cast narrowed with `--lens-area`
   seats fewer lenses, and the verdict now states which dimensions never sat. Read that line.
-- **A `report-voice` gap is `by_grade`,** so a voice defect that grades below material does not hold
+- **A `report_voice` gap is `by_grade`,** so a voice defect that grades below material does not hold
   the PASS gate: a run can ship VERIFIED with known voice defects open. That is a deliberate
   setting, not an accident — decide whether it is the one you want before reading the stamp as
   clean.

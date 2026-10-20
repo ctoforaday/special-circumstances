@@ -249,7 +249,7 @@ a real miss — the seat had the verb, had the situation, and did not go there:
 | role | unreached on every board of that role |
 |---|---|
 | blue | `cite`, `closing`, `inquiry propose`, `inquiry record`, `motion grade file`, `motion grade appeal`, `motion petition file` |
-| merge | `carry`, `class new`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
+| merge | `carry`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
 | lens | `corroborate`, `motion petition file` |
 | bench | `declare`, `halt` |
 

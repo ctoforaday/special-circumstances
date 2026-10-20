@@ -138,7 +138,7 @@ func readProjection(t *testing.T, runDir, name string) string {
 // render would silently lose every judicial closure.
 func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "bench-closes-this", "cross-seat-visibility")
+	id := mintGap(t, runDir, "bench-closes-this", "spec_underspecification")
 
 	// The bench rules the gap closed — a docket motion filed and ruled.
 	//
@@ -165,7 +165,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 // A dispute answered into the void is the same defect one channel over.
 func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "disputed-grade", "grade-dispute-visibility")
+	id := mintGap(t, runDir, "disputed-grade", "policy_without_mechanism")
 
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
@@ -198,7 +198,7 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.
 func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "anchored-closure", "anchor-visibility")
+	id := mintGap(t, runDir, "anchored-closure", "risk_coverage_omission")
 
 	const prose = "re-read the cited source; the digits match the arm the claim names"
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
@@ -231,7 +231,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	mintGap(t, runDir, "shared-record", "one-record")
+	mintGap(t, runDir, "shared-record", "doctrine_vs_implementation")
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--question", "considered rewriting the parser", "--as", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {

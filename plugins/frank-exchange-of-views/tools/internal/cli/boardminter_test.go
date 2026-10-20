@@ -11,7 +11,7 @@ import (
 // that minted the gap. The value is the work list's, read off the same column.
 func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "board-minter", "read-surface")
+	id := mintGap(t, runDir, "board-minter", "spec_underspecification")
 	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 // null. Each key is on the board's row, and its value is the work list's.
 func TestTheBoardStatesTheGapFactsTheWorkListStates(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "board-material", "read-surface")
+	id := mintGap(t, runDir, "board-material", "spec_underspecification")
 	row := func(args ...string) map[string]json.RawMessage {
 		out, err := run(t, append([]string{"show"}, append(args, "--run", runDir)...)...)
 		if err != nil {

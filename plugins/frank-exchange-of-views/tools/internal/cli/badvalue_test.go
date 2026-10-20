@@ -112,8 +112,8 @@ func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
 }
 
 // NO SEAT VERB DECLARES A GROUP A CALL CAN VIOLATE NOW: mint's [problem reason] was the last, and
-// it went with the --reason-as-problem fallback; class new's and close's groups are each also
-// required flag by flag, which cobra refuses first. The refusal is held on a command built here,
+// it went with the --reason-as-problem fallback; close's groups are also required flag by flag,
+// which cobra refuses first. The refusal is held on a command built here,
 // so a group added to a verb later is answered the way this says.
 func TestAFlagGroupViolatedIsRefusedWithItsFlagsLines(t *testing.T) {
 	c := &cobra.Command{Use: "probe", RunE: func(*cobra.Command, []string) error { return nil }}

@@ -19,7 +19,7 @@ package seat
 // verb, the flag, the value, how to list the real ones, and how to create one. A sentence in the
 // help saying "this is refused if the id does not exist" arrives at the same moment as that refusal
 // and says less. What EARNS its place is anything that changes what a seat does BEFORE the call
-// ("coin the class first", "an unruled motion blocks a PASS") or tells it how to succeed ("quote
+// ("name the nearest class when none fits", "an unruled motion blocks a PASS") or tells it how to succeed ("quote
 // enough context that the span matches exactly one place").
 //
 // That distinction is a judgement, not a gate: no test can tell a useful precondition from a

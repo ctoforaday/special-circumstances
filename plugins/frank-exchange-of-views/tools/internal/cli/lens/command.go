@@ -21,7 +21,6 @@ func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
 		seat.Register(),
 		newMint(),
-		newClass(),
 		newClose(),
 		newRegrade(),
 		newNearMatch(),

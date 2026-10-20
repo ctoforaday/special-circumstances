@@ -65,6 +65,8 @@ type Blocker struct {
 	since int64
 	// lastCheck is the events.id of a reopened anchor's latest check, which does not clear it.
 	lastCheck int64
+	// raisedBy is the finding that raised a contradiction, "" until one has.
+	raisedBy string
 }
 
 // Every reports whether the blocker holds every verdict, not only a PASS.
@@ -182,9 +184,12 @@ var blockerKinds = []blockerKind{
 	},
 	{
 		kind:  BlockerContradiction,
-		gloss: "a contradicting source nothing has answered",
+		gloss: "a contradicting source no gap answers",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, which answers it whether or not the sentence still stands. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionCitationAnswer)
+			if b.raisedBy != "" {
+				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`. A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionCitationAnswer)
+			}
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionCitationAnswer)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -193,10 +198,14 @@ var blockerKinds = []blockerKind{
 					named = append(named, fmt.Sprintf("%s: %q", contradictionFact(b), b.Detail))
 					continue
 				}
+				if b.raisedBy != "" {
+					named = append(named, fmt.Sprintf("%s: %q (read by %s, raised by finding %s, no gap minted from it)", contradictionFact(b), b.Detail, b.Owner, b.raisedBy))
+					continue
+				}
 				named = append(named, fmt.Sprintf("%s: %q (read by %s)", contradictionFact(b), b.Detail, b.Owner))
 			}
 			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and nothing has answered them:\n  %s\n"+
-				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has; a finding whose `--quote` contains the claim answers it as well, while the report still holds the sentence. "+contradictionCitationAnswer+". "+
+				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis — a finding whose `--quote` contains the claim raises it as well, while the report still holds the sentence — and answers it with the gap it mints from that finding (the lens's `mint --found-by <the finding's id>`), so it enters the board with the lifecycle, the blue duty and the gate every other defect has. A finding alone answers nothing: a source the report misstates is a citation defect, material by its class. "+contradictionCitationAnswer+". "+
 				"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
@@ -419,7 +428,7 @@ func kindRank(k BlockerKind) int {
 }
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
-// contradiction no finding raises, a citation or proof unchecked since its sentence changed, no
+// contradiction no gap answers, a citation or proof unchecked since its sentence changed, no
 // ingested report, an unruled motion, no inquiry review since the report or its inquiries last
 // changed. ids is evs's places, aligned with it.
 //
@@ -431,7 +440,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
 	for _, c := range unansweredContradictions(evs, win) {
-		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since})
+		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy})
 	}
 	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE CAST SEATS ITS OWNER. A blocker whose owner
 	// cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence` lists the

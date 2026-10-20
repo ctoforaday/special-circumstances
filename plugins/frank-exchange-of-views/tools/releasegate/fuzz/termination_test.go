@@ -119,7 +119,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 	case !pass:
 		blockers = debatejs.HeldBy(parties)
 	}
-	return debatejs.Keyed(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
+	return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
 		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers})
 }
 

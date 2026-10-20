@@ -1,0 +1,137 @@
+$ register --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+registered red-chair
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class invented-class --check-kind document --check x --problem p --severity low --likelihood low --impact low
+exit 2
+stderr:
+feov-record: mint: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_scope_blindspot|self_attestation|unverified_composition|invalid_inference|vote_laundering|doctrine_vs_implementation|policy_without_mechanism|partial_control_coverage|self_defeating_mitigation|unhandled_degenerate_case|spec_underspecification|figure_recount_fails|metric_conflation|citation_figure_misattribution|within_source_condition_misattribution|live_source_drift|artifact_preservation|unsourced_claim|unclassified, not "invented-class". The class is the KIND of defect, and its material default decides whether an open gap of it holds the PASS gate
+
+Run `feov-record mint --help` for what it takes, flag by flag.
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class false-universal --check-kind document --check x --problem near miss --severity low --likelihood low --impact low
+exit 2
+stderr:
+feov-record: mint: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_scope_blindspot|self_attestation|unverified_composition|invalid_inference|vote_laundering|doctrine_vs_implementation|policy_without_mechanism|partial_control_coverage|self_defeating_mitigation|unhandled_degenerate_case|spec_underspecification|figure_recount_fails|metric_conflation|citation_figure_misattribution|within_source_condition_misattribution|live_source_drift|artifact_preservation|unsourced_claim|unclassified, not "false-universal": it is "false_universal" with different punctuation — flags take dashes, values take the schema's underscores. The class is the KIND of defect, and its material default decides whether an open gap of it holds the PASS gate
+
+Run `feov-record mint --help` for what it takes, flag by flag.
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class false_universal --check-kind document --check count the cases --severity low --likelihood low --impact low --problem an always class
+exit 0
+stdout:
+minted GAP001
+  acceptance check RECORDED as: count the cases
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class structure_noncompliance --check-kind document --check read the order --severity high --likelihood high --impact high --problem a never class
+exit 0
+stdout:
+minted GAP002
+  acceptance check RECORDED as: read the order
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check apply the term --severity medium --likelihood medium --impact medium --problem a by_grade class
+exit 0
+stdout:
+minted GAP003
+  acceptance check RECORDED as: apply the term
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class unclassified --check-kind document --check x --severity low --likelihood low --impact low --problem no class fits, no reason
+exit 2
+stderr:
+feov-record: mint: --class unclassified requires --reason — a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class unclassified --check-kind document --check read the gloss --severity low --likelihood low --impact low --problem no class fits --reason nearest is spec_underspecification, which covers a term left undefined; this term is defined twice
+exit 0
+stdout:
+minted GAP004
+  acceptance check RECORDED as: read the gloss
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint`: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint`: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"count the cases","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_FALSE_UNIVERSAL","class_material":"CLASS_MATERIAL_ALWAYS","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"an always class","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"read the order","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_STRUCTURE_NONCOMPLIANCE","class_material":"CLASS_MATERIAL_NEVER","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a never class","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP003","mint":{"acceptance_check":"apply the term","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP003","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"a by_grade class","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity: --class unclassified requires --reason — a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":9,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:mint:GAP004","mint":{"acceptance_check":"read the gloss","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_UNCLASSIFIED","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP004","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","mint_reason":"nearest is spec_underspecification, which covers a term left undefined; this term is defined twice","problem":"no class fits","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
+
+═══ RENDERS ═══
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
+
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Run](run.md)
+
+---
+
+**Outcome:** PENDING (no outcome on the record yet — the bench records it at the run's exit)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| an always class | low | low | — | — |
+| a never class | high | high | — | — |
+| a by_grade class | medium | medium | — | — |
+| no class fits | low | low | — | — |
+
+The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_

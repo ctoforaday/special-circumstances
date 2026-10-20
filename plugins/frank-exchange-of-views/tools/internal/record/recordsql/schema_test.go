@@ -103,7 +103,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	t.Run("an unknown enum value is refused", func(t *testing.T) {
 		id := seed(t)
 		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'G1', 'c', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
+			VALUES (?, 'G1', 'spec_underspecification', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
 		if err == nil {
 			t.Fatal("`guesswork` was accepted as a check kind — an unrecognised value lands in no bucket and the gap reads as checked by nothing")
 		}
@@ -114,7 +114,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 		// gap_id is supplied: it is required too now, and a fixture omitting BOTH tests whichever
 		// constraint SQLite reports first, which is not the one this case is about.
 		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'G2', 'c', 'a', 'document', 'medium', 'medium')`, id)
+			VALUES (?, 'G2', 'spec_underspecification', 'a', 'document', 'medium', 'medium')`, id)
 		if err == nil || !strings.Contains(err.Error(), "problem") {
 			t.Fatalf("a mint with no problem was accepted (%v) — required.go says the verb may not omit it, and the two must not disagree", err)
 		}
@@ -141,7 +141,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 
 	t.Run("a body cannot exist without its event", func(t *testing.T) {
 		_, err := db.Exec(`INSERT INTO mint (event_id, class, problem, acceptance_check, check_kind, likelihood, impact)
-			VALUES (99999, 'c', 'p', 'a', 'document', 'medium', 'medium')`)
+			VALUES (99999, 'spec_underspecification', 'p', 'a', 'document', 'medium', 'medium')`)
 		if err == nil {
 			t.Fatal("a mint body attached to no event — this is the foreign key the shard design could not have, and the reason a ruling can no longer precede its filing")
 		}
@@ -206,7 +206,7 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 		t.Helper()
 		mid := mk(t, "mint")
 		if _, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, class_material, problem, acceptance_check, check_kind, severity, likelihood, impact)
-			VALUES (?, ?, 'c', 'by_grade', 'p', 'a', 'document', 'medium', 'medium', 'medium')`, mid, gapID); err != nil {
+			VALUES (?, ?, 'spec_underspecification', 'by_grade', 'p', 'a', 'document', 'medium', 'medium', 'medium')`, mid, gapID); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -294,5 +294,43 @@ func TestEveryEnumColumnIsBackedByItsVocabulary(t *testing.T) {
 				"writing SQL, and the record is EVIDENCE",
 				c.table, c.column, c.vocab)
 		}
+	}
+}
+
+// A VOCABULARY FOLLOWS THE VOCABULARIES IT REFERENCES. A table's INSERTs follow its CREATE with
+// foreign keys on, so `enum_gap_class`'s rows, whose `material_default` references
+// `enum_class_material`, land only if that table was created first — whatever order the field walk
+// reaches the two enums in. Wrong order fails every record open at the INSERT.
+func TestAVocabularyFollowsTheVocabulariesItReferences(t *testing.T) {
+	ddl, err := Schema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	created := map[string]int{}
+	checked := 0
+	for _, stmt := range strings.Split(ddl, "\n\n") {
+		stmt = strings.TrimSpace(stmt)
+		const head = `CREATE TABLE "enum_`
+		at := strings.Index(stmt, head)
+		if at < 0 {
+			continue
+		}
+		name := "enum_" + stmt[at+len(head):strings.Index(stmt[at+len(head):], `"`)+at+len(head)]
+		pos := strings.Index(ddl, `CREATE TABLE "`+name+`"`)
+		created[name] = pos
+		for _, part := range strings.Split(stmt, `REFERENCES "`)[1:] {
+			ref := part[:strings.Index(part, `"`)]
+			if !strings.HasPrefix(ref, "enum_") {
+				continue
+			}
+			checked++
+			refPos, ok := created[ref]
+			if !ok || refPos > pos {
+				t.Errorf("%s references %s, whose CREATE does not come before it", name, ref)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no vocabulary references another — the GapClass material_default column is gone, and this test measures nothing")
 	}
 }

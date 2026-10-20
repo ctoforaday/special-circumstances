@@ -1,4 +1,4 @@
-prompt sha256: b7620f8bc678045fb403cb654013dda7aae7a64212b3675dd1f1f686adae079c
+prompt sha256: 5d59ac40e9932a97777c6820aa96897ba956f436f61afb3dde40554b094c4436
 
 Red lens sitting, area logic, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -22,7 +22,7 @@ The ids of your findings and of the gaps you mint are the tool's to assign.
 HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting.
 YOU MINT YOUR OWN GAPS.
-What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one.
+What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does.
 A finding is your graded observation; a gap is your claim on the board.
 Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic.
 A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed.

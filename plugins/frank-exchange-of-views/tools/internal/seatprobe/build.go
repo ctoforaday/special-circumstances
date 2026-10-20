@@ -13,7 +13,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -86,7 +85,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
 	// after synthesis and before any sitting — so the base exists when the first render-reading verb
 	// (mint's --quote check, cite, prove) runs. Its register is the FIRST, which is what triggers the
-	// probe's record separation before StageForRun resolves the root below.
+	// probe's record separation.
 	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
 		return fmt.Errorf("register blue-synthesize: %w", err)
 	}
@@ -121,32 +120,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if _, err := exec(args...); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
-	}
-
-	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
-	// for one. `run-setup` stages the registry on a production run; the probe does not go through
-	// setup, so it stages its own.
-	//
-	// AFTER THE REGISTERS, AND THAT ORDER IS LOAD-BEARING. The probe separates a run's records to a
-	// temp root so the seat cannot read the board off disk, and it does that by handing the record
-	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
-	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
-	// and creates <run.Dir()>/records; the first register subprocess then refuses to separate a run
-	// that already keeps events locally. Staged here, the marker exists and the registry lands
-	// where the tool will read it.
-	//
-	// MEASURED TWICE, both loudly. The advisory branch going strict stopped 8 of 9 boards on their
-	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
-	// refused to score either one ("this run is not a result"), which is the only reason both were
-	// five-minute diagnoses rather than runs reported with a thinner board.
-	// WITH THE SHIPPED MATERIAL DEFAULTS, because a board is a fixture for a real sitting: a gap of
-	// an `always` class holds the gate here exactly as it would in production.
-	defaults := make(map[string]recordpb.ClassMaterial, len(BoardClasses))
-	for _, s := range BoardClasses {
-		defaults[s] = record.ShippedMaterialDefaults[s]
-	}
-	if err := record.StageForRunWithDefaults(run, defaults); err != nil {
-		return fmt.Errorf("stage the class registry: %w", err)
 	}
 
 	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
@@ -413,16 +386,3 @@ func minted(kind, out string) string {
 
 // handle is a board's positional name for a gap or a motion it stages.
 var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
-
-// BoardClasses is the gap-class vocabulary the staged boards mint under.
-//
-// Every entry is a slug from the shipped registry (feov-memory/class-registry.json), not a
-// placeholder: a board is a fixture for a REAL sitting, and a seat that opens `class` should find
-// the taxonomy its gaps are actually filed under rather than a set invented for the harness.
-var BoardClasses = []string{
-	"citation-status-drift", "claim-contradicts-own-record", "cross-section-contradiction",
-	"derivation-status-overclaim", "doctrine-vs-implementation", "false-universal",
-	"figure-recount-fails", "incomplete-repair-propagation", "metric-conflation",
-	"risk-coverage-omission", "self-attestation", "unverified-composition",
-	"verification-scope-blindspot",
-}

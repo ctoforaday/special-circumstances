@@ -78,7 +78,7 @@ func NewSurface(paths []string) Surface {
 		switch {
 		case len(parts) >= 2 && isRole(parts[0]):
 			// A ROLE VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts are
-			// subgroups now — `blue inquiry propose`, `lens class new` — and a case
+			// subgroups now — `blue inquiry propose` — and a case
 			// matching exactly two fields dropped them from the surface entirely. The coverage
 			// gate then reported full coverage of a surface it could not see, and its inverse
 			// called a real verb one the role does not offer.
@@ -147,13 +147,12 @@ func isRole(s string) bool {
 // against while the real verb reported as NEVER REACHED. This table is where the two
 // vocabularies are joined, and it is the only place they are.
 //
-// TWO ENTRIES NAME NO PATH: `class-new` and `inquiry` match no path the tree offers (`class new`
-// takes a space, and an inquiry's verb is `inquiry propose` or `inquiry record`, which the event
-// type alone does not distinguish). Reported, not fixed here.
+// ONE ENTRY NAMES NO PATH: `inquiry` matches no path the tree offers (an inquiry's verb is
+// `inquiry propose` or `inquiry record`, which the event type alone does not distinguish).
+// Reported, not fixed here.
 var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_INQUIRY:        "inquiry",
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:      "edit",
-	recordpb.EventType_EVENT_TYPE_CLASS_NEW:      "class-new",
 	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "inquiry review",
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",

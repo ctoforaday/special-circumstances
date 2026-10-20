@@ -14,7 +14,7 @@ $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid
 exit 2
 stderr:
 feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
+This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -55,7 +55,7 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
+$ mint --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
 exit 0
 stdout:
 minted GAP001
@@ -91,7 +91,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 {"finding":{"finding_key":"F1","id":"FINDING002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S4.","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:FINDING002","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING002","location":"A claim sits under S4."},"key":"red-lens-logic:anchor:FINDING002","seat_id":"red-lens-logic","ts":8,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["FINDING001","FINDING002"],"gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_PARTIAL_CONTROL_COVERAGE","class_material":"CLASS_MATERIAL_BY_GRADE","complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["FINDING001","FINDING002"],"gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
 {"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP001","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}

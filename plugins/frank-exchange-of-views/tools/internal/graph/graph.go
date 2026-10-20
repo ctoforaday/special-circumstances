@@ -220,7 +220,7 @@ func gapFlowMermaid(f record.Family) string {
 			class = "hole"
 		}
 		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d motion×%d/%d disposition×%d",
-			id, g.Mint.GetClass(), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions)
+			id, recordpb.Word(g.Mint.GetClass()), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
 	// supersedes edges — a gap's lineage.

@@ -128,7 +128,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 			mint := func(args ...string) string {
 				t.Helper()
 				out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
-					"--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+					"--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 					"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--complexity", "low"}, args...)...)
 				if err != nil {

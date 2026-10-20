@@ -35,33 +35,25 @@ type Refusal struct {
 
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
-	In             map[string]int // old events per word, as read
-	Out            map[string]int // new events per word, as written
-	Refusals       []Refusal
-	AcceptedLosses map[string]string // word -> the entry's stated reason
-	SourceHash     string            // sha256 over the event stream AS READ — the logical record
-	IDs            map[string]string // archived id or finding label -> the id the migrated record carries
-	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills    []StatedFill      // values supplied where the source predates the field
-	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder    string            // what became of the order of the report's text (order.go)
-	ProseRewrites  []ProseRewrite    // every archived id rewritten inside a seat's wording, in order
+	In                map[string]int // old events per word, as read
+	Out               map[string]int // new events per word, as written
+	Refusals          []Refusal
+	AcceptedLosses    map[string]string  // word -> the entry's stated reason
+	SourceHash        string             // sha256 over the event stream AS READ — the logical record
+	IDs               map[string]string  // archived id or finding label -> the id the migrated record carries
+	Serialized        map[string]int     // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills       []StatedFill       // values supplied where the source predates the field
+	ClassTranslations []ClassTranslation // the archived class slugs an authored row of gapclass.go carried, and onto what
+	GapAnchors        GapPlacement       // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder       string             // what became of the order of the report's text (order.go)
+	ProseRewrites     []ProseRewrite     // every archived id rewritten inside a seat's wording, in order
 
 	base string // the report's base as the source wrote it
 }
 
-// byGradeFillWhy is the reason a class-material fill records, in one place so the staged-registry
-// fill and the class_new fill say the same thing.
-const byGradeFillWhy = "the source predates material_default and this binary's shipped class table does not hold the slug; by_grade keeps the class's gaps as material as their grade alone made them"
-
-// shippedDefault is the material default a class whose record predates the field takes: the
-// binary's shipped value for the slug, else by_grade — and fill reports that it was the latter.
-func shippedDefault(slug string) (v recordpb.ClassMaterial, fill bool) {
-	if v, ok := record.ShippedMaterialDefaults[slug]; ok {
-		return v, false
-	}
-	return recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, true
-}
+// preFieldFillWhy is the reason a mint whose source predates class_material records for the
+// stamp the live rule gives it.
+const preFieldFillWhy = "the source predates class_material; the gap takes the material default of the value its archived slug translates to"
 
 // Replay re-drives an old record's events, in order, through the current write path into
 // dst. Each act is validated by the same code every seat verb runs, and each event's stamp
@@ -208,6 +200,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	var wrote int64
 	proofAnchors := map[string][]string{} // proof_sha -> the anchors of the proofs written on it, in order
 	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
+	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -294,14 +287,23 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				d.Pin = proto.Int64(to)
 			}
-			// A STORED PLAN NAMES EVENTS BY events.id — its head and each stale area's pin — inside
-			// bytes a relay is compared with, and its key is over them. A record stores plans only
-			// from epoch 31, and migrate keeps every such record's numbering, so the plan is carried
-			// as printed; one whose events the replay renumbered is refused here rather than carried
-			// naming whatever the migrated record holds at those numbers.
+			// A STALE REFUSAL'S READ POINT is an events.id too: the last act the refusal showed. It
+			// is translated as a pin is, and refused where the act it names wrote no event.
+			if st, ok := body.(*recordpb.Stale); ok && st.Through != nil {
+				to, landed := newID[st.GetThrough()]
+				if !landed {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this stale refusal reads from event %d, which wrote no event on the migrated record before it — the read point would name whatever event holds that number", st.GetThrough())})
+					continue
+				}
+				st.Through = proto.Int64(to)
+			}
+			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
+			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
+			// refuses an id it cannot place.
 			if pl, ok := body.(*recordpb.Plan); ok {
-				if moved := planRenumbered(pl, newID); moved != "" {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: moved})
+				if err := TranslatePlanIDs(pl, newID); err != nil {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 			}
@@ -316,16 +318,21 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				f.AboutRef = proto.String(to)
 			}
-			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
-			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
-			// run written by this binary migrates without any of its coinings changing.
-			if cn, ok := body.(*recordpb.ClassNew); ok && cn.MaterialDefault == nil {
-				v, fill := shippedDefault(cn.GetSlug())
-				cn.MaterialDefault = v.Enum()
-				if fill {
-					res.StatedFills = append(res.StatedFills, StatedFill{
-						Where: fmt.Sprintf("class_new event %d", old.ID), Slug: cn.GetSlug(),
-						Value: recordpb.Word(v), Why: byGradeFillWhy})
+			// A MINT THAT PREDATES class_material is stamped by the live rule — its translated
+			// value's material default, at the write — and the fill is stated, every one of them:
+			// which of them moved is computable only against a table this binary does not hold. A
+			// stamp the source carries is kept as recorded. Both the fill and the translation count
+			// are recorded once the write lands: a refused mint stamped nothing.
+			var translatedSlug string
+			var fill *StatedFill
+			if m, ok := body.(*recordpb.Mint); ok {
+				slug, _ := src.Fields["class"].(string)
+				if archivedGapClasses[slug] != "" {
+					translatedSlug = slug
+				}
+				if m.ClassMaterial == nil && m.Class != nil {
+					fill = &StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
+						Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy}
 				}
 			}
 			if err := proseRefs(source, batch.Querier(), body); err != nil {
@@ -348,6 +355,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if translatedSlug != "" {
+				classMints[translatedSlug]++
+			}
+			if fill != nil {
+				res.StatedFills = append(res.StatedFills, *fill)
+			}
 			if p, ok := body.(*recordpb.Proof); ok && p.GetProofSha() != "" {
 				proofAnchors[p.GetProofSha()] = append(proofAnchors[p.GetProofSha()], p.GetProofId())
 			}
@@ -377,6 +390,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		return nil, err
 	}
 	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
+	res.ClassTranslations = classTranslations(classMints)
 	return res, nil
 }
 
@@ -515,29 +529,6 @@ func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) 
 // contradictionRef translates a finding's contradiction reference — a source events.id — to the
 // events.id the reading it names was written as. A reference the replay wrote nothing for is a
 // refusal: left as it was, it would name whatever the migrated record holds at that number.
-// planRenumbered is why a stored plan cannot be carried as printed — an event it names by events.id
-// that wrote no event on the migrated record, or one written there under another number — and ""
-// when it can.
-func planRenumbered(pl *recordpb.Plan, newID map[int64]int64) string {
-	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
-	if err != nil {
-		return fmt.Sprintf("this stored plan does not read as a plan: %v", err)
-	}
-	refs := []int64{p.Head}
-	for _, a := range p.StaleAreas {
-		refs = append(refs, a.Pin)
-	}
-	for _, n := range refs {
-		if n == 0 {
-			continue
-		}
-		if to, landed := newID[n]; !landed || to != n {
-			return fmt.Sprintf("this stored plan names event %d, which the migrated record does not hold under that number — the plan is carried as printed, and printed it would name another event", n)
-		}
-	}
-	return ""
-}
-
 func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
 	if err != nil {

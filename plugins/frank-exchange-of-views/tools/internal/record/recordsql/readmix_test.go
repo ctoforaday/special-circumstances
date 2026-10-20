@@ -24,7 +24,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	mint := func(id string, supersedes ...string) *recordpb.Mint {
 		return &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
-			Class:           proto.String("scope-creep"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("a problem for " + id),
 			AcceptanceCheck: proto.String("a check for " + id),
 			CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -134,7 +134,7 @@ func BenchmarkEvents(b *testing.B) {
 		bodies := []proto.Message{
 			&recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String(gap),
-				Class:           proto.String("scope-creep"),
+				Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 				Problem:         proto.String("a problem"),
 				AcceptanceCheck: proto.String("a check"),
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),

@@ -253,6 +253,7 @@ func newCorroborate() *cobra.Command {
 // same three fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
+	enumhelp.Flag(c, flags.Bridge, record.MustEnum("verify", "bridge"), "WHAT a supports_with_bridge reading bridged — required with that outcome, refused with any other. A reading that needed a term moved to another object, a condition dropped or a relation reversed bridged nothing — record refutes or weak")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
@@ -329,6 +330,13 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			}
 		}
 	}
+	if w := seat.Str(cmd, flags.Bridge); w != "" {
+		k, ok := record.BridgeKindOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "%q is not a bridge this record can carry: summary | secondary_citation | near_restatement", w)
+		}
+		body.Bridge = &k
+	}
 	if w := seat.Str(cmd, flags.Confidence); w != "" {
 		cf, ok := record.ConfidenceOf(w)
 		if !ok {
@@ -391,7 +399,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			if err := seat.PlaceOwed(s, prior, ""); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
+			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Bridge: bridgeWord(body), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
@@ -430,9 +438,18 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		Label:      body.GetLabel(),
 		Source:     body.GetTitle(),
 		Outcome:    recordpb.Word(body.GetOutcome()),
+		Bridge:     bridgeWord(body),
 		Claim:      body.GetClaim(),
 		VoiceTells: tells,
 	}, nil
+}
+
+// bridgeWord is the bridge a reading names, "" where it names none.
+func bridgeWord(body *recordpb.Verify) string {
+	if body.Bridge == nil {
+		return ""
+	}
+	return recordpb.Word(body.GetBridge())
 }
 
 type verifyResult struct {
@@ -441,6 +458,8 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
+	// Bridge is what a supports_with_bridge reading bridged; absent on every other outcome.
+	Bridge string `json:"bridge,omitempty"`
 	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
 	// anchor, which a finding raising a contradiction quotes whole.
 	Claim string `json:"claim"`
@@ -465,6 +484,8 @@ func (r verifyResult) human() string {
 		return subject + " does NOT contain the claim " + claim + " — recorded as absent (the source says nothing about it; it does not say otherwise)"
 	case "unreachable":
 		return subject + " could not be read — recorded as unreachable, with what you tried"
+	case "supports_with_bridge":
+		return subject + " verified: " + r.Outcome + " (bridged: " + r.Bridge + "), on the claim " + claim
 	default:
 		return subject + " verified: " + r.Outcome + ", on the claim " + claim
 	}

@@ -31,7 +31,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 		}
 	}
 	mint := func(id string) {
-		app(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: proto.String("self-attestation"),
+		app(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p " + id), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})

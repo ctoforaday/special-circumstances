@@ -103,7 +103,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--fx:F-0000a1f1-->"),
-		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
+		Location: proto.String("cache.go:88"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),

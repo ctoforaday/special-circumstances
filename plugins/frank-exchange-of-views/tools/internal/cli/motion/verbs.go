@@ -50,6 +50,15 @@ func docketRoute(actingRole string) string {
 	return "a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that"
 }
 
+// fileStale is seat.StaleRule on the page of a subject whose filing names a gap, and "" on any other.
+func fileStale(subject string) string {
+	switch subj, _ := record.MotionSubjectEnum(subject); subj {
+	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+		return seat.StaleRule + "\n\n"
+	}
+	return ""
+}
+
 // finalSittingSays is what a filing of subject meets at the run's final sitting — the sitting whose
 // plan says final_sitting — read from the record's own rule (record.HeardAtTheExit), so the page and
 // the refusal cannot disagree about which subjects are heard.
@@ -77,7 +86,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// had already chosen this one.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
-			fileSays(actingRole, subject) + "\n\n" +
+			fileSays(actingRole, subject) + "\n\n" + fileStale(subject) +
 			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.\n\n" +
 			finalSittingSays(subject),
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
@@ -148,7 +157,19 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
 			}
-			if _, err := record.Append(s.Identity(), body, record.HeardInTime(subj)); err != nil {
+			write := func(guards ...record.Guard) error {
+				_, err := record.Append(s.Identity(), body, append([]record.Guard{record.HeardInTime(subj)}, guards...)...)
+				return err
+			}
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+				// A MOTION ON A GAP THAT MOVED SINCE THIS SITTING OPENED argues with what the gap was
+				// (gblock ruling B): the refusal shows what changed, and the same filing lands once read.
+				err = seat.AppendFresh(s, seat.Str(cmd, flags.ID), write)
+			default:
+				err = write()
+			}
+			if err != nil {
 				return nil, err
 			}
 			return filed{ID: id, Subject: subject}, nil

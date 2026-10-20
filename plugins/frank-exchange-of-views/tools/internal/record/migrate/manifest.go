@@ -8,6 +8,8 @@ import (
 	"hash"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -48,9 +50,14 @@ type Manifest struct {
 	// value can say "never recorded" in its own terms — an enum has no such word. Each names where
 	// it was written, the slug, the value and why, so the fill is on the record rather than posing
 	// as what the archive said.
-	StatedFills []StatedFill      `json:"stated_fills,omitempty"`
-	Accepted    map[string]string `json:"accepted_losses,omitempty"`
-	IDs         map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id
+	StatedFills []StatedFill `json:"stated_fills,omitempty"`
+	// ClassTranslations is each archived class slug some mint carried that resolved through an
+	// authored row of gapclass.go — a merged or dropped registry class, or a coined slug — with the
+	// GapClass word it became and how many mints carried it. A slug that is a current word respelled
+	// (`report-voice`) has no row: the fold states it already. Empty is stated as [].
+	ClassTranslations []ClassTranslation `json:"class_translations"`
+	Accepted          map[string]string  `json:"accepted_losses,omitempty"`
+	IDs               map[string]string  `json:"ids,omitempty"` // archived id or finding label -> migrated id
 	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
 	GapAnchors GapPlacement `json:"gap_anchors"`
@@ -79,33 +86,51 @@ type Manifest struct {
 
 // StatedFill is one value the migration supplied for a field its source predates.
 type StatedFill struct {
-	Where string `json:"where"` // "staged registry", or "class_new event <old id>"
+	Where string `json:"where"` // "mint <gap_id>": a mint whose source predates class_material
 	Slug  string `json:"slug"`
 	Value string `json:"value"`
 	Why   string `json:"why"`
 }
 
+// ClassTranslation is one archived class slug an authored row carried onto a GapClass word.
+type ClassTranslation struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Mints int    `json:"mints"`
+}
+
+// classTranslations is the counted slugs as rows, ordered by slug, never nil.
+func classTranslations(mints map[string]int) []ClassTranslation {
+	out := []ClassTranslation{}
+	for slug, n := range mints {
+		out = append(out, ClassTranslation{From: slug, To: archivedGapClasses[slug], Mints: n})
+	}
+	slices.SortFunc(out, func(a, b ClassTranslation) int { return strings.Compare(a.From, b.From) })
+	return out
+}
+
 // NewManifest assembles the manifest for one replay.
 func NewManifest(sourcePath string, files []SourceFile, unclassified []string, res *Result) *Manifest {
 	return &Manifest{
-		SourcePath:    sourcePath,
-		SourceHash:    res.SourceHash,
-		SourceFiles:   files,
-		ToolVersion:   buildid.Revision(),
-		EventSchema:   record.EventSchema,
-		MigratedAt:    record.Now().Format("2006-01-02T15:04:05Z"),
-		In:            res.In,
-		Out:           res.Out,
-		Refusals:      res.Refusals,
-		StatedFills:   res.StatedFills,
-		Accepted:      res.AcceptedLosses,
-		IDs:           res.IDs,
-		Serialized:    res.Serialized,
-		GapAnchors:    res.GapAnchors,
-		ReportOrder:   res.ReportOrder,
-		ProseRewrites: proseCounts(res.ProseRewrites),
-		Rewritten:     res.ProseRewrites,
-		Unclassified:  unclassified,
+		SourcePath:        sourcePath,
+		SourceHash:        res.SourceHash,
+		SourceFiles:       files,
+		ToolVersion:       buildid.Revision(),
+		EventSchema:       record.EventSchema,
+		MigratedAt:        record.Now().Format("2006-01-02T15:04:05Z"),
+		In:                res.In,
+		Out:               res.Out,
+		Refusals:          res.Refusals,
+		StatedFills:       res.StatedFills,
+		ClassTranslations: res.ClassTranslations,
+		Accepted:          res.AcceptedLosses,
+		IDs:               res.IDs,
+		Serialized:        res.Serialized,
+		GapAnchors:        res.GapAnchors,
+		ReportOrder:       res.ReportOrder,
+		ProseRewrites:     proseCounts(res.ProseRewrites),
+		Rewritten:         res.ProseRewrites,
+		Unclassified:      unclassified,
 	}
 }
 

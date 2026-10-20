@@ -20,7 +20,7 @@ func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G1", "--class", "scope-creep", "--about-kind", "section", "--about", "Risk matrix",
+		"--key", "G1", "--class", "spec_underspecification", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "the template names a graded risk matrix and the report has no such section",
 		"--check-kind", "document", "--check", "the report carries a graded risk matrix",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
@@ -42,7 +42,7 @@ func TestAGapCannotClaimBothAnchors(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G2", "--class", "scope-creep",
+		"--key", "G2", "--class", "spec_underspecification",
 		"--quote", "Seven is prime.", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
@@ -61,7 +61,7 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G3", "--class", "scope-creep", "--about-kind", "inquiry", "--about", "Q99",
+		"--key", "G3", "--class", "spec_underspecification", "--about-kind", "inquiry", "--about", "Q99",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {
@@ -142,7 +142,7 @@ func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *te
 	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's") {
 		t.Errorf("`finding --help` does not say that a finding about an inquiry reaches no work list and that the gap is what does:\n%s", h)
 	}
-	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "scope-creep", "--about-kind", "inquiry", "--about", inquiry,
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "spec_underspecification", "--about-kind", "inquiry", "--about", inquiry,
 		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the inquiry's fate and the section agree",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("a gap anchored to an inquiry was refused: %v", err)

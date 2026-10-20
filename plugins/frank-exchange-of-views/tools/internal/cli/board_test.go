@@ -63,9 +63,9 @@ func ids(rows []map[string]any) []string {
 // parsing the other — the second-reader defect this tool exists to remove, reintroduced.
 func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	runDir := seatRun(t)
-	open1 := mintGap(t, runDir, "stays-open", "json-vs-markdown")
-	closedByRed := mintGap(t, runDir, "red-closes", "json-vs-markdown")
-	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
+	open1 := mintGap(t, runDir, "stays-open", "spec_underspecification")
+	closedByRed := mintGap(t, runDir, "red-closes", "spec_underspecification")
+	closedByBench := mintGap(t, runDir, "bench-closes", "spec_underspecification")
 
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", closedByRed, "--as", "repaired",
@@ -99,7 +99,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 // anchored closures scored 0% anchored.
 func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
+	id := mintGap(t, runDir, "anchored", "policy_without_mechanism")
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",

@@ -45,7 +45,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(gid),
 			MintKey:         proto.String("k-" + gid),
-			Class:           proto.String("self-attestation"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -119,7 +119,4 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
 	}
 
-	if ClassCoinedInRun(run, "never-coined") {
-		t.Error("ClassCoinedInRun found a class nobody coined")
-	}
 }
