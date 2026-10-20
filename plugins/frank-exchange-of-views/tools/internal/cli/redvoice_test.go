@@ -57,7 +57,7 @@ func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 	)
 	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", url, "--title", title, "--access-date", "2026-09-01",
-		"--quote", corroborated, "--as", "supports_with_bridge", "--confidence", "medium",
+		"--quote", corroborated, "--as", "supports_with_bridge", "--bridge", "secondary_citation", "--confidence", "medium",
 		"--reason", reason); err != nil {
 		t.Fatalf("corroborate: %v", err)
 	}

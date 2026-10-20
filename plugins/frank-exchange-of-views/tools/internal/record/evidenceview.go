@@ -191,6 +191,9 @@ type EvidenceVerificationJSON struct {
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
 	Outcome string `json:"outcome"`
+	// Bridge is what a supports_with_bridge reading bridged — summary, secondary_citation or
+	// near_restatement — absent on every other outcome, and on a reading recorded before the field.
+	Bridge string `json:"bridge,omitempty"`
 	// Confidence is how sure red is of that outcome — orthogonal to it. `refutes` at low
 	// confidence is a call for more evidence; at high confidence it is a finding to act on.
 	Confidence string `json:"confidence"`
@@ -248,8 +251,9 @@ type EvidenceJSON struct {
 	// only where it is (passBlockersOf).
 	Reopened []EvidenceReopenedJSON `json:"reopened"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
-	// not support the report, and nothing has answered it: no finding raised it, and the citation
-	// it was read against is neither retired nor backed (unansweredContradictions).
+	// not support the report, and nothing has answered it: no gap was minted from the finding that
+	// raised it, and the citation it was read against is neither retired nor backed
+	// (unansweredContradictions).
 	//
 	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the chair's PASS gate,
 	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
@@ -257,9 +261,10 @@ type EvidenceJSON struct {
 	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
 	// checked are the same absence.
 	//
-	// EACH CARRIES ITS ID, which is what answers it (`finding --about-kind contradiction --about
-	// <id>`) whether or not the report still holds the sentence. A claim alone could be answered
-	// only by quoting it, and once blue edited the sentence the quote was refused.
+	// EACH CARRIES ITS ID, which is what raises it (`finding --about-kind contradiction --about
+	// <id>`) whether or not the report still holds the sentence. A claim alone could be raised
+	// only by quoting it, and once blue edited the sentence the quote was refused. A raised one
+	// carries the raising finding, which the gap that answers it credits in its found_by.
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
 		Sources int `json:"sources"`
@@ -280,15 +285,17 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
-// EvidenceContradictionJSON is one contradiction nothing has answered. ID is its id — the
+// EvidenceContradictionJSON is one contradiction no gap answers. ID is its id — the
 // events.id of the reading that opened it, the value `--about` takes; Claim is the sentence the
-// reading was of; Reader is the seat whose reading last joined it, which owes the finding; Anchor
-// is the citation that reading checked, "" for a corroboration.
+// reading was of; Reader is the seat whose reading last joined it, which owes the finding and the
+// gap; Anchor is the citation that reading checked, "" for a corroboration; RaisedBy is the finding
+// that raised it, "" until one has — the id the answering gap's found_by credits.
 type EvidenceContradictionJSON struct {
-	ID     string `json:"id"`
-	Claim  string `json:"claim"`
-	Reader string `json:"reader"`
-	Anchor string `json:"anchor"`
+	ID       string `json:"id"`
+	Claim    string `json:"claim"`
+	Reader   string `json:"reader"`
+	Anchor   string `json:"anchor"`
+	RaisedBy string `json:"raised_by"`
 }
 
 // EvidenceReopenedJSON is one reopened citation or proof. Edit and LastCheck are events.id: the
@@ -308,7 +315,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	}
 	out.UnansweredContradictions = []EvidenceContradictionJSON{}
 	for _, c := range unansweredContradictions(evs, win) {
-		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor})
+		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor, RaisedBy: c.raisedBy})
 	}
 	out.Reopened = []EvidenceReopenedJSON{}
 	for _, r := range reopenedEvidence(evs, win) {
@@ -343,6 +350,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Anchor:     vf.GetAnchor(),
 			Label:      vf.GetLabel(),
 			Outcome:    recordpb.Word(vf.GetOutcome()),
+			Bridge:     recordpb.Word(vf.GetBridge()),
 			Confidence: recordpb.Word(vf.GetConfidence()),
 			Text:       vf.GetText(),
 			URL:        vf.GetUrl(),
@@ -492,7 +500,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 }
 
 // evidenceView is the evidence read from the record: the sources, proofs and their checks, the
-// findings that answer a contradicting check (unanswered_contradictions), and the edits that
+// findings that raise a contradicting check and the mints that answer it (unanswered_contradictions), and the edits that
 // reopen an anchor with the retires that take one out of the report (reopened).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
@@ -500,6 +508,7 @@ var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf)
 	recordpb.EventType_EVENT_TYPE_PROOF,
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_MINT,
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
 	recordpb.EventType_EVENT_TYPE_RETIRE)
 

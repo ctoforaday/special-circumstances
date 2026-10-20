@@ -135,7 +135,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 // writing the finding here would mean inventing its severity, likelihood and impact — three
 // grades nobody chose, feeding the mass calculation that decides what a gap is worth.
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
+	runDir := newRun(t)
 	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
 	for _, id := range []Identity{lens, merge} {
@@ -170,8 +170,16 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// RAISED IS NOT ANSWERED: the class default wins, so the finding alone leaves the PASS held.
+	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil || !strings.Contains(err.Error(), "raised by finding F-f0000001, no gap minted from it") {
+		t.Errorf("the contradiction was raised as a finding only, and the PASS is not held naming it: %v", err)
+	}
+	// THE GAP MINTED FROM THE RAISING FINDING ANSWERS IT.
+	if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
+		t.Fatal(err)
+	}
 	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
-		t.Errorf("the contradiction was raised as a finding and the PASS is still blocked: %v", err)
+		t.Errorf("the gap minted from the raising finding answered nothing: %v", err)
 	}
 
 	// AND A SUPPORTING CORROBORATION NEVER BLOCKS. It is a reference backing the claim; there is
@@ -184,7 +192,8 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}
 }
 
-// A FINDING ANSWERS THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE.
+// A FINDING RAISES THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE, and the gap minted from it
+// answers what it raised.
 //
 // The claim and the finding's quote are each placed in the report by anchortext, which reads a
 // whitespace run as one separator and drops trailing punctuation. A finding answers the claim
@@ -204,7 +213,7 @@ func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
 		{"part of the claim", "a base-3 test accepts 91", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := recordtest.TmpRun(t)
+			runDir := newRun(t)
 			lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 			if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 				t.Fatal(err)
@@ -219,6 +228,10 @@ func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
 				Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 				Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			}); err != nil {
+				t.Fatal(err)
+			}
+			// The finding raises; the gap minted from it answers what it raised.
+			if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
 				t.Fatal(err)
 			}
 			err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
@@ -280,7 +293,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 // too. The empty array is the point as much as the full one: without the field, "nothing
 // outstanding" and "nobody checked" are the same absence.
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
+	runDir := newRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
@@ -319,7 +332,8 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Errorf("a refuting reading carries a footnote label, so it spliced one after all: %+v", refuted)
 	}
 
-	// Raise it, and the array empties — an empty array, not a null.
+	// Raise it, and the row names the raising finding; answer it with the gap minted from that
+	// finding, and the array empties — an empty array, not a null.
 	if _, err := Append(id, &recordpb.Finding{
 		Id: proto.String("F-f0000001"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
 		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -328,8 +342,15 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
+	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 1 || got[0].RaisedBy != "F-f0000001" {
+		t.Errorf("unanswered_contradictions = %v after the finding was raised, want the row raised by F-f0000001", got)
+	}
+	if _, err := Append(id, raisingGap("G-f0000001", "F-f0000001")); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = FamilyOf(mustRun(t, runDir))
 	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 0 {
-		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
+		t.Errorf("unanswered_contradictions = %v after the gap minted from the raising finding, want empty", got)
 	}
 }
 

@@ -146,6 +146,10 @@ const (
 	// you", never "how good is the source".
 	Confidence = "confidence"
 
+	// Bridge is what a `supports_with_bridge` reading bridged: a summary, a secondary citation, or a
+	// near-restatement. Required with that outcome and refused with any other.
+	Bridge = "bridge"
+
 	// Grading. All four axes ARE their flag names, which is what lets a seat learn the
 	// pattern from any one of them.
 	Severity   = "severity"
@@ -325,7 +329,7 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, Confidence, Occasion,
+		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,

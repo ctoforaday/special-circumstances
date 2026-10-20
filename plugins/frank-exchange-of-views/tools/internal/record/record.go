@@ -1493,6 +1493,19 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			return fmt.Errorf("requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
 		}
+		// A BRIDGE IS NAMED OR IT IS NOT A BRIDGE. supports_with_bridge without its kind is refused
+		// live; under Migrating the absence is what an archive from before the field holds, and no
+		// kind can be read back out of its prose, so it is carried absent. A kind beside any other
+		// outcome is refused in both: it describes a bridge the reading did not make.
+		swb := b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
+		switch {
+		case swb && b.Bridge == nil && !Migrating:
+			return fmt.Errorf("supports_with_bridge requires --bridge summary|secondary_citation|near_restatement — WHAT you bridged. A reading whose gap is none of those three (a term on another object, a condition dropped, a relation reversed) bridged nothing: the source says something else, which is refutes or weak")
+		case swb && b.Bridge != nil && b.GetBridge() == recordpb.BridgeKind_BRIDGE_KIND_UNSPECIFIED:
+			return fmt.Errorf("--bridge takes summary|secondary_citation|near_restatement")
+		case !swb && b.Bridge != nil:
+			return fmt.Errorf("--bridge names what a supports_with_bridge reading bridged, and this reading is %s — drop --bridge, or record supports_with_bridge if that is what the source did", recordpb.Word(b.GetOutcome()))
+		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}

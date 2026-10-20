@@ -392,6 +392,18 @@ enum SourceOutcome {
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
 }
 
+// BridgeKind is WHAT a `supports_with_bridge` reading bridged — the three things that outcome's own
+// meaning names. It is required with that outcome and refused with every other (validate), so a
+// reading whose defect is none of the three — a term put on the wrong object, a condition dropped —
+// has no home there and lands on `refutes` or `weak`, where the gate sees it. m30's evidence lens
+// recorded supports_with_bridge over a definition the source inverts, and said so only in prose.
+enum BridgeKind {
+  BRIDGE_KIND_UNSPECIFIED = 0;
+  BRIDGE_KIND_SUMMARY = 1 [(means) = "the source summarises what the claim states in detail, or the claim summarises the source: the same assertion, at a different length"];
+  BRIDGE_KIND_SECONDARY_CITATION = 2 [(means) = "the source reports the claim on another work's authority — it cites the work that makes it — so the support is second-hand"];
+  BRIDGE_KIND_NEAR_RESTATEMENT = 3 [(means) = "the source says the same thing in other words: every term names the same object it names in the claim, and nothing the claim asserts is added, dropped or reversed"];
+}
+
 // Confidence is how sure the auditor is OF THE DETERMINATION, whatever the determination was.
 // `refutes` at low confidence and `refutes` at high confidence are different facts, and a
 // reader who cannot tell them apart cannot act on either. Low is a call for more evidence, not
@@ -993,7 +1005,7 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
-  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
 }
 
 message Finding {
@@ -1201,6 +1213,12 @@ message Verify {
   // WHICH PART OF THE WORK RED'S COPY IS. A verdict read off an abstract confirms what the abstract
   // says; this is what lets a reader of the record tell that from a verdict on the study.
   optional SourceCompleteness source_completeness = 16 [(prose) = false];
+
+  // WHAT A supports_with_bridge READING BRIDGED, typed --bridge. Set with that outcome and only with
+  // it; a live write of that outcome without it is refused (validate). Its readers: `show evidence`'s
+  // verification rows, which blue reads to find where its evidence is thinnest and every lens reads
+  // before adjudicating the same citation, and the verb's own output.
+  optional BridgeKind bridge = 17 [(sql) = { flag: "bridge" }];
 
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;

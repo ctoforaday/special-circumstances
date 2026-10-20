@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -429,10 +430,15 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 //     first reading of a claim with none open OPENS a contradiction, whose ID is that reading's
 //     events.id. A later reading of the same claim while it is open JOINS it: its seat becomes the
 //     owner, and `since` moves to it, so dispatch readies the new owner. The id does not change.
-//   - A FINDING ANSWERS the open contradiction it names, by reference (`--about-kind contradiction
+//   - A FINDING RAISES the open contradiction it names, by reference (`--about-kind contradiction
 //     --about <id>`), or every open contradiction whose claim its quote contains. Either covers
-//     every reading joined so far, and the contradiction closes. A reading of the claim after the
-//     finding opens a NEW contradiction with its own id: the answer was to what had been read.
+//     every reading joined so far. A reading of the claim after the finding opens a NEW
+//     contradiction with its own id: the raise was of what had been read.
+//   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding.
+//     A source that contradicts or is silent on a claim is a citation defect, and citation classes
+//     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
+//     finding alone — which holds no gate and obliges nobody — does not discharge it. The gap's
+//     class then decides its materiality, as for every gap.
 //
 // THE REFERENCE IS THE ANSWER THAT SURVIVES AN EDIT. A quote must be the report's text at the
 // write, so once blue edits the contradicted sentence away no finding can quote it — the case that
@@ -455,8 +461,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 	var out []*contradiction
 	open := map[string]*contradiction{} // claim -> its open contradiction
-	answer := func(c *contradiction, by string) {
-		c.answeredBy = by
+	raise := func(c *contradiction, by string) {
+		c.raisedBy = by
 		delete(open, c.claim)
 	}
 	for i, e := range evs {
@@ -477,16 +483,22 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 		case *recordpb.Finding:
 			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 				for _, c := range out {
-					if c.answeredBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
-						answer(c, b.GetId())
+					if c.raisedBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
+						raise(c, b.GetId())
 					}
 				}
 			}
 			if loc := strings.TrimSpace(b.GetLocation()); loc != "" {
 				for _, c := range out {
-					if start, _ := anchortext.LocateSpan(loc, c.claim); c.answeredBy == "" && start >= 0 {
-						answer(c, b.GetId())
+					if start, _ := anchortext.LocateSpan(loc, c.claim); c.raisedBy == "" && start >= 0 {
+						raise(c, b.GetId())
 					}
+				}
+			}
+		case *recordpb.Mint:
+			for _, c := range out {
+				if c.raisedBy != "" && c.answeredBy == "" && slices.Contains(b.GetFoundBy(), c.raisedBy) {
+					c.answeredBy = b.GetGapId()
 				}
 			}
 		}
@@ -507,7 +519,7 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	if _, err := strconv.ParseInt(ref, 10, 64); err != nil {
 		return fmt.Errorf("--about %q is not a contradiction's id: it is the number `show evidence` lists as the `id` of each of its unanswered_contradictions", ref)
 	}
-	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING)
+	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
 	if err != nil {
 		return err
 	}
@@ -515,17 +527,20 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
 		switch {
 		case c.idWord() == ref && c.answeredBy != "":
-			return fmt.Errorf("contradiction %s is already answered, by finding %s: one finding answers a contradiction, and a source read against the claim after it opens a new one with its own id", ref, c.answeredBy)
+			return fmt.Errorf("contradiction %s is already answered, by gap %s minted from finding %s: a source read against the claim after it opens a new one with its own id", ref, c.answeredBy, c.raisedBy)
+		case c.idWord() == ref && c.raisedBy != "":
+			return fmt.Errorf("contradiction %s is already raised, by finding %s: one finding raises a contradiction, and the gap minted from it answers it — mint it with `--found-by %s`", ref, c.raisedBy, c.raisedBy)
 		case c.idWord() == ref:
 			return nil
-		case c.answeredBy == "":
+		case c.raisedBy == "":
 			open++
 		}
 	}
 	return fmt.Errorf("--about %s names no contradiction on this record (%d open) — a contradiction's id is the `id` `show evidence` lists under unanswered_contradictions", ref, open)
 }
 
-// unansweredContradictions is contradictionsOf less the ones answered: by a finding, or by the
+// unansweredContradictions is contradictionsOf less the ones answered: by a gap minted from the
+// finding that raised it, or by the
 // standing of the citation the reading checked (gblock, 2026-10-16). win supplies each event's
 // events.id and sitting.
 //
@@ -563,12 +578,13 @@ func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 // contradiction is one contradiction red recorded: its id (the events.id of the reading that opened
 // it), the claim, the seat whose reading last joined it — the lens whose act raises it — and where
 // that reading sits, which is when the lens came to owe it. anchor is the citation the opening
-// reading checked, "" for a corroboration; answeredBy is the id of the finding that answered it.
+// reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it, and
+// answeredBy the id of the gap minted from that finding.
 type contradiction struct {
-	id                 int64
-	claim, reader      string
-	anchor, answeredBy string
-	since              int64
+	id                           int64
+	claim, reader                string
+	anchor, raisedBy, answeredBy string
+	since                        int64
 }
 
 // idWord is the contradiction's id as every surface spells it: decimal, the `--about` value.

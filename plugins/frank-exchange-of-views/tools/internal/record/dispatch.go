@@ -372,7 +372,7 @@ func foldPlan(params Params, r planReads) Plan {
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
 	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
-	// a contradiction no finding raises — holds the PASS until its owner acts, and an owner nobody
+	// a contradiction no gap answers — holds the PASS until its owner acts, and an owner nobody
 	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
 	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
 	// arose and left it is not readied again — for a lens, sat through (satThrough), so a sitting
@@ -397,7 +397,7 @@ func foldPlan(params Params, r planReads) Plan {
 				continue
 			}
 			engage(b.Owner, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it and mint its gap", b.Owner, b.Detail, contradictionFact(b)))
 		}
 	}
 	for _, s := range order {
@@ -406,7 +406,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
 	// the stale areas, its ruling on a grade or inquiry motion). A blocker another seat must clear —
-	// an unruled petition, a contradiction no lens has raised, a docket motion on a gap that has
+	// an unruled petition, a contradiction no gap answers, a docket motion on a gap that has
 	// since closed, a citation or proof unchecked since its sentence changed — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
 	// cannot clear (#1202).

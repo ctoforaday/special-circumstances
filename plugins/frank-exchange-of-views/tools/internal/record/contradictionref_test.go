@@ -15,8 +15,17 @@ import (
 
 // THE CONTRADICTION RULE, PER CLAIM (gblock, 2026-10-06), driven through the fold every surface
 // reads (contradictionsOf): a reading opens a contradiction whose id is its events.id, a later
-// reading of the same claim joins it, a finding answers it by reference or by quoting the claim,
-// and a reading after the answer opens a new one.
+// reading of the same claim joins it, a finding raises it by reference or by quoting the claim,
+// a reading after the raise opens a new one, and the gap minted from the raising finding answers it.
+
+// raisingGap is a gap minted from finding, crediting it in found_by: what answers a contradiction
+// the finding raised.
+func raisingGap(gap, finding string) *recordpb.Mint {
+	m := corrMint(gap)
+	m.Problem = proto.String("the report says what its source does not")
+	m.FoundBy = []string{finding}
+	return m
+}
 
 func referenceFinding(id, ref string) *recordpb.Finding {
 	return &recordpb.Finding{Id: proto.String(id), Text: proto.String("the source says otherwise"),
@@ -41,22 +50,34 @@ func TestAContradictionIsPerClaim(t *testing.T) {
 	}
 	id := cs[0].idWord()
 	cs = contradictionsT(t, read(evLens), read("red-lens-logic"), recordtest.Event(t, evLens, referenceFinding("F-00000001", id)))
-	if len(cs) != 1 || cs[0].answeredBy != "F-00000001" {
-		t.Errorf("an answer by reference = %+v, want contradiction %s answered by F-00000001", cs, id)
+	if len(cs) != 1 || cs[0].raisedBy != "F-00000001" || cs[0].answeredBy != "" {
+		t.Errorf("a raise by reference = %+v, want contradiction %s raised by F-00000001 and unanswered", cs, id)
+	}
+	// THE CLASS DEFAULT WINS: only the gap minted from the raising finding answers it. A gap
+	// crediting another finding answers nothing.
+	cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, referenceFinding("F-00000001", id)),
+		recordtest.Event(t, evLens, raisingGap("G-00000002", "F-00000009")))
+	if len(cs) != 1 || cs[0].answeredBy != "" {
+		t.Errorf("a gap crediting another finding = %+v, want contradiction %s unanswered", cs, id)
+	}
+	cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, referenceFinding("F-00000001", id)),
+		recordtest.Event(t, evLens, raisingGap("G-00000001", "F-00000001")))
+	if len(cs) != 1 || cs[0].answeredBy != "G-00000001" {
+		t.Errorf("the gap minted from the raising finding = %+v, want contradiction %s answered by G-00000001", cs, id)
 	}
 
 	// (ii) A reading after the answer opens a NEW contradiction with its own id, owned by its reader.
 	cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, referenceFinding("F-00000001", id)), read("red-lens-logic"))
-	if len(cs) != 2 || cs[0].answeredBy == "" || cs[1].answeredBy != "" || cs[1].id == cs[0].id || cs[1].reader != "red-lens-logic" {
+	if len(cs) != 2 || cs[0].raisedBy == "" || cs[1].raisedBy != "" || cs[1].id == cs[0].id || cs[1].reader != "red-lens-logic" {
 		t.Errorf("a reading after the answer = %+v, want the answered one and a new open one owned by red-lens-logic", cs)
 	}
 
 	// The quote answers too — but only what was read before it.
 	quote := &recordpb.Finding{Id: proto.String("F-00000002"), Location: proto.String(claim), Text: proto.String("t")}
-	if cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, quote)); len(cs) != 1 || cs[0].answeredBy != "F-00000002" {
-		t.Errorf("a finding quoting the claim after the reading = %+v, want it answered", cs)
+	if cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, quote)); len(cs) != 1 || cs[0].raisedBy != "F-00000002" {
+		t.Errorf("a finding quoting the claim after the reading = %+v, want it raised", cs)
 	}
-	if cs = contradictionsT(t, recordtest.Event(t, evLens, quote), read(evLens)); len(cs) != 1 || cs[0].answeredBy != "" {
+	if cs = contradictionsT(t, recordtest.Event(t, evLens, quote), read(evLens)); len(cs) != 1 || cs[0].raisedBy != "" {
 		t.Errorf("a finding quoting the claim BEFORE the reading = %+v, want the reading open: the finding was not an answer to it", cs)
 	}
 }
@@ -86,8 +107,8 @@ func TestTheWriteRefusesAReferenceTheRuleDoesNotAdmit(t *testing.T) {
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-00000001", id)); err != nil {
 		t.Fatalf("the answer by reference was refused: %v", err)
 	}
-	if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-00000002", id)); err == nil || !strings.Contains(err.Error(), "already answered, by finding F-00000001") {
-		t.Errorf("a second answer to contradiction %s: %v, want a refusal naming F-00000001", id, err)
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-00000002", id)); err == nil || !strings.Contains(err.Error(), "already raised, by finding F-00000001") || !strings.Contains(err.Error(), "--found-by F-00000001") {
+		t.Errorf("a second raise of contradiction %s: %v, want a refusal naming F-00000001 and the gap that answers it", id, err)
 	}
 	mint := &recordpb.Mint{GapId: proto.String("G-00000001"), Class: proto.String("scope-creep"), Problem: proto.String("p"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), AcceptanceCheck: proto.String("c"),
@@ -126,11 +147,27 @@ func TestAnEditedAwayContradictionIsAnsweredByReference(t *testing.T) {
 		t.Errorf("the PASS refusal does not name %q: %v", named, err)
 	}
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-00000001", held.Subject)); err != nil {
-		t.Fatalf("the answer by reference to an edited-away claim was refused: %v", err)
+		t.Fatalf("the raise by reference of an edited-away claim was refused: %v", err)
+	}
+	// RAISED IS NOT ANSWERED: the finding alone leaves the PASS held, and the item names the gap owed.
+	raised := false
+	for _, b := range mustBlockers(t, run) {
+		if b.Kind == BlockerContradiction {
+			raised = true
+			if item := b.WorkItem(); !strings.Contains(item, "finding F-00000001 raised it") || !strings.Contains(item, "`mint --found-by F-00000001`") {
+				t.Errorf("a raised contradiction's work item does not name the gap owed: %s", item)
+			}
+		}
+	}
+	if !raised {
+		t.Fatal("contradiction stopped holding the PASS on the finding alone — a source the report misstates is material by its class, and only its gap answers it")
+	}
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, raisingGap("G-00000001", "F-00000001")); err != nil {
+		t.Fatalf("the gap minted from the raising finding was refused: %v", err)
 	}
 	for _, b := range mustBlockers(t, run) {
 		if b.Kind == BlockerContradiction {
-			t.Errorf("contradiction %s still holds the PASS after the finding answered it", b.Subject)
+			t.Errorf("contradiction %s still holds the PASS after the gap minted from its finding answered it", b.Subject)
 		}
 	}
 }

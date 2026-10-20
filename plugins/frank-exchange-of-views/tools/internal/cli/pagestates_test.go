@@ -143,7 +143,7 @@ func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
 	for _, shape := range []string{"proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,soundness,standing,",
-		"unanswered_contradictions:[{id,claim,reader,anchor}]", "counts:{sources,proofs,proofs_unverified,"} {
+		"unanswered_contradictions:[{id,claim,reader,anchor,raised_by}]", "counts:{sources,proofs,proofs_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)
 		}
