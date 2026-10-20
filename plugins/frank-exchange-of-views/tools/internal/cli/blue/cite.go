@@ -72,11 +72,22 @@ func newCite() *cobra.Command {
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
-		} else if prior != "" {
-			if err := seat.PlaceOwed(s, prior, key); err != nil {
+		} else if prior != nil {
+			// A KEY IS ONE CITATION'S NAME, as it is one program's for `prove`: a retry under it
+			// cites the same source with the same OCR span, or it is a second citation reusing the
+			// name, and returning the first would leave the seat citing something other than what
+			// it asked for. The sentence is not compared: a retry does not read --quote, and is
+			// finished at the location the citation stored, as every keyed act's is.
+			if differs := citeDiffers(prior, url, ocrQuote); differs != "" {
+				return nil, feov.Errorf(feov.Conflict, "--key %q already names citation %s on this run, and %s — "+
+					"a key is one citation's name, not a slot to reuse. This is not a retry: recording nothing here would "+
+					"leave you citing something else. Give this citation its own --key",
+					key, prior.GetLabel(), differs)
+			}
+			if err := seat.PlaceOwed(s, prior.GetLabel(), key); err != nil {
 				return nil, err
 			}
-			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
+			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
@@ -144,7 +155,7 @@ func newCite() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text, and required there: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --url or --ocr-quote is refused: a handle names one citation")
 	return c
 }
 
@@ -155,6 +166,21 @@ func newCite() *cobra.Command {
 // seat's argument there is exactly the run-voice the report refuses); the `evidence` view shows it
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
+// citeDiffers says how a keyed retry differs from the citation stored under its key — the url or
+// the OCR span — and "" where it repeats it.
+func citeDiffers(stored *recordpb.Cite, url, ocrQuote string) string {
+	switch {
+	case stored.GetUrl() != url:
+		return fmt.Sprintf("that citation is of %s, not %s", stored.GetUrl(), url)
+	case stored.GetOcrQuote() != ocrQuote:
+		if stored.GetOcrQuote() == "" {
+			return fmt.Sprintf("that citation quotes no OCR span, and this names %q", ocrQuote)
+		}
+		return fmt.Sprintf("that citation's OCR span is %q, not %q", stored.GetOcrQuote(), ocrQuote)
+	}
+	return ""
+}
+
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Location = proto.String(seat.Location(cmd))
 	body.Url = proto.String(seat.Str(cmd, flags.URL))

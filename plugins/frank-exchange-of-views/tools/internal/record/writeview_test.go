@@ -9,24 +9,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// validateRun is the write path's validation as Append runs it — inside a write transaction on run's
-// record, asked of that transaction — and rolled back, so a test learns what the write would refuse
-// without writing. A run that has recorded nothing is validated as no record, and no record is
-// created for it.
+// validateRun is WouldRefuse under the name these tests use.
 func validateRun(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return err
-	}
-	if db == nil {
-		return validate(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
-	}
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	return validate(writeView{q: tx, files: filesOf(run)}, seatID, typ, body)
+	return WouldRefuse(run, seatID, typ, body)
 }
 
 // recordOf is run's record for a test asking a reader that takes a Querier: the run's handle, or a
