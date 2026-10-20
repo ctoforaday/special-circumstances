@@ -168,16 +168,23 @@ func frictionEntry(old OldEvent) ([]proto.Message, error) {
 // cite cannot say is where its text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
 // quote needs no page check; NOT_RECORDED says the question was never asked. Filled only where
 // absent, so a cite that carries an origin keeps it.
+//
+// A SOURCE BEFORE EPOCH 37 named an OCR citation's span `ocr_quote`; it is the citation's
+// source_span, carried word for word. What no archived cite holds is the span's offsets or the
+// source's text around it — the cache they were read from is not archived — so a migrated cite
+// carries a span only where an OCR quote stood, and never the text a lens reads beside it.
 func citeEntry(old OldEvent) ([]proto.Message, error) {
-	if _, ok := old.Fields["source_text_read"]; ok {
-		fields := map[string]any{}
-		for k, v := range old.Fields {
-			if k != "source_text_read" {
-				fields[k] = v
-			}
+	fields := map[string]any{}
+	for k, v := range old.Fields {
+		switch k {
+		case "source_text_read":
+		case "ocr_quote":
+			fields["source_span"] = v
+		default:
+			fields[k] = v
 		}
-		old.Fields = fields
 	}
+	old.Fields = fields
 	body, err := identityBody(old)
 	if err != nil {
 		return nil, err

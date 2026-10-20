@@ -24,14 +24,14 @@ func TestAQuoteOfARemovedLineIsRefusedAsRemovedNotAsAbsent(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	sha := "doc-under-test"
 	rd := fakeRender(t, run, sha, [][]byte{[]byte("p1"), []byte("p2")}, tessocr.RenderDPI)
-	rec, err := ReadRenderedPages(run, sha, rd)
-	if err != nil {
+	if _, err := ReadRenderedPages(run, sha, rd); err != nil {
 		t.Fatal(err)
 	}
-	if loc, err := LocateSpan(run, rec, "Spot Welding 3.7"); err != nil || len(loc.Pages) != 1 || loc.Pages[0] != 2 {
+	doc := Entry{Sha: sha, ContentType: "application/pdf"}
+	if loc, err := LocateSourceSpan(run, doc, "Spot Welding 3.7"); err != nil || len(loc.Pages) != 1 || loc.Pages[0] != 2 {
 		t.Fatalf("a quote of the reading: %v, %v", loc, err)
 	}
-	_, err = LocateSpan(run, rec, "ee  ee Fe")
+	_, err := LocateSourceSpan(run, doc, "ee  ee Fe")
 	if !errors.Is(err, ErrSpanRemoved) {
 		t.Fatalf("a quote of a removed line: %v, want ErrSpanRemoved", err)
 	}
@@ -40,7 +40,7 @@ func TestAQuoteOfARemovedLineIsRefusedAsRemovedNotAsAbsent(t *testing.T) {
 			t.Errorf("the refusal does not say %q: %v", want, err)
 		}
 	}
-	if _, err := LocateSpan(run, rec, "Arc Welding"); !errors.Is(err, ErrSpanAbsent) {
+	if _, err := LocateSourceSpan(run, doc, "Arc Welding"); !errors.Is(err, ErrSpanAbsent) {
 		t.Errorf("a quote of nothing: %v, want ErrSpanAbsent", err)
 	}
 }
@@ -81,19 +81,88 @@ func TestTextOriginNeedsEvidenceBeforeItSaysEmbedded(t *testing.T) {
 	}
 }
 
-func TestLocateSpanComparesWhitespaceAsOneSpaceAndGlyphsExactly(t *testing.T) {
+// THE ONE DECLARED NORMALISATION, each rule one case: whitespace runs are one space, a line-end
+// hyphen is read joined or kept, and every glyph else must match. The offsets name the source's
+// own bytes, so the matched text is the page's, not the span as typed.
+func TestASpanIsFoundAfterTheDeclaredNormalisationAndPlacedInTheSourcesBytes(t *testing.T) {
 	for _, tc := range []struct {
-		page, span string
-		want       bool
+		text, span, matched string
 	}{
-		{"Annexes A\nthrough  J", "Annexes A through J", true},
-		{"Annexes A through J", "annexes a through j", false},
-		{"tool-\nsupported", "toolsupported", false},
-		{"tool-\nsupported", "tool- supported", true},
+		{"Annexes A\nthrough  J apply.", "Annexes A through J", "Annexes A\nthrough  J"},
+		{"the photo-\nsynthesis rate", "photosynthesis rate", "photo-\nsynthesis rate"},
+		{"a well-\n  known result", "well-known result", "well-\n  known result"},
+		{"tool-\nsupported", "tool- supported", "tool-\nsupported"},
+		{"naïve café", "naïve café", "naïve café"},
 	} {
-		got := strings.Contains(normalizeSpace(tc.page), normalizeSpace(tc.span))
-		if got != tc.want {
-			t.Errorf("page %q holds span %q = %v, want %v", tc.page, tc.span, got, tc.want)
+		got, ok := locateIn(tc.text, tc.span)
+		if !ok || got != tc.matched {
+			t.Errorf("text %q, span %q: matched %q (%v), want %q", tc.text, tc.span, got, ok, tc.matched)
 		}
+	}
+	for _, tc := range []struct{ text, span string }{
+		{"Annexes A through J", "annexes a through j"},
+		{"it is \u201cprime\u201d", "it is \"prime\""},
+		{"a well - known result", "a wellknown result"},
+		{"the end-\n\nNext", "endNext"},
+	} {
+		if got, ok := locateIn(tc.text, tc.span); ok {
+			t.Errorf("text %q holds span %q as %q; the normalisation does not declare that", tc.text, tc.span, got)
+		}
+	}
+}
+
+func locateIn(text, span string) (string, bool) {
+	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
+		f, want := fold(text, mode), fold(span, mode).s
+		if i := strings.Index(f.s, want); i >= 0 && want != "" {
+			return text[f.at[i] : f.at[i+len(want)-1]+1], true
+		}
+	}
+	return "", false
+}
+
+// A SPAN IN AN HTML PAGE'S TEXT is found once, its offsets name the extraction's bytes, and the
+// text either side is the page's, bounded. A span the text holds twice is refused with the count,
+// and one it does not hold names the file blue copies from.
+func TestASpanInAPagesTextIsFoundOnceWithTheTextAroundIt(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	yes := true
+	body := strings.Repeat("Filler words before. ", 30) +
+		"An odd composite n for which a^(n-1) is 1 mod n is a Fermat pseudo-\nprime to base a, and a is a Fermat liar. " +
+		"Twice said. Twice said. " + strings.Repeat("Filler words after. ", 30)
+	e, err := Store(run, Entry{URL: "https://ex/fermat", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+body+"</html>"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.TextSha, err = StoreText(run, e.Sha, []byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	loc, err := LocateSourceSpan(run, e, "a Fermat pseudoprime to base a, and a is a Fermat liar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body[loc.Start:loc.End] != loc.Matched || loc.Matched != "a Fermat pseudo-\nprime to base a, and a is a Fermat liar" {
+		t.Errorf("matched %q at [%d,%d)", loc.Matched, loc.Start, loc.End)
+	}
+	if loc.TextSha != e.TextSha || len(loc.Pages) != 0 {
+		t.Errorf("text sha %q, pages %v: want the extraction's sha and no page", loc.TextSha, loc.Pages)
+	}
+	if len(loc.Before) > SpanWindow+3 || len(loc.After) > SpanWindow+3 || !strings.HasSuffix(loc.Before, "Filler words before. An odd composite n for which a^(n-1) is 1 mod n is ") ||
+		!strings.HasPrefix(loc.After, ". Twice said.") {
+		t.Errorf("window: before %q, after %q", loc.Before, loc.After)
+	}
+	if _, err := LocateSourceSpan(run, e, "Twice said."); !errors.Is(err, ErrSpanRepeated) || !strings.Contains(err.Error(), "2 times") {
+		t.Errorf("a span the text holds twice: %v, want ErrSpanRepeated naming the count", err)
+	}
+	_, err = LocateSourceSpan(run, e, "a Fermat liar is a composite")
+	if !errors.Is(err, ErrSpanAbsent) || !strings.Contains(err.Error(), TextPath(run, e.Sha)) {
+		t.Errorf("a span the text does not hold: %v, want ErrSpanAbsent naming %s", err, TextPath(run, e.Sha))
+	}
+	img, err := Store(run, Entry{URL: "https://ex/figure", ContentType: "image/png"}, []byte("png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LocateSourceSpan(run, img, "anything"); !errors.Is(err, ErrNoText) {
+		t.Errorf("a span in an image: %v, want ErrNoText", err)
 	}
 }

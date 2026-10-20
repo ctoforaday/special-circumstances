@@ -28,6 +28,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [friction](#friction) | lens, chair, blue, bench, operator |
 | [missing capability](#missing-capability) | lens, chair, blue, bench, operator |
 | [citation](#citation) | lens, chair, blue, bench, operator |
+| [source span](#source-span) | lens, blue |
 | [OCR-derived text](#ocr-derived-text) | lens, blue, operator |
 | [anchor](#anchor) | lens, chair, blue, bench, operator |
 | [proof](#proof) | lens, chair, blue, bench, operator |
@@ -320,6 +321,12 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 **Collisions:**
 
 - **reference** — references/*.md and the proto's references option keep the word
+
+## source span
+
+A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+
+**Delivered to:** lens, blue
 
 ## OCR-derived text
 

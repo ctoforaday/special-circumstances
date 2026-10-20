@@ -44,7 +44,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	const citeID, proofID, findID = "C-cafef00d", "P-12345678", "F-deadbeef"
 	// cite anchors the first sentence, proof the first too (two markers, one sentence), finding
 	// the second. Recorded in this order; replay must honour it.
-	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
 		Label: proto.String(citeID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append cite: %v", err)

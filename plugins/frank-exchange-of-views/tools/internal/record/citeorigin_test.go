@@ -22,10 +22,18 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 	}{
 		{"unstamped", &recordpb.Cite{Label: proto.String("c-1")}, "carries no source_text_origin"},
 		{"pages on embedded text", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(), Pages: []int32{3}}, "whose text origin is embedded"},
-		{"pages without the reading", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3}}, "pages without the quote and the reading"},
-		{"ocr with its pins", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3},
-			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-			OcrQuote: proto.String("s"), OcrEngine: proto.String("e"), OcrTextSha: proto.String("t")}, ""},
+		{"pages without the reading", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3}}, "pages without the span and the reading"},
+		{"ocr with its pins", located(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3},
+			OcrEngine: proto.String("e"), OcrTextSha: proto.String("t")}), ""},
+		{"ocr on two pages", located(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: ocr.Enum(), Pages: []int32{3, 4},
+			OcrEngine: proto.String("e"), OcrTextSha: proto.String("t")}), "carries 2 pages"},
+		// A SOURCE WITH TEXT IS CITED AT A LOCATED SPAN, and one without at none.
+		{"embedded with its span", located(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum()}), ""},
+		{"embedded without a span", stamped(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum()}), "carries no located span"},
+		{"a span without the source's text", stamped(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(),
+			SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t")}), "carries no located span"},
+		{"a span on a source with no text", located(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}), "the tool holds no text"},
+		{"no text, no span", stamped(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}), ""},
 		// THE SECOND THING THE TOOL STAMPS, refused on the same terms. A cite with a perfect
 		// origin and no word on whether the work still stands renders as an ordinary source.
 		{"no work status", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum()}, "carries no work_status"},
@@ -41,6 +49,18 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 			t.Errorf("%s: err = %v, want a refusal saying %q", tc.name, err, tc.want)
 		}
 	}
+}
+
+func stamped(c *recordpb.Cite) *recordpb.Cite {
+	c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()
+	c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum()
+	return c
+}
+
+func located(c *recordpb.Cite) *recordpb.Cite {
+	c.SourceSpan, c.SpanStart, c.SpanEnd, c.SpanTextSha = proto.String("s"), proto.Int32(4), proto.Int32(5), proto.String("t")
+	c.SourceBefore, c.SourceMatched, c.SourceAfter = proto.String("the "), proto.String("s"), proto.String(" said")
+	return stamped(c)
 }
 
 func TestAVerifyPageAndItsHashesAreOneFact(t *testing.T) {

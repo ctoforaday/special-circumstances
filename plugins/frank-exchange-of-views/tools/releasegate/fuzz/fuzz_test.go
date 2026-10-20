@@ -98,12 +98,15 @@ func sourceURL(path string) string {
 				_, _ = w.Write(seatprobe.ScannedFixturePDF())
 				return
 			}
-			fmt.Fprintf(w, "fuzz source body for %s\n", req.URL.Path)
+			fmt.Fprintln(w, sourceBody(req.URL.Path))
 		}))
 		sourceSrvURL = srv.URL // deliberately never closed: it lives for the test binary
 	})
 	return sourceSrvURL + path
 }
+
+// sourceBody is the text the loopback source serves at path, which a cite of it quotes.
+func sourceBody(path string) string { return "fuzz source body for " + path }
 
 // mootPending and mootSpent carry the sweep's single `close --as moot` drive. Package-level and
 // atomic because the sweep runs its seeds concurrently and each seed runs its seats concurrently:
@@ -362,6 +365,11 @@ type runner struct {
 	// the tool recorded, or refused without naming the order; it fails the run.
 	ordersRefused    int
 	orderAdmittedErr string
+	// spansRefused counts the cites the tool REFUSED for a source span the source's text does not
+	// hold (citeSpan). The sweep gates it at zero. spanAdmittedErr is the first such cite the tool
+	// recorded, or refused without saying the span is not in the text; it fails the run.
+	spansRefused    int
+	spanAdmittedErr string
 	// reopenedReadied counts the plans that readied the owner of every reopened blocker they hold
 	// (readiedForReopened), and reopenedPlans the plans holding one, whoever they readied.
 	// proofReopenedReadied counts, by owner, the reopened PROOFS whose owner a plan readied; the
@@ -639,6 +647,28 @@ func (r *runner) orderRefused(seatID string) {
 		}
 	default:
 		r.ordersRefused++
+	}
+}
+
+// citeSpanRefused holds the tool to refusing a cite whose source span the source's text does not
+// hold: an admitted one would put blue's own words on the record as the source's. A keyed retry
+// that differs from its first cite is refused for the key before the span is read, and counts as
+// neither.
+func (r *runner) citeSpanRefused(seatID, out string, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case err == nil:
+		if r.spanAdmittedErr == "" {
+			r.spanAdmittedErr = seatID + " cited a span its source does not hold and the cite was recorded: " + firstLine(out)
+		}
+	case strings.Contains(out, "already names citation"):
+	case !strings.Contains(out, "not in the text at"):
+		if r.spanAdmittedErr == "" {
+			r.spanAdmittedErr = seatID + "'s cite of a span its source does not hold was refused without saying so: " + firstLine(out)
+		}
+	default:
+		r.spansRefused++
 	}
 }
 
@@ -2682,10 +2712,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the retry short-circuit; a shared URL across seats exercises the cache HIT path (fetch-once),
 		// while the per-seat path exercises the MISS path.
 		r.maybe(55, func() {
-			url := sourceURL("/blue-shared")
+			path := "/blue-shared"
 			if r.coin(50) {
-				url = sourceURL("/" + seatID)
+				path = "/" + seatID
 			}
+			url := sourceURL(path)
 			cite := r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
 				set("--url", url).
@@ -2698,11 +2729,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(25, "--quote", "across the whole sampled corpus").
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
-			// AN OCR QUOTE ON A SOURCE WITH NO OCR READING IS REFUSED. The sweep's sources are
-			// synthetic text, so the happy path (a scan read by the engine) is internal/cli's; this
-			// drives the flag and its refusal, and proves the refusal never wedges the run.
-			cite = cite.on(15, "--ocr-quote", "fuzz span")
-			cite.run()
+			// EVERY CITE OF A SOURCE WITH TEXT QUOTES WORDS THE TOOL FINDS IN IT. The sweep's sources
+			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span it
+			// does not hold instead, and the tool must refuse it (citeSpan). One draw, where the
+			// drive drew one before, so every later draw of the run is the one it was.
+			span, held := sourceBody(path), true
+			if r.coin(15) {
+				span, held = "fuzz words the source does not hold", false
+			}
+			out, err := cite.set("--source-span", span).run()
+			if !held {
+				r.citeSpanRefused(seatID, out, err)
+			}
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
 		// logged by the tool as a defect. Driving it here proves the reject path never wedges the run.
@@ -3487,6 +3525,9 @@ type outcome struct {
 	positionsRefused int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
+	// spansRefused is the cites the tool refused for a span the source does not hold
+	// (runner.spansRefused).
+	spansRefused int
 	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
@@ -4026,6 +4067,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.orderAdmittedErr != "" {
 		res.err = "section order: " + r.orderAdmittedErr
+		return res
+	}
+	if r.spanAdmittedErr != "" {
+		res.err = "source span: " + r.spanAdmittedErr
 		return res
 	}
 	if r.repeatErr != "" {
@@ -4673,6 +4718,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.inquiryRecords = r.inquiryRecords
 	res.positionsRefused = r.positionsRefused
 	res.ordersRefused = r.ordersRefused
+	res.spansRefused = r.spansRefused
 	res.quotesRefused = r.quotesRefused
 	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
@@ -5383,6 +5429,7 @@ func TestFuzzDebate(t *testing.T) {
 	quotesRefused := 0                              // corroborations refused for a quote the report does not hold
 	bridgesRefused, bridgesNamed := 0, 0            // supports_with_bridge refused for no --bridge / recorded with one
 	ordersRefused := 0                              // edits refused for a section out of the order the report ships in
+	spansRefused := 0                               // cites refused for a source span the source's text does not hold
 	positionsRefused := 0                           // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0          // plans that readied every reopened blocker's owner, of those holding one
 	proofReopenedReadied := map[string]int{}        // reopened proofs whose owner a plan readied, by owner
@@ -5465,6 +5512,7 @@ func TestFuzzDebate(t *testing.T) {
 			inquiryRecords += o.inquiryRecords
 			positionsRefused += o.positionsRefused
 			ordersRefused += o.ordersRefused
+			spansRefused += o.spansRefused
 			quotesRefused += o.quotesRefused
 			bridgesRefused += o.bridgesRefused
 			bridgesNamed += o.bridgesNamed
@@ -5631,6 +5679,11 @@ func TestFuzzDebate(t *testing.T) {
 		// refusal that holds it is reached only by the drive that writes a section out of place.
 		if ordersRefused == 0 {
 			t.Errorf("fuzz drove ZERO edits refused for a section out of order across %d runs — no drive wrote one, so the refusal that holds the order the report ships in is unexercised (false green)", completed)
+		}
+		// THE SOURCE-SPAN GATE. Every other cite quotes words its source's text holds, so the
+		// refusal of a span the source does not hold is reached only by the drive that types one.
+		if spansRefused == 0 {
+			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", completed)
 		}
 		// THE REPORT'S-SENTENCE GATE. The lens drive quotes a real span of the report under every
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive

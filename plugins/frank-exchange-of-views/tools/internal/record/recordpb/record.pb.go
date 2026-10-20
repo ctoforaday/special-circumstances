@@ -4036,16 +4036,31 @@ type Cite struct {
 	// WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
 	// validate refuses an unstamped origin instead.
 	//
-	// ocr_quote is the seat's span, verbatim as typed; pages are the PDF page indexes the binary
-	// found it on, ascending and unique; ocr_engine and ocr_text_sha name WHICH reading located
-	// them, because run-archive keeps no cache and the event is the only thing that outlives it.
-	// A page is bound to that page's pixels, not to the engine: a later engine can stop finding
-	// the span, never move it.
+	// source_span is the seat's span, verbatim as typed — the source's words, which the tool found
+	// once in the cached text before it wrote. pages are the PDF page indexes of an OCR reading
+	// the span sits on; ocr_engine and ocr_text_sha name WHICH reading located them, because
+	// run-archive keeps no cache and the event is the only thing that outlives it. A page is bound
+	// to that page's pixels, not to the engine: a later engine can stop finding the span, never
+	// move it.
 	SourceTextOrigin *SourceTextOrigin `protobuf:"varint,11,opt,name=source_text_origin,json=sourceTextOrigin,proto3,enum=feov.record.v1.SourceTextOrigin,oneof" json:"source_text_origin,omitempty"`
-	OcrQuote         *string           `protobuf:"bytes,12,opt,name=ocr_quote,json=ocrQuote,proto3,oneof" json:"ocr_quote,omitempty"`
+	SourceSpan       *string           `protobuf:"bytes,12,opt,name=source_span,json=sourceSpan,proto3,oneof" json:"source_span,omitempty"`
 	Pages            []int32           `protobuf:"varint,13,rep,packed,name=pages,proto3" json:"pages,omitempty"`
 	OcrEngine        *string           `protobuf:"bytes,14,opt,name=ocr_engine,json=ocrEngine,proto3,oneof" json:"ocr_engine,omitempty"`
 	OcrTextSha       *string           `protobuf:"bytes,15,opt,name=ocr_text_sha,json=ocrTextSha,proto3,oneof" json:"ocr_text_sha,omitempty"`
+	// WHERE THE SPAN WAS FOUND, AND WHAT THE SOURCE SAYS AROUND IT, stamped by the tool. span_start
+	// and span_end are byte offsets of the span in the text it was found in — the source's text for
+	// embedded text, the page's reading for OCR text — and span_text_sha is that text's sha256, so
+	// the offsets name bytes a re-check can open. source_before, source_matched and source_after are
+	// those bytes: up to a bounded window either side, and the span exactly as the source holds it.
+	// They are what a lens reads the cited sentence against, kept on the event because run-archive
+	// keeps no cache. Blue's own wording about the source is `text`, and no reader shows the two
+	// under one name.
+	SpanStart     *int32  `protobuf:"varint,18,opt,name=span_start,json=spanStart,proto3,oneof" json:"span_start,omitempty"`
+	SpanEnd       *int32  `protobuf:"varint,19,opt,name=span_end,json=spanEnd,proto3,oneof" json:"span_end,omitempty"`
+	SpanTextSha   *string `protobuf:"bytes,20,opt,name=span_text_sha,json=spanTextSha,proto3,oneof" json:"span_text_sha,omitempty"`
+	SourceBefore  *string `protobuf:"bytes,21,opt,name=source_before,json=sourceBefore,proto3,oneof" json:"source_before,omitempty"`
+	SourceMatched *string `protobuf:"bytes,22,opt,name=source_matched,json=sourceMatched,proto3,oneof" json:"source_matched,omitempty"`
+	SourceAfter   *string `protobuf:"bytes,23,opt,name=source_after,json=sourceAfter,proto3,oneof" json:"source_after,omitempty"`
 	// WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped from the fetch index the same way the origin
 	// above is. Not `(sql).required`: no seat types it, so `validate` refuses an unstamped value
 	// rather than a flag teaching one.
@@ -4149,9 +4164,9 @@ func (x *Cite) GetSourceTextOrigin() SourceTextOrigin {
 	return SourceTextOrigin_SOURCE_TEXT_ORIGIN_UNSPECIFIED
 }
 
-func (x *Cite) GetOcrQuote() string {
-	if x != nil && x.OcrQuote != nil {
-		return *x.OcrQuote
+func (x *Cite) GetSourceSpan() string {
+	if x != nil && x.SourceSpan != nil {
+		return *x.SourceSpan
 	}
 	return ""
 }
@@ -4173,6 +4188,48 @@ func (x *Cite) GetOcrEngine() string {
 func (x *Cite) GetOcrTextSha() string {
 	if x != nil && x.OcrTextSha != nil {
 		return *x.OcrTextSha
+	}
+	return ""
+}
+
+func (x *Cite) GetSpanStart() int32 {
+	if x != nil && x.SpanStart != nil {
+		return *x.SpanStart
+	}
+	return 0
+}
+
+func (x *Cite) GetSpanEnd() int32 {
+	if x != nil && x.SpanEnd != nil {
+		return *x.SpanEnd
+	}
+	return 0
+}
+
+func (x *Cite) GetSpanTextSha() string {
+	if x != nil && x.SpanTextSha != nil {
+		return *x.SpanTextSha
+	}
+	return ""
+}
+
+func (x *Cite) GetSourceBefore() string {
+	if x != nil && x.SourceBefore != nil {
+		return *x.SourceBefore
+	}
+	return ""
+}
+
+func (x *Cite) GetSourceMatched() string {
+	if x != nil && x.SourceMatched != nil {
+		return *x.SourceMatched
+	}
+	return ""
+}
+
+func (x *Cite) GetSourceAfter() string {
+	if x != nil && x.SourceAfter != nil {
+		return *x.SourceAfter
 	}
 	return ""
 }
@@ -7381,7 +7438,8 @@ const file_record_proto_rawDesc = "" +
 	"\blocation\x18\x02 \x01(\tH\x01R\blocation\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_locationJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xae\a\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xa7\n" +
+	"\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -7392,17 +7450,25 @@ const file_record_proto_rawDesc = "" +
 	"accessDate\x88\x01\x01\x12)\n" +
 	"\bcite_key\x18\a \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x06R\aciteKey\x88\x01\x01\x12)\n" +
 	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12Y\n" +
-	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\bR\x10sourceTextOrigin\x88\x01\x01\x12&\n" +
-	"\tocr_quote\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\tR\bocrQuote\x88\x01\x01\x12\x1a\n" +
+	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\bR\x10sourceTextOrigin\x88\x01\x01\x12*\n" +
+	"\vsource_span\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\tR\n" +
+	"sourceSpan\x88\x01\x01\x12\x1a\n" +
 	"\x05pages\x18\r \x03(\x05B\x04\xc0\xb5\x18\x00R\x05pages\x12(\n" +
 	"\n" +
 	"ocr_engine\x18\x0e \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
 	"R\tocrEngine\x88\x01\x01\x12+\n" +
 	"\focr_text_sha\x18\x0f \x01(\tB\x04\xc0\xb5\x18\x00H\vR\n" +
-	"ocrTextSha\x88\x01\x01\x12F\n" +
-	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\fR\n" +
+	"ocrTextSha\x88\x01\x01\x12(\n" +
+	"\n" +
+	"span_start\x18\x12 \x01(\x05B\x04\xc0\xb5\x18\x00H\fR\tspanStart\x88\x01\x01\x12$\n" +
+	"\bspan_end\x18\x13 \x01(\x05B\x04\xc0\xb5\x18\x00H\rR\aspanEnd\x88\x01\x01\x12-\n" +
+	"\rspan_text_sha\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\vspanTextSha\x88\x01\x01\x12.\n" +
+	"\rsource_before\x18\x15 \x01(\tB\x04\xc0\xb5\x18\x00H\x0fR\fsourceBefore\x88\x01\x01\x120\n" +
+	"\x0esource_matched\x18\x16 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\rsourceMatched\x88\x01\x01\x12,\n" +
+	"\fsource_after\x18\x17 \x01(\tB\x04\xc0\xb5\x18\x00H\x11R\vsourceAfter\x88\x01\x01\x12F\n" +
+	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\x12R\n" +
 	"workStatus\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01B\b\n" +
+	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x13R\x12sourceCompleteness\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
@@ -7411,11 +7477,16 @@ const file_record_proto_rawDesc = "" +
 	"\f_access_dateB\v\n" +
 	"\t_cite_keyB\a\n" +
 	"\x05_textB\x15\n" +
-	"\x13_source_text_originB\f\n" +
-	"\n" +
-	"_ocr_quoteB\r\n" +
+	"\x13_source_text_originB\x0e\n" +
+	"\f_source_spanB\r\n" +
 	"\v_ocr_engineB\x0f\n" +
-	"\r_ocr_text_shaB\x0e\n" +
+	"\r_ocr_text_shaB\r\n" +
+	"\v_span_startB\v\n" +
+	"\t_span_endB\x10\n" +
+	"\x0e_span_text_shaB\x10\n" +
+	"\x0e_source_beforeB\x11\n" +
+	"\x0f_source_matchedB\x0f\n" +
+	"\r_source_afterB\x0e\n" +
 	"\f_work_statusB\x16\n" +
 	"\x14_source_completenessJ\x04\b\b\x10\tJ\x04\b\n" +
 	"\x10\vR\x05claimR\x10source_text_read\"\xa2\f\n" +

@@ -101,11 +101,20 @@ do not trip it.
 
 ## 2. Cite — putting it on the record
 
-`blue cite --url --quote --title [--ocr-quote]` resolves the url through the same cache. It
+`blue cite --url --quote --title [--source-span]` resolves the url through the same cache. It
 records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at the quoted sentence.
 
-- A citation of OCR-derived text must name its span (`--ocr-quote`). The tool then records the pdf
-  pages the span sits on.
+- A citation of a source whose text the tool holds — extracted HTML or PDF text, raw text, or an
+  OCR reading — must name its span (`--source-span`), copied from that cached text. The tool finds
+  it there exactly once, after reading runs of whitespace as one space and a line-end hyphen either
+  joined or kept, and refuses a span it cannot find, or finds twice. It records the span's byte
+  offsets, the sha256 of the text they index, the source's own text up to 300 bytes either side
+  (`source_before`, `source_matched`, `source_after`), and for an OCR reading the pdf page.
+  `show evidence` shows that text as `source_text`, beside blue's `cite --reason` as
+  `blue_reason`, so a lens reads the sentence against the source and not against blue's account
+  of it.
+- A source the tool holds no text for (`source_text_origin` none) is cited without a span, and a
+  span given for one is refused. A migrated citation carries no offsets or surrounding text.
 - **The tool stamps the facts the seat cannot be asked to remember**, and a cite write missing one
   is refused:
   - `source_text_origin`: embedded, ocr or none.

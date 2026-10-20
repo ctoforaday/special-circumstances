@@ -263,7 +263,8 @@ func TestBlueCiteOfAnAbstractIsMarkedAsOne(t *testing.T) {
 	withFetcher(t, &fakeFetcher{contentType: "text/html", resp: map[string][]byte{src: page}})
 	if _, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
 		"--quote", "The crystals expose reactive facets.",
-		"--url", src, "--title", "Anatase TiO2 single crystals"); err != nil {
+		"--url", src, "--title", "Anatase TiO2 single crystals",
+		"--source-span", "surfaces with high reactivity usually diminish rapidly during the crystal growth process"); err != nil {
 		t.Fatalf("a citation of an abstract was refused: %v", err)
 	}
 	if c := firstCiteEvent(t, runDir); c == nil || c.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
