@@ -42,3 +42,34 @@ func TestM30RefutationIsAnsweredByTheEditAndTheRecheck(t *testing.T) {
 		t.Errorf("at the end of the run, red finds against %v, want none — the refutation was of a sentence the edit replaced, and the new one was read as supported", got)
 	}
 }
+
+// SOURCES_REFUTED IS THE STANDING, AS THE ASSEMBLY SCREEN READS IT (gblock, 2026-10-19). The same
+// m30 points: after the refutation and before the edit, `show evidence` counts C-4f4b8cfa against;
+// at the end of the run — the refuted sentence replaced and the new one read as supported — it
+// counts nothing, though the refuting row is still in the verified list.
+func TestM30SourcesRefutedCountsOnlyTheStanding(t *testing.T) {
+	whole := archivedEvents(t, m30Archive)
+	at := func(n int) EvidenceJSON {
+		fam, err := FamilyOf(archiveAt(t, m30Archive, whole, n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return EvidenceJSONOf(fam.Events, fam.At)
+	}
+	if got := at(430).Counts.SourcesRefuted; got != 1 {
+		t.Errorf("after the refutation and before the edit, sources_refuted = %d, want 1 (C-4f4b8cfa)", got)
+	}
+	end := at(len(whole))
+	if got := end.Counts.SourcesRefuted; got != 0 {
+		t.Errorf("at the end of the run, sources_refuted = %d, want 0 — the refutation was of a sentence the edit replaced, and the re-check backs the new one", got)
+	}
+	refutedRow := false
+	for _, s := range end.Sources {
+		if s.Anchor == "C-4f4b8cfa" {
+			refutedRow = slices.ContainsFunc(s.Verified, EvidenceVerificationJSON.Refuted)
+		}
+	}
+	if !refutedRow {
+		t.Error("C-4f4b8cfa's refuting row is gone from the verified list — the count reads the standing, the rows keep the history")
+	}
+}

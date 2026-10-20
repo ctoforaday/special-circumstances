@@ -226,9 +226,10 @@ type EvidenceVerificationJSON struct {
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
-// mean the report is carrying a citation it should not. A named predicate rather than a
-// string comparison at each call site: the assembly screen, the counts here and any future
-// reader must agree on what "found against" means, and they agree by calling this.
+// mean the report is carrying a citation it should not, when the reading stands. A named
+// predicate rather than a string comparison at each call site: every reader of one reading must
+// agree on what "found against" means, and they agree by calling this. Whether it STANDS is the
+// anchor ledger's (CitationsFoundAgainst), which counts.sources_refuted reads.
 func (v EvidenceVerificationJSON) Refuted() bool {
 	return v.Outcome == "refutes" || v.Outcome == "absent"
 }
@@ -274,9 +275,11 @@ type EvidenceJSON struct {
 		ProofsUnverified int `json:"proofs_unverified"`
 		// SourcesUnverified is its citation twin: cited, and nobody has checked it.
 		SourcesUnverified int `json:"sources_unverified"`
-		// SourcesRefuted counts the citations red has EVER found against — refuted or absent, by
-		// any reading, answered or not. What red finds against NOW is the ledger's standing
-		// (CitationsFoundAgainst), which the assembly screen acts on.
+		// SourcesRefuted counts the citations red finds against NOW: a standing `refutes` or
+		// `absent` check of the sentence the report carries (CitationsFoundAgainst, the anchor
+		// ledger's fold). One count, one meaning: the assembly screen fails on the same set, so a
+		// refutation of a sentence an edit replaced and a re-check backed is not counted (gblock,
+		// 2026-10-19; m30's C-4f4b8cfa).
 		SourcesRefuted int `json:"sources_refuted"`
 		Verifications  int `json:"verifications"`
 	} `json:"counts"`
@@ -490,15 +493,9 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	for _, s := range out.Sources {
 		if len(s.Verified) == 0 {
 			out.Counts.SourcesUnverified++
-			continue
-		}
-		for _, v := range s.Verified {
-			if v.Refuted() {
-				out.Counts.SourcesRefuted++
-				break
-			}
 		}
 	}
+	out.Counts.SourcesRefuted = len(CitationsFoundAgainst(evs, win))
 	return out
 }
 
