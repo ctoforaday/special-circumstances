@@ -288,10 +288,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				d.Pin = proto.Int64(to)
 			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
-			// key is over them. translatePlanIDs carries each through newID and re-keys the plan, and
+			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place.
 			if pl, ok := body.(*recordpb.Plan); ok {
-				if err := translatePlanIDs(pl, newID); err != nil {
+				if err := TranslatePlanIDs(pl, newID); err != nil {
 					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}

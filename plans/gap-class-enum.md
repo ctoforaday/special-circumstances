@@ -318,6 +318,8 @@ plugins/frank-exchange-of-views/
   tools/internal/record/{replay.go,record.go,enums.go,enumvalue.go,enumof.go,writeview.go,viewjson.go} [MODIFY]
   tools/internal/record/{planstore.go,planstore_test.go,dispatch.go,dispatchnext.go} [MODIFY] `keyed` exported as the method `Plan.WithKey` (migrate re-keys a translated plan, D10); `dispatch.go` exports `RemandDirectionPrefix` and `:365` formats with it (F14)
   tools/internal/record/remand_test.go                [MODIFY] TestARemandLineCarriesItsDirectionAsWritten (§III.8a)
+  tools/internal/record/{retirement.go,dispatch.go}    [MODIFY] the lens fold's reason is `lensFold.readiness`, its unsat-sitting clause `unsatSitting`, a debt's blocker `owedBlocker`, a contradiction's readiness `contradictionReadiness` — each producer of an id-bearing `why` line one function the guard renders (§III.8a)
+  tools/internal/record/{export_test.go,planidphrases_test.go} [MODIFY / NEW] TestEveryIDTheVerbPrintsIsTranslated, TestTheOpenedAtLineCrossesARenumbering (§III.8a)
   tools/internal/debatejs/{debatejs.go,petition_test.go}, seatprobe/production.go, integration/surface/fragmentdispatch_test.go, releasegate/fuzz/{fuzz_test.go,termination_test.go} [MODIFY] `debatejs.Keyed` → `debatejs.WithKey` (D10)
   tools/internal/record/recordtest/recordtest.go      [MODIFY] ClassFor(ClassMaterial); coining default deleted
   tools/internal/report/assemble.go (+ test)          [MODIFY] class word through recordpb.Word
@@ -329,7 +331,7 @@ plugins/frank-exchange-of-views/
   tools/internal/record/migrate/gapclass.go           [NEW]    the archived-slug → GapClass table
   tools/internal/record/migrate/gapclass_test.go      [NEW]    (replaces classmaterial_test.go)
   tools/internal/record/migrate/{migrate.go,replay.go,entries.go,remap.go,manifest.go,valuerenames.go} [MODIFY]
-  tools/internal/record/migrate/planids.go            [NEW]    a stored plan's event ids through newID (§III.8a)
+  tools/internal/record/migrate/planids.go            [NEW]    a stored plan's event ids through newID (`TranslatePlanIDs`, exported for `record`'s guard) (§III.8a)
   tools/internal/record/migrate/planrenumbered_internal_test.go → planids_internal_test.go [MODIFY] (+ TestMigrateKnowsTheVerbsRemandPrefix, F14)
   tools/internal/record/migrate/{storedplan_test.go,benchoccasion_test.go,publish_test.go} [MODIFY] storedplan's prose and benchoccasion's byte-for-byte census (C15); TestARefusalNamesToNotTheBuild deleted (F11)
   tools/internal/record/migrate/testdata/prose-rewrites.golden [MODIFY] regenerated: sleeper's one `ClassNew.distinguisher` row leaves (a `class_new` writes no event)
@@ -683,7 +685,7 @@ and what migrate does with it:
 | `Finding.about_ref` on a `contradiction` (`contradictionRef`, `:306–316,530`) | through `newID` | unchanged |
 | stored `Plan`: `head`, each `stale_areas[].pin` | refused when moved (`planRenumbered`, `:295–304,510–528`) | through `newID` |
 | stored `Plan`: a `contradiction` blocker's `subject` (`passblockers.go:434`, `c.idWord()` — an events.id as a word) | not read; carried as printed | through `newID` |
-| stored `Plan`: the ids its `why` lines print — `never sat — audits the report at head N`, `head N moved past its last sitting's pin N`, `sat at the head (pin N)`, `retired (pin N)` (`retirement.go:206–216`); `contradiction N` among a lens's debts (`retirement.go:133`, through `retiresWhy`); `changed at edit N … its last check is event N` (`reopenedFact`, `passblockers.go:124`, through the reopened why `:237`); `contradiction N` (`contradictionFact`, `:118`, through the contradiction why `:203` and `dispatch.go:394,398`) | carried as printed | through `newID`, by the phrase table below |
+| stored `Plan`: the ids its `why` lines print — `never sat — audits the report at head N`, `has sat through no sitting — … — audits the report at head N`, `head N moved past its last sitting's pin N`, `sat at the head (pin N)`, `retired (pin N)` (`lensFold.readiness`, `retirement.go`); `its sitting opened at N …` (`unsatSitting`, `retirement.go`, in the `has sat through no sitting` and `head moved` lines); `contradiction N` among a lens's debts (`retirement.go:133`, through `retiresWhy`); `changed at edit N … its last check is event N` (`reopenedFact`, `passblockers.go:124`, through the reopened why `:237`); `contradiction N` (`contradictionFact`, `:118`, through the contradiction why `:203` and `dispatch.go:394,398`) | carried as printed | through `newID`, by the phrase table below |
 | stored `Plan`: the seat words its `why` lines carry — a `%q` claim (`dispatch.go:394,398`, `passblockers.go:203`), the bench ruling's direction (`dispatch.go:365`, bare `%s`) — and `remand_owed[].direction` | carried as printed | **carried as written (F12)** — neither translated nor refused |
 | stored `Plan`: `key` | over every field above but `epoch`/`final_sitting` | recomputed (`Plan.WithKey`) |
 | stored `Plan`: other `subject`s, `parties[].gap_ids`, `docket`, `remand_owed[].gap_id`, `exchanges`; `Gate.migration_admitted_gap_ids` | content ids (gap, motion, anchor, seat), current shape at epoch ≥ 31, which `remap.id` keeps (`remap.go:202–205`) | unaffected |
@@ -695,16 +697,17 @@ concatenated operand of a line that reaches `Plan.Why`.
 
 | producer | operands | class |
 |---|---|---|
-| `dispatch.go:284` `f.why` | the lens fold's line | → `retirement.go:206–216` |
-| `retirement.go:206–216` | `seat`; `head`, `f.pin` (`%d`); `f.barren` (`%d`); `retiresWhy()` | seat id; **ids**; count; → `:67–75` |
-| `retirement.go:67–75` `retiresWhy` | `retiresAfter` (`%d`); `f.owes` joined — `lensOwesOf`'s items `:110,114,125,129,133,138`: `blue's answer to <gap>`, `the accepted grade motion on <gap>`, `the bench's remand of <gap> in <motion>`, `<seat>'s finding <finding> about <gap>`, `<blocker kind> <subject>`, `unjudged proof <anchor>` | count; verb text over content ids, seat ids and a kind word — the one events.id is `contradiction <subject>` (`:133`) |
+| `dispatch.go:284` `f.why` | the lens fold's line | → `lensFold.readiness` |
+| `lensFold.readiness` (`retirement.go`) | `seat`; `head`, `f.pin` (`%d`); `f.barren` (`%d`); `retiresWhy()`; `short` | seat id; **ids**; count; → `retiresWhy`; → `unsatSitting` |
+| `unsatSitting` (`retirement.go`, from `1ac3ab5d`) | `r`, the sitting's opening (`%d`); `ends.short[r]` (`%s`, satThrough's three fixed reasons, `dispatch.go`) | **id**, after `opened at`; fixed text |
+| `retirement.go:67–75` `retiresWhy` | `retiresAfter` (`%d`); `f.owes` joined — `lensOwesOf`'s items `:110,114,125,129,133,138`: `blue's answer to <gap>`, `the accepted grade motion on <gap>`, `the bench's remand of <gap> in <motion>`, `<seat>'s finding <finding> about <gap>`, `<blocker kind> <subject>`, `unjudged proof <anchor>` | count; verb text over content ids, seat ids and a kind word — the one events.id is `contradiction <subject>` (`owedBlocker`) |
 | `dispatch.go:322` | `g.id`, `g.supersededBy` | content ids |
 | `dispatch.go:337,341,369` | `g.id`, `g.unruledMotion` | content ids |
 | `dispatch.go:346` | `g.id`; `notMaterialBecause` (`:1192`) | content id; verb text over a severity enum word |
 | `dispatch.go:350,352,359,361` | `g.id`; `x.Counted()` (`impasse.go:60`) | content id; verb text over `%d` counts |
 | `dispatch.go:365` | `g.id`; `x.Counted()`; **`g.direction`** | content id; counts; **seat prose, bare `%s`** — the bench ruling's direction, after the fixed `on the ruling's direction: ` |
 | `dispatch.go:391` `benchReadiness` (`:1036–1054`) | `b.Subject`, `b.About`; `b.motionSubject` | content ids; enum word |
-| `dispatch.go:394,398` | `b.Owner`; `b.Detail` (`%q`); `contradictionFact(b)` | seat id; **seat prose, `%q`** (the contradicted claim); `contradiction <events.id>` |
+| `dispatch.go:394,398` `contradictionReadiness` | `b.Owner`; `b.Detail` (`%q`); `contradictionFact(b)` | seat id; **seat prose, `%q`** (the contradicted claim); `contradiction <events.id>` |
 | `dispatch.go:416` → `passblockers.go:203` | `contradictionFact(b)`; `ownerOr`; `b.Detail` (`%q`); `planHold` | `contradiction <events.id>`; seat id or fixed text; **seat prose, `%q`**; fixed text |
 | `dispatch.go:416` → `passblockers.go:237` | `reopenedFact(b)` (`:124`: `b.Subject`, `edit %d`, `event %d`); `planHold`; `reopenedOwed` | anchor id, **ids**; fixed text; seat id or fixed text |
 | `dispatch.go:416` → `passblockers.go:297` | `b.Subject`; `b.Detail` (the gavel's `phrase`, `:463–469`); `planHold` | motion id; verb text (the gavel table's phrase, or a schema error's); fixed text |
@@ -718,15 +721,21 @@ exactly two shapes — a `%q` span, and the remand's direction, the one bare `%s
 the verb always prints last on its line. Content ids (`G-bc663c4b`) and seat ids (`red-lens-logic-2`)
 are words holding digits, never numerals under step 4's definition.
 
-The table is the producers at `b283d1e8`; an archived plan was printed by whichever producer ran it, so
-the census is re-read over the 12 commits that touched `dispatch.go`, `retirement.go`, `passblockers.go`
-or `impasse.go` since plan storage began (`ca32752a`, 2026-10-17;
-`~/.claude/scratch/relocations/audit5/producer-{history,diff}.txt`): every seat word any of them printed is
-`%q`; the remand wording is unchanged since `dd15137f` (2026-10-04); every events.id they printed follows
-`head`, `pin`, `edit`, `event` or `contradiction` (the removed lines print `edit %d`, `head %d`, `pin %d`),
-and their other numerals are counts (`retires at %d`, `%d claim(s)`).
+The table is the producers at the branch head, re-read after the independent review of PR #1523
+found `unsatSitting`'s `opened at %d` (added by `1ac3ab5d`, after the first census at `b283d1e8`); an
+archived plan was printed by whichever producer ran it, so the census is re-read over the 12 commits
+that touched `dispatch.go`, `retirement.go`, `passblockers.go` or `impasse.go` since plan storage began
+(`ca32752a`, 2026-10-17; `~/.claude/scratch/relocations/audit5/producer-{history,diff}.txt`) and the two
+since (`1ac3ab5d`, `5061518d`): every seat word any of them printed is `%q`; the remand wording is
+unchanged since `dd15137f` (2026-10-04); every events.id they printed follows `head`, `pin`, `opened at`,
+`edit`, `event` or `contradiction` (the removed lines print `edit %d`, `head %d`, `pin %d`), and their
+other numerals are counts (`retires at %d`, `%d claim(s)`). `opened at` is two tokens: a bare `at` would
+read the count in `retires at %d` as an id. The census is held by a test, not by this paragraph:
+`TestEveryIDTheVerbPrintsIsTranslated` (`record`) renders every producer that prints an events.id with a
+distinct sentinel at each id operand, in each wording, and requires migrate's translation to move every
+one — a phrase the verb begins printing an id after, missing from the table, is a refusal there.
 
-- **`migrate/planids.go`** [NEW] `translatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error`,
+- **`migrate/planids.go`** [NEW] `TranslatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error`,
   replacing `planRenumbered` at the same call site:
   1. `record.ReadPlan` the printed bytes (a refusal as today if they do not read).
   2. `to(n)`: `0` stays `0`; a landed id maps through `newID`; an id that wrote no event is a refusal
@@ -747,12 +756,12 @@ and their other numerals are counts (`retires at %d`, `%d claim(s)`).
        ruling's direction, carried as written — its quotes, numerals and phrases included. Searched
        outside quoted spans, so a claim quoting the prefix does not hide the `(contradiction N)` after
        it (`dispatch.go:394,398` print the id after the claim).
-     - Outside those spans, a numeral is an id, and goes through `to`, when the token immediately before
-       it is one of the verb's id-introducing words — `planIDPhrases = {"head", "pin", "edit", "event",
-       "contradiction"}`, the comment naming each format string in the table above — and exactly one
-       space separates the two. A phrase word is a whole token, so it begins at a token boundary:
-       `ahead 412` and `spin 412` are not `head 412` and `pin 412`, and their numeral is "any other
-       numeral" below. Measured: no phrase match on the four plan-storing archives sits at a non-token
+     - Outside those spans, a numeral is an id, and goes through `to`, when the text immediately before
+       it is one of the verb's id-introducing phrases — `planIDPhrases = {"head", "pin", "opened at",
+       "edit", "event", "contradiction"}`, each one or more whole tokens a single space apart, the
+       comment naming each format string in the table above — and exactly one space separates the two.
+       A phrase begins at a token boundary: `ahead 412`, `spin 412` and `reopened at 412` are not
+       `head 412`, `pin 412` and `opened at 412`, and their numeral is "any other numeral" below. Measured: no phrase match on the four plan-storing archives sits at a non-token
        boundary (`~/.claude/scratch/relocations/audit5/step4.txt`, m29 in `rev5/`), so the rule refuses
        nothing an archive holds.
      - **Any other numeral whose value is a MOVED id** (`newID[n]` landed and `≠ n`) is a refusal
@@ -822,7 +831,7 @@ and their other numerals are counts (`retires at %d`, `%d claim(s)`).
     did not move (every phrase numeral `n` → `n−1`) fails it on `final`, `n1` and `m29`; carrying a
     plan with a changed word fails the masked comparison.
   - `replay.go:295–299` [MODIFY]: the comment states the translation — "a stored plan names events by
-    events.id inside bytes a relay is compared with, and its key is over them; `translatePlanIDs`
+    events.id inside bytes a relay is compared with, and its key is over them; `TranslatePlanIDs`
     carries each through `newID` and re-keys the plan, and refuses an id it cannot place".
   - `replay.go:507–528` (`planRenumbered`, "carried as printed") and `planrenumbered_internal_test.go`
     [DELETE] with the function.
@@ -1664,7 +1673,7 @@ timing.
    `graph.go:223` → `TestTheOpenGapRowNamesItsClassWord` / `TestTheGapNodeNamesItsClassWord` fails;
    make `Refuse` append the `Menu` unconditionally → `TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly`
    fails; return `ClassFor(cm)` = `spec_underspecification` for every `cm` →
-   `TestClassForHasTheMaterialityItNames` fails; drop the `why` translation in `translatePlanIDs` →
+   `TestClassForHasTheMaterialityItNames` fails; drop the `why` translation in `TranslatePlanIDs` →
    `TestAStoredPlanCrossesARenumbering` fails at event 604; drop the pin translation → the same; drop
    the re-key → 9 refusals on m28; drop the moved-id-outside-a-phrase refusal →
    `TestAStoredPlanNamingMovedEventsIsTranslated` fails; drop the remand-tail rule, or search the

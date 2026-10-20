@@ -24,9 +24,9 @@ func storedOf(p record.Plan) *recordpb.Plan {
 // 412 to 411, as a source event before it that writes none would, and 637 to 636. The head, a stale
 // area's pin, a contradiction blocker and every id phrase of a line follow it; a quoted claim, the
 // remand line's tail after its prefix (an unclosed quote and an id phrase in it) and the remand's
-// direction are carried as written; a content id's hex is not a numeral. A phrase word that is not
-// a whole token, a moved id outside every phrase, a quote that does not close and a head that wrote
-// no event are each refused.
+// direction are carried as written; a content id's hex is not a numeral. A phrase that is not
+// whole tokens (`spin`, `reopened at`), a moved id outside every phrase, a quote that does not close
+// and a head that wrote no event are each refused.
 func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 	newID := map[int64]int64{412: 411, 637: 636, 10: 10}
 	const (
@@ -48,7 +48,7 @@ func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 	in.RemandOwed = []record.RemandOwed{{GapID: "G-1", Direction: direction}}
 	pl := storedOf(in)
 	before := pl.GetPrinted()
-	if err := translatePlanIDs(pl, newID); err != nil {
+	if err := TranslatePlanIDs(pl, newID); err != nil {
 		t.Fatalf("refused: %v", err)
 	}
 	got, again, err := record.ReadPlan([]byte(pl.GetPrinted()))
@@ -86,12 +86,13 @@ func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 	}{
 		"a phrase word that is not a whole token": {stubPlan(412, "red-lens-logic: spin 412 is no phrase"), "outside every id phrase"},
 		"a moved id after no phrase word":         {stubPlan(412, "red-lens-logic: retires at 412"), "outside every id phrase"},
+		"a phrase that is not whole tokens":       {stubPlan(412, "red-lens-logic: reopened at 412"), "outside every id phrase"},
 		"a quote that does not close":             {stubPlan(412, `red-lens-evidence read a source contradicting "head 412`), "does not close"},
 		"an unlanded head":                        {stubPlan(500), "wrote no event"},
 	} {
 		pl := storedOf(c.p)
 		was := pl.GetPrinted()
-		err := translatePlanIDs(pl, newID)
+		err := TranslatePlanIDs(pl, newID)
 		if err == nil || !strings.Contains(err.Error(), c.frag) {
 			t.Errorf("%s: %v, want a refusal naming %q", name, err, c.frag)
 		}
@@ -102,7 +103,7 @@ func TestAStoredPlanNamingMovedEventsIsTranslated(t *testing.T) {
 
 	same := storedOf(stubPlan(10, "red-lens-logic: sat at the head (pin 10); 2 claim(s)", content))
 	was := same.GetPrinted()
-	if err := translatePlanIDs(same, newID); err != nil || same.GetPrinted() != was {
+	if err := TranslatePlanIDs(same, newID); err != nil || same.GetPrinted() != was {
 		t.Errorf("a plan naming no moved id: %v, bytes kept %v", err, same.GetPrinted() == was)
 	}
 }

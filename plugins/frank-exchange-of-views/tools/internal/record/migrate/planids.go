@@ -11,17 +11,37 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// planIDPhrases is every word after which a stored plan's `why` line prints an events.id, one space
-// before it. These describe ARCHIVED bytes, so they are migrate's own table rather than the live
-// verb's: a later rewording is a row added here for the records printed after it, the old row kept
-// for the records printed before. The format strings each names:
-//   - head: `never sat — audits the report at head %d`, `head %d moved past its last sitting's pin
-//     %d` (retirement.go, the lens fold's line);
+// planIDPhrases is every phrase after which a stored plan's `why` line prints an events.id, one
+// space before it: one or more whole tokens, a single space between each. These describe ARCHIVED
+// bytes, so they are migrate's own table rather than the live verb's: a later rewording is a row
+// added here for the records printed after it, the old row kept for the records printed before. The
+// format strings each names (TestEveryIDTheVerbPrintsIsTranslated renders every one):
+//   - head: `never sat — audits the report at head %d`, `has sat through no sitting — … — audits the
+//     report at head %d`, `head %d moved past its last sitting's pin %d` (retirement.go, the lens
+//     fold's readiness);
 //   - pin: `sat at the head (pin %d)`, `retired (pin %d)` and the line above (retirement.go);
+//   - opened at: `its sitting opened at %d %s, so it counts neither as sat nor toward retirement`
+//     (retirement.go, unsatSitting), in the lens fold's `has sat through no sitting` and `head moved`
+//     lines. Two tokens: a bare `at` would read the count in `it retires at %d` as an id;
 //   - edit, event: `changed at edit %d … its last check is event %d` (passblockers.go, reopenedFact);
-//   - contradiction: `contradiction %s` among a lens's debts (retirement.go, lensOwesOf) and
+//   - contradiction: `contradiction %s` among a lens's debts (retirement.go, owedBlocker) and
 //     `contradiction %s` of a contradiction blocker (passblockers.go, contradictionFact).
-var planIDPhrases = map[string]bool{"head": true, "pin": true, "edit": true, "event": true, "contradiction": true}
+var planIDPhrases = []string{"head", "pin", "opened at", "edit", "event", "contradiction"}
+
+// afterIDPhrase reports whether the numeral at line[i:] follows one of planIDPhrases and one space,
+// the phrase beginning at a token boundary: `ahead 5` and `spin 5` are not `head 5` and `pin 5`.
+func afterIDPhrase(line string, i int) bool {
+	for _, p := range planIDPhrases {
+		start := i - len(p) - 1
+		if start < 0 || line[start:i] != p+" " {
+			continue
+		}
+		if start == 0 || !isWordByte(line[start-1]) {
+			return true
+		}
+	}
+	return false
+}
 
 // remandDirectionPrefix is what an archived plan's remand line prints before the bench ruling's
 // direction (record.RemandDirectionPrefix, compared by TestMigrateKnowsTheVerbsRemandPrefix). The
@@ -29,7 +49,7 @@ var planIDPhrases = map[string]bool{"head": true, "pin": true, "edit": true, "ev
 // it is seat prose.
 const remandDirectionPrefix = "on the ruling's direction: "
 
-// translatePlanIDs carries the events.ids a stored plan names through newID — the events.id each
+// TranslatePlanIDs carries the events.ids a stored plan names through newID — the events.id each
 // source event that wrote one landed at — and re-keys and re-prints the plan when any moved. A plan
 // whose ids all kept their numbers is left untouched, its bytes the bytes stored. The ids are the
 // plan's head, each stale area's pin, a contradiction blocker's subject, and the numbers its `why`
@@ -38,7 +58,7 @@ const remandDirectionPrefix = "on the ruling's direction: "
 // RemandOwed's direction is not read. An id that wrote no event, and a moved id's number printed
 // outside every id phrase, are refusals: the first has nothing to name, and the second cannot be
 // told from a count.
-func translatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error {
+func TranslatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error {
 	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
 		return fmt.Errorf("this stored plan does not read as a plan: %v", err)
@@ -112,11 +132,10 @@ func allDigits(s string) bool {
 
 // translateWhyLine scans line left to right: a Go-quoted span is skipped whole, the first
 // remandDirectionPrefix outside one ends the scan with the rest carried as written, a numeral one
-// space after an id-phrase token goes through to, and any other numeral that is a moved id is a
-// refusal.
+// space after an id phrase (afterIDPhrase) goes through to, and any other numeral that is a moved id
+// is a refusal.
 func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64, error)) (string, error) {
 	var b strings.Builder
-	prevStart, prevEnd := -1, -1 // the last token's span, [start, end)
 	for i := 0; i < len(line); {
 		switch c := line[i]; {
 		case c == '"':
@@ -126,7 +145,6 @@ func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64,
 			}
 			b.WriteString(q)
 			i += len(q)
-			prevEnd = -1
 		case strings.HasPrefix(line[i:], remandDirectionPrefix):
 			b.WriteString(line[i:])
 			return b.String(), nil
@@ -138,7 +156,7 @@ func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64,
 			tok := line[i:j]
 			if allDigits(tok) {
 				n, perr := strconv.ParseInt(tok, 10, 64)
-				phrase := prevEnd == i-1 && i >= 1 && line[i-1] == ' ' && planIDPhrases[line[prevStart:prevEnd]]
+				phrase := afterIDPhrase(line, i)
 				switch {
 				case perr != nil:
 					// Too long to be an events.id: a count or a word, carried.
@@ -155,7 +173,6 @@ func translateWhyLine(line string, newID map[int64]int64, to func(int64) (int64,
 				}
 			}
 			b.WriteString(tok)
-			prevStart, prevEnd = i, j
 			i = j
 		default:
 			b.WriteByte(c)

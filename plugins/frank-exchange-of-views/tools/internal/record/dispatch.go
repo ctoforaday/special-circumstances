@@ -393,11 +393,11 @@ func foldPlan(params Params, r planReads) Plan {
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
+				plan.Why = append(plan.Why, contradictionReadiness(b, true))
 				continue
 			}
 			engage(b.Owner, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it and mint its gap", b.Owner, b.Detail, contradictionFact(b)))
+			plan.Why = append(plan.Why, contradictionReadiness(b, false))
 		}
 	}
 	for _, s := range order {
@@ -674,18 +674,25 @@ func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[strin
 			stop, stopped := firstAfter(stops[agent], o)
 			switch {
 			case limits[limited{seat, ordinal[o]}]:
-				out.short[o] = "was stopped at the per-sitting tool-call limit"
+				out.short[o] = shortCallLimit
 			case agent == "" || (stopped && (!later || stop < next)):
 				out.through[seat] = append(out.through[seat], o)
 			case later:
-				out.short[o] = "never closed — its agent's stop is not on the record"
+				out.short[o] = shortNeverClosed
 			default:
-				out.short[o] = "has not closed yet"
+				out.short[o] = shortNotClosed
 			}
 		}
 	}
 	return out
 }
+
+// satThrough's reasons a sitting is not one its seat sat through.
+const (
+	shortCallLimit   = "was stopped at the per-sitting tool-call limit"
+	shortNeverClosed = "never closed — its agent's stop is not on the record"
+	shortNotClosed   = "has not closed yet"
+)
 
 // sat reports whether the seat sat through the sitting that opened at place o.
 func (s satThrough) sat(seat string, o int64) bool {
@@ -1116,6 +1123,15 @@ var (
 var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: recordpb.Occasion_OCCASION_PETITION,
 	recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:   recordpb.Occasion_OCCASION_DOCKET,
+}
+
+// contradictionReadiness is the plan's reason on a contradiction a lens read and nothing has
+// answered: ready to raise it, or not readied again because the lens has sat since it read it.
+func contradictionReadiness(b Blocker, satSince bool) string {
+	if satSince {
+		return fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b))
+	}
+	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it and mint its gap", b.Owner, b.Detail, contradictionFact(b))
 }
 
 // benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no
