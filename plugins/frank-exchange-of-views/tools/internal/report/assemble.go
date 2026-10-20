@@ -858,7 +858,7 @@ func boardSection(fam record.Family) string {
 			// the location, the grades, the demanded fix and the check that would settle it —
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
-			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
 				g.ID, g.Mint.GetProblem(),
 				g.Mint.GetLocation(),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
@@ -866,6 +866,7 @@ func boardSection(fam record.Family) string {
 				g.Mint.GetRequiredFix(),
 				fixProposal(g.Mint),
 				g.Mint.GetAcceptanceCheck(),
+				mintReason(g.Mint),
 				foundBy))
 		} else {
 			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH DISPOSITION
@@ -897,7 +898,7 @@ func boardSection(fam record.Family) string {
 			// claimed. A run where every finding was minted and every gap closed printed red's
 			// leaf-level words nowhere. The closure answers what happened; it does not restate
 			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), provenance(g.Mint, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), closureDetail(g), provenance(g.Mint, findings)))
 		}
 	}
 	var b strings.Builder
@@ -930,6 +931,58 @@ func boardSection(fam record.Family) string {
 		fmt.Fprintf(&b, "\n\n%s", cm)
 	}
 	return b.String()
+}
+
+// mintReason is the lens's argument for minting the gap, under the open gap's block, or "".
+func mintReason(m *recordpb.Mint) string {
+	if r := oneLine(m.GetMintReason()); r != "" {
+		return "  \nminted because: " + r
+	}
+	return ""
+}
+
+// closureDetail is HOW A CLOSED GAP CLOSED, under its line in the closure index: the lens's
+// argument for minting it, what it required and how it would check the repair, then the lens's
+// attestation at the close — what it found, who verified, with what and against what — and the
+// bench's ruling when a ruling closed it. The index line says THAT a gap closed; a reader auditing
+// the closure needs the demand and the check beside the attestation that they were met.
+func closureDetail(g *record.Gap) string {
+	var rows []string
+	add := func(label, text string) {
+		if t := oneLine(text); t != "" {
+			rows = append(rows, "\n  - "+label+": "+t)
+		}
+	}
+	add("minted because", g.Mint.GetMintReason())
+	add("required_fix", g.Mint.GetRequiredFix())
+	add("acceptance_check", g.Mint.GetAcceptanceCheck())
+	if c := g.Closure; c != nil {
+		att := oneLine(c.GetProse())
+		if att == "" {
+			att = "_(no attestation recorded)_"
+		}
+		var by []string
+		if v := c.GetAnchorSeat(); v != "" {
+			by = append(by, "verified by `"+v+"`")
+		}
+		if v := oneLine(c.GetAnchorTool()); v != "" {
+			by = append(by, "with "+v)
+		}
+		if v := oneLine(c.GetAnchorTarget()); v != "" {
+			by = append(by, "against "+v)
+		}
+		if v := c.GetCarriedFrom(); v != "" {
+			by = append(by, "carried from "+v)
+		}
+		if len(by) > 0 {
+			att += " — " + strings.Join(by, ", ")
+		}
+		rows = append(rows, "\n  - closed on: "+att)
+	}
+	if r := g.BenchClosure; r != nil {
+		rows = append(rows, fmt.Sprintf("\n  - closed by the bench's ruling: **%s** — its opinion is in %s", recordpb.Word(r.GetDisposition()), FileDebate))
+	}
+	return strings.Join(rows, "")
 }
 
 // correctnessManifest renders blue's self-audit receipts — one row per repaired gap, saying what

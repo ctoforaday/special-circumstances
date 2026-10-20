@@ -21,13 +21,13 @@ research/<date>_<slug>/
 │                      # are projections the tool serves live from the same record.
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
 ├── report.md          # the research — verdict, Catechism, the argument, risks, open questions
-├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
+├── docket.md          # the board: every gap, why it was minted and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── inquiries.md         # each inquiry's fate, the path it took and its ruling; the chair's reviews
-├── evidence.md        # the computations, with script, output and sha256
+├── inquiries.md         # each inquiry's fate, the path it took, each step's reason, and its ruling; the chair's reviews
+├── evidence.md        # the computations, with script, output and sha256; the citations, with every reading of each
 ├── run.md             # the log, the record's invariant check, and cost
-├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks
+├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks, every edit and its reason
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/

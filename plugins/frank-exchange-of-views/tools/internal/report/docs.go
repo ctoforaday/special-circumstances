@@ -116,9 +116,10 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
 	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
 	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
-	// (view.InquiryBody), whole, not a section of the table and not a second account, followed by
-	// the chair's reviews of the report against those inquiries (inquiryReviews).
-	inq := view.InquiryBody(evs, fam.At)
+	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it — not a
+	// section of the table and not a second account — followed by the chair's reviews of the report
+	// against those inquiries (inquiryReviews).
+	inq := view.InquiryBody(evs, fam.At, true)
 	if reviews := inquiryReviews(evs, fam.At); reviews != "" {
 		if inq != "" {
 			inq = strings.TrimRight(inq, "\n") + "\n\n"
@@ -136,7 +137,7 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		// reads. The nav, title and blurb are what a human reads beside the heading, and all
 		// three said this was red's when three parties write into it.
 		{File: FileDocket, Nav: "Board", Title: "the board",
-			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's spot-checks", Body: body[FileDocket].String()},
+			Blurb: "the board all three parties wrote: every gap red minted, with red's argument for it, the fix it required and the check that would settle it, and how each was closed, with the closing lens's attestation; blue's correctness manifest for the repairs it made, and red's spot-checks", Body: body[FileDocket].String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, red's spot-checks, and the bench's terminal disposition", Body: body[FileDebate].String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
@@ -144,11 +145,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
 			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling, then each of the chair's reads of the report against them, with its reason", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
-			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
+			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run; then each citation with the sentence it backs and every reading of it — its outcome, its confidence and what was read", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
 			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: body[FileRun].String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
-			Blurb: "the provenance of this report: every claim blue retired from it, and every ask a later certification superseded", Body: body[FileChangelog].String()},
+			Blurb: "the provenance of this report: every claim blue retired from it, every ask a later certification superseded, and every edit blue made to it, with blue's reason and the span it replaced", Body: body[FileChangelog].String()},
 	}
 
 	// THE EVIDENCE LAYER IS RESOLVED ACROSS THE SET, NOT WITHIN A DOCUMENT.
@@ -202,10 +203,12 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// evidence.md is composed LAST, from the proofs the set actually anchors, so a proof no
 	// document references is still shown (it is on the record) and a reference to a proof that
 	// is not on the record is still stated (it is a defect, and a silent drop reads as clean).
+	// The citations follow the proofs, each with every reading of it.
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			docs[i].Body = EscapeNotes(evidenceDoc(run, proofs, used))
-			composed[evidenceHeading] = docs[i].Body != ""
+			proofSec, citeSec := evidenceDoc(run, proofs, used), citationsSection(fam)
+			composed[evidenceHeading], composed[citationsHeading] = proofSec != "", citeSec != ""
+			docs[i].Body = EscapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{proofSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}
 	}
 
