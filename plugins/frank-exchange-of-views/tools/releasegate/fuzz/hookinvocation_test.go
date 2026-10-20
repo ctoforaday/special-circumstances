@@ -107,6 +107,10 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 				)
 				cmd.Stdin = strings.NewReader(string(pb))
 				out, err := cmd.CombinedOutput()
+				if cmd.ProcessState == nil {
+					t.Errorf("%s hook %q did not run: %v", event, h.Command, err)
+					continue
+				}
 				code := cmd.ProcessState.ExitCode()
 				if code == 0 {
 					continue
@@ -118,7 +122,6 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 					"not a failed check, it is every matched tool call in the session denied: this matcher "+
 					"is %q.",
 					event, code, tool, h.Command, strings.TrimSpace(string(out)), m.Matcher)
-				_ = err
 			}
 		}
 	}

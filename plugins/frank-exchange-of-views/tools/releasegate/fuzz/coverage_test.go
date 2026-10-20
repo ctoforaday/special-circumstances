@@ -177,8 +177,8 @@ func unreachedEnumValues() []string {
 // closedGapIDs returns the gaps a spot-check can legitimately sample.
 func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
 
-// closedInARoundBefore is the same list restricted to gaps closed BEFORE the given round, which
-// is what a CARRY needs. Round 0 means no restriction.
+// closedInARoundBefore is the same list restricted to gaps a lens's `close` closed BEFORE the given
+// round, which is what a CARRY needs. Round 0 means no restriction.
 //
 // A close keys on `gap_id` (keyFields puts it first), so a seat carrying a gap it closed in this
 // same sitting writes a duplicate key and is refused: "already recorded a close this sitting".
@@ -199,6 +199,11 @@ func (r *runner) closedInARoundBefore(round int) []string {
 			continue
 		}
 		if round > 0 && g.ClosedEpoch >= round {
+			continue
+		}
+		// A CARRY RESTATES A LENS'S `close`, and a gap the bench closed by ruling its docket motion
+		// holds none: the record refuses to carry it, so it is not offered.
+		if round > 0 && g.Closure == nil {
 			continue
 		}
 		out = append(out, id)
