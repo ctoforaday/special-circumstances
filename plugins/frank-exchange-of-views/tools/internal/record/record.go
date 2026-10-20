@@ -348,6 +348,15 @@ var defines = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
 }
 
+// numbered is the types whose every write is a new act even where the body carries a label, so they
+// key on the per-seat ordinal. A stale refusal names its gap, and a seat refused twice on one gap in
+// one sitting — a change landed after the first refusal — is shown two different sets of changes:
+// keyed on the gap, the second would be refused as a retry of the first and the read point would
+// stop at the first.
+var numbered = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_STALE: true,
+}
+
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
 // no writer sets any more simply never matches, and the ordinal fallback then records a second
 // event where the first should have been updated in place. `reference` was on this list after the
@@ -413,7 +422,7 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	if singleton[typ] {
 		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
-	if v := keyLabel(body); v != "" {
+	if v := keyLabel(body); v != "" && !numbered[typ] {
 		if defines[typ] {
 			return seatID + ":" + slug + ":" + v, nil
 		}
@@ -627,7 +636,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 		return nil, err
 	}
 	files := filesOf(run)
-	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards); err != nil {
+	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -635,7 +644,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
-		return validate(writeView{q: tx, files: files, rendering: rendering}, seatID, typ, body)
+		w := writeView{q: tx, files: files, rendering: rendering}
+		if err := validate(w, seatID, typ, body); err != nil {
+			return err
+		}
+		return guardsAt(w, guards, true)
 	}); err != nil {
 		return ev, err
 	}

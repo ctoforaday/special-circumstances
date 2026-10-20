@@ -97,6 +97,9 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
+	// The lens answers the ruling at a sitting opened after it, as the engine dispatches it: a lens
+	// whose sitting opened before the ruling has not read it, and its regrade is refused until it has.
+	sit(t, runDir, lensSeat)
 	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--severity", "low",
 		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {

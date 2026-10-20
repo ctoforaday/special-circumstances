@@ -109,7 +109,20 @@ func newFinding() *cobra.Command {
 		// nothing is checked. Checking anyway is what forced a lens to borrow a live sentence as a
 		// handle: the only way past the check was to name text that exists, whatever the finding was
 		// actually about.
-		if err := seat.AppendPlaced(s, body, findingID, location, findingRefusal); err != nil {
+		//
+		// A FINDING ABOUT A GAP IS REFUSED WHILE THE GAP HAS MOVED SINCE THIS SITTING OPENED (gblock
+		// ruling B, 2026-10-19): lenses sit concurrently, and a dispute with a gap's grade, fix or
+		// standing written against the board the sitting opened with is a dispute with a gap that may
+		// already be closed, answered or regraded. The refusal shows what changed.
+		write := func(guards ...record.Guard) error {
+			return seat.AppendPlaced(s, body, findingID, location, findingRefusal, guards...)
+		}
+		if about != nil && *about == recordpb.AboutKind_ABOUT_KIND_GAP {
+			err = seat.AppendFresh(s, *aboutRefP, write)
+		} else {
+			err = write()
+		}
+		if err != nil {
 			return nil, err
 		}
 		return findingResult{ID: findingID, Area: area}, nil
