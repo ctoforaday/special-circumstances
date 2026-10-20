@@ -1,13 +1,7 @@
 package record
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -412,332 +406,27 @@ func ExistingProposalByText(run Run, seatID, question, hypothesis string) (strin
 	return id, nil
 }
 
-// ---- class registry ----
-
-// registryClass is one staged registry row. MaterialDefault is a pointer so an absent field is
-// distinguishable from an empty one: loadRegistry refuses both, with different words.
-type registryClass struct {
-	Slug            string  `json:"slug"`
-	MaterialDefault *string `json:"material_default"`
-	// What a promoted class was given with it, where the registry states it: the same three fields a
-	// coining records.
-	Definition    string `json:"definition"`
-	Neighbor      string `json:"neighbor"`
-	Distinguisher string `json:"distinguisher"`
-}
-
-type classRegistry struct {
-	Classes []registryClass `json:"classes"`
-}
-
-// loadRegistry reads the gap-class registry, and DISTINGUISHES "there is none" from "there is one
-// and it is broken".
-//
-// It used to return nil on any failure, and `validateClass` reads nil as advisory mode — so an
-// unparseable registry accepted every class slug ever passed, silently. That is this codebase's
-// recurring shape: the miss and the honest zero produce the same output, and a corrupt file turns
-// off the gate that keeps the class vocabulary honest without anything saying so.
-//
-// AN ABSENT REGISTRY IS NO LONGER ADVISORY. The tolerance read: "a run set up before the registry
-// existed, or one deliberately run without one, has nothing to validate against". Two halves, and
-// they are different in kind. The first is backwards compatibility for runs that no longer exist.
-// The second is real — the fuzz, the seat probe and the tests build runs by hand — but the answer
-// to it is to STAGE a registry, not to exempt the run from the check: StageForRun does that in one
-// call, and a harness that mints against a vocabulary it never declared is not a run anybody can
-// interpret afterwards.
-//
-// A registry that IS there and cannot be read stays its own error — somebody staged it, so somebody
-// meant it to bind.
-//
-// IT IS STILL JSON, and that is not an oversight of this migration: the registry is a STAGED
-// CORPUS a human writes and setup.StageClassRegistry copies in, not a record the tool appends to.
-// The schema binds what seats write; this is an input to it.
-//
-// An unreachable record root is not this function's error to report: MergedEvents fails loudly on
-// it, and every caller reaches that first, so erroring twice only makes the diagnosis harder.
-func loadRegistry(run Run) (*classRegistry, error) { return loadRegistryIn(run.Records()) }
-
-// loadRegistryIn is loadRegistry for the records directory recDir — the form the write path reads
-// (runFiles), which holds no Run.
-func loadRegistryIn(recDir string) (*classRegistry, error) {
-	p := filepath.Join(recDir, "class-registry.json")
-	b, err := os.ReadFile(p)
-	if err != nil {
-		return nil, nil // absent — knownClasses turns this into a refusal, see above
-	}
-	var reg classRegistry
-	if err := json.Unmarshal(b, &reg); err != nil {
-		return nil, fmt.Errorf("the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file — removing it does NOT loosen the check any more, it refuses every mint instead", p, err)
-	}
-	// EVERY ROW CARRIES ITS MATERIAL DEFAULT, and a row without one is refused rather than read as
-	// `by_grade`: the default decides whether the class's open gaps hold the PASS gate. Setup
-	// refuses such a registry before a run exists, and a run whose database predates the field is
-	// refused at open — so a row reaching here without it was written or altered after setup.
-	for _, c := range reg.Classes {
-		if c.MaterialDefault == nil {
-			return nil, fmt.Errorf("the class registry at %s has no material_default on class %q — the registry setup staged has been changed since. Restore that row's `material_default` (always | never | by_grade)", p, c.Slug)
-		}
-		if _, ok := ClassMaterialOf(*c.MaterialDefault); !ok {
-			return nil, fmt.Errorf("the class registry at %s gives class %q the material_default %q, which is not always | never | by_grade — the registry setup staged has been changed since. Restore that row's value", p, c.Slug, *c.MaterialDefault)
-		}
-	}
-	return &reg, nil
-}
-
-// classMaterialFor is where a mint of this class starts its materiality: the staged registry's
-// row, else the run's own coining of the class. found is false when neither knows the slug — the
-// class refusal is then the one a seat needs, and the caller gives it.
-func classMaterialFor(w writeView, slug string) (cm recordpb.ClassMaterial, found bool, err error) {
-	reg, err := w.files.registry()
-	if err != nil {
-		return 0, false, err
-	}
-	if reg != nil {
-		for _, c := range reg.Classes {
-			if c.Slug == slug {
-				v, _ := ClassMaterialOf(*c.MaterialDefault) // loadRegistry refused an unknown word
-				return v, true, nil
-			}
-		}
-	}
-	if noRecord(w.q) {
-		return 0, false, nil
-	}
-	var word sql.NullString
-	var n int
-	if err := w.q.QueryRow(`SELECT count(*), MAX("material_default") FROM "class_new" WHERE "slug" = ?`, slug).Scan(&n, &word); err != nil {
-		return 0, false, fmt.Errorf("asking the record how class %s was coined: %w", slug, err)
-	}
-	if n == 0 {
-		return 0, false, nil
-	}
-	v, ok := ClassMaterialOf(word.String)
-	if !ok {
-		return 0, false, fmt.Errorf("class %s was coined in this run with no material default on the record (%q) — every mint of it would have no materiality to start from", slug, word.String)
-	}
-	return v, true, nil
-}
+// ---- gap class ----
 
 // stampClassMaterial writes the class's default onto a mint, which no seat may do itself.
 //
 // Outside a migration a mint that ARRIVES with the field set is refused: a lens that could choose
 // its gap's materiality could mint every gap harmless. Under a migration the source is the record,
 // not a seat, so a value the archived mint carries is kept as recorded; an archived mint without
-// one (a run written before the field) is stamped from the registry the migration translated.
-func stampClassMaterial(w writeView, m *recordpb.Mint) error {
+// one (a run written before the field) is stamped by the live rule, from its class's default.
+func stampClassMaterial(m *recordpb.Mint) error {
 	if m.ClassMaterial != nil {
 		if !Migrating {
-			return fmt.Errorf("a mint's class material is stamped by the tool from the class registry, never supplied by a seat — mint without it")
+			return fmt.Errorf("a mint's class material is stamped by the tool from the class's material default, never supplied by a seat — mint without it")
 		}
 		if m.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
 			return fmt.Errorf("the archived mint of %s carries a class material that is not always | never | by_grade", m.GetGapId())
 		}
 		return nil
 	}
-	if m.GetClass() == "" {
+	if m.GetClass() == recordpb.GapClass_GAP_CLASS_UNSPECIFIED {
 		return nil // the required-field refusal names --class, which comes first
 	}
-	cm, found, err := classMaterialFor(w, m.GetClass())
-	if err != nil {
-		return err
-	}
-	if !found {
-		return validateClass(w, m)
-	}
-	m.ClassMaterial = cm.Enum()
-	return nil
-}
-
-// knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
-// run has coined. An absent registry is an ERROR, not a licence — see below.
-func knownClasses(w writeView) (map[string]bool, []string, error) {
-	reg, err := w.files.registry()
-	if err != nil {
-		return nil, nil, err
-	}
-	coined := map[string]bool{}
-	if !noRecord(w.q) {
-		rows, err := w.q.Query(`SELECT "slug" FROM "class_new"`)
-		if err != nil {
-			return nil, nil, fmt.Errorf("asking the record for coined classes: %w", err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var slug sql.NullString
-			if err := rows.Scan(&slug); err != nil {
-				return nil, nil, err
-			}
-			coined[slug.String] = true
-		}
-		if err := rows.Err(); err != nil {
-			return nil, nil, err
-		}
-	}
-	// NO ADVISORY MODE. This returned nil,nil,nil when no registry was staged — "R1 tolerance; R4
-	// makes it strict" — and R4 never came. A check that silently no-ops when its input is absent
-	// is the plausible zero in its purest form: `mint --class anything-at-all` succeeded and the
-	// gap reached the board carrying a slug nothing recognised, while the help said the registry
-	// constrained it. The tolerance was the only thing standing between the two.
-	//
-	// An absent registry is a MISCONFIGURED RUN, not permission. run-setup stages it on every real
-	// run (setup.StageClassRegistry); a run without one has lost the file, and accepting every
-	// slug is the worst of the three available answers.
-	if reg == nil {
-		return nil, nil, fmt.Errorf("no gap-class registry is staged for this run — every --class would be accepted, so a mint is refused rather than waved through. run-setup stages it from feov-memory/class-registry.json; if this run was built by hand, stage one or coin the classes it needs with `class new`")
-	}
-	known, slugs := map[string]bool{}, []string(nil)
-	for _, c := range reg.Classes {
-		known[c.Slug] = true
-		slugs = append(slugs, c.Slug)
-	}
-	for s := range coined {
-		known[s] = true
-	}
-	return known, slugs, nil
-}
-
-// StageForRun writes a gap-class registry holding exactly these slugs, each `by_grade`, for a run
-// built by hand.
-//
-// The fuzz, the seat probe and the tests construct runs without going through run-setup, and a mint
-// names a class. Before this they were exempted from the class check by an absent-registry
-// tolerance, which is how `--class anything-at-all` reached the board with nothing objecting. They
-// declare their vocabulary now, which is both the honest fixture and the thing that makes the check
-// mean something in the runs that matter.
-//
-// `by_grade` keeps every caller's materiality where the grade alone put it; a fixture that needs a
-// class to be `always` or `never` stages it with StageForRunWithDefaults.
-func StageForRun(run Run, slugs ...string) error {
-	defaults := make(map[string]recordpb.ClassMaterial, len(slugs))
-	order := make([]string, 0, len(slugs))
-	for _, s := range slugs {
-		if _, dup := defaults[s]; !dup {
-			order = append(order, s)
-		}
-		defaults[s] = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE
-	}
-	return stageRegistry(run, order, defaults)
-}
-
-// StageForRunWithDefaults writes a gap-class registry holding these slugs with these material
-// defaults, in slug order.
-func StageForRunWithDefaults(run Run, defaults map[string]recordpb.ClassMaterial) error {
-	order := make([]string, 0, len(defaults))
-	for s := range defaults {
-		order = append(order, s)
-	}
-	sort.Strings(order)
-	return stageRegistry(run, order, defaults)
-}
-
-func stageRegistry(run Run, slugs []string, defaults map[string]recordpb.ClassMaterial) error {
-	// RE-RESOLVED, DELIBERATELY, AND THIS IS THE ONE PLACE THAT DOES.
-	//
-	// A Run caches its record directory, which is sound only while the inputs to that resolution
-	// hold still. Here they do not: the seat probe separates a run by letting the FIRST register
-	// subprocess adopt a root and write the separation marker, so the marker appears AFTER the
-	// caller's handle was made. A handle resolved before it carries <run>/records, and staging
-	// the registry there puts it where the tool will never read — the probe then reports "no
-	// gap-class registry is staged" on every board, which is what it did.
-	//
-	// seatprobe.Build's own comment already says the ordering is load-bearing for exactly this
-	// reason. Caching the resolution is what made it load-bearing a second time.
-	recDir, err := RecordsDir(run.Dir())
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(recDir, 0o755); err != nil {
-		return err
-	}
-	var reg classRegistry
-	for _, s := range slugs {
-		w := recordpb.Word(defaults[s])
-		reg.Classes = append(reg.Classes, registryClass{Slug: s, MaterialDefault: &w})
-	}
-	b, err := json.Marshal(reg)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(recDir, "class-registry.json"), b, 0o644)
-}
-
-// ClassCoinedInRun reports whether this run coined the slug, rather than inheriting it from the
-// staged registry.
-//
-// IT WAS A FLAG A SEAT SET. `--class-new` asserted "this class is new", which the registry
-// already knows — so the assertion could be wrong in both directions, and the boolean's real
-// meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
-// `lens class new` now; this derives the fact from what that verb wrote.
-func ClassCoinedInRun(run Run, slug string) bool {
-	db, err := openRunForRead(run)
-	return err == nil && classCoinedAt(db, slug)
-}
-
-// classCoinedAt is ClassCoinedInRun asked of q.
-func classCoinedAt(q recordsql.Querier, slug string) bool {
-	// A read error folds into false, as the merged-read error did.
-	found, err := recordHasAt(q, `SELECT 1 FROM "class_new" WHERE "slug" = ? LIMIT 1`, slug)
-	return err == nil && found
-}
-
-// validateClass holds a MINT to a class the registry recognises.
-func validateClass(w writeView, mint *recordpb.Mint) error {
-	known, slugs, err := knownClasses(w)
-	if err != nil {
-		return err
-	}
-	if known == nil || known[mint.GetClass()] {
-		return nil
-	}
-	hintN := 6
-	if len(slugs) < hintN {
-		hintN = len(slugs)
-	}
-	return fmt.Errorf("unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `class new --class %s --definition ... --neighbor ... --distinguisher ...`",
-		mint.GetClass(), strings.Join(slugs[:hintN], ", "), mint.GetClass())
-}
-
-// validateClassNew holds a COINING to the three facts that make a class discriminate: what it is,
-// what it is nearest to, and how to tell them apart. The neighbor must itself be known, or the
-// registry grows a tree with no root.
-//
-// THE THREE-FIELD LOOP WAS A LIST OF PAYLOAD KEYS AND IS NOW A LIST OF FIELDS. The strings that
-// remain are the FLAG WORDS the refusal names, which are the seat's vocabulary and not the
-// schema's — they stayed strings on purpose, because a seat reading this message types `--neighbor`
-// and has never seen a field name.
-func validateClassNew(w writeView, coined *recordpb.ClassNew) error {
-	if coined.GetSlug() == "" {
-		return fmt.Errorf("requires --class (the slug being coined)")
-	}
-	for _, f := range []struct {
-		flag  string
-		value string
-	}{
-		{"definition", coined.GetDefinition()},
-		{"neighbor", coined.GetNeighbor()},
-		{"distinguisher", coined.GetDistinguisher()},
-	} {
-		if f.value == "" {
-			return fmt.Errorf("requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
-		}
-	}
-	// The verb always writes the default, and a migration fills one where the archive predates
-	// it, so a coining without one is refused rather than left for every mint of it to guess.
-	if coined.GetMaterialDefault() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
-		return fmt.Errorf("requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
-	}
-	known, _, err := knownClasses(w)
-	if err != nil {
-		return err
-	}
-	if known == nil {
-		return nil
-	}
-	if known[coined.GetSlug()] {
-		return fmt.Errorf("class %s already exists — mint against it with `mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
-	}
-	if !known[coined.GetNeighbor()] {
-		return fmt.Errorf("--neighbor %s is not a known class", coined.GetNeighbor())
-	}
+	m.ClassMaterial = recordpb.MaterialDefault(m.GetClass()).Enum()
 	return nil
 }

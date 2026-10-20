@@ -255,7 +255,7 @@ func TestBudgetExhaustedLensRetiresAndIsStillAPartyToItsGap(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens).sit(2, evLens)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
 	run := b.seed()
-	if _, err := Append(Identity{Run: run, SeatID: evLens}, liveMint("G2", "x", recordpb.Grade_GRADE_HIGH)); err == nil || !strings.Contains(err.Error(), "budget") {
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("fixture: the lens is not at its budget: %v", err)
 	}
 	if f := lensStateOf(t, run); f.barren != retiresAfter || !f.retired() || len(f.owes) != 0 {

@@ -19,18 +19,18 @@ func manualText(bin string, pages ...[]string) string {
 
 // THE HEADER ROUND-TRIPS, and a rule that is not followed by this tool's header is body text.
 func TestManualPagesRoundTripTheHeader(t *testing.T) {
-	text := manualText("feov-record", nil, []string{"finding"}, []string{"class", "new"})
+	text := manualText("feov-record", nil, []string{"finding"}, []string{"inquiry", "propose"})
 	pages := ManualPages(text, "feov-record")
 	var got []string
 	for _, p := range pages {
 		got = append(got, strings.Join(p.Path, " "))
 	}
-	if want := []string{"", "finding", "class new"}; !slices.Equal(got, want) {
+	if want := []string{"", "finding", "inquiry propose"}; !slices.Equal(got, want) {
 		t.Fatalf("pages = %q, want %q", got, want)
 	}
 	// A PAGE CLOSED BY THE NEXT RULE AND THE LAST PAGE are both exactly what was printed — the
 	// first is where a boundary could eat the newline, and did.
-	for i, want := range map[int]string{1: "help for [finding]\n\nFlags:\n  -h, --help\n", 2: "help for [class new]\n\nFlags:\n  -h, --help\n"} {
+	for i, want := range map[int]string{1: "help for [finding]\n\nFlags:\n  -h, --help\n", 2: "help for [inquiry propose]\n\nFlags:\n  -h, --help\n"} {
 		if pages[i].Body != want {
 			t.Errorf("page %d body = %q, want %q", i, pages[i].Body, want)
 		}
@@ -118,14 +118,14 @@ func TestALeanPageRestoresToTheHelpItCameFrom(t *testing.T) {
 			"judge it\n\nFlags:\n      --anchor string   which\n      --reason string   why\n" + global,
 		},
 		"the help flag last": {
-			[]string{"class", "new"},
-			"coin it\n\nUsage:\n  feov-record class new [flags]\n\nFlags:\n      --define string   what\n  -h, --help            help for new\n" + global,
-			"coin it\n\nFlags:\n      --define string   what\n" + global,
+			[]string{"inquiry", "propose"},
+			"propose it\n\nUsage:\n  feov-record inquiry propose [flags]\n\nFlags:\n      --anchor string   what\n  -h, --help            help for propose\n" + global,
+			"propose it\n\nFlags:\n      --anchor string   what\n" + global,
 		},
 		"no flag but help": {
-			[]string{"class", "list"},
-			"list them\n\nUsage:\n  feov-record class list [flags]\n\nFlags:\n  -h, --help   help for list\n" + global,
-			"list them\n" + global,
+			[]string{"show", "board"},
+			"read it\n\nUsage:\n  feov-record show board [flags]\n\nFlags:\n  -h, --help   help for board\n" + global,
+			"read it\n" + global,
 		},
 		"no flag but help, and nothing after it": {
 			[]string{"assemble"},

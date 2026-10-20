@@ -72,7 +72,7 @@ func TestUnrelatedFilesDoNotTripTheLegacyRefusal(t *testing.T) {
 	// events-bad.jsonl and events-x-nothex.jsonl are the names TestMergedEventsOnAnEmptyOrAbsentRun
 	// has pinned as non-shards since the JSONL era: no nonce, and a nonce that is not hex. They
 	// were never parsed as events then and must not be refused as events now.
-	for _, name := range []string{"class-registry.json", "notes.txt", ".active-blue", "events-bad.jsonl", "events-x-nothex.jsonl"} {
+	for _, name := range []string{"scratch.json", "notes.txt", ".active-blue", "events-bad.jsonl", "events-x-nothex.jsonl"} {
 		if err := os.WriteFile(filepath.Join(records, name), []byte("{}"), 0o644); err != nil {
 			t.Fatal(err)
 		}

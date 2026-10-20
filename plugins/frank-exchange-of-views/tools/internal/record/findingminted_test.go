@@ -34,7 +34,7 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 	}
 	mint := func(gap string, foundBy ...string) *Event {
 		return recordtest.Event(t, "red-merge-r1", &recordpb.Mint{
-			GapId: proto.String(gap), Class: proto.String("self-attestation"),
+			GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: foundBy,
 			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -79,7 +79,7 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 		Id: proto.String("L5-F1"), Text: proto.String("x"),
 	})
 	minted := recordtest.Event(t, "red-merge-r1", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
+		GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: []string{"L5-F1"},
 		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),

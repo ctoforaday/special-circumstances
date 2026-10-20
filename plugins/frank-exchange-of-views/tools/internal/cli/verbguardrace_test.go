@@ -205,7 +205,7 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	id := record.NewID("finding")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
 		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-			"--key", "G1", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+			"--key", "G1", "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 			"--quote", raceSentence+".", "--new", "Costs rose modestly across the first quarter.")
@@ -218,28 +218,6 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
 		t.Errorf("the refused mint recorded %d mint(s)", n)
-	}
-}
-
-// A MINT RECORDS WHETHER THE RUN COINED ITS CLASS AS THE RECORD IT LANDS ON SAYS. Another lens coins the
-// slug at the moment this one mints with it; read before the mint's write, class_new says the run did
-// not coin a class the record it joins shows this run coined.
-func TestAMintsClassNewIsReadOffTheRecordItLandsOn(t *testing.T) {
-	runDir := raceRun(t)
-	coin := recordtest.At(t, "red-lens-logic", "race:class", &recordpb.ClassNew{Slug: proto.String("race-coined"),
-		Definition: proto.String("a defect of one shape"), Neighbor: proto.String("overclaim"), Distinguisher: proto.String("it is not an overclaim"),
-		MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()})
-	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{coin}, func() error {
-		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "race-coined",
-			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
-			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", raceSentence)
-		return err
-	})
-	if err != nil {
-		t.Fatalf("a mint naming a class coined at that moment: %v", err)
-	}
-	if m := lastBody(t, runDir, &recordpb.Mint{}); !m.GetClassNew() {
-		t.Error("the mint records class_new false over a record that shows the run coined its class")
 	}
 }
 

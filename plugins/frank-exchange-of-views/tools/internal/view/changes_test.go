@@ -19,7 +19,7 @@ func seedChanges(t *testing.T, runDir string) {
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G1"),
-			Class:           proto.String("overclaim"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("independence is overclaimed"),
 			RequiredFix:     proto.String("acknowledge the shared definition"),
 			AcceptanceCheck: proto.String("the section no longer claims independence"),
@@ -108,7 +108,7 @@ func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G1"),
-			Class:           proto.String("x"),
+			Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("c"),

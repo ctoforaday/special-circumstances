@@ -30,7 +30,7 @@ position recorded
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
+$ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
 minted GAP001
@@ -75,7 +75,7 @@ $ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid
 exit 2
 stderr:
 feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
+This verb's flags: --access-date, --anchor, --as, --bridge, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -120,7 +120,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"red's round position"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"closing":{"gap_id":"GAP001","text":"red's closing"},"key":"red-chair:closing:#1:GAP001","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_POSITION"}
 {"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_CLOSING"}

@@ -146,6 +146,10 @@ const (
 	// you", never "how good is the source".
 	Confidence = "confidence"
 
+	// Bridge is what a `supports_with_bridge` reading bridged: a summary, a secondary citation, or a
+	// near-restatement. Required with that outcome and refused with any other.
+	Bridge = "bridge"
+
 	// Grading. All four axes ARE their flag names, which is what lets a seat learn the
 	// pattern from any one of them.
 	Severity   = "severity"
@@ -155,19 +159,10 @@ const (
 	Proposed   = "proposed"
 	Dimension  = "dimension"
 
-	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's
-	// class slug from the growing registry, a petition's class from a fixed four. Same
-	// arrangement as --as — one word, a value space per verb.
-	//
-	// A mint that supplies --definition is COINING the slug; there is no separate boolean
-	// saying so, because a flag that means "I also passed three other flags" is those three
-	// flags read twice.
-	Class         = "class"
-	Definition    = "definition"
-	Neighbor      = "neighbor"
-	Distinguisher = "distinguisher"
-	// MaterialDefault is a coined class's materiality default: always, never, or by grade.
-	MaterialDefault = "material-default"
+	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's class
+	// from the GapClass set, a petition's from a fixed four. Same arrangement as --as — one word,
+	// a value space per verb.
+	Class = "class"
 
 	// Gap substance.
 	Problem = "problem"
@@ -325,9 +320,9 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, Confidence, Occasion,
+		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
-		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
+		Class,
 		Problem, Fix, Check, CheckKind, Type, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
@@ -355,7 +350,7 @@ func All() []string {
 func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
-	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Neighbor: true, Anchor: true,
+	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,

@@ -13,7 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// m23Archive is universe-m23: is 91 prime, one lane, 482 events migrated, outcome UNVERIFIED asserted by
+// m23Archive is universe-m23: is 91 prime, one lane, 481 events migrated, outcome UNVERIFIED asserted by
 // the bench (event 480) on a board with no material gap open.
 const m23Archive = "2026-10-13_is-91-prime-m23.tar.gz"
 
@@ -52,8 +52,8 @@ func TestM23sRefutingCorroborationIsRefusedLiveAndItsArchiveKeepsIt(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fam.Events) != 482 {
-		t.Fatalf("the migrated m23 holds %d events, want 482 — the archive's 476 and the 6 reproduces carried to a second proof on their script", len(fam.Events))
+	if len(fam.Events) != 481 {
+		t.Fatalf("the migrated m23 holds %d events, want 481 — the archive's 476, less its one coining, and the 6 reproduces carried to a second proof on their script", len(fam.Events))
 	}
 	at := -1
 	for i, e := range fam.Events {
@@ -97,7 +97,7 @@ func TestM23sRefutingCorroborationIsRefusedLiveAndItsArchiveKeepsIt(t *testing.T
 	}
 
 	// LIVE: the record as it stood before event 373 — the migrated archive's first 372 events replayed into
-	// a run of this binary's making, beside the archive's inputs and class registry — and the call
+	// a run of this binary's making, beside the archive's inputs — and the call
 	// the lens made, flag for flag.
 	dir := recordtest.RequireArchive(t, m23Archive)
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {

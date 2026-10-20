@@ -11,12 +11,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// keyed is p carrying its key: the first sixteen hex of the sha256 of p as printed, with the key
+// WithKey is p carrying its key: the first sixteen hex of the sha256 of p as printed, with the key
 // itself empty and every field the declaration leaves out of the key (PlanField.Unkeyed) at its
 // zero. Those fields say when the plan was asked — the epoch moves at every chair sitting — so a
 // key over them would never repeat, and the engine's no-progress valve, which compares keys, would
 // never stop a run whose plan is otherwise the same sitting after sitting.
-func keyed(p Plan) Plan {
+func (p Plan) WithKey() Plan {
 	q := p
 	q.Key = ""
 	v := reflect.ValueOf(&q).Elem()
@@ -40,7 +40,7 @@ func keyed(p Plan) Plan {
 func (p Plan) Printed() string {
 	b, err := json.Marshal(p)
 	if err != nil {
-		panic(fmt.Sprintf("the plan does not marshal: %v", err)) // as keyed
+		panic(fmt.Sprintf("the plan does not marshal: %v", err)) // as WithKey
 	}
 	return string(b)
 }
@@ -74,7 +74,7 @@ func requirePrintedPlan(printed string) error {
 	if again != printed {
 		return fmt.Errorf("the stored plan is not as the verb prints it — it is stored as printed, so a relay of it is compared byte for byte")
 	}
-	if want := keyed(p).Key; p.Key != want {
+	if want := p.WithKey().Key; p.Key != want {
 		return fmt.Errorf("the stored plan's key is %q and the plan's own is %q", p.Key, want)
 	}
 	return relayable(p)

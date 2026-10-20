@@ -147,9 +147,9 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	}
 }
 
-// A REFUTING CORROBORATION IS CLEARED BY THE FINDING ITS READER FILES, through the verbs: the
+// A REFUTING CORROBORATION IS RAISED BY THE FINDING ITS READER FILES, through the verbs: the
 // quote the corroboration was held to is one a finding can place.
-func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
+func TestARefutingCorroborationIsRaisedByAFindingAtItsQuote(t *testing.T) {
 	runDir := corroborateRun(t)
 	contradictions := func() []string {
 		t.Helper()
@@ -159,7 +159,9 @@ func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
 		}
 		var claims []string
 		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-			claims = append(claims, c.Claim)
+			if c.RaisedBy == "" {
+				claims = append(claims, c.Claim)
+			}
 		}
 		return claims
 	}
@@ -179,7 +181,7 @@ func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := contradictions(); len(got) != 0 {
-		t.Errorf("unanswered contradictions = %v after a finding at the sentence, want none", got)
+		t.Errorf("unraised contradictions = %v after a finding at the sentence, want none", got)
 	}
 }
 

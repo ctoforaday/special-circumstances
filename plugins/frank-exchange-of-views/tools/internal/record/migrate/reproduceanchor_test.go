@@ -121,14 +121,14 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	}
 }
 
-// AN ANSWERED CONTRADICTION IS ANSWERED ON THE MIGRATED RECORD. A finding names a contradiction by
+// A RAISED CONTRADICTION IS RAISED ON THE MIGRATED RECORD. A finding names a contradiction by
 // the events.id of the reading that opened it, and every archive renumbers: the cast is written
 // first, an anchor lands after the act that placed it. The reference is translated to the id the
 // reading was written as; untranslated, it names another event or none.
 //
 // No archive holds such a finding — the kind arrives at epoch 28 — so one is seeded into the
 // quadratic-formula archive, right after its first refuting reading, by that reading's seat.
-func TestAnAnsweredContradictionIsAnsweredOnTheMigratedRecord(t *testing.T) {
+func TestARaisedContradictionIsRaisedOnTheMigratedRecord(t *testing.T) {
 	from := recordtest.ExtractArchive(t, "2026-09-02_quadratic-formula.tar.gz")
 	src := archivedSource(t, from)
 	evs, err := src.Events()
@@ -150,12 +150,9 @@ func TestAnAnsweredContradictionIsAnsweredOnTheMigratedRecord(t *testing.T) {
 	if reading.ID == 0 {
 		t.Fatal("the archive holds no refuting reading")
 	}
-	// The run's channels and its translated class registry, as Migrate stages them before a replay.
+	// The run's channels, as Migrate stages them before a replay.
 	to := recordtest.TmpRun(t)
 	if err := copyChannels(from, to); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := translateStagedRegistry(to); err != nil {
 		t.Fatal(err)
 	}
 	dst := runtest.New(t, to)
@@ -189,10 +186,19 @@ func TestAnAnsweredContradictionIsAnsweredOnTheMigratedRecord(t *testing.T) {
 	if ref == strconv.FormatInt(reading.ID, 10) || ref == "" {
 		t.Fatalf("the migrated finding names contradiction %q, the reading's source id %d — the archive did not renumber, so nothing was tested", ref, reading.ID)
 	}
+	// The finding raises it and no gap answers it, so it is listed — raised by the seeded finding.
+	// A reference left untranslated would raise another reading's contradiction, or none.
+	raised := false
 	for _, c := range ev.UnansweredContradictions {
 		if c.Claim == claim {
-			t.Errorf("the answered claim %q is still listed unanswered on the migrated record", claim)
+			raised = c.RaisedBy == "F-0000c0de"
+			if !raised {
+				t.Errorf("the raised claim %q is listed raised by %q on the migrated record, want F-0000c0de", claim, c.RaisedBy)
+			}
 		}
+	}
+	if !raised {
+		t.Errorf("the raised claim %q is not listed raised by F-0000c0de on the migrated record", claim)
 	}
 	if len(ev.UnansweredContradictions) == 0 {
 		t.Errorf("no unanswered contradiction remains: the archive's other readings must still be listed, or the read is blank")

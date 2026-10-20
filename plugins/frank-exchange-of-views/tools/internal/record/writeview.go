@@ -22,29 +22,25 @@ import (
 type writeView struct {
 	// q is the writing transaction. Every question validation asks of the record goes to it.
 	q recordsql.Querier
-	// files is the run's files the checks read: setup's terms and the staged class registry.
+	// files is the run's files the checks read: setup's terms.
 	files runFiles
 	// rendering is the write's report, rendered before the lock (landingReport); nil on a batch's
 	// write, which renders under its own transaction.
 	rendering *landingReport
 }
 
-// runFiles is the two files the write path reads besides the record: inputs/run-config.json (the
-// run's terms) and the class registry setup staged beside the record. Neither is a record a seat
-// writes, so neither can move under a write; they are read from the paths alone, with no Run.
+// runFiles is the file the write path reads besides the record: inputs/run-config.json (the run's
+// terms). It is not a record a seat writes, so it cannot move under a write; it is read from the
+// path alone, with no Run.
 type runFiles struct {
-	dir     string // the run directory, which holds inputs/run-config.json
-	records string // the records directory, which holds class-registry.json
+	dir string // the run directory, which holds inputs/run-config.json
 }
 
 // filesOf is run's files.
-func filesOf(run Run) runFiles { return runFiles{dir: run.Dir(), records: run.Records()} }
+func filesOf(run Run) runFiles { return runFiles{dir: run.Dir()} }
 
 // params is the run's terms (RunParams).
 func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 
 // convergenceFraction is the run's convergence fraction (convergenceFractionIn).
 func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
-
-// registry is the staged class registry (loadRegistry).
-func (f runFiles) registry() (*classRegistry, error) { return loadRegistryIn(f.records) }

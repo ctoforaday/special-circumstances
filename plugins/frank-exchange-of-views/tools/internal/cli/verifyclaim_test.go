@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -85,9 +86,10 @@ func TestVerifyTakesNoQuote(t *testing.T) {
 	}
 }
 
-// A REFUTING VERIFICATION HOLDS A PASS UNTIL A FINDING QUOTES THE SENTENCE ITS ANCHOR MARKS: a
-// finding at the cited clause alone does not clear it, a finding at the whole sentence does.
-func TestARefutingVerificationIsClearedByAFindingAtItsSentence(t *testing.T) {
+// A REFUTING VERIFICATION IS RAISED BY A FINDING THAT QUOTES THE SENTENCE ITS ANCHOR MARKS — a
+// finding at the cited clause alone does not raise it, one at the whole sentence does — and it
+// holds a PASS until the gap minted from that finding answers it: a finding alone answers nothing.
+func TestARefutingVerificationIsRaisedByAFindingAtItsSentence(t *testing.T) {
 	runDir, anchor := citedClause(t)
 	contradictions := func() []string {
 		t.Helper()
@@ -97,7 +99,9 @@ func TestARefutingVerificationIsClearedByAFindingAtItsSentence(t *testing.T) {
 		}
 		var claims []string
 		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-			claims = append(claims, c.Claim)
+			if c.RaisedBy == "" {
+				claims = append(claims, c.Claim)
+			}
 		}
 		return claims
 	}
@@ -107,21 +111,52 @@ func TestARefutingVerificationIsClearedByAFindingAtItsSentence(t *testing.T) {
 	if got := contradictions(); len(got) != 1 || got[0] != verifiedSentence {
 		t.Fatalf("unanswered contradictions = %q, want the sentence the anchor marks", got)
 	}
-	finding := func(key, quote string) {
+	finding := func(key, quote string) string {
 		t.Helper()
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key,
+		out, err := run(t, "--json", "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key,
 			"--quote", quote, "--reason", "the source says the sky is green",
-			"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+			"--severity", "high", "--likelihood", "high", "--impact", "medium")
+		if err != nil {
 			t.Fatal(err)
 		}
+		var env struct {
+			Result struct {
+				FindingID string `json:"finding_id"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.FindingID == "" {
+			t.Fatalf("finding --json printed no finding_id: %v\n%s", err, out)
+		}
+		return env.Result.FindingID
 	}
 	finding("k1", "the sky is blue")
 	if got := contradictions(); len(got) != 1 {
-		t.Errorf("unanswered contradictions = %q after a finding at the clause alone, want the sentence still held", got)
+		t.Errorf("unraised contradictions = %q after a finding at the clause alone, want the sentence still unraised", got)
 	}
-	finding("k2", verifiedSentence)
+	raising := finding("k2", verifiedSentence)
 	if got := contradictions(); len(got) != 0 {
-		t.Errorf("unanswered contradictions = %q after a finding at the sentence, want none", got)
+		t.Errorf("unraised contradictions = %q after a finding at the sentence, want none", got)
+	}
+	// RAISED IS NOT ANSWERED: the PASS is held until the gap minted from the raising finding.
+	held := func() int {
+		t.Helper()
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions)
+	}
+	if got := held(); got != 1 {
+		t.Fatalf("%d contradiction(s) held after the finding alone, want 1 — a source the report misstates is material by its class", got)
+	}
+	if out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--found-by", raising,
+		"--class", "citation_figure_misattribution", "--quote", verifiedSentence, "--problem", "the source says the sky is green, and the reader relies on the colour",
+		"--fix", "say what the source says", "--check-kind", "source", "--check", "the sentence matches the source",
+		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+		t.Fatalf("mint --found-by %s: %v\n%s", raising, err, out)
+	}
+	if got := held(); got != 0 {
+		t.Errorf("%d contradiction(s) held after the gap minted from the raising finding, want 0", got)
 	}
 }
 
@@ -216,7 +251,13 @@ func TestARefutedClaimIsAnsweredAsPrinted(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return len(record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions)
+		n := 0
+		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+			if c.RaisedBy == "" {
+				n++
+			}
+		}
+		return n
 	}
 	for _, f := range []struct {
 		quote string
@@ -227,7 +268,7 @@ func TestARefutedClaimIsAnsweredAsPrinted(t *testing.T) {
 			t.Fatalf("finding at %q: %v", f.quote, err)
 		}
 		if got := held(); got != f.held {
-			t.Errorf("after a finding at %q, %d contradiction(s) held, want %d", f.quote, got, f.held)
+			t.Errorf("after a finding at %q, %d contradiction(s) unraised, want %d", f.quote, got, f.held)
 		}
 	}
 }

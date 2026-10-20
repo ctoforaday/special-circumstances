@@ -1,5 +1,7 @@
 # Class registry seed (E0.5g, 2026-07-18) — 224 gaps, 3 runs, 38 classes
 
+The gap-class vocabulary lives in `record.proto` as the `GapClass` enum; this file is the design record of the analysis it grew from.
+
 Full analysis: the E0.5g report (this file is the durable seed W2d consumes).
 Corpus: retrospective 52 + efficiency 77 + sleeper 95 gaps. Caveat: efficiency
 rounds 1-3 boards were destroyed by in-place overwrite (only fed2449 committed);

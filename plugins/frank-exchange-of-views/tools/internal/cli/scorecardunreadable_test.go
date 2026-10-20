@@ -37,7 +37,7 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G1", "--class", "scope-creep", "--quote", "Seven is prime.",
+		"--key", "G1", "--class", "spec_underspecification", "--quote", "Seven is prime.",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)

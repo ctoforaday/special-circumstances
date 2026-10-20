@@ -22,7 +22,7 @@ import (
 
 func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	runDir := seatRun(t)
-	real := mintGap(t, runDir, "the-real-gap", "reference-integrity")
+	real := mintGap(t, runDir, "the-real-gap", "spec_underspecification")
 
 	for _, c := range []struct {
 		name, wants string
@@ -50,7 +50,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "G99"}},
 		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", lensSeat,
-			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
+			"--key", "k2", "--class", "spec_underspecification", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--complexity", "low", "--found-by", "F-0000f9f9"}},
 		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-chair",
@@ -83,8 +83,8 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 // And the converse, or the test above would pass for a validate that refuses everything.
 func TestValidReferencesStillResolve(t *testing.T) {
 	runDir := seatRun(t)
-	first := mintGap(t, runDir, "first", "reference-integrity")
-	second := mintGap(t, runDir, "second", "reference-integrity")
+	first := mintGap(t, runDir, "first", "spec_underspecification")
+	second := mintGap(t, runDir, "second", "spec_underspecification")
 
 	// The bench's two references — the gap on the filing, the motion on the ruling — both
 	// resolve, which is the converse of the two rows above.
@@ -114,8 +114,8 @@ func TestValidReferencesStillResolve(t *testing.T) {
 // predecessor is the normal pattern. The rules that survived had zero violations.
 func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	runDir := seatRun(t)
-	open := mintGap(t, runDir, "stays-open", "state-checks")
-	closed := mintGap(t, runDir, "gets-closed", "state-checks")
+	open := mintGap(t, runDir, "stays-open", "policy_without_mechanism")
+	closed := mintGap(t, runDir, "gets-closed", "policy_without_mechanism")
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", closed, "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
@@ -166,9 +166,9 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 // predecessor, so requiring a closed one would have refused every real lineage claim.
 func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	runDir := seatRun(t)
-	ancestor := mintGap(t, runDir, "the-ancestor", "state-checks")
+	ancestor := mintGap(t, runDir, "the-ancestor", "policy_without_mechanism")
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "the-successor", "--class", "state-checks",
+		"--key", "the-successor", "--class", "policy_without_mechanism",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--supersedes", ancestor); err != nil {
@@ -190,11 +190,11 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 // duty, and this test holds both halves: the 7 stay legal, the 2 are caught.
 func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	runDir := seatRun(t)
-	ancestor := mintGap(t, runDir, "the-ancestor", "lineage-completion")
+	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.
 	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "the-successor", "--class", "lineage-completion",
+		"--key", "the-successor", "--class", "risk_coverage_omission",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 		"--supersedes", ancestor)

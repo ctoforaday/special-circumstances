@@ -56,7 +56,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
-		Class:           proto.String("scope-creep"),
+		Class:           recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
 		AcceptanceCheck: proto.String("the claim names the search that produced it"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -73,8 +73,8 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		Scan(&class, &problem, &kind, &likelihood); err != nil {
 		t.Fatalf("the mint is not readable as columns: %v", err)
 	}
-	if class != "scope-creep" || kind != "document" || likelihood != "high" {
-		t.Errorf("mint = (%q, %q, %q), want (scope-creep, document, high)", class, kind, likelihood)
+	if class != "risk_coverage_omission" || kind != "document" || likelihood != "high" {
+		t.Errorf("mint = (%q, %q, %q), want (risk_coverage_omission, document, high)", class, kind, likelihood)
 	}
 
 	// The enum went in as its WORD, so it joins to the vocabulary that explains it.
@@ -114,7 +114,7 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 	db := store(t)
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G1"),
-		Class:           proto.String("c"),
+		Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -211,7 +211,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	db := store(t)
 	original := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
-		Class:           proto.String("scope-creep"),
+		Class:           recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
 		AcceptanceCheck: proto.String("the claim names the search that produced it"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -296,7 +296,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 			GapId:           proto.String(id),
-			Class:           proto.String("c"),
+			Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 			Problem:         proto.String("p"),
 			AcceptanceCheck: proto.String("a"),
 			CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -421,7 +421,7 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			db := store(t)
 			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
-				GapId: proto.String("G1"), Class: proto.String("c"), Problem: proto.String("p"), AcceptanceCheck: proto.String("a"),
+				GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("a"),
 				CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Likelihood: recordpb.Grade_GRADE_HIGH.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 			})); err != nil {
 				t.Fatal(err)
@@ -479,7 +479,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			db := store(t)
 			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 				GapId:           proto.String("G1"),
-				Class:           proto.String("c"),
+				Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 				Problem:         proto.String("p"),
 				AcceptanceCheck: proto.String("a"),
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -619,7 +619,7 @@ func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
 	t.Helper()
 	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String(gapID),
-		Class:           proto.String("c"),
+		Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -820,7 +820,7 @@ func TestAGapsListsAreCountedByTheView(t *testing.T) {
 	mintGap(t, db, 0, "G1")
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		GapId:           proto.String("G2"),
-		Class:           proto.String("overclaim"),
+		Class:           recordpb.GapClass_GAP_CLASS_PARTIAL_CONTROL_COVERAGE.Enum(),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
@@ -866,4 +866,27 @@ func tmpRun(t *testing.T) string {
 	dir := t.TempDir()
 	t.Cleanup(func() { _ = CloseUnder(dir) })
 	return dir
+}
+
+// THE DATABASE REFUSES A CATCH-ALL MINT WITH NO REASON, whatever writes it: Mint's (check) is the
+// wall, and the write path's refusal only names it first.
+func TestTheRecordRefusesAnUnclassifiedMintWithoutAReason(t *testing.T) {
+	db := store(t)
+	mint := func(seq int32, id string, reason *string) error {
+		_, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+			ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_LOW.Enum(),
+			GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_UNCLASSIFIED.Enum(), Problem: proto.String("p"),
+			AcceptanceCheck: proto.String("a"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+			Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum(), MintReason: reason,
+		}))
+		return err
+	}
+	for _, r := range []*string{nil, proto.String(""), proto.String(" \n\t")} {
+		if err := mint(0, "G1", r); err == nil {
+			t.Fatalf("an unclassified mint with reason %v was stored", r)
+		}
+	}
+	if err := mint(1, "G2", proto.String("nearest is spec_underspecification; this term is defined twice")); err != nil {
+		t.Fatalf("an unclassified mint with a reason was refused: %v", err)
+	}
 }
