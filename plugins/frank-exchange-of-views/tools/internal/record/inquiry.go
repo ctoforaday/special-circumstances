@@ -45,6 +45,10 @@ type Inquiry struct {
 	Method  string
 	Epoch   int      // the epoch the current status was set in
 	History []string // every fate it took, in order, the proposal first: "e0 proposed", "e2 abandoned" …
+	// Steps is History with each record's own account: the reason and the method that record gave,
+	// and the seat that recorded it. The last step is the current fate, whose reason and method are
+	// Reason and Method.
+	Steps []InquiryStep
 	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
 	// answer came" by the enum's own meaning, and `confirmed` and `refuted` are approaches that ran
 	// and answered; a seat reaches any of them straight from `proposed`, so the absence of an `underway`
@@ -62,6 +66,14 @@ type Inquiry struct {
 	// deliver the research — is an ordinary GAP, minted and closed like any other, and the
 	// per-epoch statement that the read HAPPENED is InquiryReviewDueOf's business, not this
 	// struct's.
+}
+
+// InquiryStep is one record of an inquiry's fate, as that record gave it.
+type InquiryStep struct {
+	Epoch          int
+	Status         string
+	Reason, Method string
+	SeatID         string
 }
 
 // InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
@@ -118,6 +130,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			a.Status = recordpb.Word(t.GetStatus())
 			a.Reason, a.Method, a.Epoch, a.SeatID = t.GetReason(), t.GetMethod(), w.Epoch, e.GetSeatId()
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
+			a.Steps = append(a.Steps, InquiryStep{Epoch: w.Epoch, Status: a.Status, Reason: a.Reason, Method: a.Method, SeatID: a.SeatID})
 		case *recordpb.MotionRule:
 			// A ruling on an inquiry joins on the inquiry's own id, so `motion inquiry rule`
 			// writes a motion-rule whose motion_id IS a Q-number. This arm is how red's ruling
