@@ -192,7 +192,7 @@ type PageReading struct {
 	// read: letters and digits in boxes far wider than they can fill — a rule, a leader, a script
 	// the language data does not hold, read as characters (tessocr.PageResult.RemovedLines,
 	// #1030). Their count is the removal's size; their text is what lets a quote of one be
-	// refused as removed (LocateSpan) rather than as a misquote. Never omitted: an empty list is
+	// refused as removed (LocateSourceSpan) rather than as a misquote. Never omitted: an empty list is
 	// the engine saying it removed nothing.
 	RemovedLines []string `json:"removed_lines"`
 }

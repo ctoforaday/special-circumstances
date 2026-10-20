@@ -21,11 +21,10 @@ func TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := fetchcache.RenderAndRead{}.ReadScanned(context.Background(), run, e)
-	if err != nil {
+	if _, err := (fetchcache.RenderAndRead{}).ReadScanned(context.Background(), run, e); err != nil {
 		t.Fatalf("the real engine did not read the fixture: %v", err)
 	}
-	loc, err := fetchcache.LocateSpan(run, rec, ScannedFixtureSpan)
+	loc, err := fetchcache.LocateSourceSpan(run, e, ScannedFixtureSpan)
 	if err != nil {
 		t.Fatalf("the real engine's reading does not hold the board's span: %v", err)
 	}

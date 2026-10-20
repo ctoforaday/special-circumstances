@@ -25,7 +25,7 @@ func TextOrigin(run record.Run, e Entry) (recordpb.SourceTextOrigin, ReadingReco
 		return recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, ReadingRecord{}, nil
 	}
 	// A reading on disk makes the text OCR-derived even when a page file has since gone missing:
-	// completeness is LocateSpan's question, asked only when a quote has to be found in it.
+	// completeness is LocateSourceSpan's question, asked only when a quote has to be found in it.
 	rec, ok, err := ReadReadingRecord(run, e.Sha)
 	if err != nil {
 		return 0, ReadingRecord{}, err
