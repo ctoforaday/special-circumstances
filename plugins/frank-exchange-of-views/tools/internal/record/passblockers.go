@@ -113,6 +113,9 @@ const contradictionReader = "a lens"
 
 // contradictionCitationAnswer is what else answers a contradiction whose reading checked a
 // citation (unansweredContradictions), stated by the work item and the PASS refusal alike.
+// contradictionAnswerBudget is what the answering gap costs its minter (requireMintWithinBudget).
+const contradictionAnswerBudget = "The gap a lens mints from its own raising finding takes no mint of its budget: it is admitted at the cap"
+
 const contradictionCitationAnswer = "A contradiction raised by reading a citation is answered as well by a retire of that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it — the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing"
 
 // contradictionFact is a contradiction's name on every surface: the word and its id, which is the
@@ -187,9 +190,9 @@ var blockerKinds = []blockerKind{
 		gloss: "a contradicting source no gap answers",
 		item: func(b Blocker) string {
 			if b.raisedBy != "" {
-				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`. A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionCitationAnswer)
+				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`. A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionAnswerBudget, contradictionCitationAnswer)
 			}
-			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionCitationAnswer)
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionAnswerBudget, contradictionCitationAnswer)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string

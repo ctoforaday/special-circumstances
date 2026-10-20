@@ -74,7 +74,8 @@ the one more exchange the remand grants its minting lens and blue left it at imp
 bench remanded it again — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max), the floor of the gaps a lens may hold open at once (mint-budget), which the record raises
-with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs — and
+with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs; a gap that
+answers a contradiction its own lens raised takes no mint of it — and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan the same for three chair sittings in a row — the same parties readied against the same
 head, with the same docket, exchange counts and standing blockers — is a loop nothing on the board
