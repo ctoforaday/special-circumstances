@@ -482,7 +482,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 			}
 		default:
 			if at, err := record.EvidenceAt(run, id); err == nil && at.Source != nil {
-				about = at.Source.Title + " — " + at.Source.Text
+				about = citationAbout(at.Source)
 			}
 		}
 		if about = line(about); about == "" {
@@ -536,4 +536,18 @@ func (r editResult) Human() string {
 	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
 		strings.Join(r.VoiceTells, "\n  - ") +
 		"\nSeparation, never deletion: an operational limit belongs in the log, and\nthe part that limits the CONCLUSION stays here, re-voiced."
+}
+
+// citationAbout is what a citation backs, for the refusal that asks where its anchor goes: the
+// source's own words at its span where the tool found one, and otherwise the citer's reason.
+func citationAbout(src *record.EvidenceSourceJSON) string {
+	switch {
+	case src.SourceText != nil:
+		return src.Title + " — the source: \"" + src.SourceText.Matched + "\""
+	case src.BlueReason != nil:
+		return src.Title + " — " + *src.BlueReason
+	case len(src.Verified) > 0:
+		return src.Title + " — " + src.Verified[0].Text
+	}
+	return src.Title
 }

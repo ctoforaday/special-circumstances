@@ -32,7 +32,7 @@ type Source struct {
 	Title      string
 	AccessDate string
 	Location   string
-	// Pages are the PDF pages an OCR quote was found on, from blue's cite; a corroboration has
+	// Pages are the PDF pages an OCR span was found on, from blue's cite; a corroboration has
 	// none. Assembly prints them in the source's note, never in the Bibliography.
 	Pages []int32
 	// Corroborated marks a source red found itself (a supporting corroboration) rather than one

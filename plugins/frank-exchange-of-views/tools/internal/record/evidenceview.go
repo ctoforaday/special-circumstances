@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -71,12 +73,16 @@ type EvidenceSourceJSON struct {
 	// no second span to render; `Verify.claim` is a different field and is still on a
 	// verification below.
 	Location string `json:"location"`
-	// Text is blue's argument for the citation — why this source backs that sentence — from
-	// `cite --reason`. Rendered always: "" is "blue offered no argument", which red reads when
-	// deciding what to verify. It is never printed in the report.
-	Text   string `json:"text"`
-	SeatID string `json:"seat_id"`
-	Epoch  int    `json:"epoch"`
+	// BlueReason is blue's argument for the citation — why this source backs that sentence — from
+	// `cite --reason`: BLUE'S WORDS ABOUT THE SOURCE, never the source's, and named so. A reason
+	// that paraphrases a definition reads like the definition, and a lens that took one for the
+	// source judged the sentence against blue's inverted paraphrase of it (universe-m30). Rendered on
+	// every blue cite: "" is "blue offered no argument", which red reads when deciding what to
+	// verify. Absent on a corroboration, whose reading is its check's. It is never printed in the
+	// report.
+	BlueReason *string `json:"blue_reason,omitempty"`
+	SeatID     string  `json:"seat_id"`
+	Epoch      int     `json:"epoch"`
 	// SourceTextOrigin is where the cited text came from — embedded, ocr, none or not_recorded —
 	// stamped by the tool. Empty on a corroboration, which red read itself.
 	SourceTextOrigin string `json:"source_text_origin,omitempty"`
@@ -91,10 +97,15 @@ type EvidenceSourceJSON struct {
 	// not_the_work, not_asked. A summary_only citation of an abstract and a leaf citation of the
 	// paper differ in what red has to check, and only this field says which one it holds.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
-	// OCRQuote and Pages are blue's span from an OCR reading and the PDF pages the tool found it
-	// on. A source with pages is checked against a page image, not against the reading;
-	// OCREngine and OCRTextSha name the reading the pages were found in.
-	OCRQuote   string  `json:"ocr_quote,omitempty"`
+	// SourceText is WHAT THE SOURCE SAYS where blue quoted it: the span the tool found once in the
+	// cached text, and the text around it, copied from the source when blue cited it. It is what a
+	// lens reads the sentence against; blue_reason beside it is blue's account. Absent where the
+	// tool holds no text for the source (source_text_origin says which), and on a citation recorded
+	// before spans were located.
+	SourceText *EvidenceSourceText `json:"source_text,omitempty"`
+	// Pages are the PDF pages of an OCR reading the tool found the span on. A source with pages is
+	// checked against a page image, not against the reading; OCREngine and OCRTextSha name the
+	// reading the pages were found in.
 	Pages      []int32 `json:"pages,omitempty"`
 	OCREngine  string  `json:"ocr_engine,omitempty"`
 	OCRTextSha string  `json:"ocr_text_sha,omitempty"`
@@ -108,6 +119,33 @@ type EvidenceSourceJSON struct {
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
 	// where to spend its next pass, and an absent key would leave that to be inferred.
 	Verified []EvidenceVerificationJSON `json:"verified"`
+}
+
+// EvidenceSourceText is the source's own text at a citation's span, as the tool found it.
+type EvidenceSourceText struct {
+	// Span is blue's span as typed; Matched is the same words as the source holds them (they
+	// differ only in whitespace and line-end hyphens). Before and After are the source's text
+	// either side, up to a bounded window.
+	Span    string `json:"span"`
+	Before  string `json:"before"`
+	Matched string `json:"matched"`
+	After   string `json:"after"`
+	// Start and End are byte offsets of Matched in the text whose sha256 is TextSha — the source's
+	// text, or for OCR text the page's reading.
+	Start   int32  `json:"start"`
+	End     int32  `json:"end"`
+	TextSha string `json:"text_sha"`
+}
+
+// sourceTextOf is a cite's located span as the evidence view shows it, or nil where it has none.
+func sourceTextOf(c *recordpb.Cite) *EvidenceSourceText {
+	if c.SpanStart == nil {
+		return nil
+	}
+	return &EvidenceSourceText{
+		Span: c.GetSourceSpan(), Before: c.GetSourceBefore(), Matched: c.GetSourceMatched(), After: c.GetSourceAfter(),
+		Start: c.GetSpanStart(), End: c.GetSpanEnd(), TextSha: c.GetSpanTextSha(),
+	}
 }
 
 // EvidenceProofJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
@@ -377,7 +415,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		if vf.GetLabel() != "" && vf.GetClaim() != "" {
 			corroborations = append(corroborations, EvidenceSourceJSON{
 				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), AccessDate: vf.GetAccessDate(),
-				Location: vf.GetClaim(), Text: vf.GetText(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
+				Location: vf.GetClaim(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
 				CorroboratedBy: e.GetSeatId(),
 				// ITS OWN CHECK COMES FIRST: a corroboration is red reading the source, so the source
 				// is not "unverified" — the lens is not sent to check its own reading again.
@@ -428,7 +466,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Sha256:     bd.GetSha256(),
 				AccessDate: bd.GetAccessDate(),
 				Location:   bd.GetLocation(),
-				Text:       bd.GetText(),
+				BlueReason: proto.String(bd.GetText()),
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,
 				Verified:   checks,
@@ -436,7 +474,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				SourceTextOrigin:   recordpb.Word(bd.GetSourceTextOrigin()),
 				WorkStatus:         recordpb.Word(bd.GetWorkStatus()),
 				SourceCompleteness: recordpb.Word(bd.GetSourceCompleteness()),
-				OCRQuote:           bd.GetOcrQuote(),
+				SourceText:         sourceTextOf(bd),
 				Pages:              bd.GetPages(),
 				OCREngine:          bd.GetOcrEngine(),
 				OCRTextSha:         bd.GetOcrTextSha(),

@@ -124,7 +124,8 @@ var (
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key
-		Cite.location Cite.ocr_engine Cite.ocr_quote Cite.ocr_text_sha Cite.sha256 Cite.title Cite.url
+		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
+		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url
 		Close.anchor_seat Close.carried_from
 		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis

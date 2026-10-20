@@ -62,7 +62,7 @@ func TestCiteRecordsItsReasonAndTheEvidenceViewShowsIt(t *testing.T) {
 	if err := json.Unmarshal(b, &ev); err != nil {
 		t.Fatal(err)
 	}
-	if len(ev.Sources) != 1 || ev.Sources[0].Text != why {
+	if len(ev.Sources) != 1 || ev.Sources[0].BlueReason == nil || *ev.Sources[0].BlueReason != why {
 		t.Errorf("the evidence view does not show the citation's argument:\n%s", b)
 	}
 	// NOT REPORT TEXT: the argument is about the citation, and the report is about the subject.

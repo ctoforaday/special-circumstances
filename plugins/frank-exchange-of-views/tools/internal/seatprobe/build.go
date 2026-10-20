@@ -285,14 +285,14 @@ func Build(run record.Run, b Board, exec Exec) error {
 			args := []string{"cite", "--run", run.Dir(), "--seat-id", "blue-respond",
 				"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 				"--title", "the pinned source", "--url", src,
-				"--reason", "the source this claim rests on"}
+				"--source-span", pinnedSpan, "--reason", "the source this claim rests on"}
 			if pc, ok := pagedClaim(b, claim); ok {
 				scan := src + "scan.pdf"
 				if err := readScan(run, exec, scan); err != nil {
 					return fmt.Errorf("board %s: %w", b.Name, err)
 				}
-				args = append(args[:len(args)-6], "--title", "the pinned standard", "--url", scan,
-					"--ocr-quote", pc.Span, "--reason", "the standard this claim rests on")
+				args = append(args[:len(args)-8], "--title", "the pinned standard", "--url", scan,
+					"--source-span", pc.Span, "--reason", "the standard this claim rests on")
 			}
 			if _, err := exec(args...); err != nil {
 				return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)
@@ -305,6 +305,9 @@ func Build(run record.Run, b Board, exec Exec) error {
 // serveSource publishes the one document the cite steps fetch, on loopback, for as long as
 // the build runs. The fetch is real — the cache entry it leaves is what the built board's
 // later verbs read — and it reaches nothing outside this machine.
+// pinnedSpan is the words every board's cite of the pinned source quotes from its text.
+const pinnedSpan = "the sentence this claim rests on"
+
 func serveSource() (url string, stop func(), err error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -317,7 +320,7 @@ func serveSource() (url string, stop func(), err error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = io.WriteString(w, "the pinned source\n\nthe sentence this claim rests on\n")
+		_, _ = io.WriteString(w, "the pinned source\n\n"+pinnedSpan+"\n")
 	})}
 	go func() { _ = srv.Serve(ln) }()
 	return "http://" + ln.Addr().String() + "/", func() { _ = srv.Close() }, nil

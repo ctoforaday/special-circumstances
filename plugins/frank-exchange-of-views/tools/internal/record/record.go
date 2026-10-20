@@ -1464,11 +1464,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
 		}
 		if origin != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR &&
-			(b.OcrQuote != nil || len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
-			return fmt.Errorf("cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
+			(len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
+			return fmt.Errorf("cite carries pages or reading pins on a source whose text origin is %s — those place a span in the local engine's reading, and this source has none", recordpb.Word(origin))
 		}
-		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
-			return fmt.Errorf("cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
+		if len(b.GetPages()) > 0 && (b.GetSourceSpan() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
+			return fmt.Errorf("cite carries pages without the span and the reading (source_span, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
 		}
 		// WHAT THE LITERATURE SAYS ABOUT THE WORK IS ALSO THE TOOL'S TO STAMP, and for the same
 		// reason the origin above is: no flag teaches it, so an unstamped value is a write path
@@ -1482,6 +1482,28 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// the field unstamped renders exactly like a cite of the paper.
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+		}
+		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
+		// none. The span, its place and the text around it are one fact: a span without the source's
+		// own bytes around it is blue's word for what the source says, which is what this exists to
+		// stop a lens reading as the source's. A migrated cite predates the offsets and the text around its span, and carries neither.
+		located := b.SourceSpan != nil || b.SpanStart != nil || b.SpanEnd != nil || b.SpanTextSha != nil ||
+			b.SourceBefore != nil || b.SourceMatched != nil || b.SourceAfter != nil
+		switch origin {
+		case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+			if Migrating && b.SpanStart == nil {
+				break // an archived cite: its span, if any, was located before offsets were kept
+			}
+			if b.GetSourceSpan() == "" || b.GetSourceMatched() == "" || b.GetSpanTextSha() == "" || b.SpanStart == nil || b.GetSpanEnd() <= b.GetSpanStart() {
+				return fmt.Errorf("cite of a source with %s text carries no located span (source_span, span_start, span_end, span_text_sha, source_matched) — the tool finds the span in the cached text before it writes, and this write skipped that", recordpb.Word(origin))
+			}
+			if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR && len(b.GetPages()) != 1 {
+				return fmt.Errorf("cite of OCR text carries %d pages — a span found once sits on one page", len(b.GetPages()))
+			}
+		default:
+			if located {
+				return fmt.Errorf("cite carries a span on a source whose text origin is %s — the tool holds no text to have found it in", recordpb.Word(origin))
+			}
 		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the

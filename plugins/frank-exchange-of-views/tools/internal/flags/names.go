@@ -176,12 +176,12 @@ const (
 	// triages by filtering on it instead of reading every entry to find out which it was.
 	Type = "type"
 
-	// OCRQuote is the span a citation of OCR-derived text quotes FROM THE READING — not --quote,
-	// which is the report's sentence. The tool finds the span's page in the reading and records
-	// it, so a seat never types a page. Page is the one page image red checked, on `verify`, and
-	// the one page `render-page` draws.
-	OCRQuote = "ocr-quote"
-	Page     = "page"
+	// SourceSpan is the span a citation quotes FROM THE SOURCE'S TEXT — not --quote, which is the
+	// report's sentence. The tool finds it once in the cached text and records where, the text
+	// around it, and for OCR-derived text its page, so a seat never types a page. Page is the one
+	// page image red checked, on `verify`, and the one page `render-page` draws.
+	SourceSpan = "source-span"
+	Page       = "page"
 
 	// Via names WHICH BACKEND to reach a source through. The strategies answer different
 	// questions — an archive says what a page said on a date, an open-access lookup says whether
@@ -323,7 +323,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,

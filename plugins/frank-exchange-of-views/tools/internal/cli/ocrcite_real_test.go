@@ -56,9 +56,9 @@ func TestOCRCiteOnRealScan(t *testing.T) {
 
 	cite := func(span string) (string, error) {
 		return run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", claim, "--url", url,
-			"--title", "IEEE Std 1012-1998", "--ocr-quote", span)
+			"--title", "IEEE Std 1012-1998", "--source-span", span)
 	}
-	if out, err := cite("Annexes A through Q"); err == nil || !strings.Contains(err.Error(), "not in the reading at") {
+	if out, err := cite("Annexes A through Q"); err == nil || !strings.Contains(err.Error(), "not in the text at") {
 		t.Fatalf("a span the reading does not hold was not refused: %v\n%s", err, out)
 	}
 	if out, err := cite("Annexes A through J"); err != nil {
