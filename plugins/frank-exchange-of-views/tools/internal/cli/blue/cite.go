@@ -163,7 +163,7 @@ func newCite() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.SourceSpan, "required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). "+
-		"The tool finds them there once — runs of whitespace compare as one space and a line-end hyphen may be typed joined or kept; case, quotation marks and punctuation must match — "+
+		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — "+
 		"and records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation")

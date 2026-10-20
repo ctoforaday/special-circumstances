@@ -106,8 +106,11 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
 
 - A citation of a source whose text the tool holds — extracted HTML or PDF text, raw text, or an
   OCR reading — must name its span (`--source-span`), copied from that cached text. The tool finds
-  it there exactly once, after reading runs of whitespace as one space and a line-end hyphen either
-  joined or kept, and refuses a span it cannot find, or finds twice. It records the span's byte
+  it there exactly once, after reading runs of whitespace (non-breaking and thin spaces included)
+  as one space, a line-end hyphen either joined or kept, and a typographic character as its
+  keyboard form — curly quotes as `'` and `"`, en and em dashes as `-`, `…` as `...`, the
+  ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, a soft hyphen as nothing — and refuses a span it cannot
+  find, or finds twice. The offsets and the stored text are the source's own bytes. It records the span's byte
   offsets, the sha256 of the text they index, the source's own text up to 300 bytes either side
   (`source_before`, `source_matched`, `source_after`), and for an OCR reading the pdf page.
   `show evidence` shows that text as `source_text`, beside blue's `cite --reason` as
