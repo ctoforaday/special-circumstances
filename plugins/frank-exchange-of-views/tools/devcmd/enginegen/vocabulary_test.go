@@ -56,6 +56,7 @@ const DISPOSITION = { type: 'string', enum: ['repaired', 'moot'] }
 const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket']
+const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids', 'occasions'],

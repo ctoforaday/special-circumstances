@@ -441,8 +441,6 @@ type runner struct {
 	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
 	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
 	raised []map[string]any
-	// disputedThisRound is what blueRespondTo raised for the CURRENT round's envelope.
-	disputedThisRound []map[string]any
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented gapSet
@@ -2869,7 +2867,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.maybePetition(seatID)
 		// THE ENVELOPE RELAYS NOTHING THE RECORD HOLDS: no claim count and no attestation of what the
 		// sitting put on the record (TestNoEnvelopeRestatesARecordFact).
-		return map[string]any{"saturation_reached": r.coin(50)}
+		return map[string]any{}
 
 	case strings.HasPrefix(seatID, "red-chair"):
 		r.sit("chair", seatID)
@@ -2975,12 +2973,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
 		// looked at what red had actually asked for.
 		r.answerInquiryRulings(seatID)
-		r.disputedThisRound = nil
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
 		// AN ARRAY, NEVER null, as the envelope schema demands: a Go nil slice marshals as null,
 		// and the harness refuses the envelope for it.
-		disputes := append([]map[string]any{}, r.disputedThisRound...)
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. #318: the envelope is a ROUTING REF now, gap ids only; the rows themselves are
 		// on the record, written by the manifest-row calls above against this same `open` set.
@@ -2989,7 +2985,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			manifest = append(manifest, id)
 		}
 		r.maybePetition(seatID)
-		return map[string]any{"saturation_reached": r.coin(50), "manifest": manifest, "grade_motions": disputes}
+		return map[string]any{"manifest": manifest}
 
 	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
 	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
@@ -3110,7 +3106,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// every fuzzed run failed on the missing assembly.
 		_, _ = r.exec("assemble", "--seat-id", "judge")
 		open := len(r.openGaps())
-		return map[string]any{"synopsis": "fuzz", "open_gaps": open}
+		return map[string]any{"open_gaps": open}
 
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
@@ -6266,7 +6262,6 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					// had two asks and the pair could not tell them apart.
 					ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed, "motion_id": mid}
 					r.raised = append(r.raised, ref)
-					r.disputedThisRound = append(r.disputedThisRound, ref)
 				}
 			}
 		case dirProve, dirProveDrifts:
