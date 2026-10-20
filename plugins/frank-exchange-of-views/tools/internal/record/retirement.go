@@ -133,9 +133,9 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	out := map[string][]string{}
 	_, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
-	open, minted := map[string]bool{}, map[string]string{}
+	minted := map[string]string{}
 	for _, g := range gaps {
-		open[g.id], minted[g.id] = true, g.mintedBy
+		minted[g.id] = g.mintedBy
 	}
 	// owe names item for lens while it has sat through no sitting that opened since at.
 	owe := func(lens string, at int64, item string) {
@@ -143,29 +143,8 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 			out[lens] = append(out[lens], item)
 		}
 	}
-	answers := blueAnswersOf(evs, win, open)
-	for _, g := range gaps {
-		if a := answers[g.id]; a.answered() {
-			owe(g.mintedBy, a.at, "blue's answer to "+g.id)
-		}
-	}
-	for _, o := range regradesAwaitedOf(evs, win, open) {
-		owe(minted[o.GapID], o.ruled, "the accepted grade motion on "+o.GapID)
-	}
-	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
-	// gap that is material or stranded carries one back into the debate (routeOf); the bench's ruling
-	// on any other leaves it where it was, readying nobody.
-	held := map[string]bool{}
-	for _, g := range gaps {
-		held[g.id] = g.material || g.supersededBy != ""
-	}
-	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
-			owe(minted[m.GapID], m.ruled, "the bench's remand of "+m.GapID+" in "+m.ID)
-		}
-	}
-	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		owe(f.minter, f.at, f.filer+"'s finding "+f.id+" about "+f.gap)
+	for _, n := range gapNewsOf(evs, ids, win, gaps) {
+		owe(minted[n.gap], n.at, n.item)
 	}
 	for _, b := range events {
 		if b.Owner != "" {
@@ -176,6 +155,52 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 		for _, o := range proofChecksOwed(evs, win) {
 			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
 		}
+	}
+	return out
+}
+
+// gapNews is one act on a gap that its minting lens has not had: what it is, as a work list names
+// it, and the events.id it arrived at.
+type gapNews struct {
+	gap, item string
+	at        int64
+}
+
+// gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
+// (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+// remand of it, another seat's finding about it (findingsAboutGapsOf). It is one reading with two
+// readers: the minting lens owes each item until it sits through a sitting opened after it
+// (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
+// (staleOf).
+func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []gapNews {
+	var out []gapNews
+	open, minted := map[string]bool{}, map[string]string{}
+	for _, g := range gaps {
+		open[g.id], minted[g.id] = true, g.mintedBy
+	}
+	answers := blueAnswersOf(evs, win, open)
+	for _, g := range gaps {
+		if a := answers[g.id]; a.answered() {
+			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
+		}
+	}
+	for _, o := range regradesAwaitedOf(evs, win, open) {
+		out = append(out, gapNews{gap: o.GapID, at: o.ruled, item: "the accepted grade motion on " + o.GapID})
+	}
+	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
+	// gap that is material or stranded carries one back into the debate (routeOf); the bench's ruling
+	// on any other leaves it where it was, readying nobody.
+	held := map[string]bool{}
+	for _, g := range gaps {
+		held[g.id] = g.material || g.supersededBy != ""
+	}
+	for _, m := range motionsAt(evs, ids, win) {
+		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
+			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
+		}
+	}
+	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
+		out = append(out, gapNews{gap: f.gap, at: f.at, item: f.filer + "'s finding " + f.id + " about " + f.gap})
 	}
 	return out
 }

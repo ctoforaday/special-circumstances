@@ -287,6 +287,17 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				d.Pin = proto.Int64(to)
 			}
+			// A STALE REFUSAL'S READ POINT is an events.id too: the last act the refusal showed. It
+			// is translated as a pin is, and refused where the act it names wrote no event.
+			if st, ok := body.(*recordpb.Stale); ok && st.Through != nil {
+				to, landed := newID[st.GetThrough()]
+				if !landed {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this stale refusal reads from event %d, which wrote no event on the migrated record before it — the read point would name whatever event holds that number", st.GetThrough())})
+					continue
+				}
+				st.Through = proto.Int64(to)
+			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place.

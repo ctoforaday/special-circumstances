@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -169,7 +170,15 @@ func (d drive) gradeMotion(what, seatID, dimension string, admit bool) string {
 
 func (d drive) docketMotion(what, seatID string) {
 	d.t.Helper()
-	d.admitted(what, seatID, "motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide")
+	args := []string{"motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide"}
+	// A GAP THAT MOVED UNDER THE SEAT'S SITTING refuses the first filing and shows the move; the
+	// same filing then lands. The row is about what the write path admits, which is that second call.
+	if _, err := d.do(seatID, args...); err == nil {
+		return
+	} else if !errors.As(err, new(*record.StaleError)) {
+		d.t.Fatalf("%s: refused: %v", what, err)
+	}
+	d.admitted(what, seatID, args...)
 }
 
 // answerDrive is one row of the table, driven. helps names every help page that states the row, as
@@ -373,6 +382,8 @@ func answerDrives() []answerDrive {
 			for _, seatID := range []string{"blue-respond", lensSeat} {
 				d.docketMotion("a new docket motion on the ruled gap, by "+seatID, seatID)
 			}
+			// The chair files again at its next sitting, which opens after the ruling it answers.
+			d.nextSitting("red-chair")
 			again := docketFile(d.t, d.run, "red-chair", "G1", "the ruling left G1 where it was")
 			d.admitted("the bench's ruling on the new motion", "judge", "motion", "docket", "rule", "--id", again, "--as", "remanded", "--principle", "thoroughness over speed",
 				"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "the gap again")

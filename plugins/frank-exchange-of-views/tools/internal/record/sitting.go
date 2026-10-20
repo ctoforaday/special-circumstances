@@ -530,6 +530,8 @@ func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
 			recordpb.EventType_EVENT_TYPE_LOG,
 			recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
 			recordpb.EventType_EVENT_TYPE_SITTING_CLOSE,
+			// A stale refusal is the tool's record of what it showed the seat, not an act of the seat's.
+			recordpb.EventType_EVENT_TYPE_STALE,
 			// The stored plan is the record's copy of what `dispatch next` printed; the rows are the
 			// act. A chair that asked and was told nobody sits recorded nothing.
 			recordpb.EventType_EVENT_TYPE_PLAN:

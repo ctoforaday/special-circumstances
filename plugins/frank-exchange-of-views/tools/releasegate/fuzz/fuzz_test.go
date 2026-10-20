@@ -4816,6 +4816,9 @@ var verbsWithEvents = []string{
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep. `plan`
 	// is the plan `dispatch next` stores beside its rows.
 	"cast", "dispatch", "plan",
+	// The tool's refusal of an act on a gap that moved after the seat's sitting opened, recorded as
+	// the seat's read point. Lenses sit concurrently in the sweep, so a seed reaches it.
+	"stale",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -4991,6 +4994,7 @@ var reportExemptions = map[string]string{
 	"cast":     "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
 	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
 	"plan":     "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
+	"stale":    "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",

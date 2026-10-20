@@ -21,6 +21,8 @@ type Guard struct {
 	// before it takes the lock (landingReport), and the guard is handed that render wherever no other
 	// write has moved the report since.
 	readsReport bool
+	// last is the guard's declaration that it is asked AFTER the write path's validation (CheckLast).
+	last bool
 }
 
 // Check is a guard that does not read the report.
@@ -30,6 +32,11 @@ func Check(ask func(*Landing) error) Guard { return Guard{ask: ask} }
 // render out of the lock: a write whose guards declared none, asked for the report, is refused as an
 // internal error rather than rendering it under the lock.
 func CheckOnReport(ask func(*Landing) error) Guard { return Guard{ask: ask, readsReport: true} }
+
+// CheckLast is a guard asked after the write path's own validation rather than before it: one whose
+// refusal tells the seat to record the act again, which is false of an act the write path refuses for
+// itself — a motion on a gap already disposed of is refused whatever the seat reads.
+func CheckLast(ask func(*Landing) error) Guard { return Guard{ask: ask, last: true} }
 
 // ErrWritesNothing is a guard's answer that the write is not owed on the record it would land on — the
 // run is over, the anchor is already placed. The transaction rolls back with nothing written, and the
@@ -46,13 +53,16 @@ type Landing struct {
 	w writeView
 }
 
-// guardsAt runs guards, in order, against w.
-func guardsAt(w writeView, guards []Guard) error {
+// guardsAt runs the guards whose last is last, in order, against w.
+func guardsAt(w writeView, guards []Guard, last bool) error {
 	if len(guards) == 0 {
 		return nil
 	}
 	l := &Landing{w: w}
 	for _, g := range guards {
+		if g.last != last {
+			continue
+		}
 		if err := g.ask(l); err != nil {
 			return err
 		}

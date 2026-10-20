@@ -12,4 +12,6 @@ A CONTRADICTION RED RECORDED is raised here: a `verify` or `corroborate` that re
 
 NOTE THE ASYMMETRY RATHER THAN LETTING IT CHOOSE: this verb cannot fail, needing no fetch and risking no `absent`, and the evidence verbs can.
 
+A finding about a gap: {{.StaleRule}}
+
 A FINDING IS GRADED ON THREE AXES — severity, likelihood, impact — and not on complexity: that axis is what a FIX costs, a finding names no fix, and the gap that names one is graded on it at `mint`.

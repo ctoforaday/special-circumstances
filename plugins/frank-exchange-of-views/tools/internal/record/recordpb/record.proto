@@ -290,6 +290,7 @@ enum EventType {
   EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
   EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
+  EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -729,14 +730,16 @@ message Event {
     Dispatch dispatch = 56;
     SittingLimit sitting_limit = 57;
     Plan plan = 59;
+    Stale stale = 60;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 60 to 80;
+  // plan, 60 for the stale refusal, which is what the reserve is for — the block shrinks and
+  // nothing is renumbered.
+  reserved 61 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -2272,6 +2275,25 @@ message Plan {
     required: true
     why: "the plan as the verb printed it, the original every relay of it is compared with; a plan event with nothing printed records a decision nobody can read"
   }];
+}
+
+// Stale is the tool's refusal of a seat's act on a gap that changed since the seat's sitting opened
+// (gblock ruling B, 2026-10-19): the act asserts something about the gap — a finding about it, its
+// grade, a motion on it — and the seat's read of the gap is the one its sitting opened with, while
+// other seats sit concurrently. The refusal shows the seat each act on the gap since, and this event
+// is the record that it did.
+//
+// IT IS THE SEAT'S READ POINT FOR THE GAP, AND NOTHING ELSE. The seat's next act on the gap in the
+// same sitting is checked against what changed after `through`, so re-filing once the seat has read
+// what it was shown succeeds and needs no flag. The seat and the sitting are the envelope's.
+//
+// NOT A LOG ENTRY. The log is the operator's channel; the tool's own refusal entry is written there as
+// for every refusal. This is a fact the write path reads, so it is a field a writer can refuse.
+message Stale {
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
+  // THROUGH IS THE LAST ACT THE REFUSAL SHOWED, not this event's own id: an act on the gap recorded
+  // between the check and this write was never shown, and a read point at this event would pass it.
+  optional int64 through = 2 [(sql) = { references: "events.id" }];
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

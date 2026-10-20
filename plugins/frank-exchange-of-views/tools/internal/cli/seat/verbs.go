@@ -1343,6 +1343,28 @@ func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(erro
 	return err
 }
 
+// StaleRule is how a page whose act names a gap teaches AppendFresh's refusal: one sentence set for
+// every such page, so the pages and the refusal they describe cannot drift apart.
+const StaleRule = "A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, answered by blue, or argued in another seat's finding after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you."
+
+func init() { HelpValues["StaleRule"] = StaleRule }
+
+// AppendFresh records an act about gapID through write, handing it the guard that refuses the act
+// while another seat's act on the gap is newer than this seat's read point (record.Fresh). On that
+// refusal it records the Stale event that moves the read point past what the refusal shows, and
+// returns the refusal, so the same act recorded again once the seat has read the changes lands.
+func AppendFresh(s Context, gapID string, write func(guards ...record.Guard) error) error {
+	err := write(record.Fresh(s.SeatID, gapID))
+	var stale *record.StaleError
+	if !errors.As(err, &stale) {
+		return err
+	}
+	if _, aerr := record.Append(s.Identity(), &recordpb.Stale{GapId: proto.String(gapID), Through: proto.Int64(stale.Through())}); aerr != nil {
+		return aerr
+	}
+	return feov.Wrap(feov.Conflict, stale, "%s", stale.Error())
+}
+
 // PlaceOwed appends the Anchor a retried act owes — an act on the record without its anchor, which a
 // record migrate brought forward from an archive can hold (record.UnplacedLocation) — at the location
 // the act stored, once that location places; otherwise the act stays unplaced. key is the --key the call repeats the act under,

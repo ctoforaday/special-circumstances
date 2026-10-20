@@ -118,6 +118,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the h
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_limit', 'a seat''s sitting stopped at the run''s per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('stale', 'the tool refusing a seat''s act on a gap that changed since the seat''s sitting opened, having shown the seat what changed — the seat''s next act on that gap in this sitting reads from here');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'the chair''s verdict for its epoch: PASS or FAIL against the open board');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
 
@@ -873,6 +874,14 @@ CREATE TABLE "sitting_limit" (
 CREATE TABLE "plan" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "printed" TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE "stale" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "gap_id" TEXT,
+  "through" INTEGER,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("through") REFERENCES "events"("id")
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
