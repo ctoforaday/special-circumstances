@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -27,8 +26,8 @@ import (
 )
 
 // publishArchive is the archive the publish's sync order is measured on: the smallest in the store,
-// with a class registry, so its migrated run has channels, a registry translation, a database and a
-// manifest — every kind of file the publish syncs.
+// whose migrated run has channels, a database and a manifest — every kind of file the publish syncs
+// (36 files, measured).
 const publishArchive = "2026-08-22_is-7-prime.tar.gz"
 
 // tinySource writes a former-vocabulary record with one register and one friction — the smallest run
@@ -211,7 +210,7 @@ func TestThePublishSyncsEveryFileBeforeTheRename(t *testing.T) {
 		}
 	}
 	if files < 4 {
-		t.Fatalf("the published run holds %d file(s) — too few for this to have measured the channels, registry, record and manifest", files)
+		t.Fatalf("the published run holds %d file(s) — too few for this to have measured the channels, record and manifest", files)
 	}
 	if dirSyncs {
 		after := map[string]bool{}
@@ -417,72 +416,6 @@ func TestABuildThatCannotBeRemovedIsNamed(t *testing.T) {
 	}
 	if !errors.Is(err, injected) {
 		t.Errorf("the error lost the failure that caused it: %v", err)
-	}
-}
-
-// A refusal's text that names the run's path names --to in the published manifest, in the manifest
-// returned to --json, and in nothing that names the build; the returned error points at the published
-// manifest and does not say the run is unpublished. The class registry is made invalid in the source
-// so every mint is refused naming the registry's path.
-func TestARefusalNamesToNotTheBuild(t *testing.T) {
-	src := recordtest.RequireArchive(t, publishArchive)
-	reg := filepath.Join(src, "records", "class-registry.json")
-	b, err := os.ReadFile(reg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var top map[string]any
-	if err := json.Unmarshal(b, &top); err != nil {
-		t.Fatal(err)
-	}
-	classes, _ := top["classes"].([]any)
-	if len(classes) == 0 {
-		t.Fatalf("%s has no classes to make invalid", reg)
-	}
-	for _, c := range classes {
-		c.(map[string]any)["material_default"] = "sometimes"
-	}
-	out, _ := json.Marshal(top)
-	if err := os.WriteFile(reg, out, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	to := filepath.Join(recordtest.TmpRun(t), "out")
-
-	m, refusedErr := Migrate(src, to, Entries(), Options{})
-	if refusedErr == nil || m == nil || len(m.Refusals) == 0 {
-		t.Fatalf("an invalid registry did not refuse: m=%v err=%v", m, refusedErr)
-	}
-	regAtTo := filepath.Join(to, "records", "class-registry.json")
-	if !slices.ContainsFunc(m.Refusals, func(r Refusal) bool { return strings.Contains(r.Err, regAtTo) }) {
-		t.Fatalf("no refusal names the registry at %s: %+v", regAtTo, m.Refusals[0])
-	}
-	published, err := os.ReadFile(filepath.Join(to, "inputs", ManifestName))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(published), buildMarker) {
-		t.Error("the published manifest names the build")
-	}
-	returned, err2 := json.Marshal(m)
-	if err2 != nil {
-		t.Fatal(err2)
-	}
-	if strings.Contains(string(returned), buildMarker) {
-		t.Error("the returned manifest, which --json prints, names the build")
-	}
-	onDisk, err2 := ReadManifest(to)
-	if err2 != nil {
-		t.Fatal(err2)
-	}
-	if !reflect.DeepEqual(onDisk.Refusals, m.Refusals) {
-		t.Error("the returned manifest's refusals differ from the published file's")
-	}
-	msg := refusedErr.Error()
-	if strings.Contains(msg, buildMarker) || strings.Contains(msg, "being built") {
-		t.Errorf("the refusal error of a published run names the build or calls it unpublished: %s", msg)
-	}
-	if !strings.Contains(msg, filepath.Join(to, "inputs", ManifestName)) {
-		t.Errorf("the refusal error does not point at the published manifest: %s", msg)
 	}
 }
 

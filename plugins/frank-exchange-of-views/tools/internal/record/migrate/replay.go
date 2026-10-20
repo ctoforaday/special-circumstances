@@ -35,17 +35,18 @@ type Refusal struct {
 
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
-	In             map[string]int // old events per word, as read
-	Out            map[string]int // new events per word, as written
-	Refusals       []Refusal
-	AcceptedLosses map[string]string // word -> the entry's stated reason
-	SourceHash     string            // sha256 over the event stream AS READ — the logical record
-	IDs            map[string]string // archived id or finding label -> the id the migrated record carries
-	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills    []StatedFill      // values supplied where the source predates the field
-	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder    string            // what became of the order of the report's text (order.go)
-	ProseRewrites  []ProseRewrite    // every archived id rewritten inside a seat's wording, in order
+	In                map[string]int // old events per word, as read
+	Out               map[string]int // new events per word, as written
+	Refusals          []Refusal
+	AcceptedLosses    map[string]string  // word -> the entry's stated reason
+	SourceHash        string             // sha256 over the event stream AS READ — the logical record
+	IDs               map[string]string  // archived id or finding label -> the id the migrated record carries
+	Serialized        map[string]int     // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills       []StatedFill       // values supplied where the source predates the field
+	ClassTranslations []ClassTranslation // the archived class slugs an authored row of gapclass.go carried, and onto what
+	GapAnchors        GapPlacement       // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder       string             // what became of the order of the report's text (order.go)
+	ProseRewrites     []ProseRewrite     // every archived id rewritten inside a seat's wording, in order
 
 	base string // the report's base as the source wrote it
 }
@@ -199,6 +200,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	var wrote int64
 	proofAnchors := map[string][]string{} // proof_sha -> the anchors of the proofs written on it, in order
 	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
+	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -309,8 +311,14 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// value's material default, at the write — and the fill is stated, every one of them:
 			// which of them moved is computable only against a table this binary does not hold. A
 			// stamp the source carries is kept as recorded.
+			var translatedSlug string
+			if _, ok := body.(*recordpb.Mint); ok {
+				if slug, _ := src.Fields["class"].(string); archivedGapClasses[slug] != "" {
+					translatedSlug = slug
+				}
+			}
 			if m, ok := body.(*recordpb.Mint); ok && m.ClassMaterial == nil && m.Class != nil {
-				slug, _ := old.Fields["class"].(string)
+				slug, _ := src.Fields["class"].(string)
 				res.StatedFills = append(res.StatedFills, StatedFill{
 					Where: "mint " + m.GetGapId(), Slug: slug,
 					Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy})
@@ -335,6 +343,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if translatedSlug != "" {
+				classMints[translatedSlug]++
+			}
 			if p, ok := body.(*recordpb.Proof); ok && p.GetProofSha() != "" {
 				proofAnchors[p.GetProofSha()] = append(proofAnchors[p.GetProofSha()], p.GetProofId())
 			}
@@ -364,6 +375,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		return nil, err
 	}
 	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
+	res.ClassTranslations = classTranslations(classMints)
 	return res, nil
 }
 

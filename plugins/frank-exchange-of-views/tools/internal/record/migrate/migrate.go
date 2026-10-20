@@ -158,12 +158,6 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	m.Discarded = discarded
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
-	// The refusals describe the run that is, or would have been, published at --to, so their text
-	// names --to wherever it named the build — in the struct, so the manifest written here and the one
-	// Migrate returns say the same. A kept build's own manifest therefore names --to too.
-	for i := range m.Refusals {
-		m.Refusals[i].Err = b.atTo(m.Refusals[i].Err)
-	}
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
