@@ -22,7 +22,7 @@ import time
 # debate, so the line count stays proportional to progress rather than to effort.
 INTERESTING = ("register", "mint", "close", "verdict", "outcome", "halt", "certify",
                "position", "closing", "dispatch", "ingest", "edit", "prove", "cite",
-               "log", "regrade", "motion", "carry", "class")
+               "log", "regrade", "motion", "carry")
 
 
 def main() -> int:
