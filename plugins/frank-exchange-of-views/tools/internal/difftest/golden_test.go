@@ -175,9 +175,9 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
 	// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
 	// synthesize records the base and the file is deleted, exactly as the engine does after
-	// synthesis and before the rounds. Invisible setup, like the class-registry staging and
-	// the report seed above — the scenario's own commands are what the golden is about, but
-	// the BaseIngest and this register DO appear in the EVENTS section, as they must.
+	// synthesis and before the rounds. Invisible setup, like the report seed above — the
+	// scenario's own commands are what the golden is about, but the BaseIngest and this register
+	// DO appear in the EVENTS section, as they must.
 	for _, setup := range []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
 		{verb: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},

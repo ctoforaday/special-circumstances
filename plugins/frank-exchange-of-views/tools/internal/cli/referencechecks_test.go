@@ -199,7 +199,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 				t.Errorf("%s refused without naming %s — the seat that typed it is told about some other flag:\n\n%v", name, c.flag, err)
 			}
 			// The prose OUTSIDE backtick spans speaks about the verb the seat ran, so every flag it
-			// names is that verb's. A span may name another verb's flags (`class new --definition`);
+			// names is that verb's. A span may name another verb's flags (`verdict --as`);
 			// the harness reads spans against the seat's tree, in assertRefusalSpeaksToItsSeat.
 			verb := cmdAt(NewRootFor(holder), c.verb)
 			for _, m := range flagToken.FindAllStringSubmatch(backtickSpan.ReplaceAllString(err.Error(), ""), -1) {

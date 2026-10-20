@@ -5384,6 +5384,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", owedKept, proofOwedKept, owedKeptBy)
+	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", unclassifiedMinted, unclassifiedRefused)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -6372,9 +6373,9 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
-	// which is correct and is not this path. Without the class registry every `mint` is refused
-	// for an unknown class. And without INGESTING the report (#709) every verb that reads it is
-	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
+	// which is correct and is not this path. And without INGESTING the report (#709) every verb that
+	// reads it is refused with "no base has been ingested". runOne does both before it drives; so
+	// does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte(seedReport), 0o644)

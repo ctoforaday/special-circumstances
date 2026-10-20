@@ -56,7 +56,7 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Files that are not shards must be ignored, not parsed.
-	for _, name := range []string{"ledger.md", ".lock-render", "class-registry.json", "events-bad.jsonl", "events-x-nothex.jsonl"} {
+	for _, name := range []string{"ledger.md", ".lock-render", "scratch.json", "events-bad.jsonl", "events-x-nothex.jsonl"} {
 		if err := os.WriteFile(filepath.Join(recordsDirT(runDir), name), []byte("{}"), 0o644); err != nil {
 			t.Fatal(err)
 		}

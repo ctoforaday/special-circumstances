@@ -24,7 +24,7 @@ import (
 // grounds that setup's job is to lay out a directory. Measured against the pre-migration code
 // with this exact fixture: run-setup EXITED 0, wrote nothing to stderr, built the whole run —
 // skeleton, mirrors, run-live marker, class join — and printed a summary that reads like a
-// healthy setup. StageClassRegistry's "cannot resolve the record directory" arrived as a reason
+// healthy setup. A staging step's "cannot resolve the record directory" arrived as a reason
 // string inside a success report, on a line an operator scans past.
 //
 // Resolving ONCE into a record.Run moves the refusal to the front, where it is the exit code

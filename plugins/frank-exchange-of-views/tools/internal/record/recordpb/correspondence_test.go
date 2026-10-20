@@ -78,7 +78,8 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And one fewer for `observe`, a type no verb wrote.
 	//
-	// And one fewer for `class_new`: a gap's class is a value of the closed GapClass set.
+	// And one fewer for the event a run coined a gap class with: a gap's class is a value of the
+	// closed GapClass set.
 	const wantBodies = 33
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
