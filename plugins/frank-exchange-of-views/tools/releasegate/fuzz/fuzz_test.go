@@ -5664,6 +5664,7 @@ func TestFuzzDebate(t *testing.T) {
 		// THE ANSWERING-MINT GATE. A gap minted from a lens's own raising finding takes no mint, and
 		// a run fails on one the budget refused (runner.answerBudgetErr); that oracle is silent where
 		// no such mint was driven, so the sweep fails unless some landed.
+		t.Logf("answering mints: %d landed outside the minting lens's budget, %d mint(s) refused for budget", ownAnswers, budgetRefused)
 		if ownAnswers == 0 {
 			t.Errorf("fuzz drove ZERO mints answering the minting lens's own raise across %d runs — the gap outside the budget is unexercised (false green)", completed)
 		}
