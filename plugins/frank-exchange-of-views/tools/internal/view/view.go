@@ -323,7 +323,10 @@ func ledgerMD(in Input) []byte {
 		// prints `undefined`, and a field written empty is a different fact.
 		var class, check *string
 		if m := g.Mint; m != nil {
-			class, check = m.Class, m.AcceptanceCheck
+			check = m.AcceptanceCheck
+			if m.Class != nil {
+				class = proto.String(recordpb.Word(m.GetClass()))
+			}
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
 			g.ID, truncate(g.Mint.GetProblem(), 100),
@@ -500,11 +503,11 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		// world" to "this document disagrees with itself". That phase change is the bench's
 		// stopping signal (#284): findings continuing is normal; findings turning into
 		// internal-consistency complaints means the rest is cheaper to shake out in
-		// execution than in review. Class is already a REQUIRED mint field validated
-		// against the registry, so this is an aggregation, never a new assertion.
+		// execution than in review. Class is already a REQUIRED mint field from a closed
+		// enum, so this is an aggregation, never a new assertion.
 		byClass := map[string]int32{}
 		for _, g := range minted {
-			k := g.Mint.GetClass()
+			k := recordpb.Word(g.Mint.GetClass())
 			if k == "" {
 				continue
 			}
@@ -514,7 +517,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		// circling the same kind of defect, which is signal 1 without reading the prose.
 		repeated := 0
 		for _, g := range minted {
-			if prevClasses[g.Mint.GetClass()] {
+			if prevClasses[recordpb.Word(g.Mint.GetClass())] {
 				repeated++
 			}
 		}
@@ -524,7 +527,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		}
 		nextPrevClasses := map[string]bool{}
 		for _, g := range minted {
-			if c := g.Mint.GetClass(); c != "" {
+			if c := recordpb.Word(g.Mint.GetClass()); c != "" {
 				nextPrevClasses[c] = true
 			}
 		}

@@ -851,8 +851,9 @@ func boardSection(fam record.Family) string {
 			// (a found_by naming no finding on the record) are kept as bare ids rather than
 			// silently dropped — an unresolvable citation is itself worth seeing.
 			foundBy := provenance(g.Mint, findings)
-			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
-			// helper's em-dash-when-empty arm, exactly as it did before.
+			// `class` is a GapClass word, not a grade — it goes through `grade` only for that
+			// helper's em-dash-when-empty arm. `grade` takes `any` and asserts a string, so the
+			// enum is converted to its word HERE: passed bare it compiles and prints `—`.
 			// THE HARD BREAKS ARE LOAD-BEARING. Joined by bare newlines, these four facts —
 			// the location, the grades, the demanded fix and the check that would settle it —
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
@@ -860,7 +861,7 @@ func boardSection(fam record.Family) string {
 			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s",
 				g.ID, g.Mint.GetProblem(),
 				g.Mint.GetLocation(),
-				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(g.Mint.GetClass()),
+				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
 				regraded,
 				g.Mint.GetRequiredFix(),
 				fixProposal(g.Mint),

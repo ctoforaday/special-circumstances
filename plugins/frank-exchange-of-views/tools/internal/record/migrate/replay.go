@@ -50,18 +50,9 @@ type Result struct {
 	base string // the report's base as the source wrote it
 }
 
-// byGradeFillWhy is the reason a class-material fill records, in one place so the staged-registry
-// fill and the class_new fill say the same thing.
-const byGradeFillWhy = "the source predates material_default and this binary's shipped class table does not hold the slug; by_grade keeps the class's gaps as material as their grade alone made them"
-
-// shippedDefault is the material default a class whose record predates the field takes: the
-// binary's shipped value for the slug, else by_grade — and fill reports that it was the latter.
-func shippedDefault(slug string) (v recordpb.ClassMaterial, fill bool) {
-	if v, ok := record.ShippedMaterialDefaults[slug]; ok {
-		return v, false
-	}
-	return recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, true
-}
+// preFieldFillWhy is the reason a mint whose source predates class_material records for the
+// stamp the live rule gives it.
+const preFieldFillWhy = "the source predates class_material; the gap takes the material default of the value its archived slug translates to"
 
 // Replay re-drives an old record's events, in order, through the current write path into
 // dst. Each act is validated by the same code every seat verb runs, and each event's stamp
@@ -316,17 +307,15 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				f.AboutRef = proto.String(to)
 			}
-			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
-			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
-			// run written by this binary migrates without any of its coinings changing.
-			if cn, ok := body.(*recordpb.ClassNew); ok && cn.MaterialDefault == nil {
-				v, fill := shippedDefault(cn.GetSlug())
-				cn.MaterialDefault = v.Enum()
-				if fill {
-					res.StatedFills = append(res.StatedFills, StatedFill{
-						Where: fmt.Sprintf("class_new event %d", old.ID), Slug: cn.GetSlug(),
-						Value: recordpb.Word(v), Why: byGradeFillWhy})
-				}
+			// A MINT THAT PREDATES class_material is stamped by the live rule — its translated
+			// value's material default, at the write — and the fill is stated, every one of them:
+			// which of them moved is computable only against a table this binary does not hold. A
+			// stamp the source carries is kept as recorded.
+			if m, ok := body.(*recordpb.Mint); ok && m.ClassMaterial == nil && m.Class != nil {
+				slug, _ := old.Fields["class"].(string)
+				res.StatedFills = append(res.StatedFills, StatedFill{
+					Where: "mint " + m.GetGapId(), Slug: slug,
+					Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy})
 			}
 			if err := proseRefs(source, batch.Querier(), body); err != nil {
 				return nil, err

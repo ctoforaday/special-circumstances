@@ -79,7 +79,7 @@ type Manifest struct {
 
 // StatedFill is one value the migration supplied for a field its source predates.
 type StatedFill struct {
-	Where string `json:"where"` // "staged registry", or "class_new event <old id>"
+	Where string `json:"where"` // "mint <gap_id>": a mint whose source predates class_material
 	Slug  string `json:"slug"`
 	Value string `json:"value"`
 	Why   string `json:"why"`

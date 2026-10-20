@@ -44,7 +44,19 @@ func Entries() Registry {
 		// A REVISION TRANSLATES TO NO EVENT. It was a blue sitting's prose account of its change,
 		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
 		// text. The manifest counts each in events_in and none in events_out.
-		"revision": {Translate: revisionEntry},
+		"revision": {Translate: toNoEvent},
+		// A COINING TRANSLATES TO NO EVENT. A gap's class is a value of the closed GapClass set,
+		// whose own definition is the class's; that a run coined a slug, and the coiner's words, are
+		// not carried. Its mints carry the slug, which valueRenames maps onto the set.
+		"class_new": {Translate: toNoEvent},
+		// A MINT'S COINING COLUMNS ARE NOT CARRIED, for the same reason: the jsonl era's mint-carried
+		// trio and the sqlite era's class_new flag both arrive here.
+		"mint": mapped("mint", nil, drops{
+			"class_new":     mintCoiningDrop,
+			"definition":    mintCoiningDrop,
+			"neighbor":      mintCoiningDrop,
+			"distinguisher": mintCoiningDrop,
+		}, nil),
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the proofs replayed before it
@@ -247,8 +259,11 @@ func remandDirection(r *recordpb.DocketRuling) {
 	r.Direction, r.ReopensOn = r.ReopensOn, nil
 }
 
-// revisionEntry translates a revision to no event, whatever its era's columns.
-func revisionEntry(OldEvent) ([]proto.Message, error) { return nil, nil }
+// toNoEvent translates an archived event to none, whatever its era's columns.
+func toNoEvent(OldEvent) ([]proto.Message, error) { return nil, nil }
+
+// mintCoiningDrop is why a mint's coining columns are not carried.
+const mintCoiningDrop = "a class is a value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the value's own definition is"
 
 // reproduceEntry: `reproduced`, a bool, becomes `rerun` — the act re-ran the script, and it
 // reproduced or it differed. A record written at epoch 28 or later states `rerun` and `anchor`
