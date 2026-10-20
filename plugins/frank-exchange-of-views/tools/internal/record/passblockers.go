@@ -35,6 +35,7 @@ const (
 	BlockerNoReport      BlockerKind = "no_report"
 	BlockerLensReady     BlockerKind = "lens_ready"
 	BlockerStaleArea     BlockerKind = "stale_area"
+	BlockerGradeMovement BlockerKind = "grade_movement"
 	BlockerUnruledMotion BlockerKind = "unruled_motion"
 	BlockerInquiryReview BlockerKind = "inquiry_review"
 )
@@ -67,6 +68,9 @@ type Blocker struct {
 	lastCheck int64
 	// raisedBy is the finding that raised a contradiction, "" until one has.
 	raisedBy string
+	// moved is a grade-movement blocker's gap's movement the bench has not ruled on, and totalMoved
+	// the open gaps' total (gradeMovementOf).
+	moved, totalMoved float64
 }
 
 // Every reports whether the blocker holds every verdict, not only a PASS.
@@ -285,6 +289,27 @@ var blockerKinds = []blockerKind{
 				len(bs), strings.Join(named, ", "))
 		},
 	},
+	// GRADE MOVEMENT IN TOTAL IS THE BENCH'S (grademovement.go). The gap's movement is not the reason
+	// alone: the board's total past the threshold is, so every wording states both. The dispatch dockets
+	// the gap, and from then its docket motion holds the PASS as an unruled motion. The gap's own reason
+	// in the plan states its readiness, so the kind has no plan line of its own.
+	{
+		kind:  BlockerGradeMovement,
+		gloss: "grade movement the bench has not ruled on past its threshold in total",
+		item: func(b Blocker) string {
+			return gradeMovementFact(b) + " — PASS is refused until the bench rules on it; the dispatch dockets the gap for the bench"
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s: %.1f (%s)", b.Subject, b.moved, b.Detail))
+			}
+			return fmt.Sprintf("%d gap(s) carry grade movement the bench has not ruled on, and the open gaps' total of %.1f mass is past the %.1f at which the bench rules on it:\n  %s\n"+
+				"A moved grade changes what the gate reads: a gap regraded below medium stops holding a PASS, and gaps regraded up keep a converged board out of the FAIL refusal, so grade movement in total goes before the bench before it stands. "+
+				"`dispatch next` dockets each gap for the bench, and the bench's ruling on the gap's docket motion rules on its movement. PASS waits for those rulings, and `--as FAIL` does not",
+				len(bs), bs[0].totalMoved, GradeMovementThreshold, strings.Join(named, "\n  "))
+		},
+	},
 	{
 		kind:  BlockerUnruledMotion,
 		gloss: "an unruled motion",
@@ -410,6 +435,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	}
 	events := eventBlockersOf(evs, ids, win)
 	out = append(out, events...)
+	out = append(out, gradeMovementOf(evs, ids, win, openSet(gaps)).blockers()...)
 	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events)); lg.cast && lg.head != 0 {
 		for _, f := range lg.ready() {
 			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})

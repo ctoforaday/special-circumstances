@@ -146,21 +146,26 @@ func remandStageOf(x *GapExchanges) remandStage {
 type gapRoute int
 
 const (
-	routeNobody     gapRoute = iota // not material and not stranded, nothing docketed: readies nobody
-	routeBench                      // a docket motion on it stands unruled: the bench's
-	routeDebate                     // below its limits: its minting lens and blue
-	routeDocket                     // at impasse, never remanded there: docketed for the bench
-	routeRemandOwed                 // at impasse and remanded: its minting lens and blue, once, on the direction
-	routeRedocket                   // at impasse after its remand's exchange: docketed for the bench again
-	routeAtLimit                    // at impasse and remanded twice: open at its limit, readies nobody
+	routeNobody        gapRoute = iota // not material and not stranded, nothing docketed: readies nobody
+	routeBench                         // a docket motion on it stands unruled: the bench's
+	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
+	routeDebate                        // below its limits: its minting lens and blue
+	routeDocket                        // at impasse, never remanded there: docketed for the bench
+	routeRemandOwed                    // at impasse and remanded: its minting lens and blue, once, on the direction
+	routeRedocket                      // at impasse after its remand's exchange: docketed for the bench again
+	routeAtLimit                       // at impasse and remanded twice: open at its limit, readies nobody
 )
 
 // routeOf is the route for an open gap: material is the class's answer, stranded whether a successor
-// names it, unruledDocket whether a docket motion on it stands unruled, x its exchanges.
-func routeOf(material, stranded, unruledDocket bool, x *GapExchanges) gapRoute {
+// names it, unruledDocket whether a docket motion on it stands unruled, moved whether its grade
+// movement is docketed (gradeMovement.docketed) — whatever its materiality, because a gap regraded
+// below medium is the movement the bench rules on — and x its exchanges.
+func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gapRoute {
 	switch {
 	case unruledDocket:
 		return routeBench
+	case moved:
+		return routeGradeMovement
 	case !material && !stranded:
 		return routeNobody
 	case !x.Impasse:

@@ -84,17 +84,16 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
 		})
 	}
-	// AT IMPASSE THE VERB FILES THE DOCKET MOTION ITSELF, the moment impasse is first computed, so
-	// "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap and
-	// the bench.
+	// AT IMPASSE, AND PAST THE GRADE-MOVEMENT THRESHOLD, THE VERB FILES THE DOCKET MOTION ITSELF, the
+	// moment either is first computed, so "docketed" and the condition are one fact and no seat's
+	// discretion sits between the gap and the bench.
 	for _, g := range plan.ToFile {
-		basis := fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", g)
 		if err := write(&recordpb.Motion{
 			MotionId: proto.String(NewID("motion")),
-			Basis:    proto.String(basis),
+			Basis:    proto.String(plan.basis[g]),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
 		}); err != nil {
-			return emptyPlan(), false, fmt.Errorf("docketing %s at impasse: %w", g, err)
+			return emptyPlan(), false, fmt.Errorf("docketing %s: %w", g, err)
 		}
 	}
 	wrote := len(plan.ToFile) > 0

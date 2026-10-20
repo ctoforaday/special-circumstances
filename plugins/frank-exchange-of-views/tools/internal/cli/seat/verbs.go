@@ -1347,7 +1347,10 @@ func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(erro
 // every such page, so the pages and the refusal they describe cannot drift apart.
 const StaleRule = "A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, answered by blue, or argued in another seat's finding after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you."
 
-func init() { HelpValues["StaleRule"] = StaleRule }
+func init() {
+	HelpValues["StaleRule"] = StaleRule
+	HelpValues["GradeMovementRule"] = record.GradeMovementRule
+}
 
 // AppendFresh records an act about gapID through write, handing it the guard that refuses the act
 // while another seat's act on the gap is newer than this seat's read point (record.Fresh). On that

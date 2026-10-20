@@ -95,6 +95,9 @@ type Plan struct {
 	Exchanges []ExchangeCount `json:"exchanges" desc:"one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
+	// basis is each ToFile gap's ask, in the words the bench rules on: at impasse, or past the
+	// grade-movement threshold.
+	basis map[string]string
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its inquiry review, its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
@@ -134,6 +137,11 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
+}
+
+// impasseBasis is the ask of the docket motion filed on a gap at impasse.
+func impasseBasis(gapID string) string {
+	return fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", gapID)
 }
 
 type openGap struct {
@@ -298,12 +306,22 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		engage(blueRespondSeat, "", g.id)
 	}
-	// toBench dockets a gap at impasse: the chair files the motion, and the bench is convened for it.
-	toBench := func(g openGap, why string) {
+	// toBench dockets a gap — at impasse, or for its grade movement: the chair files the motion on
+	// basis, and the bench is convened for it.
+	toBench := func(g openGap, why, basis string) {
 		plan.Docket = append(plan.Docket, g.id)
 		plan.ToFile = append(plan.ToFile, g.id)
+		if plan.basis == nil {
+			plan.basis = map[string]string{}
+		}
+		plan.basis[g.id] = basis
 		engage(benchSeat, occasionDocket, g.id)
 		plan.Why = append(plan.Why, why)
+	}
+	moved := gradeMovementOf(evs, ids, win, openSet(blockerGapsOfOpen(gaps)))
+	movedBlocker := map[string]Blocker{}
+	for _, b := range moved.blockers() {
+		movedBlocker[b.Subject] = b
 	}
 	for _, g := range gaps {
 		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
@@ -318,7 +336,7 @@ func foldPlan(params Params, r planReads) Plan {
 			x = &GapExchanges{GapID: g.id}
 		}
 		// THE ROUTE IS routeOf, the one predicate the work lists read too.
-		route := routeOf(g.material, stranded, g.unruledFiled > 0, x)
+		route := routeOf(g.material, stranded, g.unruledFiled > 0, moved.docketed(g.id), x)
 		if stranded && route != routeBench {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
 		}
@@ -357,9 +375,14 @@ func foldPlan(params Params, r planReads) Plan {
 		// for one exchange between its minting lens and blue, carrying the ruling's direction, and back
 		// to the bench if that exchange leaves it here; one remanded twice is at its limit.
 		case routeDocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()), impasseBasis(g.id))
 		case routeRedocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()))
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()), impasseBasis(g.id))
+		// GRADE MOVEMENT PAST THE THRESHOLD IS DOCKETED AS IMPASSE IS, whatever the gap's materiality:
+		// a gap regraded below medium readies nobody, and that is the movement the bench rules on.
+		case routeGradeMovement:
+			b := movedBlocker[g.id]
+			toBench(g, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
 		case routeRemandOwed:
 			debate(g)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})

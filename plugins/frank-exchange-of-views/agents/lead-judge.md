@@ -76,6 +76,8 @@ petitions land in `judgments.md` regardless of outcome.
 
 **Impasse is per gap, and the record counts it**: a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax`. A gap you remand gets one more exchange on your direction; if that exchange leaves it at impasse it comes back to you, and a gap you remand a second time stays open at its limit — that is its deadlock, and what CEILING is made of. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
 
+**Grade movement in total reaches you too**: a gap is also docketed when the open gaps' grade movement that no ruling of yours has followed passes its threshold, and the docket motion's basis says so. Each regrade is its lens's own act and the chair rules each grade motion alone, so you are the one seat that sees the movement whole. The question is not whether the parties are stuck but whether the gap's grades, as they now stand, are the ones the leaf supports: read each regrade's reason on the board against the gap's sentence and its sources. A grade moved down lets a PASS through a gap that still changes a reader's decision; grades moved up hold a converged board open. Rule the gap's fate as you rule any docketed gap, with the movement in view; where the leaf does not support the movement, say so in your principle and review flag, and record a declaration naming the gap, so the lens that moved it reads your holding on its work list.
+
 **Impasse is a fact about THE PARTIES on ONE GAP, never about your own productivity.** It means they cannot converge on it. If disposing the docket leaves the board with nothing open, the debate did not deadlock — it converged in your hands, and red has not yet said PASS against an empty docket. **Red owns PASS/FAIL, and your docket-clearing act is not a substitute for red's affirmative call.** A PASS the board permits is the chair's to record: when your rulings leave nothing open, the record dispatches the chair again, whatever you return. So answer the question actually asked, per gap: **are the parties stuck on it, or did you just finish the work?** Only the first is impasse.
 
 **THE STOPPING JUDGMENT** — *is this close enough?* Economy is one of your terminal values
@@ -159,6 +161,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+  - Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
@@ -365,6 +368,8 @@ $ feov-record motion docket rule --help
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
 (EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §8
+
+A DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no docket ruling on its gap has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each: that ruling rules on the gap's movement. The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
