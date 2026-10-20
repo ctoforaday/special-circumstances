@@ -298,7 +298,7 @@ enum Grade {
   // UNSPECIFIED IS THE `undefined` SENTINEL, and it is load-bearing rather than a filler zero.
   // view.go renders an ungraded value as the literal nine-character word `undefined` — never
   // empty — because the projections group by it and a bare blank would silently merge with a
-  // real grade. by_severity keys an ungraded mint under exactly that word. Modelling it as the
+  // real grade. by_severity names an ungraded mint's tally by exactly that word. Modelling it as the
   // enum's zero keeps "not graded" a value the schema can carry rather than an absence a reader
   // has to infer.
   GRADE_UNSPECIFIED = 0 [(mass) = 0];
@@ -738,8 +738,8 @@ message Event {
   // plan, which is what the reserve is for — the block shrinks and nothing is renumbered.
   reserved 60 to 80;
 
-  // 29 held `motion_appeal`, 31 `class_new`, 38 `observe`, 46 `revision` and 58 `correction`,
-  // whose types are reserved above for the same reason: a stored event carries the bytes.
+  // These held the bodies whose types are reserved above, and are reserved for the same reason:
+  // a stored event carries the bytes.
   reserved 29, 31, 38, 46, 58;
   reserved "motion_appeal", "class_new", "observe", "revision", "correction";
 
@@ -799,13 +799,24 @@ message NewMint {
   // BY CONSTRUCTION and needs no faith in protojson/prototext map ordering.
   repeated SeverityTally by_severity = 2;
 
-  // by_class is a MAP because the gap-class registry is extended at runtime by `class-new` —
-  // genuinely open, so a repeated form would need an invented sort anyway.
-  map<string, int32> by_class = 3;
+  // by_class is REPEATED for the same reason: GapClass is a closed set, and the tally runs in its
+  // schema order, one entry per class minted this epoch.
+  repeated ClassTally by_class = 5;
+  reserved 3;
 
   // class_repeat_rate is absent when no gaps were minted this round — distinct from 0.0, which
-  // means minted-and-none-repeated.
+  // means minted-and-none-repeated. An `unclassified` mint is in its denominator and never a
+  // repeat: "no class fits" recurring is not one kind of defect recurring.
   optional double class_repeat_rate = 4;
+
+  // unclassified_rate is this epoch's `unclassified` mints over its mints; absent when nothing
+  // was minted, as class_repeat_rate is.
+  optional double unclassified_rate = 6;
+}
+
+message ClassTally {
+  optional GapClass class = 1;
+  optional int32 count = 2;
 }
 
 message SeverityTally {

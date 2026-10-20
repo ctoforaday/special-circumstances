@@ -7,7 +7,6 @@
 package view
 
 import (
-	"bytes"
 	"cmp"
 	"encoding/json"
 	"fmt"
@@ -83,8 +82,7 @@ func undefStr(s *string) string {
 //
 // The empty string is what recordpb.Word returns for the UNSPECIFIED zero, because the
 // pre-migration record held ABSENCE there. A projection must not print that blank: by_severity
-// KEYS on this word, so a bare "" would silently merge ungraded mints into whatever else keyed
-// empty. record.proto says the same thing from the schema's side, on Grade.GRADE_UNSPECIFIED.
+// names each tally's grade by this word, so a bare "" would be an entry no grade word names. record.proto says the same thing from the schema's side, on Grade.GRADE_UNSPECIFIED.
 func gradeText(g recordpb.Grade) string {
 	if w := recordpb.Word(g); w != "" {
 		return w
@@ -147,18 +145,15 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	// THE BOUNDARY IS WHERE JSON BELONGS — and the shape it emits is NOT protojson's.
 	//
 	// `inquest telemetry` is a live seat-facing surface, so these bytes are a contract with whoever
-	// reads them. protojson would have changed four things at once as a side effect of typing the
-	// producer: enum values would print as `GRADE_HIGH` where this wire has always said `high`,
-	// `by_severity` would become an array of {grade,count} objects where it has always been an
-	// object keyed by the grade word, unset fields would VANISH where this wire writes an explicit
-	// `null`, and an ungraded mint would key on `GRADE_UNSPECIFIED` instead of the `undefined`
-	// sentinel gradeText exists to produce. Changing an output contract is a decision; doing it as
-	// a side effect of an internal refactor is not one, so the wire is written out deliberately.
+	// reads them. protojson would print enum values as `GRADE_HIGH` where this wire says `high`,
+	// drop unset fields where this wire writes an explicit `null`, and key an ungraded mint on
+	// `GRADE_UNSPECIFIED` instead of the `undefined` sentinel gradeText exists to produce, so the
+	// wire is written out deliberately as the structs below.
 	//
-	// What the typing bought is upstream of here: the row is a typed message all the way from the
-	// record to this function, instead of a map that was serialized and re-parsed inside one
-	// process. This is the ONE place a shape is described twice, and it is pinned by the tests
-	// that assert each of the four properties above.
+	// Those structs carry no custom marshaller, so the tree the help reflects over them IS the
+	// bytes: an unmeasured scalar is `null`, a tally is a list of word-valued entries, and an
+	// empty tally is `[]`. TestTelemetryHelpTreeMatchesAnEmittedLine holds the help to an emitted
+	// line at every depth.
 	lines := make([]string, 0, len(rows))
 	for _, row := range rows {
 		enc, err := json.Marshal(telemetryWire(row))
@@ -505,18 +500,36 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		// internal-consistency complaints means the rest is cheaper to shake out in
 		// execution than in review. Class is already a REQUIRED mint field from a closed
 		// enum, so this is an aggregation, never a new assertion.
-		byClass := map[string]int32{}
+		// The tally runs in GapClass schema order, one entry per class minted this epoch.
+		classCount := map[recordpb.GapClass]int32{}
+		unclassified := 0
 		for _, g := range minted {
-			k := recordpb.Word(g.Mint.GetClass())
-			if k == "" {
+			c := g.Mint.GetClass()
+			if c == recordpb.GapClass_GAP_CLASS_UNSPECIFIED {
 				continue
 			}
-			byClass[k]++
+			classCount[c]++
+			if c == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+				unclassified++
+			}
+		}
+		classValues := recordpb.GapClass(0).Descriptor().Values()
+		byClass := make([]*recordpb.ClassTally, 0, len(classCount))
+		for i := 0; i < classValues.Len(); i++ {
+			c := recordpb.GapClass(classValues.Get(i).Number())
+			if n := classCount[c]; n > 0 {
+				byClass = append(byClass, &recordpb.ClassTally{Class: c.Enum(), Count: proto.Int32(n)})
+			}
 		}
 		// Repeat rate against the PREVIOUS epoch's classes: high means the run is
 		// circling the same kind of defect, which is signal 1 without reading the prose.
+		// `unclassified` is never a repeat: "no class fits" recurring is not one kind
+		// recurring, and counting it would raise the stopping signal on noise.
 		repeated := 0
 		for _, g := range minted {
+			if g.Mint.GetClass() == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+				continue
+			}
 			if prevClasses[recordpb.Word(g.Mint.GetClass())] {
 				repeated++
 			}
@@ -524,6 +537,10 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		var repeatRate *float64
 		if len(minted) > 0 && r > 1 {
 			repeatRate = proto.Float64(round2(float64(repeated) / float64(len(minted))))
+		}
+		var unclassifiedRate *float64
+		if len(minted) > 0 {
+			unclassifiedRate = proto.Float64(round2(float64(unclassified) / float64(len(minted))))
 		}
 		nextPrevClasses := map[string]bool{}
 		for _, g := range minted {
@@ -558,10 +575,11 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			OpenCount:      proto.Int32(int32(len(openAtR))),
 			MaxSeverity:    maxSeverity,
 			NewMint: &recordpb.NewMint{
-				Count:           proto.Int32(int32(len(minted))),
-				BySeverity:      bySev,
-				ByClass:         byClass,
-				ClassRepeatRate: repeatRate,
+				Count:            proto.Int32(int32(len(minted))),
+				BySeverity:       bySev,
+				ByClass:          byClass,
+				ClassRepeatRate:  repeatRate,
+				UnclassifiedRate: unclassifiedRate,
 			},
 			Mass:         proto.Float64(massSum(openAtR)),
 			RealizedOpen: proto.Int32(int32(realizedOpen)),
@@ -850,10 +868,21 @@ type telemetryLineJSON struct {
 }
 
 type newMintJSON struct {
-	Count           *int32           `json:"count"`
-	BySeverity      severityObject   `json:"by_severity"`
-	ByClass         map[string]int32 `json:"by_class"`
-	ClassRepeatRate *float64         `json:"class_repeat_rate"`
+	Count            *int32              `json:"count"`
+	BySeverity       []severityTallyJSON `json:"by_severity"`
+	ByClass          []classTallyJSON    `json:"by_class"`
+	ClassRepeatRate  *float64            `json:"class_repeat_rate"`
+	UnclassifiedRate *float64            `json:"unclassified_rate"`
+}
+
+type severityTallyJSON struct {
+	Grade string `json:"grade"`
+	Count *int32 `json:"count"`
+}
+
+type classTallyJSON struct {
+	Class string `json:"class"`
+	Count *int32 `json:"count"`
 }
 
 type repairRegJSON struct {
@@ -865,30 +894,6 @@ type repairRegJSON struct {
 type edgeDeltasJSON struct {
 	DownMass *float64 `json:"down_mass"`
 	UpMass   *float64 `json:"up_mass"`
-}
-
-// severityObject writes the repeated tally as an OBJECT keyed by the grade word, in the producer's
-// order — which is why the schema made it `repeated` rather than a map: the order is owned by the
-// code that computed it rather than by an encoder's map iteration.
-type severityObject []*recordpb.SeverityTally
-
-func (so severityObject) MarshalJSON() ([]byte, error) {
-	var b bytes.Buffer
-	b.WriteByte('{')
-	for i, t := range so {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		k, err := json.Marshal(gradeText(t.GetGrade()))
-		if err != nil {
-			return nil, err
-		}
-		b.Write(k)
-		b.WriteByte(':')
-		b.WriteString(strconv.FormatInt(int64(t.GetCount()), 10))
-	}
-	b.WriteByte('}')
-	return b.Bytes(), nil
 }
 
 // telemetryWire maps the typed row onto that shape. gradeText, not recordpb.Word: an ungraded top
@@ -905,13 +910,21 @@ func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 		word := gradeText(t.GetMaxSeverity())
 		w.MaxSeverity = &word
 	}
-	if nm := t.GetNewMint(); nm != nil {
-		w.NewMint = newMintJSON{
-			Count:           nm.Count,
-			BySeverity:      nm.GetBySeverity(),
-			ByClass:         nm.GetByClass(),
-			ClassRepeatRate: nm.ClassRepeatRate,
-		}
+	// A tally is a list, and an empty one is `[]`: the slices are made, never left nil, so an
+	// epoch that minted nothing reports zero of each rather than the `null` of "not measured".
+	nm := t.GetNewMint()
+	w.NewMint = newMintJSON{
+		BySeverity: make([]severityTallyJSON, 0, len(nm.GetBySeverity())),
+		ByClass:    make([]classTallyJSON, 0, len(nm.GetByClass())),
+	}
+	if nm != nil {
+		w.NewMint.Count, w.NewMint.ClassRepeatRate, w.NewMint.UnclassifiedRate = nm.Count, nm.ClassRepeatRate, nm.UnclassifiedRate
+	}
+	for _, st := range nm.GetBySeverity() {
+		w.NewMint.BySeverity = append(w.NewMint.BySeverity, severityTallyJSON{Grade: gradeText(st.GetGrade()), Count: st.Count})
+	}
+	for _, ct := range nm.GetByClass() {
+		w.NewMint.ByClass = append(w.NewMint.ByClass, classTallyJSON{Class: recordpb.Word(ct.GetClass()), Count: ct.Count})
 	}
 	if rr := t.GetRepairRegression(); rr != nil {
 		w.RepairRegression = repairRegJSON{Closures: rr.Closures, LineageMints: rr.LineageMints, Ratio: rr.Ratio}

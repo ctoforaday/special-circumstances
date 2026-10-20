@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf16"
@@ -458,61 +459,167 @@ func TestTelemetryIsComputed(t *testing.T) {
 // readable without re-reading every gap's prose.
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()
-	mint := func(seat, id string, class recordpb.GapClass) *record.Event {
-		return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
-			GapId:           proto.String(id),
-			Class:           class.Enum(),
-			Problem:         proto.String("p"),
-			AcceptanceCheck: proto.String("the check runs"),
-			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
-			Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
-		})
-	}
 	r1, r2 := "red-chair", "red-chair"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		mint(r1, "G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
-		mint(r1, "G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
-		mint(r1, "G3", recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM),
+		classMint(t, r1, "G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, r1, "G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, r1, "G3", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
 	})
 	// Epoch 2: one class REPEATS from epoch 1, one is fresh. Repeat rate = 1/2.
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
-		mint(r2, "G4", recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM),
-		mint(r2, "G5", recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION),
+		classMint(t, r2, "G4", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+		classMint(t, r2, "G5", recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION),
 	})
 
-	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("%d telemetry lines, want 2:\n%s", len(lines), raw)
-	}
-
-	decode := func(s string) map[string]any {
-		var m map[string]any
-		if err := json.Unmarshal([]byte(s), &m); err != nil {
-			t.Fatal(err)
-		}
-		return m["new_mint"].(map[string]any)
-	}
-
-	one := decode(lines[0])
-	byClass := one["by_class"].(map[string]any)
-	if byClass["spec_underspecification"] != float64(2) || byClass["policy_without_mechanism"] != float64(1) {
-		t.Errorf("epoch 1 by_class = %v, want the two classes counted 2 and 1", byClass)
+	lines := telemetryLines(t, runDir, 2)
+	one := newMintOf(t, lines[0])
+	// Schema order: false_universal precedes spec_underspecification in GapClass, whatever the
+	// order they were minted in.
+	if got, want := classTally(t, one), []tally{{"false_universal", 1}, {"spec_underspecification", 2}}; !slices.Equal(got, want) {
+		t.Errorf("epoch 1 by_class = %v, want %v", got, want)
 	}
 	// Epoch 1 has no predecessor, so a repeat rate would be a fabricated number.
 	if one["class_repeat_rate"] != nil {
 		t.Errorf("epoch 1 class_repeat_rate = %v, want null — there is no prior epoch to repeat", one["class_repeat_rate"])
 	}
 
-	two := decode(lines[1])
+	two := newMintOf(t, lines[1])
 	if got := two["class_repeat_rate"]; got != 0.5 {
 		t.Errorf("epoch 2 class_repeat_rate = %v, want 0.5 (1 of 2 mints repeats an epoch-1 class)", got)
+	}
+}
+
+// classMint is a graded mint of one class; an `unclassified` one carries the reason its check
+// requires.
+func classMint(t *testing.T, seat, id string, class recordpb.GapClass) *record.Event {
+	t.Helper()
+	m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+		GapId:           proto.String(id),
+		Class:           class.Enum(),
+		Problem:         proto.String("p"),
+		AcceptanceCheck: proto.String("the check runs"),
+		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
+		Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
+	}
+	if class == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+		m.MintReason = proto.String("nearest is spec_underspecification; this is a defect of neither the spec nor its reader")
+	}
+	return recordtest.At(t, seat, seat+":mint:"+id, m)
+}
+
+// chairLogs is a chair act that changes nothing on the board: what an epoch holds when its sitting
+// opened and minted nothing.
+func chairLogs(t *testing.T, n int) *record.Event {
+	t.Helper()
+	return recordtest.At(t, "red-chair", fmt.Sprintf("red-chair:log:%d", n), &recordpb.Log{Text: proto.String("the board is unchanged"),
+		Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+}
+
+// telemetryLines is the run's telemetry, one line per epoch, or a fatal when there are not want.
+func telemetryLines(t *testing.T, runDir string, want int) []string {
+	t.Helper()
+	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != want {
+		t.Fatalf("%d telemetry lines, want %d:\n%s", len(lines), want, raw)
+	}
+	return lines
+}
+
+func newMintOf(t *testing.T, line string) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(line), &m); err != nil {
+		t.Fatal(err)
+	}
+	return m["new_mint"].(map[string]any)
+}
+
+type tally struct {
+	Class string
+	Count int
+}
+
+// classTally decodes new_mint.by_class as the list of {class,count} it is on the wire.
+func classTally(t *testing.T, newMint map[string]any) []tally {
+	t.Helper()
+	list, ok := newMint["by_class"].([]any)
+	if !ok {
+		t.Fatalf("by_class = %#v, want a list of {class,count}", newMint["by_class"])
+	}
+	out := make([]tally, 0, len(list))
+	for _, e := range list {
+		o, ok := e.(map[string]any)
+		if !ok || len(o) != 2 {
+			t.Fatalf("by_class entry = %#v, want {class,count}", e)
+		}
+		c, cok := o["class"].(string)
+		n, nok := o["count"].(float64)
+		if !cok || !nok {
+			t.Fatalf("by_class entry = %#v, want a class word and a count", e)
+		}
+		out = append(out, tally{c, int(n)})
+	}
+	return out
+}
+
+// An epoch that minted nothing measured no share of the catch-all: the rate is `null`, as the
+// repeat rate is, and the class tally is the empty list, never `null`.
+func TestUnclassifiedRateIsUnsetWhenNothingWasMinted(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{chairSits(t, 1), classMint(t, "red-chair", "G1", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED)})
+	writeShard(t, runDir, []*record.Event{chairSits(t, 2), chairLogs(t, 2)})
+	lines := telemetryLines(t, runDir, 2)
+	if got := newMintOf(t, lines[0])["unclassified_rate"]; got != float64(1) {
+		t.Errorf("epoch 1 unclassified_rate = %v, want 1 (its one mint is the catch-all)", got)
+	}
+	two := newMintOf(t, lines[1])
+	if v, present := two["unclassified_rate"]; !present || v != nil {
+		t.Errorf("epoch 2 unclassified_rate = %v (present %v), want null — nothing was minted", v, present)
+	}
+	if got := classTally(t, two); len(got) != 0 {
+		t.Errorf("epoch 2 by_class = %v, want []", got)
+	}
+}
+
+// The catch-all is counted in its own rate and in the repeat rate's denominator, never as a
+// repeat: "no class fits" recurring is not one kind of defect recurring.
+func TestUnclassifiedRateCountsOnlyTheCatchAll(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-chair"
+	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 1),
+		classMint(t, seat, "G1", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED),
+		classMint(t, seat, "G2", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+	})
+	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 2),
+		classMint(t, seat, "G3", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED),
+		classMint(t, seat, "G4", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+		classMint(t, seat, "G5", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, seat, "G6", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+	})
+	lines := telemetryLines(t, runDir, 2)
+	if got := newMintOf(t, lines[0])["unclassified_rate"]; got != 0.5 {
+		t.Errorf("epoch 1 unclassified_rate = %v, want 0.5 (1 of 2 mints)", got)
+	}
+	two := newMintOf(t, lines[1])
+	if got := two["unclassified_rate"]; got != 0.25 {
+		t.Errorf("epoch 2 unclassified_rate = %v, want 0.25 (1 of 4 mints)", got)
+	}
+	// G4 repeats epoch 1's false_universal; G3's catch-all is in the denominator and is no repeat.
+	if got := two["class_repeat_rate"]; got != 0.25 {
+		t.Errorf("epoch 2 class_repeat_rate = %v, want 0.25 (1 of 4 mints repeats a class; unclassified never does)", got)
+	}
+	want := []tally{{"false_universal", 1}, {"spec_underspecification", 2}, {"unclassified", 1}}
+	if got := classTally(t, two); !slices.Equal(got, want) {
+		t.Errorf("epoch 2 by_class = %v, want %v", got, want)
 	}
 }
 
