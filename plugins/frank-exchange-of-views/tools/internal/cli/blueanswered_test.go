@@ -195,7 +195,7 @@ func answeredBoard(t *testing.T) (runDir, gapID string) {
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Mint{
-			GapId: proto.String("G-00000001"), Class: proto.String("c"),
+			GapId: proto.String("G-00000001"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("the figure rests on one source"),
 			Location:        proto.String("The cost is high"),
 			RequiredFix:     proto.String("qualify it"),

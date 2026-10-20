@@ -120,15 +120,11 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 	// back as "sql: database is closed". The cache owns the lifetime; t.Cleanup above releases it.
 	for i, ev := range evs {
 		// A SEEDED MINT CARRIES A CLASS MATERIAL, because the write path that stamps one is the path
-		// Seed bypasses and the column is NOT NULL. `by_grade` is what StageForRun gives every class,
-		// so a fixture that says nothing keeps the materiality its grade alone gives it; a fixture
-		// that is about class materiality sets the field itself.
+		// Seed bypasses and the column is NOT NULL. `by_grade` is the default of every placeholder
+		// class, so a seeded fixture and a written one agree; a fixture that is about class
+		// materiality sets the field itself, with its class from ClassFor.
 		if m := ev.GetMint(); m != nil && m.ClassMaterial == nil {
 			m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
-		}
-		// And a seeded coining carries the default `class new` writes when its coiner says nothing.
-		if cn := ev.GetClassNew(); cn != nil && cn.MaterialDefault == nil {
-			cn.MaterialDefault = recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()
 		}
 		if ev.Ts == nil {
 			// A STAMP EVERY EVENT, because `ts` is NOT NULL and several audits read it. The
@@ -336,4 +332,18 @@ func trajectoryPath(t *testing.T, agentID string) string {
 		t.Cleanup(func() { trajectoryRoots.Delete(t) })
 	}
 	return filepath.Join(root.(string), "trajectory-of-"+agentID+".jsonl")
+}
+
+// ClassFor is the fixture GapClass whose material default is cm: `spec_underspecification` for
+// `by_grade`, `false_universal` for `always`, `structure_noncompliance` for `never`. A seeded mint
+// that sets its class material by hand takes its class from here, so the class and the stamp agree.
+func ClassFor(cm recordpb.ClassMaterial) recordpb.GapClass {
+	switch cm {
+	case recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS:
+		return recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL
+	case recordpb.ClassMaterial_CLASS_MATERIAL_NEVER:
+		return recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE
+	default:
+		return recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION
+	}
 }

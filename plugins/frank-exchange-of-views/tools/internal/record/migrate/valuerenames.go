@@ -23,6 +23,8 @@ var valueRenames = map[protoreflect.FullName]map[string]string{
 	// same value. (A motion's subject is its arm, which inquiryArm respells.)
 	"feov.record.v1.AboutKind":     {"avenue": "inquiry"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
+	// A GAP'S CLASS: every archived slug the closed set merged, dropped or never had (gapclass.go).
+	"feov.record.v1.GapClass": archivedGapClasses,
 }
 
 // enumValue resolves an archived enum word: the authored respelling first, then the schema's

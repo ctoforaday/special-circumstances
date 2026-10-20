@@ -525,26 +525,6 @@ cmd_run() {
   local src="$WORKDIR/src"
   mkdir -p "$src"
 
-  # THE CLASS REGISTRY, because `setup` reads it from the CALLER's directory and the plugin does
-  # not ship one. `feov-memory/class-registry.json` is the vocabulary `mint --class` validates
-  # against: without it setup still creates the run, stages nothing, and refuses every mint for the
-  # whole run — so red can never put a gap on the board and the debate produces nothing. A real
-  # consumer installing this plugin hits exactly that; the universe only escapes it because this
-  # checkout has the file and the harness copies it in. #1134 moves the vocabulary into the binary,
-  # which is where an installable plugin keeps it, and then this staging goes away entirely.
-  #
-  # The whole directory, not one file: setup resolves several things from it, and half a memory
-  # directory is worse than none, because none refuses cleanly and half sends the lead looking for
-  # the other half. Copied, not symlinked: a run writes INTO this directory and the checkout is not
-  # a scratch pad.
-  if [ -d "$REPO/feov-memory" ]; then
-    mkdir -p "$src/feov-memory"
-    cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
-    log "staged feov-memory: class registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
-  else
-    log "WARNING: no $REPO/feov-memory — nothing constrains --class, so every mint this run is REFUSED"
-  fi
-
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   local out="$WORKDIR/run-$stamp.log"
 

@@ -71,6 +71,8 @@ YOURS. Read the telemetry series before you weigh it; its own page says what eac
   itself") is the phase change. Findings continuing is normal and is NOT a reason to keep
   going; findings becoming internal means the rest is cheaper to shake out in execution than
   in review. In telemetry this is `new_mint.by_class` moving, and `class_repeat_rate` rising.
+  A high `unclassified_rate` is a different signal: the closed class vocabulary is missing a
+  class this run's findings need, so `by_class` and `class_repeat_rate` undercount their kind.
 - **A stable core under churn is a stopping signal.** If the part that answers the original
   question has gone several sittings unchallenged, the live dispute is about accretion — and
   accretion is scope, not defect.

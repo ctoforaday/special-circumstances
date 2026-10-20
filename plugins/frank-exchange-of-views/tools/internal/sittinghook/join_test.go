@@ -54,9 +54,6 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := record.StageForRun(run, "x"); err != nil {
-		t.Fatal(err)
-	}
 
 	// sit is one sitting as a hook-reached seat has it: the PreToolUse rewrite sets its identity,
 	// it registers, acts, and returns — and SubagentStop fires with the same payload agent_id.
@@ -82,7 +79,7 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 		chairType = "frank-exchange-of-views:red-chair"
 	)
 	mint := func(id record.Identity) {
-		if _, err := record.Append(id, &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"), Problem: proto.String("p"),
+		if _, err := record.Append(id, &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 			t.Fatalf("mint: %v", err)

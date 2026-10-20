@@ -53,7 +53,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	id := NewID("gap")
 	mint := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String(id), AcceptanceCheck: proto.String("c"),
-		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"),
+		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Problem: proto.String("p"),
 	}
@@ -85,7 +85,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := NewID("gap")
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{GapId: proto.String(id), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"), Prose: proto.String("verified at the leaf")}); err != nil {
@@ -104,7 +104,7 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 		return &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Class:     proto.String("scope-creep"), Problem: proto.String("p"),
+			Class:     recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}

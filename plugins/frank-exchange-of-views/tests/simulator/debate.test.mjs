@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, keyed, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, withKey, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -405,7 +405,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
-  for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
+  for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'or the catch-all with the reason none does', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
@@ -514,8 +514,8 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
-      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|class new|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
+      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
   }
 })
 
@@ -881,7 +881,7 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
   for (const c of bare.calls) {
     if (!/^blue-(synthesize|respond) /.test(c.opts.label)) continue
     assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
-    assert.deepEqual(c.opts.schema.required, ['saturation_reached'], `${c.opts.label}: what a blue envelope must carry`)
+    assert.deepEqual(c.opts.schema.required ?? [], [], `${c.opts.label}: a blue envelope requires nothing — what blue did is on the record`)
     for (const key of ['claim_count', 'sitting_record_appended']) assert.ok(!(key in c.opts.schema.properties), `${c.opts.label}: the schema declares ${key}`)
     assert.ok(schemaAccepts(c.opts.schema, blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
   }
@@ -918,6 +918,20 @@ test('W2b: a gap still open with no row is logged and left to capture; none of N
   assert.equal((await noneOfTwo.run(script, ARGS)).verdict, 'VERIFIED')
   assert.ok(noneOfTwo.logs.some((l) => l.includes('0/2 gap(s) open when blue sat — no row for: G-00000001, G-00000002')))
 })
+// A MANIFEST ROW IS A GAP ID, AND PROSE IS REFUSED AT THE RETURN. Respond seats wrote rows such as
+// "G-237fed96: repaired (…)" into `manifest` (m29, and 4 of 32 replays); the coverage log matches
+// ids, so each read as "no row for" a gap that had one. GAP_ID is generated from anchor's matcher.
+test('a respond envelope takes gap ids in manifest and found_closed, and refuses prose there', async () => {
+  const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
+  await w.run(script, ARGS)
+  const respond = w.calls.find((c) => /^blue-respond /.test(c.opts.label))
+  assert.ok(respond, 'blue-respond was never dispatched')
+  const schema = respond.opts.schema
+  assert.ok(schemaAccepts(schema, { manifest: ['G-00000001'], found_closed: ['G-0a1b2c3d'] }), 'gap ids are refused')
+  assert.ok(!schemaAccepts(schema, { manifest: ['G-00000001: repaired (the sum was wrong)'] }), 'a prose manifest row is accepted')
+  assert.ok(!schemaAccepts(schema, { found_closed: ['the evidence gap'] }), 'a prose found_closed entry is accepted')
+})
+
 test('W2b: partial coverage is logged, never fatal; a found_closed id blue was not engaged on is ignored', async () => {
   const partial = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: ['G-00000001'], found_closed: ['G-00000009'] })] }))
   const out = await partial.run(script, ARGS)
@@ -1030,8 +1044,8 @@ test('the default cast is every lens area', async () => {
 // repairing seat at all. `grep -rl 'PATTERN DUTY' --include='*.golden'` returned nothing, because a
 // clause that never renders cannot move a golden — the same plausible zero this engine keeps
 // finding, here in the delivery path of a duty both constitutions advertise as the one that works.
-// NO SEAT IS SENT TO A PATTERN CORPUS. The promoted corpus is retired: the class registry is the
-// vocabulary, it is enforced at mint, and a seat reads its situation from the record. Measured
+// NO SEAT IS SENT TO A PATTERN CORPUS. The promoted corpus is retired: the gap class's closed set is
+// the vocabulary, enforced at mint, and a seat reads its situation from the record. Measured
 // before the removal: all three repairing seats carried the duty and none opened the file.
 test('no prompt sends a repairing seat to a gap-pattern corpus', async () => {
   const world = makeWorld(makeResponder({
@@ -1086,7 +1100,7 @@ test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and
   assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
   assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
   assert.ok(!schemaAccepts(await chairSchema(), relayed), 'the schema refuses a plan that permits no PASS and names nothing holding it')
-  const env = { ...relayed, plan: keyed({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
+  const env = { ...relayed, plan: withKey({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
   assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),

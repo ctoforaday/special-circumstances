@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -255,95 +256,60 @@ func TestUnrunnableBinaryRefuses(t *testing.T) {
 	}
 }
 
-// THE REGISTRY IS STAGED, so `--class` means something (#299).
-//
-// Nothing wrote records/class-registry.json until this. loadRegistry always returned nil,
-// validateClass always took its advisory branch, and --class accepted any string on every run
-// there has ever been. The cost was not tidiness: red invented a fresh vocabulary each run, and
-// both record-era runs had ZERO overlap between the classes each minted.
-func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
-	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	mem := filepath.Join(cfg.Cwd, "feov-memory")
-	if err := os.MkdirAll(mem, 0o755); err != nil {
-		t.Fatal(err)
+// SETUP READS NOTHING IN feov-memory/ (plans/gap-class-enum.md §III.7). A gap's class is a value of
+// the closed GapClass set the binary owns, so a consuming project with no feov-memory/ sets up
+// exactly as one holding a stale or garbage class-registry.json: the same stdout, the same stderr,
+// the same records, once each fixture's own root is masked.
+func TestSetupReadsNoFeovMemory(t *testing.T) {
+	type result struct {
+		out, errb string
+		records   []string
 	}
-	if err := os.WriteFile(filepath.Join(mem, "class-registry.json"),
-		[]byte(`{"classes":[{"slug":"false-universal","material_default":"by_grade"},{"slug":"self-attestation","material_default":"by_grade"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code != 0 {
-		t.Fatalf("exit %d: %s", code, errb.String())
-	}
-	staged := filepath.Join(runDir, "records", "class-registry.json")
-	if _, err := os.Stat(staged); err != nil {
-		t.Fatalf("the registry was not staged where loadRegistry reads it: %v", err)
-	}
-	if !strings.Contains(out.String(), "2 class(es) staged") {
-		t.Errorf("the summary must report the registry, since it decides whether --class validates:\n%s", out.String())
-	}
-}
-
-// A CALLER'S REGISTRY WITHOUT THE MATERIAL DEFAULT IS REFUSED BEFORE ANY RUN STATE. Setup stages
-// the caller's copy, which can predate the binary; a row without the field would leave every gap of
-// its class with no materiality to start from. The refusal names the file, the slug and the
-// registry remedy, and never migrate — there is no run yet to migrate.
-func TestSetupRefusesRegistryWithoutMaterialDefault(t *testing.T) {
-	for _, c := range []struct{ name, row, names string }{
-		{"missing", `{"slug":"false-universal"}`, "no material_default"},
-		{"unknown", `{"slug":"false-universal","material_default":"sometimes"}`, `"sometimes"`},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-			mem := filepath.Join(cfg.Cwd, "feov-memory")
-			if err := os.MkdirAll(mem, 0o755); err != nil {
-				t.Fatal(err)
+	setup := func(t *testing.T, stage func(cwd string)) result {
+		t.Helper()
+		cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+		stage(cfg.Cwd)
+		var out, errb bytes.Buffer
+		if code := Run(cfg, &out, &errb); code != 0 {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		var names []string
+		recs := filepath.Join(runDir, "records")
+		if err := filepath.WalkDir(recs, func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-			reg := filepath.Join(mem, "class-registry.json")
-			if err := os.WriteFile(reg, []byte(`{"classes":[`+c.row+`]}`), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			var out, errb bytes.Buffer
-			if code := Run(cfg, &out, &errb); code != 2 {
-				t.Fatalf("exit %d, want 2:\n%s", code, errb.String())
-			}
-			if _, err := os.Stat(filepath.Join(runDir, "records")); err == nil {
-				t.Error("the refusal came after run state was written — records/ exists")
-			}
-			for _, want := range []string{reg, `"false-universal"`, c.names, "add `material_default`"} {
-				if !strings.Contains(errb.String(), want) {
-					t.Errorf("the refusal must name %q:\n%s", want, errb.String())
-				}
-			}
-			if strings.Contains(errb.String(), "migrate") {
-				t.Errorf("setup's registry refusal must not mention migrate:\n%s", errb.String())
-			}
-		})
+			rel, _ := filepath.Rel(recs, p)
+			names = append(names, filepath.ToSlash(rel))
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		sort.Strings(names)
+		mask := func(s string) string { return strings.ReplaceAll(s, cfg.Cwd, "<cwd>") }
+		return result{mask(out.String()), mask(errb.String()), names}
 	}
-}
-
-// An ABSENT registry is reported LOUDLY rather than degrading in silence. The advisory branch
-// was the pattern this suite keeps finding: a gate that reports nothing and passes everything
-// when its input is missing.
-//
-// WHAT THE LINE HAS TO SAY CHANGED WITH THE BEHAVIOUR. It used to warn that `--class` would
-// accept ANY string — the honest description of a run that had lost its registry and would mint
-// happily against a vocabulary nothing recognised. There is no advisory branch now: an absent
-// registry REFUSES every mint, so the operator reading this line is looking at a run that cannot
-// do its work, not one that will quietly do it wrong. The assertion moved with it, because a test
-// pinning the old sentence would have made removing the tolerance look like a regression.
-func TestAbsentRegistryIsAnnounced(t *testing.T) {
-	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	var out, errb bytes.Buffer
-	if code := Run(cfg, &out, &errb); code != 0 {
-		t.Fatalf("exit %d: %s", code, errb.String())
+	bare := setup(t, func(string) {})
+	garbage := setup(t, func(cwd string) {
+		mem := filepath.Join(cwd, "feov-memory")
+		if err := os.MkdirAll(mem, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(mem, "class-registry.json"), []byte("{not json"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if bare.out != garbage.out {
+		t.Errorf("setup's stdout depends on feov-memory/:\n--- none ---\n%s\n--- garbage registry ---\n%s", bare.out, garbage.out)
 	}
-	if !strings.Contains(out.String(), "NOT STAGED") || !strings.Contains(out.String(), "REFUSED") {
-		t.Errorf("an absent registry must say that every mint will be refused:\n%s", out.String())
+	if bare.errb != garbage.errb {
+		t.Errorf("setup's stderr depends on feov-memory/:\n--- none ---\n%s\n--- garbage registry ---\n%s", bare.errb, garbage.errb)
 	}
-	if strings.Contains(out.String(), "ANY string") {
-		t.Errorf("the summary still describes the advisory branch, which no longer exists — an operator "+
-			"reading it would expect a run that mints loosely rather than one that cannot mint:\n%s", out.String())
+	if strings.Join(bare.records, "\n") != strings.Join(garbage.records, "\n") {
+		t.Errorf("setup's records depend on feov-memory/:\n none: %v\n garbage: %v", bare.records, garbage.records)
+	}
+	if strings.Contains(bare.out, "class registry") {
+		t.Errorf("setup prints a class-registry line:\n%s", bare.out)
 	}
 }
 

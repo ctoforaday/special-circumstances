@@ -131,7 +131,7 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return emptyPlan(), false, err
 		}
 		plan.Blockers, plan.Why = after.Blockers, after.Why
-		plan = keyed(plan)
+		plan = plan.WithKey()
 	}
 	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
 	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.

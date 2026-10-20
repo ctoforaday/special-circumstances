@@ -14,42 +14,28 @@ Run `feov-record mint --help` for what it takes, flag by flag.
 exit 2
 feov-record: mint: requires --class, --impact, --likelihood, --severity
 
-      --class slug         REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
-      --impact grade       REQUIRED — how bad the consequence is if it lands
-      --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
+      --class class-value   REQUIRED — the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover
+      --impact grade        REQUIRED — how bad the consequence is if it lands
+      --likelihood grade    REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
+      --severity grade      REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
 ── mint with unknown class
 exit 2
-feov-record: mint: requires --impact, --likelihood, --severity
-
-      --impact grade       REQUIRED — how bad the consequence is if it lands
-      --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
+feov-record: mint: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_scope_blindspot|self_attestation|unverified_composition|invalid_inference|vote_laundering|doctrine_vs_implementation|policy_without_mechanism|partial_control_coverage|self_defeating_mitigation|unhandled_degenerate_case|spec_underspecification|figure_recount_fails|metric_conflation|citation_figure_misattribution|within_source_condition_misattribution|live_source_drift|artifact_preservation|unsourced_claim|unclassified, not "invented". The class is the KIND of defect, and its material default decides whether an open gap of it holds the PASS gate
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
-── class-new missing definition
+── mint with a near-miss class
 exit 2
-feov-record: mint: requires --impact, --likelihood, --severity
-
-      --impact grade       REQUIRED — how bad the consequence is if it lands
-      --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
+feov-record: mint: --class takes one of cross_section_contradiction|claim_contradicts_own_record|reader_channel_mismatch|incomplete_repair_propagation|missing_root_invariant|report_voice|structure_noncompliance|false_universal|exhaustive_sweep_omits_case|risk_coverage_omission|derivation_status_overclaim|verification_scope_blindspot|self_attestation|unverified_composition|invalid_inference|vote_laundering|doctrine_vs_implementation|policy_without_mechanism|partial_control_coverage|self_defeating_mitigation|unhandled_degenerate_case|spec_underspecification|figure_recount_fails|metric_conflation|citation_figure_misattribution|within_source_condition_misattribution|live_source_drift|artifact_preservation|unsourced_claim|unclassified, not "report-voice": it is "report_voice" with different punctuation — flags take dashes, values take the schema's underscores. The class is the KIND of defect, and its material default decides whether an open gap of it holds the PASS gate
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
-── class-new unknown neighbor
+── unclassified mint without a reason
 exit 2
-feov-record: mint: requires --impact, --likelihood, --severity
-
-      --impact grade       REQUIRED — how bad the consequence is if it lands
-      --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
-
-Run `feov-record mint --help` for what it takes, flag by flag.
+feov-record: mint: --class unclassified requires --reason — a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing
 
 ── mint with bad grade
 exit 2
@@ -314,7 +300,6 @@ Available Commands:
   verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  class       the gap-class registry: what KINDS of defect this run recognises
   motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 

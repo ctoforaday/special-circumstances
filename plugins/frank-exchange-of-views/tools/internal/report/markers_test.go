@@ -39,7 +39,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		RequiredFix:     proto.String("fix it"),
 		AcceptanceCheck: proto.String("recheck"),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Class:           proto.String("correctness"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),

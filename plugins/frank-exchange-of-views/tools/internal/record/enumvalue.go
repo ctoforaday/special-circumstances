@@ -60,6 +60,23 @@ type EnumValue struct {
 	// help against the declared set must expect it omitted. Filtered at one site only, the two
 	// disagree and the gate reads a principled narrowing as a hand-restated set.
 	ToolOnly bool
+	// Material, Neighbor and Distinguisher are a GapClass value's long form — its material default,
+	// the value nearest to it and the question that tells the two apart — read off the value's
+	// options by evsOf, and empty for every enum whose values declare none. `--help` renders them
+	// (Menu); the refusal does not (Refuse).
+	Material      string
+	Neighbor      string
+	Distinguisher string
+}
+
+// hasLongForm reports whether any value carries the long form.
+func hasLongForm(vs []EnumValue) bool {
+	for _, v := range vs {
+		if v.Material != "" || v.Neighbor != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // ev is shorthand for a described value, so the tables stay readable.
@@ -86,7 +103,9 @@ func Names(vs []EnumValue) []string {
 	return out
 }
 
-// Menu renders the values with their meanings, one per line, for the help template.
+// Menu renders the values with their meanings, one per line, for the help template. A value with
+// the long form renders `word  [material] means` and, with a neighbour, a second indented line
+// `nearest: <word> — <distinguisher>`; every other enum renders one line per value.
 func Menu(vs []EnumValue) string {
 	width := 0
 	for _, v := range vs {
@@ -96,7 +115,14 @@ func Menu(vs []EnumValue) string {
 	}
 	var b strings.Builder
 	for _, v := range vs {
-		fmt.Fprintf(&b, "    %-*s  %s\n", width, v.Name, v.Means)
+		if v.Material != "" {
+			fmt.Fprintf(&b, "    %-*s  [%s] %s\n", width, v.Name, v.Material, v.Means)
+		} else {
+			fmt.Fprintf(&b, "    %-*s  %s\n", width, v.Name, v.Means)
+		}
+		if v.Neighbor != "" {
+			fmt.Fprintf(&b, "    %-*s    nearest: %s — %s\n", width, "", v.Neighbor, v.Distinguisher)
+		}
 	}
 	return b.String()
 }
@@ -131,6 +157,11 @@ func Identifiers(vs []EnumValue) enumflag.EnumIdentifiers[string] {
 // argument "" for "--about-kind" flag: --about-kind must be one of … (got "")` — before it said
 // anything.
 //
+// THE MENU IS LEFT OFF FOR A SET WITH A LONG FORM. The gap class's thirty values each carry a
+// definition, a materiality and a distinguisher, which `mint --help` prints; repeating ~13 KB of
+// them under every mistyped word buries the near miss, so the refusal names the near miss and the
+// words only. Every other set's refusal keeps its menu.
+//
 // THE WHY IS ITS OWN SENTENCE. Joined to what precedes it with ", and", it reads as one thought
 // only where the why happens to be a consequence of the mistype: "nothing was passed, and an
 // absence has no sentence to quote" turned a field's rationale into a remark on the empty value.
@@ -156,6 +187,9 @@ func Refuse(got string, vs []EnumValue, why string) error {
 			}
 			break
 		}
+	}
+	if hasLongForm(vs) {
+		return fmt.Errorf("%s", said+". "+sentence(why))
 	}
 	return fmt.Errorf("%s", strings.TrimRight(said+". "+sentence(why)+"\n\n"+Menu(vs), "\n"))
 }
@@ -208,7 +242,14 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 		if err != nil {
 			panic("record: " + err.Error())
 		}
-		out = append(out, EnumValue{Name: recordpb.Spelling(v), Means: means, ToolOnly: declared && !may})
+		ev := EnumValue{Name: recordpb.Spelling(v), Means: means, ToolOnly: declared && !may}
+		if n, ok, err := recordpb.EnumFacet(v, "material_default"); err != nil {
+			panic("record: " + err.Error())
+		} else if ok {
+			ev.Material = recordpb.Spelling(recordpb.ClassMaterial(0).Descriptor().Values().ByNumber(n))
+		}
+		ev.Neighbor, ev.Distinguisher = recordpb.ValueNeighbor(v), recordpb.ValueDistinguisher(v)
+		out = append(out, ev)
 	}
 	return out
 }

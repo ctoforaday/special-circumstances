@@ -85,16 +85,16 @@ func newMint() *cobra.Command {
 			p.MintReason = proto.String(text)
 		}
 		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
-		// COINING A CLASS IS `lens class new`, a verb of its own. This one names a slug
-		// the registry already has; class_new records whether THIS run coined it, which
-		// the registry knows and a seat no longer has to assert. Asked of the record the mint lands
-		// on: another lens's coining of the slug commits in parallel, and the mint the write path
-		// admits over it is a mint of a class this run coined.
-		p.Class = proto.String(seat.Str(cmd, flags.Class))
-		guards := []record.Guard{record.Check(func(l *record.Landing) error {
-			p.ClassNew = proto.Bool(l.ClassCoinedInRun(p.GetClass()))
-			return nil
-		})}
+		// THE CLASS IS A WORD OF THE CLOSED GapClass SET; the flag's parser refused any other, so
+		// an empty word here is an absent flag, which the required-field walk names.
+		if w := seat.Str(cmd, flags.Class); w != "" {
+			gc, ok := record.GapClassOf(w)
+			if !ok {
+				return nil, feov.Errorf(feov.Validation, "%q is not a gap class — it says what KIND of defect this is", w)
+			}
+			p.Class = &gc
+		}
+		var guards []record.Guard
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -254,11 +254,8 @@ func newMint() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	// THE BACKTICKS ARE COBRA'S PLACEHOLDER SYNTAX, not emphasis — it takes the first backquoted
-	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
-	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
-	// command is named without them, and the placeholder is the shape actually wanted.
-	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
+	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
+		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote")
@@ -281,7 +278,7 @@ func newMint() *cobra.Command {
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
 	seat.Supplies(c, "gap_id", "the tool mints it (record.NewID), at random — an id a seat chose would name a gap the record does not hold")
-	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
+	seat.Supplies(c, "class_material", "stamped from the class's material default at the write path")
 	return c
 }
 

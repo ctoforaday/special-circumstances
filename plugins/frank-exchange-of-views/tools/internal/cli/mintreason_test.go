@@ -32,7 +32,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	const why = "blue may well have done the work; what is missing is the record of it"
 	registerLensOnce(t, runDir)
 	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-		"--key", "argued", "--class", "metric-conflation",
+		"--key", "argued", "--class", "spec_underspecification",
 		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
 		"--fix", "reconcile them", "--check", "no two sections disagree", "--check-kind", "document",
@@ -56,7 +56,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// the problem's own words: the text it would have stored was red's argument, and filing it as
 	// the problem — which the report prints — puts red's reasoning in the risk matrix.
 	_, err = runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-		"--key", "viareason", "--class", "metric-conflation",
+		"--key", "viareason", "--class", "spec_underspecification",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",

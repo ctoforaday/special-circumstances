@@ -41,7 +41,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+		AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -185,7 +185,7 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+		AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),

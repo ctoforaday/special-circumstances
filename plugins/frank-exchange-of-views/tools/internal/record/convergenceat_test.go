@@ -15,7 +15,7 @@ import (
 // fraction.
 
 func gradedMint(gap string, sev, lik, imp recordpb.Grade) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("x"), Problem: proto.String("p"),
+	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(sev), Likelihood: recordtest.P(lik), Impact: recordtest.P(imp)}
 }

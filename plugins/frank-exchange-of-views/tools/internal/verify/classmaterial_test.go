@@ -19,7 +19,7 @@ func passOverOneOpenGap(t *testing.T, cm recordpb.ClassMaterial, sev recordpb.Gr
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.Event(t, "red-lens-evidence", &recordpb.Register{}),
-		recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"),
+		recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Severity: sev.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 			ClassMaterial: cm.Enum()}),
@@ -54,7 +54,7 @@ func TestPassOverOpenMaterialGapWithoutAdmissionFails(t *testing.T) {
 		dir := recordtest.TmpRun(t)
 		recordtest.Seed(t, dir,
 			recordtest.Event(t, "red-lens-evidence", &recordpb.Register{}),
-			recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"),
+			recordtest.Event(t, "red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 				Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 				Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(),
 				ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()}),

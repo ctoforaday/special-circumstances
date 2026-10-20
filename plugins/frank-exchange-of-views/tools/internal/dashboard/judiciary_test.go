@@ -19,7 +19,7 @@ func judMint(t *testing.T, seat, id string, l, i recordpb.Grade, supersedes ...s
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"),
-		Class:           proto.String("self-attestation"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood:      recordtest.P(l),

@@ -377,6 +377,7 @@ const DISPOSITION = { type: 'string', enum: ['repaired', 'repaired_with_regressi
 const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket', 'petition']
+const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids', 'occasions'],
@@ -534,6 +535,11 @@ const lawClause = ` LAW: read the law your work list names before ruling — sta
 const declareClause = ''
 
 
+// The synthesizer's sitting returns nothing the engine threads: what it froze, cited, proved and
+// re-voiced is on the record as events. Replaying synthesis sittings with and without each former
+// key (2026-10-20) changed no first return, so the envelope is empty and nothing restates the record.
+const SYNTHESIS_ENVELOPE = { type: 'object', properties: {} }
+
 const BLUE_ENVELOPE = {
   type: 'object',
   // ENVELOPE → REFS (move (a)): `tldr` and `open_questions` are AUTHORED into blue/report.md and
@@ -543,9 +549,7 @@ const BLUE_ENVELOPE = {
   // A FACT THE RECORD CAN COMPUTE IS COMPUTED BY THE READER THAT WANTS IT: the report's claim count
   // is counted from the report, and what a sitting put on the record is read off the record — no
   // seat relays the one or attests the other here (TestNoEnvelopeRestatesARecordFact).
-  required: ['saturation_reached'],
   properties: {
-    saturation_reached: { type: 'boolean' },
     // W2b correctness manifest (repair-quality program A.2): one row per repaired gap —
     // the self-audit's receipt.
     //
@@ -557,28 +561,16 @@ const BLUE_ENVELOPE = {
     // manifest-row` was never called once.
     //
     // The array survives as gap ids alone, for the in-run coverage LOG below. Coverage is scored
-    // from the manifest-row EVENTS at capture, and the rows reach the reader in the report.
-    manifest: { type: 'array', items: { type: 'string' } },
+    // from the manifest-row EVENTS at capture, and the rows reach the reader in the report. Each
+    // item is a gap id (GAP_ID): a prose row written here read as "no row for" its gap.
+    manifest: { type: 'array', items: GAP_ID, description: 'the id of each gap you wrote a manifest row for this sitting — ids only' },
     // THE ENGAGED GAPS BLUE FOUND ALREADY CLOSED WHEN IT SAT (#868). The lenses sit before blue,
     // so a lens can close a gap blue was dispatched onto; blue then has nothing to repair and
     // owes no row. This engine reads no record, and the lenses return prose, so blue's reading of
     // its work list (engaged.found_closed) is the only word of it that reaches here. It is trusted for ONE thing — which gaps
     // the in-run coverage log names — and for nothing that scores: capture recomputes the owed
     // set from the record's dispatch, close and register events (record.ManifestOwed).
-    found_closed: { type: 'array', items: { type: 'string' } },
-    // Grade-motion channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
-    // contest path against red's grades. Record-integrity insurance; zero expected savings.
-    // #62 Stage 2: this is a ROUTING REF, not the content — the argument (evidence) is emitted
-    // as a `dispute` event on the record; the envelope carries only what the sandboxed
-    // orchestrator needs to route the docket.
-    grade_motions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['gap_id', 'dimension', 'proposed'],
-        properties: { gap_id: { type: 'string' }, dimension: DISPUTE_DIMENSION, proposed: GRADE },
-      },
-    },
+    found_closed: { type: 'array', items: GAP_ID, description: 'the id of each gap you were engaged on that was already closed when you sat — ids only' },
   },
 }
 
@@ -694,8 +686,8 @@ const JUDGE_ENVELOPE = {
           // (TestEveryRulingFateHandsBlueADuty) rules every one and reads blue's next prompt for it.
           //
           // A GRADE OUTCOME IS NOT A DISPOSITION. "Gap real, grade wrong" is a GRADE MOTION —
-          // carried by `grade_motions` on this envelope and by `motion grade rule --as accepted`
-          // plus a `regrade` on the record, which is the richer path because the lens that minted the gap moves its grade.
+          // filed on the record and ruled by `motion grade rule --as accepted` plus a `regrade`, the
+          // path on which the lens that minted the gap moves its grade.
           // Ruling one here would put a grade outcome in the docket's field.
           //
           // `moot` asserts neither of the things its neighbours assert: nobody won an argument
@@ -929,7 +921,7 @@ YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, the 
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source. An unlocatable quote is graded LOW through no fault of the source. Two claims resting on the same url are one source and two anchors, not two sources.
 
 REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft it in ${runDir}/scratch/ under a name that starts with your seat id and lacks that word, then bash cp it to ${runDir}/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip. FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base. Do this ONCE; if it refuses, the tool records the refusal — log what you expected. Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze. THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts. ${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
-  { ...dispatchAs('blue-synthesize'), label: `blue-synthesize · ${slug}`, phase: 'Blue', schema: BLUE_ENVELOPE })
+  { ...dispatchAs('blue-synthesize'), label: `blue-synthesize · ${slug}`, phase: 'Blue', schema: SYNTHESIS_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
 // ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
@@ -994,7 +986,7 @@ const lensPrompt = (seatID, gaps) => {
     ? ` YOU ARE ENGAGED ON: ${gaps.join(', ')} — gaps you minted that are still open and below their limits. DID BLUE ACTUALLY DO WHAT YOU ASKED? YOUR WORK LIST SAYS WHETHER BLUE MOVED: each gap carries its location state and the edits that changed its sentence since you last sat. A \`marked\` gap with no edits is unanswered — nothing you read afterwards changes that, so say so and end. \`gone\`: the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands. Otherwise re-read the report where each is anchored, put your required fix and blue's edits side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds. A gap you neither regrade nor close this sitting is a NULL TURN on it, and null turns count toward impasse — silence is a turn taken.`
     : ''
   return `Red lens sitting, area ${area}, topic "${topic}".${extra}${engaged}${lastSittingClause} ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED. The ids of your findings and of the gaps you mint are the tool's to assign. HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting.
-YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one. A finding is your graded observation; a gap is your claim on the board. Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic. A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed. Hold your mints for defects a reader would pay to have fixed, not nitpicks — a trifle takes a mint while it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
+YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does. A finding is your graded observation; a gap is your claim on the board. Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic. A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed. Hold your mints for defects a reader would pay to have fixed, not nitpicks — a trifle takes a mint while it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition. PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL: the required fix is prose — what must become true — and stays the channel for substantive work. A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE: what is left of a gap in something no seat can change, close as a defect owed elsewhere, and log.
 A PROOF YOUR WORK LIST OFFERS IS YOURS, AND YOU BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED: READ THE SCRIPT FIRST — the evidence layer, read at the computation's anchor, gives the script and the output blue recorded — and work out what it ACTUALLY COMPUTES, then RE-RUN IT ONCE — the stored script is what the re-run executes; a clean exit or '0 failing' is not an output — giving your judgement of the script and that reading in the same act: the re-run records your judgement as it runs, so a judgement given before the reading stands on the record as yours. A script that re-runs clean and establishes nothing is the dangerous case: it looks maximally credible. Another lens re-runs and judges any other proof; its sentence is content you audit.
 THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${emptySittingClause}${recordClause(seatID)} Return a 3-line synopsis.`
@@ -1182,9 +1174,8 @@ if (!halted && benchBlockers.length) {
 const ASSEMBLE_ENVELOPE = {
   type: 'object',
   additionalProperties: false,
-  required: ['synopsis', 'open_gaps'],
+  required: ['open_gaps'],
   properties: {
-    synopsis: { type: 'string' },
     open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
   },
 }
@@ -1196,7 +1187,7 @@ FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the inquiries, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}.${lawClause}${speedClause}${recordClause('judge', OCCASION.assemble)} Return your envelope: a 5-line synopsis and open_gaps from the board.`,
+THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the inquiries, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}.${lawClause}${speedClause}${recordClause('judge', OCCASION.assemble)} Return your envelope: open_gaps from the board.`,
   { ...dispatchAs('judge'), label: `judge · ${OCCASION.assemble} · ${slug}`, schema: ASSEMBLE_ENVELOPE })
 // AN ASSEMBLY SITTING THAT RETURNS NOTHING STOPS THE RUN, as a null from any other seat does. The
 // assembly seat is the one that records the outcome and writes the documents; an envelope returned

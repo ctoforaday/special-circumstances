@@ -78,6 +78,39 @@ func (f lensFold) retiresWhy() string {
 	return fmt.Sprintf("it retires at %d", retiresAfter)
 }
 
+// readiness is whether the folded lens is ready at the report head, and its reason. short is
+// unsatSitting's clause on the sitting of its latest dispatch, or "" when it sat through that one.
+func (f lensFold) readiness(head int64, short string) (bool, string) {
+	switch {
+	case head == 0:
+		return false, fmt.Sprintf("%s: not ready, no report has been ingested", f.seat)
+	case f.retired():
+		return false, fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", f.seat, f.pin, f.barren)
+	case f.sittings == 0 && short != "":
+		return true, fmt.Sprintf("%s: has sat through no sitting — %s — audits the report at head %d", f.seat, short, head)
+	case f.sittings == 0:
+		return true, fmt.Sprintf("%s: never sat — audits the report at head %d", f.seat, head)
+	case head > f.pin:
+		why := fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", f.seat, head, f.pin, f.barren, f.retiresWhy())
+		if short != "" {
+			why += "; " + short
+		}
+		return true, why
+	case f.barren >= retiresAfter:
+		return false, fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
+	}
+	return false, fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+}
+
+// unsatSitting is the clause on a sitting the lens did not sit through: the place it opened at and
+// satThrough's reason.
+func unsatSitting(opened int64, reason string) string {
+	return fmt.Sprintf("its sitting opened at %d %s, so it counts neither as sat nor toward retirement", opened, reason)
+}
+
+// owedBlocker is a blocker the lens owns, as lensOwesOf names it among the lens's debts.
+func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
+
 // lensOwesOf is what each lens owes, by seat, each named: an item its work list names as its own to
 // clear that is still undone. Each name is that item's alone — a finding and a remand by their own
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
@@ -100,9 +133,9 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	out := map[string][]string{}
 	_, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
-	open, minted := map[string]bool{}, map[string]string{}
+	minted := map[string]string{}
 	for _, g := range gaps {
-		open[g.id], minted[g.id] = true, g.mintedBy
+		minted[g.id] = g.mintedBy
 	}
 	// owe names item for lens while it has sat through no sitting that opened since at.
 	owe := func(lens string, at int64, item string) {
@@ -110,14 +143,49 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 			out[lens] = append(out[lens], item)
 		}
 	}
+	for _, n := range gapNewsOf(evs, ids, win, gaps) {
+		owe(minted[n.gap], n.at, n.item)
+	}
+	for _, b := range events {
+		if b.Owner != "" {
+			out[b.Owner] = append(out[b.Owner], owedBlocker(b))
+		}
+	}
+	if owner := proofOwnerOf(castOfEvents(evs)); owner != "" {
+		for _, o := range proofChecksOwed(evs, win) {
+			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
+		}
+	}
+	return out
+}
+
+// gapNews is one act on a gap that its minting lens has not had: what it is, as a work list names
+// it, and the events.id it arrived at.
+type gapNews struct {
+	gap, item string
+	at        int64
+}
+
+// gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
+// (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+// remand of it, another seat's finding about it (findingsAboutGapsOf). It is one reading with two
+// readers: the minting lens owes each item until it sits through a sitting opened after it
+// (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
+// (staleOf).
+func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []gapNews {
+	var out []gapNews
+	open, minted := map[string]bool{}, map[string]string{}
+	for _, g := range gaps {
+		open[g.id], minted[g.id] = true, g.mintedBy
+	}
 	answers := blueAnswersOf(evs, win, open)
 	for _, g := range gaps {
 		if a := answers[g.id]; a.answered() {
-			owe(g.mintedBy, a.at, "blue's answer to "+g.id)
+			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
 		}
 	}
 	for _, o := range regradesAwaitedOf(evs, win, open) {
-		owe(minted[o.GapID], o.ruled, "the accepted grade motion on "+o.GapID)
+		out = append(out, gapNews{gap: o.GapID, at: o.ruled, item: "the accepted grade motion on " + o.GapID})
 	}
 	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
 	// gap that is material or stranded carries one back into the debate (routeOf); the bench's ruling
@@ -128,21 +196,11 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	}
 	for _, m := range motionsAt(evs, ids, win) {
 		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
-			owe(minted[m.GapID], m.ruled, "the bench's remand of "+m.GapID+" in "+m.ID)
+			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
 		}
 	}
 	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		owe(f.minter, f.at, f.filer+"'s finding "+f.id+" about "+f.gap)
-	}
-	for _, b := range events {
-		if b.Owner != "" {
-			out[b.Owner] = append(out[b.Owner], string(b.Kind)+" "+b.Subject)
-		}
-	}
-	if owner := proofOwnerOf(castOfEvents(evs)); owner != "" {
-		for _, o := range proofChecksOwed(evs, win) {
-			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
-		}
+		out = append(out, gapNews{gap: f.gap, at: f.at, item: f.filer + "'s finding " + f.id + " about " + f.gap})
 	}
 	return out
 }
@@ -183,7 +241,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			if ends.sat(seat, r) {
 				f.pin = d.pin
 			} else {
-				short = fmt.Sprintf("its sitting opened at %d %s, so it counts neither as sat nor toward retirement", r, ends.short[r])
+				short = unsatSitting(r, ends.short[r])
 			}
 			if !sat[r] {
 				sat[r] = true
@@ -221,25 +279,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 				f.barren++
 			}
 		}
-		switch {
-		case head == 0:
-			f.why = fmt.Sprintf("%s: not ready, no report has been ingested", seat)
-		case f.retired():
-			f.why = fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", seat, f.pin, f.barren)
-		case f.sittings == 0 && short != "":
-			f.ready, f.why = true, fmt.Sprintf("%s: has sat through no sitting — %s — audits the report at head %d", seat, short, head)
-		case f.sittings == 0:
-			f.ready, f.why = true, fmt.Sprintf("%s: never sat — audits the report at head %d", seat, head)
-		case head > f.pin:
-			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", seat, head, f.pin, f.barren, f.retiresWhy())
-			if short != "" {
-				f.why += "; " + short
-			}
-		case f.barren >= retiresAfter:
-			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves; %s", seat, f.pin, f.retiresWhy())
-		default:
-			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves", seat, f.pin)
-		}
+		f.ready, f.why = f.readiness(head, short)
 		out = append(out, f)
 	}
 	return out

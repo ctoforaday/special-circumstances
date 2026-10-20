@@ -49,7 +49,7 @@ func TestEveryWriteSaysWhereTheSeatStands(t *testing.T) {
 // each other rather than to a literal.
 func TestTheStandingIsTheSameInBothForms(t *testing.T) {
 	runDir := seatRun(t)
-	mintGap(t, runDir, "standing-gap", "c")
+	mintGap(t, runDir, "standing-gap", "spec_underspecification")
 
 	human, err := run(t, "log", "--run", runDir, "--seat-id", lensSeat,
 		"--reason", "nothing blocked me", "--type", "defect")
@@ -118,7 +118,7 @@ func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 // sentence says those hold a PASS, and what another seat clears is stated after as the board's state.
 func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "a-material-gap", "c")
+	id := mintGap(t, runDir, "a-material-gap", "spec_underspecification")
 	gapLine := "gap " + id + " is open and material"
 
 	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", "red's account of this epoch")
@@ -176,7 +176,7 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 // drives a verb built that way.
 func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "motion-gap", "c")
+	id := mintGap(t, runDir, "motion-gap", "spec_underspecification")
 	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation")

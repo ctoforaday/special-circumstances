@@ -454,6 +454,20 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		ns := map[string]float64{}
 		ws := map[string]string{}
 		for _, name := range recordpb.FacetNames() {
+			// AN ENUM-VALUED FACET IS READ AS A WORD of the vocabulary it references, and stored as
+			// that word: the column REFERENCES the target's table, so the database checks it too.
+			if recordpb.IsEnumFacet(name) {
+				n, ok, err := recordpb.EnumFacet(v, name)
+				if err != nil {
+					return "", err
+				}
+				if ok {
+					target, _ := recordpb.EnumFacetTarget(name)
+					ws[name] = recordpb.Word(dummyEnum{target, n})
+					declared[name]++
+				}
+				continue
+			}
 			// A NUMERIC FACET IS READ AS A NUMBER, and the split is on the facet's declared kind
 			// rather than on a guess about its value: `mass` 0 is a real weight (GRADE_REALIZED),
 			// so reading it as a flag would turn "weighs nothing" into false and lose it.
@@ -512,6 +526,10 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			fmt.Fprintf(&b, ",\n  %q REAL NOT NULL", c)
 			continue
 		}
+		if target, ok := recordpb.EnumFacetTarget(c); ok {
+			fmt.Fprintf(&b, ",\n  %q TEXT NOT NULL REFERENCES %q(\"value\")", c, EnumTableName(target))
+			continue
+		}
 		fmt.Fprintf(&b, ",\n  %q INTEGER NOT NULL CHECK (%q IN (0, 1))", c, c)
 	}
 	b.WriteString("\n) STRICT;\n")
@@ -521,6 +539,10 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			lhs += fmt.Sprintf(", %q", c)
 			if recordpb.IsNumeric(c) {
 				vals += ", " + strconv.FormatFloat(r.numbers[c], 'g', -1, 64)
+				continue
+			}
+			if recordpb.IsEnumFacet(c) {
+				vals += fmt.Sprintf(", '%s'", escape(r.words[c]))
 				continue
 			}
 			vals += fmt.Sprintf(", %d", b2i(r.facets[c]))
@@ -753,6 +775,21 @@ func snake(s string) string {
 func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 	var order []protoreflect.EnumDescriptor
 	seen := map[protoreflect.FullName]bool{}
+	// add is DEPENDENCY-FIRST: an enum whose values carry an enum-valued facet references that
+	// facet's vocabulary, and each table's INSERTs follow its CREATE with foreign keys on, so the
+	// referenced table is emitted before the one that references it — whatever order the field walk
+	// reaches them in. `Mint.class` (GapClass) is field 3 and `Mint.class_material` field 25.
+	var add func(ed protoreflect.EnumDescriptor)
+	add = func(ed protoreflect.EnumDescriptor) {
+		if seen[ed.FullName()] {
+			return
+		}
+		seen[ed.FullName()] = true
+		for _, dep := range recordpb.EnumFacetTargets(ed) {
+			add(dep)
+		}
+		order = append(order, ed)
+	}
 	var walk func(md protoreflect.MessageDescriptor)
 	walk = func(md protoreflect.MessageDescriptor) {
 		for i := 0; i < md.Fields().Len(); i++ {
@@ -764,12 +801,7 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 			if fd.Kind() != protoreflect.EnumKind {
 				continue
 			}
-			ed := fd.Enum()
-			if seen[ed.FullName()] {
-				continue
-			}
-			seen[ed.FullName()] = true
-			order = append(order, ed)
+			add(fd.Enum())
 		}
 	}
 	// THE ENVELOPE'S OWN VOCABULARY, which no body column reaches.
@@ -781,10 +813,7 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 	for _, ed := range []protoreflect.EnumDescriptor{
 		recordpb.EventType(0).Descriptor(),
 	} {
-		if !seen[ed.FullName()] {
-			seen[ed.FullName()] = true
-			order = append(order, ed)
-		}
+		add(ed)
 	}
 	for _, md := range bodies {
 		walk(md)

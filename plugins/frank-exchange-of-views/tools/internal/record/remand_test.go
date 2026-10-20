@@ -40,17 +40,27 @@ func (b *stage) exchangeOn(gap string) *stage {
 // docketAndRemand is the chair's verb docketing gap at impasse as motion, and the bench sitting for
 // it and remanding it with remandDirection.
 func (b *stage) docketAndRemand(motion, gap string) *stage {
+	return b.docketAndRemandWith(motion, gap, remandDirection)
+}
+
+// docketAndRemandWith is docketAndRemand with the bench stating direction.
+func (b *stage) docketAndRemandWith(motion, gap, direction string) *stage {
 	return b.register("red-chair").docketMotion("red-chair", motion, gap).
-		dispatch(2, "judge", gap).register("judge").add("judge", remandRuling(motion, remandDirection))
+		dispatch(2, "judge", gap).register("judge").add("judge", remandRuling(motion, direction))
 }
 
 // remandedAtImpasse is G1 stalled to impasse under the default terms (k 2), docketed by the chair,
 // and remanded by the bench with a stated direction.
 func remandedAtImpasse(t *testing.T) *stage {
+	return remandedAtImpasseWith(t, remandDirection)
+}
+
+// remandedAtImpasseWith is remandedAtImpasse with the bench stating direction.
+func remandedAtImpasseWith(t *testing.T, direction string) *stage {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
 	st.exchangeOn("G1").exchangeOn("G1")
-	return st.docketAndRemand("M1", "G1")
+	return st.docketAndRemandWith("M1", "G1", direction)
 }
 
 // gapsOf is the gaps the plan engages seat on, and whether it readies the seat at all.
@@ -121,6 +131,37 @@ func TestARemandReadiesTheMinterAndBlueForOneMoreExchange(t *testing.T) {
 		if b.Subject == "G1" && !readied[b.Owner] {
 			t.Errorf("blocker %s on G1 is owned by %q, whom the plan does not ready: parties %+v", b.Kind, b.Owner, plan.Parties)
 		}
+	}
+}
+
+// A REMAND LINE PRINTS THE BENCH'S DIRECTION LAST, AFTER RemandDirectionPrefix, AS WRITTEN. migrate
+// carries everything after the prefix in an archived plan's line as seat prose — neither translating
+// a number in it nor reading a quote in it — so the verb printing the direction anywhere but last,
+// or quoted, would hand migrate a tail that is not the bench's words. The direction holds an id
+// phrase and an unclosed quote, the two things the tail rule exists to leave alone.
+func TestARemandLineCarriesItsDirectionAsWritten(t *testing.T) {
+	const direction = `re-read pin 412 and the claim "head 412`
+	run := remandedAtImpasseWith(t, direction).register("red-chair").seed()
+	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, _ := storedOf(t, run)
+	if len(stored) != 1 || stored[0].Printed != plan.Printed() {
+		t.Fatalf("stored %d plan(s); want the one the verb printed", len(stored))
+	}
+	got := stored[0].Plan
+	var line string
+	for _, w := range got.Why {
+		if strings.HasPrefix(w, "G1: ") {
+			line = w
+		}
+	}
+	if !strings.HasSuffix(line, RemandDirectionPrefix+direction) || strings.Count(line, RemandDirectionPrefix) != 1 {
+		t.Errorf("the stored plan's line for G1 must end with the prefix and the direction as written, once; got %q", line)
+	}
+	if want := []RemandOwed{{GapID: "G1", Direction: direction}}; !slices.Equal(got.RemandOwed, want) {
+		t.Errorf("remand_owed = %+v, want %+v", got.RemandOwed, want)
 	}
 }
 

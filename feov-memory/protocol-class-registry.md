@@ -1,7 +1,7 @@
 # Protocol-rule defect classes — the registry for defects in OUR OWN rules
 
-The gap-class registry (`class-registry-seed.md`) classifies defects the debate
-finds in a REPORT. This one classifies defects in the RULEBOOK: the skills, seat
+The gap class (`GapClass`, a closed enum in the FEOV record's `record.proto`) classifies
+defects the debate finds in a REPORT. This one classifies defects in the RULEBOOK: the skills, seat
 prompts, constitutions, templates and law that govern how the engine runs.
 
 ## Why this exists
@@ -35,7 +35,7 @@ carrying the same duty are left untouched.
   emitted a quoted binary path.
 - **Sweep question**: which OTHER seats carry this duty, and does the fix reach
   each of them?
-- **Neighbour**: `partial-control-coverage` (gap registry) — that one is about a
+- **Neighbour**: `partial_control_coverage` (gap class) — that one is about a
   control covering part of its surface; this is about a fix covering part of its
   seats.
 
@@ -50,7 +50,9 @@ source, and the consumer cannot tell the difference.
   run whose transcripts were never read produces.
 - **Sweep question**: does any consumer of this channel need the source, and does
   it know the channel is lossy?
-- **Neighbour**: `reader-channel-mismatch` (gap registry).
+- **Neighbour**: `reader_channel_mismatch` (gap class) — that one is a fact a report
+  holds where its reader does not read; this is a consumer handed a derived channel in
+  place of the source it needs.
 
 ### enum-vocabulary-undercoverage
 An enum is widened for the traffic already observed rather than the traffic it
@@ -70,7 +72,7 @@ skipped one, so the clause is unenforceable and eventually unpractised.
   self-graded" mandated and practised five times in 1,892 lines.
 - **Sweep question**: what artifact would a reviewer look at to tell whether this
   was done?
-- **Neighbour**: `self-attestation` (gap registry) — that is a claim standing on
+- **Neighbour**: `self_attestation` (gap class) — that is a claim standing on
   its own word; this is a duty with no place to leave a trace at all.
 
 ### staged-not-delivered
@@ -374,7 +376,7 @@ writer's file from its own — and an overwritten file and a stale one look the 
 
 ## Minting a new class
 
-Same discipline as the gap registry: a new class needs a slug, a one-line
+Same discipline as the gap class's membership rule: a new class needs a slug, a one-line
 definition, its nearest NEIGHBOUR, and the DISTINGUISHING question that tells the
 two apart. A class that cannot state its neighbour is usually an instance
 wearing a class's name.

@@ -26,7 +26,7 @@ func mintQuote(t *testing.T, runDir, key, quote string, extra ...string) (string
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	out, err := runMint(t, runDir, append([]string{"--run", runDir, "--seat-id", lensSeat,
-		"--key", key, "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+		"--key", key, "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", quote}, extra...)...)
 	return gapID(out), err
@@ -366,7 +366,7 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
 		}, []string{"finding", "--key", "K1", "--quote", other, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
 		{"gap", "G-0badf00d", lensSeat, func(string) proto.Message {
-			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
+			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 				Location: proto.String(stored), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 				Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),

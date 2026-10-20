@@ -348,6 +348,15 @@ var defines = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
 }
 
+// numbered is the types whose every write is a new act even where the body carries a label, so they
+// key on the per-seat ordinal. A stale refusal names its gap, and a seat refused twice on one gap in
+// one sitting — a change landed after the first refusal — is shown two different sets of changes:
+// keyed on the gap, the second would be refused as a retry of the first and the read point would
+// stop at the first.
+var numbered = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_STALE: true,
+}
+
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
 // no writer sets any more simply never matches, and the ordinal fallback then records a second
 // event where the first should have been updated in place. `reference` was on this list after the
@@ -413,7 +422,7 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	if singleton[typ] {
 		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
-	if v := keyLabel(body); v != "" {
+	if v := keyLabel(body); v != "" && !numbered[typ] {
 		if defines[typ] {
 			return seatID + ":" + slug + ":" + v, nil
 		}
@@ -627,7 +636,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 		return nil, err
 	}
 	files := filesOf(run)
-	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards); err != nil {
+	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -635,7 +644,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
-		return validate(writeView{q: tx, files: files, rendering: rendering}, seatID, typ, body)
+		w := writeView{q: tx, files: files, rendering: rendering}
+		if err := validate(w, seatID, typ, body); err != nil {
+			return err
+		}
+		return guardsAt(w, guards, true)
 	}); err != nil {
 		return ev, err
 	}
@@ -740,8 +753,8 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	return nil
 }
 
-// validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
-// and the requirements no schema can express. Error strings are matched verbatim — seats read
+// validate mirrors the oracle's append-time checks: anchors, lineage existence, the gap class's
+// enum check, and the requirements no schema can express. Error strings are matched verbatim — seats read
 // them, and the golden suite compares them.
 //
 // IT SWITCHES ON THE BODY, NOT ON A TYPE STRING. The type and the fields are one fact now, so an
@@ -784,10 +797,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	//
 	// WHICH IS WHY A MINT'S CLASS MATERIAL IS STAMPED FIRST. The field is required and the tool is
 	// its only writer, so the required-field walk would otherwise ask the seat for a value it may
-	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
-	// (an unknown class, an unstaged registry, a seat-supplied value).
+	// not supply; stamped here, every caller of validation gets the same stamp and the same refusal
+	// of a seat-supplied value.
 	if m, ok := body.(*recordpb.Mint); ok {
-		if err := stampClassMaterial(w, m); err != nil {
+		if err := stampClassMaterial(m); err != nil {
 			return err
 		}
 	}
@@ -820,13 +833,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetLocation() == "" {
 			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
 		}
-	case *recordpb.ClassNew:
-		return validateClassNew(w, b)
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
 		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
 		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
 		// --distinct-from reference stay on.
+		if err := requireUnclassifiedReason(b); err != nil {
+			return err
+		}
 		if err := requireMintWithinBudget(w, seatID); err != nil {
 			return err
 		}
@@ -880,9 +894,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 		if err := refuseMintReportVoice(b); err != nil {
-			return err
-		}
-		if err := validateClass(w, b); err != nil {
 			return err
 		}
 		ids, err := allGapIDs(q)
@@ -1493,6 +1504,19 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			return fmt.Errorf("requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
 		}
+		// A BRIDGE IS NAMED OR IT IS NOT A BRIDGE. supports_with_bridge without its kind is refused
+		// live; under Migrating the absence is what an archive from before the field holds, and no
+		// kind can be read back out of its prose, so it is carried absent. A kind beside any other
+		// outcome is refused in both: it describes a bridge the reading did not make.
+		swb := b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
+		switch {
+		case swb && b.Bridge == nil && !Migrating:
+			return fmt.Errorf("supports_with_bridge requires --bridge summary|secondary_citation|near_restatement — WHAT you bridged. A reading whose gap is none of those three (a term on another object, a condition dropped, a relation reversed) bridged nothing: the source says something else, which is refutes or weak")
+		case swb && b.Bridge != nil && b.GetBridge() == recordpb.BridgeKind_BRIDGE_KIND_UNSPECIFIED:
+			return fmt.Errorf("--bridge takes summary|secondary_citation|near_restatement")
+		case !swb && b.Bridge != nil:
+			return fmt.Errorf("--bridge names what a supports_with_bridge reading bridged, and this reading is %s — drop --bridge, or record supports_with_bridge if that is what the source did", recordpb.Word(b.GetOutcome()))
+		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
@@ -1564,4 +1588,25 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its
+// `char(9, 10, 13)` — so the write and the database refuse the same reasons
+// (TestTheWriteAndTheDatabaseAgreeOnABlankReason).
+const reasonBlank = " \t\n\r"
+
+// requireUnclassifiedReason refuses a catch-all mint that says nothing about why no class fits, in
+// the words of Mint's own (check) — the database refuses the row whatever writes it, and this names
+// the duty to the seat rather than leaving it a constraint's column name.
+func requireUnclassifiedReason(m *recordpb.Mint) error {
+	if m.GetClass() != recordpb.GapClass_GAP_CLASS_UNCLASSIFIED || strings.Trim(m.GetMintReason(), reasonBlank) != "" {
+		return nil
+	}
+	why := "a gap no class fits says why in --reason"
+	for _, c := range recordsql.MessageChecks(m.ProtoReflect().Descriptor()) {
+		if strings.Contains(c.GetExpr(), "'unclassified'") {
+			why = c.GetWhy()
+		}
+	}
+	return fmt.Errorf("--class unclassified requires --reason — %s", why)
 }

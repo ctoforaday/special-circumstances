@@ -25,7 +25,7 @@ func TestTheFailRefusalReadsTheBoardOnTheRecord(t *testing.T) {
 	}
 	mint := func(id, sev string, lik, imp recordpb.Grade, supersedes ...string) *recordpb.Mint {
 		m := &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(),
-			GapId: proto.String(id), Class: proto.String("scope-creep"),
+			GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity:   gradeP(t, sev),

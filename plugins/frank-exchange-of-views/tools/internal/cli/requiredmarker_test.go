@@ -90,11 +90,9 @@ func requiredProbes() map[string]requiredProbe {
 	probes["lens near-match"] = requiredProbe{seat: lensSeat, args: fixed("near-match", "--problem", "p",
 		"--quote", "§1 first — a finding sits in sec 1 here.")}
 	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--key", "M-probe",
-		"--class", "scope-creep", "--check-kind", "document", "--check", "c",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
-	probes["lens class new"] = requiredProbe{seat: lensSeat, args: fixed("class", "new", "--class", "a-new-class",
-		"--definition", "d", "--neighbor", "scope-creep", "--distinguisher", "x", "--material-default", "by_grade")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
