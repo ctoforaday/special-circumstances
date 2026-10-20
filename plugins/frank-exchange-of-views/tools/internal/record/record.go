@@ -841,7 +841,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
-		if err := requireMintWithinBudget(w, seatID); err != nil {
+		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
 		if err := requireNotAnOpenGap(q, b); err != nil {

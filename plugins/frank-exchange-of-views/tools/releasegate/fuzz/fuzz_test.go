@@ -407,6 +407,12 @@ type runner struct {
 	// budgetRefused counts the mints the tool refused a lens holding its whole mint budget open.
 	// The sweep gates it at zero.
 	budgetRefused int
+	// ownAnswers counts the mints that landed answering a contradiction the minting lens's own
+	// finding raised — the gaps outside its budget; the sweep gates it at zero. answerBudgetErr is
+	// the first such mint the budget refused, which fails the run: a lens can always answer what it
+	// raised.
+	ownAnswers      int
+	answerBudgetErr string
 	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
@@ -1529,6 +1535,28 @@ func (r *runner) answerContradictions(seatID string) {
 	}
 }
 
+// ownUnansweredRaise is whether finding is seatID's own and raised a contradiction `show evidence`
+// still lists as unanswered: the mint crediting it answers it outside seatID's budget.
+func (r *runner) ownUnansweredRaise(seatID, finding string) bool {
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	raised := false
+	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+		raised = raised || c.RaisedBy == finding
+	}
+	if !raised {
+		return false
+	}
+	for _, e := range b.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetId() == finding {
+			return e.GetSeatId() == seatID
+		}
+	}
+	return false
+}
+
 // raiseAndMint raises a contradiction with a finding anchored by anchorArgs and answers it with the
 // gap minted from that finding: a finding alone answers nothing, because a source the report
 // misstates is material by its class. A mint the budget refuses leaves the contradiction raised and
@@ -2063,17 +2091,29 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 			r.noteApplyMiss("an unclassified mint without --reason landed")
 		}
 	}
+	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
 	out, err := r.exec(first...)
 	if err != nil && strings.Contains(out, "already holds an open gap") {
 		out, err = r.exec(distinct(args)...)
 	}
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
+			// READ AGAIN AFTER THE REFUSAL: a raise answered in between is a mint that counts, and
+			// an answer is never undone, so a raise still unanswered now was unanswered at the write.
+			violated := own && r.ownUnansweredRaise(seatID, foundBy)
 			r.mu.Lock()
 			r.budgetRefused++
+			if violated && r.answerBudgetErr == "" {
+				r.answerBudgetErr = seatID + "'s mint from its own raising finding " + foundBy + " was refused for budget: " + firstLine(out)
+			}
 			r.mu.Unlock()
 		}
 		return ""
+	}
+	if own {
+		r.mu.Lock()
+		r.ownAnswers++
+		r.mu.Unlock()
 	}
 	var env struct {
 		Result struct {
@@ -3513,6 +3553,8 @@ type outcome struct {
 	// budgetRefused is the mints the tool refused a lens holding its whole budget open
 	// (runner.budgetRefused).
 	budgetRefused int
+	// ownAnswers is the mints that answered the minting lens's own raise (runner.ownAnswers).
+	ownAnswers int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
@@ -4037,6 +4079,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.rulerFilingErr != "" {
 		res.err = "a ruler's filing: " + r.rulerFilingErr
+		return res
+	}
+	if r.answerBudgetErr != "" {
+		res.err = "the answering mint: " + r.answerBudgetErr
 		return res
 	}
 	if r.passOverAnotherSeat != "" {
@@ -4690,6 +4736,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.budgetRefused = r.budgetRefused
+	res.ownAnswers = r.ownAnswers
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
@@ -5391,6 +5438,7 @@ func TestFuzzDebate(t *testing.T) {
 	ownerOfferedRuns, fallbackOfferedRuns := 0, 0   // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
 	repeatsRefused := 0                             // second acts refused in a sitting that holds one, naming the answering act
 	budgetRefused := 0                              // mints refused a lens holding its whole mint budget open
+	ownAnswers := 0                                 // mints that answered the minting lens's own raise
 	unclassifiedMinted, unclassifiedRefused := 0, 0 // catch-all mints landed; refused for want of a reason
 	rulerFilingsRefused := 0                        // filings refused the seat that rules their subject
 	applyMisses := map[string]int{}                 // and why it did not, by cause — a bare 0 above named none of them
@@ -5486,6 +5534,7 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			repeatsRefused += o.repeatsRefused
 			budgetRefused += o.budgetRefused
+			ownAnswers += o.ownAnswers
 			unclassifiedMinted += o.unclassifiedMinted
 			unclassifiedRefused += o.unclassifiedRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
@@ -5660,6 +5709,13 @@ func TestFuzzDebate(t *testing.T) {
 		// green sweep.
 		if budgetRefused == 0 {
 			t.Errorf("fuzz drove ZERO mints refused for budget across %d runs — no lens held its whole mint budget open and minted again, so the cap on open gaps is unexercised (false green)", completed)
+		}
+		// THE ANSWERING-MINT GATE. A gap minted from a lens's own raising finding takes no mint, and
+		// a run fails on one the budget refused (runner.answerBudgetErr); that oracle is silent where
+		// no such mint was driven, so the sweep fails unless some landed.
+		t.Logf("answering mints: %d landed outside the minting lens's budget, %d mint(s) refused for budget", ownAnswers, budgetRefused)
+		if ownAnswers == 0 {
+			t.Errorf("fuzz drove ZERO mints answering the minting lens's own raise across %d runs — the gap outside the budget is unexercised (false green)", completed)
 		}
 		// THE CATCH-ALL GATE. A gap no class fits is minted `unclassified` with a reason, and the
 		// record refuses one without. The `mint` verb gate is satisfied by every other class, so a
