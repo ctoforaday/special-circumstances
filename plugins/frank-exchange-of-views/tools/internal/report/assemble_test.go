@@ -473,11 +473,13 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 // WHICH HEADINGS THE REPORT'S TEXT MAY NOT CARRY IS A RULING, written out here so a row that
 // changes sides is seen. Refused: every heading composed into report.md, where the report's own
 // would stand beside the tool's, and each section of another document that is an account of the
-// run. Not refused: Proofs and Motions, composed into other documents under names a subject uses.
+// run — red's readings of the citations and blue's edits among them. Not refused: Proofs and
+// Motions, composed into other documents under names a subject uses.
 func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
-		"Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
-		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements"}
+		"Bibliography", "The board", "The debate", "Citations", "How this run was conducted", "The verdict's basis",
+		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements",
+		"Edits to the report"}
 	if got := RefusedHeadings(); !slices.Equal(got, refused) {
 		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
 	}
