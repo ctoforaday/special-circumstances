@@ -3159,6 +3159,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.sourceQuoteRefused(seatID)
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+				// A CONTRADICTION OWES A GAP, AND A GAP IS A MINT. A forced run mints at its first
+				// sitting only (findsFresh), which is its bound; a contradicting reading after it would
+				// owe a mint the bound forbids, so it reads the source as supporting instead.
+				if (outcome == "refutes" || outcome == "absent") && !r.findsFresh() {
+					outcome = "supports"
+				}
 				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
 				kindless := outcome == "supports_with_bridge" && r.coin(10)
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
