@@ -215,7 +215,7 @@ func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
 		Label: "P-00000009", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
 	}}, map[string]bool{"P-00000009": true})
-	if !strings.Contains(out, "missing from this run directory") {
+	if !strings.Contains(out, "missing from proofs/notonthisdisk/") {
 		t.Errorf("a missing artifact was silently omitted, so the report shows a proof it cannot produce:\n%s", out)
 	}
 }

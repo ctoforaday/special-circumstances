@@ -189,37 +189,24 @@ func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) 
 	}
 }
 
-// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6). A chair that asked for the prose and
-// never for the machine form held no plan object, composed one from the envelope's schema, and its
-// relay ended the run. The object under the prose form's `relay` line is the one `--json` answers
-// with as `result`, field for field — for a plan with parties and for the empty plan that ends a
-// run — so neither form leaves the chair a plan to build.
+// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6), AND THE MACHINE FORM IS THE RELAY. A
+// chair that asked for the prose and never for the machine form held no plan object, composed one
+// from the envelope's schema, and its relay ended the run; a chair that lifted the plan out of an
+// ok envelope's `result` nested it under `plan` about one sitting in five (m26-m30). The line
+// under the prose form's `relay` and the whole of what `--json` prints are the same bytes — for a
+// plan with parties and for the empty plan that ends a run — so neither form leaves the chair a
+// plan to build or to unwrap.
 func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
-	relayOf := func(t *testing.T, prose string) any {
+	relayLine := func(t *testing.T, prose string) string {
 		t.Helper()
 		lines := strings.Split(prose, "\n")
 		for i, l := range lines {
 			if strings.HasPrefix(l, "relay — ") && i+1 < len(lines) {
-				var v any
-				if err := json.Unmarshal([]byte(lines[i+1]), &v); err != nil {
-					t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, lines[i+1])
-				}
-				return v
+				return lines[i+1]
 			}
 		}
 		t.Fatalf("the prose form prints no relay — the chair is left to compose the plan:\n%s", prose)
-		return nil
-	}
-	resultOf := func(t *testing.T, out string) any {
-		t.Helper()
-		var env struct {
-			OK     bool `json:"ok"`
-			Result any  `json:"result"`
-		}
-		if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-			t.Fatalf("the machine form is not an ok envelope with a result: %v\n%s", err, out)
-		}
-		return env.Result
+		return ""
 	}
 	check := func(t *testing.T, runDir string, wantParties int) {
 		t.Helper()
@@ -231,12 +218,15 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 		if err != nil {
 			t.Fatalf("dispatch next --json: %v\n%s", err, out)
 		}
-		relay, result := relayOf(t, prose), resultOf(t, out)
-		a, _ := json.Marshal(relay)
-		b, _ := json.Marshal(result)
-		if string(a) != string(b) {
-			t.Errorf("the prose form's relay is not the machine form's result:\n relay  %s\n result %s", a, b)
+		a, machine := relayLine(t, prose), strings.TrimSpace(out)
+		if a != machine {
+			t.Errorf("the prose form's relay is not what the machine form prints:\n relay   %s\n machine %s", a, machine)
 		}
+		var relay any
+		if err := json.Unmarshal([]byte(a), &relay); err != nil {
+			t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, a)
+		}
+		_ = planOf(t, out)
 		parties, _ := relay.(map[string]any)["parties"].([]any)
 		if len(parties) != wantParties {
 			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
@@ -261,15 +251,19 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 	})
 }
 
-// planOf reads the verb's plan out of the seat envelope every JSON verb answers in.
+// planOf reads the plan `dispatch next --json` prints: the plan object alone, one line, carrying
+// no key record.Plan does not declare — an envelope around it (`result`, `ok`, `plan`) is the shape
+// the chair would have to unwrap, and is refused here.
 func planOf(t *testing.T, out string) record.Plan {
 	t.Helper()
-	var env struct {
-		OK     bool        `json:"ok"`
-		Result record.Plan `json:"result"`
+	if n := strings.Count(strings.TrimSpace(out), "\n"); n != 0 {
+		t.Fatalf("the machine form is %d lines, want the plan as one: %s", n+1, out)
 	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK {
-		t.Fatalf("the plan is not an ok envelope: %v\n%s", err, out)
+	dec := json.NewDecoder(strings.NewReader(out))
+	dec.DisallowUnknownFields()
+	var plan record.Plan
+	if err := dec.Decode(&plan); err != nil {
+		t.Fatalf("the machine form is not the plan alone: %v\n%s", err, out)
 	}
-	return env.Result
+	return plan
 }

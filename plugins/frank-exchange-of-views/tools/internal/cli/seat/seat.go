@@ -429,6 +429,20 @@ type Result interface {
 	Human() string
 }
 
+// Relayed is a result whose machine form IS the object the seat relays, and nothing else: --json
+// prints Relay() alone, with no {verb, role, ok, result, standing} around it. A refusal keeps the
+// refusal envelope.
+//
+// A COPY, NOT A COMPOSITION. The chair's envelope carries `dispatch next`'s plan as `plan`; while
+// the verb printed the plan as `result` inside the ok envelope, the chair lifted it out and renamed
+// it, and about one sitting in five (m26-m30, 7 of 34) nested it — `{"plan": {"plan": ...}}`, or
+// the whole envelope wrapped — and was refused. Printing exactly the relayed object makes "copy
+// what the verb printed" and "fill `plan`" one act.
+type Relayed interface {
+	Result
+	Relay() any
+}
+
 // Msg is the shared result for verbs that only CONFIRM — they carry no command-specific
 // data. A verb WITH data defines its own struct instead; "a bare confirmation" is the one
 // outcome genuinely common across verbs, so it is the one shared Result type.
@@ -876,6 +890,9 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
 	// the human line and a consumer parsing the envelope are answering the same question and must not
 	// be told different things.
+	if r, ok := res.(Relayed); ok && jsonMode(cmd) {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(r.Relay())
+	}
 	standing := standingAfter(cmd)
 	if jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{

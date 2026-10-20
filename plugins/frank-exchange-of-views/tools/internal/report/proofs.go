@@ -106,11 +106,13 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 
 	var b strings.Builder
 	b.WriteString("## " + evidenceHeading + "\n\n")
-	b.WriteString("Each of these is a computation this run ran, with the exact script and its output.\n")
-	b.WriteString("`reproducible` means the same script produced identical output on two consecutive runs;\n")
-	b.WriteString("`observed` means the output moved between them, which makes it a measurement of a system\n")
-	b.WriteString("in motion rather than a proof. Every script is cached under `proofs/<sha256>/` in the run\n")
-	b.WriteString("directory, so any reader can run it again.\n\n")
+	// SUBJECT VOICE (gblock, 2026-10-19): the preamble describes the proofs, never the run, its
+	// seats or its process — m30's voice lens and blue both logged "a computation this run ran".
+	b.WriteString("Computations that check claims in this report, with their code and output.\n")
+	b.WriteString("`reproducible` means the same script produced identical output when run twice in a row;\n")
+	b.WriteString("`observed` means the output moved between the two, which makes it a measurement of a system\n")
+	b.WriteString("in motion rather than a proof. Each script is stored under `proofs/<sha256>/`, so any reader\n")
+	b.WriteString("can run it again.\n\n")
 
 	for _, p := range proofs {
 		label := p.Label
@@ -204,7 +206,7 @@ func readArtifact(run record.Run, sha string) (script, output string) {
 	dir := filepath.Join(run.Dir(), "proofs", sha)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return "(the script artifact is missing from this run directory)", "(the output artifact is missing from this run directory)"
+		return "(the script artifact is missing from proofs/" + sha + "/)", "(the output artifact is missing from proofs/" + sha + "/)"
 	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), "script") {
@@ -214,12 +216,12 @@ func readArtifact(run record.Run, sha string) (script, output string) {
 		}
 	}
 	if script == "" {
-		script = "(the script artifact is missing from this run directory)"
+		script = "(the script artifact is missing from proofs/" + sha + "/)"
 	}
 	if b, rerr := os.ReadFile(filepath.Join(dir, "output")); rerr == nil {
 		output = string(b)
 	} else {
-		output = "(the output artifact is missing from this run directory)"
+		output = "(the output artifact is missing from proofs/" + sha + "/)"
 	}
 	return script, output
 }
