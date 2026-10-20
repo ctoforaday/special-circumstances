@@ -310,18 +310,19 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// A MINT THAT PREDATES class_material is stamped by the live rule — its translated
 			// value's material default, at the write — and the fill is stated, every one of them:
 			// which of them moved is computable only against a table this binary does not hold. A
-			// stamp the source carries is kept as recorded.
+			// stamp the source carries is kept as recorded. Both the fill and the translation count
+			// are recorded once the write lands: a refused mint stamped nothing.
 			var translatedSlug string
-			if _, ok := body.(*recordpb.Mint); ok {
-				if slug, _ := src.Fields["class"].(string); archivedGapClasses[slug] != "" {
+			var fill *StatedFill
+			if m, ok := body.(*recordpb.Mint); ok {
+				slug, _ := src.Fields["class"].(string)
+				if archivedGapClasses[slug] != "" {
 					translatedSlug = slug
 				}
-			}
-			if m, ok := body.(*recordpb.Mint); ok && m.ClassMaterial == nil && m.Class != nil {
-				slug, _ := src.Fields["class"].(string)
-				res.StatedFills = append(res.StatedFills, StatedFill{
-					Where: "mint " + m.GetGapId(), Slug: slug,
-					Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy})
+				if m.ClassMaterial == nil && m.Class != nil {
+					fill = &StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
+						Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy}
+				}
 			}
 			if err := proseRefs(source, batch.Querier(), body); err != nil {
 				return nil, err
@@ -345,6 +346,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			res.Out[wordOf(ev)]++
 			if translatedSlug != "" {
 				classMints[translatedSlug]++
+			}
+			if fill != nil {
+				res.StatedFills = append(res.StatedFills, *fill)
 			}
 			if p, ok := body.(*recordpb.Proof); ok && p.GetProofSha() != "" {
 				proofAnchors[p.GetProofSha()] = append(proofAnchors[p.GetProofSha()], p.GetProofId())

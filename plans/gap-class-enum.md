@@ -593,7 +593,9 @@ The translation, in `migrate/gapclass.go`, registered in `valueRenames["feov.rec
   deleted. Each such mint is a `StatedFill` (`Where: "mint <gap_id>"`, `Slug`: the archived slug,
   `Value`: the stamped word, `Why`: "the source predates class_material; the gap takes the material
   default of the value its archived slug translates to"), every one of the 123 and not only those
-  whose result moved: which moved can be computed only against the deleted table.
+  whose result moved: which moved can be computed only against the deleted table. The fill is
+  recorded once the write lands, as `class_translations` counts only landed mints: a mint the write
+  refuses stamped nothing (`TestARefusedPreFieldMintStatesNoFill`).
   **Residue, accepted (F9):** 17 archived gaps in 8 runs move `by_grade` → `always` against today's
   fill (the ruling's "9 runs" names the same 17 gaps; the list holds 8 run names):
 

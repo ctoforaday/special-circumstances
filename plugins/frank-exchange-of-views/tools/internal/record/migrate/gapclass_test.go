@@ -429,3 +429,29 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 		}
 	})
 }
+
+// A REFUSED PRE-FIELD MINT STATES NO FILL. The stamp is supplied at the write, so a mint the write
+// refuses stamped nothing: here a lens mints before any cast or report, the write refuses it, and the
+// manifest states the refusal and no fill, as it counts no class translation.
+func TestARefusedPreFieldMintStatesNoFill(t *testing.T) {
+	old := newOldRecord(t)
+	for _, ddl := range []string{
+		`INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap')`,
+		`CREATE TABLE "mint" ("event_id" INTEGER PRIMARY KEY, "gap_id" TEXT, "class" TEXT, "location" TEXT, "problem" TEXT, "required_fix" TEXT, "acceptance_check" TEXT, "severity" TEXT, "mint_reason" TEXT)`,
+	} {
+		if _, err := old.db.Exec(ddl); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old.row(t, "register", `"event_id", "tool_version"`, old.event(t, "red-lens-logic", 0, ts1, "register"), "0.1.0")
+	old.row(t, "mint", `"event_id", "gap_id", "class", "location", "problem", "required_fix", "acceptance_check", "severity", "mint_reason"`,
+		old.event(t, "red-lens-logic", 0, ts2, "mint"), "G1", "guardrail-scope-overclaim", "the sentence", "the problem", "the fix", "the check", "high", "the reason")
+
+	m, err := migrate.Migrate(old.dir, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{})
+	if m == nil || len(m.Refusals) != 1 || m.Refusals[0].Word != "mint" {
+		t.Fatalf("migrating a mint the write refuses: manifest %+v, error %v", m, err)
+	}
+	if len(m.StatedFills) != 0 || len(m.ClassTranslations) != 0 {
+		t.Errorf("the refused mint left fills %+v and translations %+v; it stamped nothing", m.StatedFills, m.ClassTranslations)
+	}
+}
