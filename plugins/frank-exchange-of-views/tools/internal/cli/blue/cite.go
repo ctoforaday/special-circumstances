@@ -73,16 +73,12 @@ func newCite() *cobra.Command {
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != nil {
-			// A KEY IS ONE CITATION'S NAME, as it is one program's for `prove`: a retry under it
-			// cites the same source at the same span, or it is a second citation reusing the
-			// name, and returning the first would leave the seat citing something other than what
-			// it asked for. The sentence is not compared: a retry does not read --quote, and is
-			// finished at the location the citation stored, as every keyed act's is.
-			if differs := citeDiffers(prior, url, span); differs != "" {
-				return nil, feov.Errorf(feov.Conflict, "--key %q already names citation %s on this run, and %s — "+
-					"a key is one citation's name, not a slot to reuse. This is not a retry: recording nothing here would "+
-					"leave you citing something else. Give this citation its own --key",
-					key, prior.GetLabel(), differs)
+			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source at the same span,
+			// or it is a second citation reusing the name. The sentence is not compared: a retry does
+			// not read --quote, and is finished at the location the citation stored.
+			retry := &recordpb.Cite{Url: proto.String(url), SourceSpan: proto.String(span)}
+			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
+				return nil, err
 			}
 			if err := seat.PlaceOwed(s, prior.GetLabel(), key); err != nil {
 				return nil, err
@@ -177,20 +173,9 @@ func newCite() *cobra.Command {
 // seat's argument there is exactly the run-voice the report refuses); the `evidence` view shows it
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
-// citeDiffers says how a keyed retry differs from the citation stored under its key — the url or
-// the source span — and "" where it repeats it.
-func citeDiffers(stored *recordpb.Cite, url, span string) string {
-	switch {
-	case stored.GetUrl() != url:
-		return fmt.Sprintf("that citation is of %s, not %s", stored.GetUrl(), url)
-	case stored.GetSourceSpan() != span:
-		if stored.GetSourceSpan() == "" {
-			return fmt.Sprintf("that citation quotes no source span, and this names %q", span)
-		}
-		return fmt.Sprintf("that citation's source span is %q, not %q", stored.GetSourceSpan(), span)
-	}
-	return ""
-}
+// citeAsserted is what a citation states, and so what a retry under its key must state again: the
+// source and the span relied on in it.
+var citeAsserted = []seat.Asserted{{Flag: flags.URL, Field: "url"}, {Flag: flags.SourceSpan, Field: "source_span"}}
 
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Location = proto.String(seat.Location(cmd))

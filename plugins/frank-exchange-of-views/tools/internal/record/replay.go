@@ -362,19 +362,11 @@ func priorClosureEpochs(q recordsql.Querier, gapID string) ([]int, error) {
 
 // ExistingMintByKey gives crash-retry idempotency: a seat whose message died
 // after a successful mint retries the SAME command, and --key (its stable local
-// label) returns the EXISTING id instead of double-minting.
-func ExistingMintByKey(run Run, seatID, key string) (string, error) {
-	if key == "" {
-		return "", nil
-	}
-	var id string
-	if _, err := queryRow(run, []any{&id},
-		`SELECT m."gap_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id"
-		  WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1`,
-		seatID, key); err != nil {
-		return "", err
-	}
-	return id, nil
+// label) returns the EXISTING mint instead of double-minting, nil for none.
+func ExistingMintByKey(run Run, seatID, key string) (*recordpb.Mint, error) {
+	ev, err := keyedAct(run, `SELECT m."event_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id"
+		  WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1`, seatID, key)
+	return ev.GetMint(), err
 }
 
 // ExistingProposalByText gives `inquiry propose` the same crash-retry idempotency mint has,

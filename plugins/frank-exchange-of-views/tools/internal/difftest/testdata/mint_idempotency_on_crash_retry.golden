@@ -35,6 +35,8 @@ $ mint --run {RUN} --seat-id red-lens-evidence --key L5-F3 --class spec_underspe
 exit 0
 stdout:
 minted GAP001 (idempotent retry — existing id returned)
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --key L6-F1 --class spec_underspecification --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints

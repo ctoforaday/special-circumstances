@@ -363,7 +363,8 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 		retry          []string
 	}{
 		{"finding", "F-0badf00d", lensSeat, func(string) proto.Message {
-			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
+			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t"),
+				Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}
 		}, []string{"finding", "--key", "K1", "--quote", other, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
 		{"gap", "G-0badf00d", lensSeat, func(string) proto.Message {
 			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
@@ -371,7 +372,8 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 				Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 				Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
-		}, nil},
+		}, []string{"mint", "--key", "K1", "--quote", other, "--class", "spec_underspecification", "--problem", "p", "--fix", "f",
+			"--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"}},
 		{"citation", "C-0badf00d", blueSeat, func(string) proto.Message {
 			return &recordpb.Cite{Label: proto.String("C-0badf00d"), CiteKey: proto.String("K1"), Location: proto.String(stored),
 				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
@@ -408,12 +410,7 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				if v, err := consistency.Check(runtest.Open(t, runDir)); err != nil || !slices.Contains(v, "anchor-record: "+c.kind+" "+id+" has no anchor event") {
 					t.Errorf("the consistency check does not name the half-appended %s %s: %v %v", c.kind, id, v, err)
 				}
-				var err error
-				if c.retry == nil {
-					_, err = mintQuote(t, runDir, "K1", other)
-				} else {
-					_, err = run(t, append([]string{c.retry[0], "--run", runDir, "--seat-id", c.seat}, c.retry[1:]...)...)
-				}
+				_, err := run(t, append([]string{c.retry[0], "--run", runDir, "--seat-id", c.seat}, c.retry[1:]...)...)
 				got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before
 				if twice {
 					if err == nil || got != 0 {

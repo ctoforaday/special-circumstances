@@ -179,20 +179,20 @@ func TestExistingMintByKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "G1" {
-		t.Errorf("ExistingMintByKey = %q, want G1", got)
+	if got.GetGapId() != "G1" {
+		t.Errorf("ExistingMintByKey = %q, want G1", got.GetGapId())
 	}
 	// An empty key is not a lookup: it must never match a mint that had no key.
-	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, ""); err != nil || got != "" {
-		t.Errorf("empty key = (%q,%v), want empty and no error", got, err)
+	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, ""); err != nil || got.GetGapId() != "" {
+		t.Errorf("empty key = (%q,%v), want empty and no error", got.GetGapId(), err)
 	}
 	// A different key, and a different SEAT with the same key, are both misses:
 	// the label is stable per seat, not globally.
-	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, "L9-F9"); err != nil || got != "" {
-		t.Errorf("unknown key = (%q,%v), want a miss", got, err)
+	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, "L9-F9"); err != nil || got.GetGapId() != "" {
+		t.Errorf("unknown key = (%q,%v), want a miss", got.GetGapId(), err)
 	}
-	if got, err := ExistingMintByKey(mustRun(t, runDir), "red-lens-evidence", "L1-F3"); err != nil || got != "" {
-		t.Errorf("another seat's key matched: %q — mint keys are per-seat", got)
+	if got, err := ExistingMintByKey(mustRun(t, runDir), "red-lens-evidence", "L1-F3"); err != nil || got.GetGapId() != "" {
+		t.Errorf("another seat's key matched: %q — mint keys are per-seat", got.GetGapId())
 	}
 }
 
