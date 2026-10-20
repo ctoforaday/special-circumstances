@@ -77,7 +77,9 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// And one more for `plan`: the plan the chair's dispatch printed, stored whole.
 	//
 	// And one fewer for `observe`, a type no verb wrote.
-	const wantBodies = 34
+	//
+	// And one fewer for `class_new`: a gap's class is a value of the closed GapClass set.
+	const wantBodies = 33
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

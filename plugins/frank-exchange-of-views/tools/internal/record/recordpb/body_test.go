@@ -22,7 +22,6 @@ func TestSetBodyStampsTheTypeItsBodyNames(t *testing.T) {
 		{&pb.MotionRule{}, pb.EventType_EVENT_TYPE_MOTION_RULE},
 		{&pb.Register{}, pb.EventType_EVENT_TYPE_REGISTER},
 		{&pb.Mint{}, pb.EventType_EVENT_TYPE_MINT},
-		{&pb.ClassNew{}, pb.EventType_EVENT_TYPE_CLASS_NEW},
 		{&pb.Gate{}, pb.EventType_EVENT_TYPE_VERDICT},
 	} {
 		ev := &pb.Event{}
