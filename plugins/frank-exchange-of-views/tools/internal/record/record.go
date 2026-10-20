@@ -1577,11 +1577,16 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		gapID, mintedBy, act, seatID)
 }
 
+// reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its
+// `char(9, 10, 13)` — so the write and the database refuse the same reasons
+// (TestTheWriteAndTheDatabaseAgreeOnABlankReason).
+const reasonBlank = " \t\n\r"
+
 // requireUnclassifiedReason refuses a catch-all mint that says nothing about why no class fits, in
 // the words of Mint's own (check) — the database refuses the row whatever writes it, and this names
 // the duty to the seat rather than leaving it a constraint's column name.
 func requireUnclassifiedReason(m *recordpb.Mint) error {
-	if m.GetClass() != recordpb.GapClass_GAP_CLASS_UNCLASSIFIED || strings.TrimSpace(m.GetMintReason()) != "" {
+	if m.GetClass() != recordpb.GapClass_GAP_CLASS_UNCLASSIFIED || strings.Trim(m.GetMintReason(), reasonBlank) != "" {
 		return nil
 	}
 	why := "a gap no class fits says why in --reason"
