@@ -370,7 +370,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// ExistingCorroborationLabel bails on EITHER half being empty, not only on both. A blank url
+	// ExistingCorroboration bails on EITHER half being empty, not only on both. A blank url
 	// or a blank claim cannot identify an act, so scanning for one would match on the other alone
 	// — returning some unrelated corroboration's label as "this one's retry".
 	for _, tc := range []struct{ name, url, claim string }{
@@ -378,16 +378,16 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		{"no claim", "https://example.org/s", ""},
 		{"neither", "", ""},
 	} {
-		got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-evidence", tc.url, tc.claim)
+		got, err := ExistingCorroboration(mustRun(t, runDir), "red-lens-evidence", tc.url, tc.claim)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
-		if got != "" {
-			t.Errorf("%s: returned %q — an incomplete pair identifies no act, so it must match nothing rather than match on the half it has", tc.name, got)
+		if got != nil {
+			t.Errorf("%s: returned %q — an incomplete pair identifies no act, so it must match nothing rather than match on the half it has", tc.name, got.GetLabel())
 		}
 	}
 	// And the complete pair DOES find it, or the guard above would pass by never matching at all.
-	if got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-evidence", "https://example.org/s", "the claim"); err != nil || got != label {
-		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
+	if got, err := ExistingCorroboration(mustRun(t, runDir), "red-lens-evidence", "https://example.org/s", "the claim"); err != nil || got.GetLabel() != label {
+		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got.GetLabel(), err, label)
 	}
 }
