@@ -11,7 +11,7 @@ import (
 
 // answerCallees are the calls that return the tool's answer as (output, error). Their callers read
 // both, or go through admit / refuse / either (acts_test.go), which read them.
-var answerCallees = map[string]bool{"exec": true, "result": true, "drive": true}
+var answerCallees = map[string]bool{"exec": true, "execAs": true, "result": true, "drive": true}
 
 // setupWrites are the calls that build a run's files; their error fails the test (writeSetup).
 var setupWrites = map[string]bool{"WriteFile": true, "MkdirAll": true}

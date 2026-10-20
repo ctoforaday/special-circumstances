@@ -71,6 +71,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
@@ -1214,8 +1215,15 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 	return e
 }
 
-func (r *runner) exec(args ...string) (string, error) {
+func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args...) }
+
+// execAs is exec under a harness agent id, as the PreToolUse hook exports one into a dispatched
+// seat's shell; "" is exec's own environment, which carries none.
+func (r *runner) execAs(agent string, args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
+	if agent != "" {
+		cmd.Env = append(os.Environ(), seatenv.AgentVar+"="+agent)
+	}
 	out, err := cmd.CombinedOutput()
 	r.progress.Store(time.Now().UnixNano())
 	noteExec(args, err, out)
@@ -1268,8 +1276,60 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.chairRegisters++
 	}
 	r.mu.Unlock()
-	r.admit(registerArgs(seatID, occ)...)
+	if r.coin(25) {
+		r.registerTwice(seatID, occ)
+	} else {
+		r.admit(registerArgs(seatID, occ)...)
+	}
 	close(done)
+}
+
+// dispatchAgents numbers the agent ids registerTwice gives the dispatches it drives.
+var dispatchAgents atomic.Int64
+
+// registerTwice is a dispatch whose seat registers twice under one agent id — its first act
+// registered it, then it ran `register` itself, as four m31 sittings did. The repeat is admitted and
+// answers with the stored registration: the same dispatch number and no second register on the
+// record. A bench repeat naming another occasion contradicts the stored one and is refused.
+func (r *runner) registerTwice(seatID, occ string) {
+	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
+	args := append(registerArgs(seatID, occ), "--json")
+	first, ok := r.admitAs(agent, args...)
+	if !ok {
+		return
+	}
+	again, ok := r.admitAs(agent, args...)
+	if !ok {
+		return
+	}
+	var a, b struct {
+		Result struct {
+			Dispatch int `json:"dispatch"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(first), &a) != nil || json.Unmarshal([]byte(again), &b) != nil ||
+		a.Result.Dispatch < 1 || b.Result.Dispatch != a.Result.Dispatch {
+		r.noteActErr(fmt.Sprintf("a repeated register of %s did not answer with the stored dispatch: %s then %s",
+			seatID, firstLine(first), firstLine(again)))
+	}
+	if occ != "" && r.coin(50) {
+		other := "petition"
+		if occ == other {
+			other = "docket"
+		}
+		r.refuseAs(agent, feov.Validation, registerArgs(seatID, other)...)
+	}
+	if fam, ok := r.board(); ok {
+		n := 0
+		for _, e := range fam.Events {
+			if reg, ok := recordpb.BodyAs[*recordpb.Register](e); ok && reg.GetAgentId() == agent {
+				n++
+			}
+		}
+		if n != 1 {
+			r.noteActErr(fmt.Sprintf("%s registered under one agent id holds %d registers; a repeat writes none", seatID, n))
+		}
+	}
 }
 
 // register is the ONCE-PER-RUN register a helper makes for a seat it needs on the record before
