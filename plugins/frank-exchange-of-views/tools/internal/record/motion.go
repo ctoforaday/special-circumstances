@@ -557,7 +557,7 @@ func requireSubjectMatches(q recordsql.Querier, subject recordpb.MotionSubject, 
 }
 
 // requireUnanswered is the first-wins half of the motion guards: a second ruling. It runs INSIDE
-// the writing transaction (insertNumbered's), which takes the write lock at BEGIN. Read before the
+// the writing transaction (writeIn's), which takes the write lock at BEGIN. Read before the
 // transaction it is check-then-insert: every seat that reads "unanswered" before the first answer
 // commits lands its own, and the record holds two answers to one motion.
 func requireUnanswered(q rowQuerier, body proto.Message) error {

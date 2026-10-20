@@ -736,7 +736,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 // verb's code: they are tested from the verb's own package, through runtest.Overtaken.
 var WriteBegins = func() {}
 
-// insertNumbered stamps the envelope and writes the event in ONE transaction.
+// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
+// the once-per-sitting and answered-once duties, and the insert. Append's act and RegisterSeat each
+// hold a transaction of their own; `dispatch next` writes several acts through it in one transaction
+// (DispatchNext), and a migration's Batch every act of a replay, each inside a savepoint of the
+// batch's one transaction (batch.go).
 //
 // # The one read that is left, and why
 //
@@ -751,24 +755,6 @@ var WriteBegins = func() {}
 //
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	WriteBegins()
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err := writeIn(tx, ev, seatID, typ, body, check); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
-// the once-per-sitting and answered-once duties, and the insert. Append's act holds a transaction of
-// its own; `dispatch next` writes several acts through it in one transaction (DispatchNext), and a
-// migration's Batch every act of a replay, each inside a savepoint of the batch's one transaction
-// (batch.go).
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
 	if check != nil {
 		if err := check(tx); err != nil {
@@ -1210,7 +1196,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
-		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
+		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
 		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
