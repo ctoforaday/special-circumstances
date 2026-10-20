@@ -124,7 +124,8 @@ type EvidenceSourceJSON struct {
 // EvidenceSourceText is the source's own text at a citation's span, as the tool found it.
 type EvidenceSourceText struct {
 	// Span is blue's span as typed; Matched is the same words as the source holds them (they
-	// differ only in whitespace and line-end hyphens). Before and After are the source's text
+	// differ only by fetchcache.SpanNormalisation: whitespace, line-end hyphens, and typographic
+	// quotes, dashes, ellipses, ligatures and soft hyphens). Before and After are the source's text
 	// either side, up to a bounded window.
 	Span    string `json:"span"`
 	Before  string `json:"before"`

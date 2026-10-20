@@ -116,14 +116,15 @@ type spanText struct {
 
 // LocateSourceSpan finds span in the cached source's text, once.
 //
-// THE COMPARISON IS EXACT AFTER ONE DECLARED NORMALISATION, applied to both sides: a run of
-// whitespace is one space, and a word broken by a hyphen at a line end is read either joined
-// ("photo-\nsynthesis" as "photosynthesis") or with its hyphen kept ("well-\nknown" as
-// "well-known") — a line break is layout, and which reading a hyphen takes is the author's, so
-// the span may be typed either way. Case, ligatures, quotation marks and punctuation must match:
-// a misread is exactly what an audit has to see, and folding them would accept text the source
-// does not hold. There is no minimum length; a span the text holds twice is refused instead, so
-// the text kept around it is the place blue quoted.
+// THE COMPARISON IS EXACT AFTER ONE DECLARED NORMALISATION (SpanNormalisation), applied to both
+// sides: a run of whitespace is one space; a word broken by a hyphen at a line end is read either
+// joined ("photo-\nsynthesis" as "photosynthesis") or with its hyphen kept ("well-\nknown" as
+// "well-known") — a line break is layout, and which reading a hyphen takes is the author's, so the
+// span may be typed either way; and a typographic form of a keyboard character is that character
+// (typoFold) — a seat types ' where the page sets ’, and the glyph is typesetting, not a word the
+// source holds. Case, letters and every other punctuation mark must match: a misread is exactly
+// what an audit has to see. There is no minimum length; a span the text holds twice is refused
+// instead, so the text kept around it is the place blue quoted.
 func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error) {
 	if strings.TrimSpace(span) == "" {
 		return SpanLocation{}, fmt.Errorf("%w: the span is empty", ErrSpanAbsent)
@@ -167,7 +168,7 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 				if i < 0 {
 					break
 				}
-				hits = append(hits, spanHit{t: t, start: f.at[from+i], end: f.at[from+i+len(want)-1] + 1})
+				hits = append(hits, spanHit{t: t, start: f.at[from+i], end: f.end[from+i+len(want)-1]})
 				from += i + 1
 			}
 		}
@@ -204,8 +205,8 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 			}
 		}
 	}
-	return SpanLocation{}, fmt.Errorf("%w: not in the text at %s (compared with runs of whitespace as one space and a line-end hyphen read either way; case, quotation marks and punctuation must match)",
-		ErrSpanAbsent, SourceTextPath(run, e, origin))
+	return SpanLocation{}, fmt.Errorf("%w: not in the text at %s (compared as: %s)",
+		ErrSpanAbsent, SourceTextPath(run, e, origin), SpanNormalisation)
 }
 
 // embeddedText is the text an embedded source's span is found in: the extraction stored beside a
@@ -269,24 +270,66 @@ const (
 	hyphenKept                     // the line break goes and the hyphen stays: a compound
 )
 
-// folded is a text in fold's normalisation, and the source byte each of its bytes came from.
+// SpanNormalisation is LocateSourceSpan's normalisation in a seat's words: the one statement of it
+// that cite's --help and the not-found refusal both render.
+const SpanNormalisation = "runs of whitespace (non-breaking and thin spaces included) compare as one space; a line-end hyphen may be typed joined or kept; " +
+	"curly quotes ‘ ’ “ ” compare as ' and \", en and em dashes – — as -, an ellipsis … as ..., the ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, and a soft hyphen as nothing; " +
+	"case, letters and every other punctuation mark must match"
+
+// folded is a text in fold's normalisation and, for each of its bytes, the source bytes it came
+// from: at is where they start, end where they stop. A typographic character folds to more or
+// fewer bytes than it holds, so each folded byte names the whole source character.
 type folded struct {
-	s  string
-	at []int
+	s       string
+	at, end []int
+}
+
+// typoFold is the typographic half of the normalisation: the keyboard text a typographic
+// character reads as, and whether r is one. A soft hyphen reads as nothing. Spaces need no row
+// here: non-breaking, thin, narrow and figure spaces are unicode.IsSpace, which fold already
+// reads as a separator.
+func typoFold(r rune) (string, bool) {
+	switch r {
+	case '\u2018', '\u2019', '\u201a', '\u201b': // ‘ ’ ‚ ‛
+		return "'", true
+	case '\u201c', '\u201d', '\u201e', '\u201f': // “ ” „ ‟
+		return "\"", true
+	case '\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015': // hyphen, non-breaking hyphen, figure dash, – — ―
+		return "-", true
+	case '\u2026': // …
+		return "...", true
+	case '\u00ad': // soft hyphen
+		return "", true
+	case '\ufb00':
+		return "ff", true
+	case '\ufb01':
+		return "fi", true
+	case '\ufb02':
+		return "fl", true
+	case '\ufb03':
+		return "ffi", true
+	case '\ufb04':
+		return "ffl", true
+	}
+	return "", false
 }
 
 // fold normalises text for LocateSourceSpan: each run of whitespace becomes one space, leading
-// and trailing whitespace goes, and a line-end hyphen — a hyphen after a non-space, then spaces
-// or tabs, a line break, spaces or tabs, and a non-space — is read as mode says. at maps each
-// byte of the result to the byte of text it came from, so a match is placed in the source's own
-// bytes.
+// and trailing whitespace goes, a typographic character reads as typoFold says, and a line-end
+// hyphen — a hyphen (or a soft hyphen, or a typographic hyphen or dash) after a non-space, then
+// spaces or tabs, a line break, spaces or tabs, and a non-space — is read as mode says; a soft
+// hyphen at a line end joins the word in either non-as-is mode, since it marks a break inside
+// one. at and end map each byte of the result to the source bytes it came from, so a match is
+// placed in the source's own bytes.
 func fold(text string, mode hyphenMode) folded {
 	var b strings.Builder
 	at := make([]int, 0, len(text))
-	emit := func(s string, from int) {
+	end := make([]int, 0, len(text))
+	emit := func(s string, from, to int) {
 		b.WriteString(s)
-		for k := range len(s) {
-			at = append(at, from+k)
+		for range len(s) {
+			at = append(at, from)
+			end = append(end, to)
 		}
 	}
 	space := false // a separator is owed before the next non-space
@@ -297,32 +340,52 @@ func fold(text string, mode hyphenMode) folded {
 			i += n
 			continue
 		}
-		if space {
-			emit(" ", i-1)
-			space = false
+		s, typo := typoFold(r)
+		if !typo {
+			s = text[i : i+n]
 		}
-		if r == '-' && mode != hyphenAsIs && i > 0 {
-			if next, ok := lineEndHyphen(text, i); ok {
-				if mode == hyphenKept {
-					emit("-", i)
+		if (s == "-" || r == '\u00ad') && mode != hyphenAsIs && i > 0 {
+			if next, ok := lineEndHyphen(text, i, n); ok {
+				if mode == hyphenKept && s == "-" {
+					emitSep(&space, emit, i)
+					emit("-", i, i+n)
 				}
 				i = next
 				continue
 			}
 		}
-		emit(text[i:i+n], i)
+		if s == "" {
+			i += n
+			continue
+		}
+		emitSep(&space, emit, i)
+		if typo {
+			emit(s, i, i+n)
+		} else {
+			for k := range n {
+				emit(text[i+k:i+k+1], i+k, i+k+1)
+			}
+		}
 		i += n
 	}
-	return folded{s: b.String(), at: at}
+	return folded{s: b.String(), at: at, end: end}
 }
 
-// lineEndHyphen reports whether the hyphen at text[i] ends a line inside a word, and where the
-// word resumes.
-func lineEndHyphen(text string, i int) (int, bool) {
+// emitSep writes the separator a run of whitespace owes before the character at i.
+func emitSep(space *bool, emit func(string, int, int), i int) {
+	if *space {
+		emit(" ", i-1, i)
+		*space = false
+	}
+}
+
+// lineEndHyphen reports whether the n-byte hyphen at text[i] ends a line inside a word, and where
+// the word resumes.
+func lineEndHyphen(text string, i, n int) (int, bool) {
 	if prev, _ := utf8.DecodeLastRuneInString(text[:i]); unicode.IsSpace(prev) {
 		return 0, false
 	}
-	j := i + 1
+	j := i + n
 	for j < len(text) && (text[j] == ' ' || text[j] == '\t') {
 		j++
 	}
