@@ -74,8 +74,8 @@ open questions, and move no line of blue's text.
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inquiries.md`
-(the inquiries and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
-retired and the asks a later certification superseded). Nothing is summarized away by the split — the union is the
+(the inquiries and the path each took), `evidence.md` (the computations, and each citation with every reading of it), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
+retired, the asks a later certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
 THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file

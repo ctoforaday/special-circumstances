@@ -758,7 +758,7 @@ func debateMD(in Input) []byte {
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := InquiryBody(in.Events, in.At)
+	body := InquiryBody(in.Events, in.At, false)
 	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -778,7 +778,13 @@ func inquiryMD(in Input) []byte {
 // what became of it, why, and what red said about it. That sequence is the evidence of choosing; a
 // flat list by final status records only the outcome — which is exactly what report.md carries,
 // and why the path has to ship somewhere.
-func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
+//
+// steps adds, under the path, each SUPERSEDED record with the reason and the method it gave: the
+// shipped document's form, whose blurb promises the path each inquiry took. The seat view prints
+// the path's statuses and the current fate's account, which is what a seat acts on; the reasonings
+// an inquiry went through before it (m28: Q-40ceefaa's five `underway` records before `deferred`)
+// are the human's record of how the fate was reached.
+func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string {
 	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
@@ -813,6 +819,9 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
+				if steps {
+					inquiry = append(inquiry, superseded(a)...)
+				}
 			}
 			if a.Ruling != "" {
 				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
@@ -835,6 +844,34 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			"is settled and never appears here._", "")
 	}
 	return strings.Join(inquiry, "\n") + "\n"
+}
+
+// superseded is an inquiry's records before its current fate, each with what it gave: its epoch,
+// status and seat, its reason, and its method when it states one. A reason or a method the record
+// before it already gave is said to be the same rather than printed again.
+func superseded(a *record.Inquiry) []string {
+	var out []string
+	prevReason, prevMethod := "", ""
+	for _, s := range a.Steps[:len(a.Steps)-1] {
+		line := fmt.Sprintf("    - e%d %s (%s)", s.Epoch, s.Status, s.SeatID)
+		switch {
+		case s.Reason == "":
+		case s.Reason == prevReason:
+			line += " — the same reason as the record before it"
+		default:
+			line += " — " + s.Reason
+		}
+		switch {
+		case s.Method == "":
+		case s.Method == prevMethod:
+			line += "; the same method"
+		default:
+			line += "; method: " + s.Method
+		}
+		prevReason, prevMethod = s.Reason, s.Method
+		out = append(out, line)
+	}
+	return out
 }
 
 // ---- the telemetry wire shape ----
