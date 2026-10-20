@@ -961,7 +961,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Close:
-		if err := requireAnchors(q, b.GetAnchors(), "--"+flags.Anchor); err != nil {
+		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
 			return err
 		}
 		if b.CarriedFrom == nil {

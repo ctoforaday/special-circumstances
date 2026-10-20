@@ -23,6 +23,9 @@ import (
 // --verified-with words at every read; migrate reads them from that text once. Every migrated
 // declaration's gap_ids, and every closure's anchors, are exactly the ids its text names that the
 // migrated record holds — and the archive holds at least one of each, or nothing was checked.
+// proseRefsFieldsEpoch is the epoch Declare.gap_ids and Close.anchors became fields.
+const proseRefsFieldsEpoch = 33
+
 func TestArchivedProseIDsBecomeFields(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
@@ -35,7 +38,12 @@ func TestArchivedProseIDsBecomeFields(t *testing.T) {
 	var declared, anchored, unheld int
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
-		_, run := migrateArchive(t, name)
+		res, run := migrateArchive(t, name)
+		// A source written at the fields' epoch or after states them, and migrate carries them as
+		// written: there is no prose to read them from.
+		if res.SourceEpoch != nil && *res.SourceEpoch >= proseRefsFieldsEpoch {
+			continue
+		}
 		fam, err := record.FamilyOf(run)
 		if err != nil {
 			t.Fatal(err)
@@ -70,8 +78,10 @@ func TestArchivedProseIDsBecomeFields(t *testing.T) {
 				}
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
-				if w := want(c.GetAnchorTool(), anyRe); !slices.Equal(c.GetAnchors(), w) {
-					t.Errorf("%s: a closure's anchors are %v, want %v — the held anchors its --verified-with names", name, c.GetAnchors(), w)
+				// The gap the closure closes is no anchor of it, and the write refuses it as one.
+				w := slices.DeleteFunc(want(c.GetAnchorTool(), anyRe), func(id string) bool { return id == c.GetGapId() })
+				if !slices.Equal(c.GetAnchors(), w) {
+					t.Errorf("%s: a closure's anchors are %v, want %v — the held anchors its --verified-with names, less the gap it closes", name, c.GetAnchors(), w)
 				}
 				if len(c.GetAnchors()) > 0 {
 					anchored++
