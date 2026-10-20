@@ -16,8 +16,8 @@ func TestEveryLabelNamesTheRunByItsDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	backend := func(seatID, label, prompt string) Envelope {
-		e := Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		e := Envelope{"rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "open_gaps": 0}
 		if seatID == "red-chair" {
 			e["plan"] = planWith([]any{}, []any{})
 		}

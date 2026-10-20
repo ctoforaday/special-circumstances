@@ -881,7 +881,7 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
   for (const c of bare.calls) {
     if (!/^blue-(synthesize|respond) /.test(c.opts.label)) continue
     assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
-    assert.deepEqual(c.opts.schema.required, ['saturation_reached'], `${c.opts.label}: what a blue envelope must carry`)
+    assert.deepEqual(c.opts.schema.required ?? [], [], `${c.opts.label}: a blue envelope requires nothing — what blue did is on the record`)
     for (const key of ['claim_count', 'sitting_record_appended']) assert.ok(!(key in c.opts.schema.properties), `${c.opts.label}: the schema declares ${key}`)
     assert.ok(schemaAccepts(c.opts.schema, blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
   }
@@ -918,6 +918,20 @@ test('W2b: a gap still open with no row is logged and left to capture; none of N
   assert.equal((await noneOfTwo.run(script, ARGS)).verdict, 'VERIFIED')
   assert.ok(noneOfTwo.logs.some((l) => l.includes('0/2 gap(s) open when blue sat — no row for: G-00000001, G-00000002')))
 })
+// A MANIFEST ROW IS A GAP ID, AND PROSE IS REFUSED AT THE RETURN. Respond seats wrote rows such as
+// "G-237fed96: repaired (…)" into `manifest` (m29, and 4 of 32 replays); the coverage log matches
+// ids, so each read as "no row for" a gap that had one. GAP_ID is generated from anchor's matcher.
+test('a respond envelope takes gap ids in manifest and found_closed, and refuses prose there', async () => {
+  const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
+  await w.run(script, ARGS)
+  const respond = w.calls.find((c) => /^blue-respond /.test(c.opts.label))
+  assert.ok(respond, 'blue-respond was never dispatched')
+  const schema = respond.opts.schema
+  assert.ok(schemaAccepts(schema, { manifest: ['G-00000001'], found_closed: ['G-0a1b2c3d'] }), 'gap ids are refused')
+  assert.ok(!schemaAccepts(schema, { manifest: ['G-00000001: repaired (the sum was wrong)'] }), 'a prose manifest row is accepted')
+  assert.ok(!schemaAccepts(schema, { found_closed: ['the evidence gap'] }), 'a prose found_closed entry is accepted')
+})
+
 test('W2b: partial coverage is logged, never fatal; a found_closed id blue was not engaged on is ignored', async () => {
   const partial = makeWorld(makeResponder({ chair: engagedOn('G-00000001', 'G-00000002'), blueRespond: [blueEnv({ manifest: ['G-00000001'], found_closed: ['G-00000009'] })] }))
   const out = await partial.run(script, ARGS)
