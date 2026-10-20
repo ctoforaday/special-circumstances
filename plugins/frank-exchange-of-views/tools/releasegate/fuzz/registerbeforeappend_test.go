@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -40,14 +39,6 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stageRun, err := record.NewRun(runDir)
-	if err != nil {
-		t.Fatalf("resolving the run: %v", err)
-	}
-	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
-		t.Fatalf("staging the class registry: %v", err)
-	}
-
 	r := newRunner(bin, runDir, newLockedRand(7))
 	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
 	// the base and the file is deleted. blue-respond stays unregistered — this is a different seat.

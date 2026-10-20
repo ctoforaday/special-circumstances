@@ -241,9 +241,9 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
-		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
+		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("G3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
 	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
@@ -271,7 +271,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	// the columns are NOT NULL — so a gap in that state cannot reach a projection. What is still
 	// worth asserting is that a class the seat DID give is rendered, and `cx` above covers the
 	// undefined arm with a field that is genuinely optional.
-	if !strings.Contains(ledger, "class overclaim") {
+	if !strings.Contains(ledger, "class spec_underspecification") {
 		t.Errorf("a gap's class must be rendered:\n%s", ledger)
 	}
 	if !strings.Contains(ledger, "G2 | repaired_with_regression | a closed problem | G3") {
@@ -294,7 +294,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p")}),
 		recordtest.At(t, seatID, seatID+":close:G1", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified at the leaf"), CarriedFrom: proto.String("1")}),
 	})
 	archive := md(t, runDir, "archive")
@@ -353,7 +353,7 @@ func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
 		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:1", &recordpb.Finding{Id: proto.String("F-7cdcd115"), Text: proto.String("the bound is loose")}),
 		recordtest.At(t, "red-lens-dark-side", "red-lens-dark-side:finding:1", &recordpb.Finding{Id: proto.String("F-0badf00d"), Text: proto.String("the misuse is unaddressed")}),
 		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody credited this")}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: proto.String("overclaim"),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			// The last credit names no finding on the record: it prints bare, never as nothing.
@@ -381,8 +381,8 @@ func TestTelemetryIsComputed(t *testing.T) {
 	r2 := "red-chair"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		recordtest.At(t, r1, r1+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, r1, r1+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW), GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, r1, r1+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, r1, r1+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
@@ -392,7 +392,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 		// this one is low x low (1), so the repair moved 5 points of mass down.
 		recordtest.At(t, r2, r2+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			GapId:           proto.String("G3"),
-			Class:           proto.String("overclaim"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p3"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -458,10 +458,10 @@ func TestTelemetryIsComputed(t *testing.T) {
 // readable without re-reading every gap's prose.
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()
-	mint := func(seat, id, class string) *record.Event {
+	mint := func(seat, id string, class recordpb.GapClass) *record.Event {
 		return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			GapId:           proto.String(id),
-			Class:           proto.String(class),
+			Class:           class.Enum(),
 			Problem:         proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -472,15 +472,15 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	r1, r2 := "red-chair", "red-chair"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		mint(r1, "G1", "evidence-claim-not-documented"),
-		mint(r1, "G2", "evidence-claim-not-documented"),
-		mint(r1, "G3", "scope-closure-missing"),
+		mint(r1, "G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		mint(r1, "G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		mint(r1, "G3", recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM),
 	})
 	// Epoch 2: one class REPEATS from epoch 1, one is fresh. Repeat rate = 1/2.
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
-		mint(r2, "G4", "scope-closure-missing"),
-		mint(r2, "G5", "co-resident-rules-disagree"),
+		mint(r2, "G4", recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM),
+		mint(r2, "G5", recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION),
 	})
 
 	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
@@ -502,7 +502,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 
 	one := decode(lines[0])
 	byClass := one["by_class"].(map[string]any)
-	if byClass["evidence-claim-not-documented"] != float64(2) || byClass["scope-closure-missing"] != float64(1) {
+	if byClass["spec_underspecification"] != float64(2) || byClass["policy_without_mechanism"] != float64(1) {
 		t.Errorf("epoch 1 by_class = %v, want the two classes counted 2 and 1", byClass)
 	}
 	// Epoch 1 has no predecessor, so a repeat rate would be a fabricated number.
@@ -545,7 +545,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		// bench opinion below both reference it, and both are foreign keys onto the mint.
 		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G1"),
-			Class:           proto.String("overclaim"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("the claim outruns its evidence"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -666,8 +666,8 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	names := MarkdownViews()
 	first := map[string]string{}
@@ -684,5 +684,19 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 	// Prose entities reach the projection unescaped: a markdown file is not HTML.
 	if !strings.Contains(first["ledger"], "p <with> & entities") {
 		t.Errorf("prose was escaped in the ledger:\n%s", first["ledger"])
+	}
+}
+
+// THE LEDGER ROW NAMES ITS CLASS WORD, converted from the enum where the row is formatted.
+func TestTheLedgerRowNamesItsClassWord(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"),
+			Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(), AcceptanceCheck: proto.String("count the cases"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Problem: proto.String("a universal claim"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+	})
+	ledger := md(t, runDir, "ledger")
+	if !strings.Contains(ledger, "| class false_universal") || strings.Contains(ledger, "GAP_CLASS_") {
+		t.Errorf("the ledger row must carry `class false_universal`:\n%s", ledger)
 	}
 }

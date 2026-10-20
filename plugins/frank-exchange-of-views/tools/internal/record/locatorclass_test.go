@@ -99,7 +99,7 @@ func TestEstoppelSurvivesTheAnchorOnItsOwnPrescription(t *testing.T) {
 
 	mustAppend(t, lens, &recordpb.Mint{
 		GapId:           proto.String("G1"),
-		Class:           proto.String("self-attestation"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Location:        proto.String(plainSentence),
 		Problem:         proto.String("the count and the list disagree"),
 		RequiredFix:     proto.String("state the count the list supports"),

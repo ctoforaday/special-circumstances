@@ -25,7 +25,7 @@ const (
 func blueWorkStage(t *testing.T) Run {
 	t.Helper()
 	mint := func(id string, extra func(*recordpb.Mint)) *recordpb.Mint {
-		m := &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"), Problem: proto.String("p"),
+		m := &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), FixBasis: proto.String("proposed")}

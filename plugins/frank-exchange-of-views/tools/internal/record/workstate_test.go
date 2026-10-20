@@ -21,7 +21,7 @@ func workStatesOfFamilyT(f Family) []WorkGapState {
 			Impact: gradeVal(g.Impact), Cx: gradeVal(g.ComplexityCost),
 		}
 		if g.Mint != nil {
-			w.Class, w.Location, w.Problem = g.Mint.GetClass(), g.Mint.GetLocation(), g.Mint.GetProblem()
+			w.Class, w.Location, w.Problem = recordpb.Word(g.Mint.GetClass()), g.Mint.GetLocation(), g.Mint.GetProblem()
 			if g.Mint.CheckKind != nil {
 				w.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
 			}

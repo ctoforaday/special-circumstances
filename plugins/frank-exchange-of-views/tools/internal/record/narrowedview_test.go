@@ -47,15 +47,15 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G1"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
 			FoundBy: []string{"F-00000001"}}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G2"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		// An open gap standing on the anchor, so the board renders its backing.
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G3"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p3"), RequiredFix: str("f"), AcceptanceCheck: str("a"), Location: str("claim A <!--cite:C-0a0a0a0a-->"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-0a0a0a0a"), Url: str("https://example.org"),
@@ -349,7 +349,7 @@ func gapsALensCloses(t *testing.T) (Run, []*Event) {
 	closes := make([]*recordpb.Event, 0, gaps)
 	for i := 1; i <= gaps; i++ {
 		id := fmt.Sprintf("G%d", i)
-		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str(id), Class: str("self-attestation"),
+		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}))
 		closes = append(closes, recordtest.Stamped(recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str(id),

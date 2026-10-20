@@ -50,7 +50,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 		}
 	}
 	if _, err := run(t, "mint", "--run", quiet, "--seat-id", lensSeat,
-		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
+		"--key", "g1", "--class", "spec_underspecification", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--reason", "the figures cannot both hold"); err != nil {

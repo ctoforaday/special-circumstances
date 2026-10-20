@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -103,9 +102,6 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	}
 	// THE BOARD DECLARES ITS CLASS VOCABULARY, as seatprobe.Build does: the class check is strict,
 	// and this fixture does not go through run-setup, which is what stages the registry on a real run.
-	if err := record.StageForRun(runtest.Open(t, runDir), seatprobe.BoardClasses...); err != nil {
-		t.Fatalf("stage the class registry: %v", err)
-	}
 
 	for i, g := range b.Gaps {
 		args := []string{"mint", "--run", runDir, "--seat-id", lensSeat,

@@ -15,7 +15,7 @@ import (
 // rulings SIDE BY SIDE rather than joined because pairing them would have been a guess.
 func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "motion-join", "motion-test")
+	gap := mintGap(t, runDir, "motion-join", "spec_underspecification")
 
 	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", gap, "--dimension", "severity", "--proposed", "low",

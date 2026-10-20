@@ -67,21 +67,15 @@ func gradeMotion(id, gap string, proposed recordpb.Grade) *recordpb.Motion {
 			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: proposed.Enum()}}}
 }
 
-func coinClass(slug string) *recordpb.ClassNew {
-	return &recordpb.ClassNew{Slug: proto.String(slug), Definition: proto.String("a defect of one shape"),
-		Neighbor: proto.String("x"), Distinguisher: proto.String("it is not x"),
-		MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()}
-}
-
 func ordinalMint(gap, problem string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("c"), Problem: proto.String(problem),
+	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String(problem),
 		Location: proto.String("91 is the twenty-seventh semiprime."), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 }
 
 func highMint(gap string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("x"), Problem: proto.String("a material defect " + gap),
+	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("a material defect " + gap),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}
 }
@@ -116,7 +110,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 					register("red-chair").register(evLens).add(evLens, highMint("G1")).
 					add("red-chair", failVerdict()).register("red-chair").register(evLens)
 				low, _ := GradeOf("low")
-				st.add(evLens, &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("x"), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+				st.add(evLens, &recordpb.Mint{GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 					CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
 					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
 				return st.register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).register("red-chair").seed()
@@ -220,15 +214,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			},
 			seat: "blue-respond", body: func() proto.Message { return gradeMotion("M8", "G2", recordpb.Grade_GRADE_LOW) },
 			want: "so this motion asks for no change",
-		},
-		{
-			name:  "a class coined while another lens coins it",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "red-lens-logic", "race:class-new:fresh", coinClass("fresh-class"))}
-			},
-			seat: evLens, body: func() proto.Message { return coinClass("fresh-class") },
-			want: "class fresh-class already exists",
 		},
 		{
 			name:  "the cast while setup's cast lands",

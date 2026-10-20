@@ -17,8 +17,8 @@ import (
 func TestAClosuresAnchorsAreHeldToTheRecord(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	gap := mintGap(t, runDir, "G1", "scope-creep")
-	other := mintGap(t, runDir, "G2", "overclaim")
+	gap := mintGap(t, runDir, "G1", "spec_underspecification")
+	other := mintGap(t, runDir, "G2", "derivation_status_overclaim")
 	closeWith := func(anchors string) error {
 		_, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 			"--id", "G1", "--as", "repaired", "--verified-by", lensSeat, "--verified-with", "show report",
@@ -87,7 +87,7 @@ func TestAClosureMayRestOnAnInquiry(t *testing.T) {
 func TestADeclarationsGapsAreHeldToTheBoard(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	gap := mintGap(t, runDir, "G1", "scope-creep")
+	gap := mintGap(t, runDir, "G1", "spec_underspecification")
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "terminal"); err != nil {
 		t.Fatal(err)
 	}

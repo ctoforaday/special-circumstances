@@ -219,7 +219,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	// right id, and a docket ruling only when a random filing did too. Over the fixed seed set
 	// several of them never did; the bench's ruling was 0 in 10 with the gap alone.
 	mintArgs := func(problem string) []string {
-		return []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep",
+		return []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification",
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--problem", problem}
 	}
@@ -279,7 +279,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 var (
 	fuzzGrades = []string{"low", "low_medium", "medium", "medium_high", "high", "certain", "realized", "trivial",
 		"low", "medium", "high", "medium", "low-medium", "bogus"} // the last two are refused
-	fuzzClasses = []string{"scope-creep", "citation-drift", "scope-creep", "citation-drift", "propagation-incomplete"} // the last is not staged
+	fuzzClasses = []string{"spec_underspecification", "policy_without_mechanism", "spec_underspecification", "policy_without_mechanism", "propagation-incomplete"} // the last is not a GapClass word
 	// GAP001 and GAP002 are on the board from the prologue, and MOTION001 before the bench; the
 	// others name an id only once the sequence's own output has printed one, and until then reach
 	// the tool as the id of their kind that names nothing, refused for not existing.

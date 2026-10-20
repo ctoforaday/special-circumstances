@@ -150,12 +150,9 @@ func TestARaisedContradictionIsRaisedOnTheMigratedRecord(t *testing.T) {
 	if reading.ID == 0 {
 		t.Fatal("the archive holds no refuting reading")
 	}
-	// The run's channels and its translated class registry, as Migrate stages them before a replay.
+	// The run's channels, as Migrate stages them before a replay.
 	to := recordtest.TmpRun(t)
 	if err := copyChannels(from, to); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := translateStagedRegistry(to); err != nil {
 		t.Fatal(err)
 	}
 	dst := runtest.New(t, to)

@@ -85,7 +85,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// the run's terminal verdict is recorded.
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader"),
-		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
+		Location: proto.String("cache.go:88"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -423,7 +423,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--cite:C-00000002-->"),
-		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
+		Location: proto.String("cache.go:88"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -539,4 +539,11 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	if docs, err := AssembleAll(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
+}
+
+// newRun makes a run directory for this package's fixtures. A gap's class is a value of the closed
+// GapClass set, so a run needs no vocabulary staged before a lens mints.
+func newRun(t *testing.T) string {
+	t.Helper()
+	return recordtest.TmpRun(t)
 }

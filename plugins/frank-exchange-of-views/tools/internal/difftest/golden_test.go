@@ -3,15 +3,12 @@ package difftest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -158,22 +155,13 @@ func TestGolden(t *testing.T) {
 }
 
 // prepareRun gives a run directory the state every scenario and every fuzz sequence starts
-// from: the class vocabulary staged, the seed files written, and the round-0 report ingested.
+// from: the seed files written and the round-0 report ingested.
 //
-// SHARED, because the determinism fuzz used to start from a bare directory. With no report and
-// no registry, every lens verb that anchors into the report and every mint that checks its class
-// could only ever refuse — so the fuzz could not have exercised an acceptance even once its
+// SHARED, because the determinism fuzz used to start from a bare directory. With no report, every
+// lens verb that anchors into the report could only ever refuse — so the fuzz could not have exercised an acceptance even once its
 // commands were spelled right.
 func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string) {
 	t.Helper()
-	// EVERY SCENARIO DECLARES ITS CLASS VOCABULARY, as a real run does. These runs are
-	// built by hand, and used to be exempt from the class check by accident: no registry
-	// staged meant `--class` accepted any string, so every mint in every golden here
-	// passed a check that was not running. Staging it is what makes the golden a record
-	// of the shipped behaviour rather than of an unconfigured corner of it.
-	if err := record.StageForRun(runtest.Open(t, runDir), goldenClasses...); err != nil {
-		t.Fatalf("stage the class registry: %v", err)
-	}
 	seed(t, runDir, files)
 	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
 	// unless its --quote quote is present. Ensure a report carrying the
@@ -228,17 +216,6 @@ func compareGolden(t *testing.T, name, got string) {
 		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 go test ./internal/difftest and justify the diff in the commit.\n%s",
 			name, diff)
 	}
-}
-
-// goldenClasses is the vocabulary the scenarios mint under. It deliberately EXCLUDES the slugs
-// scenarios use to prove an unknown class is refused (`invented`, `invented-class`, `novel`,
-// `banana`) — those are the point of their scenarios, and adding them here would turn four
-// refusal goldens green while recording nothing.
-//
-// A scenario that stages its OWN registry still does: seed() runs after this and overwrites the
-// file, which is how the class_registry oracle keeps driving a hand-made registry.
-var goldenClasses = []string{
-	"scope-creep", "attestation-inflation", "citation-drift", "safety", "x", "a",
 }
 
 // transcriptArgs renders an invocation's arguments for the golden. An EMPTY argument is written

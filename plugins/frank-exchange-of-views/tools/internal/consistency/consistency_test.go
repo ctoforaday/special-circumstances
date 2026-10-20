@@ -27,7 +27,7 @@ func mint(t *testing.T, seat string, id string, supersedes ...string) *recordpb.
 	return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{
 		GapId: proto.String(id), Problem: proto.String("problem " + id),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
-		Class: proto.String("self-attestation"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -310,7 +310,7 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 			GapId: proto.String("G1"), Problem: proto.String(hostile),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
-			Class: proto.String("self-attestation"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),

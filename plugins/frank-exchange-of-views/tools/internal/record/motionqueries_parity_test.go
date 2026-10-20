@@ -46,7 +46,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId:           proto.String("G1"),
-		Class:           proto.String("self-attestation"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"),
