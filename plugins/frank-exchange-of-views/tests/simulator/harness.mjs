@@ -63,7 +63,7 @@ export function makeWorld(respond) {
 
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
-  path: 'blue/report.md', tldr: 'tldr', saturation_reached: true,
+  path: 'blue/report.md', tldr: 'tldr',
   manifest: ['G-00000001'],
   open_questions: [], ...over,
 })

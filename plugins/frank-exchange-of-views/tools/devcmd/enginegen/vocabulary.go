@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -120,6 +121,9 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 		return nil, fmt.Errorf("the record convenes the bench's party for no occasion")
 	}
 	fmt.Fprintf(&b, "const BENCH_PARTY_OCCASIONS = %s\n", words(v.dispatchOccasions))
+	// A GAP ID IS ANCHOR'S SHAPE, generated from its one matcher, so an envelope that relays gap ids
+	// refuses prose where an id belongs instead of the engine finding no row for it.
+	fmt.Fprintf(&b, "const GAP_ID = %s\n", object(prop{"type", js("string")}, prop{"pattern", text("^" + anchor.IDPattern("gap") + "$")}))
 
 	if err := v.renderPlan(&b); err != nil {
 		return nil, err
