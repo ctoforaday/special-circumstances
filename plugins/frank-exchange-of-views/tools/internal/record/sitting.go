@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -236,6 +237,18 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// through the ordinary route with a grade and a required fix — with the PASS gate behind
 		// it when the gap is material by its class or grade. A second duty here would be the same
 		// fact told twice.
+		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage` (successorsOwed):
+		// the record names the successor, and blue sits on it a second time this epoch.
+		if seatID == blueRespondSeat {
+			if owed, _ := successorsOwed(evs, win, openOf(gaps)); len(owed) > 0 {
+				var named []string
+				for _, o := range owed {
+					named = append(named, o.GapID+" (successor of "+o.Of+")")
+				}
+				add("this sitting found a gap closed whose successor is open and not yet engaged this epoch — " + strings.Join(named, ", ") +
+					" — record `engage` on them, then name them in your envelope's successors: you sit on them again this epoch")
+			}
+		}
 		// BLUE-RESPOND OWES ITS CLOSING ON EACH DOCKETED GAP (closingowed.go): the PASS gate's
 		// blocker whose owner it is, the reading capture's record-parity audit holds it to, so this
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
@@ -424,14 +437,24 @@ type EngagedJSON struct {
 	// before this read. It is what the sitting's envelope names as found closed. Never omitted: an empty list
 	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
+	// SuccessorsOwed is the successors this sitting owes an `engage` on (successorsOwed): each open
+	// successor of a gap it found closed that no dispatch row of this epoch engages blue on, in
+	// found-closed order, once each. It is exactly the set the act must name, and it is empty when
+	// none is owed and once the act is recorded. Never omitted.
+	SuccessorsOwed []string `json:"successors_owed"`
 }
 
-// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, and the fate
-// that close gave it (the Disposition vocabulary, as `estopped` carries it).
+// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, the fate
+// that close gave it (the Disposition vocabulary, as `estopped` carries it), and the open gaps the
+// record names as its successors (successorsOf).
 type FoundClosedJSON struct {
 	ID           string `json:"id"`
 	ClosedBySeat string `json:"closed_by_seat"`
 	Fate         string `json:"fate"`
+	// Successors is each open gap the record names as carrying this one forward — its close's
+	// `superseded_by`, or a mint naming it in `supersedes` — in record order. Never omitted: an
+	// empty list is "the record names no open successor", and blue sits on nothing more for it.
+	Successors []string `json:"successors"`
 }
 
 // engagedOf is the engaged block of the dispatch blue-respond is to sit for, or nil where no
@@ -445,7 +468,7 @@ type FoundClosedJSON struct {
 // from) is the block, split by the closes that have landed since its row (engagementOf); once the
 // seat registers, the block is the sitting's own (sittingOfBlueRespond), which is that same split
 // read up to the register.
-func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
+func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) *EngagedJSON {
 	if seatID != blueRespondSeat {
 		return nil
 	}
@@ -457,10 +480,21 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 	if !sat {
 		return nil
 	}
-	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}}
+	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}, SuccessorsOwed: []string{}}
+	succ, open := successorsOf(live), openOf(gaps)
+	owed, _ := successorsOwed(live, win, open)
+	for _, o := range owed {
+		e.SuccessorsOwed = append(e.SuccessorsOwed, o.GapID)
+	}
 	for _, ev := range s.FoundClosed {
 		c, _ := recordpb.BodyAs[*recordpb.Close](ev)
-		e.FoundClosed = append(e.FoundClosed, FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass())})
+		f := FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass()), Successors: []string{}}
+		for _, g := range succ[c.GetGapId()] {
+			if open(g) {
+				f.Successors = append(f.Successors, g)
+			}
+		}
+		e.FoundClosed = append(e.FoundClosed, f)
 	}
 	return e
 }
@@ -536,4 +570,14 @@ func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
 		return false
 	}
 	return true
+}
+
+// openOf answers whether a gap is open, off the work list's gap rows: an id the rows do not hold is
+// not open.
+func openOf(gaps []WorkGapState) func(string) bool {
+	open := map[string]bool{}
+	for _, g := range gaps {
+		open[g.ID] = g.Open
+	}
+	return func(id string) bool { return open[id] }
 }
