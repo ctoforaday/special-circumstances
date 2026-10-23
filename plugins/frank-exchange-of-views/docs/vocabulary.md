@@ -44,6 +44,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
+| [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 | [occasion](#occasion) | bench |
@@ -483,6 +484,16 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 - **fate** — an inquiry's state keeps the word
 - **carry** — `carry` is the chair's verb that restates an archived closure, and the plain English sense keeps the word; the bench REMANDS a gap and never carries one
+
+## grade movement
+
+Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.
+
+**Delivered to:** lens, chair, bench, operator
+
+**Collisions:**
+
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## grade motion
 

@@ -778,18 +778,12 @@ message TelemetryLine {
   optional RepairRegression repair_regression = 8;
   optional EdgeDeltas edge_deltas = 9;
 
-  // 10 IS DELIBERATELY UNUSED, and this is a defect the schema surfaced rather than created.
-  //
-  // `accepted_deltas` is READ by internal/cost/cost.go:399 and internal/dashboard/render.go:364,
-  // both as []any, and is WRITTEN BY NOTHING. Its only occurrences outside those two readers are
-  // fixtures in dashboard/render_test.go — so the tests pass on supplied data while production
-  // sees nil on every run, and both surfaces render "no accepted deltas" where the truth is
-  // "never measured". The engine still carries the concept (debate.js:270,
-  // ACCEPTED_DELTA_DOCKET_THRESHOLD), so this is a lost producer, not dead weight.
-  //
-  // It is NOT modelled here. Encoding a field nobody writes would carry the plausible zero
-  // forward wearing a schema's authority. The two readers go in PR3 and the missing producer is
-  // filed separately — see plans/record-protobuf.md.
+  // 10 IS DELIBERATELY UNUSED. `accepted_deltas` was a telemetry key no writer produced, read as
+  // []any by the cost and dashboard surfaces, which rendered "no accepted deltas" where the truth
+  // was "never measured"; those readers are gone. The concept it named — grade changes reviewed in
+  // total — is the record's grade movement (record/grademovement.go): computed from the regrades
+  // and the docket rulings, never stored, and past its threshold a blocker the bench clears. A
+  // scorecard field would be a second, stored copy of a fact the record derives.
   reserved 10;
   reserved "accepted_deltas";
 }

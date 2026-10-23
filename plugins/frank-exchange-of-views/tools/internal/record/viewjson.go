@@ -1112,7 +1112,13 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	if err != nil {
 		return nil, err
 	}
-	exch := exchangesOf(r.evs, r.win.IDs(r.evs), r.win, params, WhileRunning, r.remands)
+	ids := r.win.IDs(r.evs)
+	exch := exchangesOf(r.evs, ids, r.win, params, WhileRunning, r.remands)
+	open := map[string]bool{}
+	for _, g := range out {
+		open[g.ID] = g.Open
+	}
+	moved := gradeMovementOf(r.evs, ids, r.win, open)
 	for i := range out {
 		g := &out[i]
 		if !g.Open {
@@ -1122,7 +1128,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, x)
+		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
 	}
 	return out, nil
 }

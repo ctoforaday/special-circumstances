@@ -53,6 +53,12 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.dispatch(int64(b.n), evLens).register(evLens)
 			b.ingest()
 		}, true},
+		{"grade movement past the threshold", BlockerGradeMovement, true, true, func(b *stage) {
+			// high -> trivial is 2.5 mass, past the 2.0 the bench rules at; trivial is not material,
+			// so nothing else holds.
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
+			b.regrade(outsideLens, "G1", "trivial")
+		}, false},
 		{"docket motion on an open gap", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")

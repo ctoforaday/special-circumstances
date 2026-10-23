@@ -4281,7 +4281,7 @@ type Verify struct {
 	//
 	// `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
 	Label *string `protobuf:"bytes,11,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	// THE PAGE IMAGE RED CHECKED, for a citation whose OCR quote carries pages. page is the one red
+	// THE PAGE IMAGE RED CHECKED, for a citation whose OCR span carries pages. page is the one red
 	// names; page_render_sha is the sha256 of the image on disk when the verification was written,
 	// and reading_render_sha the render the reading was made from. A mismatch between the two is
 	// recorded, not refused: the image still shows the page, and two fields let any reader compare
