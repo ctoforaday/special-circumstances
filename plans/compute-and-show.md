@@ -1,7 +1,7 @@
 # Compute and show — what we computed, what a source shows, and how either is seen
 
 > STATUS (2026-10-23): proposed, not started. Written against `380164a8` (`EventSchema` 37,
-> 29 archived runs carrying 157 proofs). Forks at the end await gblock's ruling.
+> 29 archived runs carrying 157 proofs). Forks F1–F3 and F5 ruled by gblock 2026-10-23; F4 open.
 
 ## I. Summary & Goals
 
@@ -90,8 +90,9 @@ signature scanning (`ErrorSignature`, `--expect-error`) is untouched — it belo
 - Go, FEOV tools module; record is SQLite generated from `record.proto` (`Proof` :1366,
   `Reproduce` :1421, `Rerun` :552, `Soundness` :538, `CheckKind.COMPUTATION` :343).
 - `EventSchema` 37 → **E** = the next free epoch at implementation. One `migrate` translation.
-- Anchors: one mechanism (`anchor/anchor.go:63`); `P-` today names a proof. No new anchor kind:
-  a shown block is the same anchor with a `show` field on its event.
+- Anchors: one mechanism (`anchor/anchor.go:63`); `P-` today names a proof and becomes `K-`
+  (F1; `K` is held by no other id kind). No new anchor kind: a shown block is the same anchor with
+  a `show` field on its event.
 - Execution posture is unchanged: a seat could already run anything through Bash; `compute` adds
   recording, not reach. There is no execution sandbox (`nonet` is test-only), so "no network" is
   declared, never enforced — §IV R3.
@@ -108,7 +109,7 @@ Two parts, in ship order. Part 1 is one pull request at epoch E.
 
 ```proto
 message Computation {                // replaces Proof
-  string computation_id = 1;         // P-…  (fork F1)
+  string computation_id = 1;         // K-…  (F1)
   string key            = 2;
   string bundle_sha     = 3;         // sha256 over argv, input shas and the bundle tree
   string answers        = 4;
@@ -176,7 +177,7 @@ a truncated axis is an unsound sentence.
 
 #### III.4 Assembly and rendering [MODIFY]
 
-- `weaveProofRefs` → `weaveComputationRefs`: footnote as now (fork F1 on its label).
+- `weaveProofRefs` → `weaveComputationRefs`: footnote `[^Kn]` (F1).
 - A computation or citation with `show ≠ NONE` emits its block after the anchor's paragraph:
   - `TABLE`: CSV → markdown table, pipes escaped, then `*Table n.* R`.
   - `IMAGE`: `![Figure n. R](computations/<sha>/out/<file>)` in report.md; `<img>` in the site
@@ -207,7 +208,8 @@ Per `Proof` event: argv from the extension (`.py`→`python3`, `.sh`→`bash`, `
 `.go`→`go run`), the script moved to `computations/<new sha>/dir/<script name>`, toolchain empty,
 `observed` → `VARIANT` with the recorded drift as invariant, `not_portable` → `VARIANT` with its
 drift (fork F4), `show` NONE. `proof_sha` references in `Reproduce` and the manifest are rewritten
-to the new sha; anchor ids keep their value (F1). Test on `2026-09-02_quadratic-formula` (26
+to the new sha; every `P-` id becomes `K-` with the same hex, and every `<!--proof:P-…-->` token
+`<!--computation:K-…-->`, in the report text (`migrate/remap.go`), and in every event field that names one (F1). Test on `2026-09-02_quadratic-formula` (26
 proofs, the not_portable six) and `2026-09-11_is-91-prime-b6` (the `.go` proof).
 
 #### III.8 Agent-facing text [MODIFY] (contract: prompts and constitutions)
@@ -234,6 +236,7 @@ Run at `380164a8`; output in `~/.claude/scratch/compute-plan/census.txt`.
 | C5 | archived runs with `proofs/` | 29 runs, 157 proofs | III.7 |
 | C6 | `grep -rn 'ast.Image' tools/internal/report` | `md.go:437` | III.4 |
 | C7 | `tools/releasegate/fuzz/fuzz_test.go` prove/reproduce sites | :533, :1757, :1817, :2436, :2981, :3463 | rename + a `--show` and an `--input` action |
+| C8 | `grep -rn '"P-"' tools --include=*.go` (the prefix, F1) | run at implementation | `anchor.go:63` and every literal |
 
 ### Part 2 — `--show` on `cite`
 
@@ -282,8 +285,8 @@ Run at `380164a8`; output in `~/.claude/scratch/compute-plan/census.txt`.
 
 | # | Question | Recommendation | Alternative |
 |---|---|---|---|
-| F1 | Anchor letter and footnote label for computations | Keep `P-` and `[^Pn]`, read as *program*: anchors are invisible, and a letter change remaps every archived report for no reader gain | `K-` / `[^Kn]`, one more migrate remap |
-| F2 | Who compares a variant computation's outputs | The computation lens, against the declared invariant — today's `observed` path, no new machinery; a disagreement reaches the bench by the existing contest | Auto-docket every variant re-run for the bench: a new docket basis, dispositions, and a mid-debate bench dispatch |
-| F3 | Archive the cached inputs of computations | Yes, only those | No: archived computations with inputs become un-rerunnable |
+| F1 | Anchor letter and footnote label for computations | **Ruled: `K-` / `[^Kn]`**, remapped in migrate | ~~Keep `P-` / `[^Pn]`~~ |
+| F2 | Who compares a variant computation's outputs | **Ruled:** the computation lens, against the declared invariant — today's `observed` path, no new machinery; a disagreement reaches the bench by the existing contest | Auto-docket every variant re-run for the bench: a new docket basis, dispositions, and a mid-debate bench dispatch |
+| F3 | Archive the cached inputs of computations | **Ruled:** yes, only those | No: archived computations with inputs become un-rerunnable |
 | F4 | Migrated `not_portable` proofs | `VARIANT`, drift as invariant, listed in the migrate manifest | A retained `NOT_PORTABLE` basis the live writer can never produce |
-| F5 | Verb name | `compute` — the record's own word (`check_kind: computation`, the computation lens) | `run`; `exhibit` (free of collisions, but a third noun for an existing concept) |
+| F5 | Verb name | **Ruled:** `compute` — the record's own word (`check_kind: computation`, the computation lens) | `run`; `exhibit` (free of collisions, but a third noun for an existing concept) |
