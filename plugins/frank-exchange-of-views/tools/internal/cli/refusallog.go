@@ -30,6 +30,12 @@ import (
 //
 // Best-effort and silent: the refusal is what the seat must see, and a failure to record it must
 // not replace it. A refusal to the operator, or on a run that did not resolve, records nothing.
+//
+// A REFUSAL AFTER THE RUN'S OUTCOME IS RECORDED LIKE ANY OTHER. The record refuses every seat act
+// once it holds an outcome (record.requireOpenToSeats) and takes the log entry that says so: the act
+// a seat reached for after the run ended is friction the operator reads, and dropping it would hide
+// exactly the seat that did not know the run was over. Capture re-assembles the documents from the
+// record at the close, so an entry written after the bench assembled them is in the ones that ship.
 func noteRefusal(cmd *cobra.Command, err error) {
 	if err == nil || cmd == nil || record.IsToolLogged(err) {
 		return
@@ -41,9 +47,8 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		return
 	}
 	// A SITTING TO ATTRIBUTE IT TO. A seat with no stored sitting — never registered, never
-	// bracketed into one — has none, and the record refuses an append from it; a run with an
-	// outcome is over, and its record is closed to seats — a refusal then belongs to no sitting and
-	// would land after the documents the run assembled.
+	// bracketed into one — has none, and the record refuses an append from it. A seat that has one
+	// has its entry attributed to its latest, as every act it writes is — after the outcome too.
 	// Folded with SittingsOf's error, for the same reason: a refusal is logged on a record that can
 	// take it, and one that cannot be read now gets no entry rather than a second failure.
 	if n, err := record.SittingsOf(run, seatID); err != nil || n == 0 {
@@ -77,11 +82,10 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		what = "`" + p + "`"
 	}
 	lt, src := recordpb.LogType_LOG_TYPE_REFUSAL, recordpb.LogSource_LOG_SOURCE_TOOL
-	// UntilTheOutcome: a run with an outcome is over, and nothing is written.
 	_, _ = record.Append(record.Identity{Run: run, SeatID: seatID}, &recordpb.Log{
 		Text: proto.String(fmt.Sprintf("refused %s%s: %s", what, with, why)),
 		Type: &lt, Source: &src,
-	}, record.UntilTheOutcome)
+	})
 }
 
 // persistentOnly keeps the root's own flags from an argv, with their values, so a refusal raised

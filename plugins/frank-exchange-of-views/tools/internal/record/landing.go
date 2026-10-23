@@ -97,9 +97,6 @@ func (l *Landing) Verdict() (verdict, why string, ok bool, err error) {
 	return verdictOf(l.w.files, r)
 }
 
-// Outcome is RecordedOutcome asked of the landing record.
-func (l *Landing) Outcome() (string, error) { return recordedOutcomeAt(l.w.q) }
-
 // Prescription is the location and text gapID's mint recorded, as the landing record holds them.
 func (l *Landing) Prescription(gapID string) (loc, fix string, found bool, err error) {
 	return prescriptionAt(l.w.q, gapID)
@@ -115,18 +112,3 @@ func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
 
 // UnplacedLocation is record.UnplacedLocation asked of the landing record.
 func (l *Landing) UnplacedLocation(id string) (string, error) { return unplacedLocationAt(l.w.q, id) }
-
-// UntilTheOutcome is the guard of a write the run's end closes — a log entry the tool writes for a
-// seat: on a record that holds an outcome it writes nothing (ErrWritesNothing). Asked under the write
-// lock, because the bench's outcome can commit between a check made before it and the entry, which
-// then lands after the documents the run assembled.
-var UntilTheOutcome = Check(func(l *Landing) error {
-	v, err := l.Outcome()
-	if err != nil {
-		return err
-	}
-	if v != "" {
-		return ErrWritesNothing
-	}
-	return nil
-})

@@ -459,11 +459,14 @@ The verdict is derived from the record — a halt, the chair's PASS, or the disp
 
 It is refused while a motion whose gavel is the bench's stands unruled, unless the run halted: the refusal names each one. You hold that gavel — rule each, then record the outcome.
 
+Once it is recorded the record is closed to seat acts: any seat's later act is refused, and the refusal lands in the log as the tool's entry. State a declaration or a certification you hold after the stamp, and then assemble.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
-IF WHAT YOU RECORDED WAS WRONG, say so in a new outcome.
+IF WHAT YOU RECORDED WAS WRONG, say so in a certification: the outcome stands once it is recorded,
+and after it the record takes no seat act but your declaration, your certification and a log entry.
 
 Flags:
       --as as-value     REQUIRED — the run's terminal verdict
