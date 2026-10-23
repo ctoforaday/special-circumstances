@@ -1,7 +1,7 @@
 # Compute and show — what we computed, what a source shows, and how either is seen
 
 > STATUS (2026-10-23): proposed, not started. Written against `380164a8` (`EventSchema` 37,
-> 29 archived runs carrying 157 proofs). Forks F1–F3 and F5 ruled by gblock 2026-10-23; F4 open.
+> 29 archived runs carrying 157 proofs). Forks F1–F5 ruled by gblock 2026-10-23.
 
 ## I. Summary & Goals
 
@@ -207,7 +207,7 @@ the archive, bounded by the fetch cap × inputs (fork F3).
 Per `Proof` event: argv from the extension (`.py`→`python3`, `.sh`→`bash`, `.js`/`.mjs`→`node`,
 `.go`→`go run`), the script moved to `computations/<new sha>/dir/<script name>`, toolchain empty,
 `observed` → `VARIANT` with the recorded drift as invariant, `not_portable` → `VARIANT` with its
-drift (fork F4), `show` NONE. `proof_sha` references in `Reproduce` and the manifest are rewritten
+drift (F4), `show` NONE. `proof_sha` references in `Reproduce` and the manifest are rewritten
 to the new sha; every `P-` id becomes `K-` with the same hex, and every `<!--proof:P-…-->` token
 `<!--computation:K-…-->`, in the report text (`migrate/remap.go`), and in every event field that names one (F1). Test on `2026-09-02_quadratic-formula` (26
 proofs, the not_portable six) and `2026-09-11_is-91-prime-b6` (the `.go` proof).
@@ -288,5 +288,5 @@ Run at `380164a8`; output in `~/.claude/scratch/compute-plan/census.txt`.
 | F1 | Anchor letter and footnote label for computations | **Ruled: `K-` / `[^Kn]`**, remapped in migrate | ~~Keep `P-` / `[^Pn]`~~ |
 | F2 | Who compares a variant computation's outputs | **Ruled:** the computation lens, against the declared invariant — today's `observed` path, no new machinery; a disagreement reaches the bench by the existing contest | Auto-docket every variant re-run for the bench: a new docket basis, dispositions, and a mid-debate bench dispatch |
 | F3 | Archive the cached inputs of computations | **Ruled:** yes, only those | No: archived computations with inputs become un-rerunnable |
-| F4 | Migrated `not_portable` proofs | `VARIANT`, drift as invariant, listed in the migrate manifest | A retained `NOT_PORTABLE` basis the live writer can never produce |
+| F4 | Migrated `not_portable` proofs | **Ruled:** `VARIANT`, drift as invariant, listed in the migrate manifest | A retained `NOT_PORTABLE` basis the live writer can never produce |
 | F5 | Verb name | **Ruled:** `compute` — the record's own word (`check_kind: computation`, the computation lens) | `run`; `exhibit` (free of collisions, but a third noun for an existing concept) |
