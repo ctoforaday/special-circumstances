@@ -13,8 +13,10 @@ import (
 // interpreter start from a hung script.
 func TestATimeoutSeparatesLaunchFromWait(t *testing.T) {
 	dir := t.TempDir()
-	script := filepath.Join(dir, "slow.go")
-	if err := os.WriteFile(script, []byte("package main\n\nimport \"time\"\n\nfunc main() { time.Sleep(time.Minute) }\n"), 0o644); err != nil {
+	// ONE PROCESS, so the kill ends everything the script started. A `go run` script leaves its
+	// built binary running after the kill, and on Windows that orphan holds the test's directory.
+	script := filepath.Join(dir, "slow.py")
+	if err := os.WriteFile(script, []byte("import time\ntime.sleep(60)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	argv, err := interpreterFor(script)
