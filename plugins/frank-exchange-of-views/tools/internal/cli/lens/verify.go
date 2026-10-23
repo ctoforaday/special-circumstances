@@ -333,7 +333,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// work at all, nothing was read that could say so. Read from the index, never fetched —
 		// the same rule the retraction stamp below keeps.
 		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT {
-			if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok && e.WithoutBody() {
+			e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl())
+			if lerr != nil {
+				return nil, unreadableRefusal("which copy of "+body.GetUrl()+" this run holds", lerr)
+			}
+			if ok && e.WithoutBody() {
 				return nil, feov.Errorf(feov.Validation, "the copy of %s this run holds is %s — %s. "+
 					"Its silence is not the work's, so absent cannot be established from it; record what the copy does "+
 					"establish, or find a copy that carries the body", body.GetUrl(), e.Completeness, e.CompletenessReason)
@@ -379,7 +383,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// run cache already holds it; a source outside the cache stamps NOT_CHECKED, which is the
 		// honest answer and not a reassurance. A fetch here would make a write verb reach the
 		// network and turn an unreachable host into a refused corroboration.
-		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
+		e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl())
+		if lerr != nil {
+			return nil, unreadableRefusal("whether the work at "+body.GetUrl()+" stands", lerr)
+		}
+		if ok {
 			body.WorkStatus = record.WorkStatusOf(e.Retraction()).Enum()
 		} else {
 			body.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED.Enum()
@@ -437,7 +445,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// the seat. Read from the index, never fetched; a source outside the cache was never asked.
 	if body.GetUrl() != "" {
 		completeness := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED
-		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
+		e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl())
+		if lerr != nil {
+			return nil, unreadableRefusal("which part of the work at "+body.GetUrl()+" this run's copy is", lerr)
+		}
+		if ok {
 			completeness = e.SourceCompleteness()
 		}
 		body.SourceCompleteness = completeness.Enum()

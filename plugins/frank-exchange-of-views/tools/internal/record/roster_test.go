@@ -1,6 +1,13 @@
 package record
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+)
 
 // THE COMMENTS ABOVE THE GATE ARE CLAIMS ABOUT IT, AND THEY ROTTED. Measured 2026-09-16 on the
 // tree as it then stood: roster.go said the gate "bounds the SHAPE, never the membership" and gave
@@ -26,8 +33,36 @@ func TestTheSeatIdCommentsDescribeWhatTheGateDoes(t *testing.T) {
 		{"red-chair", true, "the chair keeps its party prefix and IS dispatched — which is why the attestation table, not the shape, is what catches the wrong agent registering as it"},
 		{"red-merge-r1", false, "neither the retired -r<N>- sitting segment nor the pre-#831 merge role survives"},
 	} {
-		if got := dispatchableSeatID(mustRun(t, t.TempDir()), c.id); got != c.want {
+		if got, err := dispatchableSeatID(mustRun(t, t.TempDir()), c.id); err != nil || got != c.want {
 			t.Errorf("dispatchableSeatID(%q) = %v, want %v — %s", c.id, got, c.want, c.claim)
 		}
+	}
+}
+
+// A CAST THAT CANNOT BE READ IS NOT A CAST THAT NAMES NO LANES. The register gate asks the cast
+// whether a lane id is one this run seats; where the record cannot be read, the register is
+// refused with the read error named — not told its id is one no dispatch produces, which sends a
+// seat to re-copy an id it had right. The record here holds a former format's shard and no
+// database: a run this binary cannot read.
+func TestALaneRegisterOverAnUnreadableCastNamesTheRead(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "records", "events-blue-0123abcd.jsonl"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := mustRun(t, dir)
+	err := requireDispatchableSeat(run, "blue-lane-1")
+	if err == nil || !strings.Contains(err.Error(), "could not be read to establish whether") ||
+		!strings.Contains(err.Error(), "FORMER record format") {
+		t.Errorf("a lane register over an unreadable cast = %v, want the refusal naming the read", err)
+	}
+	if c, err := TierClassOfSeat(run, "blue-lane-1"); err == nil {
+		t.Errorf("TierClassOfSeat over an unreadable cast = %q with no error — \"\" says the seat rides no tier", c)
+	}
+	// A roster seat is answered by the roster, so the cast is never asked.
+	if err := requireDispatchableSeat(run, "red-chair"); err != nil {
+		t.Errorf("a roster seat was refused over the cast it never reads: %v", err)
 	}
 }

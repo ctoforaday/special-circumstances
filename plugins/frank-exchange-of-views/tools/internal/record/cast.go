@@ -114,27 +114,37 @@ func LanesDeclared(run Run) (n int, declared bool) {
 // was never declared undispatchable — the register gate refused a seat that had done nothing
 // wrong. The cast is written by setup before any seat registers and is the record's own statement
 // of which seats exist, so a run that has lanes says so.
-func LaneSeatsOf(run Run) []string {
+//
+// A record that cannot be read is an error, never "no lanes": the register gate refuses a lane seat
+// on this answer, and a read failure told as "not an id the engine dispatches" sends the seat to
+// re-copy an id it had right.
+func LaneSeatsOf(run Run) ([]string, error) {
 	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("the record's cast could not be read: %w", err)
+	}
+	if db == nil {
+		return nil, nil
 	}
 	rows, err := db.Query(`SELECT v."value" FROM "cast_lane_seat_ids" v
 	  WHERE v."event_id" = (SELECT MAX("event_id") FROM "cast")
 	  ORDER BY v."ord"`)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("the record's cast could not be read: %w", err)
 	}
 	defer rows.Close()
 	var out []string
 	for rows.Next() {
 		var s string
-		if rows.Scan(&s) != nil {
-			return nil
+		if err := rows.Scan(&s); err != nil {
+			return nil, fmt.Errorf("the record's cast could not be read: %w", err)
 		}
 		out = append(out, s)
 	}
-	return out
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("the record's cast could not be read: %w", err)
+	}
+	return out, nil
 }
 
 // castOfEvents is CastOf read off a stream already in hand: the seats of the LAST cast event, or
