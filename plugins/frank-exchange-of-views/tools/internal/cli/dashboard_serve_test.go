@@ -320,9 +320,18 @@ func TestTheServedDashboardAnswersWhileWatchedAndClosesWhenTheRunEnds(t *testing
 	// before the package variables are put back: it reads them on its own goroutine.
 	ended := false
 	t.Cleanup(func() {
-		if !ended {
-			_ = os.Remove(marker)
-			<-done
+		if ended {
+			return
+		}
+		// A removal that failed leaves the run live and the watcher running: waiting on it
+		// unbounded turned that failure into a job timeout naming no step.
+		if err := os.Remove(marker); err != nil && !os.IsNotExist(err) {
+			t.Errorf("ending the run in cleanup: %v", err)
+		}
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			t.Error("cleanup ended the run and the served dashboard is still listening")
 		}
 	})
 
