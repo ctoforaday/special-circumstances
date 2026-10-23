@@ -74,6 +74,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return tool(args...)
 	}
 	var gapIDs []string
+	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
+	closingsOf := map[string][]struct{ seat, text string }{}
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
 	}
@@ -153,21 +155,13 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if gapID == "" {
 			return fmt.Errorf("mint %s: the tool did not report a minted id in %q", g.Key, out)
 		}
-		staged[fmt.Sprintf("G%d", i+1)], gapIDs = gapID, append(gapIDs, gapID)
-		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis
-		// is "the two closings, the transcript, and the final state" and that both sides have
-		// already filed — so a bench board without them hands the seat a docket it cannot rule on
-		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
-		// naming the null closings, ruled on artifact state instead, and asked for a human check.
-		for _, c := range []struct{ seat, text string }{
-			{"red-chair", g.RedClosing}, {"blue-respond", g.BlueClosing},
-		} {
-			if c.text == "" {
-				continue
-			}
-			if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
-				"--id", gapID, "--reason", c.text); err != nil {
-				return fmt.Errorf("closing %s by %s: %w", gapID, c.seat, err)
+		ref := fmt.Sprintf("G%d", i+1)
+		staged[ref], gapIDs = gapID, append(gapIDs, gapID)
+		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
+		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
+		for _, c := range []struct{ seat, text string }{{minter, g.RedClosing}, {"blue-respond", g.BlueClosing}} {
+			if c.text != "" {
+				closingsOf[ref] = append(closingsOf[ref], c)
 			}
 		}
 		if !g.Closed {
@@ -237,6 +231,20 @@ func Build(run record.Run, b Board, exec Exec) error {
 			return fmt.Errorf("motion %d (%s): %w", i+1, m.Subject, err)
 		}
 		staged[fmt.Sprintf("M%d", i+1)] = minted("motion", out)
+		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM, filed while the docket motion stands. The
+		// bench's prompt states its ruling basis is the two parties' closings, the transcript and the
+		// final state — so a bench board without them hands the seat a docket it cannot rule on the
+		// way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction naming
+		// the null closings, ruled on artifact state instead, and asked for a human check.
+		if m.Subject == "docket" {
+			for _, c := range closingsOf[m.GapID] {
+				if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
+					"--id", m.GapID, "--reason", c.text); err != nil {
+					return fmt.Errorf("closing %s by %s: %w", m.GapID, c.seat, err)
+				}
+			}
+			delete(closingsOf, m.GapID)
+		}
 		if m.Ruled == "" {
 			continue
 		}
@@ -246,6 +254,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
 		}
+	}
+
+	for ref := range closingsOf {
+		return fmt.Errorf("the board carries closings on %s and no docket motion of its own puts it before the bench — a closing argues a docketing", ref)
 	}
 
 	for i, pr := range b.Proofs {

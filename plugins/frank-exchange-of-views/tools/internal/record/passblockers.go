@@ -36,6 +36,7 @@ const (
 	BlockerLensReady     BlockerKind = "lens_ready"
 	BlockerStaleArea     BlockerKind = "stale_area"
 	BlockerGradeMovement BlockerKind = "grade_movement"
+	BlockerClosingOwed   BlockerKind = "closing_owed"
 	BlockerUnruledMotion BlockerKind = "unruled_motion"
 	BlockerInquiryReview BlockerKind = "inquiry_review"
 )
@@ -68,6 +69,9 @@ type Blocker struct {
 	lastCheck int64
 	// raisedBy is the finding that raised a contradiction, "" until one has.
 	raisedBy string
+	// awaited is a closing blocker whose party has sat through no sitting opened since the
+	// docketing (ClosingAwaited); false for a missing one, whose party sat and filed none.
+	awaited bool
 	// moved is a grade-movement blocker's gap's movement the bench has not ruled on, and totalMoved
 	// the open gaps' total (gradeMovementOf).
 	moved, totalMoved float64
@@ -313,6 +317,29 @@ var blockerKinds = []blockerKind{
 				len(bs), bs[0].totalMoved, GradeMovementThreshold, strings.Join(named, "\n  "))
 		},
 	},
+	// A DOCKETED GAP IS RULED ON ITS PARTIES' CLOSINGS (closingowed.go). The owner is the party — the
+	// gap's minting lens, or blue-respond — and the docket motion holds the PASS as an unruled motion
+	// as well, so every wording says the bench rules once the closings are in. The gap's own reason in
+	// the plan states who is readied and whether the bench sits, so the kind has no plan line of its own.
+	{
+		kind:  BlockerClosingOwed,
+		gloss: "a docketed gap's closing argument a party has not filed",
+		item: func(b Blocker) string {
+			state := "is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one"
+			if !b.awaited {
+				state = "is not on the record, and " + ownerOr(b, "the party") + " has sat since the docketing without filing it — the bench rules on the record as it stands"
+			}
+			return fmt.Sprintf("gap %s is docketed for the bench (motion %s) and the closing argument of %s on it %s; PASS is refused until the bench rules", b.Subject, b.Detail, ownerOr(b, "a party"), state)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s (%s, motion %s)", b.Subject, ownerOr(b, "a party"), b.Detail))
+			}
+			return fmt.Sprintf("%d closing argument(s) on docketed gaps are not filed: %s. Each party to a docketed gap — its minting lens and blue-respond — files its closing, and the bench rules the gap on them, the transcript and the artifacts. PASS waits for that ruling, and `--as FAIL` does not",
+				len(bs), strings.Join(named, ", "))
+		},
+	},
 	{
 		kind:  BlockerUnruledMotion,
 		gloss: "an unruled motion",
@@ -436,7 +463,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
-	events := eventBlockersOf(evs, ids, win)
+	events := owedBlockersOf(evs, ids, win, gaps)
 	out = append(out, events...)
 	out = append(out, gradeMovementOf(evs, ids, win, openSet(gaps)).blockers()...)
 	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, ids, win, gaps, events)); lg.cast && lg.head != 0 {

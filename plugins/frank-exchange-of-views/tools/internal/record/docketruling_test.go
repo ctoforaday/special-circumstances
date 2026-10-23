@@ -25,6 +25,13 @@ const (
 	benchSatIdle = "G1: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied"
 )
 
+// argued files G1's two closings: blue's in its sitting, and the evidence lens's in one of its own.
+func argued(t *testing.T, run Run, blue Identity) {
+	t.Helper()
+	mustAppend(t, blue, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue's case")})
+	mustAppend(t, sit(t, run, evLens), &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the lens's case")})
+}
+
 // docketBoard is the plan over one open gap and the parties it engages, by seat.
 func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 	t.Helper()
@@ -75,7 +82,14 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 	ruleM1 := func(t *testing.T, judge Identity) {
 		mustAppend(t, judge, docketRule("M1", "the ruling"))
 	}
-	fileM2 := func(t *testing.T, run Run) { mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M2", "G1")) }
+	// EACH DOCKETING IS ARGUED BY BOTH PARTIES before the bench is convened for it (closingowed.go),
+	// so every filing here is followed by the two closings: what is under test is the bench's sitting
+	// per docketing, not the closings.
+	fileM2 := func(t *testing.T, run Run) {
+		blue := sit(t, run, "blue-respond")
+		mustAppend(t, blue, docketMotion("M2", "G1"))
+		argued(t, run, blue)
+	}
 	for _, tc := range []arm{
 		{"left as written", func(t *testing.T, run Run) {
 			ruleM1(t, sit(t, run, "judge"))
@@ -115,7 +129,9 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 				register("red-chair").dispatch(2, evLens).register(evLens).
 				mint(evLens, "G1", "high").seed()
-			mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M1", "G1"))
+			blue := sit(t, run, "blue-respond")
+			mustAppend(t, blue, docketMotion("M1", "G1"))
+			argued(t, run, blue)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}, Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}})
 			tc.sitting(t, run)
 			sit(t, run, "red-chair")

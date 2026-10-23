@@ -59,7 +59,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
 			b.regrade(outsideLens, "G1", "trivial")
 		}, false},
+		// THE CLOSING IS FILED: blue-respond's is the only one owed, the minter being no cast lens.
 		{"docket motion on an open gap", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.docketMotion("red-chair", "M1", "G1")
+			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
+		}, false},
+		{"a party's closing owed on a docketed gap", BlockerClosingOwed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")
 		}, false},
@@ -81,6 +87,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},
 	}
+	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
+	// and the docket motion is an unruled motion until the bench rules it.
+	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerUnruledMotion}
 	covered := map[BlockerKind]bool{}
 	for _, r := range rows {
 		covered[r.kind] = true
@@ -111,7 +120,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, bl := range blockers {
-				if bl.Kind != c.kind {
+				if bl.Kind != c.kind && bl.Kind != beside[c.kind] {
 					t.Errorf("fixture: %s holds as well, want only %q", bl.Kind, c.kind)
 				}
 			}

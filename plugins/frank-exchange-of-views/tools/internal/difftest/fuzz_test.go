@@ -424,7 +424,8 @@ var fuzzArms = []fuzzArm{
 
 // tourArms are the recording verbs the random sequences rarely land, each with the prerequisites
 // it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce;
-// blue's and the chair's position and closing; the bench's declare, certify, halt and outcome.
+// the chair's position; the parties' closing on the docketed GAP002 — its minting lens's and
+// blue-respond's; the bench's declare, certify, halt and outcome.
 // Every arm files its act and then files it AGAIN: where a sitting holds one of the act the repeat
 // is refused, and the refusal names the act that answers the first.
 //
@@ -442,11 +443,11 @@ var tourArms = []fuzzArm{
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
 		}, nil),
-	// blue-respond alone: a position is refused for a blue seat that owes none (record.SeatOwesPosition).
-	tourArm("blue position", []string{"blue-respond"}, []string{"position"}, reasonOnly, nil),
 	tourArm("chair position", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
-	tourArm("blue closing", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
-	tourArm("chair closing", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
+	// A CLOSING IS A PARTY'S, ON A DOCKETING: GAP002 is before the bench from the prologue, minted
+	// by the evidence lens.
+	tourArm("blue closing", []string{"blue-respond"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
+	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	tourArm("chair inquiry review", []string{"red-chair"}, []string{"inquiry", "review"}, reasonOnly, nil),

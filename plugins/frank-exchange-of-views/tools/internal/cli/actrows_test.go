@@ -96,10 +96,16 @@ func actRows() map[string]actRow {
 			return []string{"log", "--type", "defect", "--reason", text}
 		}}
 	}
+	// A CLOSING ARGUES A DOCKETING: the write path refuses one on a gap nothing is before the bench on.
 	closingRow := func(seatID string) actRow {
-		return actRow{seat: seatID, act: func(_ actVars, text string) []string {
-			return []string{"closing", "--id", "G1", "--reason", text}
-		}}
+		return actRow{seat: seatID,
+			setup: func(t *testing.T, runDir string) actVars {
+				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle")
+				return nil
+			},
+			act: func(_ actVars, text string) []string {
+				return []string{"closing", "--id", "G1", "--reason", text}
+			}}
 	}
 	return map[string]actRow{
 		"blue manifest-row": {seat: "blue-respond", act: func(_ actVars, text string) []string {
@@ -133,10 +139,9 @@ func actRows() map[string]actRow {
 		"lens log":       logRow(lensSeat),
 		"chair log":      logRow("red-chair"),
 		"bench log":      logRow("judge"),
-		"blue position":  {seat: "blue-respond", act: prose("position")},
 		"chair position": {seat: "red-chair", act: prose("position")},
 		"blue closing":   closingRow("blue-respond"),
-		"chair closing":  closingRow("red-chair"),
+		"lens closing":   closingRow(lensSeat),
 		"lens regrade": {seat: lensSeat, act: func(_ actVars, text string) []string {
 			return []string{"regrade", "--id", "G1", "--severity", "high", "--reason", text}
 		}},

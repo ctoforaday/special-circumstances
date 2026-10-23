@@ -211,8 +211,6 @@ func answerDrives() []answerDrive {
 	return []answerDrive{
 		{name: "position, the chair", row: rowPosition, helps: []string{"chair position"},
 			drive: oncePerSitting(rowPosition, "red-chair", "position")},
-		{name: "position, blue-respond", row: rowPosition, helps: []string{"blue position"},
-			drive: oncePerSitting(rowPosition, "blue-respond", "position")},
 		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
 			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
@@ -231,13 +229,17 @@ func answerDrives() []answerDrive {
 			d.nextSitting("red-chair")
 			d.admitted("the next sitting's verdict, after a PASS", "red-chair", "verdict", "--as", "PASS")
 		}},
-		{name: "closing, the chair", row: rowClosing, helps: []string{"chair closing"}, drive: func(d drive) {
-			oncePerSitting(rowClosing, "red-chair", "closing", "--id", "G1")(d)
+		// A CLOSING ARGUES A DOCKETING, so each drive dockets G1 first; the gap closing under it leaves
+		// the docket motion standing, and a correction is still admitted.
+		{name: "closing, the lens", row: rowClosing, helps: []string{"lens closing"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
+			oncePerSitting(rowClosing, lensSeat, "closing", "--id", "G1")(d)
 			d.closeG1(lensSeat)
-			d.nextSitting("red-chair")
-			d.admitted("the next sitting's closing, the gap closed", "red-chair", "closing", "--id", "G1", "--reason", "the first was wrong")
+			d.nextSitting(lensSeat)
+			d.admitted("the next sitting's closing, the gap closed", lensSeat, "closing", "--id", "G1", "--reason", "the first was wrong")
 		}},
 		{name: "closing, blue", row: rowClosing, helps: []string{"blue closing"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
 			oncePerSitting(rowClosing, "blue-respond", "closing", "--id", "G1")(d)
 			d.closeG1(lensSeat)
 			d.nextSitting("blue-respond")

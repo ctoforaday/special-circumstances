@@ -178,8 +178,13 @@ func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
 	if slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Errorf("the remand's one exchange is spent; G1 must not ready its parties again: parties %+v", plan.Parties)
 	}
-	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || !slices.Contains(gapsOf(plan, benchSeat), "G1") {
-		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again: to file %v, docket %v, parties %+v, why %q",
+	// DOCKETED AGAIN, AND ARGUED AGAIN: its parties are readied for their closings on the new
+	// docketing, engaged on no gap, and the bench sits once neither is awaited.
+	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
+		!slices.ContainsFunc(plan.Why, func(w string) bool {
+			return strings.HasPrefix(w, "G1: docketed — the closing of "+evLens+" and blue-respond")
+		}) {
+		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again, its parties readied for their closings: to file %v, docket %v, parties %+v, why %q",
 			plan.ToFile, plan.Docket, plan.Parties, plan.Why)
 	}
 	if plan.Ceiling {

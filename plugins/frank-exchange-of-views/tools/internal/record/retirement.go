@@ -417,7 +417,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 		return passLensGate{}, false, err
 	}
 	ids := r.win.IDs(r.evs)
-	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps), eventBlockersOf(r.evs, ids, r.win))
+	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps), owedBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps)))
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 

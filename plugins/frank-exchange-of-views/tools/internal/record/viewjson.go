@@ -1643,7 +1643,6 @@ type DebateEpochJSON struct {
 	// which is a different fact from a verdict of fail and must not read as one.
 	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
-	Blue         []string            `json:"blue"`
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
 	BlueClosings []DebateClosingJSON `json:"blue_closings"`
@@ -1680,7 +1679,7 @@ type DebateOpinionJSON struct {
 }
 
 // DebateJSONOf groups the record's events by epoch exactly as render.go's debate loop does:
-// position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
+// position(red-chair)→Red, closing(a lens)→RedClosings, closing(blue)→BlueClosings,
 // spot-check→SpotChecks, a lens's regrade that keeps the grade→RedKeeps, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
@@ -1714,7 +1713,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			}
 			return s
 		}
-		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
+		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
 			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
@@ -1728,7 +1727,8 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				rj.Red = append(rj.Red, pos.GetText())
 			}
 		}
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
+		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute (closingowed.go).
+		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "lens") {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}
@@ -1741,11 +1741,6 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
 			if kept[e] {
 				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
-			}
-		}
-		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
-				rj.Blue = append(rj.Blue, pos.GetText())
 			}
 		}
 		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
