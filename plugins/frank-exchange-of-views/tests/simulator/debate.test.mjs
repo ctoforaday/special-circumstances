@@ -360,7 +360,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   await world.run(script, ARGS)
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
-  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope IS the object it prints, its fields copied VERBATIM/.test(p) && /when you have recorded a verdict or filed or ruled a motion since you asked, and relay THAT plan: it carries the verdict/.test(p))
+  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope IS the object it prints, its fields copied VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
@@ -884,7 +884,9 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
     assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
     assert.deepEqual(c.opts.schema.required ?? [], [], `${c.opts.label}: a blue envelope requires nothing — what blue did is on the record`)
     for (const key of ['claim_count', 'sitting_record_appended']) assert.ok(!(key in c.opts.schema.properties), `${c.opts.label}: the schema declares ${key}`)
-    assert.ok(schemaAccepts(c.opts.schema, blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
+    // The synthesizer's envelope declares nothing, and is closed: its whole envelope is the empty one.
+    assert.ok(schemaAccepts(c.opts.schema, /^blue-synthesize /.test(c.opts.label) ? {} : blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
+    assert.ok(!schemaAccepts(c.opts.schema, { ...blueEnv(), claim_count: 7 }), `${c.opts.label}: a key the schema does not declare is accepted`)
   }
   // The old attestation, returned false by both seats, dispatches nobody and is named nowhere.
   const stale = makeWorld(makeResponder({ chair: chair(), blueSynth: [blueEnv({ sitting_record_appended: false, claim_count: 7 })], blueRespond: [blueEnv({ sitting_record_appended: false, claim_count: 9 })] }))
@@ -1214,6 +1216,19 @@ test('the chair envelope schema holds no oneOf, allOf or anyOf at its top level'
   const schema = await chairSchema()
   assert.deepEqual(['oneOf', 'allOf', 'anyOf'].filter((k) => k in schema), [], 'the API refuses this tool schema')
   assert.ok(schema.if && schema.else, 'the empty-only-with rule stands, as a conditional')
+})
+
+// EVERY DISPATCHED ENVELOPE IS CLOSED AT ITS TOP LEVEL: a key no schema declares is refused, never
+// dropped. Driven through a run that reaches the petition bench, the docket, the terminal sitting
+// and assembly, so every schema the script dispatches is read as dispatched.
+test('every envelope schema the script dispatches is closed at its top level', async () => {
+  const chair = [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }) }),
+    chairEnv({ plan: plan([], { blockers: [blocker('M-00000002', 'judge')] }) })]
+  const world = makeWorld(makeResponder({ chair }))
+  await world.run(script, ARGS)
+  const schemas = new Map(world.calls.filter((c) => c.opts.schema).map((c) => [c.opts.label.replace(/ #\d+/, '').replace(/ · test$/, ''), c.opts.schema]))
+  assert.deepEqual([...schemas.keys()].sort(), ['blue-respond', 'blue-synthesize', 'judge', 'judge · assemble', 'judge · petition', 'judge · terminal', 'red-chair'], 'the drive reaches every envelope')
+  for (const [label, schema] of schemas) assert.equal(schema.additionalProperties, false, `${label}'s envelope is open at its top level`)
 })
 
 test('a relay the envelope schema accepts is never one the engine throws on', async () => {

@@ -466,6 +466,7 @@ const PLAN_ITEM_TYPES = {
 const PETITION_RULING = {
   type: 'object',
   required: ['rulings'],
+  additionalProperties: false,
   properties: {
     rulings: {
       type: 'array',
@@ -535,13 +536,20 @@ const lawClause = ` LAW: read the law your work list names before ruling — sta
 const declareClause = ''
 
 
+// EVERY ENVELOPE IS CLOSED AT ITS TOP LEVEL. A key a schema does not declare is a key no reader
+// reads, so a seat that supplies one is refused and told so, never answered by its being dropped:
+// the chair's open top level took plan fields copied beside its slot on 15 of 61 accepted first
+// returns (m23-m31). These envelopes are authored here, with nothing in Go declaring them, so the
+// closure is authored too; the simulator holds every dispatched schema to it.
+//
 // The synthesizer's sitting returns nothing the engine threads: what it froze, cited, proved and
 // re-voiced is on the record as events. Replaying synthesis sittings with and without each former
 // key (2026-10-20) changed no first return, so the envelope is empty and nothing restates the record.
-const SYNTHESIS_ENVELOPE = { type: 'object', properties: {} }
+const SYNTHESIS_ENVELOPE = { type: 'object', additionalProperties: false, properties: {} }
 
 const BLUE_ENVELOPE = {
   type: 'object',
+  additionalProperties: false,
   // ENVELOPE → REFS (move (a)): `tldr` and `open_questions` are AUTHORED into blue/report.md and
   // ship from it as written — never consumed by the sandboxed engine, so they are
   // not round-tripped here. `path` was a constant the script already knows. Dropped: the report is
@@ -650,6 +658,7 @@ const CHAIR_ENVELOPE = { ...PLAN, properties: { ...PLAN.properties, notes: { typ
 const JUDGE_ENVELOPE = {
   type: 'object',
   required: ['dispositions'],
+  additionalProperties: false,
   properties: {
     dispositions: {
       type: 'array',
@@ -988,7 +997,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // on its inquiries, and the review of the inquiries, are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises. Your envelope IS the object it prints, its fields copied VERBATIM; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with it, so anything you drop, add or alter fails its dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have recorded a verdict or filed or ruled a motion since you asked, and relay THAT plan: it carries the verdict. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises. Your envelope IS the object it prints, its fields copied VERBATIM; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with it, so anything you drop, add or alter fails its dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is, and argue to the bench in your position.
 WHEN THE REPORT OR AN INQUIRY HAS CHANGED SINCE YOUR LAST READ, ANSWER EVERY INQUIRY ON ONE READ: read the report ONCE and answer every inquiry against that pass, the way anyone checks a document against a list — not once per inquiry, and from THIS read, because the report is rewritten between sittings; where neither has changed, your last read stands and nothing is owed. RULE ON BLUE'S INQUIRIES: a ruling is an ARGUMENT, not a command — it needs a reason, and blue decides what becomes of the inquiry with that reason in front of it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.

@@ -103,6 +103,7 @@ func scenarios() []scenario {
 		},
 		{
 			name: "multi_nonce_terminal_event_wins", // oracle: the 8/50 duplicate-dispatch anomaly
+			cast: castOf("evidence"), // the verdict folds the plan, and a plan needs a cast
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -377,6 +378,7 @@ func scenarios() []scenario {
 		},
 		{
 			name: "full_round_integration", // oracle: the integration test
+			cast: castOf("evidence", "logic"), // the verdict folds the plan, and a plan needs a cast
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",

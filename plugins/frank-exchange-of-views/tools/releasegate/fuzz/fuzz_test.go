@@ -1233,19 +1233,34 @@ func (r *runner) staleAreas() []string {
 // chairEnvelope is what the chair returns: the plan it relayed — whose blockers are what the
 // terminal bench sitting fires on — and the verdict it recorded this sitting, if any. Gaps,
 // closures, dispute responses and petitions are the record's.
-func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
+func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[string]any) map[string]any {
 	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
+	r.mu.Lock()
+	filed := len(r.petitionsFiled)
+	r.mu.Unlock()
 	r.maybePetition(seatID)
-	// THE PLAN RELAYED IS THE ONE ASKED FOR LAST. The chair ruled grade motions and may have just
-	// filed a petition since its first ask, and the workflow reads what still stands at the end of
-	// the sitting off the relayed plan — capture holds every relayed plan to the record there. Asked
-	// again with nothing changed, the verb records nothing new.
-	r.planThisSitting = r.dispatchNext(seatID)
-	// THE ENVELOPE IS THE PLAN, AND THE VERDICT IS ITS FIELD: the verb prints the verdict this
-	// sitting recorded, and the engine ends the debate on it. A plan that does not carry the verdict
-	// the drive just recorded is the record losing it on the way to the engine.
+	r.mu.Lock()
+	petitioned := len(r.petitionsFiled) > filed
+	r.mu.Unlock()
+	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A verdict prints the plan carrying it, and the
+	// chair relays that; a petition filed after it, or a sitting that recorded no verdict, asks the
+	// dispatch again — the workflow reads what still stands at the end of the sitting off the
+	// relayed plan, and capture holds every relayed plan to the record there.
+	if verdict == "" || petitioned {
+		r.planThisSitting = r.dispatchNext(seatID)
+	} else {
+		var plan map[string]any
+		if err := json.Unmarshal([]byte(printed), &plan); err != nil || plan == nil {
+			r.noteActErr(fmt.Sprintf("the %s verdict's machine form is not the plan: %q", verdict, firstLine(printed)))
+			plan = map[string]any{}
+		}
+		r.planThisSitting = plan
+	}
+	// THE ENVELOPE IS THE PLAN, AND THE VERDICT IS ITS FIELD: the engine ends the debate on it. A
+	// relayed plan that does not carry the verdict this sitting recorded is the record losing it on
+	// the way to the engine.
 	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
-		r.noteActErr(fmt.Sprintf("dispatch next after a %q verdict printed verdict %q — the plan carries the verdict this sitting recorded", verdict, got))
+		r.noteActErr(fmt.Sprintf("the plan relayed after a %q verdict carries verdict %q — the plan carries the verdict its sitting recorded", verdict, got))
 	}
 	return maps.Clone(r.planThisSitting)
 }
@@ -3122,8 +3137,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.dialectic("chair", seatID, r.docketed())
 		r.carryPrior(seatID)
 		if permitted, _ := plan["pass_permitted"].(bool); permitted {
-			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-				return r.chairEnvelope(seatID, "PASS", responses)
+			if out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+				return r.chairEnvelope(seatID, "PASS", out, responses)
 			} else {
 				// A PASS THE BOARD PERMITS AND THE GATE REFUSES is the chair's own duty undone —
 				// an unruled motion, a missing inquiry review, a contradiction never raised — and
@@ -3159,11 +3174,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// verdict this sitting, which is what the prompt tells it to do. The FAIL half of the
 		// verdict enum is still driven here, as it was: a FAIL is the ordinary mid-run sitting.
 		if len(r.openGaps()) > 0 {
-			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "FAIL"); err == nil {
-				return r.chairEnvelope(seatID, "FAIL", responses)
+			if out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "FAIL"); err == nil {
+				return r.chairEnvelope(seatID, "FAIL", out, responses)
 			}
 		}
-		return r.chairEnvelope(seatID, "", responses)
+		return r.chairEnvelope(seatID, "", "", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.sit("blue", seatID)

@@ -62,11 +62,7 @@ export function makeWorld(respond) {
 }
 
 // Canned envelopes, schema-shaped.
-export const blueEnv = (over = {}) => ({
-  path: 'blue/report.md', tldr: 'tldr',
-  manifest: ['G-00000001'],
-  open_questions: [], ...over,
-})
+export const blueEnv = (over = {}) => ({ manifest: ['G-00000001'], ...over })
 // THE CHAIR RELAYS THE RECORD (plans/roundless.md §III.B.1): its envelope carries the plan `dispatch
 // next` printed. A stubbed chair is a stubbed plan; the default sequence is one sitting that engages
 // the evidence lens and blue on G-00000001, then one with nobody ready and PASS permitted, on which the chair

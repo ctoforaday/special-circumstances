@@ -320,8 +320,9 @@ func answerDrives() []answerDrive {
 		{name: "close, the chair's carry", row: rowClose, helps: []string{"chair carry"}, drive: func(d drive) {
 			d.closeG1(lensSeat)
 			d.nextSitting("red-chair")
+			// actFixture's chair is in its second sitting (epoch 2) when the lens closes G1.
 			carry := func(as string) []string {
-				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", as, "--reason", "restating"}
+				return []string{"carry", "--id", "G1", "--carried-from", "2", "--as", as, "--reason", "restating"}
 			}
 			// THE EPOCH IS PART OF THE CLAIM: a carry naming a sitting the gap was not closed in is refused.
 			if r := d.refused("a carry naming another epoch", "red-chair", "carry", "--id", "G1", "--carried-from", "7", "--as", "repaired", "--reason", "restating"); !strings.Contains(r, "names no closure of gap") {

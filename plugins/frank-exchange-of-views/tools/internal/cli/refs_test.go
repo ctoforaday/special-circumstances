@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // EVERY CROSS-REFERENCE, CHECKED.
@@ -189,7 +191,9 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 // So the rule is not about mint-time state, which would refuse all 9. It is a completion
 // duty, and this test holds both halves: the 7 stay legal, the 2 are caught.
 func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
-	runDir := seatRun(t)
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
+	runDir := castRun(t)
+	castSeats(t, runDir)
 	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.

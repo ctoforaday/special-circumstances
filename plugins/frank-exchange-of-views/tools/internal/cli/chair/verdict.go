@@ -14,7 +14,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // The help document renders what holds a PASS from the gate's own table rather than restating
@@ -48,7 +47,13 @@ func newVerdict() *cobra.Command {
 				"--%s must be one of %s, spelled exactly (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
 				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.Gate{Verdict: &v}); err != nil {
+		// THE VERDICT REACHES THE WORKFLOW ON THE PLAN, AND THIS ACT PRINTS THAT PLAN. The chair's
+		// envelope is the plan, and the plan carries the verdict its sitting recorded; so the act
+		// records the verdict and asks the dispatch on the record it leaves, in one transaction
+		// (record.RecordVerdict, which stores the plan capture compares the relay with), and prints
+		// the plan as `dispatch next` does. The chair relays what the verdict printed.
+		plan, standing, err := record.RecordVerdict(s.Identity(), v)
+		if err != nil {
 			return nil, err
 		}
 		open, closed, err := record.BoardCounts(run)
@@ -59,7 +64,7 @@ func newVerdict() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
+		return verdictResult{dispatched: dispatchResult{Plan: plan, standing: standing}, verdict: seat.Str(cmd, flags.As), open: open, closed: closed, checkpoint: mirror}, nil
 	})
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), "the seat's terminal act")
@@ -128,13 +133,19 @@ func copyFile(src, dst string) error {
 	return err
 }
 
+// verdictResult is the verdict recorded and the plan the record now prints, which IS the --json
+// output (seat.Relayed): the machine form is the object the chair relays, as `dispatch next`'s is.
 type verdictResult struct {
-	Verdict    string `json:"verdict"`
-	Open       int    `json:"open"`
-	Closed     int    `json:"closed"`
-	Checkpoint string `json:"checkpoint"`
+	dispatched dispatchResult
+	verdict    string
+	open       int
+	closed     int
+	checkpoint string
 }
 
+// Relay is the plan, carrying the verdict just recorded.
+func (r verdictResult) Relay() any { return r.dispatched.Relay() }
+
 func (r verdictResult) Human() string {
-	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s\nthe workflow reads it off the plan: ask the dispatch again and relay that plan", r.Verdict, r.Open, r.Closed, r.Checkpoint)
+	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s\n%s", r.verdict, r.open, r.closed, r.checkpoint, r.dispatched.Human())
 }

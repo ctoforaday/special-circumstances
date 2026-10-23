@@ -74,10 +74,11 @@ func TestALowGradePlaceholderMintDoesNotHoldTheGate(t *testing.T) {
 		passes bool
 	}{{"spec_underspecification", true}, {"false_universal", false}} {
 		t.Run(c.class, func(t *testing.T) {
-			runDir := newRun(t)
+			runDir := castRun(t)
 			if _, err := mintClass(t, runDir, "k1", c.class, "low", ""); err != nil {
 				t.Fatalf("mint: %v", err)
 			}
+			chairSitsAgain(t, runDir)
 			_, err := run(t, "verdict", "--as", "PASS", "--run", runDir, "--seat-id", "red-chair")
 			switch {
 			case c.passes && err != nil:

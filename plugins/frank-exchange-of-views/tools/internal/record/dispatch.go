@@ -146,6 +146,17 @@ type Plan struct {
 	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
 }
 
+// ChairVerdictAt is the verdict the chair recorded in its latest sitting on the record q reads: the
+// plan's `verdict` as `dispatch next` prints it there. migrate carries it onto a stored plan written
+// before the plan held the field.
+func ChairVerdictAt(q recordsql.Querier) (PlanVerdict, error) {
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return "", err
+	}
+	return chairVerdictOf(evs, win), nil
+}
+
 // PlanVerdict is a chair's recorded verdict as the plan prints it: the verdict verb's word.
 type PlanVerdict string
 
