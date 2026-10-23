@@ -1,6 +1,9 @@
 package flags
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // CSV is a comma-separated list flag: --supersedes G2,G7 and --found-by
 // L5-F3,L6-F2 and --ids G4,G7.
@@ -26,22 +29,31 @@ func (c *CSV) String() string {
 	return strings.Join(c.items, ",")
 }
 
+// Set takes the flag's one value. A SECOND OCCURRENCE IS REFUSED, never merged and never
+// replaced: pflag calls Set once per occurrence, and keeping either list would record a value the
+// seat stated and drop another it also stated. AN EMPTY ITEM IS REFUSED for the same reason —
+// "G1,,G2" and "G1," name an item that is not there, and dropping it silently records a list other
+// than the one typed. The empty value is the list with no items, stated. Space around an item is
+// not part of it.
 func (c *CSV) Set(s string) error {
-	// DEFECT FIXED: this was `c.items = c.items[:0]`, which truncates but REUSES
-	// the backing array. Value() hands that array out without copying, and
-	// seat.SetList stores the result straight into the record payload — so a
-	// second Set (pflag calls Set once per OCCURRENCE, and a repeated
-	// --supersedes is a seat retrying its own command) rewrote a slice the
-	// payload was already holding, in place, after the fact. The record would
-	// then serialize a lineage the seat never passed, with no event marking the
-	// change. Allocating fresh makes each Set's result immutable to the next.
-	c.items = nil
-	for _, part := range strings.Split(s, ",") {
-		if t := strings.TrimSpace(part); t != "" {
-			c.items = append(c.items, t)
-		}
+	if c.set {
+		return fmt.Errorf("given more than once (%q after %q): pass one comma-separated list", s, strings.Join(c.items, ","))
 	}
-	c.set = true
+	// A FRESH SLICE: Value() hands it out without copying, and seat.SetList stores it straight into
+	// the record payload.
+	var items []string
+	if strings.TrimSpace(s) == "" {
+		c.items, c.set = items, true
+		return nil
+	}
+	for _, part := range strings.Split(s, ",") {
+		t := strings.TrimSpace(part)
+		if t == "" {
+			return fmt.Errorf("%q holds an empty item: name each item, separated by single commas", s)
+		}
+		items = append(items, t)
+	}
+	c.items, c.set = items, true
 	return nil
 }
 

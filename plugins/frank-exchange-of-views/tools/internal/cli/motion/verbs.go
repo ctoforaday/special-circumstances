@@ -369,7 +369,13 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// what was passed: an empty `reopens_on` written as present would satisfy the
 				// "at least one" check while saying nothing, which is the shape --final exists
 				// to make sayable.
-				if r := seat.Str(cmd, flags.ReopensOn); r != "" {
+				if seat.Given(cmd, flags.ReopensOn) {
+					// GIVEN EMPTY IS NOT ABSENT: an empty --reopens-on read as no flag let --final
+					// stand alone over a value the seat typed.
+					r := seat.Str(cmd, flags.ReopensOn)
+					if strings.TrimSpace(r) == "" {
+						return nil, feov.Errorf(feov.Validation, "--reopens-on is empty: state the evidence or condition that would reopen the gap, or pass --final instead to say nothing would")
+					}
 					dr.ReopensOn = proto.String(r)
 				}
 				if fin, _ := cmd.Flags().GetBool(flags.Final); fin {

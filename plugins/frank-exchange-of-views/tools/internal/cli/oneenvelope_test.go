@@ -84,7 +84,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "graph", path: "graph", role: "", code: "validation"},
 
 		// The record's validation, reached through a handler.
-		{kind: "record validation", seat: lens, args: []string{"close", "--id", "G-0000beef", "--reason", "x", "--verified-by", "y", "--verified-with", "z", "--verified-against", "a"},
+		{kind: "record validation", seat: lens, args: []string{"close", "--id", "G-0000beef", "--as", "repaired", "--reason", "x", "--verified-by", "y", "--verified-with", "z", "--verified-against", "a"},
 			verb: "close", path: "close", role: "lens", code: "error", logged: true},
 
 		{kind: "record validation", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},

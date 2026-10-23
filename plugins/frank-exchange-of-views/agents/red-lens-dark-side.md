@@ -224,7 +224,7 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap.
 
 Flags:
       --anchor ids                the ids you verified it with, comma-separated — each the id inside a `<!--cite:C-…-->`, `<!--proof:P-…-->`, `<!--fx:F-…-->` or `<!--gap:G-…-->` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none
-      --as as-value               HOW the gap ended — the same words the bench's dispositions use
+      --as as-value               REQUIRED — HOW the gap ended — the same words the bench's dispositions use
       --id gap-id                 REQUIRED — the gap id
       --reason string             → SHARED §4
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
