@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -146,6 +147,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				}
 				if every := kindOf(c.kind).every; (failErr != nil) != every {
 					t.Errorf("FAIL refused = %v (%v), want refused exactly when the kind holds every verdict (%v)", failErr != nil, failErr, every)
+				}
+				// THE REFUSAL IS A CONFLICT WITH THE BOARD, by its code: a caller reading the envelope
+				// tells a blocked verdict from a tool failure without reading the sentence.
+				for verdict, err := range map[string]error{"PASS": passErr, "FAIL": failErr} {
+					if err != nil && feov.CodeOf(err) != string(feov.Conflict) {
+						t.Errorf("the %s refusal is coded %q, want %q: %v", verdict, feov.CodeOf(err), feov.Conflict, err)
+					}
 				}
 			}
 
