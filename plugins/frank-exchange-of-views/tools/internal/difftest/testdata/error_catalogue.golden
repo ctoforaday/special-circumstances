@@ -531,10 +531,11 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ── a second position in one sitting
 exit 2
@@ -543,10 +544,11 @@ feov-record: position: red-chair has already recorded a position this sitting, a
 ── repeat target: the chair's spot-check
 exit 0
 spot-check: nothing to sample, recorded with its reason
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ── a second spot-check in one sitting
 exit 2
@@ -555,10 +557,18 @@ feov-record: spot-check: red-chair has already recorded a spot_check this sittin
 ── repeat target: the chair's verdict
 exit 0
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
-the workflow reads it off the plan: ask the dispatch again and relay that plan
-NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+dispatch against head 5:
+  red-lens-evidence — GAP001
+  blue-respond — GAP001
+  · red-lens-evidence: never sat — audits the report at head 5
+  · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits
+  your verdict this sitting: FAIL — the workflow reads it off this plan
+relay — your envelope is this object, its fields copied whole; the lines above are its reading, not the relay:
+{"key":"PLANKEY001","head":5,"parties":[{"seat_id":"red-lens-evidence","gap_ids":["GAP001"]},{"seat_id":"blue-respond","gap_ids":["GAP001"]}],"docket":[],"remand_owed":[],"exchanges":[{"gap_id":"GAP001","count":0,"unresolved":0}],"pass_permitted":false,"stale_areas":[],"ceiling":false,"max_epochs":0,"epoch":0,"final_sitting":false,"epoch_limit_reached":false,"blockers":[{"kind":"material_gap","subject":"GAP001","owner":"red-lens-evidence"},{"kind":"lens_ready","subject":"red-lens-evidence","owner":"red-lens-evidence"}],"why":["red-lens-evidence: never sat — audits the report at head 5","GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits"],"verdict":"FAIL"}
+NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ── a second verdict in one sitting
 exit 2
@@ -567,7 +577,8 @@ feov-record: verdict: red-chair has already recorded a verdict this sitting, and
 ── repeat target: blue's closing on GAP001
 exit 0
 closing filed for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 ── a second closing on a gap in one sitting
 exit 2
@@ -576,7 +587,8 @@ feov-record: closing: blue-respond has already recorded a closing on "GAP001" th
 ── repeat target: blue's manifest row for GAP001
 exit 0
 manifest row recorded for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 ── a second manifest row for a gap in one sitting
 exit 2
@@ -585,7 +597,8 @@ feov-record: manifest-row: blue-respond has already recorded a manifest_row on "
 ── repeat target: the lens closes GAP001
 exit 0
 closed GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 ── repeat target: the chair sits again
 exit 0
@@ -596,12 +609,16 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+NOTHING HERE IS YOURS TO CLEAR (2 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ── repeat target: the chair carries the closure
 exit 0
 carried the closure of GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+NOTHING HERE IS YOURS TO CLEAR (3 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ── a second carry of a gap in one sitting
 exit 2
@@ -610,12 +627,14 @@ feov-record: carry: red-chair has already recorded a close on "GAP001" this sitt
 ── bunch target: a finding on a plain sentence
 exit 0
 finding recorded: FINDING004 (evidence) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 ── bunch target: a second finding on it
 exit 0
 finding recorded: FINDING005 (evidence) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+1 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 ── an edit carrying a run of anchors to the end of a longer replacement
 exit 2
