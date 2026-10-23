@@ -13,6 +13,7 @@ import (
 
 	_ "modernc.org/sqlite" // the module's own driver; opened directly, never through recordsql.Open
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
@@ -30,7 +31,7 @@ var dbSiblings = []string{"record.db", "record.db-wal", "record.db-shm"}
 // record.
 type SQLiteSource struct {
 	db    *sql.DB
-	files []SourceFile
+	files []migration.SourceFile
 	// unclassified names tables the decomposition rules cannot place. Empty ones are noise
 	// (a body table of a word no event used reads identically); one holding rows is refused
 	// at read, because rows nobody can attribute are events nobody replays.
@@ -60,7 +61,7 @@ func OpenSQLite(recordsDir, scratchDir string) (*SQLiteSource, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.files = append(s.files, SourceFile{Name: name, SHA256: sum, Bytes: st.Size()})
+		s.files = append(s.files, migration.SourceFile{Name: name, SHA256: sum, Bytes: st.Size()})
 	}
 	// A plain open, read-write ON THE COPY: SQLite needs write access to replay the WAL, and
 	// replaying it is the point.
@@ -93,8 +94,8 @@ func copyHashing(from, to string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func (s *SQLiteSource) Files() []SourceFile { return s.files }
-func (s *SQLiteSource) Close() error        { return s.db.Close() }
+func (s *SQLiteSource) Files() []migration.SourceFile { return s.files }
+func (s *SQLiteSource) Close() error                  { return s.db.Close() }
 
 // Events reads the whole old record, mirroring the schema generator's decomposition in
 // reverse: body table per word, `<word>_<field>` list tables (event_id/ord/value),

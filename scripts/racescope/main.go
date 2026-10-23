@@ -4,16 +4,16 @@
 //
 // # The rule
 //
-// Every concurrency start in the shipped binary's import graph, and every test that makes one,
+// Every concurrency start in the shipped binaries' import graph, and every test that makes one,
 // runs under the race detector. Not every test in the graph: the detector reports a race
 // between two goroutines of the test binary, and a test that starts none has nothing for it to
 // report while still paying its 12–26x.
 //
 // # What it does
 //
-//	go run ./racescope -module <dir> -deps ./cmd/<binary>
+//	go run ./racescope -module <dir> -deps ./cmd/...
 //
-// The scope is the binary's module-local import graph (internal/racescope.Scope).
+// The scope is the module-local import graph of the binaries the pattern names (internal/racescope.Scope).
 //
 // Concurrency starts are found by syntax tree and type information: a `go` statement, or a
 // call to a row of internal/racescope.Table.
@@ -52,7 +52,7 @@ func init() { _ = os.Setenv("GOTOOLCHAIN", "local") }
 
 func main() {
 	module := flag.String("module", "", "directory of the module whose race gate this is")
-	target := flag.String("deps", "", "the binary whose module-local import graph is the scope, e.g. ./cmd/feov-record")
+	target := flag.String("deps", "", "the binaries whose module-local import graph is the scope — a go list pattern, e.g. ./cmd/...")
 	timeout := flag.String("timeout", "30m", "per-package bound on each run")
 	parallel := flag.Int("p", runtime.NumCPU(), "packages run at once")
 	deriveOnly := flag.Bool("derive", false, "print the race set and the starts it must execute, and run nothing")

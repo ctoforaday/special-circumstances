@@ -298,13 +298,6 @@ const (
 	Watch = "watch"
 	Now   = "now"
 	Serve = "serve"
-
-	// The operator `migrate` command: replay an old record through this binary's write path.
-	// --from is the old run, --to the fresh sibling it writes, --accept-loss a registry-
-	// documented untranslatable word the operator accepts BY NAME (it lands in the manifest).
-	MigrateFrom = "from"
-	MigrateTo   = "to"
-	AcceptLoss  = "accept-loss"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -331,7 +324,6 @@ func All() []string {
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,
-		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
 	}
 }
@@ -354,8 +346,8 @@ var closedForm = map[string]bool{
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
-	BinDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
-	AcceptLoss: true, Card: true, Occasion: true,
+	BinDir: true, RunID: true, ScriptPath: true,
+	Card: true, Occasion: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.

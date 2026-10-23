@@ -6,6 +6,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -16,7 +17,7 @@ import (
 type sliceSource []migrate.OldEvent
 
 func (s sliceSource) Events() ([]migrate.OldEvent, error) { return s, nil }
-func (s sliceSource) Files() []migrate.SourceFile         { return nil }
+func (s sliceSource) Files() []migration.SourceFile       { return nil }
 func (s sliceSource) Close() error                        { return nil }
 
 // oldStream numbers and stamps a source's events in the order they are added.

@@ -13,20 +13,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
-
-// GapPlacement is what bringing an archived run's placements onto anchors did (F-c): each Anchor
-// added and each rewrite counted by its shape, and by name the gaps with no place in the report — a
-// quote that never placed, or an anchor an edit's replacement holds no prose sentence to carry —
-// and those placed by the fallback. The shapes are named where each is counted.
-type GapPlacement struct {
-	Shapes      map[string]int `json:"shapes,omitempty"`
-	NeverPlaced []string       `json:"never_placed,omitempty"`
-	Fallback    []string       `json:"fallback,omitempty"`
-}
 
 // placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
 // spelling, adding only what the source lacks: the Anchor of a gap, a citation, a proof or a
@@ -41,14 +32,14 @@ type placer struct {
 	q        recordsql.Querier
 	anchored map[string]bool // ids the source stream anchors itself, as the migrated record spells them
 	placed   bool
-	census   GapPlacement
+	census   migration.GapPlacement
 }
 
 // newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
 // migrated ids, so each is keyed on what migrated — the remap's table, filled by now — spells it:
 // keyed on the source's spelling, a run that anchored its own acts would gain a second Anchor each.
 func newPlacer(q recordsql.Querier, evs []OldEvent, migrated map[string]string) *placer {
-	p := &placer{q: q, anchored: map[string]bool{}, census: GapPlacement{Shapes: map[string]int{}}}
+	p := &placer{q: q, anchored: map[string]bool{}, census: migration.GapPlacement{Shapes: map[string]int{}}}
 	for _, ev := range evs {
 		if id, _ := ev.Fields["id"].(string); ev.Word == "anchor" && id != "" {
 			p.anchored[cmp.Or(migrated[id], id)] = true

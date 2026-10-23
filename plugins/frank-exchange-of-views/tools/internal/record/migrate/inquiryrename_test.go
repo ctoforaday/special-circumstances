@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -38,7 +39,7 @@ func plantInB9(t *testing.T, eventType, seat string, stmts ...string) string {
 	return runDir
 }
 
-func migratePlanted(t *testing.T, runDir string) (*migrate.Manifest, record.Family) {
+func migratePlanted(t *testing.T, runDir string) (*migration.Manifest, record.Family) {
 	t.Helper()
 	toDir := recordtest.TmpRun(t)
 	m, err := migrate.Migrate(runDir, toDir, migrate.Entries(), migrate.Options{})

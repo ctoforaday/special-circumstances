@@ -7,17 +7,14 @@
 //
 // Nothing outside this package may learn an old shape. Deleting this package one day deletes
 // the capability cleanly.
+//
+// It links into ONE binary, feov-migrate, and scripts/pluginparity fails any other shipped binary
+// whose import graph holds it: a seat's binary cannot replay history, because it does not contain
+// the code that does. What a migration leaves for other readers — the manifest — is in
+// internal/record/migration, which imports none of this.
 package migrate
 
-// SourceFile names one file the source was read from, with the hash of its bytes AS FOUND.
-// These are file hashes, labelled as such; the manifest's source hash is the LOGICAL one
-// (hash over the event stream as read), because file bytes differ across WAL checkpoint
-// states of the same record.
-type SourceFile struct {
-	Name   string `json:"name"`
-	SHA256 string `json:"sha256"`
-	Bytes  int64  `json:"bytes"`
-}
+import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 
 // OldEvent is one event as the OLD record spelled it: the envelope, plus the body decomposed
 // exactly the way the schema generator decomposes it — scalar columns, list tables, oneof arm
@@ -50,6 +47,6 @@ type Source interface {
 	// the kind of miss a partial reader folds into a clean answer.
 	Events() ([]OldEvent, error)
 	// Files lists what was actually read, for the manifest.
-	Files() []SourceFile
+	Files() []migration.SourceFile
 	Close() error
 }
