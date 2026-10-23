@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -139,8 +140,8 @@ func TestBluesWorkListNamesTheEngagedGapsItFoundClosed(t *testing.T) {
 	if got := strings.Join(e.GapIDs, " "); got != quotedGap+" "+proseGap+" "+closedGap {
 		t.Errorf("engaged gap_ids = %q, want the dispatch's three", got)
 	}
-	want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired"}
-	if len(e.FoundClosed) != 1 || e.FoundClosed[0] != want {
+	want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired", Successors: []string{}}
+	if len(e.FoundClosed) != 1 || !reflect.DeepEqual(e.FoundClosed[0], want) {
 		t.Errorf("found_closed = %+v, want exactly %+v", e.FoundClosed, want)
 	}
 	// The same sitting, the same answer: what is not found closed is what the sitting owes on.
@@ -212,8 +213,8 @@ func TestBluesEngagedBlockNamesTheDispatchItHasNotYetRegisteredFor(t *testing.T)
 			if got := strings.Join(e.GapIDs, " "); got != closedGap+" "+laterGap {
 				t.Errorf("engaged gap_ids = %q, want the second dispatch's %q", got, closedGap+" "+laterGap)
 			}
-			want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired"}
-			if len(e.FoundClosed) != 1 || e.FoundClosed[0] != want {
+			want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired", Successors: []string{}}
+			if len(e.FoundClosed) != 1 || !reflect.DeepEqual(e.FoundClosed[0], want) {
 				t.Errorf("found_closed = %+v, want exactly %+v", e.FoundClosed, want)
 			}
 		})

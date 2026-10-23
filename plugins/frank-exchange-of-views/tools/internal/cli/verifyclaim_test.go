@@ -86,67 +86,70 @@ func TestVerifyTakesNoQuote(t *testing.T) {
 	}
 }
 
-// A REFUTING VERIFICATION IS RAISED BY A FINDING THAT QUOTES THE SENTENCE ITS ANCHOR MARKS — a
-// finding at the cited clause alone does not raise it, one at the whole sentence does — and it
-// holds a PASS until the gap minted from that finding answers it: a finding alone answers nothing.
-func TestARefutingVerificationIsRaisedByAFindingAtItsSentence(t *testing.T) {
-	runDir, anchor := citedClause(t)
-	contradictions := func() []string {
-		t.Helper()
-		b, err := record.FamilyOf(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var claims []string
-		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-			if c.RaisedBy == "" {
-				claims = append(claims, c.Claim)
-			}
-		}
-		return claims
+// unansweredContradictions is the run's unanswered contradictions as `show evidence` lists them.
+func unansweredContradictions(t *testing.T, runDir string) []record.EvidenceContradictionJSON {
+	t.Helper()
+	b, err := record.FamilyOf(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
 	}
+	return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+}
+
+// unraisedClaims is the claim of each unanswered contradiction no finding has raised.
+func unraisedClaims(t *testing.T, runDir string) []string {
+	t.Helper()
+	var claims []string
+	for _, c := range unansweredContradictions(t, runDir) {
+		if c.RaisedBy == "" {
+			claims = append(claims, c.Claim)
+		}
+	}
+	return claims
+}
+
+// lensFinding files a finding graded on every axis, anchored by args, and returns its id.
+func lensFinding(t *testing.T, runDir, seatID, key string, args ...string) string {
+	t.Helper()
+	out, err := run(t, append([]string{"--json", "finding", "--run", runDir, "--seat-id", seatID, "--key", key,
+		"--reason", "the source says otherwise", "--severity", "high", "--likelihood", "high", "--impact", "medium"}, args...)...)
+	if err != nil {
+		t.Fatalf("finding %q: %v\n%s", args, err, out)
+	}
+	var env struct {
+		Result struct {
+			FindingID string `json:"finding_id"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.FindingID == "" {
+		t.Fatalf("finding --json printed no finding_id: %v\n%s", err, out)
+	}
+	return env.Result.FindingID
+}
+
+// A REFUTING VERIFICATION IS RAISED BY THE FINDING THAT NAMES IT — a finding quoting the cited
+// clause, or the whole sentence its anchor marks, raises nothing — and it holds a PASS until the
+// gap minted from that finding answers it: a finding alone answers nothing.
+func TestARefutingVerificationIsRaisedByTheFindingNamingIt(t *testing.T) {
+	runDir, anchor := citedClause(t)
 	if out, err := verifyAs(t, runDir, anchor, "refutes"); err != nil || !printsClaim(out, verifiedSentence) {
 		t.Fatalf("verify did not record and print the claim it read: %v\n%s", err, out)
 	}
-	if got := contradictions(); len(got) != 1 || got[0] != verifiedSentence {
+	if got := unraisedClaims(t, runDir); len(got) != 1 || got[0] != verifiedSentence {
 		t.Fatalf("unanswered contradictions = %q, want the sentence the anchor marks", got)
 	}
-	finding := func(key, quote string) string {
-		t.Helper()
-		out, err := run(t, "--json", "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key,
-			"--quote", quote, "--reason", "the source says the sky is green",
-			"--severity", "high", "--likelihood", "high", "--impact", "medium")
-		if err != nil {
-			t.Fatal(err)
+	for i, quote := range []string{"the sky is blue", verifiedSentence} {
+		lensFinding(t, runDir, lensSeat, "q"+strconv.Itoa(i), "--quote", quote)
+		if got := unraisedClaims(t, runDir); len(got) != 1 {
+			t.Errorf("unraised contradictions = %q after a finding quoting %q, want the sentence still unraised: a quote raises nothing", got, quote)
 		}
-		var env struct {
-			Result struct {
-				FindingID string `json:"finding_id"`
-			} `json:"result"`
-		}
-		if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.FindingID == "" {
-			t.Fatalf("finding --json printed no finding_id: %v\n%s", err, out)
-		}
-		return env.Result.FindingID
 	}
-	finding("k1", "the sky is blue")
-	if got := contradictions(); len(got) != 1 {
-		t.Errorf("unraised contradictions = %q after a finding at the clause alone, want the sentence still unraised", got)
-	}
-	raising := finding("k2", verifiedSentence)
-	if got := contradictions(); len(got) != 0 {
-		t.Errorf("unraised contradictions = %q after a finding at the sentence, want none", got)
+	raising := lensFinding(t, runDir, lensSeat, "k1", "--about-kind", "contradiction", "--about", unansweredContradictions(t, runDir)[0].ID)
+	if got := unraisedClaims(t, runDir); len(got) != 0 {
+		t.Errorf("unraised contradictions = %q after the finding naming it, want none", got)
 	}
 	// RAISED IS NOT ANSWERED: the PASS is held until the gap minted from the raising finding.
-	held := func() int {
-		t.Helper()
-		b, err := record.FamilyOf(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return len(record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions)
-	}
-	if got := held(); got != 1 {
+	if got := len(unansweredContradictions(t, runDir)); got != 1 {
 		t.Fatalf("%d contradiction(s) held after the finding alone, want 1 — a source the report misstates is material by its class", got)
 	}
 	if out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--found-by", raising,
@@ -155,7 +158,7 @@ func TestARefutingVerificationIsRaisedByAFindingAtItsSentence(t *testing.T) {
 		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
 		t.Fatalf("mint --found-by %s: %v\n%s", raising, err, out)
 	}
-	if got := held(); got != 0 {
+	if got := len(unansweredContradictions(t, runDir)); got != 0 {
 		t.Errorf("%d contradiction(s) held after the gap minted from the raising finding, want 0", got)
 	}
 }
@@ -227,9 +230,10 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 	})
 }
 
-// THE CLAIM KEEPS THE SENTENCE'S MARKUP, so the finding that answers it quotes it as verify printed
-// it, unescaped: the same words without their emphasis place in the report and answer nothing.
-func TestARefutedClaimIsAnsweredAsPrinted(t *testing.T) {
+// THE CLAIM KEEPS THE SENTENCE'S MARKUP: verify prints it as the report holds it, unescaped, and
+// the contradiction it opens names that claim. A finding quoting it, in either spelling, raises
+// nothing; the finding naming the contradiction's id raises it.
+func TestARefutedClaimKeepsItsMarkup(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\n**Iron is \"magnetic\".** Copper is not.\n")
 	registerBlue(t, runDir)
@@ -245,30 +249,17 @@ func TestARefutedClaimIsAnsweredAsPrinted(t *testing.T) {
 	if out, err := verifyAs(t, runDir, anchor, "absent"); err != nil || !printsClaim(out, printed) {
 		t.Fatalf("verify did not print the claim %q: %v\n%s", printed, err, out)
 	}
-	held := func() int {
-		t.Helper()
-		b, err := record.FamilyOf(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		n := 0
-		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-			if c.RaisedBy == "" {
-				n++
-			}
-		}
-		return n
+	if got := unraisedClaims(t, runDir); len(got) != 1 || got[0] != printed {
+		t.Fatalf("unraised contradictions = %q, want the claim %q", got, printed)
 	}
-	for _, f := range []struct {
-		quote string
-		held  int
-	}{{`Iron is "magnetic".`, 1}, {printed, 0}} {
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "k"+strconv.Itoa(f.held), "--quote", f.quote,
-			"--reason", "the source says iron is not magnetic", "--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
-			t.Fatalf("finding at %q: %v", f.quote, err)
+	for i, quote := range []string{`Iron is "magnetic".`, printed} {
+		lensFinding(t, runDir, lensSeat, "q"+strconv.Itoa(i), "--quote", quote)
+		if got := unraisedClaims(t, runDir); len(got) != 1 {
+			t.Errorf("after a finding at %q, %d contradiction(s) unraised, want 1: a quote raises nothing", quote, len(got))
 		}
-		if got := held(); got != f.held {
-			t.Errorf("after a finding at %q, %d contradiction(s) unraised, want %d", f.quote, got, f.held)
-		}
+	}
+	lensFinding(t, runDir, lensSeat, "k1", "--about-kind", "contradiction", "--about", unansweredContradictions(t, runDir)[0].ID)
+	if got := unraisedClaims(t, runDir); len(got) != 0 {
+		t.Errorf("after the finding naming it, contradictions %q unraised, want none", got)
 	}
 }

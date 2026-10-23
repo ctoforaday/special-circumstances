@@ -300,10 +300,10 @@ type EvidenceJSON struct {
 	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
 	// checked are the same absence.
 	//
-	// EACH CARRIES ITS ID, which is what raises it (`finding --about-kind contradiction --about
-	// <id>`) whether or not the report still holds the sentence. A claim alone could be raised
-	// only by quoting it, and once blue edited the sentence the quote was refused. A raised one
-	// carries the raising finding, which the gap that answers it credits in its found_by.
+	// EACH CARRIES ITS ID, and naming it is the only act that raises it (`finding --about-kind
+	// contradiction --about <id>`), whether or not the report still holds the sentence. A finding
+	// whose quote contains the claim raises nothing. A raised one carries the raising finding,
+	// which the gap that answers it credits in its found_by.
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
 		Sources int `json:"sources"`
