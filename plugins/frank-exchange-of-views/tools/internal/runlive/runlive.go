@@ -123,7 +123,7 @@ func StateOf(projectDir string, m RunLiveMarker, agentID string) RowState {
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return RowGone
 	}
-	b, err := os.ReadFile(filepath.Join(dir, OutcomeMark))
+	b, err := readSharingDelete(filepath.Join(dir, OutcomeMark))
 	if errors.Is(err, fs.ErrNotExist) {
 		return RowLive
 	}
@@ -211,7 +211,7 @@ func ReadRunLive(projectDir string) []RunLiveMarker {
 // human should be told about. One decoder serves both, so the two can never disagree about the
 // shape of the file.
 func readRunLive(projectDir string) (runs []RunLiveMarker, readable bool) {
-	b, err := os.ReadFile(filepath.Join(projectDir, ".claude", "run-live.json"))
+	b, err := readSharingDelete(filepath.Join(projectDir, ".claude", "run-live.json"))
 	if err != nil {
 		return nil, false
 	}
