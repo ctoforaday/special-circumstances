@@ -1066,9 +1066,12 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
+		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: this
+		// run has ingested no base, so nothing can say whether the claim ever stood or has left.
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID,
-			"--quote", "the claim as it stood", "--reason", "refuted"); err != nil {
-			t.Errorf("a complete retirement was refused: %v", err)
+			"--quote", "the claim as it stood", "--reason", "refuted"); err == nil ||
+			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), "no base has been ingested") {
+			t.Errorf("a retirement over a run with no report was answered %v; want it refused, naming the read", err)
 		}
 	})
 

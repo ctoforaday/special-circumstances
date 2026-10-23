@@ -86,12 +86,14 @@ func newRetire() *cobra.Command {
 		// name an anchor another write has since put back into prose, or explain the removal of a
 		// claim that has re-entered the report (#1252).
 		var stayed []keptAnchor
-		guard := func(l *record.Landing) error {
+		guard := func(l retireLanding) error {
 			basis := record.RemovalAsserted
 			defer func() { body.RemovalBasis = proto.String(basis) }()
 			md, rerr := l.Report()
 			if rerr != nil {
-				return nil
+				// AN UNREADABLE REPORT REFUSES THE RETIRE: a removal recorded because the report
+				// could not be asked whether the claim left is a removal nobody checked.
+				return feov.Wrap(feov.Internal, rerr, "the report could not be read from the record to establish whether %q has left it, so nothing is recorded: %v", claim, rerr)
 			}
 			if strings.Contains(md, claim) {
 				return feov.Errorf(feov.Conflict,
@@ -135,7 +137,7 @@ func newRetire() *cobra.Command {
 			return nil
 		}
 
-		if _, err := record.Append(s.Identity(), body, record.CheckOnReport(guard)); err != nil {
+		if _, err := record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error { return guard(l) })); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil
@@ -402,4 +404,10 @@ func (r retireResult) Human() string {
 		out += "\nanchor stayed: " + k.ID + " — " + k.Why
 	}
 	return out
+}
+
+// retireLanding is what the retire guard reads of the record it lands on.
+type retireLanding interface {
+	Report() (string, error)
+	EditSpans() ([]record.EditSpan, error)
 }

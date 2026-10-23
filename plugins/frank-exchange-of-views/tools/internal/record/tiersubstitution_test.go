@@ -43,10 +43,10 @@ func configuredFor(t *testing.T, run string, seatID string) string {
 	t.Helper()
 	model, judgment := modeltier.Config(run)
 	r := mustRun(t, run)
-	if TierClassOfSeat(r, seatID) == "judgment" {
+	if tierClassOfSeat(t, r, seatID) == "judgment" {
 		return judgment
 	}
-	if TierClassOfSeat(r, seatID) == "" {
+	if tierClassOfSeat(t, r, seatID) == "" {
 		return ""
 	}
 	return model
@@ -109,7 +109,7 @@ func TestARunWithNoDeclaredTierDoesNotRefuse(t *testing.T) {
 // The operator is not a debating seat and rides no tier.
 func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if got := TierClassOfSeat(mustRun(t, runWithTiers(t, `{}`)), OperatorRole); got != "" {
+	if got := tierClassOfSeat(t, mustRun(t, runWithTiers(t, `{}`)), OperatorRole); got != "" {
 		t.Fatalf("the operator has no tier class, got %q", got)
 	}
 	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, OperatorRole), servedmodel.Observation{Served: "claude-haiku-4-5"}); got != "" {
@@ -150,19 +150,29 @@ func TestEverySeatShapeJoinsToATierClass(t *testing.T) {
 		if s.Base == "" {
 			continue // the operator, deliberately
 		}
-		if got := TierClassOfSeat(r, id); got != "bulk" && got != "judgment" {
+		if got := tierClassOfSeat(t, r, id); got != "bulk" && got != "judgment" {
 			t.Errorf("seat %s (base %q) has no tier class — that class of seat would never be gated", id, s.Base)
 		}
 	}
 	// A lane is not on the roster — its id cannot be enumerated (#1153b) — so it is the one seat
 	// whose tier join would go unchecked by the loop above.
-	if got := TierClassOfSeat(r, SampleSeatOf("blue")); got != "bulk" {
+	if got := tierClassOfSeat(t, r, SampleSeatOf("blue")); got != "bulk" {
 		t.Errorf("a lane seat has tier class %q, want bulk — lanes would never be gated", got)
 	}
 	// A PETITION SITTING IS NO LONGER ITS OWN SEAT, so there is nothing handled apart from the
 	// table any more: it is the bench answering a different question, and the loop above already
 	// covers `judge`. An id derived from a seat is not a seat.
-	if got := TierClassOfSeat(r, "judge-petition-red-chair"); got != "" {
+	if got := tierClassOfSeat(t, r, "judge-petition-red-chair"); got != "" {
 		t.Errorf("a derived petition id resolves to tier %q — it is not a seat the engine dispatches", got)
 	}
+}
+
+// tierClassOfSeat is TierClassOfSeat with its read error failing the test rather than reading as "".
+func tierClassOfSeat(t *testing.T, run Run, seatID string) string {
+	t.Helper()
+	c, err := TierClassOfSeat(run, seatID)
+	if err != nil {
+		t.Fatalf("TierClassOfSeat(%q): %v", seatID, err)
+	}
+	return c
 }

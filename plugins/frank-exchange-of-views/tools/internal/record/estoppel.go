@@ -252,14 +252,14 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // against the board at write time, never a gap id mentioned in prose — the convention
 // blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
 // look like a key and not reliable enough to be one.
-func ProofAnswers(run Run, gapID string) bool {
+//
+// A read error is returned, never folded into false: "no proof" and "could not look" are two
+// answers, and the caller refuses on the second naming it.
+func ProofAnswers(run Run, gapID string) (bool, error) {
 	if gapID == "" {
-		return false
+		return false, nil
 	}
-	// A read error folds into false, as the board-read error did: estoppel never blocks on an
-	// unreadable record.
-	found, err := recordHas(run, `SELECT 1 FROM "proof" WHERE "answers" = ? LIMIT 1`, gapID)
-	return err == nil && found
+	return recordHas(run, `SELECT 1 FROM "proof" WHERE "answers" = ? LIMIT 1`, gapID)
 }
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the

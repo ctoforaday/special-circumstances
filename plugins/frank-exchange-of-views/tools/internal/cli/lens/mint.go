@@ -207,15 +207,7 @@ func newMint() *cobra.Command {
 		// against the lens's own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
 		guards = append(guards, record.Check(func(l *record.Landing) error {
-			fam, berr := l.Family()
-			if berr != nil {
-				return nil
-			}
-			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
-				!contains(supersedes.Value(), prior) {
-				return estopped{prior: prior, prescribed: prescribed}
-			}
-			return nil
+			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
 		}))
 
 		var est estopped
@@ -413,4 +405,24 @@ var mintAsserted = []seat.Asserted{
 	{Flag: flags.About, Field: "about_ref"},
 	{Flag: flags.Supersedes, Field: "supersedes"},
 	{Flag: flags.FoundBy, Field: "found_by"},
+}
+
+// familyReader is the one read the estoppel guard makes of the record a mint lands on.
+type familyReader interface {
+	Family() (record.Family, error)
+}
+
+// requireNotEstopped refuses a mint whose location is text this lens prescribed and blue applied
+// verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
+// read to ask: a gap opened because the estoppel question could not be asked is one the tool
+// admitted on nothing.
+func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
+	fam, err := l.Family()
+	if err != nil {
+		return unreadableRefusal("whether this location is text you prescribed", err)
+	}
+	if prior, prescribed := record.EstoppelConflict(fam, quote); prior != "" && !contains(supersedes, prior) {
+		return estopped{prior: prior, prescribed: prescribed}
+	}
+	return nil
 }

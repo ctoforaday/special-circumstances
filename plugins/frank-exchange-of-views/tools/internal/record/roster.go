@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -56,18 +57,22 @@ import (
 // "" IS TWO ANSWERS AND THAT IS DELIBERATE HERE, because both mean the same thing to the one
 // caller: there is no configured tier to hold this seat to. An unrecognised id is already refused
 // at the door by requireDispatchableSeat, so it cannot reach the tier check as a silent pass.
-func TierClassOfSeat(run Run, seatID string) string {
+//
+// A cast that cannot be read is an error: "" would say the seat rides no tier.
+func TierClassOfSeat(run Run, seatID string) (string, error) {
 	if s, ok := seatclass.Seats[seatID]; ok {
-		return seatclass.ClassOf(s.Base)
+		return seatclass.ClassOf(s.Base), nil
 	}
 	// A LANE IS ASKED OF THE RUN, NOT OF THE ID. Its ids are generated from the declared lane
 	// count, so this is a comparison against that set rather than a pattern over the name.
-	for _, id := range LaneSeatsOf(run) {
-		if id == seatID {
-			return seatclass.ClassOf("blue-lane")
-		}
+	lanes, err := LaneSeatsOf(run)
+	if err != nil {
+		return "", err
 	}
-	return ""
+	if slices.Contains(lanes, seatID) {
+		return seatclass.ClassOf("blue-lane"), nil
+	}
+	return "", nil
 }
 
 // AreaOf is the strategic area a lens seat audits, or "" for a seat that audits none.
@@ -93,18 +98,17 @@ var LensAreas = flags.LensAreas
 // A PETITION IS NO LONGER A SEAT ID. It was `judge-petition-<petitioner>`, which made who filed
 // part of the bench's identity; it is now a question put to `judge` for one sitting, and who
 // filed is on the petition it rules. See the bench note above the roster.
-func dispatchableSeatID(run Run, seatID string) bool {
+func dispatchableSeatID(run Run, seatID string) (bool, error) {
 	if _, ok := seatclass.Seats[seatID]; ok {
-		return true
+		return true, nil
 	}
 	// THE CAST NAMES THIS RUN'S LANES. A pattern could say an id LOOKED like a lane; the cast says
 	// whether this run seats one.
-	for _, id := range LaneSeatsOf(run) {
-		if id == seatID {
-			return true
-		}
+	lanes, err := LaneSeatsOf(run)
+	if err != nil {
+		return false, err
 	}
-	return false
+	return slices.Contains(lanes, seatID), nil
 }
 
 // requireDispatchableSeat refuses an id no dispatch could have produced.
@@ -113,7 +117,11 @@ func dispatchableSeatID(run Run, seatID string) bool {
 // is — every later call reads the binding that assertion created — so this is the one door worth
 // standing at, and putting it on every verb would only re-check a value the record now supplies.
 func requireDispatchableSeat(run Run, seatID string) error {
-	if dispatchableSeatID(run, seatID) {
+	ok, err := dispatchableSeatID(run, seatID)
+	if err != nil {
+		return feov.Wrap(feov.Internal, err, "the record could not be read to establish whether %q is a seat this run dispatches, so nothing is recorded — retry the call: %v", seatID, err)
+	}
+	if ok {
 		return nil
 	}
 	return feov.Errorf(feov.RoleViolation,
