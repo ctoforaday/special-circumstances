@@ -191,7 +191,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprint(w, "the pinned source\n\nthe sentence this claim rests on\n")
+		fmt.Fprint(w, "the pinned source\n\nThe sentence this claim rests on.\n")
 	}))
 	defer srv.Close()
 	srcURL := srv.URL + "/"

@@ -306,7 +306,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 // the build runs. The fetch is real — the cache entry it leaves is what the built board's
 // later verbs read — and it reaches nothing outside this machine.
 // pinnedSpan is the words every board's cite of the pinned source quotes from its text.
-const pinnedSpan = "the sentence this claim rests on"
+const pinnedSpan = "The sentence this claim rests on."
 
 func serveSource() (url string, stop func(), err error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

@@ -23,7 +23,7 @@ const (
 	fermatReport = "# Findings\n\n" + fermatClaim + "\n"
 	// fermatReason is blue's paraphrase as m30 stored it: inverted, and worded like the source.
 	fermatReason = "Source: a composite n that passes the Fermat congruence for some base a is known as a Fermat liar; n is then called Fermat pseudoprime to base a."
-	fermatSpan   = "is known as a Fermat liar. In this case n is called Fermat pseudoprime to base a."
+	fermatSpan   = "an integer a for which an-1 - 1 is divisible by n when n is composite is known as a Fermat liar. In this case n is called Fermat pseudoprime to base a."
 )
 
 func fermatRun(t *testing.T, contentType string) string {
@@ -71,7 +71,7 @@ func TestALensSeesTheSourcesWordsAtTheSpanBesideBluesReason(t *testing.T) {
 	if err := json.Unmarshal(src["source_text"], &st); err != nil {
 		t.Fatalf("source_text: %v\n%s", err, b)
 	}
-	if st.Matched != fermatSpan || !strings.Contains(st.Before, "when n is composite") || !strings.Contains(st.After, "photo-") {
+	if st.Matched != fermatSpan || !strings.Contains(st.Before, "For a composite n, ") || !strings.Contains(st.After, "photo-") {
 		t.Errorf("source_text = %+v; want the page's words at the span and around it", st)
 	}
 	if strings.Contains(st.Before+st.Matched+st.After, "passes the Fermat congruence") {

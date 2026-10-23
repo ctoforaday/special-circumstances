@@ -11,7 +11,7 @@ import (
 // page 1, so the board never demands a citation its own fixture cannot produce.
 const (
 	ScannedFixtureSentence = "Software integrity levels are assigned by consequence."
-	ScannedFixtureSpan     = "integrity levels are assigned"
+	ScannedFixtureSpan     = "Software integrity levels are assigned"
 )
 
 // scannedFixture is a one-page, image-only PDF: a scan with no text layer.
