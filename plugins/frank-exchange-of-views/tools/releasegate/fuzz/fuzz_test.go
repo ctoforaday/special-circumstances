@@ -7266,11 +7266,12 @@ func (r *runner) engageSuccessors(seatID string, env map[string]any) {
 	if err != nil || w.Engaged == nil {
 		return
 	}
-	var closed, succ []string
+	var closed, lineage []string
 	for _, f := range w.Engaged.FoundClosed {
 		closed = append(closed, f.ID)
-		succ = append(succ, f.Successors...)
+		lineage = append(lineage, f.Successors...)
 	}
+	succ := w.Engaged.SuccessorsOwed
 	if len(closed) == 0 {
 		return
 	}
@@ -7284,7 +7285,7 @@ func (r *runner) engageSuccessors(seatID string, env map[string]any) {
 	}
 	if engageRefusalPending.CompareAndSwap(true, false) {
 		named := map[string]bool{}
-		for _, g := range succ {
+		for _, g := range lineage {
 			named[g] = true
 		}
 		for _, other := range r.openGaps() {

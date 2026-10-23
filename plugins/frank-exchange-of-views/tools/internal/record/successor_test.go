@@ -81,6 +81,9 @@ func TestBlueSitsAgainOnTheSuccessorOfAGapItFoundClosed(t *testing.T) {
 	if !blocking(w, "record `engage`") {
 		t.Errorf("blue's work list does not block on the engage it owes: %+v", w.Sitting.Open)
 	}
+	if !slices.Equal(w.Engaged.SuccessorsOwed, []string{m31Successor}) {
+		t.Errorf("successors_owed = %v, want [%s]", w.Engaged.SuccessorsOwed, m31Successor)
+	}
 	if err := engage(t, run, m31Successor); err != nil {
 		t.Fatalf("engage on the record's successor was refused: %v", err)
 	}
@@ -91,7 +94,10 @@ func TestBlueSitsAgainOnTheSuccessorOfAGapItFoundClosed(t *testing.T) {
 	if blocking(w, "register for this sitting") {
 		t.Errorf("the engage row is owed by the NEXT sitting, yet the sitting that wrote it is told to register: %+v", w.Sitting.Open)
 	}
-	if err := engage(t, run, m31Successor); err == nil || !strings.Contains(err.Error(), "owes no `engage`") {
+	if got := workOfBlue(t, run).Engaged.SuccessorsOwed; len(got) != 0 {
+		t.Errorf("successors_owed after the act = %v, want empty", got)
+	}
+	if err := engage(t, run, m31Successor); err == nil || !strings.Contains(err.Error(), "owes none") {
 		t.Errorf("a second engage in the same sitting = %v, want it refused: the successor is engaged this epoch", err)
 	}
 
@@ -155,7 +161,7 @@ func TestAGapClosedWithNoSuccessorOwesNoSecondSitting(t *testing.T) {
 		t.Errorf("an engage is owed where the record names no successor: %+v", w.Sitting.Open)
 	}
 	err := engage(t, run, m31NotLineage)
-	if err == nil || !strings.Contains(err.Error(), "owes no `engage`") {
+	if err == nil || !strings.Contains(err.Error(), "owes none") {
 		t.Errorf("engage on a gap the record names as no successor = %v, want refused", err)
 	}
 }
@@ -205,8 +211,12 @@ func TestASuccessorAlreadyEngagedThisEpochIsNotOwed(t *testing.T) {
 		bracket(m31Logic, "logic-a").closeGap(m31Logic, m31Closed).stop("logic-a").
 		bracket(blueSeatID, "blue-a")
 	run := b.seed()
-	if blocking(workOfBlue(t, run), "record `engage`") {
-		t.Error("an engage is owed on a successor this epoch's dispatch already engages blue on")
+	w := workOfBlue(t, run)
+	if blocking(w, "record `engage`") || len(w.Engaged.SuccessorsOwed) != 0 {
+		t.Errorf("an engage is owed on a successor this epoch's dispatch already engages blue on: %v", w.Engaged.SuccessorsOwed)
+	}
+	if got := w.Engaged.FoundClosed[0].Successors; !slices.Equal(got, []string{m31Successor}) {
+		t.Errorf("found_closed successors = %v: the lineage is named whether or not it is owed", got)
 	}
 	if err := engage(t, run, m31Successor); err == nil {
 		t.Error("engage on a successor the chair's row already engages was recorded")
@@ -254,7 +264,7 @@ func TestEngageFollowsOnlyFromTheSittingBlueIsIn(t *testing.T) {
 	if blocking(workOfBlue(t, run), "record `engage`") {
 		t.Error("a sitting that answers no dispatch is told it owes an engage")
 	}
-	if err := engage(t, run, m31Successor); err == nil || !strings.Contains(err.Error(), "not sitting a sitting for a dispatch") {
+	if err := engage(t, run, m31Successor); err == nil || !strings.Contains(err.Error(), "not sitting a sitting for a dispatch in this epoch") {
 		t.Errorf("engage from a sitting no dispatch answers = %v, want refused", err)
 	}
 
@@ -269,7 +279,7 @@ func TestEngageFollowsOnlyFromTheSittingBlueIsIn(t *testing.T) {
 				next = next.dispatch(2, blueSeatID, c.gaps...)
 			}
 			recordtest.Seed(t, run2.Dir(), next.stop("chair-b").evs...)
-			if err := engage(t, run2, m31Successor); err == nil || !strings.Contains(err.Error(), "not sitting a sitting for a dispatch") {
+			if err := engage(t, run2, m31Successor); err == nil || !strings.Contains(err.Error(), "not sitting a sitting for a dispatch in this epoch") {
 				t.Errorf("engage after the chair sat again = %v, want refused", err)
 			}
 		})

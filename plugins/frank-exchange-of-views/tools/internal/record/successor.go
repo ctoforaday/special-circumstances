@@ -152,10 +152,10 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 		return openErr
 	}
 	if !sitting {
-		return feov.Errorf(feov.Validation, "you are not sitting a sitting for a dispatch — register for this sitting first; `engage` follows a gap your sitting found closed to the successor the record names")
+		return feov.Errorf(feov.Validation, "you are not sitting a sitting for a dispatch in this epoch — an engagement follows a gap the sitting you are in found closed to the successor the record names")
 	}
 	if len(owed) == 0 {
-		return feov.Errorf(feov.Validation, "this sitting owes no `engage`: no gap it found closed has an open successor on the record that is not already engaged this epoch — your work list's `engaged.found_closed` names each closed gap's successors")
+		return feov.Errorf(feov.Validation, "this sitting owes none: no gap it found closed has an open successor on the record that is not already engaged this epoch — your work list's engaged.successors_owed is empty")
 	}
 	want := make([]string, len(owed))
 	for i, o := range owed {
@@ -190,8 +190,8 @@ func requireEngage(q recordsql.Querier, writer string, b *recordpb.Dispatch) err
 		problems = append(problems, "it leaves out "+strings.Join(missing, ", ")+" — one `engage` names every successor the sitting owes")
 	}
 	if len(problems) > 0 {
-		return feov.Errorf(feov.Validation, "`engage --ids %s` is refused: %s. This sitting owes exactly: %s",
-			strings.Join(gave, ","), strings.Join(problems, "; "), strings.Join(want, ","))
+		return feov.Errorf(feov.Validation, "%s. This sitting owes exactly %s — your work list's engaged.successors_owed",
+			strings.Join(problems, "; "), strings.Join(want, ","))
 	}
 	return nil
 }

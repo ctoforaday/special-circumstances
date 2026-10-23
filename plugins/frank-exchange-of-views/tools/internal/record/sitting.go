@@ -440,6 +440,11 @@ type EngagedJSON struct {
 	// every gap of GapIDs the sitting owes no position. Never omitted: an empty list
 	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
+	// SuccessorsOwed is the successors this sitting owes an `engage` on (successorsOwed): each open
+	// successor of a gap it found closed that no dispatch row of this epoch engages blue on, in
+	// found-closed order, once each. It is exactly the set the act must name, and it is empty when
+	// none is owed and once the act is recorded. Never omitted.
+	SuccessorsOwed []string `json:"successors_owed"`
 }
 
 // FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, the fate
@@ -478,8 +483,12 @@ func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string
 	if !sat {
 		return nil
 	}
-	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}}
+	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}, SuccessorsOwed: []string{}}
 	succ, open := successorsOf(live), openOf(gaps)
+	owed, _ := successorsOwed(live, win, open)
+	for _, o := range owed {
+		e.SuccessorsOwed = append(e.SuccessorsOwed, o.GapID)
+	}
 	for _, ev := range s.FoundClosed {
 		c, _ := recordpb.BodyAs[*recordpb.Close](ev)
 		f := FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass()), Successors: []string{}}
