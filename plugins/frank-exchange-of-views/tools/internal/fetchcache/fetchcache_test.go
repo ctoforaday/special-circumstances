@@ -435,8 +435,8 @@ func TestALandingPageIsFollowedToTheFullTextItNames(t *testing.T) {
 	}
 	// RECORDED AS A FOLLOW, NOT A RECOVERY. RetrievedVia means the bytes may be a different
 	// artifact from the url's; a publisher's abstract naming its own full text is the same work.
-	if e.FollowedTo != full {
-		t.Errorf("the hop is not recorded: followed_to %q", e.FollowedTo)
+	if e.Substitution != SubstitutionFollowedLink || e.CopyURL != full {
+		t.Errorf("the hop is not recorded: substitution %q copy_url %q", e.Substitution, e.CopyURL)
 	}
 	if e.RetrievedVia != "" {
 		t.Errorf("following a publisher's own pointer was recorded as a recovery: %q", e.RetrievedVia)

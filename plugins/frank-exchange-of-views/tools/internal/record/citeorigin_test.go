@@ -40,6 +40,21 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 		// AND THE THIRD: a cite of an abstract with nothing saying so renders like a cite of the paper.
 		{"no completeness", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(),
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()}, "carries no source_completeness"},
+		// AND THE FOURTH: whose bytes the citation read. Unstamped, a recovered copy renders as the
+		// typed url's own; a copy url on the url's own bytes names a place nothing read; a followed
+		// pointer or a fuller copy is always fetched from a url, so either without one lost it. A
+		// recovery whose body is the tool's own statement was read from no url, and says so.
+		{"no copy substitution", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}, 0, ""), "carries no copy_substitution"},
+		{"a copy url on the url's own bytes", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, "https://elsewhere"), "a copy url names where substituted bytes came from"},
+		{"a followed pointer with no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, ""), "followed_link and no copy_url"},
+		{"a fuller copy with no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY, ""), "fuller_copy and no copy_url"},
+		{"a recovered copy and its url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, "https://web.archive.org/x"), ""},
+		{"a recovery read from no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, ""), ""},
 	} {
 		err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {
@@ -54,6 +69,20 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 func stamped(c *recordpb.Cite) *recordpb.Cite {
 	c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()
 	c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum()
+	c.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum()
+	return c
+}
+
+// copied is stamped with the copy fields set as given: a zero kind leaves it unstamped.
+func copied(c *recordpb.Cite, kind recordpb.CopySubstitution, copyURL string) *recordpb.Cite {
+	stamped(c)
+	c.CopySubstitution = nil
+	if kind != 0 {
+		c.CopySubstitution = kind.Enum()
+	}
+	if copyURL != "" {
+		c.CopyUrl = proto.String(copyURL)
+	}
 	return c
 }
 

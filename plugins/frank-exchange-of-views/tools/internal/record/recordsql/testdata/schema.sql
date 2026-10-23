@@ -314,6 +314,17 @@ INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_recorded'
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_the_work', 'the copy is not the work at all: a sign-in page, a book''s sales page');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('unverified', 'nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book''s pdf');
 
+CREATE TABLE "enum_copy_substitution" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('followed_link', 'the typed url''s page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('fuller_copy', 'the typed url''s page was not known to carry the work''s body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('named_backend', 'a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool''s own statement of what the backend found, not a document');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('none', 'the cited bytes are the typed url''s own: the url answered, and its answer is what was read');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('recovered', 'the typed url refused this container, and the tool''s recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool''s own statement of what the recovery found, not a document');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -680,9 +691,12 @@ CREATE TABLE "cite" (
   "source_after" TEXT,
   "work_status" TEXT,
   "source_completeness" TEXT,
+  "copy_substitution" TEXT,
+  "copy_url" TEXT,
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
-  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
+  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "cite_pages" (

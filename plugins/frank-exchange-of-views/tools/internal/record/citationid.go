@@ -47,6 +47,12 @@ type Source struct {
 	// citation that rests on the abstract alone, because an abstract is quoted exactly like a
 	// study and nothing else in the document tells the reader which it was.
 	SourceCompleteness recordpb.SourceCompleteness
+	// CopySubstitution and CopyURL say whose bytes a blue citation read when they are not the
+	// url's own, and where they came from. Assembly prints the copy beside the url, because the
+	// url is what a reader follows and it is not what was read. A corroboration has neither: red
+	// read its source itself.
+	CopySubstitution recordpb.CopySubstitution
+	CopyURL          string
 }
 
 // citedSource reads a citable source off an event body, if it is one.
@@ -81,6 +87,8 @@ func citedSource(body proto.Message) (Source, bool) {
 			WorkStatus: b.GetWorkStatus(),
 
 			SourceCompleteness: b.GetSourceCompleteness(),
+			CopySubstitution:   b.GetCopySubstitution(),
+			CopyURL:            b.GetCopyUrl(),
 		}, true
 	case *recordpb.Verify:
 		// No sha: red read the source itself rather than through the run cache, and the
