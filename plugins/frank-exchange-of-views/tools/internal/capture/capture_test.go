@@ -1588,5 +1588,3 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }
-
-func ptr[T any](v T) *T { return &v }
