@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -548,6 +549,8 @@ func TestAFailOnAConvergentBoardIsRefused(t *testing.T) {
 	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
 	if _, err := Append(chair, fail); err == nil || !strings.Contains(err.Error(), "converged") {
 		t.Fatalf("a FAIL over a converged board landed: %v", err)
+	} else if feov.CodeOf(err) != string(feov.Conflict) {
+		t.Errorf("the convergence refusal is coded %q, want %q", feov.CodeOf(err), feov.Conflict)
 	}
 	c, _ := convergenceOf(viewOf(t, run))
 	if c.Peak != 9 || c.Mass != 1 || c.MaxSeverityMass != 1 || c.FreshMaterialMints != 0 {

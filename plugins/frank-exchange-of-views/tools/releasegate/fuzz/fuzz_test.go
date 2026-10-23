@@ -3256,9 +3256,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// verdict enum is still driven here, as it was: a FAIL is the ordinary mid-run sitting.
 		verdict, printed := "", ""
 		if len(r.openGaps()) > 0 {
-			if out, err := r.exec("--json", "verdict", "--seat-id", seatID, "--as", "FAIL"); err == nil {
-				verdict, printed = "FAIL", out
-			}
+			verdict, printed = r.chairFail(seatID)
 		}
 		r.chairPosition(seatID, permitted)
 		return r.chairEnvelope(seatID, verdict, printed, responses)
@@ -6343,6 +6341,7 @@ func TestFuzzDebate(t *testing.T) {
 	// needs no quorum, because one refusal per invocation is not a sampling accident.
 	t.Log(execReport())
 	t.Log(eitherReport())
+	t.Log(failReport())
 	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
 	// own for the reason #635 was filed about: a second test reading this package-level tally
 	// would run at whatever point its declaration order put it, and a gate that reads a tally
@@ -7205,13 +7204,13 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
-// unruledDocketMotion reads the motions projection for the docket motion on gapID that has no
-// ruling yet — the one the dispatch filed — or "" when there is none.
-func (r *runner) unruledDocketMotion(gapID string) string {
+// unruledDocketMotions reads the motions projection for every docket motion on gapID that has no
+// ruling yet, in the projection's order — the one the dispatch filed, and any a party filed beside it.
+func (r *runner) unruledDocketMotions(gapID string) []string {
 	// `show` renders json by default (--format); the global --json envelope is not its shape.
 	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", "judge")
 	if err != nil {
-		return ""
+		return nil
 	}
 	// `show --json` writes the projection's bytes directly — record.MotionsJSON, not a seat
 	// envelope — so the motions sit at the top level.
@@ -7224,14 +7223,15 @@ func (r *runner) unruledDocketMotion(gapID string) string {
 		} `json:"motions"`
 	}
 	if json.Unmarshal([]byte(out), &page) != nil {
-		return ""
+		return nil
 	}
+	var ids []string
 	for _, m := range page.Motions {
 		if m.Subject == "docket" && !m.Ruled && m.GapID == gapID {
-			return m.ID
+			ids = append(ids, m.ID)
 		}
 	}
-	return ""
+	return ids
 }
 
 // docketFiler is the seat that files the fallback docket motion the bench then rules: the chair,
@@ -7260,12 +7260,20 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	// has, on the record, sat and ruled nothing. Five runs in forty ended UNVERIFIED on exactly
 	// that before this read the board. The fallback filing stays for a gap no dispatch docketed,
 	// and it files as the CHAIR seat, never the bench (the gavel problem in miniature).
-	motionID := r.unruledDocketMotion(gapID)
+	//
+	// EVERY DOCKET MOTION STANDING ON THE GAP IS RULED, not the first. A party may file one beside the
+	// dispatch's (blue's `motion docket file` drive does not look first), each is a blocker on the
+	// bench's work list, and the plan keys the bench's sitting on the newest filing: a bench that
+	// rules one of two has, on the record, sat for the other and ruled nothing, and is never readied
+	// again — the forced-VERIFIED run ended UNVERIFIED on exactly that, the sibling motion standing
+	// with nobody ready until the terminal sitting ruled it. Two remands in one sitting are one
+	// remand (remandSittingsOf), so ruling each sibling as the scenario says moves no limit.
+	motionIDs := r.unruledDocketMotions(gapID)
 	// THE BENCH FILES NO DOCKET MOTION: reaching for one on the gap it is about to rule is refused.
 	if r.coin(25) {
 		r.rulerFilingRefused(seatID, "motion", "docket", "file", "--id", gapID, "--reason", "fuzz: the bench docketing "+gapID+" to itself")
 	}
-	if motionID == "" {
+	if len(motionIDs) == 0 {
 		out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", docketFiler, "--id", gapID,
 			"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
 		if err != nil {
@@ -7281,12 +7289,14 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 		if json.Unmarshal([]byte(out), &filed) != nil || filed.Result.MotionID == "" {
 			return
 		}
-		motionID = filed.Result.MotionID
+		motionIDs = []string{filed.Result.MotionID}
 	}
-	args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
-		"--as", disposition, "--principle", "correctness", "--tension", "cost",
-		"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
-	r.admit(args...)
+	for _, motionID := range motionIDs {
+		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
+			"--as", disposition, "--principle", "correctness", "--tension", "cost",
+			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
+		r.admit(args...)
+	}
 }
 
 // ruleStandingDockets is the terminal bench ruling every docket motion that stands unruled at the
