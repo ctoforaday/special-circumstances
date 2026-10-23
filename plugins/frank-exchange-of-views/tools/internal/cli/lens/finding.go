@@ -130,7 +130,7 @@ func newFinding() *cobra.Command {
 		return findingResult{ID: findingID, Area: area}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id. A repeat under the handle with another --reason, grade or --about-kind/--about is refused: a handle names one finding")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id. A repeat under the handle with another --quote, --reason, grade or --about-kind/--about is refused: a handle names one finding")
 	seat.Supplies(c, "id", "the tool mints it (record.NewID), at random — an id a seat chose would name a finding the record does not hold")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
@@ -147,9 +147,10 @@ func newFinding() *cobra.Command {
 }
 
 // findingAsserted is what a finding states, and so what a retry under its key must state again:
-// its text, its grades and its subject. The quote is not among them — a retry is finished at the
-// location the finding stored.
+// its quote, its text, its grades and its subject. A retry that finishes an owed anchor finishes it
+// at the location it states, which is the one the finding stored.
 var findingAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
 	{Flag: flags.Reason, Field: "text"},
 	{Flag: flags.Severity, Field: "severity"},
 	{Flag: flags.Likelihood, Field: "likelihood"},

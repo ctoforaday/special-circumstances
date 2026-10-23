@@ -262,7 +262,7 @@ Available Commands:
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -296,7 +296,7 @@ THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography en
 IF WHAT YOU RECORDED WAS WRONG, say so in a new citation.
 
 Flags:
-      --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation. → SHARED §5
+      --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span or --reason is refused: a handle names one citation. → SHARED §5
       --quote string         REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string        why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
       --source-span string   required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). The tool finds them there once — runs of whitespace (non-breaking and thin spaces included) compare as one space; a line-end hyphen may be typed joined or kept; curly quotes ‘ ’ “ ” compare as ' and ", en and em dashes – — as -, an ellipsis … as ..., the ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, and a soft hyphen as nothing; case, letters and every other punctuation mark must match — and records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. A source the tool holds no text for is cited without it
@@ -368,7 +368,7 @@ A SECTION MOVES IN ONE EDIT. Quote the section together with everything that sta
 Flags:
       --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text
       --answers gap-id   the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap
-      --key string       your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another --quote, --new, --answers or --accept is refused: a handle names one edit. → SHARED §5
+      --key string       your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another --quote, --new, --answers, --accept or --reason is refused: a handle names one edit. → SHARED §5
       --new string       the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused
       --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. An anchor standing at its end stays where it is unless the quote carries it
       --reason string    → SHARED §8
@@ -628,15 +628,17 @@ Flags:
       --answers gap-id          the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer
       --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
-      --key string              your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. → SHARED §5
+      --key string              your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another program, --quote, --cites, --answers or --reason is refused: a handle names one proof. → SHARED §5
       --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
+
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 

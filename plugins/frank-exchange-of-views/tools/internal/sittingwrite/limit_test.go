@@ -24,7 +24,7 @@ func registerAs(t *testing.T, run, agent, seat string) {
 // the limit.
 func TestASittingLimitLandsNamingTheSeatSittingAndLimit(t *testing.T) {
 	run := newRun(t)
-	registerAs(t, run, "agent_07", "red-chair")
+	registerAs(t, run, "agent_06", "red-chair")
 	registerAs(t, run, "agent_07", "red-chair")
 	if err := WriteLimit(run, "agent_07", 2, 150); err != nil {
 		t.Fatal(err)

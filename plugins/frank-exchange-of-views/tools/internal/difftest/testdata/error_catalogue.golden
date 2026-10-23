@@ -293,7 +293,7 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
@@ -340,7 +340,7 @@ Available Commands:
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -382,7 +382,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -422,7 +422,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
@@ -491,7 +491,11 @@ feov-record: finding: the quote occurs more than once in the report, and an anch
 
 ── a retry whose stored location the report no longer holds
 exit 2
-feov-record: finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
+feov-record: finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act, its --quote included, so it cannot move the anchor. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
+
+── a retry quoting other text
+exit 2
+feov-record: finding: --key "F-owed" already names finding FINDING002 on this run, stated with --quote "A sentence the report held."; this repeat states --quote "somewhere" — a key is one finding's name, not a slot to reuse. This is not a retry: recording nothing here would leave you with another finding than the one you stated. Give this finding its own --key
 
 ── a retry stating the act otherwise
 exit 2

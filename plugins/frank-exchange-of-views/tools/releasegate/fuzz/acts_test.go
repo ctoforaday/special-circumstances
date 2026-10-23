@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -268,10 +269,15 @@ func contentKey(prefix string, stated []string) string {
 
 // retryKeyed repeats a keyed act that landed. As it was, the tool answers with the act on the record;
 // with flag set to other, an asserted field the stored act holds otherwise, it is refused as a
-// conflict.
+// conflict — and so is a repeat quoting other text, which states another location under the key.
 func (r *runner) retryKeyed(args []string, flag, other string) {
 	if out, ok := r.admit(args...); ok && !strings.Contains(out, "idempotent") {
 		r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+	}
+	if i := slices.Index(args, "--quote"); i >= 0 && i+1 < len(args) && flag != "--quote" && r.coin(50) {
+		elsewhere := slices.Clone(args)
+		elsewhere[i+1] = args[i+1] + " Elsewhere."
+		r.refuse(feov.Conflict, elsewhere...)
 	}
 	changed := append([]string(nil), args...)
 	for i := 0; i+1 < len(changed); i++ {

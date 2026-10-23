@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -11,10 +12,9 @@ import (
 )
 
 // THE M31 SEQUENCE THROUGH THE VERBS: a seat's first act registers it silently, then the seat runs
-// `register` itself, as its surface tells it to before it writes. The fixture's own register (no
-// agent id) opened sitting 1 and the silent one opened sitting 2, so each explicit register answers
-// dispatch 2 and writes nothing.
-func TestRegisterAfterTheFirstActRegisteredItWritesNothing(t *testing.T) {
+// `register` itself. The fixture's own register (no agent id) opened sitting 1 and the silent one
+// opened sitting 2, so each explicit register is refused naming dispatch 2, and writes nothing.
+func TestRegisterAfterTheFirstActRegisteredItIsRefused(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_lens_first_act_registered")
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-lens-evidence",
@@ -28,26 +28,24 @@ func TestRegisterAfterTheFirstActRegisteredItWritesNothing(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, e := range fam.Events {
-			if e.GetSeatId() == "red-lens-evidence" && e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+			switch {
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_LOG:
+				// a refusal is logged; it is not the register
+			case e.GetSeatId() == "red-lens-evidence" && e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER:
 				registers++
+				all++
+			default:
+				all++
 			}
 		}
-		return len(fam.Events), registers
+		return all, registers
 	}
 	before, regsBefore := events()
-	first, err := run(t, "register", "--json", "--run", runDir, "--seat-id", "red-lens-evidence")
-	if err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	again, err := run(t, "register", "--json", "--run", runDir, "--seat-id", "red-lens-evidence")
-	if err != nil {
-		t.Fatalf("register again: %v", err)
-	}
-	if first != again {
-		t.Errorf("two registers in one dispatch answered differently:\n%s\n---\n%s", first, again)
-	}
-	if !strings.Contains(strings.Join(strings.Fields(first), ""), `"dispatch":2,`) {
-		t.Errorf("the explicit register after an auto-register answered %s; want dispatch 2", first)
+	for range 2 {
+		_, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence")
+		if err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), "already registered in this sitting (dispatch 2)") {
+			t.Errorf("the explicit register after an auto-register = %v; want it refused naming dispatch 2", err)
+		}
 	}
 	if after, regs := events(); after != before || regs != regsBefore {
 		t.Errorf("the explicit registers wrote %d event(s) (%d -> %d registers)", after-before, regsBefore, regs)

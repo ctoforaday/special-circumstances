@@ -92,7 +92,7 @@ func newEdit() *cobra.Command {
 			return nil, err
 		}
 		if prior != nil {
-			if err := repeatsEdit(key, prior, gapID, accepting, oldStr, newStr); err != nil {
+			if err := repeatsEdit(key, prior, gapID, accepting, oldStr, newStr, reason); err != nil {
 				return nil, err
 			}
 			// The op is already on the diff-stack, so the render already reflects it — there is
@@ -231,7 +231,7 @@ func newEdit() *cobra.Command {
 		return editResult{VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another --quote, --new, --answers or --accept is refused: a handle names one edit")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another --quote, --new, --answers, --accept or --reason is refused: a handle names one edit")
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
@@ -245,19 +245,19 @@ func newEdit() *cobra.Command {
 }
 
 // repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the
-// gap it answers, whether it accepts that gap's fix, and — for an edit blue typed — the span and its
+// gap it answers, whether it accepts that gap's fix, its reason, and — for an edit blue typed — the span and its
 // replacement. AN EDIT PLACES NO ANCHOR, so its --quote is not a location a retry finishes at: it is
 // half of the change, and a different span is a different edit. The stored replacement carries any
 // anchor the tool put back, so both replacements are compared without their anchors. An accepting
 // retry's pair is the tool's, read off the gap, and is not the seat's to repeat.
-func repeatsEdit(key string, stored *recordpb.BlueEdit, gapID string, accepting bool, oldStr, newStr string) error {
-	retry := &recordpb.BlueEdit{Answers: proto.String(gapID), Old: proto.String(oldStr), New: proto.String(withoutAnchors(newStr))}
+func repeatsEdit(key string, stored *recordpb.BlueEdit, gapID string, accepting bool, oldStr, newStr, reason string) error {
+	retry := &recordpb.BlueEdit{Answers: proto.String(gapID), Old: proto.String(oldStr), New: proto.String(withoutAnchors(newStr)), Text: proto.String(reason)}
 	if accepting {
 		retry.Accepted = proto.Bool(true)
 	}
 	view := proto.Clone(stored).(*recordpb.BlueEdit)
 	view.New = proto.String(withoutAnchors(stored.GetNew()))
-	asserted := []seat.Asserted{{Flag: flags.Answers, Field: "answers"}, {Flag: flags.Accept, Field: "accepted"}}
+	asserted := []seat.Asserted{{Flag: flags.Answers, Field: "answers"}, {Flag: flags.Accept, Field: "accepted"}, {Flag: flags.Reason, Field: "text"}}
 	if !accepting {
 		asserted = append(asserted, seat.Asserted{Flag: flags.Quote, Field: "old"}, seat.Asserted{Flag: flags.New, Field: "new"})
 	}
