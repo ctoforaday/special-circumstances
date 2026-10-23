@@ -47,7 +47,8 @@ url's own — `followed_link`, `recovered` (the url refused and a rung answered)
 carrying more of the work replaced a page not known to be the body), `named_backend` (a fetch named
 the backend) — and the url each backend fetched them from. A citation carries both as
 `copy_substitution` and `copy_url`; `none` states the bytes are the url's own. A body the tool wrote
-itself ("no open copy exists") was read from no url and has no `copy_url`.
+itself ("no open copy exists") was read from no url and has no `copy_url`. `cite` prints both, read
+back from the stored citation, so blue learns of a substituted copy from the act that recorded it.
 
 **Classifying what arrived.** Every entry records what the bytes are, not only that they arrived:
 
@@ -153,8 +154,14 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 - **`supports` from an abstract is allowed, and says so.** Every verdict naming a url is stamped
   with the copy's `source_completeness`. A support read off an abstract confirms what the abstract
   says, not what the study shows, and the record carries which.
-- **A supporting corroboration becomes a footnote.** It carries an id and `work_status`, exactly
-  as a blue cite does. A refuting or weak one is a board matter, never a reference.
+- **Every verdict records the copy it was read against.** `copy_substitution` and `copy_url` are
+  stamped from the cache's entry for the source's url — the citation's for `verify`, the named one
+  for `corroborate` — on the same terms as a cite. A url the cache holds no copy of is
+  `not_cached`: red read it outside the tool, or the cache is gone. Both verbs print a copy that is
+  not the url's own, and `show evidence` carries it on each verification row.
+- **A supporting corroboration becomes a footnote.** It carries an id, `work_status` and its copy,
+  exactly as a blue cite does; its note and Bibliography line name a substituted copy. A refuting
+  or weak one is a board matter, never a reference.
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
 source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
@@ -241,7 +248,8 @@ from here.**
 - Page locators are the pdf's page **index**, not the folio printed on the page.
 - An archive snapshot is a different artifact, what a url said on a date. The footnote shows the url
   that was asked and the snapshot it was read from. A citation migrated from before the field
-  carries `copy_substitution: not_recorded` and no copy url: the fetch index that knew is not archived.
+  carries `copy_substitution: not_recorded` and no copy url, and so does a migrated verification:
+  the fetch index that knew is not archived.
 - Citation ids are 4 random bytes. Collisions are negligible per run, but the uniqueness test
   fails by design about once in 8,600 CI runs (#1184).
 

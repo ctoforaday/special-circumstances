@@ -113,7 +113,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Verify{
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Anchor: proto.String("C-a1b2c3d4"), Claim: proto.String("the claim"),
 		Text:       proto.String("the source states it at the leaf"),
 		Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),

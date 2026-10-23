@@ -212,8 +212,8 @@ func bibliographyEntry(url string, sources []record.Source) string {
 // A followed pointer is the same work at the place its publisher named, so it is said plainly; a
 // recovered or another copy is a different artifact — a snapshot, a repository's copy, possibly
 // another version — and is marked. A substitution with no copy url read no document at all: its
-// bytes are the fetch tool's statement of what it found. NONE prints nothing, and NOT_RECORDED is
-// the record's absence, which the record carries for red.
+// bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
+// corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
 func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
 	switch kind {
 	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:

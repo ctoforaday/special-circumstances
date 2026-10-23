@@ -97,13 +97,13 @@ type EvidenceSourceJSON struct {
 	// not_the_work, not_asked. A summary_only citation of an abstract and a leaf citation of the
 	// paper differ in what red has to check, and only this field says which one it holds.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
-	// CopySubstitution is WHOSE BYTES blue's citation read: `none` states they are the url's own,
+	// CopySubstitution is WHOSE BYTES the citation read: `none` states they are the url's own,
 	// and every other word names the route by which a copy stood in for it — followed_link,
 	// recovered, fuller_copy, named_backend — with CopyURL naming where that copy was read.
-	// not_recorded is a citation from before the field. Rendered on every blue cite, because a lens
+	// not_recorded is a citation from before the field; not_cached, on a corroboration, a source
+	// the run's cache held no copy of when red read it. Rendered on every source, because a lens
 	// verifying against the url would otherwise check bytes nobody cited, and the blank that meant
-	// "the url's own" would read the same as the blank that meant "nobody said". Empty on a
-	// corroboration, which red read itself.
+	// "the url's own" would read the same as the blank that meant "nobody said".
 	CopySubstitution string `json:"copy_substitution,omitempty"`
 	CopyURL          string `json:"copy_url,omitempty"`
 	// SourceText is WHAT THE SOURCE SAYS where blue quoted it: the span the tool found once in the
@@ -271,6 +271,12 @@ type EvidenceVerificationJSON struct {
 	// abstract confirms what the abstract says, not what the study shows, and a reader of this
 	// verdict needs to know which it is.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
+	// CopySubstitution is WHOSE BYTES red's reading was made against — the copy the run's cache held
+	// for the source when red recorded it: `none` the url's own, a substitution kind with CopyURL
+	// where the copy was read, `not_cached` where the cache held none. A verdict on a recovered or
+	// fuller copy is a verdict on that copy.
+	CopySubstitution string `json:"copy_substitution,omitempty"`
+	CopyURL          string `json:"copy_url,omitempty"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
@@ -413,6 +419,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			WorkStatus:       recordpb.Word(vf.GetWorkStatus()),
 
 			SourceCompleteness: recordpb.Word(vf.GetSourceCompleteness()),
+			CopySubstitution:   recordpb.Word(vf.GetCopySubstitution()),
+			CopyURL:            vf.GetCopyUrl(),
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS ON THE ANCHOR, and the empty string is deliberate. A verification indexed
@@ -427,6 +435,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), AccessDate: vf.GetAccessDate(),
 				Location: vf.GetClaim(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
 				CorroboratedBy: e.GetSeatId(),
+				// A corroboration's footnote rests on the copy red read, as a cite's rests on blue's.
+				CopySubstitution: v.CopySubstitution, CopyURL: v.CopyURL,
 				// ITS OWN CHECK COMES FIRST: a corroboration is red reading the source, so the source
 				// is not "unverified" — the lens is not sent to check its own reading again.
 				Verified: []EvidenceVerificationJSON{v},

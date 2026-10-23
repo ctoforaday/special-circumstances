@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -100,6 +101,26 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 		t.Errorf("family holds %d events, want the %d migrated", len(fam.Events), outTotal)
 	}
 	assertRoundless(t, fam)
+	// No archived act recorded whose bytes it read: every cite and verification carries not_recorded,
+	// and none a copy url.
+	copies := map[string]int{}
+	for _, e := range fam.Events {
+		if c := e.GetCite(); c != nil {
+			if c.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED || c.CopyUrl != nil {
+				t.Errorf("a migrated cite carries copy %v %q", c.GetCopySubstitution(), c.GetCopyUrl())
+			}
+			copies["cite"]++
+		}
+		if v := e.GetVerify(); v != nil {
+			if v.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED || v.CopyUrl != nil {
+				t.Errorf("a migrated verification carries copy %v %q", v.GetCopySubstitution(), v.GetCopyUrl())
+			}
+			copies["verify"]++
+		}
+	}
+	if copies["cite"] == 0 || copies["verify"] == 0 {
+		t.Errorf("the archive's cites and verifications were not read: %v", copies)
+	}
 	gapIDs := 0
 	for _, id := range res.IDs {
 		if strings.HasPrefix(id, "G-") {

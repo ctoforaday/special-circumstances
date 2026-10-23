@@ -58,14 +58,14 @@ func unreadableIndex(t *testing.T, runDir string) {
 	}
 }
 
-// Each outcome reaches a different read of the index: `absent` asks which copy is held, a
-// backing labelled corroboration asks whether the work stands, and every outcome naming a source
-// asks which part of the work the copy is.
+// Every outcome reads the index once, for the copy every fact about it comes from — whether it can
+// establish absence, whether the work stands, which part of the work it is, whose bytes it is — so
+// each is refused on the one read.
 func TestACorroborationOverAnUnreadableFetchIndexIsRefused(t *testing.T) {
 	for _, c := range []struct{ as, what string }{
 		{"absent", "which copy of https://example.org/a this run holds"},
-		{"supports", "whether the work at https://example.org/a stands"},
-		{"refutes", "which part of the work at https://example.org/a this run's copy is"},
+		{"supports", "which copy of https://example.org/a this run holds"},
+		{"refutes", "which copy of https://example.org/a this run holds"},
 	} {
 		t.Run(c.as, func(t *testing.T) {
 			runDir := newRun(t)

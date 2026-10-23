@@ -54,7 +54,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append proof: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
 		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf"),

@@ -322,7 +322,8 @@ INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('followed_link',
 INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('fuller_copy', 'the typed url''s page was not known to carry the work''s body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version');
 INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('named_backend', 'a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool''s own statement of what the backend found, not a document');
 INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('none', 'the cited bytes are the typed url''s own: the url answered, and its answer is what was read');
-INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_cached', 'a reading only: this run''s fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_recorded', 'this citation or reading predates the field; written only by migrate');
 INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('recovered', 'the typed url refused this container, and the tool''s recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool''s own statement of what the recovery found, not a document');
 
 CREATE TABLE "enum_source_outcome" (
@@ -723,11 +724,14 @@ CREATE TABLE "verify" (
   "work_status" TEXT,
   "source_completeness" TEXT,
   "bridge" TEXT,
+  "copy_substitution" TEXT,
+  "copy_url" TEXT,
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
-  FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value")
+  FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value"),
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "proof" (

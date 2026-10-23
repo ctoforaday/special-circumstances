@@ -314,3 +314,36 @@ func TestAnOldOCRQuoteIsTheCitationsSourceSpan(t *testing.T) {
 		t.Errorf("translated cite: span %q, engine %q, offsets %v, matched %v", c.GetSourceSpan(), c.GetOcrEngine(), c.SpanStart, c.SourceMatched)
 	}
 }
+
+// AND A VERIFICATION FROM BEFORE EPOCH 41 SAYS NOBODY RECORDED WHICH COPY ITS READING WAS MADE
+// AGAINST. `none` would claim the url's own bytes and `not_cached` that the cache held no copy; the
+// fetch index that knew is not archived. No copy url is written — that is the residue. Both eras'
+// columns arrive here: the shard era's `reason` and `independent`, and the SQLite era's `text`.
+func TestAnOldVerificationStatesItsCopyWasNotRecorded(t *testing.T) {
+	for _, tc := range []struct {
+		fields map[string]any
+		want   recordpb.CopySubstitution
+	}{
+		{map[string]any{"claim": "c", "url": "https://x", "title": "X", "reason": "r", "independent": int64(1), "outcome": "supports", "confidence": "high"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+		{map[string]any{"claim": "c", "anchor": "C-1", "text": "r", "outcome": "refutes", "confidence": "low"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+		{map[string]any{"claim": "c", "anchor": "C-1", "text": "r", "outcome": "supports", "confidence": "low", "copy_substitution": "fuller_copy", "copy_url": "https://y"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY},
+	} {
+		bodies, err := migrate.Entries()["verify"].Translate(migrate.OldEvent{ID: 1, SeatID: "red-lens-evidence", TS: ts1, Word: "verify", Fields: tc.fields})
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, ok := bodies[0].(*recordpb.Verify)
+		if !ok || len(bodies) != 1 {
+			t.Fatalf("a verify translated to %d bodies, the first %T", len(bodies), bodies[0])
+		}
+		if v.GetCopySubstitution() != tc.want {
+			t.Errorf("%v: copy_substitution = %v, want %v", tc.fields, v.GetCopySubstitution(), tc.want)
+		}
+		if tc.want == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED && v.CopyUrl != nil {
+			t.Errorf("a pre-field verification was given a copy url it never recorded: %q", v.GetCopyUrl())
+		}
+	}
+}

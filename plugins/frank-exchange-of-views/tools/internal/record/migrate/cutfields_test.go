@@ -23,7 +23,7 @@ func TestAColumnNoReaderReadIsNotCarried(t *testing.T) {
 			"outcome": "supports", "confidence": "high", "text": "read it"},
 			&recordpb.Verify{Claim: proto.String("c"), Url: proto.String("https://ex/a"), Title: proto.String("A"),
 				Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
-				Text: proto.String("read it")}},
+				Text: proto.String("read it"), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED.Enum()}},
 		{"cite", map[string]any{"label": "C-00000001", "url": "https://ex/a", "source_text_read": "leaf",
 			"source_text_origin": "embedded", "work_status": "standing", "source_completeness": "full"},
 			&recordpb.Cite{Label: proto.String("C-00000001"), Url: proto.String("https://ex/a"),

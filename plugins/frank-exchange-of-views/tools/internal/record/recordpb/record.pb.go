@@ -1600,6 +1600,7 @@ const (
 	CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY   CopySubstitution = 4
 	CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND CopySubstitution = 5
 	CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED  CopySubstitution = 6
+	CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED    CopySubstitution = 7
 )
 
 // Enum value maps for CopySubstitution.
@@ -1612,6 +1613,7 @@ var (
 		4: "COPY_SUBSTITUTION_FULLER_COPY",
 		5: "COPY_SUBSTITUTION_NAMED_BACKEND",
 		6: "COPY_SUBSTITUTION_NOT_RECORDED",
+		7: "COPY_SUBSTITUTION_NOT_CACHED",
 	}
 	CopySubstitution_value = map[string]int32{
 		"COPY_SUBSTITUTION_UNSPECIFIED":   0,
@@ -1621,6 +1623,7 @@ var (
 		"COPY_SUBSTITUTION_FULLER_COPY":   4,
 		"COPY_SUBSTITUTION_NAMED_BACKEND": 5,
 		"COPY_SUBSTITUTION_NOT_RECORDED":  6,
+		"COPY_SUBSTITUTION_NOT_CACHED":    7,
 	}
 )
 
@@ -4391,9 +4394,16 @@ type Verify struct {
 	// it; a live write of that outcome without it is refused (validate). Its readers: `show evidence`'s
 	// verification rows, which blue reads to find where its evidence is thinnest and every lens reads
 	// before adjudicating the same citation, and the verb's own output.
-	Bridge        *BridgeKind `protobuf:"varint,17,opt,name=bridge,proto3,enum=feov.record.v1.BridgeKind,oneof" json:"bridge,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Bridge *BridgeKind `protobuf:"varint,17,opt,name=bridge,proto3,enum=feov.record.v1.BridgeKind,oneof" json:"bridge,omitempty"`
+	// WHOSE BYTES RED'S READING WAS MADE AGAINST, stamped by the tool from the run's fetch cache as
+	// Cite's pair is: the entry the source's url resolves to when the reading is written — the
+	// citation's url for `verify`, the typed url for `corroborate`. A cache with no copy of it is
+	// not_cached. Their readers: `show evidence`'s verification rows and a labelled corroboration's
+	// source row, and a labelled corroboration's note and Bibliography line in the report.
+	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
+	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Verify) Reset() {
@@ -4529,6 +4539,20 @@ func (x *Verify) GetBridge() BridgeKind {
 		return *x.Bridge
 	}
 	return BridgeKind_BRIDGE_KIND_UNSPECIFIED
+}
+
+func (x *Verify) GetCopySubstitution() CopySubstitution {
+	if x != nil && x.CopySubstitution != nil {
+		return *x.CopySubstitution
+	}
+	return CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED
+}
+
+func (x *Verify) GetCopyUrl() string {
+	if x != nil && x.CopyUrl != nil {
+		return *x.CopyUrl
+	}
+	return ""
 }
 
 // Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
@@ -7582,7 +7606,7 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xa2\f\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\xc5\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -7604,7 +7628,9 @@ const file_record_proto_rawDesc = "" +
 	"\vwork_status\x18\x0f \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\fR\n" +
 	"workStatus\x88\x01\x01\x12^\n" +
 	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
-	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\x0eR\x06bridge\x88\x01\x01B\b\n" +
+	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\x0eR\x06bridge\x88\x01\x01\x12X\n" +
+	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x0fR\x10copySubstitution\x88\x01\x01\x12$\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -7620,7 +7646,9 @@ const file_record_proto_rawDesc = "" +
 	"\x13_reading_render_shaB\x0e\n" +
 	"\f_work_statusB\x16\n" +
 	"\x14_source_completenessB\t\n" +
-	"\a_bridgeJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\x87\x04\n" +
+	"\a_bridgeB\x14\n" +
+	"\x12_copy_substitutionB\v\n" +
+	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\x87\x04\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12+\n" +
 	"\tproof_key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -8102,16 +8130,16 @@ const file_record_proto_rawDesc = "" +
 	"\x1eSOURCE_COMPLETENESS_UNVERIFIED\x10\x03\x1a\x9c\x01\x8a\xb5\x18\x97\x01nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf\x12n\n" +
 	" SOURCE_COMPLETENESS_NOT_THE_WORK\x10\x04\x1aH\x8a\xb5\x18Dthe copy is not the work at all: a sign-in page, a book's sales page\x12\xf8\x01\n" +
 	"\x1dSOURCE_COMPLETENESS_NOT_ASKED\x10\x05\x1a\xd4\x01\x8a\xb5\x18\xcf\x01the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run's cache. It says NOTHING about whether the copy is complete\x12c\n" +
-	" SOURCE_COMPLETENESS_NOT_RECORDED\x10\x06\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\xae\n" +
-	"\n" +
+	" SOURCE_COMPLETENESS_NOT_RECORDED\x10\x06\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\x93\r\n" +
 	"\x10CopySubstitution\x12!\n" +
 	"\x1dCOPY_SUBSTITUTION_UNSPECIFIED\x10\x00\x12z\n" +
 	"\x16COPY_SUBSTITUTION_NONE\x10\x01\x1a^\x8a\xb5\x18Zthe cited bytes are the typed url's own: the url answered, and its answer is what was read\x12\xd5\x01\n" +
 	"\x1fCOPY_SUBSTITUTION_FOLLOWED_LINK\x10\x02\x1a\xaf\x01\x8a\xb5\x18\xaa\x01the typed url's page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named\x12\xca\x02\n" +
 	"\x1bCOPY_SUBSTITUTION_RECOVERED\x10\x03\x1a\xa8\x02\x8a\xb5\x18\xa3\x02the typed url refused this container, and the tool's recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool's own statement of what the recovery found, not a document\x12\xea\x01\n" +
 	"\x1dCOPY_SUBSTITUTION_FULLER_COPY\x10\x04\x1a\xc6\x01\x8a\xb5\x18\xc1\x01the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version\x12\x85\x02\n" +
-	"\x1fCOPY_SUBSTITUTION_NAMED_BACKEND\x10\x05\x1a\xdf\x01\x8a\xb5\x18\xda\x01a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document\x12a\n" +
-	"\x1eCOPY_SUBSTITUTION_NOT_RECORDED\x10\x06\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\xbe\x01\n" +
+	"\x1fCOPY_SUBSTITUTION_NAMED_BACKEND\x10\x05\x1a\xdf\x01\x8a\xb5\x18\xda\x01a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document\x12l\n" +
+	"\x1eCOPY_SUBSTITUTION_NOT_RECORDED\x10\x06\x1aH\x8a\xb5\x18Dthis citation or reading predates the field; written only by migrate\x12\xd7\x02\n" +
+	"\x1cCOPY_SUBSTITUTION_NOT_CACHED\x10\a\x1a\xb4\x02\x8a\xb5\x18\xaf\x02a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records*\xbe\x01\n" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
@@ -8328,49 +8356,50 @@ var file_record_proto_depIdxs = []int32{
 	20,  // 66: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
 	21,  // 67: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
 	9,   // 68: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
-	11,  // 69: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	12,  // 70: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	13,  // 71: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	24,  // 72: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	23,  // 73: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	57,  // 74: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	58,  // 75: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 76: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	59,  // 77: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	25,  // 78: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 79: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	26,  // 80: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 81: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	15,  // 82: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	16,  // 83: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	17,  // 84: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	60,  // 85: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	27,  // 86: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	28,  // 87: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	28,  // 88: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	2,   // 89: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 90: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	77,  // 91: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	77,  // 92: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	78,  // 93: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	78,  // 94: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	78,  // 95: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	78,  // 96: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	78,  // 97: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	78,  // 98: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	78,  // 99: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	78,  // 100: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	78,  // 101: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	78,  // 102: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	79,  // 103: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	30,  // 104: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 105: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	29,  // 106: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	107, // [107:107] is the sub-list for method output_type
-	107, // [107:107] is the sub-list for method input_type
-	104, // [104:107] is the sub-list for extension type_name
-	91,  // [91:104] is the sub-list for extension extendee
-	0,   // [0:91] is the sub-list for field type_name
+	22,  // 69: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	11,  // 70: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	12,  // 71: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	13,  // 72: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	24,  // 73: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	23,  // 74: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	57,  // 75: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	58,  // 76: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	61,  // 77: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	59,  // 78: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	25,  // 79: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 80: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	26,  // 81: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 82: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	15,  // 83: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	16,  // 84: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	17,  // 85: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	60,  // 86: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	27,  // 87: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	28,  // 88: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	28,  // 89: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	2,   // 90: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 91: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	77,  // 92: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	77,  // 93: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	78,  // 94: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	78,  // 95: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	78,  // 96: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	78,  // 97: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	78,  // 98: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	78,  // 99: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	78,  // 100: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	78,  // 101: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	78,  // 102: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	78,  // 103: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	79,  // 104: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	30,  // 105: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 106: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	29,  // 107: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	108, // [108:108] is the sub-list for method output_type
+	108, // [108:108] is the sub-list for method input_type
+	105, // [105:108] is the sub-list for extension type_name
+	92,  // [92:105] is the sub-list for extension extendee
+	0,   // [0:92] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
