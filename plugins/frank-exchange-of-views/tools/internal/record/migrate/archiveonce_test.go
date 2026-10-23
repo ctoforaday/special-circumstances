@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -36,7 +37,7 @@ var archiveStore = struct {
 type archiveEntry struct {
 	once       sync.Once
 	dir        string
-	manifest   *Manifest
+	manifest   *migration.Manifest
 	err        error
 	migrations int
 }
@@ -44,7 +45,7 @@ type archiveEntry struct {
 // MigratedArchive returns the manifest of the named tarball's migration and a directory holding a
 // private copy of the migrated record, released when the test ends. The manifest is a copy of the
 // struct; its slices are the store's and are read, never written.
-func MigratedArchive(t *testing.T, name string) (*Manifest, string) {
+func MigratedArchive(t *testing.T, name string) (*migration.Manifest, string) {
 	t.Helper()
 	archiveStore.Lock()
 	e := archiveStore.entries[name]

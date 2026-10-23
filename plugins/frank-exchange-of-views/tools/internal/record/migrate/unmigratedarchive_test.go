@@ -55,7 +55,7 @@ func TestEveryArchivedRunBehindThisBinaryIsRefusedUnmigrated(t *testing.T) {
 			_, err = record.FamilyOf(run)
 			if err != nil {
 				refused++
-				if !strings.Contains(err.Error(), "`--seat-id operator migrate --from <runDir> --to <freshDir>`") {
+				if !strings.Contains(err.Error(), "`feov-migrate --from <runDir> --to <freshDir>`") {
 					t.Errorf("%s is refused without naming the way out: %v", name, err)
 				}
 				return

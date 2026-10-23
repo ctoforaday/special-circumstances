@@ -13,7 +13,7 @@ import (
 
 // olderRunWants is what the open's refusal of a record behind this binary names: the cause and the
 // way out, spelled as the operator types it.
-var olderRunWants = []string{"older binary", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"}
+var olderRunWants = []string{"older binary", "`feov-migrate --from <runDir> --to <freshDir>`"}
 
 // reopened releases the cached handle and opens the record again: a cache hit never reaches the
 // open's schema check, and a second process is what meets a record it did not create.
@@ -198,7 +198,7 @@ func TestAMissingDeclaredViewIsNamedAsAnOlderRun(t *testing.T) {
 	// the view and the way out, so a looser assertion passes on either arm and neither test then pins
 	// which one fired. Proven by mutation — disabling the absent arm sends a missing view down the
 	// stale arm, and every weaker assertion here still matched.
-	for _, want := range []string{"older binary", `"change"`, "has no", "view", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"older binary", `"change"`, "has no", "view", "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("opening a run whose record lacks a declared view: %v — want %s named", err, want)
 		}
@@ -249,7 +249,7 @@ func TestAViewDefinedDifferentlyIsNamedAsAnOlderRun(t *testing.T) {
 	}
 
 	_, err = Open(path)
-	for _, want := range []string{"older binary", `"board_counts"`, "defines it differently", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"older binary", `"board_counts"`, "defines it differently", "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("opening a run whose view is defined differently: %v — want %s named", err, want)
 		}
@@ -291,7 +291,7 @@ func TestTheEpochsDecideWhichPartyIsStale(t *testing.T) {
 			// The record is BEHIND: an older run, and migrate is exactly the remedy.
 			name:       "record behind the binary",
 			epoch:      recordpb.EventSchema - 1,
-			wants:      []string{"older binary", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"},
+			wants:      []string{"older binary", "`feov-migrate --from <runDir> --to <freshDir>`"},
 			mustNotSay: "stale party",
 		},
 	} {
