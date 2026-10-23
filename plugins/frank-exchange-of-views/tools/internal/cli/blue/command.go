@@ -26,7 +26,6 @@ func Verbs() []*cobra.Command {
 		newInquiry(),
 		newManifestRow(),
 		newEngage(),
-		seat.Position("position-blue"),
 		seat.Closing("closing-blue"),
 		seat.Log(),
 	)

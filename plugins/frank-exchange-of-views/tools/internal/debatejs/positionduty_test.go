@@ -12,27 +12,35 @@ import (
 // positionDuty is the sentence that states the position duty in a dispatch.
 const positionDuty = "YOUR POSITION ARGUES TO THE BENCH"
 
+// closingDuty is the sentence that tells a party which docketed gaps it owes a closing on.
+const closingDuty = "YOUR CLOSING ARGUMENT IS OWED ON: "
+
 // positionWord is the event's name as a word of its own — not `disposition`, not `composition`.
 var positionWord = regexp.MustCompile(`(?i)\bpositions?\b`)
 
-// THE POSITION DUTY IS STATED ONLY TO A SEAT THAT OWES ONE, AND ONCE. The prompts and the
-// constitutions are prose, so they cannot call record.SeatOwesPosition; this holds them to it. Every
-// dispatch the engine makes is rendered — lanes, the frontier, the synthesizer, the chair, a lens,
-// blue's response, the bench — and the duty sentence is in exactly those whose seat the predicate
-// names, counted over what the seat is handed: its agent definition, the skills it preloads, and
-// the prompt. Where an agent type sits as one seat only (the chair) the duty is unconditional and
-// its constitution carries it; where one type sits as several seats and one of them owes it (blue's
-// response, beside the lanes and the frontier) the prompt of that sitting carries it.
+// returnedProse is a request for prose returned to the engine in place of an act: a synopsis, a line
+// per hypothesis. No reader of the returned text exists, and what it would say the acts record.
+var returnedProse = regexp.MustCompile(`(?i)synopsis|line per hypothesis`)
+
+// THE ARGUMENT DUTIES ARE STATED ONLY TO THE SEAT THAT OWES THEM, AND ONCE. Every dispatch the engine
+// makes is rendered — lanes, the frontier, the synthesizer, the chair, a lens, blue's response, the
+// bench — over a plan with a docketed gap whose closings both parties owe.
 //
-// AND A SEAT THAT OWES NONE IS NOT TOLD OF ONE AT ALL. The shared record clause once said "your
-// position and closings in the transcript" to every seat; across seventeen archived runs lanes, the
-// frontier and the synthesizer filed 48 positions nothing held them to. A dispatch to a seat that
-// owes none holds the word nowhere, so the verb's refusal is a backstop and not the first thing the
-// seat learns about it.
-func TestThePositionDutyIsStatedOnlyToASeatThatOwesOne(t *testing.T) {
-	blueParty := map[string]any{"seat_id": "blue-respond", "gap_ids": []any{"G1"}}
-	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G1"}, "occasions": []any{"docket"}}
-	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, blueParty, docketBench}, []any{})}, nil)
+//   - THE POSITION IS THE CHAIR'S (record.PositionSittings): its duty sentence is in the chair's
+//     dispatch alone — counted over what the seat is handed, its agent definition, the skills it
+//     preloads and the prompt — and every other dispatch holds the word nowhere.
+//   - THE CLOSING IS EACH PARTY'S (record.closingBlockersOf): a lens and blue-respond are told the
+//     gaps they owe it on from the plan's closing_owed blockers they own, and no other seat is told
+//     of one.
+//   - NO DISPATCH ASKS FOR RETURNED PROSE in place of an act: nothing reads it.
+func TestTheArgumentDutiesAreStatedOnlyToTheSeatThatOwesThem(t *testing.T) {
+	blueParty := map[string]any{"seat_id": "blue-respond", "gap_ids": []any{}}
+	owedBy := func(seat string) map[string]any {
+		return map[string]any{"kind": string(record.BlockerClosingOwed), "subject": "G1", "owner": seat}
+	}
+	blockers := []any{owedBy("red-lens-logic"), owedBy("blue-respond"), map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
+	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G2"}, "occasions": []any{"docket"}}
+	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, blueParty, docketBench}, blockers)}, nil)
 
 	seen := map[string]bool{}
 	constitution := map[string]string{}
@@ -53,15 +61,23 @@ func TestThePositionDutyIsStatedOnlyToASeatThatOwesOne(t *testing.T) {
 			}
 			constitution[typ] = text
 		}
-		owes := record.SeatOwesPosition(d.SeatID)
+		owes := d.SeatID == "red-chair"
 		if got := strings.Count(constitution[typ]+"\n"+d.Prompt, positionDuty); (got == 1) != owes || got > 1 {
-			t.Errorf("%s (%s): the dispatch states the position duty %d time(s), and SeatOwesPosition is %v", d.SeatID, d.Label, got, owes)
+			t.Errorf("%s (%s): the dispatch states the position duty %d time(s), and the seat owes it = %v", d.SeatID, d.Label, got, owes)
 		}
 		if !owes {
 			if m := positionWord.FindStringIndex(d.Prompt); m != nil {
 				lo, hi := max(0, m[0]-80), min(len(d.Prompt), m[1]+80)
 				t.Errorf("%s (%s) owes no position and its dispatch speaks of one: …%s…", d.SeatID, d.Label, d.Prompt[lo:hi])
 			}
+		}
+		party := d.SeatID == "red-lens-logic" || d.SeatID == "blue-respond"
+		if got := strings.Count(d.Prompt, closingDuty+"G1 "); got != map[bool]int{true: 1}[party] {
+			t.Errorf("%s (%s): the dispatch states the closing owed on G1 %d time(s), and the seat is a party owing it = %v", d.SeatID, d.Label, got, party)
+		}
+		if m := returnedProse.FindStringIndex(d.Prompt); m != nil {
+			lo, hi := max(0, m[0]-80), min(len(d.Prompt), m[1]+80)
+			t.Errorf("%s (%s) is asked for returned prose no reader reads: …%s…", d.SeatID, d.Label, d.Prompt[lo:hi])
 		}
 	}
 	// THE DRIVE REACHED EVERY CLASS, or the loop above passed seats it never read.

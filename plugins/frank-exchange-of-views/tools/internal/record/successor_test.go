@@ -122,9 +122,6 @@ func TestBlueSitsAgainOnTheSuccessorOfAGapItFoundClosed(t *testing.T) {
 	if w.Engaged == nil || !slices.Equal(w.Engaged.GapIDs, []string{m31Successor}) {
 		t.Errorf("second sitting's engaged = %+v, want %s", w.Engaged, m31Successor)
 	}
-	if !blocking(w, "position is missing") {
-		t.Errorf("the second sitting found the successor open and owes a position: %+v", w.Sitting.Open)
-	}
 	if err := engage(t, run, m31Successor); err == nil {
 		t.Error("an engage in the second sitting on the successor already engaged this epoch was recorded — the bound is once per successor per epoch")
 	}

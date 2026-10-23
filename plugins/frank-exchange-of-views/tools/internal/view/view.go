@@ -649,7 +649,8 @@ func debateMD(in Input) []byte {
 				parts = append(parts, "### RED\n"+p.GetText())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
+		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute (record/closingowed.go).
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "lens") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
@@ -666,11 +667,6 @@ func debateMD(in Input) []byte {
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
 			if kept[l] {
 				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
-			}
-		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if p, ok := recordpb.BodyAs[*recordpb.Position](l); ok {
-				parts = append(parts, "### BLUE\n"+p.GetText())
 			}
 		}
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {

@@ -177,14 +177,14 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here. A page carries a marker ending `→ SHARED §n` exactly where the block was: alone on its line the marker stands for the whole block, and at the end of a flag's line it stands for the rest of that flag's description. A block labelled the last block of its pages is not marked on them:
-§1 (on 14 pages):
+§1 (on 13 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 24 pages — every page below that carries no marker for it):
+§2 (the last block of 23 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -194,7 +194,7 @@ Global Flags:
 §3 (on 2 pages):
 The sentence is found in the report as the record holds it, so the report must be frozen into the record first; before that there is nothing to anchor in.
 
-§4 (on 20 pages):
+§4 (on 19 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -253,7 +253,7 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -261,7 +261,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -305,9 +304,9 @@ Flags:
       --url string           REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it
 ========
 $ feov-record closing --help
-your closing argument on one docketed gap, when the bench is about to rule on it
+blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
 
-It renders as this sitting's ### BLUE CLOSING section, one entry per docketed gap.
+It renders as a ### BLUE CLOSING section in the epoch it is filed in, one entry per docketed gap. Every docketed gap owes one closing from blue-respond, filed after its docketing and before the bench's ruling; the bench sits on the gap once you and its minting lens have each filed, and your work list names each closing you owe. A lane, the frontier and the synthesizer are party to no dispute, and are refused one.
 
 The bench rules on the closings, the transcript, and the final state of the artifacts. This is your case, and material the record does not carry cannot help it.
 
@@ -601,21 +600,6 @@ Enumerated values:
     ethical         proceeding would require acting against the interests of someone the run affects
     constitutional  the instruction itself conflicts with the rules the run is bound by
 ========
-$ feov-record position --help
-blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
-
-It renders as this sitting's ### BLUE section. It holds what no act of the sitting holds — what you ask the bench to weigh, and why a route the record offered was left untaken — and restates no act: the acts are already there. IT IS BLUE-RESPOND'S ACT, at a sitting that finds a gap it is engaged on still open. A lane, the frontier and the synthesizer file none and are refused one: they argue in what they write.
-
-(If you need a verb or a flag tha…) → SHARED §1
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
-
-IF WHAT YOU RECORDED WAS WRONG, say so in a new position at your next sitting (a sitting holds one,
-and this sitting's stands).
-
-Flags:
-      --reason string   REQUIRED — your sitting's argument — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-========
 $ feov-record prove --help
 settle a claim by RUNNING something, when computing the answer beats arguing about it
 
@@ -811,7 +795,7 @@ A GAP WHOSE LENS KEPT ITS GRADE after your last answer has an item carrying the 
 
 WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
 
-`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named — the latest dispatch naming blue, before blue registers for it as well as after — and `found_closed` is each of them its lens closed after that dispatch and before blue sat, with the seat that closed it, the `fate` that close gave, and its `successors` — each open gap the record names as carrying it forward (its close's `superseded_by`, or a mint naming it in `supersedes`), empty when none. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. `successors_owed` is the open successors no dispatch row of this epoch engages blue on yet — exactly the set `engage` names, empty once it is recorded — and blue sits on them a second time this epoch. An empty `found_closed` says every engaged gap was open when blue sat.
+`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named — the latest dispatch naming blue, before blue registers for it as well as after — and `found_closed` is each of them its lens closed after that dispatch and before blue sat, with the seat that closed it, the `fate` that close gave, and its `successors` — each open gap the record names as carrying it forward (its close's `superseded_by`, or a mint naming it in `supersedes`), empty when none. A gap there owes no answer and no manifest row. `successors_owed` is the open successors no dispatch row of this epoch engages blue on yet — exactly the set `engage` names, empty once it is recorded — and blue sits on them a second time this epoch. An empty `found_closed` says every engaged gap was open when blue sat.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. New evidence against one is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 

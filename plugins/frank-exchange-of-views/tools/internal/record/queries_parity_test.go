@@ -150,7 +150,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if ok, _ := ProposalAppliedVerbatim(run, "G3", render, "", ""); ok {
 		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
 	}
-	if !ProofAnswers(run, "G3") || ProofAnswers(run, "G1") || ProofAnswers(run, "") {
+	if !proofAnswers(t, run, "G3") || proofAnswers(t, run, "G1") || proofAnswers(t, run, "") {
 		t.Error("ProofAnswers disagrees with the recorded proof join")
 	}
 
@@ -209,4 +209,14 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
 	}
+}
+
+// proofAnswers is ProofAnswers with its read error failing the test rather than reading as false.
+func proofAnswers(t *testing.T, run Run, gapID string) bool {
+	t.Helper()
+	ok, err := ProofAnswers(run, gapID)
+	if err != nil {
+		t.Fatalf("ProofAnswers(%q): %v", gapID, err)
+	}
+	return ok
 }

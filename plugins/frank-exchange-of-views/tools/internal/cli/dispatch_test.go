@@ -63,7 +63,8 @@ func TestDispatchNextRecordsThePartiesItNames(t *testing.T) {
 	}
 }
 
-// At impasse the verb dockets the gap for the bench and names only the bench.
+// At impasse the verb dockets the gap and names its two parties, readied for their closings on it
+// with no gap engaged; the bench is convened once neither closing is awaited.
 func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	runDir := newRun(t)
 	n := 100
@@ -91,8 +92,9 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		t.Fatalf("dispatch next: %v\n%s", err, out)
 	}
 	plan := planOf(t, out)
-	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
-		t.Fatalf("plan = %+v, want G1 docketed and the bench alone engaged", plan)
+	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" || len(plan.Parties) != 2 ||
+		plan.Parties[0].SeatID != "red-lens-evidence" || plan.Parties[1].SeatID != "blue-respond" || len(plan.Parties[0].GapIDs)+len(plan.Parties[1].GapIDs) != 0 {
+		t.Fatalf("plan = %+v, want G1 docketed and its parties readied for their closings, engaged on no gap", plan)
 	}
 	motions, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
 	if len(motions) != 1 {
@@ -110,12 +112,14 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	if !slices.Contains(plan.Blockers, filed) {
 		t.Errorf("blockers = %+v, want the docket motion the verb filed among them: %+v", plan.Blockers, filed)
 	}
-	if want := []record.ExchangeCount{{GapID: "G1", Count: 2, Unresolved: 2}}; !slices.Equal(plan.Exchanges, want) {
-		t.Errorf("exchanges = %+v, want %+v — the docketed gap's count, on the bench's party", plan.Exchanges, want)
+	// NO PARTY IS ENGAGED ON THE DOCKETED GAP: its parties sit for their closings, which are not
+	// exchanges on it, and the bench is not convened yet — so the plan counts no exchange for it.
+	if len(plan.Exchanges) != 0 {
+		t.Errorf("exchanges = %+v, want none — no party of this plan is engaged on a gap", plan.Exchanges)
 	}
 	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
-	// relays the plan it asks for last — the bench is still the only party, no second motion is
-	// filed, and no second dispatch row is written.
+	// relays the plan it asks for last — its parties are the same two, no second motion is filed,
+	// and no second dispatch row is written.
 	rows, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	out2, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
 	if err != nil {
@@ -124,7 +128,7 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	plan2 := planOf(t, out2)
 	motions, _, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
 	rows2, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
-	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 1 || len(rows2) != len(rows) {
+	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 2 || len(rows2) != len(rows) {
 		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
 	}
 	if !slices.Equal(plan2.Blockers, plan.Blockers) || !slices.Equal(plan2.Exchanges, plan.Exchanges) {

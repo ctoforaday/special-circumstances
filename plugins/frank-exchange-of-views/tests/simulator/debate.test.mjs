@@ -364,10 +364,11 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
-  // THE POSITION, THE CLOSINGS AND THE SPOT-CHECK ARE UNCONDITIONAL DUTIES, so the constitution is
-  // their one carrier and the prompt, which every chair sitting receives unchanged, restates none.
+  // THE POSITION AND THE SPOT-CHECK ARE THE CHAIR'S DUTIES, and the constitution is their one carrier:
+  // the prompt, which every chair sitting receives unchanged, restates neither. A docketed gap is its
+  // parties' to argue, never the chair's.
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
-  assert.ok(/owes a closing argument of ~120 words/.test(chairMd) && /name in it every stale area the plan lists, and any archived closure you re-read/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the closings or the spot-check')
+  assert.ok(/A docketed gap is argued by its parties — its minting lens and blue — in their closings, never by you/.test(chairMd) && /name in it every stale area the plan lists, and any archived closure you re-read/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the parties\' closings or the spot-check')
   assert.ok(!/CLOSING ARGUMENTS/.test(p) && !/YOUR POSITION ARGUES TO THE BENCH/.test(p) && !/A CLOSURE IS A CLAIM/.test(p), 'the chair prompt restates a duty its constitution carries')
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
@@ -453,13 +454,15 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
-test('blue is engaged on named gaps, works from the report and its work list, and files closings only when the plan docketed', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
+  const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
+    { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001', 'G-00000002')], { docket: ['G-00000002'] }) }), chairEnv({ plan: plan([party('blue-respond', 'G-00000003')]) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { docket: ['G-00000002'], blockers: owed }) }), chairEnv({ plan: plan([party('blue-respond', 'G-00000003')], { docket: ['G-00000003'] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
-  assert.ok(/You are engaged on: G-00000001, G-00000002/.test(first))
+  assert.ok(/You are engaged on: G-00000001\./.test(first))
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
@@ -473,8 +476,10 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
     assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
-  assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G-00000002/.test(first) && /argue in ~120 words/.test(first))
-  assert.ok(!/CLOSING ARGUMENTS/.test(second), 'no docket this sitting, no closing demanded')
+  // THE CLOSINGS OWED ARE THE PLAN'S closing_owed BLOCKERS THIS SEAT OWNS — not the lens's, and not
+  // the docket the chair's sitting filed.
+  assert.ok(/YOUR CLOSING ARGUMENT IS OWED ON: G-00000002 — each is DOCKETED/.test(first) && /argue in ~120 words/.test(first))
+  assert.ok(!/YOUR CLOSING ARGUMENT IS OWED/.test(second), 'a docket with no closing the plan holds blue to owes none')
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.
@@ -896,7 +901,7 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
   // blue's "found every engaged gap closed" path needs no attestation: it is the envelope's own list.
   const closed = makeWorld(makeResponder({ chair: chair(), blueRespond: [blueEnv({ manifest: [], found_closed: ['G-00000001'] })] }))
   assert.equal((await closed.run(script, ARGS)).verdict, 'VERIFIED')
-  assert.ok(closed.logs.some((l) => l.includes('blue found every engaged gap (G-00000001) closed before it sat — no position owed')), closed.logs.join(' | '))
+  assert.ok(closed.logs.some((l) => l.includes('blue found every engaged gap (G-00000001) closed before it sat — nothing to answer')), closed.logs.join(' | '))
 })
 
 // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged

@@ -7812,7 +7812,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xc2!\n" +
+	"\b_holding*\xe6!\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -7821,8 +7821,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aS\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\x12j\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aR\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\x12r\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1a]\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\x12i\n" +
-	"\x10EVENT_TYPE_CLOSE\x10\b\x1aS\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\x12b\n" +
-	"\x12EVENT_TYPE_CLOSING\x10\t\x1aJ\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\x12a\n" +
+	"\x10EVENT_TYPE_CLOSE\x10\b\x1aS\x8a\xb5\x18Ored closing a gap on a verified repair — red's half of the closing vocabulary\x12x\n" +
+	"\x12EVENT_TYPE_CLOSING\x10\t\x1a`\x8a\xb5\x18\\a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aI\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\x12S\n" +
 	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12\xcb\x01\n" +
@@ -7832,8 +7832,8 @@ const file_record_proto_rawDesc = "" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1aX\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\x12m\n" +
 	"\x11EVENT_TYPE_MOTION\x10\x11\x1aV\x8a\xb5\x18Ra motion filed: a grade contested, a petition to the bench, or an inquiry proposed\x12W\n" +
 	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a;\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\x12f\n" +
-	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aN\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\x12L\n" +
-	"\x13EVENT_TYPE_POSITION\x10\x17\x1a3\x8a\xb5\x18/a seat's stated position going into its sitting\x12y\n" +
+	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aN\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\x12Z\n" +
+	"\x13EVENT_TYPE_POSITION\x10\x17\x1aA\x8a\xb5\x18=the chair's argument to the bench on what is about no one gap\x12y\n" +
 	"\x10EVENT_TYPE_PROOF\x10\x18\x1ac\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\x12P\n" +
 	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12j\n" +
 	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aP\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\x12b\n" +

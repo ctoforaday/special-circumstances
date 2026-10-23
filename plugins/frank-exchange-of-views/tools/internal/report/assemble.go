@@ -1269,18 +1269,17 @@ func debate(fam record.Family) string {
 		for _, l := range re {
 			e := l
 			party := record.PartyOf(e)
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+			// blue-respond (BLUE).
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				switch party {
-				case "chair":
+				if party == "chair" {
 					epoch = append(epoch, redHead+"\n"+p.GetText())
-				case "blue":
-					epoch = append(epoch, "### BLUE\n"+p.GetText())
 				}
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				switch party {
-				case "chair":
+				case "lens":
 					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
 				case "blue":
 					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))

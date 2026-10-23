@@ -31,7 +31,7 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -39,7 +39,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -78,7 +77,7 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -86,7 +85,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -165,6 +163,7 @@ Usage:
 
 Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
+  closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
   corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
@@ -209,11 +208,10 @@ Usage:
 
 Available Commands:
   carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing     your closing argument on one docketed gap, when the bench is about to rule on it
   dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
+  position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
   register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
@@ -251,7 +249,7 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -259,7 +257,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it

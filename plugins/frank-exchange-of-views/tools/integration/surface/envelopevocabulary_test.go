@@ -101,7 +101,7 @@ func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
 
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "s", "rulings": []any{}, "dispositions": []any{},
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "found_closed": []any{}, "saturation_reached": false, "open_gaps": 0}
 		switch {
 		case seatID == "red-chair":
