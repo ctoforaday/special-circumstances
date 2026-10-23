@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -10,8 +11,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
@@ -263,6 +266,19 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			rm.apply(body, src.Fields["label"])
 			if q, ok := body.(*recordpb.Inquiry); ok {
 				carryInquiryMethod(q, proposalMethod)
+			}
+			// AN ARGUMENT THE WRITE REFUSES IS WRITTEN AS NO EVENT (epoch 38). A closing is a
+			// party's argument on a docketed gap and a position is the chair's; an archive holds the
+			// chair's closings, blue's and the lanes' positions, and blue's closings on gaps no
+			// docket motion stood on. Each is an argument its seat made under the rule of its day:
+			// re-attributed, it is authorship the record never held, and converted, it asserts a
+			// filing never made, so it is left out — the residue, stated with the change, that
+			// run-archive/ holds byte for byte. Asked after rm.apply, so a shard-era gap label
+			// reads as the gap it was remapped to.
+			if drop, err := refusedArgument(batch.Querier(), body, seatID); err != nil {
+				return nil, err
+			} else if drop {
+				continue
 			}
 			if b, ok := body.(*recordpb.BaseIngest); ok {
 				res.base = b.GetText()
@@ -539,4 +555,25 @@ func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 		return "", fmt.Errorf("this finding answers contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
 	}
 	return strconv.FormatInt(to, 10), nil
+}
+
+// refusedArgument reports whether body is a closing or a position the write path refuses from
+// seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
+// event. A read that fails is returned, never taken for a refusal.
+func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bool, error) {
+	var err error
+	switch b := body.(type) {
+	case *recordpb.Closing:
+		err = record.ClosingRefusal(q, b.GetGapId(), seatID)
+	case *recordpb.Position:
+		err = record.PositionRefusal(seatID)
+	}
+	if err == nil {
+		return false, nil
+	}
+	var refusal *feov.Error
+	if !errors.As(err, &refusal) {
+		return false, fmt.Errorf("reading whether the write refuses an archived %T: %w", body, err)
+	}
+	return true, nil
 }

@@ -205,6 +205,36 @@ func TestTheWritePathAdmitsAClosingOnlyFromAPartyOnADocketedGap(t *testing.T) {
 	if err := validateRun(run, evLens, recordpb.EventType_EVENT_TYPE_CLOSING, closingOn("G2")); err == nil || !strings.Contains(err.Error(), "is not before the bench") {
 		t.Errorf("G2 is not docketed: want the closing refused, got %v", err)
 	}
+	// AND UNDER MIGRATING ALIKE: migrate writes no event for an archived closing this refuses, so
+	// the refusal holds a replayed act to the live rule rather than standing aside for it.
+	migrating(t)
+	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_CLOSING, closingOn("G1")); err == nil {
+		t.Error("under Migrating the chair's closing on G1 was admitted; the write refuses it whoever replays it")
+	}
+	if err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CLOSING, closingOn("G2")); err == nil {
+		t.Error("under Migrating blue's closing on undocketed G2 was admitted; the write refuses it whoever replays it")
+	}
+}
+
+// THE WRITE PATH ADMITS A POSITION FROM THE CHAIR AND FROM NO OTHER SEAT, whatever surface mounts
+// the verb and under Migrating alike: a party argues a docketed gap in its closing.
+func TestTheWritePathAdmitsAPositionOnlyFromTheChair(t *testing.T) {
+	run := docketed(t).seed()
+	position := &recordpb.Position{Text: proto.String("why the PASS was withheld")}
+	for _, replaying := range []bool{false, true} {
+		if replaying {
+			migrating(t)
+		}
+		if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_POSITION, position); err != nil {
+			t.Errorf("Migrating=%v: the chair's position is refused: %v", replaying, err)
+		}
+		for _, seat := range []string{"blue-respond", "blue-lane-1", "blue-synthesize", "frontier", evLens, "judge"} {
+			err := validateRun(run, seat, recordpb.EventType_EVENT_TYPE_POSITION, position)
+			if err == nil || !strings.Contains(err.Error(), "is not the chair") {
+				t.Errorf("Migrating=%v: %s is not the chair: want its position refused naming the chair, got %v", replaying, seat, err)
+			}
+		}
+	}
 }
 
 // A LENS THAT OWES A CLOSING IS NOT RETIRED (lensOwesOf): three barren sittings retire a lens owing

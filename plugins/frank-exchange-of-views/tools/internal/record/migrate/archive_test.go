@@ -76,10 +76,13 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	// and a gap's class is a value of the closed set — so those rows carry forward as an absence,
 	// the three places in this arithmetic where an old event legitimately produces none. PLUS one Anchor for each of the 43 placed citations and 6
 	// corroborations, whose markers the report read off the acts themselves, PLUS the one reproduce
-	// carried to a second proof on the script it re-ran (24 reproduces fan out to 25 anchors).
-	if outTotal != 857 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
+	// carried to a second proof on the script it re-ran (24 reproduces fan out to 25 anchors), LESS
+	// the 19 closings and the 10 positions the write refuses — every closing is the chair's or blue's
+	// on a gap no docket motion stood on, and every position but the chair's five is blue's or a
+	// lane's — written as none (epoch 38).
+	if outTotal != 828 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || res.GapAnchors.Shapes["verify"] != 6 {
-		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings + 49 anchors + 1 fanned reproduce = 857 out; got %d (%v), anchors added %v", outTotal, res.Out, res.GapAnchors.Shapes)
+		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings + 49 anchors + 1 fanned reproduce - 19 closings - 10 positions = 828 out; got %d (%v), anchors added %v", outTotal, res.Out, res.GapAnchors.Shapes)
 	}
 	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]+17 || res.Out["motion_rule"] != res.In["motion_rule"]+17 {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)

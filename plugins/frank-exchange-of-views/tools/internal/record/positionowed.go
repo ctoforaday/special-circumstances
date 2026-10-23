@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -25,6 +26,19 @@ import (
 //
 // THE TRANSCRIPT PRINTS WHAT WAS FILED AND NOTHING ELSE: a sitting that holds no position has no
 // section there, and capture's audit is the reader that reports it.
+
+// PositionRefusal is who may file a position: the chair, and no other seat. The write path refuses
+// on it whatever surface mounts the verb, and migrate writes no event for an archived position it
+// refuses.
+func PositionRefusal(seatID string) error {
+	if seatID == chairSeat {
+		return nil
+	}
+	return feov.Errorf(feov.RoleViolation,
+		"a position is the chair's argument to the bench on what is about no one gap, and %s is not the chair; nothing was recorded. "+
+			"A party's argument on a docketed gap is its closing, and a seat's argument on its own work is in its acts",
+		seatID)
+}
 
 // PositionState is what the record says of one chair sitting's position. THE FOUR STATES ARE
 // DEFINED HERE AND NOWHERE ELSE (positionStateOf): a reader that asks "did this sitting file its

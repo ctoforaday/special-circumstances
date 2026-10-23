@@ -189,7 +189,8 @@ func Log() *cobra.Command {
 }
 
 // Position is the chair's argument to the bench on what is about no one gap (record.PositionSittings
-// says when one is owed). Only the chair's surface mounts it: a party argues a gap in its closing.
+// says when one is owed). Only the chair's surface mounts it, and the write path refuses it from any
+// other seat (record.PositionRefusal): a party argues a gap in its closing.
 func Position() *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
 	return SaysRequired(Prose(NewKeyed("position", "position", func(s Context, cmd *cobra.Command) (Result, error) {
@@ -206,7 +207,7 @@ func Position() *cobra.Command {
 
 // Closing is a party's argument to the bench on one docketed gap: the gap's minting lens's, and
 // blue-respond's. The write path refuses it from any other seat, and on a gap no unruled docket
-// motion stands on (record.IsClosingParty, requireDocketedForClosing).
+// motion stands on (record.ClosingRefusal).
 func Closing(key string) *cobra.Command {
 	c := Prose(NewKeyed("closing", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)

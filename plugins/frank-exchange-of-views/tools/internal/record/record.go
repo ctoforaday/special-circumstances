@@ -1153,7 +1153,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
-		if err := requireClosingOnADocketing(q, b.GetGapId(), seatID); err != nil {
+		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
 			return err
 		}
 	case *recordpb.ManifestRow:
@@ -1212,6 +1212,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 	case *recordpb.Position:
+		if err := PositionRefusal(seatID); err != nil {
+			return err
+		}
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
@@ -1692,16 +1695,13 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		gapID, mintedBy, act, seatID)
 }
 
-// requireClosingOnADocketing is who may file a closing, and when (closingowed.go): a party to the
-// gap's dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
+// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
+// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
 // closing is an argument the bench reads when it rules a docketing, so one with nothing before the
 // bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
-//
-// EXEMPT UNDER Migrating. An archived record re-driven by migrate carries closings filed under the
-// rule of its day — the chair's among them — and they stand as residue the transcript renders under
-// no party's heading; migrate does not re-attribute an argument to a seat that never made it.
-func requireClosingOnADocketing(q recordsql.Querier, gapID, seatID string) error {
-	if Migrating || gapID == "" {
+// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
+func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
+	if gapID == "" {
 		return nil
 	}
 	var mintedBy string
