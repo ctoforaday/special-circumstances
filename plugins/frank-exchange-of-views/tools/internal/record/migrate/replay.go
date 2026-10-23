@@ -314,7 +314,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					continue
 				}
 				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 			}
