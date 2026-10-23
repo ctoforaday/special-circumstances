@@ -903,8 +903,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
-		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
-		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
+		// exempts, with its reason, so this arm reads the same live and on replay: the screen's
+		// match and the report-voice refusal are off; the roster, the mint budget and the
 		// --distinct-from reference stay on.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
@@ -1089,12 +1089,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
 			// naming the wrong sitting was recorded as the seat's statement of where the closure
-			// came from. An archive's carry predates the check, and migrate carries it as written.
-			if !Migrating {
-				if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
-					return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
-						b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
-				}
+			// came from.
+			if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
+				return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
+					b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
 			}
 		}
 		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
@@ -1402,6 +1400,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireDispatchOccasions(b); err != nil {
 			return err
 		}
+		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
+		// nothing else — a lane, the frontier and the synthesizer are dispatched by no row.
+		if seatclass.RoleOfSeat(seatID) == "blue" {
+			if err := requireEngage(q, seatID, b); err != nil {
+				return err
+			}
+		}
 	case *recordpb.Plan:
 		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
 			return err
@@ -1530,12 +1535,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
-		//
-		// A migration replays an outcome already recorded, so it is not held to the bench's motions.
-		if !Migrating {
-			if err := requireBenchMotionsRuled(q); err != nil {
-				return err
-			}
+		if err := requireBenchMotionsRuled(q); err != nil {
+			return err
 		}
 	case *recordpb.Cite:
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool

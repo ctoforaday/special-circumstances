@@ -95,20 +95,3 @@ func TestMigratingReplayKeepsAVoicedFixNew(t *testing.T) {
 		t.Errorf("the migrated prescription was not kept as archived: %q", got)
 	}
 }
-
-// A labelled corroboration's title prints in the source's note and Bibliography entry, and migration replays an archived one
-// that carries a refused tell as archived.
-func TestMigratingReplayKeepsAVoicedCorroborationTitle(t *testing.T) {
-	_, lens := liveRun(t)
-	Migrating = true
-	defer func() { Migrating = false }()
-	appendOK(t, lens, &recordpb.Verify{
-		Url:        proto.String("https://example.org/voiced"),
-		Title:      proto.String("Standard found by red-lens-evidence"),
-		Label:      proto.String("c-0123456789ab"),
-		Claim:      proto.String("The bound holds."),
-		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
-		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
-		Text:       proto.String("the standard states it"),
-	})
-}

@@ -601,8 +601,8 @@ func passBlockersOfReads(r planReads) []Blocker {
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and
-// any verdict a migration replays, over the kinds that hold every verdict. A live FAIL is then
-// held to the convergence rule, which stands only while nothing another seat must act on holds
+// any verdict a migration replays, over the kinds that hold every verdict. A FAIL is then held to
+// the convergence rule, which stands only while nothing another seat must act on holds
 // the PASS — so its "or issue `--as PASS`" is true apart from the chair's own items.
 //
 // NOT UNDER A MIGRATION for the PASS-only kinds (gblock, 2026-09-11). Migrate translates history;
@@ -620,7 +620,7 @@ func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker
 	if len(holding) > 0 {
 		return blockerRefusal(holding)
 	}
-	if verdict == recordpb.Verdict_VERDICT_FAIL && !Migrating {
+	if verdict == recordpb.Verdict_VERDICT_FAIL {
 		return requireFailIsNotConvergent(w, blockers)
 	}
 	return nil

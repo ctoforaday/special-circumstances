@@ -192,11 +192,11 @@ func renderFrom(q recordsql.Querier) func() (string, error) {
 }
 
 // validationReadsReport is whether the write path's validation of body, written by seatID, reads
-// the report: a live mint by a lens whose budget is measured on it (requireMintWithinBudget). The
+// the report: a mint by a lens whose budget is measured on it (requireMintWithinBudget). The
 // write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
 // away before the measure renders for nothing.
 func validationReadsReport(seatID string, body proto.Message) bool {
-	if _, ok := body.(*recordpb.Mint); !ok || Migrating {
+	if _, ok := body.(*recordpb.Mint); !ok {
 		return false
 	}
 	s, ok := mintScales[AreaOf(seatID)]
@@ -260,9 +260,7 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 // close frees a mint; it does not retire while it holds them (lensOwesOf). The
 // count is the record's own — the gap view's open gaps this seat minted — not a counter
 // the seat carries. Only a lens is bounded: a seat of another role spends no budget. A mint
-// attributed to an id that is no seat is refused, live and under Migrating alike; migration replays
-// under the archived seat id, so the arithmetic — not the roster — is exempted under Migrating,
-// below.
+// attributed to an id that is no seat is refused.
 //
 // BELOW THE FLOOR THE MEASURE DECIDES NOTHING. The budget is at least the floor, so a mint under it
 // lands whatever the report holds — and whether or not the units could be read.
@@ -287,14 +285,6 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	}
 	if _, err := mintScaleOf(area); err != nil {
 		return feov.Errorf(feov.Validation, "%s: %v", seatID, err)
-	}
-	// THE BUDGET JUDGES WHAT A LENS MAY DO NEXT; an archived mint is what a lens DID under the budget
-	// of its day, and a replay counts it against today's: the floor is the archive's own, but the
-	// allowance above it is this table's `per` over the replayed record, and a row that moves turns
-	// an admitted mint into a refusal that drops the gap and every act citing it. The roster checks
-	// above are structure — a seat off the roster is off it in any year — and stay on.
-	if Migrating {
-		return nil
 	}
 	// THE STANDING IS READ IN THE MINT'S OWN TRANSACTION. Read before it, two mints from one lens —
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
