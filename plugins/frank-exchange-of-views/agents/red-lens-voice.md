@@ -195,7 +195,7 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
@@ -320,7 +320,7 @@ Flags:
       --about string                  the reference --about-kind names: a section heading, an inquiry id, a gap id, or a contradiction's id, which show evidence lists under unanswered_contradictions. It is CHECKED against the record
       --about-kind about-kind-value   anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a contradiction red recorded; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it whether or not the report still holds the sentence, and the gap minted from the finding answers it
       --impact grade                  how bad the consequence is if it lands
-      --key string                    your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. A repeat under the handle with another --reason, grade or --about-kind/--about is refused: a handle names one finding. Only finding and mint take a handle: no other verb on this surface has this flag
+      --key string                    your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. A repeat under the handle with another --quote, --reason, grade or --about-kind/--about is refused: a handle names one finding. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade              how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --quote string                  REQUIRED unless --about-kind/--about name the subject — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. The finding anchor is placed there
       --reason string                 REQUIRED — the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -398,7 +398,7 @@ Flags:
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
       --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle that states the gap otherwise — its class, problem, fix, check, grades, subject, --supersedes or --found-by — is refused: a handle names one gap. Only finding and mint take a handle: no other verb on this surface has this flag
+      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it
       --problem string                           REQUIRED — what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints
@@ -574,9 +574,11 @@ Flags:
       --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing — scored for a location-match bonus
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
+
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 

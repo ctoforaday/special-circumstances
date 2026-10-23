@@ -601,7 +601,16 @@ func (r *runner) do(verb, seatID string) *cmd {
 	return &cmd{r: r, args: append(strings.Fields(verb), "--seat-id", seatID)}
 }
 func (c *cmd) set(flag, val string) *cmd { c.args = append(c.args, flag, val); return c }
-func (c *cmd) bare(flag string) *cmd     { c.args = append(c.args, flag); return c }
+
+// keyed adds, pct times in a hundred, a --key drawn from everything the act states so far: a key
+// names one act, so two acts under one key state the same thing (contentKey).
+func (c *cmd) keyed(pct int, prefix string) *cmd {
+	if c.r.coin(pct) {
+		c.args = append(c.args, "--key", contentKey(prefix, c.args))
+	}
+	return c
+}
+func (c *cmd) bare(flag string) *cmd { c.args = append(c.args, flag); return c }
 func (c *cmd) on(pct int, flag, val string) *cmd {
 	if c.r.coin(pct) {
 		c.args = append(c.args, flag, val)
@@ -1288,37 +1297,21 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 var dispatchAgents atomic.Int64
 
 // registerTwice is a dispatch whose seat registers twice under one agent id — its first act
-// registered it, then it ran `register` itself, as four m31 sittings did. The repeat is admitted and
-// answers with the stored registration: the same dispatch number and no second register on the
-// record. A bench repeat naming another occasion contradicts the stored one and is refused.
+// registered it, then it ran `register` itself, as four m31 sittings did. The repeat is refused as a
+// conflict, under the same occasion or another, and writes no second register.
 func (r *runner) registerTwice(seatID, occ string) {
 	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
-	args := append(registerArgs(seatID, occ), "--json")
-	first, ok := r.admitAs(agent, args...)
-	if !ok {
+	if _, ok := r.admitAs(agent, registerArgs(seatID, occ)...); !ok {
 		return
 	}
-	again, ok := r.admitAs(agent, args...)
-	if !ok {
-		return
-	}
-	var a, b struct {
-		Result struct {
-			Dispatch int `json:"dispatch"`
-		} `json:"result"`
-	}
-	if json.Unmarshal([]byte(first), &a) != nil || json.Unmarshal([]byte(again), &b) != nil ||
-		a.Result.Dispatch < 1 || b.Result.Dispatch != a.Result.Dispatch {
-		r.noteActErr(fmt.Sprintf("a repeated register of %s did not answer with the stored dispatch: %s then %s",
-			seatID, firstLine(first), firstLine(again)))
-	}
+	again := occ
 	if occ != "" && r.coin(50) {
-		other := "petition"
-		if occ == other {
-			other = "docket"
+		again = "petition"
+		if occ == again {
+			again = "docket"
 		}
-		r.refuseAs(agent, feov.Validation, registerArgs(seatID, other)...)
 	}
+	r.refuseAs(agent, feov.Conflict, registerArgs(seatID, again)...)
 	if fam, ok := r.board(); ok {
 		n := 0
 		for _, e := range fam.Events {
@@ -2863,9 +2856,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 				out, err := cite.set("--source-span", span).result()
 				r.citeSpanRefused(seatID, out, err)
 			} else {
-				// THE KEY NAMES THE CITATION'S SOURCE, as a key names one citation: a retry of the
-				// same source under it is idempotent, and the record refuses a key naming another.
-				cite.set("--source-span", span).on(40, "--key", fmt.Sprintf("C-%x", sha256.Sum256([]byte(url)))[:12]).admit()
+				// THE KEY NAMES THE CITATION, everything it states: a retry of the same act under it is
+				// idempotent, and the record refuses a key naming another.
+				cite.set("--source-span", span).keyed(40, "C").admit()
 			}
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
@@ -2943,14 +2936,16 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--quote", "§ fuzz sentence").
 				on(25, "--quote", "across the whole sampled corpus").
 				set("--script", name).
-				set("--reason", "fuzz: computing rather than arguing").
-				// THE KEY NAMES THE PROGRAM, as a key does: a retry of the same script under it is
-				// idempotent, and the record refuses a key that already names another program.
-				on(40, "--key", fmt.Sprintf("P-%x", sha256.Sum256([]byte(body)))[:12])
+				set("--reason", "fuzz: computing rather than arguing")
 			// ANSWER a real gap most of the time: a computation check closes only on a proof
 			// that names it, so without this the guard would only ever be seen refusing.
 			if len(open) > 0 && r.coin(70) {
 				pv = pv.set("--answers", pick(r.rng, open))
+			}
+			// THE KEY NAMES THE PROOF, everything it states with the program's body: a retry of the
+			// same act under it is idempotent, and the record refuses a key naming another.
+			if r.coin(40) {
+				pv.set("--key", contentKey("P", append(slices.Clone(pv.args), body)))
 			}
 			pv.admit()
 		})

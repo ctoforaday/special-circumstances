@@ -264,7 +264,7 @@ func newMint() *cobra.Command {
 		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its class, problem, fix, check, grades, subject, --supersedes or --found-by — is refused: a handle names one gap")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap")
 	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
 		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
@@ -392,12 +392,13 @@ func contains(xs []string, want string) bool {
 }
 
 // mintAsserted is what a gap states, and so what a retry under its key must state again: everything
-// the seat says of the defect. Not compared: the quote, because a retry is finished at the location
-// the gap stored; --reason, which is red's argument for the gap rather than the gap; and
-// --distinct-from, which answers the duplicate screen against the board as the seat read it — a
-// retry rebuilt after a crash reads a board that has moved, and refusing it would send the seat to
-// mint the same gap again under another key.
+// the seat says of the defect and where, and its argument for it. Not compared: --distinct-from,
+// which answers the duplicate screen against the board as the seat read it — a retry rebuilt after
+// a crash reads a board that has moved, and refusing it would send the seat to mint the same gap
+// again under another key.
 var mintAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
+	{Flag: flags.Reason, Field: "mint_reason"},
 	{Flag: flags.Class, Field: "class"},
 	{Flag: flags.Problem, Field: "problem"},
 	{Flag: flags.Fix, Field: "required_fix"},

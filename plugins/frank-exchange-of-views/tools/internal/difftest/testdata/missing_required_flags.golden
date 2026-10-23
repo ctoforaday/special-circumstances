@@ -61,7 +61,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 

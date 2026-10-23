@@ -256,21 +256,30 @@ func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
-// after the event landed re-runs the same key and gets the recorded sha back rather than
-// executing the script a second time and splicing a second anchor.
-func ExistingProofByKey(run Run, seatID, key string) (sha, id string, err error) {
+// ExistingProofByKey gives `blue prove` crash-retry idempotency: the proof this seat recorded under
+// key, or nil. A seat whose message died after the event landed re-runs the same key and is held to
+// the proof it repeats rather than executing the script a second time and splicing a second anchor.
+func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
 	if key == "" {
-		return "", "", nil
+		return nil, nil
 	}
-	// The schema carries the one fact once, on Proof.proof_sha; reproduce writes the same value
-	// and every joiner reads it back under this name.
-	var s, i sql.NullString
-	_, err = queryRow(run, []any{&s, &i},
-		`SELECT p."proof_sha", p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+	var id sql.NullString
+	if _, err := queryRow(run, []any{&id},
+		`SELECT p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
 		  WHERE e."seat_id" = ? AND p."proof_key" = ? ORDER BY p."event_id" LIMIT 1`,
-		seatID, key)
-	return s.String, i.String, err
+		seatID, key); err != nil || id.String == "" {
+		return nil, err
+	}
+	m, err := MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range m.Events {
+		if p := e.GetProof(); p != nil && p.GetProofId() == id.String {
+			return p, nil
+		}
+	}
+	return nil, nil
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input

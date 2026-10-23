@@ -213,12 +213,14 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Costs rose.", "--reason", "r"}},
 
-		// A RETRY PLACES THE STORED LOCATION, so its refusal is about that location and never about
-		// the --quote the retry carries.
+		// A RETRY REPEATS THE STORED LOCATION, so its refusal is about that location; one quoting
+		// other text states another act under the key.
 		{"a retry whose stored location the report no longer holds", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "A sentence the report held.", "--reason", "t"}},
+		{"a retry quoting other text", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "somewhere", "--reason", "t"}},
 		{"a retry stating the act otherwise", []string{"finding", "--key", "F-owed", "--severity", "high", "--likelihood", "low", "--impact", "low",
-			"--quote", "somewhere", "--reason", "t"}},
+			"--quote", "A sentence the report held.", "--reason", "t"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.
