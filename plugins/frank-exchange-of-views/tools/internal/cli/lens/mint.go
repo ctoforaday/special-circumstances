@@ -211,7 +211,7 @@ func newMint() *cobra.Command {
 		}))
 
 		var est estopped
-		switch err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
+		switch _, err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
 		case errors.As(err, &est):
 			prior, prescribed := est.prior, est.prescribed
 			msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",

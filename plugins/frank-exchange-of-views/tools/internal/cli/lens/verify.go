@@ -467,17 +467,25 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if mayCite != cites {
 		quote = ""
 	}
-	if err := seat.AppendPlaced(s, body, body.GetLabel(), quote, claimRefusal); err != nil {
+	ev, err := seat.AppendPlaced(s, body, body.GetLabel(), quote, claimRefusal)
+	if err != nil {
+		return nil, err
+	}
+	// THE CONTRADICTION IS THE RECORD'S, read back after the write: only a finding naming its id
+	// raises it, so the seat is told the id here rather than left to find it in its work list.
+	c, err := record.ContradictionOfReading(run, ev)
+	if err != nil {
 		return nil, err
 	}
 	return verifyResult{
-		Anchor:     body.GetAnchor(),
-		Label:      body.GetLabel(),
-		Source:     body.GetTitle(),
-		Outcome:    recordpb.Word(body.GetOutcome()),
-		Bridge:     bridgeWord(body),
-		Claim:      body.GetClaim(),
-		VoiceTells: tells,
+		Contradiction: contradictionOf(c),
+		Anchor:        body.GetAnchor(),
+		Label:         body.GetLabel(),
+		Source:        body.GetTitle(),
+		Outcome:       recordpb.Word(body.GetOutcome()),
+		Bridge:        bridgeWord(body),
+		Claim:         body.GetClaim(),
+		VoiceTells:    tells,
 	}, nil
 }
 
@@ -543,10 +551,40 @@ type verifyResult struct {
 	Claim string `json:"claim"`
 	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
+	// Contradiction is the contradiction this reading opened or joined; absent on a reading that
+	// opened and joined none.
+	Contradiction *readingContradiction `json:"contradiction,omitempty"`
+}
+
+// readingContradiction is record.ReadingContradiction as the verb prints it: the id as every
+// surface spells it, the `--about` value of the finding that raises it.
+type readingContradiction struct {
+	ID       string `json:"id"`
+	Opened   bool   `json:"opened"`
+	OpenedBy string `json:"opened_by"`
+}
+
+func contradictionOf(c *record.ReadingContradiction) *readingContradiction {
+	if c == nil {
+		return nil
+	}
+	return &readingContradiction{ID: strconv.FormatInt(c.ID, 10), Opened: c.Opened, OpenedBy: c.Opener}
+}
+
+// words is the sentence that names the contradiction, "" where there is none.
+func (c *readingContradiction) words() string {
+	switch {
+	case c == nil:
+		return ""
+	case c.Opened:
+		return ". This reading opened contradiction " + c.ID
+	default:
+		return ". This reading joined contradiction " + c.ID + " (opened by " + c.OpenedBy + ")"
+	}
 }
 
 func (r verifyResult) Human() string {
-	return r.human() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
+	return r.human() + r.Contradiction.words() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 }
 
 func (r verifyResult) human() string {
