@@ -73,7 +73,11 @@ func LaneCoverageAudit(run record.Run) Audit {
 	// opened a sitting, and for a lane that is its register.
 	// THE CAST NAMES THE LANES; run-config says how many were ASKED FOR. Both are read, because the
 	// two disagreeing is exactly what this audit exists to report.
-	lanes := record.LaneSeatsOf(run)
+	lanes, lerr := record.LaneSeatsOf(run)
+	if lerr != nil {
+		return Audit{Check: "lane-coverage", Verdict: "SKIP",
+			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record's cast could not be read (%v), so none of them could be confirmed — NOT a run whose lanes all registered", want, lerr)}
+	}
 	if len(lanes) == 0 {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record's cast names none, so there is nothing to hold them to — NOT a run whose lanes were checked", want)}

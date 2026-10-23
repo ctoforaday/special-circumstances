@@ -66,6 +66,7 @@ func SeatModels(run Run, f Family) []SeatModel {
 	}
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
+	classErr := map[string]error{}
 	var onRecord map[string]string // read once, on the first seat whose trajectory is not found
 	for _, e := range f.Events {
 		seat, opens := f.At.Opens(e)
@@ -74,9 +75,19 @@ func SeatModels(run Run, f Family) []SeatModel {
 		}
 		row := bySeat[seat]
 		if row == nil {
-			row = &SeatModel{SeatID: seat, Class: TierClassOfSeat(run, seat)}
+			class, cerr := TierClassOfSeat(run, seat)
+			row = &SeatModel{SeatID: seat, Class: class}
 			bySeat[seat] = row
 			order = append(order, seat)
+			if cerr != nil {
+				classErr[seat] = cerr
+			}
+		}
+		// A TIER THAT COULD NOT BE ESTABLISHED IS NOT MEASURED, not "rides no tier": the
+		// substitution compare needs the tier, and "" would hold the seat to none.
+		if cerr := classErr[seat]; cerr != nil {
+			row.Served, row.Requested, row.NotMeasured = "", "", "the tier this seat rides could not be established: "+cerr.Error()
+			continue
 		}
 		agent := recordpb.AgentOpening(e)
 		if agent == "" {
