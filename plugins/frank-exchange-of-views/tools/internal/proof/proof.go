@@ -249,15 +249,42 @@ func execute(runDir string, argv []string, script string) (string, int, error) {
 
 // executeIn is execute under env, or under this process's environment when env is nil.
 func executeIn(runDir string, argv []string, script string, env []string) (string, int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
+	return executeWithin(Timeout, runDir, argv, script, env)
+}
+
+// executeWithin is executeIn under a given limit; only a test asks for one other than Timeout.
+func executeWithin(limit time.Duration, runDir string, argv []string, script string, env []string) (string, int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 	args := append(append([]string{}, argv[1:]...), script)
 	cmd := exec.CommandContext(ctx, argv[0], args...)
 	cmd.Dir = runDir
 	cmd.Env = env
-	out, err := cmd.CombinedOutput()
+	// CombinedOutput, split so the launch is timed apart from the run: a timeout has to say whether
+	// the interpreter was slow to START or the script was slow to FINISH, which are different
+	// problems (#1554).
+	var buf bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &buf, &buf
+	// THE LIMIT HOLDS AGAINST A SCRIPT'S CHILDREN TOO. The context kills the interpreter, not what it
+	// started; a child still holding the output pipe kept Wait blocked until IT exited — measured: a
+	// `go run` proof killed at 500ms returned after the full minute its built binary slept. WaitDelay
+	// closes the pipe that long after the kill, so the limit is the limit.
+	cmd.WaitDelay = time.Second
+	t0 := time.Now()
+	err := cmd.Start()
+	launch := time.Since(t0)
+	if err == nil {
+		err = cmd.Wait()
+	}
+	waited := time.Since(t0) - launch
+	out := buf.Bytes()
 	if ctx.Err() != nil {
-		return "", 0, fmt.Errorf("%s did not finish inside %s — a proof settles a question; anything longer is a project and belongs in prose with its cost stated", filepath.Base(script), Timeout)
+		return "", 0, fmt.Errorf("%s did not finish inside %s (launching %s took %s, then %s waiting on it) — a proof settles a question; anything longer is a project and belongs in prose with its cost stated",
+			filepath.Base(script), limit, argv[0], launch.Round(time.Millisecond), waited.Round(time.Millisecond))
+	}
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return "", 0, fmt.Errorf("%s exited, but a process it started still held its output %s later — a proof's output is complete when the script exits, so wait for what it starts",
+			filepath.Base(script), cmd.WaitDelay)
 	}
 	code := 0
 	if err != nil {

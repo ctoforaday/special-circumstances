@@ -566,7 +566,7 @@ func TestARetractionReachesTheRecordFromANonIndexBackend(t *testing.T) {
 	if att == nil || att.Backend != ViaArxiv {
 		t.Fatalf("wanted the arxiv rung to answer, got %+v", att)
 	}
-	e := EntryFor(runtest.New(t, t.TempDir()), "https://arxiv.org/abs/2101.00001", att)
+	e := EntryFor(runtest.New(t, t.TempDir()), "https://arxiv.org/abs/2101.00001", att, SubstitutionRecovered)
 	if e.Work == nil || e.Work.Retracted == nil || !*e.Work.Retracted {
 		t.Fatalf("the stored record does not say the work is retracted: %+v", e.Work)
 	}
@@ -879,7 +879,7 @@ func TestARecoveredPDFIsExtractedLikeALiveOne(t *testing.T) {
 		Via:         "open-access copy",
 		Backend:     ViaOA,
 	}
-	e := EntryFor(run, "https://repo.example/paper.pdf", att)
+	e := EntryFor(run, "https://repo.example/paper.pdf", att, SubstitutionNamedBackend)
 	if e.TextExtracted == nil {
 		t.Fatal("the extractor was never asked — 'not attempted' and 'no text found' are different " +
 			"states, and this one leaves the document invisible to the OCR path")

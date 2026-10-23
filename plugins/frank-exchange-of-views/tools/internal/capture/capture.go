@@ -1222,7 +1222,10 @@ func orQ(s string) string {
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
-func closeRunLiveMarker(cwd, runDir string) string {
+//
+// An error means the marker still holds a row capture meant to take; the line says so and capture
+// exits failed.
+func closeRunLiveMarker(cwd, runDir string) (string, error) {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
 	// THIS RUN'S ROW, AND ONLY THIS RUN'S.
 	//
@@ -1242,18 +1245,28 @@ func closeRunLiveMarker(cwd, runDir string) string {
 	if _, err := os.Stat(marker); err != nil {
 		if os.IsNotExist(err) {
 			return "run-live marker: none at " + marker +
-				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
+				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there", nil
 		}
-		return "run-live marker: could not be read at " + marker + ": " + err.Error()
+		return "run-live marker: could not be read at " + marker + ": " + err.Error(), err
 	}
 	before := len(runlive.ReadRunLive(cwd))
-	found, remaining := runlive.RemoveRunLiveEntry(cwd, runDir)
+	found, remaining, err := runlive.RemoveRunLiveEntry(cwd, runDir)
+	if err != nil {
+		// THE RUN IS STILL LIVE, and saying "removed" here is the silence this function exists to end:
+		// every hook in the project keeps attributing to a run its capture closed.
+		return "run-live marker: this run's entry could NOT be removed from " + marker + ": " + err.Error() +
+			" — the run still counts as live; remove its row by hand or re-run capture", err
+	}
 	// AND EVERY OTHER ROW THAT IS NO LONGER LIVE — a run whose outcome is recorded or whose directory
 	// is gone — pruned AFTER this run's own row is taken, so this run is never reported as pruned
 	// rather than closed. Named, because a row removed in silence is a run nobody is told about.
-	pruned := runlive.PruneRunLive(cwd)
+	pruned, err := runlive.PruneRunLive(cwd)
+	if err != nil {
+		return closedLine(found, before, remaining, marker, runDir) + "; the rows no longer live could NOT be pruned (" +
+			err.Error() + ") and are still in the marker: " + prunedRuns(pruned), err
+	}
 	remaining -= len(pruned)
-	return closedLine(found, before, remaining, marker, runDir) + prunedLine(pruned)
+	return closedLine(found, before, remaining, marker, runDir) + prunedLine(pruned), nil
 }
 
 // prunedLine names the rows capture pruned besides its own, or nothing when there were none.
@@ -1261,11 +1274,16 @@ func prunedLine(pruned []runlive.Pruned) string {
 	if len(pruned) == 0 {
 		return ""
 	}
+	return "; pruned " + plural(len(pruned), "the row", "the rows") + " no longer live: " + prunedRuns(pruned)
+}
+
+// prunedRuns names each row and why it is no longer live.
+func prunedRuns(pruned []runlive.Pruned) string {
 	parts := make([]string, 0, len(pruned))
 	for _, p := range pruned {
 		parts = append(parts, p.Row.RunDir+" ("+p.State.Why()+")")
 	}
-	return "; pruned " + plural(len(pruned), "the row", "the rows") + " no longer live: " + strings.Join(parts, ", ")
+	return strings.Join(parts, ", ")
 }
 
 // closedLine says what happened to this run's own row.
@@ -1946,7 +1964,8 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), famEvents(fam))
 	lines = append(lines, precedentLine(prec))
 
-	lines = append(lines, closeRunLiveMarker(cwd, run.Dir()))
+	markerLine, markerErr := closeRunLiveMarker(cwd, run.Dir())
+	lines = append(lines, markerLine)
 
 	var out []string
 	out = append(out,
@@ -1984,6 +2003,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		if a.Verdict == "FAIL" {
 			exitFail = true
 		}
+	}
+	// A run capture could not close is a failed capture: the line above names why.
+	if markerErr != nil {
+		exitFail = true
 	}
 	return audits, report, exitFail, nil
 }

@@ -134,6 +134,14 @@ func newCite() *cobra.Command {
 			// AND WHICH PART OF THE WORK THE COPY IS — a summary_only citation of an abstract and
 			// one of a paper read the same until this was on the record.
 			SourceCompleteness: entry.SourceCompleteness().Enum(),
+			// AND WHOSE BYTES WERE READ. The seat typed --url; the cache may have answered it with
+			// the full text the page pointed to, a copy recovered after a refusal, a fuller copy, or
+			// a named backend's answer. sha256 above is those bytes' hash, and without this the
+			// citation said it read the typed url.
+			CopySubstitution: entry.CopySubstitution().Enum(),
+		}
+		if entry.Substitution != "" && entry.CopyURL != "" {
+			body.CopyUrl = proto.String(entry.CopyURL)
 		}
 		if at.located {
 			body.SourceSpan = proto.String(span)

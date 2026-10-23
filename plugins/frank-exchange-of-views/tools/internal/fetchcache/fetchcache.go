@@ -245,12 +245,20 @@ type Entry struct {
 	// A metadata answer is a real finding — that the source exists. It is not a reading, and nothing
 	// may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
-	// FollowedTo names the url this fetch ENDED at, when the page first asked for pointed at its
-	// own full text and that pointer was followed. It is deliberately not RetrievedVia: that one
-	// says the bytes may be a different artifact from the url's, which is true of an archive
-	// snapshot and false here — a publisher's abstract naming its own full text is the same work,
-	// at the place its publisher said to look.
-	FollowedTo string `json:"followed_to,omitempty"`
+	// Substitution names THE ROUTE BY WHICH THESE BYTES ARE NOT THE URL'S OWN — one of the
+	// Substitution constants, empty when the url answered and its answer is what is stored. Set by
+	// the code that took the route, never inferred from the fields beside it: a recovery after a
+	// refusal and a fuller copy sought past an abstract both leave Backend and RetrievedVia set,
+	// and only the route that ran knows which it was. A citation of the entry records it.
+	Substitution string `json:"substitution,omitempty"`
+	// CopyURL names where the bytes were fetched from whenever Substitution is set: the full text
+	// a page pointed to, the snapshot, the open copy, the arXiv pdf, the index record. Empty there
+	// only where the body is the tool's own statement of what a backend found, which no url holds.
+	//
+	// A FOLLOWED POINTER IS NOT A RECOVERY: RetrievedVia stays empty for one, because that field
+	// says the bytes may be a different artifact from the url's, and a publisher's abstract naming
+	// its own full text is the same work, at the place its publisher said to look.
+	CopyURL string `json:"copy_url,omitempty"`
 	// TextRetrievedReason states WHY the bytes are not the source's text on a fetch that reached
 	// the source and got its real document — the paired reason this flag lacked, in the shape
 	// TextExtracted and NotRenderable already use here. A withdrawn claim with no reason is
@@ -555,7 +563,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		entry := EntryFor(run, url, att)
+		entry := EntryFor(run, url, att, SubstitutionRecovered)
 		entry.HTTPStatus, entry.RefusalClass = stub.HTTPStatus, stub.RefusalClass
 		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
@@ -587,7 +595,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// THE ABSTRACT IS KEPT WHEN IT IS ALL THERE IS. Nothing here refuses a page for being short —
 	// a record that the work exists is a legitimate citation as `unread`. What it refuses is
 	// STOPPING at that page when the publisher has said where the readable copy is.
-	var followedTo string
+	var copyURL string
 	seenHop := map[string]bool{url: true}
 	// The hosts this DOCUMENT has already been charged for. The walk that follows is the same
 	// asking continued, not a new one.
@@ -606,7 +614,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			break
 		}
 		resp = hop
-		followedTo = fullText
+		copyURL = fullText
 		if b, berr := neturl.Parse(firstNonEmptyStr(hop.FinalURL, fullText)); berr == nil {
 			base = b
 		}
@@ -624,7 +632,9 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	// Following a publisher's own pointer from its abstract to its full text is neither of those:
 	// it is the same work, at the place its publisher said to look. Recorded, and not as a
 	// recovery.
-	entry.FollowedTo = followedTo
+	if copyURL != "" {
+		entry.Substitution, entry.CopyURL = SubstitutionFollowedLink, copyURL
+	}
 
 	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
 	entry.Filename = Label(ex.Title, resp.Disposition, url)
@@ -807,9 +817,12 @@ func foldExtraction(run record.Run, entry *Entry, ex Extraction) error {
 	return nil
 }
 
-func EntryFor(run record.Run, url string, att *Attempt) Entry {
+// EntryFor builds the index entry for a backend's answer to url. substitution is the route that
+// asked the backend — a refusal's recovery, a fuller copy, a fetch that named it — and the caller
+// states it, because the answer alone cannot say which.
+func EntryFor(run record.Run, url string, att *Attempt, substitution string) Entry {
 	entry := Entry{
-		URL: url, ContentType: att.ContentType,
+		URL: url, ContentType: att.ContentType, Substitution: substitution, CopyURL: att.URL,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
 		CopyVersion: att.Version, CopyLicense: att.License, DOI: att.DOI,
 	}
@@ -870,7 +883,7 @@ func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Atte
 		if att == nil || !att.TextRetrieved || copyRank(att, doi) != rankBody {
 			continue
 		}
-		cand := EntryFor(run, url, att)
+		cand := EntryFor(run, url, att, SubstitutionFullerCopy)
 		if !cand.TextRetrieved {
 			continue
 		}
