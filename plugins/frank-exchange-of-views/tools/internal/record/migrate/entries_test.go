@@ -271,7 +271,7 @@ func TestAnOldCiteStatesItsCompletenessWasNotRecorded(t *testing.T) {
 	}
 }
 
-// AND A CITE FROM BEFORE EPOCH 39 SAYS NOBODY RECORDED WHOSE BYTES IT READ. `none` would claim the
+// AND A CITE FROM BEFORE EPOCH 40 SAYS NOBODY RECORDED WHOSE BYTES IT READ. `none` would claim the
 // typed url's own; the fetch index that knew whether a copy stood in is not archived. No copy url is
 // written — that is the residue. A cite that carries a substitution keeps it.
 func TestAnOldCiteStatesItsCopySubstitutionWasNotRecorded(t *testing.T) {

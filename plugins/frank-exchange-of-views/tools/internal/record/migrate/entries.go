@@ -208,7 +208,7 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 	if c.SourceCompleteness == nil {
 		c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_RECORDED.Enum()
 	}
-	// NOR, BEFORE EPOCH 39, WHOSE BYTES THE CITATION READ. An archived cite may rest on a followed
+	// NOR, BEFORE EPOCH 40, WHOSE BYTES THE CITATION READ. An archived cite may rest on a followed
 	// pointer, a recovered copy or a fuller one, and nothing it holds says which — the fetch index
 	// that knew is not archived. NONE would claim the typed url's own bytes; NOT_RECORDED says the
 	// question was not asked, and no copy_url is written: the residue is that a migrated cite names
