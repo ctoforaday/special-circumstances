@@ -156,7 +156,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		//
 		// ON THE ORIGINATOR'S LIST, AND ONLY WHERE THE WRITE PATH ADMITS THE REGRADE: requireOriginator
 		// refuses it from any other seat, requireOpenGap refuses it on a closed gap, and
-		// insertNumbered refuses a second regrade of one gap in one sitting. regradesAfforded holds
+		// writeIn refuses a second regrade of one gap in one sitting. regradesAfforded holds
 		// all three, so no line here offers a seat an act its own write path refuses.
 		minted := mintedBy(evs)
 		//
@@ -356,13 +356,13 @@ func (o owedRegrade) accepted() string {
 // block, and a lens that regrades and keeps the grade has answered the ruling on the record, in
 // its basis.
 //
-// IT IS LISTED ONLY WHERE THE WRITE PATH ADMITS IT. Append is validate, then insertNumbered, and
+// IT IS LISTED ONLY WHERE THE WRITE PATH ADMITS IT. Append is validate, then writeIn, and
 // each refusal a regrade can meet on that path has its filter here:
 //
 //   - requireOriginator (the gap is another seat's)    → minted[gap] == seatID
 //   - requireGap (no such gap)                         → the gap is a row of gaps
 //   - requireOpenGap (the gap is CLOSED)               → that row's Open
-//   - insertNumbered's duplicate key (the seat's       → the seat's current sitting holds no
+//   - writeIn's duplicate key (the seat's              → the seat's current sitting holds no
 //     current sitting already holds a regrade of it)     regrade of the gap
 //
 // The once-per-sitting duty does not reach a regrade (it is no singleton), and the required-field

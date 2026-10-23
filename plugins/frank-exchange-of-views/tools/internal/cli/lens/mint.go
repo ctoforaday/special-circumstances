@@ -47,21 +47,8 @@ func newMint() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// Crash-retry idempotency: --key (the stable local label, e.g. the source
-		// lens finding) makes a retried mint return the EXISTING id.
-		prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key))
-		if err != nil {
-			return nil, err
-		}
-		if prior != "" {
-			// A mint on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry,
-			// at the location it stored.
-			if err := seat.PlaceOwed(s, prior, seat.Str(cmd, flags.Key)); err != nil {
-				return nil, err
-			}
-			return mintResult{GapID: prior, Idempotent: true}, nil
-		}
-		gapID := record.NewID("gap")
+		// The id is minted once the retry check has passed: a retry answers with the stored one.
+		var gapID string
 		// ONE FLAG, ONE FIELD. --problem states what is wrong and is the only thing that does;
 		// --reason is red's argument for the gap and is never read as the problem. The problem
 		// used to fall back to --reason when --problem was absent, so the same flag meant the
@@ -80,7 +67,7 @@ func newMint() *cobra.Command {
 		//
 		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
 		// answers and a bench weighs.
-		p := &recordpb.Mint{GapId: proto.String(gapID)}
+		p := &recordpb.Mint{}
 		if text != "" {
 			p.MintReason = proto.String(text)
 		}
@@ -173,6 +160,30 @@ func newMint() *cobra.Command {
 		p.FoundBy = foundBy.Value()
 		p.DistinctFrom = distinctFrom.Value()
 
+		// Crash-retry idempotency: --key (the stable local label, e.g. the source lens finding) makes
+		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
+		// asked once the gap is built, so the retry is held to the same inputs the first call was.
+		if prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+			return nil, err
+		} else if prior != nil {
+			// --new is recorded by the fix's verification at the write; the retry states it as given.
+			retry := proto.Clone(p).(*recordpb.Mint)
+			if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
+				retry.FixNew = proto.String(fixNew)
+			}
+			if err := seat.RepeatsKeyed(seat.Str(cmd, flags.Key), "gap", prior.GetGapId(), prior, retry, mintAsserted...); err != nil {
+				return nil, err
+			}
+			// A mint on the record without its anchor — one migrate brought forward from an archive
+			// whose run crashed between the two — is finished by the retry, at the location it stored.
+			if err := seat.PlaceOwed(s, prior.GetGapId(), seat.Str(cmd, flags.Key)); err != nil {
+				return nil, err
+			}
+			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
+		}
+		gapID = record.NewID("gap")
+		p.GapId = proto.String(gapID)
+
 		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
 		//
 		// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
@@ -253,7 +264,7 @@ func newMint() *cobra.Command {
 		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey)
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its class, problem, fix, check, grades, subject, --supersedes or --found-by — is refused: a handle names one gap")
 	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
 		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
@@ -378,4 +389,27 @@ func contains(xs []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// mintAsserted is what a gap states, and so what a retry under its key must state again: everything
+// the seat says of the defect. Not compared: the quote, because a retry is finished at the location
+// the gap stored; --reason, which is red's argument for the gap rather than the gap; and
+// --distinct-from, which answers the duplicate screen against the board as the seat read it — a
+// retry rebuilt after a crash reads a board that has moved, and refusing it would send the seat to
+// mint the same gap again under another key.
+var mintAsserted = []seat.Asserted{
+	{Flag: flags.Class, Field: "class"},
+	{Flag: flags.Problem, Field: "problem"},
+	{Flag: flags.Fix, Field: "required_fix"},
+	{Flag: flags.New, Field: "fix_new"},
+	{Flag: flags.Check, Field: "acceptance_check"},
+	{Flag: flags.CheckKind, Field: "check_kind"},
+	{Flag: flags.Severity, Field: "severity"},
+	{Flag: flags.Likelihood, Field: "likelihood"},
+	{Flag: flags.Impact, Field: "impact"},
+	{Flag: flags.Complexity, Field: "complexity_cost"},
+	{Flag: flags.AboutKind, Field: "about_kind"},
+	{Flag: flags.About, Field: "about_ref"},
+	{Flag: flags.Supersedes, Field: "supersedes"},
+	{Flag: flags.FoundBy, Field: "found_by"},
 }

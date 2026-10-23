@@ -30,6 +30,7 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F-0badf00d", &recordpb.Finding{
 		Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"),
 		Location: proto.String("The sky is blue and the grass is green."), Text: proto.String("an unfounded leap"),
+		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 	}))
 	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--quote", "The sky is blue and the grass is green.",

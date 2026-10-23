@@ -1,6 +1,9 @@
 package record
 
 import (
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -44,3 +47,25 @@ func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 
 // convergenceFraction is the run's convergence fraction (convergenceFractionIn).
 func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
+
+// WouldRefuse is the write path's validation as Append runs it — inside a write transaction on
+// run's record, asked of that transaction — and rolled back: what the write would refuse, without
+// writing. A run that has recorded nothing is validated as no record, and no record is created.
+//
+// A verb asks it where it answers a retry from the record instead of writing: the retry is the
+// same act, so it is held to every rule the first write was, before the stored act is returned.
+func WouldRefuse(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return err
+	}
+	if db == nil {
+		return validate(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	return validate(writeView{q: tx, files: filesOf(run)}, seatID, typ, body)
+}

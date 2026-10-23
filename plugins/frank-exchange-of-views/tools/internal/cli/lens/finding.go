@@ -66,30 +66,10 @@ func newFinding() *cobra.Command {
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a finding has one subject, "+
 				"and the gap it becomes would inherit the ambiguity")
 		}
-		// Crash-retry idempotency: a prior finding under this --key returns its
-		// id, no second event AND no second marker (BEFORE any write).
 		key := seat.Str(cmd, flags.Key)
 		area := record.AreaOf(s.SeatID)
-		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
-			return nil, err
-		} else if prior != "" {
-			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
-			// record migrate brought forward from an archive can hold a finding whose run crashed
-			// before its anchor. The retry finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, prior, key); err != nil {
-				return nil, err
-			}
-			return findingResult{ID: prior, Area: area, Idempotent: true}, nil
-		}
-		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
-		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
-		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
-		// finishes a pair the record holds half of.
-		findingID := record.NewID("finding")
-
 		body := &recordpb.Finding{
-			Id:         proto.String(findingID),
-			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
+			FindingKey: proto.String(key),
 			Location:   proto.String(location),
 			Text:       proto.String(text),
 			AboutKind:  about,
@@ -98,6 +78,28 @@ func newFinding() *cobra.Command {
 			Likelihood: seat.GradeOrNil(&likelihood),
 			Impact:     seat.GradeOrNil(&impact),
 		}
+		// Crash-retry idempotency: a prior finding under this --key returns its id, no second event
+		// AND no second marker (BEFORE any write) — when the retry states the finding the key names.
+		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
+			return nil, err
+		} else if prior != nil {
+			if err := seat.RepeatsKeyed(key, "finding", prior.GetId(), prior, body, findingAsserted...); err != nil {
+				return nil, err
+			}
+			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
+			// record migrate brought forward from an archive can hold a finding whose run crashed
+			// before its anchor. The retry finishes the pair at the location the finding stored.
+			if err := seat.PlaceOwed(s, prior.GetId(), key); err != nil {
+				return nil, err
+			}
+			return findingResult{ID: prior.GetId(), Area: area, Idempotent: true}, nil
+		}
+		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
+		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
+		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
+		// finishes a pair the record holds half of.
+		findingID := record.NewID("finding")
+		body.Id = proto.String(findingID)
 		// NO ANCHOR FOR AN ABSENCE, and that is the point rather than an omission: a finding about
 		// something NOT in the report has no location to mark, and placing one would put an anchor on
 		// the innocent prose this change exists to stop borrowing.
@@ -128,7 +130,7 @@ func newFinding() *cobra.Command {
 		return findingResult{ID: findingID, Area: area}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id. A repeat under the handle with another --reason, grade or --about-kind/--about is refused: a handle names one finding")
 	seat.Supplies(c, "id", "the tool mints it (record.NewID), at random — an id a seat chose would name a finding the record does not hold")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
@@ -142,6 +144,18 @@ func newFinding() *cobra.Command {
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a contradiction's id, which show evidence lists under unanswered_contradictions. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// findingAsserted is what a finding states, and so what a retry under its key must state again:
+// its text, its grades and its subject. The quote is not among them — a retry is finished at the
+// location the finding stored.
+var findingAsserted = []seat.Asserted{
+	{Flag: flags.Reason, Field: "text"},
+	{Flag: flags.Severity, Field: "severity"},
+	{Flag: flags.Likelihood, Field: "likelihood"},
+	{Flag: flags.Impact, Field: "impact"},
+	{Flag: flags.AboutKind, Field: "about_kind"},
+	{Flag: flags.About, Field: "about_ref"},
 }
 
 func findingRefusal(err error) error { return placementRefusal("finding", err) }

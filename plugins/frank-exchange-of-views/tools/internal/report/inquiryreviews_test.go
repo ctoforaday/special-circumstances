@@ -32,7 +32,7 @@ func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return doc, view.InquiryBody(fam.Events, fam.At)
+	return doc, view.InquiryBody(fam.Events, fam.At, false)
 }
 
 // EACH REVIEW THE CHAIR RECORDED SHIPS WITH ITS REASON, in the inquiries' own document, after the

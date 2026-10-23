@@ -41,7 +41,7 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
-		ocrQuote := seat.Str(cmd, flags.OCRQuote)
+		span := seat.Str(cmd, flags.SourceSpan)
 		if strings.TrimSpace(quote) == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
@@ -72,11 +72,18 @@ func newCite() *cobra.Command {
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
-		} else if prior != "" {
-			if err := seat.PlaceOwed(s, prior, key); err != nil {
+		} else if prior != nil {
+			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source at the same span,
+			// or it is a second citation reusing the name. The sentence is not compared: a retry does
+			// not read --quote, and is finished at the location the citation stored.
+			retry := &recordpb.Cite{Url: proto.String(url), SourceSpan: proto.String(span)}
+			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
 				return nil, err
 			}
-			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
+			if err := seat.PlaceOwed(s, prior.GetLabel(), key); err != nil {
+				return nil, err
+			}
+			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Origin: recordpb.Word(prior.GetSourceTextOrigin()), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
@@ -93,10 +100,10 @@ func newCite() *cobra.Command {
 			return nil, record.ToolLogged(unloaded)
 		}
 
-		// WHERE THE CITED TEXT CAME FROM, and for OCR text, WHICH PAGE THE QUOTE SITS ON. The
-		// binary finds the page from the span; a seat never types one. Refused before the label is
-		// minted, so a refusal leaves nothing on the record.
-		ocr, err := locateOCRQuote(run, entry, url, ocrQuote)
+		// WHERE THE CITED TEXT CAME FROM, WHERE THE SPAN SITS IN IT, and what the source says
+		// around it. The binary finds the span; a seat never types an offset or a page. Refused
+		// before the label is minted, so a refusal leaves nothing on the record.
+		at, err := locateSourceSpan(run, entry, url, span)
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +121,8 @@ func newCite() *cobra.Command {
 			Sha256:     proto.String(entry.Sha),
 			AccessDate: proto.String(record.Now().Format("2006-01-02")),
 
-			SourceTextOrigin: ocr.origin.Enum(),
-			Pages:            ocr.pages(),
+			SourceTextOrigin: at.origin.Enum(),
+			Pages:            at.pages(),
 
 			// WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped here for the same reason the
 			// origin above is: the seat cannot be asked to remember it. `fetch` prints the
@@ -127,24 +134,35 @@ func newCite() *cobra.Command {
 			// one of a paper read the same until this was on the record.
 			SourceCompleteness: entry.SourceCompleteness().Enum(),
 		}
-		if len(ocr.loc.Pages) > 0 {
-			body.OcrQuote = proto.String(ocrQuote)
-			body.OcrEngine = proto.String(ocr.loc.Engine)
-			body.OcrTextSha = proto.String(ocr.loc.TextSha)
+		if at.located {
+			body.SourceSpan = proto.String(span)
+			body.SpanStart = proto.Int32(int32(at.loc.Start))
+			body.SpanEnd = proto.Int32(int32(at.loc.End))
+			body.SpanTextSha = proto.String(at.loc.TextSha)
+			body.SourceBefore = proto.String(at.loc.Before)
+			body.SourceMatched = proto.String(at.loc.Matched)
+			body.SourceAfter = proto.String(at.loc.After)
+		}
+		if len(at.loc.Pages) > 0 {
+			body.OcrEngine = proto.String(at.loc.Engine)
+			body.OcrTextSha = proto.String(at.loc.ReadingSha)
 		}
 		citeFields(cmd, body, why)
 		if err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
-		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: ocr.pages(), VoiceTells: tells}, nil
+		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: at.pages(), Origin: recordpb.Word(at.origin), VoiceTells: tells}, nil
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
-	flags.Text(c, flags.OCRQuote, "for OCR-derived text, and required there: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
+	flags.Text(c, flags.SourceSpan, "required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). "+
+		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — "+
+		"and records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
+		"A source the tool holds no text for is cited without it")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation")
 	return c
 }
 
@@ -155,6 +173,10 @@ func newCite() *cobra.Command {
 // seat's argument there is exactly the run-voice the report refuses); the `evidence` view shows it
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
+// citeAsserted is what a citation states, and so what a retry under its key must state again: the
+// source and the span relied on in it.
+var citeAsserted = []seat.Asserted{{Flag: flags.URL, Field: "url"}, {Flag: flags.SourceSpan, Field: "source_span"}}
+
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Location = proto.String(seat.Location(cmd))
 	body.Url = proto.String(seat.Str(cmd, flags.URL))
@@ -177,52 +199,50 @@ func citeRefusal(err error) error {
 	return anchortext.Refusal(err)
 }
 
-type ocrCite struct {
-	origin recordpb.SourceTextOrigin
-	loc    fetchcache.SpanLocation
+type spanAt struct {
+	origin  recordpb.SourceTextOrigin
+	located bool
+	loc     fetchcache.SpanLocation
 }
 
-func (o ocrCite) pages() []int32 {
+func (a spanAt) pages() []int32 {
 	var out []int32
-	for _, p := range o.loc.Pages {
+	for _, p := range a.loc.Pages {
 		out = append(out, int32(p))
 	}
 	return out
 }
 
-// locateOCRQuote stamps a cite's text origin and, for a quote from an OCR reading, the pages it
-// sits on. A citation of OCR text must name its span: a citation is the claim that the source
-// SAYS this, and OCR text can misread, so the page is what lets red check the pixels. On a
-// source with no OCR reading the span is refused rather than dropped — a flag accepted and
-// recorded nowhere reads as a page check that will never be owed.
-func locateOCRQuote(run record.Run, entry fetchcache.Entry, url, span string) (ocrCite, error) {
-	origin, rec, err := fetchcache.TextOrigin(run, entry)
+// locateSourceSpan stamps a cite's text origin and finds its span in the source's cached text. A
+// citation is the claim that the source SAYS this, so a source whose text the tool holds is cited
+// at words found in it: the record then carries the source's own text at the citation, and a
+// lens reads that rather than blue's account of it. On a source with no text the span is refused
+// rather than dropped — a flag accepted and recorded nowhere reads as a span nobody found.
+func locateSourceSpan(run record.Run, entry fetchcache.Entry, url, span string) (spanAt, error) {
+	origin, _, err := fetchcache.TextOrigin(run, entry)
 	if err != nil {
-		return ocrCite{}, err
+		return spanAt{}, err
 	}
-	out := ocrCite{origin: origin}
+	out := spanAt{origin: origin}
 	given := strings.TrimSpace(span) != ""
 	switch origin {
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
 		if !given {
-			return ocrCite{}, feov.Errorf(feov.Validation, "a citation of OCR-derived text names the span it quotes from the reading, with --%s, so the tool can record its page — the reading is at %s", flags.OCRQuote, fetchcache.OCRTextPath(run, entry.Sha))
+			return spanAt{}, feov.Errorf(feov.Validation, "the tool holds this source's text, so a citation of it names the words it relies on with --%s, copied from that text — it is at %s",
+				flags.SourceSpan, fetchcache.SourceTextPath(run, entry, origin))
 		}
-		loc, lerr := fetchcache.LocateSpan(run, rec, span)
+		loc, lerr := fetchcache.LocateSourceSpan(run, entry, span)
 		switch {
 		case errors.Is(lerr, fetchcache.ErrReadingIncomplete):
-			return ocrCite{}, feov.Errorf(feov.Validation, "%v — `fetch --url %s` re-derives it", lerr, url)
+			return spanAt{}, feov.Errorf(feov.Validation, "%v — `fetch --url %s` re-derives it", lerr, url)
 		case lerr != nil:
-			return ocrCite{}, feov.Errorf(feov.Validation, "--%s %v", flags.OCRQuote, lerr)
+			return spanAt{}, feov.Errorf(feov.Validation, "--%s %v", flags.SourceSpan, lerr)
 		}
-		out.loc = loc
-		return out, nil
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE:
-		if given {
-			return ocrCite{}, feov.Errorf(feov.Validation, "--%s locates a span in the source's OCR reading, and %s has none — `fetch --url %s` reads a scan first", flags.OCRQuote, url, url)
-		}
+		out.located, out.loc = true, loc
 	default:
 		if given {
-			return ocrCite{}, feov.Errorf(feov.Validation, "--%s is for OCR-derived text, and this source's text is not OCR-derived, so there is no reading to locate a page in — quote the report sentence with --%s alone", flags.OCRQuote, flags.Quote)
+			return spanAt{}, feov.Errorf(feov.Validation, "--%s is found in the source's text, and the tool holds none for %s (%s) — cite it without one, or `fetch --url %s` to read a scan first",
+				flags.SourceSpan, url, recordpb.Word(origin), url)
 		}
 	}
 	return out, nil
@@ -232,9 +252,12 @@ type citeResult struct {
 	Label  string `json:"label"`
 	URL    string `json:"url,omitempty"`
 	Sha256 string `json:"sha256,omitempty"`
-	// Pages are the PDF pages the tool found an OCR quote on; the report prints them at the marker.
-	Pages      []int32 `json:"pages,omitempty"`
-	Idempotent bool    `json:"idempotent,omitempty"`
+	// Pages are the PDF pages the tool found an OCR span on; the report prints them at the marker.
+	Pages []int32 `json:"pages,omitempty"`
+	// Origin is where the source's text came from; "none" says the citation carries no span
+	// because the tool holds no text to have found one in.
+	Origin     string `json:"source_text_origin"`
+	Idempotent bool   `json:"idempotent,omitempty"`
 	// VoiceTells is ADVICE on the title, and the citation is already recorded by the time it renders.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -244,5 +267,9 @@ func (r citeResult) Human() string {
 	if r.Idempotent {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + note
 	}
-	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + note
+	span := ""
+	if r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE) {
+		span = ". It carries no source span: the tool holds no text for this source"
+	}
+	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + span + note
 }

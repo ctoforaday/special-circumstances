@@ -270,3 +270,19 @@ func TestAnOldCiteStatesItsCompletenessWasNotRecorded(t *testing.T) {
 		}
 	}
 }
+
+// A CITE FROM BEFORE EPOCH 37 named an OCR citation's span `ocr_quote`: it is the citation's
+// source_span, word for word, beside the reading it was found in. No archived cite holds the span's
+// offsets or the source's text around it — the cache is not archived — so none is invented.
+func TestAnOldOCRQuoteIsTheCitationsSourceSpan(t *testing.T) {
+	bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: map[string]any{
+		"label": "c-1", "url": "https://x", "source_text_origin": "ocr", "ocr_quote": "Annexes A through J",
+		"ocr_engine": "e", "ocr_text_sha": "t"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := bodies[0].(*recordpb.Cite)
+	if c.GetSourceSpan() != "Annexes A through J" || c.GetOcrEngine() != "e" || c.SpanStart != nil || c.SourceMatched != nil {
+		t.Errorf("translated cite: span %q, engine %q, offsets %v, matched %v", c.GetSourceSpan(), c.GetOcrEngine(), c.SpanStart, c.SourceMatched)
+	}
+}

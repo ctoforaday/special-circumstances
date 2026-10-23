@@ -71,9 +71,14 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 			t.Errorf("report.md carries %q %d time(s), want once, in the body:\n%s", h, n, shipped)
 		}
 	}
+	// CHANGELOG.md quotes each edit's spans as history, the two edits above among them; that is a
+	// record of the edit, not a second section carrying the report's lines.
 	for _, ln := range slices.Concat(ownProofs, ownMotions) {
 		n := 0
 		for file, b := range body {
+			if file == report.FileChangelog {
+				continue
+			}
 			c := strings.Count(b, ln)
 			n += c
 			if c > 0 && file != report.FileReport {

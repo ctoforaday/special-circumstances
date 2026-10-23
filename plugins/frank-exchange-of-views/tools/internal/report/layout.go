@@ -170,6 +170,9 @@ var layout = []Section{
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
+	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
+		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
+		Path: "Blue's `cite` records a citation, a lens's `verify` a reading of it, and a lens's `corroborate` a source of its own."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
 	// what answered each seat, measured from the seat's own trajectory (#589).
 	{File: FileRun, Heading: "How this run was conducted", Composer: Tool,
@@ -201,6 +204,10 @@ var layout = []Section{
 		From:    "the bench's statements that a later one replaced",
 		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
 		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam.Events) }},
+	{File: FileChangelog, Heading: "Edits to the report", Composer: Tool,
+		From:    "the edits on the record, grouped by the sitting that made each: the gap it answers, blue's reason, and the span it replaced beside the text that replaced it",
+		Path:    "Blue's `edit`, which records the span it replaces, the new text and why.",
+		compose: func(a *assembly, _ Section) string { return editHistory(a.fam) }},
 }
 
 // The inquiry sections' From and Path are written from each row's own fate, so the sentence a seat

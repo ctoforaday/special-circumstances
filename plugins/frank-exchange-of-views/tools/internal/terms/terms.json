@@ -549,6 +549,16 @@
       ]
     },
     {
+      "term": "source span",
+      "definition": "A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.",
+      "seats": [
+        "lens",
+        "blue"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "OCR-derived text",
       "definition": "OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.",
       "seats": [

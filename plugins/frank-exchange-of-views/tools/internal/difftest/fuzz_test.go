@@ -436,7 +436,7 @@ var tourArms = []fuzzArm{
 	tourArm("blue manifest-row", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	tourArm("blue cite", []string{"blue-respond"}, []string{"cite"},
 		func(t string) []string {
-			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--title", t}
+			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--source-span", "a source the fuzz cites at /corr", "--title", t}
 		}, nil),
 	tourArm("blue prove", []string{"blue-respond"}, []string{"prove"},
 		func(t string) []string {

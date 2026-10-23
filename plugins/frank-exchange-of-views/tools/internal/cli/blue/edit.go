@@ -91,7 +91,10 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if prior {
+		if prior != nil {
+			if err := repeatsEdit(key, prior, gapID, accepting, oldStr, newStr); err != nil {
+				return nil, err
+			}
 			// The op is already on the diff-stack, so the render already reflects it — there is
 			// nothing to re-apply. Under report-as-record the edit IS the event; no file to reconcile.
 			//
@@ -228,7 +231,7 @@ func newEdit() *cobra.Command {
 		return editResult{VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey)
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another --quote, --new, --answers or --accept is refused: a handle names one edit")
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
@@ -239,6 +242,31 @@ func newEdit() *cobra.Command {
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the
+// gap it answers, whether it accepts that gap's fix, and — for an edit blue typed — the span and its
+// replacement. AN EDIT PLACES NO ANCHOR, so its --quote is not a location a retry finishes at: it is
+// half of the change, and a different span is a different edit. The stored replacement carries any
+// anchor the tool put back, so both replacements are compared without their anchors. An accepting
+// retry's pair is the tool's, read off the gap, and is not the seat's to repeat.
+func repeatsEdit(key string, stored *recordpb.BlueEdit, gapID string, accepting bool, oldStr, newStr string) error {
+	retry := &recordpb.BlueEdit{Answers: proto.String(gapID), Old: proto.String(oldStr), New: proto.String(withoutAnchors(newStr))}
+	if accepting {
+		retry.Accepted = proto.Bool(true)
+	}
+	view := proto.Clone(stored).(*recordpb.BlueEdit)
+	view.New = proto.String(withoutAnchors(stored.GetNew()))
+	asserted := []seat.Asserted{{Flag: flags.Answers, Field: "answers"}, {Flag: flags.Accept, Field: "accepted"}}
+	if !accepting {
+		asserted = append(asserted, seat.Asserted{Flag: flags.Quote, Field: "old"}, seat.Asserted{Flag: flags.New, Field: "new"})
+	}
+	return seat.RepeatsKeyed(key, "edit", "", view, retry, asserted...)
+}
+
+// withoutAnchors is s with every anchor token taken out.
+func withoutAnchors(s string) string {
+	return anchor.Replace(s, func(string, string) string { return "" })
 }
 
 // typedPair refuses an edit pair that names no span, or that changes nothing.
@@ -482,7 +510,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 			}
 		default:
 			if at, err := record.EvidenceAt(run, id); err == nil && at.Source != nil {
-				about = at.Source.Title + " — " + at.Source.Text
+				about = citationAbout(at.Source)
 			}
 		}
 		if about = line(about); about == "" {
@@ -536,4 +564,18 @@ func (r editResult) Human() string {
 	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
 		strings.Join(r.VoiceTells, "\n  - ") +
 		"\nSeparation, never deletion: an operational limit belongs in the log, and\nthe part that limits the CONCLUSION stays here, re-voiced."
+}
+
+// citationAbout is what a citation backs, for the refusal that asks where its anchor goes: the
+// source's own words at its span where the tool found one, and otherwise the citer's reason.
+func citationAbout(src *record.EvidenceSourceJSON) string {
+	switch {
+	case src.SourceText != nil:
+		return src.Title + " — the source: \"" + src.SourceText.Matched + "\""
+	case src.BlueReason != nil:
+		return src.Title + " — " + *src.BlueReason
+	case len(src.Verified) > 0:
+		return src.Title + " — " + src.Verified[0].Text
+	}
+	return src.Title
 }

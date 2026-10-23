@@ -1,7 +1,9 @@
 
 @include fragments/blue-search-and-cite.md
-- Citing OCR-derived text names the exact span you are quoting from the reading, so the tool can
-  record its page.
+- Citing a source whose text the tool holds names the words you rely on, copied from that cached
+  text — never your own wording of them — so the tool finds them there and keeps the source's
+  text beside the citation, where a lens reads it; for OCR-derived text it records the page too.
+  Your reason for the citation is yours, and the lens sees it labelled as yours.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
   freely, and YOU MUST NOT drop substantive content — a claim, its evidence, or its qualification.
   Material that answers no question the reader asked may leave the report for the record: retire it

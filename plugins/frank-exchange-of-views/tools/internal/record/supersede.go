@@ -13,7 +13,7 @@ import (
 // motion, a wrong regrade by the next sitting's regrade, a wrong re-run by another re-run.
 // superseders is the one statement of that, and it has three readers: the refusal of a second
 // once-per-sitting act (requireOncePerSitting), the refusal of a repeated label-keyed act
-// (insertNumbered), the refusal of a second ruling (motion.go) — and each recording verb's help
+// (writeIn), the refusal of a second ruling (motion.go) — and each recording verb's help
 // page, through AnswersTo.
 //
 // A ROW IS A CLAIM ABOUT THE WRITE PATH. A seat told only "say it in a new act" is told nothing: a

@@ -35,6 +35,7 @@ package record
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -135,11 +136,19 @@ type Identity struct {
 	SeatID string
 }
 
-// RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
-// SEQUENTIAL retries (measured: 8/50 in run 5, all crash re-runs), so register
-// ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
-// instance's shard stays inert. Two registers for one seatId are themselves an
-// event, visible to the join audit and the render anomaly footer.
+// RegisterSeat is every seat's FIRST record action, and it returns the dispatch number: the rank of
+// the sitting this register belongs to among its seat's sittings.
+//
+// ONCE PER SITTING. An agent id names one dispatch until its stop: a second register by the same
+// agent as the same seat, with no stop of that agent recorded since the first, is the same
+// registration asked again — it answers with the stored one and writes nothing. A warm session
+// resumed for a later sitting keeps its agent id, and the stop recorded between its sittings is what
+// makes its next register open the next sitting. Measured on universe-m31: every repeat was a seat
+// whose first act had already registered it (requireBound's autoRegister) calling `register`
+// itself, and each repeat advanced the dispatch count — a chair's 12th sitting printed
+// "dispatch 13". A register with no agent id cannot be tied to a dispatch, so each one opens a
+// sitting as before.
+//
 // runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
@@ -261,11 +270,39 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+	//
+	// THE REPEAT CHECK, THE WRITE AND THE COUNT ARE ONE TRANSACTION, which holds the write lock from
+	// its BEGIN: two registers by one agent racing each other resolve to one row and one answer.
+	WriteBegins()
+	tx, err := db.Begin()
+	if err != nil {
 		return 0, "", err
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
-		seatID).Scan(&dispatch); err != nil {
+	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
+	sitting, found, err := registeredSitting(tx, reg.GetAgentId(), seatID, occ)
+	if err != nil {
+		return 0, "", err
+	}
+	if !found {
+		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+			return 0, "", err
+		}
+		// The row just written is the newest: the transaction holds the write lock.
+		if err := tx.QueryRow(`SELECT "sitting_id" FROM "events" WHERE "id" = (SELECT max("id") FROM "events")`).Scan(&sitting); err != nil {
+			return 0, "", err
+		}
+	}
+	// THE DISPATCH NUMBER IS THE SITTING'S RANK, NOT A COUNT OF REGISTERS. A sitting the bracket
+	// opened that the seat never registered in is still a dispatch of it, and a register that joined
+	// its bracket's sitting is not a second one — the same rows events_w ranks "sitting" from.
+	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ? AND "id" <= ?`,
+		seatID, sitting).Scan(&dispatch); err != nil {
+		return 0, "", err
+	}
+	if found {
+		return dispatch, dbName, nil
+	}
+	if err := tx.Commit(); err != nil {
 		return 0, "", err
 	}
 	// THE TIER GATE FIRES AFTER THE WRITE, AND THAT ORDER IS THE POINT.
@@ -280,6 +317,42 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
 	return dispatch, dbName, nil
+}
+
+// registeredSitting is the sitting this agent's earlier register as seatID belongs to, if it made
+// one and no stop of the agent (a sitting_close naming it) is on the record since. No agent id finds
+// nothing: such a register cannot be tied to a sitting.
+//
+// A REPEAT THAT NAMES A DIFFERENT OCCASION IS REFUSED, not answered. The bench states what its
+// sitting was convened for once, and a second word for the same dispatch contradicts the record.
+func registeredSitting(tx *sql.Tx, agentID, seatID string, occ *recordpb.Occasion) (int64, bool, error) {
+	if agentID == "" {
+		return 0, false, nil
+	}
+	var sitting int64
+	var stored string
+	err := tx.QueryRow(
+		`SELECT e."sitting_id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."agent_id" = ? AND e."seat_id" = ?
+		    AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id")
+		  ORDER BY e."id" DESC LIMIT 1`,
+		agentID, seatID).Scan(&sitting, &stored)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("asking whether this agent already registered as %s: %w", seatID, err)
+	}
+	asked := ""
+	if occ != nil {
+		asked = recordpb.Word(*occ)
+	}
+	if asked != stored {
+		return 0, false, feov.Errorf(feov.Validation,
+			"%s is already registered for this dispatch with occasion %q; a dispatch is convened for one occasion, so %q is refused",
+			seatID, stored, asked)
+	}
+	return sitting, true, nil
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.
@@ -663,7 +736,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 // verb's code: they are tested from the verb's own package, through runtest.Overtaken.
 var WriteBegins = func() {}
 
-// insertNumbered stamps the envelope and writes the event in ONE transaction.
+// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
+// the once-per-sitting and answered-once duties, and the insert. Append's act and RegisterSeat each
+// hold a transaction of their own; `dispatch next` writes several acts through it in one transaction
+// (DispatchNext), and a migration's Batch every act of a replay, each inside a savepoint of the
+// batch's one transaction (batch.go).
 //
 // # The one read that is left, and why
 //
@@ -678,24 +755,6 @@ var WriteBegins = func() {}
 //
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	WriteBegins()
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err := writeIn(tx, ev, seatID, typ, body, check); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
-// the once-per-sitting and answered-once duties, and the insert. Append's act holds a transaction of
-// its own; `dispatch next` writes several acts through it in one transaction (DispatchNext), and a
-// migration's Batch every act of a replay, each inside a savepoint of the batch's one transaction
-// (batch.go).
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
 	if check != nil {
 		if err := check(tx); err != nil {
@@ -841,7 +900,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
-		if err := requireMintWithinBudget(w, seatID); err != nil {
+		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
 		if err := requireNotAnOpenGap(q, b); err != nil {
@@ -1137,7 +1196,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
-		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
+		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
 		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
@@ -1464,11 +1523,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
 		}
 		if origin != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR &&
-			(b.OcrQuote != nil || len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
-			return fmt.Errorf("cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
+			(len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
+			return fmt.Errorf("cite carries pages or reading pins on a source whose text origin is %s — those place a span in the local engine's reading, and this source has none", recordpb.Word(origin))
 		}
-		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
-			return fmt.Errorf("cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
+		if len(b.GetPages()) > 0 && (b.GetSourceSpan() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
+			return fmt.Errorf("cite carries pages without the span and the reading (source_span, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
 		}
 		// WHAT THE LITERATURE SAYS ABOUT THE WORK IS ALSO THE TOOL'S TO STAMP, and for the same
 		// reason the origin above is: no flag teaches it, so an unstamped value is a write path
@@ -1482,6 +1541,28 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// the field unstamped renders exactly like a cite of the paper.
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+		}
+		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
+		// none. The span, its place and the text around it are one fact: a span without the source's
+		// own bytes around it is blue's word for what the source says, which is what this exists to
+		// stop a lens reading as the source's. A migrated cite predates the offsets and the text around its span, and carries neither.
+		located := b.SourceSpan != nil || b.SpanStart != nil || b.SpanEnd != nil || b.SpanTextSha != nil ||
+			b.SourceBefore != nil || b.SourceMatched != nil || b.SourceAfter != nil
+		switch origin {
+		case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+			if Migrating && b.SpanStart == nil {
+				break // an archived cite: its span, if any, was located before offsets were kept
+			}
+			if b.GetSourceSpan() == "" || b.GetSourceMatched() == "" || b.GetSpanTextSha() == "" || b.SpanStart == nil || b.GetSpanEnd() <= b.GetSpanStart() {
+				return fmt.Errorf("cite of a source with %s text carries no located span (source_span, span_start, span_end, span_text_sha, source_matched) — the tool finds the span in the cached text before it writes, and this write skipped that", recordpb.Word(origin))
+			}
+			if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR && len(b.GetPages()) != 1 {
+				return fmt.Errorf("cite of OCR text carries %d pages — a span found once sits on one page", len(b.GetPages()))
+			}
+		default:
+			if located {
+				return fmt.Errorf("cite carries a span on a source whose text origin is %s — the tool holds no text to have found it in", recordpb.Word(origin))
+			}
 		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the

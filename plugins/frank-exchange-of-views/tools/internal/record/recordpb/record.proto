@@ -1236,16 +1236,32 @@ message Cite {
   // WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
   // validate refuses an unstamped origin instead.
   //
-  // ocr_quote is the seat's span, verbatim as typed; pages are the PDF page indexes the binary
-  // found it on, ascending and unique; ocr_engine and ocr_text_sha name WHICH reading located
-  // them, because run-archive keeps no cache and the event is the only thing that outlives it.
-  // A page is bound to that page's pixels, not to the engine: a later engine can stop finding
-  // the span, never move it.
+  // source_span is the seat's span, verbatim as typed — the source's words, which the tool found
+  // once in the cached text before it wrote. pages are the PDF page indexes of an OCR reading
+  // the span sits on; ocr_engine and ocr_text_sha name WHICH reading located them, because
+  // run-archive keeps no cache and the event is the only thing that outlives it. A page is bound
+  // to that page's pixels, not to the engine: a later engine can stop finding the span, never
+  // move it.
   optional SourceTextOrigin source_text_origin = 11 [(prose) = false];
-  optional string ocr_quote = 12 [(prose) = false];
+  optional string source_span = 12 [(prose) = false];
   repeated int32 pages = 13 [(prose) = false];
   optional string ocr_engine = 14 [(prose) = false];
   optional string ocr_text_sha = 15 [(prose) = false];
+
+  // WHERE THE SPAN WAS FOUND, AND WHAT THE SOURCE SAYS AROUND IT, stamped by the tool. span_start
+  // and span_end are byte offsets of the span in the text it was found in — the source's text for
+  // embedded text, the page's reading for OCR text — and span_text_sha is that text's sha256, so
+  // the offsets name bytes a re-check can open. source_before, source_matched and source_after are
+  // those bytes: up to a bounded window either side, and the span exactly as the source holds it.
+  // They are what a lens reads the cited sentence against, kept on the event because run-archive
+  // keeps no cache. Blue's own wording about the source is `text`, and no reader shows the two
+  // under one name.
+  optional int32 span_start = 18 [(prose) = false];
+  optional int32 span_end = 19 [(prose) = false];
+  optional string span_text_sha = 20 [(prose) = false];
+  optional string source_before = 21 [(prose) = false];
+  optional string source_matched = 22 [(prose) = false];
+  optional string source_after = 23 [(prose) = false];
 
   // WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped from the fetch index the same way the origin
   // above is. Not `(sql).required`: no seat types it, so `validate` refuses an unstamped value
@@ -1314,7 +1330,7 @@ message Verify {
   // `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
   optional string label = 11;
 
-  // THE PAGE IMAGE RED CHECKED, for a citation whose OCR quote carries pages. page is the one red
+  // THE PAGE IMAGE RED CHECKED, for a citation whose OCR span carries pages. page is the one red
   // names; page_render_sha is the sha256 of the image on disk when the verification was written,
   // and reading_render_sha the render the reading was made from. A mismatch between the two is
   // recorded, not refused: the image still shows the page, and two fields let any reader compare
