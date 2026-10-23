@@ -119,7 +119,16 @@ func newProve() *cobra.Command {
 		// report came to cite an enumeration that enumerated nothing as re-runnable evidence.
 		// Refused rather than graded, because the artifact is otherwise indistinguishable from a
 		// real negative result, and the seat is one edit away from a correct one.
-		if res.Failed != "" && !seat.Given(cmd, flags.ExpectError) {
+		expectError, err := cmd.Flags().GetBool(flags.ExpectError)
+		if err != nil {
+			return nil, err
+		}
+		// --expect-error IS A CLAIM ABOUT THE RUN, and a run that failed nothing makes it false: the
+		// flag would be accepted and used for nothing.
+		if expectError && res.Failed == "" {
+			return nil, feov.Errorf(feov.Validation, "--expect-error says this proof's point is a failing command, but %s ran to exit %d with no environment error in its output — drop --expect-error, or fix the script so it captures the failure it is meant to prove", script, res.Exit)
+		}
+		if res.Failed != "" && !expectError {
 			return nil, feov.Errorf(feov.Validation, "%s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
 				"A proof runs with the RUN DIRECTORY as its working directory (%s), not the repository root — a script that reaches for repo paths must resolve them itself. "+
 				"Fix the script and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",

@@ -2448,11 +2448,18 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		r.mu.Unlock()
 		if first {
 			absent := "fuzz-absent-" + id + ".js"
-			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
+			// The output carries an environment error the tool recognises: --expect-error on a run
+			// that failed nothing is refused.
+			body := "console.error('ls: cannot access /fuzz-absent: No such file or directory'); process.exit(3);"
 			if err := r.writeScript(absent, body); err == nil {
 				r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
+			}
+			clean := "fuzz-clean-" + id + ".js"
+			if err := r.writeScript(clean, "console.log(1)"); err == nil {
+				r.refuse(feov.Validation, "prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+					"--script", clean, "--expect-error", "--reason", "fuzz: claims a failure the run does not have")
 			}
 		}
 	}
@@ -2594,8 +2601,18 @@ func (r *runner) carryPrior(seatID string) {
 	r.mu.Unlock()
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
+		epoch, ok := r.closedEpoch(carried)
+		if !ok {
+			return
+		}
+		// THE EPOCH IS THE CLOSURE'S OWN, read off the board: a carry naming another sitting is
+		// refused, and a drive in ten states one to see it refused.
+		if r.coin(10) {
+			r.refuse(feov.Validation, "carry", "--seat-id", seatID, "--id", carried,
+				"--carried-from", strconv.Itoa(epoch+1000), "--as", "repaired")
+		}
 		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
-			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
+			"--carried-from", strconv.Itoa(epoch), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
 		// how the annotation deleted it silently. Both shapes are legal and both are driven.

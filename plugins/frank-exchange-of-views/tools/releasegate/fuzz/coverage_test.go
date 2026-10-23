@@ -187,6 +187,20 @@ func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
 // including its own, and in a single-round run those are the only ones there are, so `merge
 // carry` ran twice across 60 runs and was refused both times. A verb whose every invocation is
 // refused reports as DRIVEN in the tally, which is how the carry's own bug stayed invisible.
+// closedEpoch is the epoch the board holds gap id closed in.
+func (r *runner) closedEpoch(id string) (int, bool) {
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return 0, false
+	}
+	for _, g := range b.Gaps {
+		if g != nil && g.ID == id && !g.Open {
+			return g.ClosedEpoch, true
+		}
+	}
+	return 0, false
+}
+
 func (r *runner) closedInARoundBefore(round int) []string {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {

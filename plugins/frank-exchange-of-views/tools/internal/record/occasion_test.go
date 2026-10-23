@@ -22,6 +22,8 @@ func TestOnlyTheBenchCarriesAnOccasionAndItMustCarryOne(t *testing.T) {
 		{"and each of the four is a word it may use", "judge", "assemble", ""},
 		{"the bench must name one", "judge", "", "registers with no --occasion"},
 		{"a word outside the vocabulary is refused", "judge", "hearing", "is not an occasion"},
+		{"a word with space around it is refused, not trimmed", "judge", " docket ", "is not an occasion"},
+		{"and space alone is not the absent word", "judge", "  ", "is not an occasion"},
 		{"a lens may not name one", "red-lens-evidence", "docket", "only the bench carries one"},
 		{"nor may the chair", "red-chair", "terminal", "only the bench carries one"},
 		{"and a lens registering without one is the ordinary case", "red-lens-evidence", "", ""},

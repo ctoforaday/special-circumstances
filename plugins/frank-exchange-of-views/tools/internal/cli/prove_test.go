@@ -203,3 +203,19 @@ func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
 		}
 	}
 }
+
+// --expect-error IS A CLAIM THAT THE RUN FAILS: on a run that failed nothing it is refused rather
+// than accepted and used for nothing, and nothing is recorded.
+func TestExpectErrorOnACleanRunIsRefused(t *testing.T) {
+	runDir := newRun(t)
+	seat := proveSeat(t, runDir, "# H\n\nNine is composite.\n")
+	s := script(t, runDir, "nine.js", "console.log(9%3)")
+	_, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", "Nine is composite.",
+		"--script", s, "--reason", "trial division", "--expect-error")
+	if err == nil || !strings.Contains(err.Error(), "drop --expect-error") {
+		t.Errorf("--expect-error on a clean run = %v; want it refused", err)
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); n != 0 {
+		t.Errorf("the refused proof recorded %d proof(s)", n)
+	}
+}

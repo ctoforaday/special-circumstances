@@ -77,7 +77,8 @@ func newOutcome() *cobra.Command {
 		v, ok := record.RunOutcomeOf(verdict)
 		if !ok {
 			return nil, feov.Errorf(feov.Validation,
-				"%q is not a verdict this record can carry", verdict)
+				"%q is not a verdict this record can carry — --%s takes one of %s, spelled exactly",
+				verdict, flags.As, record.MustEnum("outcome", "verdict").Spelling())
 		}
 		body := &recordpb.Outcome{Verdict: &v}
 		if reason != "" {
@@ -124,7 +125,7 @@ func crossCheck(l *record.Landing, verdict string, body *recordpb.Outcome) error
 			verdict, derived, why)
 	case ok:
 		basis, basisWhy = record.VerdictDerived, why
-	case !strings.EqualFold(verdict, "UNVERIFIED"):
+	case verdict != "UNVERIFIED":
 		// THE ONLY WORD THE BENCH MAY ASSERT. When the record holds no terminal state — no
 		// halt, no PASS, no board at its ceiling — the run ended before it reached one, and
 		// UNVERIFIED is the name of that. Any other word here is a claim the record would
