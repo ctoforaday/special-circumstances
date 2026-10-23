@@ -15,7 +15,7 @@ import (
 
 // THE CONTRADICTION RULE, PER CLAIM (gblock, 2026-10-06), driven through the fold every surface
 // reads (contradictionsOf): a reading opens a contradiction whose id is its events.id, a later
-// reading of the same claim joins it, a finding raises it by reference or by quoting the claim,
+// reading of the same claim joins it, a finding raises it by naming its id and in no other way,
 // a reading after the raise opens a new one, and the gap minted from the raising finding answers it.
 
 // raisingGap is a gap minted from finding, crediting it in found_by: what answers a contradiction
@@ -72,13 +72,15 @@ func TestAContradictionIsPerClaim(t *testing.T) {
 		t.Errorf("a reading after the answer = %+v, want the answered one and a new open one owned by red-lens-logic", cs)
 	}
 
-	// The quote answers too — but only what was read before it.
+	// (iii) NAME IT OR IT IS NOT RAISED: a finding whose quote is the claim raises nothing, and the
+	// gap minted from it answers nothing; the finding naming the id still raises it after.
 	quote := &recordpb.Finding{Id: proto.String("F-00000002"), Location: proto.String(claim), Text: proto.String("t")}
-	if cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, quote)); len(cs) != 1 || cs[0].raisedBy != "F-00000002" {
-		t.Errorf("a finding quoting the claim after the reading = %+v, want it raised", cs)
+	cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, quote), recordtest.Event(t, evLens, raisingGap("G-00000002", "F-00000002")))
+	if len(cs) != 1 || cs[0].raisedBy != "" || cs[0].answeredBy != "" {
+		t.Errorf("a finding quoting the claim, and a gap minted from it = %+v, want the contradiction open: a quote raises nothing", cs)
 	}
-	if cs = contradictionsT(t, recordtest.Event(t, evLens, quote), read(evLens)); len(cs) != 1 || cs[0].raisedBy != "" {
-		t.Errorf("a finding quoting the claim BEFORE the reading = %+v, want the reading open: the finding was not an answer to it", cs)
+	if cs = contradictionsT(t, read(evLens), recordtest.Event(t, evLens, quote), recordtest.Event(t, evLens, referenceFinding("F-00000003", id))); len(cs) != 1 || cs[0].raisedBy != "F-00000003" {
+		t.Errorf("a finding naming the id after one quoting the claim = %+v, want it raised by F-00000003", cs)
 	}
 }
 

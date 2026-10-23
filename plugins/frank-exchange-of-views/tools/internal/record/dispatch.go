@@ -1154,7 +1154,7 @@ func contradictionReadiness(b Blocker, satSince bool) string {
 	if satSince {
 		return fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b))
 	}
-	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it and mint its gap, which takes no mint of its budget", b.Owner, b.Detail, contradictionFact(b))
+	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it with a finding naming its id and mint its gap from that finding, which takes no mint of its budget", b.Owner, b.Detail, contradictionFact(b))
 }
 
 // benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no
