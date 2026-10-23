@@ -86,7 +86,9 @@ func WriteOutcomeMark(runDir, agentID string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(runDir, OutcomeMark), b, 0o644)
+	// ATOMIC, because StateOf reads it on every hook call: a half-written mark parses as no agent,
+	// and the recording seat would lose its run mid-sitting.
+	return replaceFile(filepath.Join(runDir, OutcomeMark), b)
 }
 
 // RowState is whether a marker row is a live run, and if not, why.
@@ -163,11 +165,12 @@ type Pruned struct {
 
 // PruneRunLive removes every row that is live for no one — its directory gone, or its outcome
 // recorded — and returns what it removed, so the caller can say so. The file goes when no row is
-// left. A marker it cannot read is left alone: nothing in it can be judged.
-func PruneRunLive(projectDir string) []Pruned {
+// left. A marker it cannot read is left alone: nothing in it can be judged. An error means the rows
+// it names as pruned are STILL in the file.
+func PruneRunLive(projectDir string) ([]Pruned, error) {
 	runs, readable := readRunLive(projectDir)
 	if !readable {
-		return nil
+		return nil, nil
 	}
 	var pruned []Pruned
 	kept := make([]RunLiveMarker, 0, len(runs))
@@ -179,20 +182,75 @@ func PruneRunLive(projectDir string) []Pruned {
 		kept = append(kept, m)
 	}
 	if len(pruned) > 0 {
-		writeRunLive(projectDir, kept)
+		if err := writeRunLive(projectDir, kept); err != nil {
+			return pruned, err
+		}
 	}
-	return pruned
+	return pruned, nil
 }
 
 // writeRunLive replaces the marker with these rows, and removes the file when there are none.
-func writeRunLive(projectDir string, runs []RunLiveMarker) {
+//
+// THE ERROR IS THE CALLER'S. A removal or write that failed leaves the rows it meant to take still
+// live — every hook keeps attributing to a run its capture closed — so it is never dropped here.
+// A marker already absent is the outcome asked for, not a failure.
+func writeRunLive(projectDir string, runs []RunLiveMarker) error {
 	p := filepath.Join(projectDir, ".claude", "run-live.json")
 	if len(runs) == 0 {
-		os.Remove(p)
-		return
+		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		return nil
 	}
-	b, _ := marshalJSON(RunLive{Runs: runs})
-	os.WriteFile(p, b, 0o644)
+	b, err := marshalJSON(RunLive{Runs: runs})
+	if err != nil {
+		return err
+	}
+	return replaceFile(p, b)
+}
+
+// replaceFile writes b to path ATOMICALLY: a temporary file in the same directory, renamed over
+// path. Readers poll these files on every hook call and every dashboard tick; an in-place write
+// truncates first, and a read landing between the truncate and the write sees an empty or partial
+// file — which readRunLive reports as unreadable, the dashboard watcher as the run's row gone, and
+// InferRunDir as a broken marker. A rename shows a reader the old file or the new one, never a mix.
+//
+// THE RENAME GOES THROUGH os.Root, NOT os.Rename. On Windows os.Rename is MoveFileEx, which refuses
+// to replace a file any reader holds open — "Access is denied" even though every reader shares
+// delete (openSharingDelete), measured on the Windows runner. Root.Rename asks for POSIX rename
+// semantics, under which a target held open with FILE_SHARE_DELETE is replaced and its readers keep
+// the old file; TestAnOpenReaderDoesNotBlockReplacement pins that. On Unix both are rename(2).
+func replaceFile(path string, b []byte) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	_, werr := tmp.Write(b)
+	err = errors.Join(werr, tmp.Close())
+	if err == nil {
+		err = os.Chmod(name, 0o644)
+	}
+	if err == nil {
+		err = renameInDir(dir, filepath.Base(name), filepath.Base(path))
+	}
+	if err != nil {
+		// The temporary file is litter beside the marker; a failure to remove it is said too.
+		if rerr := os.Remove(name); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+			err = errors.Join(err, rerr)
+		}
+	}
+	return err
+}
+
+// renameInDir renames one entry of dir over another through an os.Root on dir.
+func renameInDir(dir, from, to string) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	return errors.Join(root.Rename(from, to), root.Close())
 }
 
 // ReadRunLive reports every row the marker holds, in order — live or not; StateOf says which are.
@@ -245,11 +303,14 @@ func SameRun(projectDir, a, b string) bool {
 	return strings.EqualFold(abs(a), abs(b))
 }
 
-// WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state).
-// `now` is injected so the sole non-deterministic field is controllable in tests.
-func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) string {
+// WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state) and returns its
+// path. `now` is injected so the sole non-deterministic field is controllable in tests. An error
+// means the run is NOT live: the hooks cannot find it.
+func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) (string, error) {
 	dir := filepath.Join(projectDir, ".claude")
-	os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
 	p := filepath.Join(dir, "run-live.json")
 	if pinnedPaths == nil {
 		pinnedPaths = []string{}
@@ -280,17 +341,23 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	if !replaced {
 		runs = append(runs, marker)
 	}
-	b, _ := marshalJSON(RunLive{Runs: runs})
-	os.WriteFile(p, b, 0o644)
-	return p
+	b, err := marshalJSON(RunLive{Runs: runs})
+	if err != nil {
+		return "", err
+	}
+	if err := replaceFile(p, b); err != nil {
+		return "", err
+	}
+	return p, nil
 }
 
-// RemoveRunLiveEntry closes ONE run and reports whether it was there and how many remain.
+// RemoveRunLiveEntry closes ONE run and reports whether it was there and how many remain. An error
+// means the file still holds what it held: the run is still live.
 //
 // The file survives while any other run is open. Removing it wholesale is what let capturing
 // run A lift run B's marker — guarded since 2026-08-22 by comparing paths, which is a guard
 // where a per-run row is a removal of the class.
-func RemoveRunLiveEntry(projectDir, runDir string) (found bool, remaining int) {
+func RemoveRunLiveEntry(projectDir, runDir string) (found bool, remaining int, err error) {
 	runs := ReadRunLive(projectDir)
 	kept := runs[:0]
 	for _, m := range runs {
@@ -300,8 +367,10 @@ func RemoveRunLiveEntry(projectDir, runDir string) (found bool, remaining int) {
 		}
 		kept = append(kept, m)
 	}
-	writeRunLive(projectDir, kept)
-	return found, len(kept)
+	if err := writeRunLive(projectDir, kept); err != nil {
+		return found, len(runs), err
+	}
+	return found, len(kept), nil
 }
 
 // marshalJSON is runlive's own indented encoder: the marker is read by humans as often as by

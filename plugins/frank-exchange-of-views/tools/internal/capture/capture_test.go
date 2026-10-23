@@ -946,7 +946,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
 		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runs":[{"runDir":"research/x"}]}`)
-		got := closeRunLiveMarker(cwd, "research/x")
+		got := closeMarker(t, cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
 		}
@@ -957,7 +957,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 	t.Run("absent is STATED, not silent", func(t *testing.T) {
 		cwd := t.TempDir()
-		got := closeRunLiveMarker(cwd, "research/x")
+		got := closeMarker(t, cwd, "research/x")
 		if got == "" {
 			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
 		}
@@ -1237,7 +1237,7 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	}
 	write(t, marker, `{"runs":[{"runDir":"research/live-one"},{"runDir":"research/the-one-being-captured"}]}`)
 
-	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
+	got := closeMarker(t, cwd, "research/the-one-being-captured")
 	if !strings.Contains(got, "1 other run") {
 		t.Errorf("capture did not say another run is still open: %q", got)
 	}
@@ -1252,14 +1252,14 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	// A relative/absolute spelling of the SAME run still closes it — the marker stores whatever
 	// it was given, so a string compare would refuse to close the run in progress.
 	write(t, marker, `{"runs":[{"runDir":"research/same"}]}`)
-	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
+	if got := closeMarker(t, cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
 		t.Errorf("the same run spelled absolutely was refused: %q", got)
 	}
 
 	// AND A FILE NAMING NOTHING IS NOT A CLEAN CLOSE. An unreadable marker looks exactly like
 	// this from here, and reporting "nothing to remove" would let it pass for an absent one.
 	write(t, marker, `{"runs":[]}`)
-	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
+	if got := closeMarker(t, cwd, "research/x"); !strings.Contains(got, "names NO open run") {
 		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
 	}
 }
@@ -1282,7 +1282,7 @@ func TestCapturePrunesRowsThatAreNotLive(t *testing.T) {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
 	write(t, marker, `{"runs":[{"runDir":"research/live"},{"runDir":"research/ended"},{"runDir":"research/gone"},{"runDir":"research/this"}]}`)
 
-	got := closeRunLiveMarker(cwd, "research/this")
+	got := closeMarker(t, cwd, "research/this")
 	for _, want := range []string{
 		"this run's entry removed", "1 other run still open",
 		"research/ended (its outcome is recorded)", "research/gone (its run directory is gone)",
@@ -1587,4 +1587,31 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 	seats, laneSeats := record.CastFor(nil, 1)
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
+}
+
+// closeMarker is closeRunLiveMarker where the close is expected to succeed.
+func closeMarker(t *testing.T, cwd, runDir string) string {
+	t.Helper()
+	line, err := closeRunLiveMarker(cwd, runDir)
+	if err != nil {
+		t.Fatalf("closing the marker: %v (line %q)", err, line)
+	}
+	return line
+}
+
+// A MARKER CAPTURE COULD NOT CLOSE IS A FAILED CAPTURE (#1552). The removal's error used to be
+// dropped, and the line read as a clean close while the run stayed live for every hook.
+func TestCaptureReportsAMarkerItCouldNotClose(t *testing.T) {
+	cwd := t.TempDir()
+	// A non-empty directory at the marker's path: no platform removes or replaces it.
+	if err := os.MkdirAll(filepath.Join(cwd, ".claude", "run-live.json", "occupant"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line, err := closeRunLiveMarker(cwd, "research/x")
+	if err == nil {
+		t.Fatalf("a removal that failed returned no error: %q", line)
+	}
+	if !strings.Contains(line, "could NOT be removed") || !strings.Contains(line, "still counts as live") {
+		t.Errorf("the line must say the run is still live: %q", line)
+	}
 }

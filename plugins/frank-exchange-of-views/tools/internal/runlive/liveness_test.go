@@ -105,7 +105,10 @@ func TestPruneRemovesOnlyRowsThatAreNotLive(t *testing.T) {
 	}
 	writeMarker(t, proj, `{"runs":[{"runDir":"gone"},{"runDir":"ended"},{"runDir":"live"}]}`)
 
-	pruned := PruneRunLive(proj)
+	pruned, err := PruneRunLive(proj)
+	if err != nil {
+		t.Fatal(err)
+	}
 	got := map[string]RowState{}
 	for _, p := range pruned {
 		got[p.Row.RunDir] = p.State
@@ -117,14 +120,16 @@ func TestPruneRemovesOnlyRowsThatAreNotLive(t *testing.T) {
 		t.Fatalf("kept %+v, want the live run alone", rows)
 	}
 	// Nothing left to prune: the file is untouched and nothing is reported.
-	if again := PruneRunLive(proj); len(again) != 0 {
-		t.Errorf("a second prune removed %+v", again)
+	if again, err := PruneRunLive(proj); err != nil || len(again) != 0 {
+		t.Errorf("a second prune removed %+v (%v)", again, err)
 	}
 	// Every row pruned: the file goes, as when capture closes the last run.
 	if err := WriteOutcomeMark(filepath.Join(proj, "live"), ""); err != nil {
 		t.Fatal(err)
 	}
-	PruneRunLive(proj)
+	if _, err := PruneRunLive(proj); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(filepath.Join(proj, ".claude", "run-live.json")); !os.IsNotExist(err) {
 		t.Errorf("a marker with no rows left must be removed: %v", err)
 	}
