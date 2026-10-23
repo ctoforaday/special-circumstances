@@ -303,4 +303,3 @@ func (r citeResult) Human() string {
 	}
 	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + span + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 }
-
