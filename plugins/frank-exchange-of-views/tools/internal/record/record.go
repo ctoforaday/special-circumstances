@@ -797,6 +797,11 @@ var WriteBegins = func() {}
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
+	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS (outcomeclosed.go), asked FIRST: an act after the
+	// run's end is told the run ended, not what else is wrong with it.
+	if err := requireOpenToSeats(tx, seatID, typ); err != nil {
+		return err
+	}
 	if check != nil {
 		if err := check(tx); err != nil {
 			return err

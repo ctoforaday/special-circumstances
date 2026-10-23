@@ -333,11 +333,14 @@ The verdict is derived from the record — a halt, the chair's PASS, or the disp
 
 It is refused while a motion whose gavel is the bench's stands unruled, unless the run halted: the refusal names each one. You hold that gavel — rule each, then record the outcome.
 
+Once it is recorded the record is closed to seat acts: any seat's later act is refused, and the refusal lands in the log as the tool's entry. State a declaration or a certification you hold after the stamp, and then assemble.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
-IF WHAT YOU RECORDED WAS WRONG, say so in a new outcome.
+IF WHAT YOU RECORDED WAS WRONG, say so in a certification: the outcome stands once it is recorded,
+and after it the record takes no seat act but your declaration, your certification and a log entry.
 
 Flags:
       --as as-value     REQUIRED — the run's terminal verdict
@@ -1344,7 +1347,7 @@ engine-stopped --reason "<the error>" writes the error the engine stopped on to 
 
 Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one that was cut off.
 
-IT RECORDS NO OUTCOME. An outcome closes the record to every seat; this leaves it open, so the same workflow run resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting recorded before the stop (finished).
+IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting recorded before the stop (finished).
 
 `ops log` reads the entry back, beside what the seats filed.
 

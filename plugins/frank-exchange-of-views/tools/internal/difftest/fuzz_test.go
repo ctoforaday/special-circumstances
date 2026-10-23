@@ -438,8 +438,8 @@ var fuzzArms = []fuzzArm{
 //
 // KEPT OUT OF fuzzArms, so the random sequences are drawn exactly as they were measured. They run
 // as ONE extra sequence, the act tour, in which each arm is drawn once, in this order: the acts on
-// GAP001 before the closure that ends it, the outcome before the halt that would make it
-// derivable.
+// GAP001 before the closure that ends it, and the outcome LAST, after the halt it derives from —
+// a record with an outcome refuses every seat act after it (record.requireOpenToSeats).
 var tourArms = []fuzzArm{
 	tourArm("blue manifest-row", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	tourArm("blue cite", []string{"blue-respond"}, []string{"cite"},
@@ -475,13 +475,13 @@ var tourArms = []fuzzArm{
 		func(t string) []string { return []string{"--anchor", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
 	tourArm("bench declare", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
 	tourArm("bench certify", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
-	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
-		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
 	tourArm("lens close", []string{"red-lens-evidence"}, []string{"close"},
 		func(t string) []string {
 			return []string{"--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
 		}, nil),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
+	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
+		func(t string) []string { return []string{"--as", "HALTED", "--reason", t} }, nil),
 }
 
 func reasonOnly(t string) []string { return []string{"--reason", t} }
