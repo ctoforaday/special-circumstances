@@ -174,7 +174,9 @@ func liveRun(t *testing.T) (cwd, runDir string) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "")
+	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", ""); err != nil {
+		t.Fatal(err)
+	}
 	return cwd, runDir
 }
 

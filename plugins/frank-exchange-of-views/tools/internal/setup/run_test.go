@@ -324,7 +324,9 @@ func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	if err := os.MkdirAll(other, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_running", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_running", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", ""); err != nil {
+		t.Fatal(err)
+	}
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 2 {
@@ -362,8 +364,12 @@ func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
-	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_ended", nil, at, "", "")
-	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", "")
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_ended", nil, at, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", ""); err != nil {
+		t.Fatal(err)
+	}
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
@@ -388,7 +394,9 @@ func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 // gate must not be the thing that breaks it.
 func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "")
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", ""); err != nil {
+		t.Fatal(err)
+	}
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
@@ -396,5 +404,22 @@ func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(runDir, "records")); err != nil {
 		t.Errorf("the run was not built: %v", err)
+	}
+}
+
+// A MARKER SETUP COULD NOT WRITE FAILS SETUP (#1552). The write's error used to be dropped: setup
+// reported the run ready while no hook could find it.
+func TestSetupFailsWhenTheMarkerCannotBeWritten(t *testing.T) {
+	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	// A non-empty directory at the marker's path: no platform replaces it with a file.
+	if err := os.MkdirAll(filepath.Join(cfg.Cwd, ".claude", "run-live.json", "occupant"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 1 {
+		t.Fatalf("exit %d, want 1:\n%s%s", code, out.String(), errb.String())
+	}
+	if !strings.Contains(errb.String(), "live-run marker could not be written") {
+		t.Errorf("the failure must name the marker:\n%s", errb.String())
 	}
 }
