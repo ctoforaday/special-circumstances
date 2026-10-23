@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 )
 
 // Migrate is the whole act: copy the run's channels, replay its record through the current
@@ -29,7 +30,7 @@ import (
 //
 // A refusal publishes the run and its manifest and returns the manifest with an error. A failure
 // before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
-func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error) {
+func Migrate(fromDir, toDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	to, err := destination(toDir)
 	if err != nil {
 		return nil, err
@@ -58,7 +59,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		// The build stays where it is, so every text that reaches the operator keeps naming it.
 		m.Warnings = warnings
 		if len(m.Refusals) > 0 {
-			return m, errors.Join(err, refusedError(len(m.Refusals), filepath.Join(b.dir, "inputs", ManifestName)))
+			return m, errors.Join(err, refusedError(len(m.Refusals), filepath.Join(b.dir, "inputs", migration.ManifestName)))
 		}
 		return m, err
 	}
@@ -66,7 +67,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		m.Warnings = append(m.Warnings, b.atTo(w))
 	}
 	if len(m.Refusals) > 0 {
-		return m, refusedError(len(m.Refusals), filepath.Join(to, "inputs", ManifestName))
+		return m, refusedError(len(m.Refusals), filepath.Join(to, "inputs", migration.ManifestName))
 	}
 	return m, nil
 }
@@ -78,7 +79,7 @@ func refusedError(n int, manifest string) error {
 }
 
 // fill builds the migrated run in the build directory and writes its manifest there.
-func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, error) {
+func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	toDir := b.dir
 	if err := copyChannels(fromDir, toDir); err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	// per-sitting shards. Both refusable — a directory holding neither is not a run.
 	var src Source
 	var unclassified []string
-	var discarded []DiscardedSitting
+	var discarded []migration.DiscardedSitting
 	// The source's scratch copy lives INSIDE the build, and is removed before the publish. Inside,
 	// so that a killed migration leaves exactly one thing behind — the build directory the help
 	// tells the operator to delete — and not a copy of the source record somewhere else nobody is

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -138,7 +139,7 @@ func moved(n int64, src, dst map[int64]eventRow) bool {
 
 // planPairsOf migrates the named archive and returns the source's stored plans beside the migrated
 // record's, and both records' events.
-func planPairsOf(t *testing.T, name string) (srcPlans, dstPlans []storedPlan, src, dst map[int64]eventRow, res *migrate.Manifest) {
+func planPairsOf(t *testing.T, name string) (srcPlans, dstPlans []storedPlan, src, dst map[int64]eventRow, res *migration.Manifest) {
 	t.Helper()
 	res, dir := migrate.MigratedArchive(t, name)
 	ddb := openRO(t, dir)

@@ -30,7 +30,7 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 	if err == nil {
 		t.Fatalf("%s was read unmigrated: its gap view is the one its creating binary wrote", archive)
 	}
-	if !strings.Contains(err.Error(), "`--seat-id operator migrate --from <runDir> --to <freshDir>`") {
+	if !strings.Contains(err.Error(), "`feov-migrate --from <runDir> --to <freshDir>`") {
 		t.Errorf("the refusal does not name the way out: %v", err)
 	}
 	// While the archive's epoch is this binary's, the view is the ONLY thing the open can refuse on.

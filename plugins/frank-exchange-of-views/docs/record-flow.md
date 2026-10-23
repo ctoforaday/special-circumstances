@@ -11,7 +11,7 @@ human reading afterward, never the channel. This diagram is kept current with th
 An act stands as filed, and a seat answers a wrong one with another act — which act is one table,
 `superseders` in `internal/record/supersede.go`, rendered on each recording verb's help page and on
 the refusal of a second act where a sitting holds one. Nothing is edited, and every view reads every
-act. A record from before epoch 27 may hold same-sitting corrections; `migrate` writes each chain as
+act. A record from before epoch 27 may hold same-sitting corrections; `feov-migrate` writes each chain as
 its last replacement, in the place the chain began, and writes nothing for its later links.
 
 ## Findings & citations onto the record (#62 pt1, #70/#71)

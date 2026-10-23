@@ -583,7 +583,7 @@ func declaredViews() (map[string]string, error) {
 }
 
 // requireDeclaredSchema refuses a database missing a table, a column or a VIEW this binary declares,
-// naming each and the way out (`migrate`). Missing columns are named first: they are what a run
+// naming each and the way out (`feov-migrate`). Missing columns are named first: they are what a run
 // written before a field was added lacks, and the seat needs to read which field it was.
 //
 // VIEWS ARE CHECKED FOR THE SAME REASON THE COLUMNS ARE, and were not. A run's views are fixed when
