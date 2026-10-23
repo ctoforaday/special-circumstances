@@ -479,13 +479,13 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	}
 	return verifyResult{
 		Contradiction: contradictionOf(c),
-		Anchor:     body.GetAnchor(),
-		Label:      body.GetLabel(),
-		Source:     body.GetTitle(),
-		Outcome:    recordpb.Word(body.GetOutcome()),
-		Bridge:     bridgeWord(body),
-		Claim:      body.GetClaim(),
-		VoiceTells: tells,
+		Anchor:        body.GetAnchor(),
+		Label:         body.GetLabel(),
+		Source:        body.GetTitle(),
+		Outcome:       recordpb.Word(body.GetOutcome()),
+		Bridge:        bridgeWord(body),
+		Claim:         body.GetClaim(),
+		VoiceTells:    tells,
 	}, nil
 }
 
