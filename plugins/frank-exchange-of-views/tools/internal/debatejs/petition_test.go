@@ -40,9 +40,9 @@ func drivePlans(t *testing.T, plans []map[string]any, extra Envelope) ([]Dispatc
 		if seatID == "red-chair" {
 			chair++
 			if chair <= len(plans) {
-				e["plan"] = plans[chair-1]
+				e.Relay(plans[chair-1])
 			} else {
-				e["plan"] = planWith([]any{}, []any{})
+				e.Relay(planWith([]any{}, []any{}))
 			}
 		}
 		return e
@@ -135,7 +135,7 @@ func TestABenchPartyWithoutAnOccasionIsRefused(t *testing.T) {
 			e := Envelope{"rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
 			if seatID == "red-chair" {
 				chair++
-				e["plan"] = planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition})
+				e.Relay(planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition}))
 			}
 			return e
 		}})

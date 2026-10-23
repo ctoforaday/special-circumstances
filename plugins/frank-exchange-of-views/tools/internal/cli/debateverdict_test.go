@@ -14,16 +14,18 @@ import (
 // the run path is where the projection narrows its read; the whole-stream callers (capture, the
 // dashboard) always carried the gates.
 func TestInquestDebateCarriesEachEpochsRecordedVerdict(t *testing.T) {
-	runDir := newRun(t)
+	runDir := castRun(t)
 	chair := func(args ...string) {
 		t.Helper()
 		if _, err := run(t, append(args, "--run", runDir, "--seat-id", "red-chair")...); err != nil {
 			t.Fatalf("%v: %v", args, err)
 		}
 	}
-	// Epoch 1 fails; the chair sits again and epoch 2 passes.
-	chair("register")
+	// Epoch 1 (castRun's chair sitting, which dispatched the lens) fails; the lens sits, the chair
+	// sits again and epoch 2 passes — by then the lens is not one that has never sat (which holds a
+	// PASS).
 	chair("verdict", "--as", "FAIL")
+	registerLensOnce(t, runDir)
 	chair("register")
 	chair("verdict", "--as", "PASS")
 

@@ -3,6 +3,7 @@ package migrate_test
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -66,14 +67,16 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // record too is one the migrated plan keeps. The census reads every archive and fails on a plan the
 // source did not store, a stored plan lost, a word changed or a number that did not move changed,
 // or an archive set holding no dispatch row, because the translation would then be tested by
-// nothing.
+// nothing. A plan stored after its chair sitting recorded a verdict carries that verdict migrated
+// (CarryPlanVerdict) — the one field added, never in the key — and the census counts them, failing
+// an archive set in which no plan carries one.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows, carried, identical := 0, 0, 0
+	rows, carried, identical, verdicts := 0, 0, 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
@@ -87,6 +90,14 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		}
 		for i := range srcPlans {
 			s, d := srcPlans[i].printed, dstPlans[i].printed
+			if !strings.Contains(s, `"verdict":`) {
+				for _, w := range []string{"PASS", "FAIL"} {
+					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
+						d = strings.TrimSuffix(d, v) + "}"
+						verdicts++
+					}
+				}
+			}
 			if s == d {
 				identical++
 				continue
@@ -127,7 +138,10 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if identical == 0 {
 		t.Fatal("no stored plan migrated byte for byte — nothing here holds a plan whose events kept their numbers")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte", rows, carried, identical)
+	if verdicts == 0 {
+		t.Fatal("no archived plan carries its sitting's verdict migrated — the verdict's translation is exercised by nothing")
+	}
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried", rows, carried, identical, verdicts)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.

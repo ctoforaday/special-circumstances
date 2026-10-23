@@ -98,29 +98,30 @@ func (r *runner) noteSchemaRefusal(seatID, why string) {
 
 // The validator refuses what the harness refuses and accepts what it accepts, on the schema shapes
 // debate.js's envelopes use — a closed object, a required key, an anyOf, an enum — so a sweep that
-// reports no refusal measured one.
+// reports no refusal measured one. The shape is the chair's: the envelope IS the plan, closed, with
+// `notes` beside its fields.
 func TestTheEnvelopeSchemaCheckRefusesWhatTheHarnessRefuses(t *testing.T) {
 	schema := map[string]any{
-		"type": "object", "required": []any{"plan"},
-		"properties": map[string]any{"plan": map[string]any{
-			"type": "object", "required": []any{"pass_permitted", "blockers"}, "additionalProperties": false,
-			"properties": map[string]any{"pass_permitted": map[string]any{"type": "boolean"}, "blockers": map[string]any{"type": "array"}},
-			"anyOf": []any{
-				map[string]any{"required": []any{"pass_permitted"}, "properties": map[string]any{"pass_permitted": map[string]any{"enum": []any{true}}}},
-				map[string]any{"required": []any{"blockers"}, "properties": map[string]any{"blockers": map[string]any{"minItems": 1}}},
-			},
-		}},
+		"type": "object", "required": []any{"pass_permitted", "blockers"}, "additionalProperties": false,
+		"properties": map[string]any{"pass_permitted": map[string]any{"type": "boolean"}, "blockers": map[string]any{"type": "array"},
+			"verdict": map[string]any{"type": "string", "enum": []any{"PASS", "FAIL"}}, "notes": map[string]any{"type": "string"}},
+		"anyOf": []any{
+			map[string]any{"required": []any{"pass_permitted"}, "properties": map[string]any{"pass_permitted": map[string]any{"enum": []any{true}}}},
+			map[string]any{"required": []any{"blockers"}, "properties": map[string]any{"blockers": map[string]any{"minItems": 1}}},
+		},
 	}
 	var s envelopeSchemas
 	for name, c := range map[string]struct {
 		env    map[string]any
 		accept bool
 	}{
-		"a permitted PASS":             {map[string]any{"plan": map[string]any{"pass_permitted": true, "blockers": []any{}}}, true},
-		"a blocker named":              {map[string]any{"plan": map[string]any{"pass_permitted": false, "blockers": []any{"b"}}}, true},
-		"nothing holding no PASS":      {map[string]any{"plan": map[string]any{"pass_permitted": false, "blockers": []any{}}}, false},
-		"a key the plan does not hold": {map[string]any{"plan": map[string]any{"pass_permitted": true, "blockers": []any{}, "plan": map[string]any{}}}, false},
-		"no plan":                      {map[string]any{}, false},
+		"a permitted PASS":                {map[string]any{"pass_permitted": true, "blockers": []any{}, "verdict": "PASS"}, true},
+		"a blocker named, with notes":     {map[string]any{"pass_permitted": false, "blockers": []any{"b"}, "notes": "n"}, true},
+		"nothing holding no PASS":         {map[string]any{"pass_permitted": false, "blockers": []any{}}, false},
+		"a key the plan does not hold":    {map[string]any{"pass_permitted": true, "blockers": []any{}, "epochs": 1}, false},
+		"the envelope wrapped in a key":   {map[string]any{"plan": map[string]any{"pass_permitted": true, "blockers": []any{}}}, false},
+		"a verdict the record never says": {map[string]any{"pass_permitted": true, "blockers": []any{}, "verdict": nil}, false},
+		"no plan":                         {map[string]any{}, false},
 	} {
 		if why := s.refusal(schema, c.env); (why == "") != c.accept {
 			t.Errorf("%s: accept=%v, refusal %q", name, c.accept, why)

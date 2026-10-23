@@ -104,6 +104,10 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		}
 	}
 
+	// THE CAST FIRST, as setup writes it before any seat sits: the chair's verdict rows fold the
+	// dispatch plan, and a plan is folded only on a record holding a cast.
+	seedCast(t, runDir, castOf("evidence"))
+
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
 	// lens's later close and regrade rows are the originator's and refuse on the field under test.

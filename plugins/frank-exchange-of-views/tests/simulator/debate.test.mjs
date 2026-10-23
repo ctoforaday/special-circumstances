@@ -66,9 +66,9 @@ test('null chair, blue synthesis, blue response and bench abort cleanly, each na
   await assert.rejects(nullFor('judge', [benchPlan, passChair()]).run(script, ARGS), /bench sitting \(epoch 1\) returned null/)
 })
 
-test('a chair envelope without a plan aborts: the plan is the verb\'s JSON, relayed verbatim', async () => {
-  const world = makeWorld(makeResponder({ chair: [{}] }))
-  await assert.rejects(world.run(script, ARGS), /relayed no plan/)
+test('a chair envelope without the plan\'s fields aborts: the envelope is the verb\'s JSON, relayed verbatim', async () => {
+  const world = makeWorld(makeResponder({ chair: [{ notes: 'n' }] }))
+  await assert.rejects(world.run(script, ARGS), /red-chair sitting 1 relayed a plan whose `key` is undefined/)
 })
 
 // ── the dispatch loop ───────────────────────────────────────────────────────────────────────
@@ -360,7 +360,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   await world.run(script, ARGS)
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
-  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope's `plan` IS the object it prints, copied VERBATIM, never wrapped in a key/.test(p))
+  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope IS the object it prints, its fields copied VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
@@ -372,7 +372,8 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(!/CLOSING ARGUMENTS/.test(p) && !/YOUR POSITION ARGUES TO THE BENCH/.test(p) && !/A CLOSURE IS A CLAIM/.test(p), 'the chair prompt restates a duty its constitution carries')
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
-  assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
+  const schema = chair.opts.schema
+  assert.ok(schema.required.includes('parties') && schema.properties.verdict && !schema.properties.plan && schema.additionalProperties === false, 'the envelope IS the plan, closed, and the verdict is its field')
   assert.ok(!chair.opts.schema.properties.gaps, 'and no gap list — the record holds the board')
   assert.ok(!/SCORECARD/i.test(p), 'no prompt sends a seat to a scorecard: the card is retired and `show work` carries the situation (#1126)')
 })
@@ -888,7 +889,9 @@ test('the engine re-prompts no seat for its sitting record and reads no relayed 
     assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
     assert.deepEqual(c.opts.schema.required ?? [], [], `${c.opts.label}: a blue envelope requires nothing — what blue did is on the record`)
     for (const key of ['claim_count', 'sitting_record_appended']) assert.ok(!(key in c.opts.schema.properties), `${c.opts.label}: the schema declares ${key}`)
-    assert.ok(schemaAccepts(c.opts.schema, blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
+    // The synthesizer's envelope declares nothing, and is closed: its whole envelope is the empty one.
+    assert.ok(schemaAccepts(c.opts.schema, /^blue-synthesize /.test(c.opts.label) ? {} : blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
+    assert.ok(!schemaAccepts(c.opts.schema, { ...blueEnv(), claim_count: 7 }), `${c.opts.label}: a key the schema does not declare is accepted`)
   }
   // The old attestation, returned false by both seats, dispatches nobody and is named nowhere.
   const stale = makeWorld(makeResponder({ chair: chair(), blueSynth: [blueEnv({ sitting_record_appended: false, claim_count: 7 })], blueRespond: [blueEnv({ sitting_record_appended: false, claim_count: 9 })] }))
@@ -1132,7 +1135,8 @@ const relayEnds = async (env) => {
 
 // m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
 // both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
-// there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
+// there, 42 minutes in. The fixture is that sitting's plan, verdict and notes, off its transcript; the
+// envelope below is its plan and notes, as the chair's envelope now carries them.
 // `exchanges` and the key are the fields written into it here: the plan carries an entry per engaged gap, and
 // the sitting's transcript states no count for any of the four. The rebuilt plan also dropped every
 // blocker, and a plan that permits no PASS names what holds it, so the schema refuses that relay
@@ -1141,8 +1145,8 @@ test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and
   const relayed = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
   assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
   assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
-  assert.ok(!schemaAccepts(await chairSchema(), relayed), 'the schema refuses a plan that permits no PASS and names nothing holding it')
-  const env = { ...relayed, plan: withKey({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
+  assert.ok(!schemaAccepts(await chairSchema(), { ...relayed.plan, notes: relayed.notes }), 'the schema refuses a plan that permits no PASS and names nothing holding it')
+  const env = { ...withKey({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }), notes: relayed.notes }
   assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),
@@ -1164,10 +1168,10 @@ test('o3: chair sitting 5\'s re-sent relay — the plan nested under `plan`, the
   const schema = await chairSchema()
   for (const r of relays) assert.ok(!schemaAccepts(schema, r.envelope), 'the schema refuses each relay the chair sent')
   const { plan: _nested, verdict: _verdict, ...beside } = taken.envelope.plan
-  assert.ok(!schemaAccepts(schema, { plan: beside }), 'the emptied fields alone are refused: a plan that permits no PASS names what holds it')
-  assert.ok(schemaAccepts(schema, { plan: printed, verdict: null }), 'the plan the verb printed is accepted')
-  assert.ok(!schemaAccepts(schema, { plan: { ...printed, plan: printed, verdict: null } }), 'a key the verb does not print is refused, beside a faithful plan too')
-  const { world } = await relayEnds({ plan: printed, verdict: null })
+  assert.ok(!schemaAccepts(schema, beside), 'the emptied fields alone are refused: a plan that permits no PASS names what holds it')
+  assert.ok(schemaAccepts(schema, printed), 'the plan the verb printed is accepted')
+  assert.ok(!schemaAccepts(schema, { ...printed, plan: printed }), 'a key the verb does not print is refused, beside a faithful plan too')
+  const { world } = await relayEnds(printed)
   assert.deepEqual(['red-lens-logic', 'red-lens-voice', 'blue-respond', 'judge'].map((s) => world.calls.some((c) => c.opts.label.startsWith(`${s} `))), [true, true, true, true], 'each party the record dispatched sits')
 })
 
@@ -1178,8 +1182,8 @@ test('m3: chair sitting 3\'s relay — every blocker dropped from a plan with ei
   const [only] = relays
   assert.deepEqual([only.accepted, only.envelope.plan.blockers.length, printed.blockers.length, only.envelope.plan.parties.length], [true, 0, 11, 8], 'the fixture is the relay the harness took')
   const schema = await chairSchema()
-  assert.ok(!schemaAccepts(schema, only.envelope), 'the schema refuses the relay')
-  assert.ok(schemaAccepts(schema, { ...only.envelope, plan: printed }), 'the plan the verb printed is accepted')
+  assert.ok(!schemaAccepts(schema, { ...only.envelope.plan, notes: only.envelope.notes }), 'the schema refuses the relay')
+  assert.ok(schemaAccepts(schema, { ...printed, notes: only.envelope.notes }), 'the plan the verb printed is accepted')
 })
 
 // A RELAY THE HARNESS LETS THROUGH EMPTIED STOPS THE RUN, NAMING IT. The schema refuses it first; the
@@ -1222,24 +1226,51 @@ test('the schema refuses what the plan check refuses: a bench with no occasion, 
 // every value in the pool — and deleted — and each resulting relay the schema accepts is run
 // through the engine. A check added to the engine with no shape for it in the schema fails here,
 // naming the relay; so does a shape loosened in the schema that a check still throws on.
-// THE CHAIR'S ENVELOPE DECLARES ONLY WHAT THE ENGINE READS: a field the schema offers is one the
-// seat composes into, so nothing it writes there goes unread. Each declared key is read below as
-// `chairEnv.<key>`; a key added to the schema must be read there.
-test('the chair envelope declares no field the engine does not read', async () => {
+// THE CHAIR'S ENVELOPE IS THE PLAN, AND DECLARES NOTHING BESIDE IT THE ENGINE DOES NOT READ. The
+// plan's fields are the record's, relayed whole for capture to compare; a field beside them is one
+// the seat composes into, so nothing it writes there goes unread. Each such key is read below as
+// `chairEnv.<key>`; a key added beside the plan must be read there.
+test('the chair envelope is the plan, and declares no field beside it the engine does not read', async () => {
   const schema = await chairSchema()
   const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
-  for (const key of Object.keys(schema.properties)) {
-    assert.ok(src.includes(`chairEnv.${key}`), `CHAIR_ENVELOPE declares \`${key}\`, which the engine never reads as chairEnv.${key}`)
+  const relayed = new Set([...Object.keys(plan()), 'verdict'])
+  assert.deepEqual([...relayed].filter((k) => !schema.properties[k]), [], 'every field the verb prints is a field of the envelope')
+  const beside = Object.keys(schema.properties).filter((k) => !relayed.has(k))
+  assert.deepEqual(beside, ['notes'], 'the envelope adds one field to the plan')
+  for (const key of beside) {
+    assert.ok(src.includes(`chairEnv.${key}`), `CHAIR_ENVELOPE declares \`${key}\` beside the plan, which the engine never reads as chairEnv.${key}`)
   }
 })
 
-// THE ENVELOPE KEEPS A FREE FIELD BESIDE `plan`, UNDESCRIBED. Replaying an m28 chair at its return
+// THE ENVELOPE KEEPS A FREE FIELD BESIDE THE PLAN'S, UNDESCRIBED. Replaying an m28 chair at its return
 // (2026-10-18), an envelope of `plan` and `verdict` alone had it wrap the whole envelope inside `plan`
 // on 4 of 9 first returns — m28 itself did so in 11 of 12 sittings — against 0 of 16 with a bare
 // `notes`; a described `notes` drew 2 of 12. Cutting or describing it is a measured regression.
 test('the chair envelope keeps its bare notes field', async () => {
   const schema = await chairSchema()
-  assert.deepEqual(schema.properties.notes, { type: 'string' }, 'CHAIR_ENVELOPE.notes is a bare string: removed or described, the chair wraps its envelope inside `plan`')
+  assert.deepEqual(schema.properties.notes, { type: 'string' }, 'CHAIR_ENVELOPE.notes is a bare string: removed or described, the m28 replay wrapped the envelope more often')
+})
+
+// THE CHAIR'S SCHEMA IS A TOOL'S INPUT SCHEMA, AND THE API REFUSES ONE WITH oneOf, allOf OR anyOf AT ITS
+// TOP LEVEL: every chair sitting's request fails with a 400 before the chair is asked anything. The
+// envelope is the plan, so the plan's cross-field rule is a conditional there, never a combinator.
+test('the chair envelope schema holds no oneOf, allOf or anyOf at its top level', async () => {
+  const schema = await chairSchema()
+  assert.deepEqual(['oneOf', 'allOf', 'anyOf'].filter((k) => k in schema), [], 'the API refuses this tool schema')
+  assert.ok(schema.if && schema.else, 'the empty-only-with rule stands, as a conditional')
+})
+
+// EVERY DISPATCHED ENVELOPE IS CLOSED AT ITS TOP LEVEL: a key no schema declares is refused, never
+// dropped. Driven through a run that reaches the petition bench, the docket, the terminal sitting
+// and assembly, so every schema the script dispatches is read as dispatched.
+test('every envelope schema the script dispatches is closed at its top level', async () => {
+  const chair = [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }) }),
+    chairEnv({ plan: plan([], { blockers: [blocker('M-00000002', 'judge')] }) })]
+  const world = makeWorld(makeResponder({ chair }))
+  await world.run(script, ARGS)
+  const schemas = new Map(world.calls.filter((c) => c.opts.schema).map((c) => [c.opts.label.replace(/ #\d+/, '').replace(/ · test$/, ''), c.opts.schema]))
+  assert.deepEqual([...schemas.keys()].sort(), ['blue-respond', 'blue-synthesize', 'judge', 'judge · assemble', 'judge · petition', 'judge · terminal', 'red-chair'], 'the drive reaches every envelope')
+  for (const [label, schema] of schemas) assert.equal(schema.additionalProperties, false, `${label}'s envelope is open at its top level`)
 })
 
 test('a relay the envelope schema accepts is never one the engine throws on', async () => {
@@ -1248,7 +1279,7 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
     plan: plan(
       [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), { seat_id: 'judge', gap_ids: ['G-00000002'], occasions: ['petition', 'docket'] }],
       { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], exchanges: [{ gap_id: 'G-00000001', count: 2, unresolved: 1 }, { gap_id: 'G-00000002', count: 3, unresolved: 0 }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
-    verdict: null,
+    notes: 'n',
   })
   const paths = []
   const walk = (v, path) => {
@@ -1259,8 +1290,9 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   walk(full(), [])
   const DELETE = Symbol('delete')
   const pool = [DELETE, null, '', ' ', 'x', 'judge', 'blue-respond', 'red-lens-logic', 'frontier', 'docket', 0, -1, 1.5, 7, true, false, {}, [], [''], ['x'], ['docket'], ['petition'], ['terminal'], [{}], 'PASS', 'FAIL']
-  // A key the verb omits and a seat may add: `occasions` on the lens and on blue.
-  const added = [['plan', 'parties', 0, 'occasions'], ['plan', 'parties', 1, 'occasions']]
+  // A key the verb omits and a seat may add: `occasions` on the lens and on blue, and the verdict the
+  // verb prints only once the sitting has recorded one.
+  const added = [['parties', 0, 'occasions'], ['parties', 1, 'occasions'], ['verdict']]
   let accepted = 0, refused = 0
   for (const path of [...paths.filter((p) => p.length), ...added]) {
     for (const value of pool) {

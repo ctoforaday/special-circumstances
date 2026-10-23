@@ -40,8 +40,8 @@ type PlanField struct {
 	// EmptyOnlyWith is the JSON key of the boolean, in the same struct, that is true whenever this
 	// list is empty; "" where the field states no such rule.
 	EmptyOnlyWith string
-	// Unkeyed: the field says when the plan was asked, not what it decides, and the plan's key
-	// leaves it out (`key:"-"`).
+	// Unkeyed: the field says when the plan was asked, or what the sitting asking did, not what
+	// the plan decides, and the plan's key leaves it out (`key:"-"`).
 	Unkeyed bool
 	// Enum is the closed set of a string field whose Go type declares one.
 	Enum []string
@@ -54,6 +54,7 @@ type PlanField struct {
 
 // planEnums is the closed set of each named string type the plan carries.
 var planEnums = map[reflect.Type]func() []string{
+	reflect.TypeFor[PlanVerdict](): func() []string { return Names(SeatFilable(MustEnum("verdict", "verdict").Values)) },
 	reflect.TypeFor[BlockerKind](): func() []string {
 		ks := BlockerKinds()
 		out := make([]string, len(ks))
