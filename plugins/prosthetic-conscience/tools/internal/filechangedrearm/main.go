@@ -38,6 +38,7 @@ package filechangedrearm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -255,9 +256,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		}
 	}); err != nil {
 		rec.FailIn(StageRearmWrite, projectDir, err.Error())
-		return 0
+		// A LockLeftError is a committed write whose lock stayed behind: the event IS recorded,
+		// so what it pruned and what it found ambiguous are reported below as for any commit.
+		var left *checkpoint.LockLeftError
+		if !errors.As(err, &left) {
+			return 0
+		}
+	} else {
+		rec.OKIn(StageRearmWrite, projectDir)
 	}
-	rec.OKIn(StageRearmWrite, projectDir)
 	// Said before the prune message because it EXPLAINS a prune that did not happen: under a
 	// collision PruneOrphans deletes nothing, and silence there is indistinguishable from a
 	// file with no orphans in it.
