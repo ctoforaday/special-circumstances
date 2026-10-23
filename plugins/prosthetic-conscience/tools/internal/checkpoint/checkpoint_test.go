@@ -593,12 +593,16 @@ func TestReleaseOnlyRemovesItsOwnLock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a.release() // A finishes, unaware it was displaced
+	if err := a.release(); err != nil { // A finishes, unaware it was displaced
+		t.Fatalf("a displaced holder's release is not an error: %v", err)
+	}
 
 	if !b.owned() {
 		t.Error("A's release deleted B's lock — that is the mutual-exclusion violation #215 reported")
 	}
-	b.release()
+	if err := b.release(); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(b.path); !os.IsNotExist(err) {
 		t.Error("B's own release must remove its lock")
 	}
