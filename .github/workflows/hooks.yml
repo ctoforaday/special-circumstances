@@ -299,7 +299,7 @@ jobs:
           go-version: "1.27"
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
-      # feov-record races its shipped binary's import graph (see that job for the scope
+      # feov-record races its shipped binaries' import graph (see that job for the scope
       # rule). It passes clean today (measured, exit 0,
       # zero DATA RACE), so the leg costs nothing now and only gets more expensive later.
       #
@@ -706,7 +706,7 @@ jobs:
       # 2026-10-11). The detector reports a race between two goroutines of the test binary, so
       # a test that starts none has nothing for it to find and still pays 12-26x: raced whole,
       # this graph's two slowest packages took 1,012s and 846s, and the slowest starts no
-      # goroutine in source or tests. scripts/racescope takes the shipped binary's import graph
+      # goroutine in source or tests. scripts/racescope takes the shipped binaries' import graph
       # (`go list -deps`, derived at run time, never a hand-kept list), finds every goroutine
       # start in it by type information, races the tests that make one, and then runs those
       # tests again under coverage and FAILS if a start in a non-test file went unexecuted —
@@ -726,7 +726,7 @@ jobs:
       # gate to the same invocation and the same bound (raceTimeout).
       - if: runner.os == 'Linux'
         working-directory: scripts
-        run: go run ./racescope -module ../plugins/frank-exchange-of-views/tools -deps ./cmd/feov-record -timeout=30m
+        run: go run ./racescope -module ../plugins/frank-exchange-of-views/tools -deps ./cmd/... -timeout=30m
         env:
           CGO_ENABLED: "1"
       # And ONE test out of releasegate/fuzz — a harness outside the graph above, raced

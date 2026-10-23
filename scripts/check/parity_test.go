@@ -164,7 +164,7 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 }
 
 // The -race scopes are NOT uniform across modules, and encoding them wrongly would claim
-// coverage CI does not have. feov-record's scope is the shipped binary's import graph, and two
+// coverage CI does not have. feov-record's scope is the shipped binaries' import graph (every directory under cmd/), and two
 // workflows read it: the pull-request gate hands the target to racescope, which races the tests
 // in that graph that start goroutines; the nightly races the graph whole. What this test holds
 // together is the TARGET each derives from, and which workflow carries which form — the
@@ -172,7 +172,7 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 // been swapped or copied.
 func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 	wf := workflowFile(t, workflowPath)
-	const target = "./cmd/feov-record"
+	const target = "./cmd/..."
 	if scope := raceScope["plugins/frank-exchange-of-views/tools"]; len(scope) != 1 || scope[0] != depsScopePrefix+target {
 		t.Errorf("raceScope for feov = %v, want exactly %s%s — any other claim here "+
 			"would report concurrency coverage the workflow does not run", scope, depsScopePrefix, target)
