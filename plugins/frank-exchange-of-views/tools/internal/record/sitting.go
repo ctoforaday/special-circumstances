@@ -246,6 +246,18 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// THE CHAIR ARM HOLDS NO SUCH ITEM, on purpose: its blocking items are the PASS gate's
 		// blockers and nothing else, so its position is held by its prompt and by capture.
+		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage` (successorsOwed):
+		// the record names the successor, and blue sits on it a second time this epoch.
+		if seatID == blueRespondSeat {
+			if owed, _ := successorsOwed(evs, win, openOf(gaps)); len(owed) > 0 {
+				var named []string
+				for _, o := range owed {
+					named = append(named, o.GapID+" (successor of "+o.Of+")")
+				}
+				add("this sitting found a gap closed whose successor is open and not yet engaged this epoch — " + strings.Join(named, ", ") +
+					" — record `engage` on them, then name them in your envelope's successors: you sit on them again this epoch")
+			}
+		}
 		if p, sitting := positionSittingNow(evs, win, seatID); sitting && (p.State == PositionMissing || p.State == PositionUnresolved) {
 			add("this sitting's position is missing — it found " + strings.Join(p.Blue.Open, ", ") + " still open, and the bench reads no argument of yours for a sitting whose position is not on the record")
 		}
@@ -430,12 +442,17 @@ type EngagedJSON struct {
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
 }
 
-// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, and the fate
-// that close gave it (the Disposition vocabulary, as `estopped` carries it).
+// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, the fate
+// that close gave it (the Disposition vocabulary, as `estopped` carries it), and the open gaps the
+// record names as its successors (successorsOf).
 type FoundClosedJSON struct {
 	ID           string `json:"id"`
 	ClosedBySeat string `json:"closed_by_seat"`
 	Fate         string `json:"fate"`
+	// Successors is each open gap the record names as carrying this one forward — its close's
+	// `superseded_by`, or a mint naming it in `supersedes` — in record order. Never omitted: an
+	// empty list is "the record names no open successor", and blue sits on nothing more for it.
+	Successors []string `json:"successors"`
 }
 
 // engagedOf is the engaged block of the dispatch blue-respond is to sit for, or nil where no
@@ -449,7 +466,7 @@ type FoundClosedJSON struct {
 // from) is the block, split by the closes that have landed since its row (engagementOf); once the
 // seat registers, the block is the sitting's own (sittingOfBlueRespond), which is that same split
 // read up to the register.
-func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
+func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) *EngagedJSON {
 	if seatID != blueRespondSeat {
 		return nil
 	}
@@ -462,9 +479,16 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 		return nil
 	}
 	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}}
+	succ, open := successorsOf(live), openOf(gaps)
 	for _, ev := range s.FoundClosed {
 		c, _ := recordpb.BodyAs[*recordpb.Close](ev)
-		e.FoundClosed = append(e.FoundClosed, FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass())})
+		f := FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass()), Successors: []string{}}
+		for _, g := range succ[c.GetGapId()] {
+			if open(g) {
+				f.Successors = append(f.Successors, g)
+			}
+		}
+		e.FoundClosed = append(e.FoundClosed, f)
 	}
 	return e
 }
@@ -540,4 +564,14 @@ func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
 		return false
 	}
 	return true
+}
+
+// openOf answers whether a gap is open, off the work list's gap rows: an id the rows do not hold is
+// not open.
+func openOf(gaps []WorkGapState) func(string) bool {
+	open := map[string]bool{}
+	for _, g := range gaps {
+		open[g.ID] = g.Open
+	}
+	return func(id string) bool { return open[id] }
 }

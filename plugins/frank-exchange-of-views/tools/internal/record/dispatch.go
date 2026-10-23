@@ -576,6 +576,9 @@ type dispatchRow struct {
 	gaps    []string
 	// occasions is what a bench row convened the bench for; empty on every other seat's row.
 	occasions []recordpb.Occasion
+	// engage is a row blue-respond wrote (isEngageRow): its next sitting, in the epoch the chair's
+	// dispatch opened.
+	engage bool
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
@@ -601,7 +604,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions(), engage: isEngageRow(e)})
 		}
 	}
 	return ds, openings
@@ -943,7 +946,10 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 	sort.Slice(anyone, func(a, b int) bool { return anyone[a] < anyone[b] })
 	var groups []DispatchGroup
 	for i, d := range ds {
-		if i == 0 || openedBetween(anyone, ds[i-1].at, d.at) {
+		// AN ENGAGE ROW OPENS NO GROUP: blue writes it inside its sitting for the chair's dispatch,
+		// for its next sitting in the same epoch, so it joins the dispatch it follows — the bench that
+		// sits after blue is still that dispatch's party.
+		if i == 0 || (!d.engage && openedBetween(anyone, ds[i-1].at, d.at)) {
 			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}, PartyRows: map[string]PartyRow{}})
 		}
 		g := &groups[len(groups)-1]
@@ -1127,6 +1133,11 @@ func owedSitting(evs []*Event, win WindowIndex, seatID string) (dispatchRow, boo
 			continue
 		}
 		_, sat := benchRowSitting(openings[seatID], on, ds[i])
+		// AN ENGAGE ROW IS OWED BY THE SITTING AFTER THE ONE THAT WROTE IT: blue records it in the
+		// sitting it is in, so until a sitting of blue's opens after it, nothing is owed yet.
+		if ds[i].engage && !sat {
+			return ds[i], false
+		}
 		return ds[i], !sat
 	}
 	return dispatchRow{}, false

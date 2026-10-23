@@ -1383,7 +1383,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run)})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
-	w.Engaged = engagedOf(evs, win, seatID)
+	w.Engaged = engagedOf(evs, win, gaps, seatID)
 	if w.Declarations, err = declarationsOf(evs, win, gaps); err != nil {
 		return WorkJSON{}, err
 	}

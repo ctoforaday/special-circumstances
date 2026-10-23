@@ -834,5 +834,6 @@ var AlwaysTaken = map[string]string{
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately",
+	"engage":   "blue's act on a fact the record computes, not a choice a board can bait: its work list BLOCKS on it exactly when an engaged gap it found closed has an open successor, and the write refuses any other set. A probe board stages no dispatch, so no board can engage blue on a gap a lens closed first; the record's tests and the release fuzz drive it",
 	"inquest":  "the bench's read path — the raw record it rules from. Exempt for the same reason as `show`, and additionally because what the bench READS to reach a ruling is not what a board can bait: the ruling is the accounted act",
 }
