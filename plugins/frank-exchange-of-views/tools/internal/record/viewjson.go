@@ -1722,13 +1722,26 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
-		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// blue-respond (BLUE) (closingowed.go). The write path admits no other (PositionRefusal,
+		// ClosingRefusal), so each renders as the record holds it.
+		var positions, redClosings, blueClosings []*Event
+		for _, e := range re {
+			switch {
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
+				positions = append(positions, e)
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && PartyOf(e) == "blue":
+				blueClosings = append(blueClosings, e)
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
+				redClosings = append(redClosings, e)
+			}
+		}
+		for _, p := range positions {
 			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
 				rj.Red = append(rj.Red, pos.GetText())
 			}
 		}
-		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute (closingowed.go).
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "lens") {
+		for _, c := range redClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}
@@ -1743,7 +1756,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
 		}
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+		for _, c := range blueClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}
