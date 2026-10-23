@@ -76,6 +76,7 @@ $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
+the workflow reads it off the plan: ask the dispatch again and relay that plan
 NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
