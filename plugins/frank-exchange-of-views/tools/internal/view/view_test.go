@@ -659,10 +659,11 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, merge, merge+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
+		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, blue, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
+		recordtest.At(t, blue, blue+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue says otherwise")}),
 		recordtest.At(t, blue, blue+":inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
 			Question:  proto.String("try the archive"),
@@ -716,7 +717,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	})
 
 	debate := md(t, runDir, "debate")
-	for _, want := range []string{"## Epoch 1", "### RED\nred says so", "### BLUE\nblue says otherwise",
+	for _, want := range []string{"## Epoch 1", "### RED\nred says so", "### BLUE CLOSING (epoch 1) — G1\nblue says otherwise",
 		"### RED CLOSING (epoch 1) — G1", "### LEAD", "repaired — principle: correctness first"} {
 		if !strings.Contains(debate, want) {
 			t.Errorf("debate is missing %q:\n%s", want, debate)

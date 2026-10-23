@@ -159,7 +159,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
-		Path:    "Blue's and the chair's `position` and `closing`, the chair's `verdict` and `spot-check`, and the bench's rulings and `certify`.",
+		Path:    "The chair's `position`, `verdict` and `spot-check`, the lens's and blue's `closing` on a docketed gap, a lens's `regrade` that keeps a gap's grade, and the bench's rulings and `certify`.",
 		compose: func(a *assembly, _ Section) string { return debate(a.fam) }},
 	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the motions on the record, each with its ruling",

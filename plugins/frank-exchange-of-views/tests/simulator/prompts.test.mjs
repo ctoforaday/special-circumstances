@@ -82,15 +82,21 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // the one that ships. What used to be the `.bindir` variant is simply the golden.
 
 // One run that seats every class the engine dispatches (plans/roundless.md §III.B.1): the chair's
-// first plan engages three active lenses, blue on G-00000001, and the bench on G-00000001
-// (docketed); the second engages the evidence lens ON its gap — the other lens shape — and the
-// third permits PASS. Its plan holds a motion the bench owns so the terminal sitting fires too (a stub: the
-// record never permits PASS over one, but the terminal prompt is what this captures).
+// first plan engages three active lenses and blue on G-00000002, and dockets G-00000001, whose two
+// parties — the evidence lens and blue — owe their closings on it (the plan's closing_owed
+// blockers); the second convenes the bench on G-00000001, once both are in; the third engages the
+// evidence lens ON its gap — the other lens shape — with the bench's ruling in effect; and the
+// fourth permits PASS. Its plan holds a
+// motion the bench owns so the terminal sitting fires too (a stub: the record never permits PASS
+// over one, but the terminal prompt is what this captures).
 async function fullRun(args = ARGS) {
+  const owed = (owner) => ({ kind: 'closing_owed', subject: 'G-00000001', owner })
   const world = makeWorld(makeResponder({
     chair: [
-      chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { head: 2, docket: ['G-00000001'] }) }),
-      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('red-lens-logic')], { head: 9 }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G-00000002')],
+        { head: 2, docket: ['G-00000001'], blockers: [owed('red-lens-evidence'), owed('blue-respond'), blocker('M-00000001', 'judge')] }) }),
+      chairEnv({ plan: plan([party('red-lens-logic'), party('judge', 'G-00000001')], { head: 9 }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000002')], { head: 9 }) }),
       passChair({ plan: passPlan({ blockers: [blocker('M-00000001', 'judge')] }) }),
     ],
     judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'remanded', rationale: 'the figure is still unrecomputed' }] })],

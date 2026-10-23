@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -595,11 +596,15 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 				}
 			}
 		}
+		// THE GAP VIEW ROUTES A DOCKETED GAP to the bench, or — while a party's closing is awaited —
+		// to its parties (closingowed.go); either way the route is the view's, and the listed motion
+		// the events'.
 		for i := 1; i <= gaps; i++ {
 			g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
-			if benched[g] != listed[m] {
-				t.Fatalf("the plan engages the bench on %s: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
-					g, benched[g], m, listed[m])
+			routed := benched[g] || slices.ContainsFunc(plan.Why, func(w string) bool { return strings.HasPrefix(w, g+": docketed — the closing of") })
+			if routed != listed[m] {
+				t.Fatalf("the plan routes docketed %s to the bench or its parties: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
+					g, routed, m, listed[m])
 			}
 		}
 	})

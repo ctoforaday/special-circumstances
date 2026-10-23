@@ -243,7 +243,7 @@ func TestTheDispatchRowCarriesTheBenchsOccasionsAndNoOtherSeats(t *testing.T) {
 }
 
 // THE PLAN ASKED FOR AGAIN IN THE SAME SITTING STILL SAYS WHAT THE SITTING DOCKETED. The chair relays
-// the plan it asks for last, and blue's closings are owed on the gaps that plan names as docketed —
+// the plan it asks for last, and the parties' closings are owed on the gaps that plan names as docketed —
 // so a second ask after the verb filed the docket must name the gap still, file nothing, and stand
 // as the dispatch already recorded. The next chair sitting's plan no longer names it: the docketing
 // was that sitting's.
@@ -254,8 +254,8 @@ func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
 		}
-		// The verb's first ask: it dockets G1 under the chair and convenes the bench on it.
-		return b.register("red-chair").docketMotion("red-chair", "M1", "G1").dispatch(2, benchSeat, "G1")
+		// The verb's first ask: it dockets G1 under the chair and readies its parties for their closings.
+		return b.register("red-chair").docketMotion("red-chair", "M1", "G1").dispatch(2, evLens).dispatch(2, "blue-respond")
 	}
 	run := impasse().seed()
 	plan, err := PlanDispatch(run)
@@ -268,7 +268,7 @@ func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
 	if ok, err := dispatchStandsOn(t, run, plan); err != nil || !ok {
 		t.Fatalf("asked again with nobody sat, the plan stands = %v (%v)", ok, err)
 	}
-	next, err := PlanDispatch(impasse().register(benchSeat).register("red-chair").seed())
+	next, err := PlanDispatch(impasse().register(evLens).register("blue-respond").register("red-chair").seed())
 	if err != nil {
 		t.Fatal(err)
 	}

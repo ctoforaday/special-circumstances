@@ -20,25 +20,25 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	blue := "blue-respond"
 	judge := "judge"
 	merge2 := "red-chair"
+	lens := "red-lens-logic"
 
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge, merge+":register:#1", &recordpb.Register{}),
 		recordtest.At(t, merge, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
 		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
 		// opinion are both foreign keys onto the mint.
-		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		recordtest.At(t, lens, lens+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, merge, merge+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes r1")}),
+		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes r1")}),
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, blue, blue+":position", &recordpb.Position{Text: proto.String("blue r1")}),
-		// The `confidence` event type went with the per-claim confidence grades; blue's round-1
-		// section is carried by its position, which is what this test reads.
+		recordtest.At(t, blue, blue+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue closes r1")}),
 	})
 	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
 	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events, b.At)) and the RULING
@@ -87,8 +87,8 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.Red) != 1 || r1.Red[0] != "red r1" {
 		t.Errorf("round 1 Red = %v, want [red r1]", r1.Red)
 	}
-	if len(r1.Blue) != 1 || r1.Blue[0] != "blue r1" {
-		t.Errorf("round 1 Blue = %v, want [blue r1]", r1.Blue)
+	if len(r1.BlueClosings) != 1 || r1.BlueClosings[0].GapID != "G1" || r1.BlueClosings[0].Text != "blue closes r1" {
+		t.Errorf("round 1 BlueClosings = %+v", r1.BlueClosings)
 	}
 	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "repaired" || r1.Lead[0].Principle != "correctness first" {
 		t.Errorf("round 1 Lead = %+v, want one closed opinion", r1.Lead)
@@ -96,12 +96,12 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "G1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
 	}
-	// The red-only round: Red present, Blue an empty (non-nil) array.
+	// The red-only round: Red present, the closings empty (non-nil) arrays.
 	if len(r2.Red) != 1 || r2.Red[0] != "red r2" {
 		t.Errorf("round 2 Red = %v, want [red r2]", r2.Red)
 	}
-	if r2.Blue == nil || len(r2.Blue) != 0 {
-		t.Errorf("round 2 Blue = %v, want an empty non-nil array", r2.Blue)
+	if r2.BlueClosings == nil || len(r2.BlueClosings) != 0 || r2.RedClosings == nil || len(r2.RedClosings) != 0 {
+		t.Errorf("round 2 closings = %v / %v, want empty non-nil arrays", r2.RedClosings, r2.BlueClosings)
 	}
 
 	// redRounds — the count telemetryAudit derives — is the number of rounds with a red

@@ -89,7 +89,7 @@ import (
 // the prompts as the clauses moved out, so growth up to the old numbers passed unseen.
 //
 // Held 2026-10-17 for the chair's final sitting: one sentence of duty — at final_sitting nobody sits
-// after the chair, so it decides on the board as it is and argues to the bench in its position.
+// after the chair, so it decides on the board as it is.
 // Smoke m25's last chair filed a docket motion it said "the bench hears at the next dispatch", in the
 // run's last epoch, and the run ended CEILING over a board that permitted a PASS. It fits inside
 // 6,300 (red-chair 6,297): the prompt's account of epoch_limit_reached — that nobody further is

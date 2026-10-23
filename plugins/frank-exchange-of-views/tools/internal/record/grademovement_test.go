@@ -102,7 +102,8 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 	if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, fail); err != nil {
 		t.Errorf("a FAIL is refused over a bench-owned blocker: %v", err)
 	}
-	// The plan readies the bench on both, dockets both, and permits no PASS.
+	// The plan dockets both, readies their parties for their closings — blue-respond's alone, the
+	// minter being no cast lens — and permits no PASS. The bench sits once the closings are in.
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
@@ -113,10 +114,8 @@ func TestGradeMovementPastTheThresholdInTotalConvenesTheBench(t *testing.T) {
 	if !slices.Equal(plan.Docket, []string{"G1", "G2"}) || !slices.Equal(plan.ToFile, []string{"G1", "G2"}) {
 		t.Errorf("docket %v, to file %v, want G1 and G2 in both", plan.Docket, plan.ToFile)
 	}
-	if !slices.ContainsFunc(plan.Parties, func(p Party) bool {
-		return p.SeatID == benchSeat && slices.Equal(p.GapIDs, []string{"G1", "G2"}) && slices.Equal(p.Occasions, []string{occasionDocket})
-	}) {
-		t.Errorf("parties = %+v, want the bench convened for the docket on G1 and G2", plan.Parties)
+	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != "blue-respond" || len(plan.Parties[0].GapIDs) != 0 {
+		t.Errorf("parties = %+v, want blue-respond alone, readied for its closings", plan.Parties)
 	}
 	if got := planKindsOf(plan.Blockers); !slices.Equal(got, want) {
 		t.Errorf("plan blockers = %v, want the gate's %v", got, want)
@@ -160,8 +159,8 @@ func TestTheDispatchDocketsGradeMovementAndTheBenchsRulingClearsIt(t *testing.T)
 	if len(motions) != 2 {
 		t.Fatalf("docket motions filed on %v, want G1 and G2", motions)
 	}
-	if got := planKindsOf(plan.Blockers); !slices.Equal(got, []string{"unruled_motion:" + motions["G1"], "unruled_motion:" + motions["G2"]}) {
-		t.Errorf("the relayed plan's blockers = %v, want the two docket motions", got)
+	if got := planKindsOf(plan.Blockers); !slices.Equal(got, []string{"closing_owed:G1", "closing_owed:G2", "unruled_motion:" + motions["G1"], "unruled_motion:" + motions["G2"]}) {
+		t.Errorf("the relayed plan's blockers = %v, want blue's two closings and the two docket motions", got)
 	}
 	bs, err := PassBlockers(run)
 	if err != nil {
@@ -241,7 +240,7 @@ func TestGradeMovementCountsWhatTheGateReads(t *testing.T) {
 		{"a docket motion standing on the gap rules on it: no second filing", func(b *stage) {
 			b.docketMotion("red-chair", "M1", "G1")
 			b.regrade(outsideLens, "G1", "trivial")
-		}, []string{"material_gap:G2", "unruled_motion:M1"}},
+		}, []string{"closing_owed:G1", "material_gap:G2", "unruled_motion:M1"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
