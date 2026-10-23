@@ -3370,9 +3370,8 @@ type Mint struct {
 	// subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
 	// inherited it, so removing it on one verb and not the other left the concept half-landed.
 	//
-	// An anchor is OPTIONAL on a gap and REQUIRED on a finding, which is the pre-existing difference
-	// between the two verbs and is not changed here; what is enforced is that a gap does not claim
-	// both, because a gap has one subject.
+	// A gap has ONE subject, as a finding does: a non-blank `location` or this pair, never both and
+	// never neither — the write refuses a gap with no subject (requireMintSubject).
 	//
 	// A gap takes every kind but `contradiction`: a contradiction is raised by a finding, and the
 	// gap is minted from that finding (the write refuses it here).

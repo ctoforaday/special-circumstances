@@ -27,7 +27,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		recordtest.At(t, merge, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
 		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
 		// opinion are both foreign keys onto the mint.
-		recordtest.At(t, lens, lens+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		recordtest.At(t, lens, lens+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -344,7 +344,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("k"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -381,7 +381,7 @@ func TestRedsArgumentReachesTheBoard(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seat, seat+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		recordtest.At(t, seat, seat+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("the section claims independence"),
 			MintReason:      proto.String("all five approaches share one definition of primality"),

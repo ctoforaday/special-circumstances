@@ -73,7 +73,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	// that mints.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, append([]string{"mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"},

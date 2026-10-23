@@ -297,10 +297,10 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
 		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
 		// them measures whichever refusal fires first rather than the one it is named for.
-		{"lens mint without --run", []string{"mint", "--seat-id", "red-lens-evidence",
+		{"lens mint without --run", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "red-lens-evidence",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--severity", "medium", "--likelihood", "medium",
 			"--class", "spec_underspecification", "--problem", "p"}, "--run <runDir> is required"},
-		{"mint with no identity at all", []string{"mint", "--run", "X",
+		{"mint with no identity at all", []string{"mint", "--about-kind", "section", "--about", "Findings", "--run", "X",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--severity", "medium", "--likelihood", "medium",
 			"--class", "spec_underspecification", "--problem", "p"}, "--seat-id IS REQUIRED HERE"},
 		{"blue log without --run", []string{"log", "--seat-id", "blue-lane-1", "--type", "defect",
@@ -349,7 +349,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 // seat that does hold `mint` rather than the role the caller failed to be.
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := newRun(t)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	_, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {
 		t.Fatal("the CHAIR minted a board gap — the chair coalesces nothing; a lens mints what it found")
@@ -611,7 +611,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 	seatID := lensSeat
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -638,7 +638,7 @@ func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	runDir := newRun(t)
 	// No register here: the mint is refused at PARSE time and never reaches the write path, and
 	// this test asserts the record is left untouched — a register would be an event.
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
 	if err == nil {
 		t.Fatal("an invalid grade was accepted")
@@ -666,7 +666,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 	registerLensOnce(t, runDir)  // and the lens mints
 	mint := func(extra ...string) string {
 		t.Helper()
-		args := append([]string{"mint", "--run", runDir, "--seat-id", seatID,
+		args := append([]string{"mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 			"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, extra...)
 		out, err := run(t, args...)
 		if err != nil {
@@ -704,7 +704,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
@@ -748,7 +748,7 @@ func TestActResultsNameTheirIDByKind(t *testing.T) {
 	if want := lastBody(t, runDir, &recordpb.Finding{}).GetId(); fid != want {
 		t.Errorf("finding --json result %v, want finding_id %s", f, want)
 	}
-	g := result("mint", "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "spec_underspecification", "--check-kind", "document",
+	g := result("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "spec_underspecification", "--check-kind", "document",
 		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--found-by", fid)
 	gid, _ := g["gap_id"].(string)
 	if gid != handleText(t, runDir, "G1") {
@@ -766,7 +766,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatal(err)
 	}
-	mintArgs := []string{"mint", "--run", runDir, "--seat-id", seatID,
+	mintArgs := []string{"mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}
 
 	out, err := run(t, append([]string{"--json"}, mintArgs...)...)
@@ -810,7 +810,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 
 	// A coded domain fault carries its SPECIFIC code, so a consumer branches on the KIND of
 	// failure, not the message. A seat-id from another role is a role_violation.
-	rv, _ := run(t, "--json", "mint", "--run", runDir, "--seat-id", "blue-synthesize",
+	rv, _ := run(t, "--json", "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "blue-synthesize",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	var viol map[string]any
 	if e := json.Unmarshal([]byte(strings.TrimSpace(rv)), &viol); e != nil {
@@ -871,7 +871,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--problem beats the prose channel on mint", func(t *testing.T) {
 		runDir := newRun(t)
 		registerLensOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 			"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
@@ -883,7 +883,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("the prose channel never fills problem", func(t *testing.T) {
 		runDir := newRun(t)
 		registerLensOnce(t, runDir)
-		_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		_, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 			"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel")
 		if err == nil || !strings.Contains(err.Error(), "requires --problem") {
 			t.Errorf("a mint with --reason and no --problem = %v, want it refused for --problem", err)
@@ -898,7 +898,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -957,13 +957,13 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor must EXIST: a successor is a reference like any other and is checked
 	// at write time now, so the fixture mints the gap it will name.
-	succOut, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	succOut, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--key", "successor-gap", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
@@ -990,7 +990,7 @@ func TestCloseRecordsItsProse(t *testing.T) {
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -1013,8 +1013,8 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		// is missing without restating what it is for — which the command's own --help already
 		// documents, and which the seat is required to have read before running the command.
 		{"regrade without --reason", []string{"regrade", "--id", "G1", "--severity", "high"}, "reason"},
-		{"mint without --check", []string{"mint", "--class", "spec_underspecification", "--problem", "p"}, "check"},
-		{"mint without --class", []string{"mint", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "class"},
+		{"mint without --check", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--problem", "p"}, "check"},
+		{"mint without --class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}, "class"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1025,7 +1025,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 			// fires first and this test asserts on the wrong refusal — it is about the
 			// missing REASON, not a missing referent.
 			registerLensOnce(t, runDir)
-			if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+			if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 				"--key", "k", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 				"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
@@ -1109,7 +1109,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// ruling it is about.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "k", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -1236,7 +1236,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		runDir := newRun(t)
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 			"--key", "k", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
@@ -1396,7 +1396,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	for i := 0; i < 2; i++ {
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 			"--key", fmt.Sprintf("k%d", i), "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
@@ -1465,7 +1465,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 		registerLensOnce(t, runDir)
 		for i := 0; i < 2; i++ {
 			// MATERIAL gaps: severity medium holds the gate; a trifle would not (roundless §III.B.2.1).
-			if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+			if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 				"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
@@ -1519,7 +1519,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 			runDir := newRun(t)
 			registerChairOnce(t, runDir)
 			registerLensOnce(t, runDir)
-			if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+			if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 				"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
@@ -1549,7 +1549,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -1776,7 +1776,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
 		t.Fatal(err)
 	}
-	minted, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	minted, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "risk_coverage_omission",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low")
