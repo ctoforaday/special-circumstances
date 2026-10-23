@@ -263,3 +263,114 @@ func TestARefutedClaimKeepsItsMarkup(t *testing.T) {
 		t.Errorf("after the finding naming it, contradictions %q unraised, want none", got)
 	}
 }
+
+// A READING NAMES THE CONTRADICTION IT LANDED IN, read back from the record: the one that opens it
+// prints its id, the one that joins it prints the same id and the seat that opened it, and a reading
+// that backs the claim prints none. The id it prints is the one a finding raises it by.
+func TestAVerifyNamesTheContradictionItOpensOrJoins(t *testing.T) {
+	runDir, anchor := citedClause(t)
+	type printed struct {
+		Result struct {
+			Contradiction *struct {
+				ID       string `json:"id"`
+				Opened   bool   `json:"opened"`
+				OpenedBy string `json:"opened_by"`
+			} `json:"contradiction"`
+		} `json:"result"`
+	}
+	reading := func(seatID, as string) string {
+		t.Helper()
+		human, err := run(t, "verify", "--run", runDir, "--seat-id", seatID, "--anchor", anchor,
+			"--as", as, "--confidence", "high", "--reason", "read at the leaf")
+		if err != nil {
+			t.Fatalf("%s verify --as %s: %v\n%s", seatID, as, err, human)
+		}
+		return human
+	}
+	asJSON := func(seatID, as string) printed {
+		t.Helper()
+		out, err := run(t, "--json", "verify", "--run", runDir, "--seat-id", seatID, "--anchor", anchor,
+			"--as", as, "--confidence", "high", "--reason", "read at the leaf")
+		if err != nil {
+			t.Fatalf("%s verify --json --as %s: %v\n%s", seatID, as, err, out)
+		}
+		var p printed
+		if err := json.Unmarshal([]byte(out), &p); err != nil {
+			t.Fatalf("verify --json: %v\n%s", err, out)
+		}
+		return p
+	}
+
+	opened := asJSON(lensSeat, "refutes")
+	listed := unansweredContradictions(t, runDir)
+	if len(listed) != 1 {
+		t.Fatalf("%d contradiction(s) on the record after a refuting reading, want 1", len(listed))
+	}
+	if c := opened.Result.Contradiction; c == nil || c.ID != listed[0].ID || !c.Opened || c.OpenedBy != lensSeat {
+		t.Fatalf("the opening reading printed contradiction %+v, want id %s opened by %s", c, listed[0].ID, lensSeat)
+	}
+
+	const joiner = "red-lens-logic"
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", joiner); err != nil {
+		t.Fatal(err)
+	}
+	human := reading(joiner, "absent")
+	if want := "This reading joined contradiction " + listed[0].ID + " (opened by " + lensSeat + ")"; !strings.Contains(human, want) {
+		t.Errorf("the joining reading did not print %q:\n%s", want, human)
+	}
+	if got := unansweredContradictions(t, runDir); len(got) != 1 || got[0].ID != listed[0].ID {
+		t.Fatalf("contradictions after the joining reading = %+v, want the one it joined", got)
+	}
+	// Read after the join, the opening reading still names the contradiction it OPENED: the fold is
+	// read through the reading, so a later reading that moved the contradiction on does not hide it.
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range m.Events {
+		if _, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
+			c, err := record.ContradictionOfReading(runtest.Open(t, runDir), e)
+			if err != nil || c == nil || !c.Opened || strconv.FormatInt(c.ID, 10) != listed[0].ID {
+				t.Errorf("the opening reading, read after the join, names %+v (%v), want contradiction %s opened", c, err, listed[0].ID)
+			}
+			break
+		}
+	}
+
+	const backer = "red-lens-computation"
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", backer); err != nil {
+		t.Fatal(err)
+	}
+	if p := asJSON(backer, "supports"); p.Result.Contradiction != nil {
+		t.Errorf("a supporting reading printed contradiction %+v, want none", p.Result.Contradiction)
+	}
+
+	// The printed id is the one a finding raises it by.
+	lensFinding(t, runDir, lensSeat, "k1", "--about-kind", "contradiction", "--about", opened.Result.Contradiction.ID)
+	if got := unraisedClaims(t, runDir); len(got) != 0 {
+		t.Errorf("unraised contradictions = %q after the finding naming the printed id, want none", got)
+	}
+}
+
+// The opening reading's human line names the id it opened, and a supporting one names no
+// contradiction.
+func TestAVerifyPrintsTheContradictionItOpens(t *testing.T) {
+	runDir, anchor := citedClause(t)
+	out, err := verifyAs(t, runDir, anchor, "refutes")
+	if err != nil {
+		t.Fatalf("verify: %v\n%s", err, out)
+	}
+	line, _, _ := strings.Cut(out, "\n")
+	if want := "This reading opened contradiction " + unansweredContradictions(t, runDir)[0].ID; !strings.Contains(line, want) {
+		t.Errorf("the opening reading's line does not say %q:\n%s", want, out)
+	}
+
+	runDir, anchor = citedClause(t)
+	out, err = verifyAs(t, runDir, anchor, "supports")
+	if err != nil {
+		t.Fatalf("verify: %v\n%s", err, out)
+	}
+	if line, _, _ := strings.Cut(out, "\n"); strings.Contains(line, "contradiction") {
+		t.Errorf("a supporting reading's line names a contradiction:\n%s", out)
+	}
+}

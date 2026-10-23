@@ -1650,6 +1650,15 @@ func (r *runner) answerContradictions(seatID string) {
 	}
 }
 
+// raisePrinted raises the contradiction a reading printed, by that id, then answers every other
+// contradiction this lens owes.
+func (r *runner) raisePrinted(seatID, printed string) {
+	if printed != "" {
+		r.raiseAndMint(seatID, "--about-kind", "contradiction", "--about", printed)
+	}
+	r.answerContradictions(seatID)
+}
+
 // ownUnansweredRaise is whether finding is seatID's own and raised a contradiction `show evidence`
 // still lists as unanswered: the mint crediting it answers it outside seatID's budget.
 func (r *runner) ownUnansweredRaise(seatID, finding string) bool {
@@ -3640,6 +3649,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				read := claim // the sentence the reading recorded, which the finding below quotes
+				// THE CONTRADICTION THE READING NAMES, from its own output: the raise below names it
+				// by that id, so a reading that stopped printing it fails the run.
+				printed := ""
+				names := func(out string, err error) {
+					if err != nil {
+						return
+					}
+					id, ok := contradictionOf(out)
+					switch contradicting := outcome == "refutes" || outcome == "absent"; {
+					case contradicting && !ok:
+						r.noteActErr("a " + outcome + " reading printed no contradiction: " + firstLine(out))
+					case !contradicting && ok:
+						r.noteActErr("a " + outcome + " reading printed contradiction " + id + ": " + firstLine(out))
+					}
+					printed = id
+				}
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
@@ -3653,6 +3678,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					if err == nil {
 						read = claimOf(out)
 					}
+					names(out, err)
 					r.noteBridge(seatID, outcome, kindless, out, err)
 					// A READING THE DRIVE DOES NOT DRIVE TO BE REFUSED IS ADMITTED: the kindless
 					// bridge is noteBridge's to hold, and a --page is refused as a validation — no
@@ -3674,6 +3700,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						set("--url", fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, corroborations.Add(1))).
 						set("--title", sourceTitle).bare("--json")
 					out, err := c.result()
+					names(out, err)
 					r.noteBridge(seatID, outcome, kindless, out, err)
 					if !kindless && err != nil {
 						r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
@@ -3694,16 +3721,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// — for a verification, the sentence its anchor marks, which for a quarter of the
 				// citations is the edited one — and the contradiction must still read unraised.
 				//
-				// NOW OR LATER. Left on a coin to the lens's next sitting (answerContradictions), the
-				// raise often follows a blue sitting that edited the cited sentence away, and the id
-				// still names it.
+				// NOW OR LATER. Raised now, it is raised by the id the reading printed. Left on a coin
+				// to the lens's next sitting (answerContradictions), the raise often follows a blue
+				// sitting that edited the cited sentence away, and the id still names it.
 				if outcome == "refutes" || outcome == "absent" {
 					switch {
 					case r.coin(40):
 						r.quoteRaisesNothing(seatID, read)
-						r.answerContradictions(seatID)
+						r.raisePrinted(seatID, printed)
 					case r.forceVerified || r.coin(50):
-						r.answerContradictions(seatID)
+						r.raisePrinted(seatID, printed)
 					}
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
@@ -5620,6 +5647,22 @@ func motionIDOf(out string) string {
 }
 
 // claimOf is the claim a --json verify result names, or "".
+// contradictionOf is the id of the contradiction a reading's --json result names, and whether it
+// names one.
+func contradictionOf(out string) (string, bool) {
+	var env struct {
+		Result struct {
+			Contradiction *struct {
+				ID string `json:"id"`
+			} `json:"contradiction"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.Contradiction == nil {
+		return "", false
+	}
+	return env.Result.Contradiction.ID, true
+}
+
 func claimOf(out string) string {
 	var env struct {
 		Result struct {

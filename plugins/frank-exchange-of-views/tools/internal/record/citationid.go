@@ -497,7 +497,7 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 				c.reader, c.since = e.GetSeatId(), ids[i]
 				continue
 			}
-			c := &contradiction{id: ids[i], claim: claim, reader: e.GetSeatId(), anchor: b.GetAnchor(), since: ids[i]}
+			c := &contradiction{id: ids[i], claim: claim, opener: e.GetSeatId(), reader: e.GetSeatId(), anchor: b.GetAnchor(), since: ids[i]}
 			open[claim] = c
 			out = append(out, c)
 		case *recordpb.Finding:
@@ -521,6 +521,48 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 		res[i] = *c
 	}
 	return res
+}
+
+// ReadingContradiction is the contradiction one recorded reading opened or joined: its id, whether
+// the reading opened it, and the seat whose reading opened it.
+type ReadingContradiction struct {
+	ID     int64
+	Opened bool
+	Opener string
+}
+
+// ContradictionOfReading is the contradiction reading — a verify event as its write returned it —
+// opened or joined, read from the record's fold (contradictionsOf) through that reading; nil where
+// the reading opened and joined none (it backs the claim, or could not read the source). The fold
+// stops at the reading so a later seat's reading of the same claim, which joins the contradiction
+// and moves its `since`, does not hide which contradiction this one landed in. The reading is found
+// by its key, which the record holds unique.
+func ContradictionOfReading(run Run, reading *Event) (*ReadingContradiction, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	var at int64
+	if found, err := queryRowAt(db, []any{&at}, `SELECT "id" FROM "events" WHERE "key" = ?`, reading.GetKey()); err != nil {
+		return nil, err
+	} else if !found {
+		return nil, fmt.Errorf("the reading keyed %q is not on the record, so which contradiction it opened or joined cannot be read", reading.GetKey())
+	}
+	evs, win, err := eventsOfAt(db, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	if err != nil {
+		return nil, err
+	}
+	ids := win.IDs(evs)
+	n := 0
+	for n < len(ids) && ids[n] <= at {
+		n++
+	}
+	for _, c := range contradictionsOf(evs[:n], ids[:n]) {
+		if c.since == at {
+			return &ReadingContradiction{ID: c.id, Opened: c.id == at, Opener: c.opener}, nil
+		}
+	}
+	return nil, nil
 }
 
 // requireOpenContradiction refuses a finding's reference to a contradiction that is not open: a
@@ -589,14 +631,14 @@ func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 }
 
 // contradiction is one contradiction red recorded: its id (the events.id of the reading that opened
-// it), the claim, the seat whose reading last joined it — the lens whose act raises it — and where
+// it), the claim, the seat whose reading opened it (opener), the seat whose reading last joined it — the lens whose act raises it — and where
 // that reading sits, which is when the lens came to owe it. anchor is the citation the opening
 // reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it and
 // raiser the seat that recorded that finding; answeredBy is the id of the gap minted from that
 // finding.
 type contradiction struct {
 	id                           int64
-	claim, reader                string
+	claim, opener, reader        string
 	anchor, raisedBy, answeredBy string
 	raiser                       string
 	since                        int64

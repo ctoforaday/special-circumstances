@@ -117,7 +117,8 @@ func newFinding() *cobra.Command {
 		// standing written against the board the sitting opened with is a dispute with a gap that may
 		// already be closed, answered or regraded. The refusal shows what changed.
 		write := func(guards ...record.Guard) error {
-			return seat.AppendPlaced(s, body, findingID, location, findingRefusal, guards...)
+			_, err := seat.AppendPlaced(s, body, findingID, location, findingRefusal, guards...)
+			return err
 		}
 		if about != nil && *about == recordpb.AboutKind_ABOUT_KIND_GAP {
 			err = seat.AppendFresh(s, *aboutRefP, write)
