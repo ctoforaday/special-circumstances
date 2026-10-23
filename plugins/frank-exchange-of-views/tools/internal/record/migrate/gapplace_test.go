@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -127,7 +128,7 @@ func (s *shapeSource) edit(old, new string, exact bool) {
 
 // archived spells every id of a migrated text as the source spelled it, so a fixture written in the
 // archived spelling states what it expects in the spelling it was written in.
-func archived(m *migrate.Manifest, s string) string {
+func archived(m *migration.Manifest, s string) string {
 	for old, id := range m.IDs {
 		s = strings.ReplaceAll(s, id, old)
 	}
@@ -135,7 +136,7 @@ func archived(m *migrate.Manifest, s string) string {
 }
 
 // migrated is the source brought forward, its render, and the edits it carries.
-func (s *shapeSource) migrated() (*migrate.Manifest, string, []*recordpb.BlueEdit, record.Run) {
+func (s *shapeSource) migrated() (*migration.Manifest, string, []*recordpb.BlueEdit, record.Run) {
 	s.t.Helper()
 	to := recordtest.TmpRun(s.t)
 	m, err := migrate.Migrate(s.dir, to, migrate.Entries(), migrate.Options{})

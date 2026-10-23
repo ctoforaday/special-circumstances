@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -294,7 +295,7 @@ func TestAFailedTrialBatchFailsTheMigration(t *testing.T) {
 	if m != nil {
 		t.Errorf("a migration whose trial batch failed returned a manifest, report order %q", m.ReportOrder)
 	}
-	if _, err := os.Stat(filepath.Join(to, "inputs", migrate.ManifestName)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(to, "inputs", migration.ManifestName)); !os.IsNotExist(err) {
 		t.Errorf("a migration whose trial batch failed published a manifest at --to (%v)", err)
 	}
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -293,7 +294,7 @@ func TestAnEmptyToStillExistsWhenTheRenameReplacesIt(t *testing.T) {
 	if !checked {
 		t.Fatal("the rename seam was never called")
 	}
-	if _, err := os.Stat(filepath.Join(to, "inputs", ManifestName)); err != nil {
+	if _, err := os.Stat(filepath.Join(to, "inputs", migration.ManifestName)); err != nil {
 		t.Fatalf("the published run has no manifest: %v", err)
 	}
 }
@@ -440,7 +441,7 @@ func TestARenameThatFailsKeepsTheBuildAndNamesIt(t *testing.T) {
 			if len(left) != 1 {
 				t.Fatalf("want the one kept build, found %v", left)
 			}
-			if _, err := os.Stat(filepath.Join(left[0], "inputs", ManifestName)); err != nil {
+			if _, err := os.Stat(filepath.Join(left[0], "inputs", migration.ManifestName)); err != nil {
 				t.Errorf("the kept build is not a complete run: %v", err)
 			}
 			if _, err := os.Lstat(to); !errors.Is(err, fs.ErrNotExist) {
@@ -450,14 +451,14 @@ func TestARenameThatFailsKeepsTheBuildAndNamesIt(t *testing.T) {
 			if !strings.Contains(msg, left[0]) {
 				t.Errorf("the error does not name the kept build %s: %s", left[0], msg)
 			}
-			if strings.Contains(msg, filepath.Join(to, "inputs", ManifestName)) {
+			if strings.Contains(msg, filepath.Join(to, "inputs", migration.ManifestName)) {
 				t.Errorf("the error names a manifest at --to, which was never published: %s", msg)
 			}
 			if refused {
 				if !strings.Contains(msg, "1 event(s) refused") {
 					t.Errorf("the error does not carry the refusal count: %s", msg)
 				}
-				if !strings.Contains(msg, filepath.Join(left[0], "inputs", ManifestName)) {
+				if !strings.Contains(msg, filepath.Join(left[0], "inputs", migration.ManifestName)) {
 					t.Errorf("the refusal count does not name the kept build's manifest: %s", msg)
 				}
 			}
@@ -667,7 +668,7 @@ func TestAKilledMigrationLeavesToAsItWas(t *testing.T) {
 	if _, err := Migrate(src, to, Entries(), Options{}); err != nil {
 		t.Fatalf("a migration into the same --to after a killed one: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(to, "inputs", ManifestName)); err != nil {
+	if _, err := os.Stat(filepath.Join(to, "inputs", migration.ManifestName)); err != nil {
 		t.Fatalf("the second migration published no run: %v", err)
 	}
 	if after := builds(t, to); !slices.Equal(after, first) {

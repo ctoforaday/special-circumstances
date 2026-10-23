@@ -15,6 +15,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -44,16 +45,7 @@ type remap struct {
 	// word in a seat's prose that equals an archived id — "Q1 revenue", "the G2 summit" — is
 	// rewritten as a reference; nothing can tell the two apart, so each rewrite is kept where a
 	// reader can judge it (the manifest's per-field count, and the archive's golden list).
-	prose []ProseRewrite
-}
-
-// ProseRewrite is one archived id rewritten inside a seat's own wording: the field, the id as
-// archived, the id it became, and the text around it as the source wrote it.
-type ProseRewrite struct {
-	Field   string `json:"field"`
-	Old     string `json:"old"`
-	New     string `json:"new"`
-	Context string `json:"context"`
+	prose []migration.ProseRewrite
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -302,7 +294,7 @@ func (r *remap) respell(field, v string) string {
 			b.WriteString(v[last:loc[0]])
 			b.WriteString(r.ids[old])
 			last = loc[1]
-			r.prose = append(r.prose, ProseRewrite{Field: field, Old: old, New: r.ids[old],
+			r.prose = append(r.prose, migration.ProseRewrite{Field: field, Old: old, New: r.ids[old],
 				Context: around(v, loc[0], loc[1])})
 		}
 		b.WriteString(v[last:])

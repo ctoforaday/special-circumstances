@@ -12,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -140,7 +141,7 @@ func TestMigrateRunWrittenByThisBinaryKeepsNewFields(t *testing.T) {
 }
 
 // migratedPass is the one PASS gate on a migrated record, and the family it reads from.
-func migratedPass(t *testing.T, archive string) (*migrate.Manifest, record.Family, *recordpb.Gate, record.Run) {
+func migratedPass(t *testing.T, archive string) (*migration.Manifest, record.Family, *recordpb.Gate, record.Run) {
 	t.Helper()
 	res, dst := migrateArchive(t, archive)
 	if len(res.Refusals) != 0 {
@@ -339,7 +340,7 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 		}
 		return out
 	}
-	common := func(t *testing.T, name string) (*migrate.Manifest, string, map[string][2]string) {
+	common := func(t *testing.T, name string) (*migration.Manifest, string, map[string][2]string) {
 		res, dir := migrate.MigratedArchive(t, name)
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%d refusal(s); the first: %+v", len(res.Refusals), res.Refusals[0])
@@ -371,7 +372,7 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 				t.Errorf("mint %s migrated stamped %q; the source stamped %q", id, got[id][1], s[1])
 			}
 		}
-		if want := []migrate.ClassTranslation{{From: "audited-artifact-sibling-halo", To: "verification_scope_blindspot", Mints: 1}}; !slices.Equal(res.ClassTranslations, want) {
+		if want := []migration.ClassTranslation{{From: "audited-artifact-sibling-halo", To: "verification_scope_blindspot", Mints: 1}}; !slices.Equal(res.ClassTranslations, want) {
 			t.Errorf("class_translations = %+v, want %+v", res.ClassTranslations, want)
 		}
 		if len(res.StatedFills) != 0 {
@@ -406,7 +407,7 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 			if got[id] != w {
 				t.Errorf("%s (%s, %s) migrated as %v, want %v", archived, slug, id, got[id], w)
 			}
-			if !slices.ContainsFunc(res.StatedFills, func(f migrate.StatedFill) bool {
+			if !slices.ContainsFunc(res.StatedFills, func(f migration.StatedFill) bool {
 				return f.Where == "mint "+id && f.Slug == slug && f.Value == w[1]
 			}) {
 				t.Errorf("no stated fill names %s's stamp", id)
@@ -417,7 +418,7 @@ func TestTheGapClassMigratesOntoTheEnum(t *testing.T) {
 		}
 		var guardrail bool
 		for _, r := range res.ClassTranslations {
-			if r == (migrate.ClassTranslation{From: "guardrail-scope-overclaim", To: "partial_control_coverage", Mints: 3}) {
+			if r == (migration.ClassTranslation{From: "guardrail-scope-overclaim", To: "partial_control_coverage", Mints: 3}) {
 				guardrail = true
 			}
 			if r.From == "structure-noncompliance" {

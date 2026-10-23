@@ -14,6 +14,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -144,7 +145,7 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 
 // migratedID is the id a migration gives an archived id that kept no hex of its own: the kind's
 // letter, then the first eight hex of sha256(source hash ‖ archived id).
-func migratedID(res *migrate.Manifest, letter, archived string) string {
+func migratedID(res *migration.Manifest, letter, archived string) string {
 	sum := sha256.Sum256([]byte(res.SourceHash + archived))
 	return fmt.Sprintf("%s-%x", letter, sum[:4])
 }

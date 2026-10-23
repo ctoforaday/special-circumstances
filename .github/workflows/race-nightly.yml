@@ -1,7 +1,7 @@
 ---
 # THE WHOLE GRAPH UNDER THE RACE DETECTOR, ONCE A DAY.
 #
-# The pull-request gate (`hooks`, feov-record job) races the tests in the shipped binary's
+# The pull-request gate (`hooks`, feov-record job) races the tests in the shipped binaries'
 # import graph that start a goroutine, and proves every start in a non-test file was executed.
 # It finds those starts by type information, and there are two it cannot find:
 #
@@ -70,11 +70,11 @@ jobs:
       # -timeout=30m per package: a test timeout catches a HANG, and Go's default of ten
       # minutes was catching a correct serial suite instead — internal/cli took 435s under
       # -race on an idle box. scripts/check holds every race leg to this bound (raceTimeout).
-      - name: the feov-record binary's whole import graph, under the race detector
+      - name: the shipped binaries' whole import graph, under the race detector
         shell: bash
         env:
           CGO_ENABLED: "1"
         run: |
-          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          pkgs="$(go list -deps ./cmd/... | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
           test -n "$pkgs"
           echo "$pkgs" | xargs go test -race -timeout=30m

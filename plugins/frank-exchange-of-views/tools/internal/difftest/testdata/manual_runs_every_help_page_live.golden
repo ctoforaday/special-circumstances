@@ -1211,7 +1211,7 @@ Flags:
 $ manual --seat-id operator
 exit 0
 stdout:
-feov-record manual — the operator surface, seat operator: 17 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); what every page would say the same way is said once, before SHARED; a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+feov-record manual — the operator surface, seat operator: 16 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); what every page would say the same way is said once, before SHARED; a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -1256,7 +1256,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here. A page carries a marker ending `→ SHARED §n` exactly where the block was: alone on its line the marker stands for the whole block, and at the end of a flag's line it stands for the rest of that flag's description. A block labelled the last block of its pages is not marked on them:
-§1 (the last block of 16 pages — every page below that carries no marker for it):
+§1 (the last block of 15 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -1295,7 +1295,6 @@ Available Commands:
   graph          render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
   help           Help about any command
   manual         render a surface's commands, each with its own help, run live — for generating a seat's constitution
-  migrate        replay an old record through this binary's write path into a fresh run (the source is never modified)
   ocr            render a scanned document's pages and read them with the local OCR engine
   ops            ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)
   scorecard      print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS; no seat surface carries a scorecard view
@@ -1365,25 +1364,6 @@ graph replays <run>'s record and prints its shape — the seats that ran per epo
 
 Flags:
       --format string   output format: mermaid (markdown, renders natively) | dot (graphviz) (default "mermaid")
-========
-$ feov-record migrate --help
-migrate reads an old run's record — including a vocabulary this binary's readers refuse — translates each event through the authored registry, and replays them in order through the current write path under the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record this binary could have written; run channels (inputs, proofs) copy verbatim, and inputs/migration.json records what was translated, refused, and accepted as loss. A refusal exits non-zero and is the tool's OUTPUT — there is no flag that skips validation.
-
-THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, from transcripts that are not part of a run, so the record holds the only copy of them and the manifest states how many came over. The manifest also states the epoch the source declared beside the one this binary wrote, so the move the migration exists to make is a fact you can read rather than infer.
-
-THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`), where that moves whole sections and nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its author's order. The manifest's report_order says which: no_report, in_order, reordered, as_written.
-
-THE RUN IS BUILT BESIDE --to AND MOVED INTO PLACE WHEN IT IS COMPLETE. It is built in a directory named .<name>.migrating-<random> next to --to, its files are synced, and it is then moved onto --to, so an interrupted migration leaves --to as it was (on Windows, a --to that was an empty directory may be absent). Its directory entries are synced where the filesystem allows — best effort: a directory that could not be synced is a warning on stderr, and on Windows none are. A leftover .<name>.migrating-<random> directory beside --to is what an interrupted migration left behind; nothing reads it and nothing removes it, and it is safe to delete by hand when no migration is running.
-
---to must be absent, or an empty plain directory — not a link, a junction or a mount point — in a parent you can write, with a base name short enough to take the .migrating-<random> suffix. A separated record root (FEOV_RECORD_ROOT set) is refused. An existing empty --to is REPLACED, not filled: its mode, owner and attributes become the new directory's. On Unix a shell sitting in it is left in the old directory until it changes directory; on Windows a directory in use cannot be removed, so the move fails after the build and the built run is kept beside --to.
-
-Usage:
-  feov-record migrate --from <oldRunDir> --to <newRunDir> [flags]
-
-Flags:
-      --accept-loss strings   accept a registry-documented loss for exactly this word (repeatable); the acceptance lands in the manifest
-      --from string           the old run directory (its records/record.db file set is read from a copy)
-      --to string             the run directory to publish — absent, or an empty plain directory (not a link, junction or mount point) in a writable parent; an empty one is replaced
 ========
 $ feov-record ocr --help
 ocr operates on a document `fetch` has already cached. `ocr pages` rasterises the document and names the images; `ocr read` runs the local OCR engine over them and records the reading. A document whose text layer was already extracted is refused unless --force, because reading pixels re-derives, less accurately, what a file already says.
