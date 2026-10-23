@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -28,19 +27,8 @@ type actRow struct {
 
 func actFixture(t *testing.T) string {
 	t.Helper()
-	runDir := newRun(t)
-	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
-		// The bench owes an OCCASION and no other seat may pass one — ask the same question the
-		// write path asks rather than keeping a list of which ids are the bench.
-		args := []string{"register", "--run", runDir, "--seat-id", id}
-		if record.SeatOwesOccasion(id) {
-			args = append(args, "--occasion", "docket")
-		}
-		if _, err := run(t, args...); err != nil {
-			t.Fatalf("register %s: %v", id, err)
-		}
-	}
-	seedBlueReport(t, runDir)
+	runDir := castRun(t)
+	castSeats(t, runDir)
 	if g := mintGap(t, runDir, "corr-seed", "spec_underspecification"); g != onlyID(t, runDir, "G") {
 		t.Fatalf("the fixture mints %s and the run holds another gap — every row names the one gap as G1", g)
 	}
@@ -165,12 +153,12 @@ func actRows() map[string]actRow {
 		}},
 		"chair carry": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) actVars {
-				closeG1(t, runDir, "closed in the first sitting")
+				closeG1(t, runDir, "closed in the chair's second sitting (epoch 2)")
 				must(t, runDir, "register", "--seat-id", "red-chair")
 				return nil
 			},
 			act: func(_ actVars, text string) []string {
-				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", text}
+				return []string{"carry", "--id", "G1", "--carried-from", "2", "--as", "repaired", "--reason", text}
 			}},
 		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
 			return []string{"spot-check", "--reason", text}

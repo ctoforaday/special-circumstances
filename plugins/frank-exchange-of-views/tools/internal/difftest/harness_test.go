@@ -62,6 +62,11 @@ type scenario struct {
 	cmds []cmd
 	// files written into the run dir before the scenario (registry, prose payloads).
 	seed map[string]string
+	// cast, when set, is the run's cast, written under the harness seat before any seat
+	// registers — as setup does. A scenario that drives the chair's verdict needs one: the verdict
+	// folds the dispatch plan, and a plan is folded only on a record holding a cast. Opt-in, so a
+	// scenario that never asks for a plan keeps the cast-less board its golden was recorded on.
+	cast []string
 }
 
 // repoRoot used to count five `..` from this package's own directory, which made the depth a
@@ -153,10 +158,12 @@ type nonceMapper struct {
 	ids   map[string]string
 	real  map[string]string
 	count map[byte]int
+	// planKeys is plan key → placeholder (planKeyRe).
+	planKeys map[string]string
 }
 
 func newMapper() *nonceMapper {
-	return &nonceMapper{seen: map[string]string{}, ids: map[string]string{}, real: map[string]string{}, count: map[byte]int{}}
+	return &nonceMapper{seen: map[string]string{}, ids: map[string]string{}, real: map[string]string{}, count: map[byte]int{}, planKeys: map[string]string{}}
 }
 
 // observe scans for shards that appeared since the last call and numbers them.
@@ -211,8 +218,26 @@ func (m *nonceMapper) normalize(s string) string {
 	for raw, placeholder := range m.seen {
 		s = strings.ReplaceAll(s, raw, placeholder)
 	}
+	s = planKeyRe.ReplaceAllStringFunc(s, func(match string) string {
+		g := planKeyRe.FindStringSubmatch(match)
+		p, ok := m.planKeys[g[2]]
+		if !ok {
+			p = fmt.Sprintf("PLANKEY%03d", len(m.planKeys)+1)
+			m.planKeys[g[2]] = p
+		}
+		return g[1] + p + g[3]
+	})
 	return sortNonceLists(s)
 }
+
+// planKeyRe matches a dispatch plan's key where a plan is printed: the plan's first field, before
+// its head — bare in the chair's stdout, escaped where the record stores the printed plan.
+//
+// THE KEY IS A HASH OF THE PLAN AS PRINTED, and the plan names gaps by their random ids, so the key
+// differs on every run. It becomes a placeholder by first appearance, which keeps what the golden
+// is about: two plans that decide the same carry one key, and the key the chair relays is the key
+// the record stores.
+var planKeyRe = regexp.MustCompile(`(\\?"key\\?":\\?")([0-9a-f]{16})(\\?",\\?"head\\?":)`)
 
 // resolve is the reverse, for a command's arguments: each placeholder the scenario has already
 // been shown becomes the id it stands for. One the mapping does not hold names nothing yet, and

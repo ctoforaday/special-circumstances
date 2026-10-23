@@ -158,7 +158,7 @@ func enumWord(t *testing.T, at string, e protoreflect.EnumDescriptor, v any) {
 // false_universal and the catch-all; epoch 2 is a chair sitting that minted nothing, where every
 // list the tree promises is `[]` and both rates are `null`. Every value an enum supplies is a word.
 func TestTelemetryHelpTreeMatchesAnEmittedLine(t *testing.T) {
-	runDir := newRun(t)
+	runDir := castRun(t)
 	if _, err := mintClass(t, runDir, "k1", "false_universal", "high", ""); err != nil {
 		t.Fatalf("mint false_universal: %v", err)
 	}

@@ -13,7 +13,7 @@ import (
 
 // WithKey is p carrying its key: the first sixteen hex of the sha256 of p as printed, with the key
 // itself empty and every field the declaration leaves out of the key (PlanField.Unkeyed) at its
-// zero. Those fields say when the plan was asked — the epoch moves at every chair sitting — so a
+// zero. Those fields say when the plan was asked, or what the sitting asking did — the epoch moves at every chair sitting — so a
 // key over them would never repeat, and the engine's no-progress valve, which compares keys, would
 // never stop a run whose plan is otherwise the same sitting after sitting.
 func (p Plan) WithKey() Plan {

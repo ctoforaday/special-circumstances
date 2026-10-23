@@ -72,13 +72,13 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 		switch {
 		case seatclass.RoleOfSeat(seatID) == "chair":
 			if strings.Contains(label, "#1 ") || strings.HasSuffix(label, "#1") {
-				e["plan"] = plan(engaged, false, docket)
+				e.Relay(plan(engaged, false, docket))
 				if len(engaged) == 0 {
-					e["plan"] = plan([]any{}, true, []any{})
+					e.Relay(plan([]any{}, true, []any{}))
 					e["verdict"] = "PASS"
 				}
 			} else {
-				e["plan"] = plan([]any{}, true, []any{})
+				e.Relay(plan([]any{}, true, []any{}))
 				e["verdict"] = "PASS"
 			}
 		}

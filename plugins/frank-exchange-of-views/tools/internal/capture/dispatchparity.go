@@ -3,6 +3,7 @@ package capture
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -227,17 +228,18 @@ func noJournalNote() string {
 	return " — no workflow journal, so the relayed plans were NOT compared with the plans the record stored"
 }
 
-// relayedPlans is every chair result's plan in the journal, in journal order.
+// relayedPlans is every chair result's plan in the journal, in journal order. The chair's envelope
+// IS the plan: the plan's fields at its top level, and beside them `notes`, the chair's line to the
+// operator, which is the engine's and no field of the plan.
 func relayedPlans(results []map[string]any) []map[string]any {
 	var out []map[string]any
 	for _, r := range results {
-		plan, ok := r["plan"].(map[string]any)
-		if !ok {
+		if _, ok := r["parties"].([]any); !ok {
 			continue
 		}
-		if _, ok := plan["parties"].([]any); ok {
-			out = append(out, plan)
-		}
+		plan := maps.Clone(r)
+		delete(plan, "notes")
+		out = append(out, plan)
 	}
 	return out
 }
