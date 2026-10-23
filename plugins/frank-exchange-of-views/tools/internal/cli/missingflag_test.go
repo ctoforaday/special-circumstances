@@ -25,19 +25,19 @@ func TestAMissingRequiredFlagIsRefusedInAFewLines(t *testing.T) {
 	if stdout != "" {
 		t.Errorf("the refusal wrote to stdout: %s", stdout)
 	}
-	if !strings.HasPrefix(stderr, InvokedAs()+": close: requires --reason, --verified-against, --verified-by, --verified-with\n") {
+	if !strings.HasPrefix(stderr, InvokedAs()+": close: requires --as, --reason, --verified-against, --verified-by, --verified-with\n") {
 		t.Errorf("the refusal does not open with the flags owed, by name:\n%s", stderr)
 	}
 	// EACH MISSING FLAG'S OWN USAGE LINE, read off the flag: the name alone says a word was missed
 	// and nothing about what the word wants.
 	closeCmd := cmdAt(NewRootFor("red-lens-evidence"), []string{"close"})
-	for _, name := range []string{"reason", "verified-against", "verified-by", "verified-with"} {
+	for _, name := range []string{"as", "reason", "verified-against", "verified-by", "verified-with"} {
 		if u := closeCmd.Flags().Lookup(name).Usage; !strings.Contains(stderr, "--"+name+" ") || !strings.Contains(stderr, u) {
 			t.Errorf("the refusal does not carry --%s's usage line (%q):\n%s", name, u, stderr)
 		}
 	}
-	// AND NOT THE FLAGS THE CALL DOES NOT OWE: --id was passed, --as is optional.
-	for _, name := range []string{"--id ", "--as ", "--superseded-by "} {
+	// AND NOT THE FLAGS THE CALL DOES NOT OWE: --id was passed, --superseded-by is optional.
+	for _, name := range []string{"--id ", "--superseded-by "} {
 		if strings.Contains(stderr, name) {
 			t.Errorf("the refusal lists %s, which this call does not owe:\n%s", name, stderr)
 		}

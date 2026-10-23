@@ -168,7 +168,7 @@ Closing on verification done THIS sitting is the originating lens's `close`, not
 IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap.
 
 Flags:
-      --as as-value            HOW the gap ended — the same words the bench's dispositions use
+      --as as-value            REQUIRED — HOW the gap ended — the same words the bench's dispositions use
       --carried-from string    REQUIRED — the epoch (chair sitting) whose closure this restates
       --id gap-id              REQUIRED — the gap id
       --reason string          your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. → SHARED §4

@@ -48,8 +48,9 @@ func OccasionWords() []string { return recordpb.Words(recordpb.Occasion(0).Descr
 //
 // The messages name the seat and the whole vocabulary, because the seat reading them is mid-sitting
 // and the alternative is another round trip to `--help` for a four-word list.
+//
+// The word is taken as typed: " docket " is not an occasion, and the tool does not trim it into one.
 func checkOccasion(seatID, word string) (*recordpb.Occasion, error) {
-	word = strings.TrimSpace(word)
 	owes := SeatOwesOccasion(seatID)
 	if word == "" {
 		if owes {
