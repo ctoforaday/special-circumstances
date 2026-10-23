@@ -94,7 +94,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s adm
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s argument to the bench on one docketed gap — its minting lens''s or blue-respond''s');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
@@ -108,7 +108,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion fil
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into its sitting');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair''s argument to the bench on what is about no one gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');

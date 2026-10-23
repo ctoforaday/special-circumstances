@@ -250,7 +250,7 @@ enum EventType {
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
   EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
@@ -274,7 +274,7 @@ enum EventType {
   reserved 21;
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
-  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into its sitting"];
+  EVENT_TYPE_POSITION = 23 [(means) = "the chair's argument to the bench on what is about no one gap"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
   EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];

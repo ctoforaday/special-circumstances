@@ -23,6 +23,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 	// The EMPTY BODY of each type, which is what "discharged by nothing" means once the payload
 	// map is gone: every prose field unset, and the verb still claiming the duty is met.
 	for _, tc := range []struct {
+		seat string
 		typ  recordpb.EventType
 		body proto.Message
 		want string
@@ -30,12 +31,12 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 		// TYPED BUT WORDLESS. The type is required too, so an entirely empty body is refused for
 		// the type before the prose is ever reached; this case is about the PROSE, so it supplies
 		// a type and leaves the words out.
-		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}, "--reason"},
-		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}, "--reason"},
-		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
+		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}, "--reason"},
+		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}, "--reason"},
+		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
 	} {
 		t.Run(recordpb.Word(tc.typ), func(t *testing.T) {
-			err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", tc.typ, tc.body)
+			err := validateRun(mustRun(t, recordtest.TmpRun(t)), tc.seat, tc.typ, tc.body)
 			if err == nil {
 				t.Fatalf("%s with no reason was accepted — it records an empty event and counts as discharged", recordpb.Word(tc.typ))
 			}
@@ -50,14 +51,15 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 	// EACH TYPE'S OWN BODY, so each case validates the message its verb writes.
 	prose := proto.String("what I reached for and what happened")
 	for _, c := range []struct {
+		seat string
 		typ  recordpb.EventType
 		body proto.Message
 	}{
-		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}},
-		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}},
-		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
+		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}},
+		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}},
+		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
 	} {
-		if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", c.typ, c.body); err != nil {
+		if err := validateRun(mustRun(t, recordtest.TmpRun(t)), c.seat, c.typ, c.body); err != nil {
 			t.Errorf("%s with a reason was refused: %v", recordpb.Word(c.typ), err)
 		}
 	}

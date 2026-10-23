@@ -641,7 +641,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The chair's register opens epoch 1; everything below sits in it.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
-		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("gap A repaired")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
@@ -676,7 +676,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 	d := debateT(t, evs)
 	for _, want := range []string{
-		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE\ngap A repaired",
+		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE CLOSING — G1\ngap A repaired",
 		"G1: remanded",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second

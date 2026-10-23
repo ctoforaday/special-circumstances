@@ -118,7 +118,7 @@ export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judg
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)
     if (label.startsWith('blue-respond')) return take(blueRespond)
-    return 'synopsis'
+    return 'sat'
   }
 }
 

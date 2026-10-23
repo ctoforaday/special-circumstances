@@ -98,9 +98,10 @@ func TestABatchUndoesARefusedActWrittenPastItsEventsRow(t *testing.T) {
 func TestABatchTakesTheActAfterOneValidationRefused(t *testing.T) {
 	run := corrRun(t)
 	blue := sit(t, run, "blue-respond")
+	chair := sit(t, run, "red-chair")
 	migrating(t)
 	b := mustBegin(t, run)
-	_, err := b.Append(blue, &recordpb.Position{})
+	_, err := b.Append(chair, &recordpb.Position{})
 	mustRefuse(t, err, "requires --reason")
 	if errors.Is(err, ErrBatchFailed) {
 		t.Fatalf("a refused act was reported as the batch's failure: %v", err)

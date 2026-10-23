@@ -1,10 +1,11 @@
 // Package chair is the red chair's contract: the seat that RUNS the debate.
 //
 // The chair reads the board through `dispatch next` and the record says who sits; it issues the
-// verdict when the board permits one, files closing arguments on docketed gaps, spot-checks the
+// verdict when the board permits one, argues in its position why it withheld one, spot-checks the
 // archive and carries closures the archive already holds. It mints nothing and closes nothing:
 // a gap is its lens's from mint to close (plans/roundless.md §III.B.3), and the chair is party to
-// no exchange — which is what makes per-dispute dispatch save chair sittings rather than add them.
+// no exchange and no dispute — so it files no closing, and per-dispute dispatch saves chair
+// sittings rather than adding them.
 package chair
 
 import (
@@ -22,8 +23,7 @@ func Verbs() []*cobra.Command {
 		newCarry(),
 		newSpotCheck(),
 		newInquiry(),
-		seat.Position("position-red"),
-		seat.Closing("closing-red"),
+		seat.Position(),
 		newVerdict(),
 		newDispatch(),
 		seat.Log(),

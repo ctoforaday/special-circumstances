@@ -1302,23 +1302,19 @@ func debate(fam record.Family) string {
 		// recordpb/required.go ("the closing argument for this gap").
 		for _, l := range re {
 			e := l
-			party := record.PartyOf(e)
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
+			// record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				switch party {
-				case "chair":
-					epoch = append(epoch, redHead+"\n"+p.GetText())
-				case "blue":
-					epoch = append(epoch, "### BLUE\n"+p.GetText())
-				}
+				epoch = append(epoch, redHead+"\n"+p.GetText())
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				switch party {
-				case "chair":
-					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
-				case "blue":
-					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+				side := "RED"
+				if record.PartyOf(e) == "blue" {
+					side = "BLUE"
 				}
+				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), c.GetText()))
 				continue
 			}
 			// THE SPOT-CHECK IS PART OF RED'S ARGUMENT: a defect the chair finds in a stale area is

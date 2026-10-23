@@ -27,8 +27,8 @@ import (
 // seats and stay on the record; they are where the run's part of a finding goes, so refusing process
 // words there would close the one channel the refusal points to.
 //
-// Both checks exempt themselves under Migrating, each beside the refusal it gates: an archived mint
-// or corroboration is what a seat DID, and migration does not re-judge it under a rule it predates.
+// The mint's check exempts itself under Migrating, beside the refusal it gates: an archived mint is
+// what a seat DID, and migration does not re-judge it under a rule it predates.
 
 // reportSpan is one field of red's text that the report prints, named by the flag that sets it.
 type reportSpan struct{ flag, text string }
@@ -68,8 +68,7 @@ func refuseMintReportVoice(m *recordpb.Mint) error {
 // unlabelled one — a refutation, an absence, an unreachable source — is no footnote, so its title
 // stays on the record and is not checked.
 func refuseCorroborationTitleVoice(v *recordpb.Verify) error {
-	// The same exemption as the mint's: an archived corroboration's title is what a seat wrote.
-	if Migrating || v.GetLabel() == "" {
+	if v.GetLabel() == "" {
 		return nil
 	}
 	hits := refusedTells(reportSpan{"--title", v.GetTitle()})
