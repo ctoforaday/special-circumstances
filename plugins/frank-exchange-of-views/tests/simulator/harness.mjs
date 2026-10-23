@@ -62,11 +62,7 @@ export function makeWorld(respond) {
 }
 
 // Canned envelopes, schema-shaped.
-export const blueEnv = (over = {}) => ({
-  path: 'blue/report.md', tldr: 'tldr',
-  manifest: ['G-00000001'],
-  open_questions: [], ...over,
-})
+export const blueEnv = (over = {}) => ({ manifest: ['G-00000001'], ...over })
 // THE CHAIR RELAYS THE RECORD (plans/roundless.md §III.B.1): its envelope carries the plan `dispatch
 // next` printed. A stubbed chair is a stubbed plan; the default sequence is one sitting that engages
 // the evidence lens and blue on G-00000001, then one with nobody ready and PASS permitted, on which the chair
@@ -93,7 +89,9 @@ export const withKey = (p) => ({ key: createHash('sha256').update(JSON.stringify
 export const plan = (parties = [], over = {}) => withKey({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G-00000001: at impasse, ruled remanded — at its limit'], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
-export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over })
+// chairEnv is a chair's envelope: the envelope IS the plan, so the plan given as `plan` is spread to
+// its top level, and every other key given (the plan's `verdict`, the chair's `notes`) sits beside it.
+export const chairEnv = ({ plan: p = plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over } = {}) => ({ ...p, ...over })
 export const passChair = (over = {}) => chairEnv({ plan: passPlan(), verdict: 'PASS', ...over })
 export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
@@ -131,11 +129,15 @@ export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judg
 // IT REFUSES A KEYWORD IT DOES NOT IMPLEMENT. A validator that skips what it cannot read accepts
 // everything that keyword would have refused, and reports agreement between a schema and a check
 // it never applied.
-const SCHEMA_KEYWORDS = new Set(['type', 'required', 'properties', 'items', 'enum', 'anyOf', 'minItems', 'maxItems', 'minimum', 'pattern', 'additionalProperties', 'description'])
+const SCHEMA_KEYWORDS = new Set(['type', 'required', 'properties', 'items', 'enum', 'anyOf', 'if', 'then', 'else', 'minItems', 'maxItems', 'minimum', 'pattern', 'additionalProperties', 'description'])
 const jsonTypeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : Number.isInteger(v) ? 'integer' : typeof v)
 export function schemaAccepts(schema, v) {
   for (const k of Object.keys(schema)) if (!SCHEMA_KEYWORDS.has(k)) throw new Error(`schemaAccepts: the schema uses \`${k}\`, which this validator does not implement — teach it the keyword before trusting its answer`)
   if (schema.anyOf && !schema.anyOf.some((s) => schemaAccepts(s, v))) return false
+  if (schema.if) {
+    const branch = schemaAccepts(schema.if, v) ? schema.then : schema.else
+    if (branch && !schemaAccepts(branch, v)) return false
+  }
   const t = jsonTypeOf(v)
   if (schema.type !== undefined) {
     const types = Array.isArray(schema.type) ? schema.type : [schema.type]
@@ -165,7 +167,7 @@ export function schemaAccepts(schema, v) {
 // that a keyword sits where no `type` licenses it. The rules, from ajv's checkStrictTypes:
 //   - a keyword that applies to one JSON type (minItems to arrays, required to objects, …) needs
 //     that type in the schema's `type`, or in the type of the schema it is applied beside;
-//   - an anyOf branch reads the same value, so it inherits its parent's type; a property's or an
+//   - an anyOf branch, and an if/then/else branch, reads the same value, so it inherits its parent's type; a property's or an
 //     item's schema reads a new value, and inherits none;
 //   - a branch's `type` must be one its context allows;
 //   - a `type` names one type, or one type and null.
@@ -195,5 +197,6 @@ export function strictTypesWarnings(schema, path = '#', context = []) {
   for (const [k, sub] of Object.entries(schema.properties || {})) warn.push(...strictTypesWarnings(sub, `${path}/properties/${k}`))
   if (schema.additionalProperties && typeof schema.additionalProperties === 'object') warn.push(...strictTypesWarnings(schema.additionalProperties, `${path}/additionalProperties`))
   for (const [i, sub] of (schema.anyOf || []).entries()) warn.push(...strictTypesWarnings(sub, `${path}/anyOf/${i}`, dataTypes))
+  for (const k of ['if', 'then', 'else']) if (schema[k]) warn.push(...strictTypesWarnings(schema[k], `${path}/${k}`, dataTypes))
   return warn
 }

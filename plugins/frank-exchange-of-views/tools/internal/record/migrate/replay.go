@@ -313,6 +313,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
+				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 			}
 			// A FINDING ABOUT A CONTRADICTION NAMES IT BY events.id — the reading that opened it —
 			// and is translated as the pin is: through the id of the event that reading was written

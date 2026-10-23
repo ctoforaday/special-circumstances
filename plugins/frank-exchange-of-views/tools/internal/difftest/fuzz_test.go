@@ -211,7 +211,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	// must be released before cleanup removes the directory — or Windows cannot remove it.
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
-	prepareRun(t, bin, runDir, m, nil)
+	prepareRun(t, bin, runDir, m, nil, nil)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
 	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
 	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, manifest-row, both
