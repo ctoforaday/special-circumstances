@@ -387,6 +387,9 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
+	// copiesRead counts, per reading verb, the copy words its results named (noteCopy). The sweep
+	// gates that corroborate named every seeded copy and verify a substituted one.
+	copiesRead map[string]map[string]int
 	// fragmentsDriven counts the cites driven to be refused for a span that starts mid-clause
 	// (sourceFragment); refuse holds each to the refusal. bogusSpans alternates the two refused
 	// spans with no draw of its own. The sweep gates fragmentsDriven at zero.
@@ -3672,9 +3675,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					if paged {
 						v = v.set("--page", "1")
 					}
+					// THE COPY THE READING NAMES IS THE ONE ITS CITATION'S SOURCE ROW NAMES: the sweep
+					// never clears the cache and the first entry for a url is the one every read
+					// returns, so a reading and the act that placed the citation resolve to one copy.
+					wantCopy, wantCopyURL, cited := r.citationCopy(anchor)
 					out, err := v.result()
 					if err == nil {
 						read = claimOf(out)
+						if cited {
+							r.noteCopy("verify", out, wantCopy, wantCopyURL)
+						}
 					}
 					names(out, err)
 					r.noteBridge(seatID, outcome, kindless, out, err)
@@ -3694,10 +3704,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				} else {
 					// A FRESH SOURCE EACH TIME: a corroboration is one per source and claim, so the
 					// drive's own retry below is the only repeat it makes.
+					// AND A COPY OF IT IN THE CACHE, turned through every route by which the cache
+					// answers a url with another's bytes, and sometimes none: the reading records it.
+					url := fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, corroborations.Add(1))
+					wantCopy, wantCopyURL := r.seedCopy(url)
 					c := axes(r.do("corroborate", seatID)).set("--quote", claim).
-						set("--url", fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, corroborations.Add(1))).
+						set("--url", url).
 						set("--title", sourceTitle).bare("--json")
 					out, err := c.result()
+					if err == nil {
+						r.noteCopy("corroborate", out, wantCopy, wantCopyURL)
+					}
 					names(out, err)
 					r.noteBridge(seatID, outcome, kindless, out, err)
 					if !kindless && err != nil {
@@ -3897,6 +3914,8 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
+	// copiesRead is the copy words each reading verb named (runner.copiesRead).
+	copiesRead map[string]map[string]int
 	// fragmentsDriven is the cites driven to be refused for a span starting mid-clause
 	// (runner.fragmentsDriven).
 	fragmentsDriven int
@@ -5106,6 +5125,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closingsFiled, res.closingsLeft, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsLeft, r.closingWaits, r.positionsWithheld
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
+	res.copiesRead = r.copiesRead
 	res.fragmentsDriven = r.fragmentsDriven
 	res.quotesRefused = r.quotesRefused
 	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
@@ -5846,6 +5866,7 @@ func TestFuzzDebate(t *testing.T) {
 	bridgesRefused, bridgesNamed := 0, 0            // supports_with_bridge refused for no --bridge / recorded with one
 	ordersRefused := 0                              // edits refused for a section out of the order the report ships in
 	spansRefused := 0                               // cites refused for a source span the source's text does not hold
+	copiesRead := map[string]map[string]int{}       // copy words each reading verb named
 	closingsFiled, closingsLeft := 0, 0             // closings filed on a docketed gap, and left unfiled
 	closingWaits := 0                               // plans that kept the bench waiting on a closing
 	positionsWithheld := 0                          // chair sittings that withheld a permitted PASS and argued why
@@ -5935,6 +5956,14 @@ func TestFuzzDebate(t *testing.T) {
 			positionsWithheld += o.positionsWithheld
 			ordersRefused += o.ordersRefused
 			spansRefused += o.spansRefused
+			for verb, words := range o.copiesRead {
+				if copiesRead[verb] == nil {
+					copiesRead[verb] = map[string]int{}
+				}
+				for w, n := range words {
+					copiesRead[verb][w] += n
+				}
+			}
 			fragmentsDriven += o.fragmentsDriven
 			quotesRefused += o.quotesRefused
 			bridgesRefused += o.bridgesRefused
@@ -6113,6 +6142,22 @@ func TestFuzzDebate(t *testing.T) {
 		// refusal of a span the source does not hold is reached only by the drive that types one.
 		if spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", completed)
+		}
+		// THE COPY GATE. A reading records the copy the cache held for its source; corroborate is
+		// driven over every seeded copy, and verify reads the copies those corroborations placed.
+		for _, s := range seededCopies {
+			if copiesRead["corroborate"][s.word] == 0 {
+				t.Errorf("fuzz drove ZERO corroborations of a %s copy across %d runs — the copy a reading records is unexercised for it (false green): %v", s.word, completed, copiesRead)
+			}
+		}
+		substituted := 0
+		for w, n := range copiesRead["verify"] {
+			if w != "none" {
+				substituted += n
+			}
+		}
+		if substituted == 0 {
+			t.Errorf("fuzz drove ZERO verifications of a copy other than the url's own across %d runs — the copy a verification records is unexercised (false green): %v", completed, copiesRead)
 		}
 		// THE SPAN-BOUNDARY GATE. Every other held span is a whole sentence, so the refusal of one
 		// cut from inside a clause is reached only by the drive that types sourceFragment.

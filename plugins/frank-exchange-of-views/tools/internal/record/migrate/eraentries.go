@@ -32,9 +32,7 @@ func eraEntries() Registry {
 	return Registry{
 		// The era's universal `reason` column, renamed onto each body's own prose field.
 		"blue_edit": mapped("blue_edit", ren{"reason": "text"}, nil, nil),
-		"verify": mapped("verify", ren{"reason": "text"}, drops{
-			"independent": "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
-		}, nil),
+		"verify":    {Translate: verifyEntry},
 		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
@@ -282,4 +280,30 @@ func inquiryEntry(renames ren) Entry {
 		}
 		return inner.Translate(old)
 	}}
+}
+
+// verifyEra is the verify word across both eras: the shard era's `reason` is the body's text, and
+// its `independent` restated the empty anchor.
+var verifyEra = mapped("verify", ren{"reason": "text"}, drops{
+	"independent": "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
+}, nil)
+
+// verifyEntry: a verification is kept word for word, and one from before epoch 41 is stamped with
+// copy_substitution not_recorded. Which copy an archived reading was made against is not knowable —
+// the fetch index that held it is not archived — so not_cached, which says the cache held none when
+// red recorded it, and none, which says the url's own bytes, would each claim what nobody checked.
+// No copy_url is written: the residue is that a migrated verification names no copy.
+func verifyEntry(old OldEvent) ([]proto.Message, error) {
+	bodies, err := verifyEra.Translate(old)
+	if err != nil {
+		return nil, err
+	}
+	v, ok := bodies[0].(*recordpb.Verify)
+	if !ok {
+		return nil, fmt.Errorf("verify translated to %T, not a Verify", bodies[0])
+	}
+	if v.CopySubstitution == nil {
+		v.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED.Enum()
+	}
+	return bodies, nil
 }

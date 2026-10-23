@@ -43,7 +43,7 @@ func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 // supports_with_bridge is admitted under Migrating, where an archive before the field holds it.
 func TestABridgeBelongsToSupportsWithBridgeAlone(t *testing.T) {
 	v := func(o recordpb.SourceOutcome, k *recordpb.BridgeKind) *recordpb.Verify {
-		return &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String("C-00000001"), Outcome: o.Enum(), Bridge: k,
+		return &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Claim: proto.String("c"), Anchor: proto.String("C-00000001"), Outcome: o.Enum(), Bridge: k,
 			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
 	}
 	run := mustRun(t, t.TempDir())

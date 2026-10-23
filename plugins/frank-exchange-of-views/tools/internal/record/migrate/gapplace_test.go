@@ -112,7 +112,7 @@ func (s *shapeSource) proof(id, quote string) {
 
 func (s *shapeSource) corroboration(id, quote string) {
 	s.t.Helper()
-	s.add(shapeLens, &recordpb.Verify{Label: proto.String(id), Claim: proto.String(quote), Url: proto.String("https://example.org/" + id),
+	s.add(shapeLens, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Label: proto.String(id), Claim: proto.String(quote), Url: proto.String("https://example.org/" + id),
 		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf")})
 }

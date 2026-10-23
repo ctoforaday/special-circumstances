@@ -12,7 +12,7 @@ import (
 
 // corroboration builds a supporting corroboration of one claim from one source.
 func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *recordpb.Verify {
-	v := &recordpb.Verify{
+	v := &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Url:        proto.String(url),
 		Title:      proto.String("a source red found"),
 		Claim:      proto.String(claim),

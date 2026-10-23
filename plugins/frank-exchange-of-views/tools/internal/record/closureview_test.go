@@ -340,7 +340,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 		Settled: proto.String("st"), Direction: proto.String("new evidence")})
 
 	// The count split: one verify (red's read), one cite (blue's authoring).
-	app(red, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),
+	app(red, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Url: proto.String("https://example.org"), Claim: proto.String("c"),
 		Label: proto.String("v-1"), Title: proto.String("e"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("the source states it plainly")})

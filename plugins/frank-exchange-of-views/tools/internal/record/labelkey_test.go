@@ -21,7 +21,7 @@ func TestALabelKeyedActRepeatsAcrossSittingsButNotWithinOne(t *testing.T) {
 		t.Fatal(err)
 	}
 	verify := func() *recordpb.Verify {
-		return &recordpb.Verify{Anchor: proto.String("s-1"), Claim: proto.String("c"), Text: proto.String("what the source says"),
+		return &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Anchor: proto.String("s-1"), Claim: proto.String("c"), Text: proto.String("what the source says"),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)}
 	}

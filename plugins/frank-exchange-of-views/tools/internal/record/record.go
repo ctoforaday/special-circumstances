@@ -1571,17 +1571,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// renders exactly like a cite of the typed url. copy_url belongs to a substitution — on the
 		// url's own bytes it would name a second place nothing read — and a followed pointer or a
 		// fuller copy is always fetched from somewhere, so either without one is a write that lost it.
-		switch b.GetCopySubstitution() {
-		case recordpb.CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED:
-			return fmt.Errorf("cite carries no copy_substitution — the tool stamps whose bytes the citation read (none, followed_link, recovered, fuller_copy or named_backend) before it writes, and this write skipped that")
-		case recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED:
-			if b.CopyUrl != nil {
-				return fmt.Errorf("cite carries copy_url %q with copy_substitution %s — a copy url names where substituted bytes came from, and this citation records none", b.GetCopyUrl(), recordpb.Word(b.GetCopySubstitution()))
-			}
-		case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY:
-			if b.GetCopyUrl() == "" {
-				return fmt.Errorf("cite carries copy_substitution %s and no copy_url — that route always fetches its bytes from a url, and the tool records it before it writes", recordpb.Word(b.GetCopySubstitution()))
-			}
+		// A citation fetches what it records, so the cache always held its copy: not_cached is a
+		// reading's word and on a cite is a write that lost the entry.
+		if b.GetCopySubstitution() == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED {
+			return fmt.Errorf("cite carries copy_substitution not_cached — cite fetches the source it records, so the cache holds the copy it read, and the tool stamps that copy before it writes")
+		}
+		if err := copyProvenance("cite", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
 		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
@@ -1642,8 +1638,33 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
+		// WHOSE BYTES THE READING WAS MADE AGAINST is the tool's to stamp, as on a cite.
+		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
+		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// copyProvenance holds an act's copy pair to one shape. An unstamped kind renders exactly like the
+// url's own bytes. copy_url belongs to a substitution — beside the url's own bytes, or where the
+// record holds no copy, it would name a place nothing read — and a followed pointer or a fuller
+// copy is always fetched from somewhere, so either without one is a write that lost it.
+func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string) error {
+	switch kind {
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED:
+		return fmt.Errorf("%s carries no copy_substitution — the tool stamps whose bytes were read (none, followed_link, recovered, fuller_copy, named_backend or not_cached) before it writes, and this write skipped that", act)
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED,
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED:
+		if copyURL != nil {
+			return fmt.Errorf("%s carries copy_url %q with copy_substitution %s — a copy url names where substituted bytes came from, and this act records none", act, *copyURL, recordpb.Word(kind))
+		}
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY:
+		if copyURL == nil || *copyURL == "" {
+			return fmt.Errorf("%s carries copy_substitution %s and no copy_url — that route always fetches its bytes from a url, and the tool records it before it writes", act, recordpb.Word(kind))
 		}
 	}
 	return nil
