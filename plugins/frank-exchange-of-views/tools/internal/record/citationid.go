@@ -9,7 +9,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -448,10 +447,10 @@ func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify
 //     first reading of a claim with none open OPENS a contradiction, whose ID is that reading's
 //     events.id. A later reading of the same claim while it is open JOINS it: its seat becomes the
 //     owner, and `since` moves to it, so dispatch readies the new owner. The id does not change.
-//   - A FINDING RAISES the open contradiction it names, by reference (`--about-kind contradiction
-//     --about <id>`), or every open contradiction whose claim its quote contains. Either covers
-//     every reading joined so far. A reading of the claim after the finding opens a NEW
-//     contradiction with its own id: the raise was of what had been read.
+//   - A FINDING RAISES the open contradiction it names by reference (`--about-kind contradiction
+//     --about <id>`), and nothing else: a finding whose quote contains the claim raises nothing.
+//     The raise covers every reading joined so far. A reading of the claim after the finding opens
+//     a NEW contradiction with its own id: the raise was of what had been read.
 //   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding.
 //     A source that contradicts or is silent on a claim is a citation defect, and citation classes
 //     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
@@ -459,19 +458,13 @@ func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify
 //     class then decides its materiality, as for every gap. A gap its RAISER mints this way takes
 //     no mint of that lens's budget (ownAnswersAt).
 //
-// THE REFERENCE IS THE ANSWER THAT SURVIVES AN EDIT. A quote must be the report's text at the
-// write, so once blue edits the contradicted sentence away no finding can quote it — the case that
-// held a PASS for the rest of a run whose report blue had FIXED (plans/v2/01). The id names the
-// reading, which an edit does not move.
+// NAME IT OR IT IS NOT RAISED (gblock, 2026-10-23). The id names the reading, which an edit does
+// not move, so the raise survives blue editing the sentence away. A quote is a placement in the
+// report, not an act about a reading: the tool does not infer which contradiction a finding is
+// about from what its quote happens to contain.
 //
-// QUOTING THE CLAIM IS THE MATCHER'S QUESTION, NOT STRING EQUALITY. Both quotes are placed in the
-// report by anchortext, which reads whitespace runs as one separator and drops trailing
-// punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
-// contradicted clause with the rest of its sentence is about that clause. A finding on PART of
-// the claim, or on another sentence, answers nothing: it does not quote what the source read.
-//
-// THE MATCH IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens found
-// and another raised, which is the collaboration the lens roles exist for.
+// THE REFERENCE IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens
+// found and another raised, which is the collaboration the lens roles exist for.
 //
 // A reading that names a citation carries its anchor, and the anchor's standing answers it too —
 // a retire, or a backing check after an edit (unansweredContradictions). That answer is the
@@ -503,13 +496,6 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 				for _, c := range out {
 					if c.raisedBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
-						raise(c, b.GetId(), e.GetSeatId())
-					}
-				}
-			}
-			if loc := strings.TrimSpace(b.GetLocation()); loc != "" {
-				for _, c := range out {
-					if start, _ := anchortext.LocateSpan(loc, c.claim); c.raisedBy == "" && start >= 0 {
 						raise(c, b.GetId(), e.GetSeatId())
 					}
 				}

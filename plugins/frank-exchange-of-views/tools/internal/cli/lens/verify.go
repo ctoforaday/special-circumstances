@@ -459,9 +459,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// placement check, for every outcome, against the report the act and its Anchor land on; a
 	// refusal records nothing. Where the source backs the claim, the quote is where the citation's
 	// marker stands. Where the source contradicts the claim or is silent on it, the quote is the
-	// subject of a PASS blocker that a finding quoting that sentence answers
-	// (record.unansweredContradictions), and a finding's quote is held to the report by this same
-	// placement — so a quote the report does not hold would be a blocker no seat can clear. A
+	// claim of the contradiction the reading opens (record.contradictionsOf), and a claim the
+	// report does not hold is a reading of nothing. A
 	// verification places nothing and its claim needs no check: the tool read it from the report
 	// (citedSentence), so it is handed no quote to hold.
 	quote := body.GetClaim()
@@ -540,7 +539,7 @@ type verifyResult struct {
 	// Bridge is what a supports_with_bridge reading bridged; absent on every other outcome.
 	Bridge string `json:"bridge,omitempty"`
 	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
-	// anchor, which a finding raising a contradiction quotes whole.
+	// anchor, which a contradiction the reading opens names as its claim.
 	Claim string `json:"claim"`
 	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
@@ -555,7 +554,7 @@ func (r verifyResult) human() string {
 	if r.Anchor == "" {
 		subject = "corroborating source " + r.Source
 	}
-	claim := `"` + r.Claim + `"` // unescaped: a finding copies it as printed
+	claim := `"` + r.Claim + `"` // unescaped: the sentence as the report holds it
 	switch r.Outcome {
 	case "refutes":
 		return subject + " REFUTES the claim " + claim + " — recorded. The report still carries it; that is a finding, and this event is the evidence for it"

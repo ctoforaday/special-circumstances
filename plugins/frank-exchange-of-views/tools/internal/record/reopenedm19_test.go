@@ -117,7 +117,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	// its last sitting (retirement.go).
 	var got []reopened
 	var ready []string
-	raisedOnly := false
+	unraised := false
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
 			if !strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ") {
@@ -126,11 +126,10 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			ready = append(ready, b.Subject)
 			continue
 		}
-		// AND A CONTRADICTION ITS EVIDENCE LENS RAISED AND MINTED NO GAP FROM: the reading at 112,
-		// raised by a finding alone, which answers nothing since the class default wins (gblock,
-		// 2026-10-19).
-		if b.Kind == BlockerContradiction && b.Subject == "112" && b.Owner == evLens && b.raisedBy != "" {
-			raisedOnly = true
+		// AND A CONTRADICTION NO FINDING NAMED: the reading at 112. The archive's finding about it
+		// quotes the claim and names no contradiction, and a quote raises nothing.
+		if b.Kind == BlockerContradiction && b.Subject == "112" && b.Owner == evLens && b.raisedBy == "" {
+			unraised = true
 			continue
 		}
 		if b.Kind != BlockerReopened {
@@ -143,8 +142,8 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		}
 		got = append(got, r)
 	}
-	if !raisedOnly {
-		t.Error("contradiction 112, raised by a finding with no gap minted from it, does not hold the PASS")
+	if !unraised {
+		t.Error("contradiction 112, which no finding named, does not hold the PASS unraised")
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)

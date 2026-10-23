@@ -1662,8 +1662,8 @@ func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
 	args := append([]string{"--json", "finding", "--seat-id", seatID,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise"}, anchorArgs...)
 	out, err := r.exec(args...)
-	// THE LENSES SIT CONCURRENTLY, and any lens's finding quoting a claim raises its
-	// contradiction, so another lens can raise one between this lens's board read and its write.
+	// THE LENSES SIT CONCURRENTLY, and any lens's finding naming a contradiction raises it, so
+	// another lens can raise one between this lens's board read and its write.
 	// A refusal of a raise BY ID is admissible only when the record now holds that contradiction
 	// raised or answered; every other refusal fails the run.
 	if id := contradictionAbout(anchorArgs); id != "" {
@@ -1704,6 +1704,35 @@ func contradictionAbout(anchorArgs []string) string {
 		return ""
 	}
 	return ref
+}
+
+// quoteRaisesNothing files a finding quoting claim and fails the run if any contradiction reads
+// raised by it: only a finding naming a contradiction's id raises it.
+func (r *runner) quoteRaisesNothing(seatID, claim string) {
+	out, err := r.exec("--json", "finding", "--seat-id", seatID, "--quote", claim,
+		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
+	if err != nil {
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		return
+	}
+	var env struct {
+		Result struct {
+			FindingID string `json:"finding_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
+		r.noteActErr("an admitted finding's --json result names no finding_id: " + firstLine(out))
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+		if c.RaisedBy == env.Result.FindingID {
+			r.noteActErr("finding " + env.Result.FindingID + " quoting the claim raised contradiction " + c.ID + ", which it does not name")
+		}
+	}
 }
 
 // contradictionUnraised reports whether the record lists contradiction id as unanswered with no
@@ -3637,21 +3666,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
 				// saying the report asserts what its source does not, and a PASS is refused until
-				// a finding quotes that claim — for a verification, the sentence its anchor marks,
-				// which for a quarter of the citations is the edited one. The tool will not write
-				// the finding itself, because that would mean inventing its three grades. Driving the remedy here is
-				// what makes both the gate and the act that clears it real in the sweep; without
-				// it every run with a negative reading would wedge at the verdict.
+				// a finding naming the contradiction by its id raises it and the gap minted from
+				// that finding answers it. The tool will not write the finding itself, because that
+				// would mean inventing its three grades. Driving the remedy here is what makes both
+				// the gate and the act that clears it real in the sweep; without it every run with a
+				// negative reading would wedge at the verdict.
 				//
-				// BOTH ANSWERS, AND SOMETIMES LATER. A finding quoting the claim answers it while the
-				// report holds the sentence; one naming the contradiction by its id answers it either
-				// way. Left on a coin to the lens's next sitting (answerContradictions), the answer
-				// often follows a blue sitting that edited the cited sentence away — the case a quote
-				// can no longer reach and the id still does.
+				// A QUOTE RAISES NOTHING. On a coin the lens first files a finding quoting the claim
+				// — for a verification, the sentence its anchor marks, which for a quarter of the
+				// citations is the edited one — and the contradiction must still read unraised.
+				//
+				// NOW OR LATER. Left on a coin to the lens's next sitting (answerContradictions), the
+				// raise often follows a blue sitting that edited the cited sentence away, and the id
+				// still names it.
 				if outcome == "refutes" || outcome == "absent" {
 					switch {
 					case r.coin(40):
-						r.raiseAndMint(seatID, "--quote", read)
+						r.quoteRaisesNothing(seatID, read)
+						r.answerContradictions(seatID)
 					case r.forceVerified || r.coin(50):
 						r.answerContradictions(seatID)
 					}
@@ -6032,7 +6064,7 @@ func TestFuzzDebate(t *testing.T) {
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive
 		// that quotes the source's sentence.
 		if quotesRefused == 0 {
-			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
+			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction's claim the report's own sentence is unexercised (false green)", completed)
 		}
 		// THE BRIDGE GATE. supports_with_bridge names what it bridged; a reading naming none is
 		// refused. Both halves must run, or the required value is unexercised behind a green sweep.

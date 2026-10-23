@@ -159,10 +159,10 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
 	}
 
-	// A FINDING QUOTING THE SAME CLAIM CLEARS IT. Red grades its own finding; the tool only
+	// A FINDING NAMING THE CONTRADICTION RAISES IT. Red grades its own finding; the tool only
 	// reports that one is owed.
 	if _, err := Append(lens, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String(claim),
+		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
 		Text:       proto.String("the source says the opposite at page 9"),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -192,25 +192,17 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}
 }
 
-// A FINDING RAISES THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE, and the gap minted from it
-// answers what it raised.
-//
-// The claim and the finding's quote are each placed in the report by anchortext, which reads a
-// whitespace run as one separator and drops trailing punctuation. A finding answers the claim
-// when it quotes all of it — in the matcher's reading, alone or inside a longer quote — and
-// answers nothing when it quotes part of it or another sentence.
-func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
+// NAME IT OR IT IS NOT RAISED (gblock, 2026-10-23). A finding whose quote contains the
+// contradicted claim — the same words, the sentence holding it, a part of it — raises nothing, and
+// the gap minted from it answers nothing: the tool does not infer what a finding is about from what
+// its quote contains. The finding naming the contradiction's id raises it, and the gap minted from
+// that finding answers it.
+func TestAQuoteRaisesNoContradiction(t *testing.T) {
 	const claim = "so the claim that a base-3 test accepts 91 rests on computation alone."
-	for _, tc := range []struct {
-		name, quote string
-		answers     bool
-	}{
-		{"the same words", claim, true},
-		{"without its full stop", strings.TrimSuffix(claim, "."), true},
-		{"wrapped over two lines", strings.Replace(claim, " rests ", "\n  rests ", 1), true},
-		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin.", true},
-		{"another sentence", "The sequence lists no such entry.", false},
-		{"part of the claim", "a base-3 test accepts 91", false},
+	for _, tc := range []struct{ name, quote string }{
+		{"the same words", claim},
+		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin."},
+		{"part of the claim", "a base-3 test accepts 91"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -221,28 +213,52 @@ func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
 			if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := Append(lens, &recordpb.Finding{
-				Id: proto.String("F-f0000001"), Location: proto.String(tc.quote),
-				Text:       proto.String("the source says the opposite"),
-				Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
-				Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
-				Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			}); err != nil {
+			graded := func(f *recordpb.Finding) *recordpb.Finding {
+				f.Text = proto.String("the source says the opposite")
+				f.Severity, f.Likelihood, f.Impact = recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_MEDIUM)
+				return f
+			}
+			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000001"), Location: proto.String(tc.quote)})); err != nil {
 				t.Fatal(err)
 			}
-			// The finding raises; the gap minted from it answers what it raised.
 			if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
 				t.Fatal(err)
 			}
-			err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
-			if tc.answers && err != nil {
-				t.Errorf("a finding quoting %q left the contradiction of %q unanswered: %v", tc.quote, claim, err)
+			if c := onlyContradiction(t, runDir); c.RaisedBy != "" {
+				t.Errorf("a finding quoting %q raised the contradiction of %q (raised_by %s): a quote raises nothing", tc.quote, claim, c.RaisedBy)
 			}
-			if !tc.answers && err == nil {
-				t.Errorf("a finding quoting %q answered the contradiction of %q, which it does not quote", tc.quote, claim)
+			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil {
+				t.Errorf("a finding quoting %q and the gap minted from it answered the contradiction of %q, which no finding named", tc.quote, claim)
+			}
+			id := onlyContradiction(t, runDir).ID
+			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000002"),
+				AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(id)})); err != nil {
+				t.Fatal(err)
+			}
+			answer := raisingGap("G-f0000002", "F-f0000002")
+			answer.DistinctFrom = []string{"G-f0000001"}
+			if _, err := Append(lens, answer); err != nil {
+				t.Fatal(err)
+			}
+			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
+				t.Errorf("the finding naming contradiction %s and the gap minted from it left it unanswered: %v", id, err)
 			}
 		})
 	}
+}
+
+// onlyContradiction is the run's one unanswered contradiction as `show evidence` lists it.
+func onlyContradiction(t *testing.T, runDir string) EvidenceContradictionJSON {
+	t.Helper()
+	b, err := FamilyOf(mustRun(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+	if len(cs) != 1 {
+		t.Fatalf("unanswered_contradictions = %+v, want exactly one", cs)
+	}
+	return cs[0]
 }
 
 // THE PROTECTED-ANCHOR SET IS ONE SET, and red's citations are in it.
@@ -335,7 +351,8 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	// Raise it, and the row names the raising finding; answer it with the gap minted from that
 	// finding, and the array empties — an empty array, not a null.
 	if _, err := Append(id, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
+		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
+		Text:     proto.String("the source says otherwise"),
 		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}); err != nil {
