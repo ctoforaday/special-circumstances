@@ -215,10 +215,14 @@ func writeRunLive(projectDir string, runs []RunLiveMarker) error {
 // file — which readRunLive reports as unreadable, the dashboard watcher as the run's row gone, and
 // InferRunDir as a broken marker. A rename shows a reader the old file or the new one, never a mix.
 //
-// On Windows the rename replaces a file a reader holds open only because every reader opens it with
-// FILE_SHARE_DELETE (openSharingDelete); TestAnOpenReaderDoesNotBlockReplacement pins that.
+// THE RENAME GOES THROUGH os.Root, NOT os.Rename. On Windows os.Rename is MoveFileEx, which refuses
+// to replace a file any reader holds open — "Access is denied" even though every reader shares
+// delete (openSharingDelete), measured on the Windows runner. Root.Rename asks for POSIX rename
+// semantics, under which a target held open with FILE_SHARE_DELETE is replaced and its readers keep
+// the old file; TestAnOpenReaderDoesNotBlockReplacement pins that. On Unix both are rename(2).
 func replaceFile(path string, b []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return err
 	}
@@ -229,7 +233,7 @@ func replaceFile(path string, b []byte) error {
 		err = os.Chmod(name, 0o644)
 	}
 	if err == nil {
-		err = os.Rename(name, path)
+		err = renameInDir(dir, filepath.Base(name), filepath.Base(path))
 	}
 	if err != nil {
 		// The temporary file is litter beside the marker; a failure to remove it is said too.
@@ -238,6 +242,15 @@ func replaceFile(path string, b []byte) error {
 		}
 	}
 	return err
+}
+
+// renameInDir renames one entry of dir over another through an os.Root on dir.
+func renameInDir(dir, from, to string) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	return errors.Join(root.Rename(from, to), root.Close())
 }
 
 // ReadRunLive reports every row the marker holds, in order — live or not; StateOf says which are.
