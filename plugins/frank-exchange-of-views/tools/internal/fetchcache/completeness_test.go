@@ -314,7 +314,7 @@ func TestTheDOIIsCarriedNotRederived(t *testing.T) {
 	prev := DefaultExtractor
 	DefaultExtractor = fixedExtractor{Extraction{}}
 	t.Cleanup(func() { DefaultExtractor = prev })
-	got := EntryFor(run, e.URL, &Attempt{Body: page, ContentType: "text/html", TextRetrieved: true, DOI: "10.1234/x"})
+	got := EntryFor(run, e.URL, &Attempt{Body: page, ContentType: "text/html", TextRetrieved: true, DOI: "10.1234/x"}, SubstitutionNamedBackend)
 	if got.DOI != "10.1234/x" || got.Completeness != CompletenessUnverified {
 		t.Errorf("EntryFor dropped the attempt's doi: doi=%q completeness=%q", got.DOI, got.Completeness)
 	}

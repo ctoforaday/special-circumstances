@@ -97,6 +97,15 @@ type EvidenceSourceJSON struct {
 	// not_the_work, not_asked. A summary_only citation of an abstract and a leaf citation of the
 	// paper differ in what red has to check, and only this field says which one it holds.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
+	// CopySubstitution is WHOSE BYTES blue's citation read: `none` states they are the url's own,
+	// and every other word names the route by which a copy stood in for it — followed_link,
+	// recovered, fuller_copy, named_backend — with CopyURL naming where that copy was read.
+	// not_recorded is a citation from before the field. Rendered on every blue cite, because a lens
+	// verifying against the url would otherwise check bytes nobody cited, and the blank that meant
+	// "the url's own" would read the same as the blank that meant "nobody said". Empty on a
+	// corroboration, which red read itself.
+	CopySubstitution string `json:"copy_substitution,omitempty"`
+	CopyURL          string `json:"copy_url,omitempty"`
 	// SourceText is WHAT THE SOURCE SAYS where blue quoted it: the span the tool found once in the
 	// cached text, and the text around it, copied from the source when blue cited it. It is what a
 	// lens reads the sentence against; blue_reason beside it is blue's account. Absent where the
@@ -475,6 +484,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				SourceTextOrigin:   recordpb.Word(bd.GetSourceTextOrigin()),
 				WorkStatus:         recordpb.Word(bd.GetWorkStatus()),
 				SourceCompleteness: recordpb.Word(bd.GetSourceCompleteness()),
+				CopySubstitution:   recordpb.Word(bd.GetCopySubstitution()),
+				CopyURL:            bd.GetCopyUrl(),
 				SourceText:         sourceTextOf(bd),
 				Pages:              bd.GetPages(),
 				OCREngine:          bd.GetOcrEngine(),

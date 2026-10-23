@@ -148,8 +148,8 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
-			retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
+			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -179,9 +179,18 @@ func bibliographyEntry(url string, sources []record.Source) string {
 	// abstract. One citation whose copy was the paper — or might have been — means the report's
 	// use of the work was not confined to its abstract.
 	abstractOnly := true
+	// WHERE THE TEXT WAS READ, when it was not read at this url: every distinct copy any citation of
+	// it read, in record order. The line names the url a reader follows; a copy that stood in for
+	// it is stated beside it rather than chosen between.
+	var copies []string
+	seenCopy := map[string]bool{}
 	for _, src := range sources {
 		if src.URL != url {
 			continue
+		}
+		if note := copyNote(src.CopySubstitution, src.CopyURL); note != "" && !seenCopy[note] {
+			seenCopy[note] = true
+			copies = append(copies, note)
 		}
 		date = earliest(date, src.AccessDate)
 		if src.WorkStatus == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
@@ -194,7 +203,32 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s%s%s", citationTitle(pick), url, accessed(date), retractionNote(status), abstractNote(found && abstractOnly))
+	return fmt.Sprintf("%s. %s%s%s%s%s", citationTitle(pick), url, accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly))
+}
+
+// copyNote is what the reader is told when a citation's bytes are not its url's own: where the
+// text was read instead. In the note and in the Bibliography for the reason retractionNote gives.
+//
+// A followed pointer is the same work at the place its publisher named, so it is said plainly; a
+// recovered or another copy is a different artifact — a snapshot, a repository's copy, possibly
+// another version — and is marked. A substitution with no copy url read no document at all: its
+// bytes are the fetch tool's statement of what it found. NONE prints nothing, and NOT_RECORDED is
+// the record's absence, which the record carries for red.
+func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
+	switch kind {
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:
+		return fmt.Sprintf(" (full text read at %s)", copyURL)
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY,
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND:
+		if copyURL == "" {
+			return " **[NO DOCUMENT READ]**"
+		}
+		if kind == recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED {
+			return fmt.Sprintf(" **[READ FROM A RECOVERED COPY: %s]**", copyURL)
+		}
+		return fmt.Sprintf(" **[READ FROM ANOTHER COPY: %s]**", copyURL)
+	}
+	return ""
 }
 
 // abstractNote is what the reader is told about a citation that rests on the work's abstract

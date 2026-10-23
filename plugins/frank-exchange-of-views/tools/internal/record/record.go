@@ -1560,6 +1560,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
 		}
+		// AND WHOSE BYTES WERE READ, for the same reason: an unstamped cite of a recovered copy
+		// renders exactly like a cite of the typed url. copy_url belongs to a substitution — on the
+		// url's own bytes it would name a second place nothing read — and a followed pointer or a
+		// fuller copy is always fetched from somewhere, so either without one is a write that lost it.
+		switch b.GetCopySubstitution() {
+		case recordpb.CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED:
+			return fmt.Errorf("cite carries no copy_substitution — the tool stamps whose bytes the citation read (none, followed_link, recovered, fuller_copy or named_backend) before it writes, and this write skipped that")
+		case recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED:
+			if b.CopyUrl != nil {
+				return fmt.Errorf("cite carries copy_url %q with copy_substitution %s — a copy url names where substituted bytes came from, and this citation records none", b.GetCopyUrl(), recordpb.Word(b.GetCopySubstitution()))
+			}
+		case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY:
+			if b.GetCopyUrl() == "" {
+				return fmt.Errorf("cite carries copy_substitution %s and no copy_url — that route always fetches its bytes from a url, and the tool records it before it writes", recordpb.Word(b.GetCopySubstitution()))
+			}
+		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
 		// own bytes around it is blue's word for what the source says, which is what this exists to

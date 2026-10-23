@@ -1217,6 +1217,26 @@ enum SourceCompleteness {
   SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// CopySubstitution is WHOSE BYTES A CITATION READ, stamped by the tool from what the fetch recorded;
+// a seat never types it. The seat types a url, and the cache can answer it with bytes from
+// somewhere else: the full text the url's page pointed to, a copy the recovery chain took when the
+// url refused, a fuller copy taken because the url's page was not the work's body, or a backend a
+// fetch named. Each is a legitimate answer and none is the url's own, and a citation that recorded
+// only the typed url claimed to have read it. copy_url beside it names where the bytes came from;
+// sha256 is already those bytes' hash.
+//
+// AN ENUM AND NOT AN EMPTY copy_url, for WorkStatus's reason: an empty field folds "the url's own
+// bytes" together with "nobody recorded whose", and only NONE rests on the fetch having said so.
+enum CopySubstitution {
+  COPY_SUBSTITUTION_UNSPECIFIED = 0;
+  COPY_SUBSTITUTION_NONE = 1 [(means) = "the cited bytes are the typed url's own: the url answered, and its answer is what was read"];
+  COPY_SUBSTITUTION_FOLLOWED_LINK = 2 [(means) = "the typed url's page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named"];
+  COPY_SUBSTITUTION_RECOVERED = 3 [(means) = "the typed url refused this container, and the tool's recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool's own statement of what the recovery found, not a document"];
+  COPY_SUBSTITUTION_FULLER_COPY = 4 [(means) = "the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version"];
+  COPY_SUBSTITUTION_NAMED_BACKEND = 5 [(means) = "a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document"];
+  COPY_SUBSTITUTION_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
+}
+
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
 // seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
 // disable that check for the row.
@@ -1270,6 +1290,12 @@ message Cite {
 
   // WHICH PART OF THE WORK THE CITED COPY IS, stamped from the fetch index like the two above.
   optional SourceCompleteness source_completeness = 17 [(prose) = false];
+
+  // WHOSE BYTES THE CITATION READ, stamped from the fetch index like the three above, and where
+  // they came from when they are not the typed url's own. copy_url is set exactly when the
+  // substitution is not NONE and the bytes were fetched from somewhere.
+  optional CopySubstitution copy_substitution = 24 [(prose) = false];
+  optional string copy_url = 25 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field. `source_text_read` was the seat's assertion of how much of the
