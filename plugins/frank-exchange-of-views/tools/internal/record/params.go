@@ -2,7 +2,9 @@ package record
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -108,11 +110,15 @@ type runConfig struct {
 }
 
 // readRunConfig reads the terms of the run in directory dir; a run with no run-config.json has none
-// (nil, nil).
+// (nil, nil). A file that is there and cannot be read is an error, never "no terms": the terms it
+// holds are what the run's budgets are checked against.
 func readRunConfig(dir string) (*runConfig, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "inputs", "run-config.json"))
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("inputs/run-config.json could not be read: %w", err)
 	}
 	var rc runConfig
 	if err := json.Unmarshal(b, &rc); err != nil {
