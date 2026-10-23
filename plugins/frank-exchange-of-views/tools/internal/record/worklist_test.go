@@ -26,7 +26,7 @@ const outsideLens = "red-lens-logic"
 
 func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes ...string) *recordpb.Mint {
 	sev, _ := GradeOf(severity)
-	return &recordpb.Mint{GapId: proto.String(gap), Class: recordtest.ClassFor(cm).Enum(), Problem: proto.String("p"),
+	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordtest.ClassFor(cm).Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		ClassMaterial: cm.Enum(), Supersedes: supersedes}

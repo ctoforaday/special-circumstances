@@ -221,7 +221,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	mintArgs := func(problem string) []string {
 		return []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification",
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
-			"--likelihood", "medium", "--impact", "medium", "--problem", problem}
+			"--likelihood", "medium", "--impact", "medium", "--problem", problem, "--about-kind", "section", "--about", "Findings"}
 	}
 	prologue := []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
@@ -340,7 +340,8 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
+				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
+				"--about-kind", "section", "--about", "Findings"}
 			// GAP001 is on the board from the prologue, so naming it distinct drives the field the mint's
 			// duplicate screen is answered with.
 			if rng.Intn(4) == 0 {

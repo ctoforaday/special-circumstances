@@ -1,4 +1,4 @@
-$ mint --seat-id red-lens-evidence
+$ mint --about-kind section --about Findings --seat-id red-lens-evidence
 exit 2
 stderr:
 feov-record: mint: requires --check, --check-kind, --class, --impact, --likelihood, --problem, --severity
@@ -13,7 +13,7 @@ feov-record: mint: requires --check, --check-kind, --class, --impact, --likeliho
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
-$ mint --run {RUN}
+$ mint --about-kind section --about Findings --run {RUN}
 exit 2
 stderr:
 feov-record: a command was named and the surface is scoped to whoever is asking.

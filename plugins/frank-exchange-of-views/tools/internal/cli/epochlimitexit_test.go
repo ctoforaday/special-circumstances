@@ -38,7 +38,7 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}),
 	}
 	if withGap {
-		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(limitGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
+		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(limitGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}

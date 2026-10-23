@@ -145,7 +145,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 				}
 				f := lastBody(t, runDir, &recordpb.Finding{})
 				id = f.GetId()
-				gap = mint("--key", "credits", "--found-by", id)
+				gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
 			case "citation":
 				id = citeSentence(t, runDir, sentence, "https://water/1")
 			case "proof":
