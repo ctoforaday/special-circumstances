@@ -30,7 +30,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "first pass"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "first pass"),
 				base("log", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
@@ -180,8 +180,8 @@ func scenarios() []scenario {
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via "),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is  going in"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is clean going in"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is  going in"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "severity",
 					"--proposed", "low", "--reason", "the consequence is bounded"),
 				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not  it"),
@@ -195,7 +195,8 @@ func scenarios() []scenario {
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "my closure lost a word: verified at the leaf"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is clean going in"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "the board is clean going in"),
 			},
 		},
 		{
@@ -234,9 +235,6 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "red's round position"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
-				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's closing"),
-				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "blue's round position"),
-				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "figures recomputed; check run: pass"),
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
@@ -249,6 +247,9 @@ func scenarios() []scenario {
 				// disposition on the ruling.
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
 					"--reason", "contested, and not red's to close"),
+				// THE PARTIES ARGUE THE DOCKETED GAP before the bench rules: its minting lens and blue.
+				base("closing", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "the lens's closing"),
+				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
 				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--direction", "the figure recomputed from its source", "--reason", "the rationale body"),

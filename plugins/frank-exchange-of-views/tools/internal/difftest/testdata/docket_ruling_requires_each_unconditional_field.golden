@@ -35,10 +35,11 @@ $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contes
 exit 0
 stdout:
 motion MOTION001 filed (docket)
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
   · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
 
 $ register --run {RUN} --seat-id judge --occasion docket

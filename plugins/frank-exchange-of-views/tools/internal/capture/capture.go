@@ -537,25 +537,22 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		Detail: "no event shards outside a run directory"}
 }
 
-// RecordParityAudit holds the sittings that owe the record something to the record. A POSITION is
-// owed by the seats record.SeatOwesPosition names — every chair sitting, and every sitting
-// blue-respond took for a dispatch that engaged it on a gap still open when it sat — and the state
-// of each is record.PositionSittings', the reading blue's work list blocks on. The position is the
-// whole of what a sitting owes this audit.
+// RecordParityAudit holds what the record owes the bench to the record: the chair's POSITION at each
+// sitting that withheld a PASS its plan permitted (record.PositionSittings), and each party's CLOSING
+// on each docketing (record.ClosingDuties) — the gap's minting lens and blue-respond.
 //
-// THIS AUDIT IS THE READER THAT REPORTS A POSITION THAT WAS NOT FILED. The transcript prints the
-// positions that were, and gives a sitting that holds none no section.
+// THIS AUDIT IS THE READER THAT REPORTS AN ARGUMENT THAT WAS NOT FILED. The transcript prints the
+// positions and closings that were, and gives a sitting that holds none no section.
 //
-// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT A POSITION IS REPORTED. The chair's work list holds
-// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its
-// position is held by its prompt and by this audit.
+// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED. The chair's work list holds
+// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its position
+// is held by its prompt and by this audit. A party's closing is on its work list as well, as the PASS
+// gate's blocker, and this audit is the after-the-run reading of the same duty.
 //
-// A SITTING THAT FOUND EVERY GAP CLOSED OWES NONE. The lenses sit before blue, so a lens can
-// close a gap between the dispatch and blue's register, and blue then has nothing to answer.
-//
-// PER SITTING, NOT PER EPOCH. Blue sits only when the chair dispatches it, so an epoch count says
-// nothing about what blue owed: B7 had five chair sittings and three blue sittings, and red had
-// closed the gap before blue sat in two of them. "Blue epochs >= red epochs - 1" failed that run.
+// A CLOSING IS SHORT ONLY WHERE ITS PARTY SAT. A party that sat through a sitting opened after the
+// docketing, and before the ruling, and filed none is short. One that never sat in that window —
+// the run ended, or the terminal bench ruled first — had no sitting to file in, and is named, not
+// failed.
 //
 // THE SITTINGS ARE READ AFTER THE RUN (record.AfterTheRun). Capture reads a finished run, so no
 // sitting is still in flight and the end of the record closes every sitting nothing else closed: a
@@ -576,29 +573,35 @@ func RecordParityAudit(run record.Run) Audit {
 // and names it, and a FAIL names it too. Read after the run, no sitting is unresolved.
 func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.ReadWhen) Audit {
 	rows := record.PositionSittings(evs, win, when)
-	if len(rows) == 0 {
-		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no blue sitting for a dispatch on record"}
+	duties := record.ClosingDuties(evs, win)
+	if len(rows) == 0 && len(duties) == 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no docketed gap on record"}
 	}
-	chairs, blues, owed := 0, 0, 0
-	var short, unmeasured []string
+	owed, closings, notOwed := 0, 0, 0
+	var short, unmeasured, unreached []string
 	for _, p := range rows {
-		name := fmt.Sprintf("%s sitting %d ", p.Seat, p.Ordinal)
-		why := "the record cannot close it (" + p.Seat + " has not opened a sitting since and its agent's stop is not on the record)"
-		if s := p.Blue; s != nil {
-			blues++
-			if len(s.Open) > 0 {
-				owed++
-			}
-			name = fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, ", p.Ordinal, strings.Join(s.Open, ", "))
-			why = "the record cannot close it (no sitting of blue's has opened since and its agent's stop is not on the record)"
-		} else {
-			chairs++
-		}
+		name := fmt.Sprintf("red-chair sitting %d, which withheld the PASS its plan permitted, ", p.Ordinal)
 		switch p.State {
+		case record.PositionNotOwed:
+			continue
 		case record.PositionUnresolved:
-			unmeasured = append(unmeasured, fmt.Sprintf("%sshows no position so far — NOT MEASURED: %s", name, why))
+			unmeasured = append(unmeasured, name+"shows no position so far — NOT MEASURED: the record cannot close it (red-chair has not opened a sitting since and its agent's stop is not on the record)")
 		case record.PositionMissing:
 			short = append(short, name+"filed no position")
+		}
+		owed++
+	}
+	for _, d := range duties {
+		name := fmt.Sprintf("%s's closing on %s (docket motion %s)", d.Party, d.GapID, d.Motion)
+		switch d.State {
+		case record.ClosingNotOwed:
+			notOwed++
+		case record.ClosingFiled:
+			closings++
+		case record.ClosingMissing:
+			short = append(short, name+" was not filed, and "+d.Party+" sat since the docketing")
+		case record.ClosingAwaited:
+			unreached = append(unreached, name+": "+d.Party+" sat through no sitting between the docketing and the ruling or the run's end")
 		}
 	}
 	if len(short) > 0 {
@@ -607,9 +610,12 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 	if len(unmeasured) > 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: strings.Join(unmeasured, "; ")}
 	}
-	return Audit{Check: "record-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d chair sitting(s), each with its position; %d blue sitting(s) for a dispatch: %d owed an answer and each carries its position; %d found every gap it was engaged on closed first",
-			chairs, blues, owed, blues-owed)}
+	detail := fmt.Sprintf("%d chair sitting(s), %d of them owing a position for a PASS withheld, each with its position; %d closing(s) owed on docketed gaps, each filed; %d not owed (the gap closed after its docketing, or its minter is no cast lens)",
+		len(rows), owed, closings, notOwed)
+	if len(unreached) > 0 {
+		detail += "; not reached: " + strings.Join(unreached, "; ")
+	}
+	return Audit{Check: "record-parity", Verdict: "PASS", Detail: detail}
 }
 
 // ---- AUDIT 7: back-fill ----

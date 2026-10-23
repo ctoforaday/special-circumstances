@@ -288,6 +288,7 @@ Usage:
 
 Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
+  closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
   corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
@@ -333,14 +334,13 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -419,11 +419,10 @@ Usage:
 
 Available Commands:
   carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing     your closing argument on one docketed gap, when the bench is about to rule on it
   dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
+  position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
   register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
@@ -574,6 +573,70 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, no
 exit 2
 feov-record: verdict: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
 
+── a closing on a gap nothing is before the bench on
+exit 2
+feov-record: closing: GAP001 is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap
+
+── blue puts GAP001 before the bench, so its closing argues a docketing
+exit 2
+feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
+  event 36, red-lens-evidence: regraded GAP001
+
+Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
+
+── the same filing, once blue has read the regrade it was shown
+exit 0
+motion MOTION001 filed (docket)
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · you were dispatched against report head 5 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
+  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+
+── the chair files a closing, party to no dispute
+exit 2
+feov-record: "closing" is not on your surface — it is the blue and lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
+
+feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with 'log', as a request — a missing
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+  spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
+  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+
+Command groups — each holds commands THIS page does not list:
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  inquiry     read the report against every inquiry on the record — `review` states what that reading found
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
+── a lens that did not mint the gap files a closing on it
+exit 2
+feov-record: closing: a closing is the argument of a party to the gap's dispute — red-lens-evidence, which minted GAP001, and blue-respond — and red-lens-logic is party to none; nothing was recorded. An argument about no one gap is the chair's position
+
 ── repeat target: blue's closing on GAP001
 exit 0
 closing filed for GAP001
@@ -609,16 +672,18 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (2 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (3 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
 
 ── repeat target: the chair carries the closure
 exit 0
 carried the closure of GAP001 (repaired)
-NOTHING HERE IS YOURS TO CLEAR (3 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
+  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
 
 ── a second carry of a gap in one sitting
 exit 2

@@ -8,76 +8,111 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-const positionItem = "this sitting's position is missing"
-
-// THE PREDICATE NAMES TWO SEATS, AND THE ROSTER IS WHAT IT IS HELD AGAINST: every seat the tool
-// knows is asked, so a seat added to the roster is on one side of the duty by a decision and not
-// by an omission from a hand list.
-func TestSeatOwesPositionNamesTheChairAndBlueRespondAndNoOtherSeat(t *testing.T) {
-	want := map[string]bool{"red-chair": true, "blue-respond": true}
-	asked := 0
-	for id := range seatclass.Seats {
-		asked++
-		if got := SeatOwesPosition(id); got != want[id] {
-			t.Errorf("SeatOwesPosition(%q) = %v, want %v", id, got, want[id])
-		}
+// storedPlan is the plan event a chair's `dispatch next` stores, permitting a PASS or not.
+func storedPlan(t *testing.T, permitted bool) *Event {
+	p := emptyPlan()
+	p.PassPermitted, p.Head = permitted, 1
+	if !permitted {
+		p.Blockers = []PlanBlocker{{Kind: BlockerMaterialGap, Subject: "G1", Owner: evLens}}
 	}
-	for id := range want {
-		if _, on := seatclass.Seats[id]; !on {
-			t.Errorf("%s owes a position and is not on the roster", id)
-		}
-	}
-	if asked < 10 {
-		t.Fatalf("the roster holds %d seats — the predicate was asked about too few to mean anything", asked)
-	}
+	return recordtest.Event(t, chairSeat, &recordpb.Plan{Printed: proto.String(p.WithKey().Printed())})
 }
 
-// BLUE-RESPOND'S WORK LIST BLOCKS ON AN OWED POSITION, and on nothing else of the kind: a sitting
-// that filed one, a sitting that found every engaged gap closed, and every blue seat that owes none
-// hold no such item.
-func TestTheWorkListBlocksBlueRespondOnAnOwedPosition(t *testing.T) {
-	engaged := func(t *testing.T) *stage {
-		return newStage(t).cast(evLens, "red-chair", "blue-respond", "blue-synthesize", "blue-lane-1", "frontier", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
-			register("red-chair").dispatch(2, "blue-respond", "G1")
+func gate(t *testing.T, v recordpb.Verdict) *Event {
+	return recordtest.Event(t, chairSeat, &recordpb.Gate{Verdict: v.Enum()})
+}
+
+// THE CHAIR'S POSITION IS OWED WHERE IT WITHHELD A PASS ITS PLAN PERMITTED, AND NOWHERE ELSE — each
+// state from the record shape that defines it, at both readings. A sitting nothing about the chair
+// has closed is unresolved while the run runs and missing after it.
+func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
+	position := func(t *testing.T) *Event {
+		return recordtest.Event(t, chairSeat, &recordpb.Position{Text: proto.String("why the PASS is withheld")})
 	}
-	t.Run("an open engaged gap and no position blocks", func(t *testing.T) {
-		s := sittingOfRunT(t, engaged(t).registerAs("blue-respond", "blue-a").seed(), "blue", "blue-respond")
-		if !hasItem(s, positionItem) || s.Complete {
-			t.Fatalf("blue-respond sits on G1, open, with no position: want a blocking item and complete=false, got complete=%v open=%+v", s.Complete, s.Open)
-		}
-		for _, it := range s.Open {
-			if hasItem(SittingJSON{Open: []Item{it}}, positionItem) && !it.Blocks {
-				t.Errorf("the position item does not block: %+v", it)
-			}
-		}
-	})
-	t.Run("a sitting its agent's stop closed still lists it", func(t *testing.T) {
-		s := sittingOfRunT(t, engaged(t).registerAs("blue-respond", "blue-a").stop("blue-a").seed(), "blue", "blue-respond")
-		if !hasItem(s, positionItem) {
-			t.Fatalf("a closed sitting short of its position is not listed: %+v", s.Open)
-		}
-	})
-	t.Run("a filed position clears it", func(t *testing.T) {
-		s := sittingOfRunT(t, engaged(t).registerAs("blue-respond", "blue-a").position("blue-respond").seed(), "blue", "blue-respond")
-		if hasItem(s, positionItem) {
-			t.Fatalf("the position is on the record and the list still asks for it: %+v", s.Open)
-		}
-	})
-	t.Run("every engaged gap found closed owes none", func(t *testing.T) {
-		s := sittingOfRunT(t, engaged(t).closeGap(evLens, "G1").registerAs("blue-respond", "blue-a").seed(), "blue", "blue-respond")
-		if hasItem(s, positionItem) {
-			t.Fatalf("G1 was closed before blue sat and the list asks for a position: %+v", s.Open)
-		}
-	})
-	for _, seat := range []string{"blue-lane-1", "frontier", "blue-synthesize"} {
-		t.Run(seat+" has no such item", func(t *testing.T) {
-			s := sittingOfRunT(t, engaged(t).register(seat).seed(), "blue", seat)
-			if hasItem(s, positionItem) {
-				t.Fatalf("%s owes no position and its list asks for one: %+v", seat, s.Open)
+	cases := map[string]struct {
+		evs            func(t *testing.T) []*Event
+		running, after []PositionState
+	}{
+		"permitted, no PASS, none filed": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionMissing}, after: []PositionState{PositionMissing},
+		},
+		"permitted, a FAIL recorded, none filed": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_FAIL), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionMissing}, after: []PositionState{PositionMissing},
+		},
+		"permitted, no PASS, filed": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), position(t), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionFiled}, after: []PositionState{PositionFiled},
+		},
+		"permitted, no PASS, in flight": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true)}
+			},
+			running: []PositionState{PositionUnresolved}, after: []PositionState{PositionMissing},
+		},
+		"permitted, the PASS recorded": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_PASS), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionNotOwed}, after: []PositionState{PositionNotOwed},
+		},
+		"not permitted": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, false), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionNotOwed}, after: []PositionState{PositionNotOwed},
+		},
+		"no plan stored": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionNotOwed}, after: []PositionState{PositionNotOwed},
+		},
+		// THE SITTING'S LAST PLAN DECIDES: asked again after a motion, the plan the chair relays is
+		// the last one, and a permitted plan stored in an earlier sitting answers nothing here.
+		"the last plan of the sitting decides": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), storedPlan(t, false), agentStops(t, "chair-a")}
+			},
+			running: []PositionState{PositionNotOwed}, after: []PositionState{PositionNotOwed},
+		},
+		"a permitted plan in the sitting before": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), gate(t, recordpb.Verdict_VERDICT_PASS), agentStops(t, "chair-a"),
+					registersAs(t, chairSeat, "chair-b"), agentStops(t, "chair-b")}
+			},
+			running: []PositionState{PositionNotOwed, PositionNotOwed}, after: []PositionState{PositionNotOwed, PositionNotOwed},
+		},
+		"the chair's next opening closes a sitting with none": {
+			evs: func(t *testing.T) []*Event {
+				return []*Event{registersAs(t, chairSeat, "chair-a"), storedPlan(t, true), registersAs(t, chairSeat, "chair-b"), position(t)}
+			},
+			running: []PositionState{PositionMissing, PositionNotOwed}, after: []PositionState{PositionMissing, PositionNotOwed},
+		},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := loadedT(t, append(gapsExist(t, "G1"), c.evs(t)...)...)
+			for _, read := range []struct {
+				when ReadWhen
+				want []PositionState
+			}{{WhileRunning, c.running}, {AfterTheRun, c.after}} {
+				var got []PositionState
+				for _, p := range PositionSittings(m.Events, m.At, read.when) {
+					got = append(got, p.State)
+				}
+				if !reflect.DeepEqual(got, read.want) {
+					t.Errorf("read %v: states = %v, want %v", read.when, got, read.want)
+				}
 			}
 		})
 	}
@@ -113,85 +148,13 @@ func TestTheChairsWorkListIsTheSameWithAndWithoutAPosition(t *testing.T) {
 	}
 }
 
-// THE FOUR STATES, EACH FROM THE RECORD SHAPE THAT DEFINES IT, at both readings. A sitting nothing
-// about its seat has closed is unresolved while the run runs and missing after it; every other
-// shape reads the same either way. A lane, the frontier and the synthesizer have no row.
-func TestPositionSittingsReadsTheFourStates(t *testing.T) {
-	position := func(t *testing.T, seat string) *Event {
-		return recordtest.Event(t, seat, &recordpb.Position{Text: proto.String("what the bench is asked to weigh")})
-	}
-	type row struct {
-		seat  string
-		state PositionState
-	}
-	cases := map[string]struct {
-		evs            func(t *testing.T) []*Event
-		running, after []row
-	}{
-		"blue-respond filed": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), position(t, "blue-respond"), agentStops(t, "blue-a")}
-			},
-			running: []row{{"blue-respond", PositionFiled}}, after: []row{{"blue-respond", PositionFiled}},
-		},
-		"blue-respond closed with none": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")}
-			},
-			running: []row{{"blue-respond", PositionMissing}}, after: []row{{"blue-respond", PositionMissing}},
-		},
-		"blue-respond in flight with none": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a")}
-			},
-			running: []row{{"blue-respond", PositionUnresolved}}, after: []row{{"blue-respond", PositionMissing}},
-		},
-		"blue-respond found its gap closed": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{dispatchBlue(t, "G1"), closeGap(t, "red-lens-logic", "G1"), registersAs(t, "blue-respond", "blue-a"), agentStops(t, "blue-a")}
-			},
-			running: []row{{"blue-respond", PositionNotOwed}}, after: []row{{"blue-respond", PositionNotOwed}},
-		},
-		"the chair filed, then sat again with none": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, "red-chair", "chair-a"), position(t, "red-chair"), agentStops(t, "chair-a"), registersAs(t, "red-chair", "chair-b")}
-			},
-			running: []row{{"red-chair", PositionFiled}, {"red-chair", PositionUnresolved}},
-			after:   []row{{"red-chair", PositionFiled}, {"red-chair", PositionMissing}},
-		},
-		"the chair's next opening closes a sitting with none": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, "red-chair", "chair-a"), registersAs(t, "red-chair", "chair-b"), position(t, "red-chair")}
-			},
-			running: []row{{"red-chair", PositionMissing}, {"red-chair", PositionFiled}},
-			after:   []row{{"red-chair", PositionMissing}, {"red-chair", PositionFiled}},
-		},
-		"a lane, the frontier and the synthesizer have no row": {
-			evs: func(t *testing.T) []*Event {
-				return []*Event{registersAs(t, "blue-lane-1", "lane-a"), agentStops(t, "lane-a"),
-					registersAs(t, "frontier", "frontier-a"), agentStops(t, "frontier-a"),
-					registersAs(t, "blue-synthesize", "synth-a"), position(t, "blue-synthesize"), agentStops(t, "synth-a")}
-			},
-		},
-	}
-	for name, c := range cases {
-		t.Run(name, func(t *testing.T) {
-			m := loadedT(t, append(gapsExist(t, "G1"), c.evs(t)...)...)
-			for _, read := range []struct {
-				when ReadWhen
-				want []row
-			}{{WhileRunning, c.running}, {AfterTheRun, c.after}} {
-				var got []row
-				for _, p := range PositionSittings(m.Events, m.At, read.when) {
-					got = append(got, row{p.Seat, p.State})
-					if (p.Blue != nil) != (p.Seat == "blue-respond") {
-						t.Errorf("%s sitting %d: a blue-respond row carries its sitting and a chair row carries none, got %v", p.Seat, p.Ordinal, p.Blue)
-					}
-				}
-				if !reflect.DeepEqual(got, read.want) {
-					t.Errorf("read %v: rows = %+v, want %+v", read.when, got, read.want)
-				}
-			}
-		})
+// BLUE-RESPOND OWES NO POSITION: its work list holds no position item at any sitting, open gaps
+// and all. Its argument on a gap is its closing.
+func TestBlueRespondsWorkListAsksForNoPosition(t *testing.T) {
+	s := sittingOfRunT(t, newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+		register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a").stop("blue-a").seed(), "blue", "blue-respond")
+	if listsItem(s, "position") {
+		t.Fatalf("blue-respond's list names a position: %+v", s.Open)
 	}
 }

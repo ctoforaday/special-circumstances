@@ -253,6 +253,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a second spot-check in one sitting", []string{"spot-check", "--seat-id", "red-chair", "--reason", "again"}},
 		{"repeat target: the chair's verdict", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
 		{"a second verdict in one sitting", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
+		// A CLOSING IS A PARTY'S ARGUMENT ON A DOCKETING: refused before the gap is docketed, from
+		// the chair, which holds no such verb, and from a lens that did not mint the gap.
+		{"a closing on a gap nothing is before the bench on", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "early"}},
+		{"blue puts GAP001 before the bench, so its closing argues a docketing", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
+		{"the same filing, once blue has read the regrade it was shown", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
+		{"the chair files a closing, party to no dispute", []string{"closing", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's case"}},
+		{"a lens that did not mint the gap files a closing on it", []string{"closing", "--seat-id", "red-lens-logic", "--id", "GAP001", "--reason", "another lens's case"}},
 		{"repeat target: blue's closing on GAP001", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered"}},
 		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
 		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},

@@ -754,7 +754,8 @@ func TestActResultsNameTheirIDByKind(t *testing.T) {
 	if gid != handleText(t, runDir, "G1") {
 		t.Errorf("mint --json result %v, want gap_id G1", g)
 	}
-	if c := result("closing", "--run", runDir, "--seat-id", "red-chair", "--id", gid, "--reason", "argued"); c["gap_id"] != gid {
+	docketFile(t, runDir, "blue-respond", gid, "the bench's to settle")
+	if c := result("closing", "--run", runDir, "--seat-id", lensSeat, "--id", gid, "--reason", "argued"); c["gap_id"] != gid {
 		t.Errorf("closing --json result %v, want gap_id %s", c, gid)
 	}
 }
@@ -1389,9 +1390,9 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 // collide and neither is dedup'd away.
 func TestClosingIsKeyedPerGap(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair"
-	// Both gaps must EXIST: a closing names the gap it argues, and that reference is
-	// checked at write time. The lens mints them; the closing is the chair's.
+	seatID := lensSeat
+	// Both gaps must EXIST and be DOCKETED: a closing names the gap it argues, and both the reference
+	// and the docketing are checked at write time. The lens mints them and argues each.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	for i := 0; i < 2; i++ {
@@ -1402,6 +1403,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 		}
 	}
 	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
+		docketFile(t, runDir, "blue-respond", id, "the bench's to settle")
 		if _, err := run(t, "closing", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--reason", "argued "+id); err != nil {
 			t.Fatal(err)

@@ -2,6 +2,7 @@ package migrate_test
 
 import (
 	"database/sql"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -200,8 +201,9 @@ func lineNumerals(p record.Plan) [][]int64 {
 }
 
 // A STORED PLAN CROSSES A RENUMBERING NAMING THE EVENTS ITS SOURCE NAMED (F8). m28 holds two
-// class_new events, which migrate writes as none, so every later event lands one or two numbers
-// lower; nine of its twenty stored plans name such an event — as a head, a pin, or a number a line
+// class_new events, a chair's closing and eight positions no chair filed, which migrate writes as
+// none, so every later event lands up to eleven numbers lower; sixteen of its twenty stored plans
+// name such an event — as a head, a pin, or a number a line
 // prints after `head`, `pin`, `edit` or `event`. Driven on the real archive through Migrate, and
 // checked against both databases rather than migrate's own map:
 //
@@ -222,14 +224,26 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	if len(srcPlans) != 20 || len(dstPlans) != len(srcPlans) {
 		t.Fatalf("the source stores %d plan(s) and the migrated record %d; want m28's 20 on both", len(srcPlans), len(dstPlans))
 	}
-	firstDropped := int64(0)
+	// firstDropped is the first source event that writes none on the migrated record.
+	written := map[eventRow]bool{}
+	for _, e := range dst {
+		written[e] = true
+	}
+	firstDropped, dropped := int64(0), map[string]int{}
 	for id, e := range src {
-		if e.typ == "class_new" && (firstDropped == 0 || id < firstDropped) {
+		if written[e] {
+			continue
+		}
+		dropped[e.typ]++
+		if firstDropped == 0 || id < firstDropped {
 			firstDropped = id
 		}
 	}
 	if firstDropped == 0 {
-		t.Fatal("fixture: m28 holds no class_new event, so nothing renumbers")
+		t.Fatal("fixture: every m28 event writes one on the migrated record, so nothing renumbers")
+	}
+	if want := map[string]int{"class_new": 2, "closing": 1, "position": 8}; !maps.Equal(dropped, want) {
+		t.Errorf("m28's events that write none: %v, want %v", dropped, want)
 	}
 	same := func(a, b int64) bool { e, ok := src[a]; return ok && dst[b] == e }
 	translated := 0
@@ -298,7 +312,7 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 			t.Errorf("plan at source event %d: seat words changed: %q -> %q", s.at, a, b)
 		}
 	}
-	if translated != 9 {
-		t.Errorf("%d of m28's stored plans name a moved event; want its 9", translated)
+	if translated != 16 {
+		t.Errorf("%d of m28's stored plans name a moved event; want its 16", translated)
 	}
 }

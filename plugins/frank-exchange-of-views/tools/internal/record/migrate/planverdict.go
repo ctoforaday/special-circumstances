@@ -11,13 +11,13 @@ import (
 )
 
 // CarryPlanVerdict puts on a stored plan the verdict its chair sitting had recorded when the plan
-// was stored — the plan's `verdict`, which a plan stored before EventSchema 38 does not print. It is
+// was stored — the plan's `verdict`, which a plan stored before EventSchema 39 does not print. It is
 // read off the migrated record as it stands at the plan's place (record.ChairVerdictAt, the
 // predicate `dispatch next` prints from), so it is the record's own fact joined in, never a value
 // supplied: a plan whose sitting had recorded none is left as stored. The verdict is not in the
 // plan's key, so the key stands.
 //
-// What no translation can supply: before EventSchema 38 a verdict printed no plan, and the chair
+// What no translation can supply: before EventSchema 39 a verdict printed no plan, and the chair
 // relayed the plan it asked for before recording its verdict. Such a sitting stores no plan carrying
 // the verdict, and a migrated record holds none either.
 func CarryPlanVerdict(pl *recordpb.Plan, q recordsql.Querier) error {

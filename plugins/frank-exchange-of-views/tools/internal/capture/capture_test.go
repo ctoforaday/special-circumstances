@@ -323,10 +323,9 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	return dir
 }
 
-// blueSittingRun seeds one blue-respond sitting for a dispatch on G1, with blue's acts after its
-// register. closedFirst puts the lens's close of G1 between the dispatch and that register; returned
-// ends the sitting with its agent's stop, and without it the record cannot close the sitting.
-func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Message) record.Run {
+// docketedRun seeds G1, minted by the logic lens and docketed by blue's motion M1, with each party's
+// acts after it: closers file their closings, and sitters sit through a sitting without one.
+func docketedRun(t *testing.T, closers, sitters []string) record.Run {
 	t.Helper()
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -334,85 +333,80 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
 	}
 	evs := []*record.Event{
+		at(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-logic", "red-chair", "blue-respond", "judge"}}),
 		at("red-chair", &recordpb.Register{}),
-		at("red-chair", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
 		at("red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
 			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
+		at("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 	}
-	if closedFirst {
-		evs = append(evs, at("red-lens-logic", &recordpb.Close{GapId: proto.String("G1"),
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}))
+	for _, seat := range closers {
+		evs = append(evs, at(seat, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case of " + seat)}))
 	}
-	evs = append(evs, at("blue-respond", &recordpb.Register{AgentId: proto.String("blue-agent")}))
-	for _, a := range acts {
-		evs = append(evs, at("blue-respond", a))
-	}
-	if returned {
-		evs = append(evs, at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent")}))
+	for _, seat := range sitters {
+		evs = append(evs, at(seat, &recordpb.Register{AgentId: proto.String(seat + "-agent")}),
+			at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(seat + "-agent")}))
 	}
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, evs...)
 	return runtest.Open(t, dir)
 }
 
-// Record-parity is per blue sitting: one that owed an answer carries a position, and one that found
-// its gap closed owes none.
-//
-// A POSITION IS THE WHOLE OF WHAT IT HOLDS A SITTING TO: a sitting that filed none is short, and the
-// audit names the position and nothing else.
+// RECORD-PARITY HOLDS WHAT IS OWED THE BENCH TO THE RECORD: the chair's position at a sitting that
+// withheld a PASS its plan permitted, and each party's closing on a docketing — the minting lens's
+// and blue-respond's. A party that sat since the docketing and filed none is short; one that never
+// sat after it had no sitting to file in, and is named, not failed.
 func TestRecordParityAudit(t *testing.T) {
-	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
+	seed := func(evs ...*record.Event) record.Run {
+		dir := t.TempDir()
+		recordtest.Seed(t, dir, evs...)
+		return runtest.Open(t, dir)
+	}
+	chairAct := func(key string, body proto.Message) *record.Event {
+		return recordtest.At(t, "red-chair", "red-chair:"+key, body)
+	}
+	permitted := []*record.Event{chairRegister(t, 1), chairAct("plan", storedPlan(true))}
+	if a := RecordParityAudit(seed(permitted...)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1, which withheld the PASS its plan permitted, filed no position") {
+		t.Errorf("a chair sitting that withheld a permitted PASS and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	}
+	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{Text: proto.String("why")}))...)); a.Verdict != "PASS" {
+		t.Errorf("the withheld PASS is argued: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}))...)); a.Verdict != "PASS" {
+		t.Errorf("the chair recorded the PASS and owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	// THE SMOKE'S SITTINGS 4–5: the chair sat with no PASS permitted and filed no position. Nothing
+	// was withheld, so nothing is owed.
+	if a := RecordParityAudit(seed(chairRegister(t, 1), chairAct("plan", storedPlan(false)))); a.Verdict != "PASS" || strings.Contains(a.Detail, "filed no position") {
+		t.Errorf("a chair sitting with no PASS permitted owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
 
-	a := RecordParityAudit(blueSittingRun(t, false, true, position))
-	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 owed an answer and each carries its position") {
-		t.Errorf("a sitting that answered with a position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	both := []string{"red-lens-logic", "blue-respond"}
+	if a := RecordParityAudit(docketedRun(t, both, both)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 closing(s) owed on docketed gaps, each filed") {
+		t.Errorf("both parties filed: want PASS counting two closings, got %s (%s)", a.Verdict, a.Detail)
 	}
-	for name, acts := range map[string][]proto.Message{"a log and no position": {&recordpb.Log{Text: proto.String("the G1 edit"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}}, "nothing": nil} {
-		a = RecordParityAudit(blueSittingRun(t, false, true, acts...))
-		if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
-			t.Errorf("a sitting that owed G1 and filed %s: want a FAIL naming the position, got %s (%s)", name, a.Verdict, a.Detail)
-		}
+	a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, both))
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-logic's closing on G1 (docket motion M1) was not filed, and red-lens-logic sat since the docketing") {
+		t.Errorf("the lens sat since the docketing and filed none: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	for _, v := range []*Audit{&a, ptr(RecordParityAudit(blueSittingRun(t, false, true, position)))} {
-		if strings.Contains(strings.ToLower(v.Detail), "revision") {
-			t.Errorf("record-parity speaks of a revision, which no sitting owes: %s (%s)", v.Verdict, v.Detail)
-		}
+	if strings.Contains(a.Detail, "blue-respond's closing") {
+		t.Errorf("blue filed and is named short: %s", a.Detail)
 	}
-	// B7's epochs 3 and 4: the lens closed the gap before blue sat, and blue filed only a log.
-	if a := RecordParityAudit(blueSittingRun(t, true, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
-		t.Errorf("a sitting whose gap closed first owes nothing: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	if a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, nil)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "not reached: red-lens-logic's closing on G1") {
+		t.Errorf("the lens never sat after the docketing: want PASS naming it not reached, got %s (%s)", a.Verdict, a.Detail)
 	}
-	// A SITTING NOTHING ABOUT BLUE CLOSED: blue has neither registered again nor returned. Capture
-	// reads the finished run, so the end of the record closes it and it is held to what it filed.
-	a = RecordParityAudit(blueSittingRun(t, false, false))
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") || strings.Contains(a.Detail, "NOT MEASURED") {
-		t.Errorf("a sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-	if a := RecordParityAudit(blueSittingRun(t, false, false, position)); a.Verdict != "PASS" {
-		t.Errorf("a sitting the run ended in that carries its position: want PASS, got %s (%s)", a.Verdict, a.Detail)
-	}
-	// EVERY CHAIR SITTING OWES A POSITION, and this audit is the one place a chair sitting without
-	// one is reported: its work list holds no item for it.
-	dir := t.TempDir()
-	recordtest.Seed(t, dir, chairRegister(t, 1))
-	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1 filed no position") {
-		t.Errorf("a chair sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-	// A record no seat that owes a position sat on has nothing to hold to it.
-	dir = t.TempDir()
-	recordtest.Seed(t, dir, recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))
-	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "SKIP" {
-		t.Errorf("no chair sitting and no blue sitting for a dispatch: want SKIP, got %s (%s)", a.Verdict, a.Detail)
+	// A record with no chair sitting and no docketed gap has nothing to hold to it.
+	if a := RecordParityAudit(seed(recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))); a.Verdict != "SKIP" {
+		t.Errorf("no chair sitting and no docketed gap: want SKIP, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
 // CAPTURE CLOSES WHAT A LIVE READER CANNOT (#1002, ruling 1). One record, blue's last sitting with
 // no stop and no register after it: a reader while the run runs cannot tell it from a sitting in
 // flight and says NOT MEASURED; capture reads the finished run, where the end of the record closes
-// it, and holds it to the position it never filed. The shape is a headless seat, whose agent fires
+// it, and its manifest coverage is measured. The shape is a headless seat, whose agent fires
 // no stop, sitting twice, the second time — G4 still open — filing nothing.
 func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	n := 0
@@ -433,7 +427,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
 		at("blue-respond", launcher),
 		at("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
-		at("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired")}),
 		at("red-chair", &recordpb.Register{}), mint("G4"),
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(7), SeatId: proto.String("blue-respond"), GapIds: []string{"G4"}}),
 		at("blue-respond", launcher),
@@ -461,10 +454,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	after := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(after) != 2 || after[0].Unresolved || after[1].Unresolved {
 		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
-	}
-	a := RecordParityAudit(run)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no position") {
-		t.Errorf("capture holds the last sitting to its missing position: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
@@ -1599,5 +1588,3 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }
-
-func ptr[T any](v T) *T { return &v }
