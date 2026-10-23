@@ -10,7 +10,9 @@ import (
 	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -790,12 +792,25 @@ func LoadRearm(read func(string) ([]byte, error), path string) (RearmState, erro
 // So: lock, read, mutate, write atomically, unlock. The read MUST happen inside
 // the lock — loading before acquiring it reintroduces the same lost update with
 // extra steps.
-func UpdateRearm(path string, mutate func(*RearmState)) error {
+//
+// A release that fails after a committed write returns a *LockLeftError: the event IS recorded,
+// and the caller says both halves.
+func UpdateRearm(path string, mutate func(*RearmState)) (err error) {
 	lock, err := lockRearm(path)
 	if err != nil {
 		return err
 	}
-	defer lock.release()
+	defer func() {
+		rerr := lock.release()
+		if rerr == nil {
+			return
+		}
+		if err == nil {
+			err = &LockLeftError{Path: path, Err: rerr}
+			return
+		}
+		err = errors.Join(err, fmt.Errorf("and its lock could not be released: %w", rerr))
+	}()
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("cannot create state dir: %w", err)
@@ -817,8 +832,12 @@ func UpdateRearm(path string, mutate func(*RearmState)) error {
 	// the lock to another hook while this one was reading and mutating; writing anyway is
 	// the lost-update this lock exists to prevent, arriving through the recovery path.
 	// Losing an event is the documented cheap failure — losing the file is not.
-	if !lock.owned() {
-		return fmt.Errorf("re-arm state at %s: this hook's lock was broken as stale while it worked, so its update is abandoned rather than written over the holder's — this event is not recorded, nothing is damaged", path)
+	holder, herr := lock.holder()
+	if herr != nil {
+		return fmt.Errorf("re-arm state at %s: this hook could not read its own lock before committing (%w), so its update is abandoned — this event is not recorded, nothing is damaged", path, herr)
+	}
+	if holder != lock.nonce {
+		return fmt.Errorf("re-arm state at %s: this hook's lock was broken as stale while it worked (now held by %q), so its update is abandoned rather than written over the holder's — this event is not recorded, nothing is damaged", path, holder)
 	}
 
 	tmp := path + ".tmp"
@@ -843,26 +862,62 @@ type rearmLock struct {
 	nonce string
 }
 
+// LockLeftError is a re-arm update that COMMITTED but could not release its lock. The event is
+// recorded; the lock file stays until the next hook finds it older than lockRearmTimeout and
+// breaks it, so hooks in that window wait.
+type LockLeftError struct {
+	Path string
+	Err  error
+}
+
+func (e *LockLeftError) Error() string {
+	return fmt.Sprintf("re-arm state at %s: this event IS recorded, but the lock could not be released (%v) — the next hook waits up to %s, then breaks it as stale", e.Path, e.Err, lockRearmTimeout)
+}
+
+func (e *LockLeftError) Unwrap() error { return e.Err }
+
+// holder reads the nonce the lock file carries — whose lock it is.
+func (l rearmLock) holder() (string, error) {
+	b, err := os.ReadFile(l.path)
+	return string(b), err
+}
+
 // owned reports whether the lock file still carries THIS holder's nonce.
 //
 // A stale-break can hand the lock to someone else while we are still working — the breaker
 // cannot tell an abandoned lock from a slow one. Checking ownership is how a slow holder
 // discovers it was displaced instead of writing over the successor.
 func (l rearmLock) owned() bool {
-	b, err := os.ReadFile(l.path)
-	return err == nil && string(b) == l.nonce
+	h, err := l.holder()
+	return err == nil && h == l.nonce
 }
 
-// release removes the lock ONLY if we still hold it.
+// release removes the lock ONLY if we still hold it, and returns what stopped it.
 //
 // FIX (defect, #215): release used to be an unconditional os.Remove. If another hook had
 // broken our lock as stale and taken its own, our release deleted THEIRS — after which a
 // third hook could acquire while the second was mid-update. Two writers, no mutual
 // exclusion, from a recovery path meant to prevent a wedge.
-func (l rearmLock) release() {
-	if l.owned() {
-		_ = os.Remove(l.path)
+//
+// A lock that is gone or carries another nonce was broken as stale: there is nothing of ours to
+// release, and that is not an error. A lock that cannot be READ, or that is ours and cannot be
+// REMOVED, is left in place — every waiting hook then times out until it ages into a stale-break —
+// so both are returned, never dropped (#1553).
+func (l rearmLock) release() error {
+	h, err := l.holder()
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
 	}
+	if err != nil {
+		return fmt.Errorf("could not read %s to release it: %w", l.path, err)
+	}
+	if h != l.nonce {
+		return nil
+	}
+	if err := os.Remove(l.path); err != nil {
+		return fmt.Errorf("could not remove %s: %w", l.path, err)
+	}
+	return nil
 }
 
 // lockRearm takes an exclusive lock via O_EXCL create.
@@ -886,13 +941,22 @@ func (l rearmLock) release() {
 func lockRearm(path string) (rearmLock, error) {
 	lock := rearmLock{path: path + ".lock", nonce: nonce()}
 	deadline := time.Now().Add(lockRearmTimeout)
+	var lastOpen error
 	for {
 		f, err := os.OpenFile(lock.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
-			_, _ = f.WriteString(lock.nonce)
-			_ = f.Close()
+			_, werr := f.WriteString(lock.nonce)
+			if err := errors.Join(werr, f.Close()); err != nil {
+				// A lock without our nonce reads as someone else's to every check below; give it
+				// back rather than hold one nobody can prove is ours.
+				if rerr := os.Remove(lock.path); rerr != nil {
+					err = errors.Join(err, rerr)
+				}
+				return rearmLock{}, fmt.Errorf("re-arm state at %s: could not write this hook's lock (%w) — this event is not recorded, nothing is damaged", path, err)
+			}
 			return lock, nil
 		}
+		lastOpen = err
 		// A process that died holding the lock must not wedge the mechanism
 		// forever — the whole point is that losing a re-arm is cheap and losing
 		// the file is not.
@@ -901,14 +965,34 @@ func lockRearm(path string) (rearmLock, error) {
 		// here. What makes it SAFE is that the displaced holder finds out — it checks
 		// ownership before committing and abandons its write rather than racing us.
 		if fi, statErr := os.Stat(lock.path); statErr == nil && time.Since(fi.ModTime()) > lockRearmTimeout {
-			_ = os.Remove(lock.path)
+			if rerr := os.Remove(lock.path); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+				return rearmLock{}, fmt.Errorf("re-arm state at %s: its lock is older than %s and could not be broken (%w) — this event is not recorded, nothing is damaged", path, lockRearmTimeout, rerr)
+			}
 			continue
 		}
 		if time.Now().After(deadline) {
-			return rearmLock{}, fmt.Errorf("re-arm state at %s is locked by another hook and did not free within %s — this event is not recorded, nothing is damaged", path, lockRearmTimeout)
+			return rearmLock{}, fmt.Errorf("re-arm state at %s is locked by another hook and did not free within %s (%s; last open error: %v) — this event is not recorded, nothing is damaged", path, lockRearmTimeout, describeLock(lock.path), lastOpen)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+// describeLock names who holds the lock and how old it is, for the timeout message: the next
+// occurrence of a lock that does not free (#1553) has to say whose it was and whether it was
+// still being worked or left behind.
+func describeLock(path string) string {
+	var parts []string
+	if b, err := os.ReadFile(path); err != nil {
+		parts = append(parts, fmt.Sprintf("holder unreadable: %v", err))
+	} else {
+		parts = append(parts, fmt.Sprintf("held by %q", b))
+	}
+	if fi, err := os.Stat(path); err != nil {
+		parts = append(parts, fmt.Sprintf("age unknown: %v", err))
+	} else {
+		parts = append(parts, fmt.Sprintf("lock age %s", time.Since(fi.ModTime()).Round(time.Millisecond)))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // nonce identifies one lock holder. The pid alone is not enough: two hooks on one event are
