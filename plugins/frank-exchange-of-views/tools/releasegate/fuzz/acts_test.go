@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -296,4 +297,89 @@ func otherGrade(g string) string {
 		return grades[len(grades)-1]
 	}
 	return grades[0]
+}
+
+// THE CHAIR'S FAIL IS DRIVEN BY WHAT THE BOARD SAYS THE GATE WILL ANSWER, and each answer is read.
+//
+// The chair records a FAIL while a gap is open. The gate refuses EVERY verdict while a superseded
+// gap stands open (record.Blocker.Every), and the sweep supersedes on about a third of its mints, so
+// most chair sittings meet one: a sweep measured 368 of 423 verdict acts refused, every one on that
+// blocker. The drive used to read the refusal as "no verdict this sitting" and drop it, so the one
+// counter held the driven refusals and any regression alike — a FAIL the gate began refusing for
+// another reason would have read as one more of 368.
+//
+// So the blockers are read first, and the act goes through the door they decide:
+//   - a blocker that holds every verdict: refused, as a conflict with the board;
+//   - a blocker another seat must clear: admitted — the convergence rule stands only where the PASS is
+//     the chair's own to record (record.requireFailIsNotConvergent);
+//   - only the chair's own items, or none: the convergence rule decides, so either answer is the
+//     draw's, and a refusal must be the conflict that rule raises.
+func (r *runner) chairFail(seatID string) (verdict, printed string) {
+	args := []string{"verdict", "--seat-id", seatID, "--as", "FAIL"}
+	blockers, err := record.PassBlockers(r.run())
+	if err != nil {
+		r.noteActErr("the chair's FAIL: the blockers could not be read to say what the gate will answer: " + err.Error())
+		return "", ""
+	}
+	every, othersOwn := false, false
+	for _, b := range blockers {
+		every = every || b.Every()
+		othersOwn = othersOwn || !b.ChairOwned()
+	}
+	switch {
+	case every:
+		r.refuse(feov.Conflict, args...)
+		noteFail("refused: a blocker holds every verdict")
+		return "", ""
+	case othersOwn:
+		out, ok := r.admit(append([]string{"--json"}, args...)...)
+		if !ok {
+			return "", ""
+		}
+		noteFail("admitted: another seat's blocker holds the PASS")
+		return "FAIL", out
+	}
+	const why = "a FAIL that only the chair's own items hold: the convergence rule decides"
+	out, err := r.exec(append([]string{"--json"}, args...)...)
+	if err == nil {
+		noteEither(args, why, true)
+		noteFail("admitted: only the chair's own items hold the PASS")
+		return "FAIL", out
+	}
+	noteEither(args, why, false)
+	if env, ok := refusalEnvelopeIn(out); !ok || env.Code != string(feov.Conflict) {
+		r.noteActErr("the chair's FAIL with only its own items holding the PASS was refused other than as the convergence conflict: " + err.Error())
+		return "", ""
+	}
+	noteFail("refused: the board has converged")
+	return "", ""
+}
+
+// The chair's FAIL tally, by the door its act went through and what it got.
+var (
+	failMu  sync.Mutex
+	failRow = map[string]int{}
+)
+
+func noteFail(class string) {
+	failMu.Lock()
+	defer failMu.Unlock()
+	failRow[class]++
+}
+
+// failReport renders the chair's FAIL tally for the sweep's log.
+func failReport() string {
+	failMu.Lock()
+	defer failMu.Unlock()
+	keys := make([]string, 0, len(failRow))
+	for k := range failRow {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString("the chair's FAIL, by what the board said the gate would answer:")
+	for _, k := range keys {
+		fmt.Fprintf(&b, "\n  %s: %d", k, failRow[k])
+	}
+	return b.String()
 }

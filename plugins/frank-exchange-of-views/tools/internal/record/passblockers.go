@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -662,7 +663,8 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 }
 
 // blockerRefusal words the holding blockers, every one, grouped by kind in table order with each
-// kind's paragraph once.
+// kind's paragraph once. It is a Conflict: the verdict contradicts the board, and a caller reading
+// the refusal envelope tells it from a tool failure by the code, not the sentence.
 func blockerRefusal(holding []Blocker) error {
 	every := true
 	for _, b := range holding {
@@ -685,10 +687,10 @@ func blockerRefusal(holding []Blocker) error {
 		}
 	}
 	if len(paras) == 1 {
-		return fmt.Errorf("%s%s", head, paras[0])
+		return feov.Errorf(feov.Conflict, "%s%s", head, paras[0])
 	}
 	for i := range paras {
 		paras[i] = fmt.Sprintf("%d. %s", i+1, paras[i])
 	}
-	return fmt.Errorf("%s%d things hold it, in %d kinds, each with what clears it:\n\n%s", head, len(holding), len(paras), strings.Join(paras, "\n\n"))
+	return feov.Errorf(feov.Conflict, "%s%d things hold it, in %d kinds, each with what clears it:\n\n%s", head, len(holding), len(paras), strings.Join(paras, "\n\n"))
 }
