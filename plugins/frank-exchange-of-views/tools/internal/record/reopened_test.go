@@ -308,6 +308,23 @@ func TestANeverCheckedCitationStaysAvailableNotOwed(t *testing.T) {
 	}
 }
 
+// A CITATION NOBODY CHECKED BEFORE THE EDIT IS NOT REOPENED BY A LATER CHECK THAT READ NOTHING. The
+// edit answered no check, so the citation is still the work item that offers its first check; an
+// `unreachable` from a sitting opened after the edit does not make it owed. As a blocker it arose
+// after the evidence lens had sat at that head, so nobody was readied for it and the release fuzz's
+// forced-VERIFIED run ended UNVERIFIED on it.
+func TestAnUnreachableFirstCheckAfterTheEditDoesNotReopen(t *testing.T) {
+	b := reopenedBoard(t, outsideLens).cite("C-2").reopen("C-2")
+	b.dispatch(b.at(), outsideLens).register(outsideLens).verify(outsideLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
+	run := b.seed()
+	if got := reopenedOf(t, run); len(got) != 0 {
+		t.Fatalf("blockers = %+v, want none: C-2 was never checked before the edit, and the check after it read nothing", got)
+	}
+	if got := standingOf(t, run); len(got) != 0 {
+		t.Errorf("show evidence's reopened rows = %+v, want none", got)
+	}
+}
+
 // F7: with no evidence lens to dispatch, the anchor is shown and holds nothing.
 func TestNoEvidenceLensInTheCastNoBlocker(t *testing.T) {
 	run := newStage(t).cast(outsideLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").

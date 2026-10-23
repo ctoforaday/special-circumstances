@@ -115,9 +115,24 @@ func (s *anchorStanding) holds() bool {
 
 // reopened reports whether an edit changed this anchor's sentence after it was checked and no
 // check has stood since: the anchor is owed a check from a sitting opened after the edit. An
-// anchor nobody ever checked is not reopened: it is the work item that offers its first check.
+// anchor nobody checked before the edit is not reopened: it is the work item that offers its first
+// check. A check from a sitting opened after the edit that read nothing (`unreachable`) leaves it
+// that work item. It makes no reopening: the edit answered no check, and a blocker that arose at
+// another lens's unreachable verify, after the owner had sat at that head, readied nobody (the
+// owner is readied for a reopened anchor by the head the edit moved), so the run ended UNVERIFIED.
 func (s *anchorStanding) reopened() bool {
-	return s.edit != 0 && !s.retired && len(s.checks) > 0 && len(s.standing()) == 0
+	return s.edit != 0 && !s.retired && s.checkedBefore(s.edit) && len(s.standing()) == 0
+}
+
+// checkedBefore reports whether a check of this anchor may be of the sentence before edit: one from
+// a sitting opened no later than the edit, or from no sitting, which says nothing about when it read.
+func (s *anchorStanding) checkedBefore(edit int64) bool {
+	for _, c := range s.checks {
+		if c.sitting <= edit {
+			return true
+		}
+	}
+	return false
 }
 
 // lastCheck is the events.id of the anchor's latest check, 0 when none.
