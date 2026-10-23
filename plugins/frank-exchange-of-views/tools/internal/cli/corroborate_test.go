@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
@@ -151,21 +152,37 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 // quoting the sentence that holds the claim raises nothing.
 func TestARefutingCorroborationIsRaisedByTheFindingNamingIt(t *testing.T) {
 	runDir := corroborateRun(t)
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+	out, err := run(t, "--json", "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
 		"--quote", "the finding prose lands in a quoted sentence.", "--as", "refutes", "--confidence", "high",
-		"--reason", "the source says the opposite at page 9"); err != nil {
+		"--reason", "the source says the opposite at page 9")
+	if err != nil {
 		t.Fatal(err)
 	}
 	if got := unraisedClaims(t, runDir); len(got) != 1 {
 		t.Fatalf("unanswered contradictions = %v, want the one just recorded", got)
+	}
+	// The reading names the contradiction it opened, and that id is the one the finding names.
+	var printed struct {
+		Result struct {
+			Contradiction struct {
+				ID     string `json:"id"`
+				Opened bool   `json:"opened"`
+			} `json:"contradiction"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &printed); err != nil {
+		t.Fatalf("corroborate --json: %v\n%s", err, out)
+	}
+	if c := printed.Result.Contradiction; c.ID != unansweredContradictions(t, runDir)[0].ID || !c.Opened {
+		t.Fatalf("corroborate printed contradiction %+v, want the one it opened, %s", c, unansweredContradictions(t, runDir)[0].ID)
 	}
 	// The finding quotes the whole sentence, as `show report` prints it; the claim is a clause of it.
 	lensFinding(t, runDir, "red-lens-evidence", "q1", "--quote", corroborated)
 	if got := unraisedClaims(t, runDir); len(got) != 1 {
 		t.Errorf("unraised contradictions = %v after a finding at the sentence, want it still unraised: a quote raises nothing", got)
 	}
-	lensFinding(t, runDir, "red-lens-evidence", "k1", "--about-kind", "contradiction", "--about", unansweredContradictions(t, runDir)[0].ID)
+	lensFinding(t, runDir, "red-lens-evidence", "k1", "--about-kind", "contradiction", "--about", printed.Result.Contradiction.ID)
 	if got := unraisedClaims(t, runDir); len(got) != 0 {
 		t.Errorf("unraised contradictions = %v after the finding naming it, want none", got)
 	}

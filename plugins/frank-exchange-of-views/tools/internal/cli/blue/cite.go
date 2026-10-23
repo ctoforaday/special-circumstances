@@ -149,7 +149,7 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(at.loc.ReadingSha)
 		}
 		citeFields(cmd, body, why)
-		if err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: at.pages(), Origin: recordpb.Word(at.origin), VoiceTells: tells}, nil

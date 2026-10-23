@@ -1331,13 +1331,12 @@ func places(id, loc string, refuse func(error) error) func(*record.Landing) erro
 // (record.AppendPlaced): the placement is checked against the report the pair lands on and refused in
 // refuse's words, before any guards the verb passes. A quote is held to the report whether or not the
 // act places an anchor at it; an act that names no id places nothing, and one with no quote is checked
-// by its guards alone.
-func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) error {
+// by its guards alone. It returns the act's event as written, which carries the act's key.
+func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) (*record.Event, error) {
 	if strings.TrimSpace(loc) != "" {
 		guards = append([]record.Guard{Places(id, loc, refuse)}, guards...)
 	}
-	_, err := record.AppendPlaced(s.Identity(), act, id, loc, guards...)
-	return err
+	return record.AppendPlaced(s.Identity(), act, id, loc, guards...)
 }
 
 // StaleRule is how a page whose act names a gap teaches AppendFresh's refusal: one sentence set for
