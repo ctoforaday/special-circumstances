@@ -433,11 +433,10 @@ type Result interface {
 // prints Relay() alone, with no {verb, role, ok, result, standing} around it. A refusal keeps the
 // refusal envelope.
 //
-// A COPY, NOT A COMPOSITION. The chair's envelope carries `dispatch next`'s plan as `plan`; while
-// the verb printed the plan as `result` inside the ok envelope, the chair lifted it out and renamed
-// it, and about one sitting in five (m26-m30, 7 of 34) nested it — `{"plan": {"plan": ...}}`, or
-// the whole envelope wrapped — and was refused. Printing exactly the relayed object makes "copy
-// what the verb printed" and "fill `plan`" one act.
+// A COPY, NOT A COMPOSITION. The chair's envelope IS `dispatch next`'s plan. While the verb printed
+// the plan as `result` inside the ok envelope, the chair lifted it out and renamed it, and about
+// one sitting in five (m26-m30, 7 of 34) nested it and was refused. Printing exactly the relayed
+// object makes "copy what the verb printed" and "return the envelope" one act.
 type Relayed interface {
 	Result
 	Relay() any

@@ -42,6 +42,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
+	"maps"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -1240,11 +1241,13 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 	// the sitting off the relayed plan — capture holds every relayed plan to the record there. Asked
 	// again with nothing changed, the verb records nothing new.
 	r.planThisSitting = r.dispatchNext(seatID)
-	e := map[string]any{"plan": r.planThisSitting}
-	if verdict != "" {
-		e["verdict"] = verdict
+	// THE ENVELOPE IS THE PLAN, AND THE VERDICT IS ITS FIELD: the verb prints the verdict this
+	// sitting recorded, and the engine ends the debate on it. A plan that does not carry the verdict
+	// the drive just recorded is the record losing it on the way to the engine.
+	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
+		r.noteActErr(fmt.Sprintf("dispatch next after a %q verdict printed verdict %q — the plan carries the verdict this sitting recorded", verdict, got))
 	}
-	return e
+	return maps.Clone(r.planThisSitting)
 }
 
 func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args...) }

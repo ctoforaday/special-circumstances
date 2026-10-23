@@ -147,32 +147,32 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			lastMove = m
 			switch {
 			case m.pass:
-				e["plan"] = plan([]any{}, true, false, nil, "pass permitted")
+				e.Relay(plan([]any{}, true, false, nil, "pass permitted"))
 				e["verdict"] = "PASS"
 			case m.ceiling:
-				e["plan"] = plan([]any{}, false, true, nil, "every open material gap is at its limit")
+				e.Relay(plan([]any{}, false, true, nil, "every open material gap is at its limit"))
 			case m.stall:
 				p := plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
-				e["plan"] = p
+				e.Relay(p)
 			case m.halt:
 				engaged = []any{"G1"}
 				// A petition on the record convenes the bench, through the plan; the halt is its ruling.
 				p := plan([]any{party("blue-respond", "G1"), map[string]any{"seat_id": "judge", "gap_ids": []any{}, "occasions": []any{"petition"}}}, false, false, nil, "engaged")
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
-				e["plan"] = p
+				e.Relay(p)
 			case m.bench:
 				b.raised["G1"] = true
-				e["plan"] = plan([]any{party("judge", "G1")}, false, false, []any{"G1"}, "G1 at impasse")
+				e.Relay(plan([]any{party("judge", "G1")}, false, false, []any{"G1"}, "G1 at impasse"))
 			case m.fresh:
 				id := fmt.Sprintf("F%d", sittingOf(label))
 				b.raised[id] = true
 				engaged = []any{id}
-				e["plan"] = plan([]any{party("red-lens-evidence"), party("blue-respond", id)}, false, false, nil, "fresh")
+				e.Relay(plan([]any{party("red-lens-evidence"), party("blue-respond", id)}, false, false, nil, "fresh"))
 			default: // engage
 				b.raised["G1"] = true
 				engaged = []any{"G1"}
-				e["plan"] = plan([]any{party("red-lens-evidence", "G1"), party("blue-respond", "G1")}, false, false, nil, "engaged")
+				e.Relay(plan([]any{party("red-lens-evidence", "G1"), party("blue-respond", "G1")}, false, false, nil, "engaged"))
 			}
 		case strings.HasPrefix(seatID, "red-lens-"):
 			return debatejs.Envelope{"synopsis": "lens"}

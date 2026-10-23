@@ -71,7 +71,7 @@ type Plan struct {
 	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
-	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch and final_sitting"`
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
 	// Head is the events.id of the latest blue_edit or base_ingest — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -137,6 +137,28 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
+	// Verdict is the verdict the chair recorded in the sitting that asked, absent while it has
+	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
+	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
+	// chair's restatement of it. It says what the asking sitting did, not what the board decides,
+	// so the key leaves it out — a FAIL recorded in one sitting and not the next is no movement on
+	// the board.
+	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
+}
+
+// PlanVerdict is a chair's recorded verdict as the plan prints it: the verdict verb's word.
+type PlanVerdict string
+
+// chairVerdictOf is the verdict the chair recorded in its latest sitting — the one asking for the
+// plan — and "" where it recorded none. A sitting holds one verdict.
+func chairVerdictOf(evs []*Event, win WindowIndex) PlanVerdict {
+	var v PlanVerdict
+	for _, e := range thisSitting(evs, win, chairSeat) {
+		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+			v = PlanVerdict(strings.ToUpper(recordpb.Word(g.GetVerdict())))
+		}
+	}
+	return v
 }
 
 // impasseBasis is the ask of the docket motion filed on a gap at impasse.
@@ -260,6 +282,7 @@ func foldPlan(params Params, r planReads) Plan {
 	plan := emptyPlan()
 	plan.Head = r.head
 	evs, win, fresh := r.evs, r.win, r.fresh
+	plan.Verdict = chairVerdictOf(evs, win)
 
 	// Source 1: each cast lens that has never sat, or whose last sitting the head has moved past,
 	// until it retires owing nothing (retirement.go) — the same fold the PASS gate refuses from. A

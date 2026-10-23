@@ -136,5 +136,5 @@ type verdictResult struct {
 }
 
 func (r verdictResult) Human() string {
-	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s", r.Verdict, r.Open, r.Closed, r.Checkpoint)
+	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s\nthe workflow reads it off the plan: ask the dispatch again and relay that plan", r.Verdict, r.Open, r.Closed, r.Checkpoint)
 }

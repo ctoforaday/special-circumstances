@@ -4,7 +4,7 @@ the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 ## detail
 
-After it, the record is mirrored to the recovery copy.
+After it, the record is mirrored to the recovery copy. The workflow reads the verdict off the plan, never off this act: ask the dispatch again and relay that plan, which carries it.
 
 A PASS is REFUSED while anything still holds it — {{.PassBlockerKinds}}. The refusal lists every one, each with what clears it and whose act that is. `show work` is the list; `sitting.complete` is true exactly when nothing blocking is left.
 

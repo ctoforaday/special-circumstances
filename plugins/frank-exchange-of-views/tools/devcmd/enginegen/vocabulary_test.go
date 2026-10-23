@@ -17,7 +17,7 @@ func sampleVocabulary() vocabulary {
 	return vocabulary{
 		grades: []string{"low", "high"}, dimensions: []string{"severity"},
 		petitionRulings: []string{"granted", "denied"}, reliefBinds: []string{"blue"},
-		dispositions: []string{"repaired", "moot"}, verdicts: []string{"PASS", "FAIL"}, outcomes: []string{"VERIFIED"},
+		dispositions: []string{"repaired", "moot"}, outcomes: []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
 		dispatchOccasions: []string{"docket"},
 		party:             party,
@@ -53,7 +53,6 @@ const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
 const RULING_ON_PETITION = { type: 'string', enum: ['granted', 'denied'] }
 const RELIEF_BINDS = { type: 'string', enum: ['blue'] }
 const DISPOSITION = { type: 'string', enum: ['repaired', 'moot'] }
-const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
@@ -88,7 +87,8 @@ const PLAN = {
     ceiling: { type: 'boolean' },
     to_file: { type: 'array', items: { type: 'string' } },
   },
-  anyOf: [{ required: ['debts'], properties: { debts: { type: 'array', minItems: 1 } } }, { required: ['ceiling'], properties: { ceiling: { type: 'boolean', enum: [true] } } }],
+  if: { required: ['ceiling'], properties: { ceiling: { type: 'boolean', enum: [true] } } },
+  else: { required: ['debts'], properties: { debts: { type: 'array', minItems: 1 } } },
 }
 const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', debts: 'array', ceiling: 'boolean' }
 const PLAN_EMPTY_ONLY_WITH = { debts: 'ceiling' }

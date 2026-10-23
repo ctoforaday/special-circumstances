@@ -141,6 +141,14 @@ func OccasionOf(prompt string) string {
 // capture run reaches at all.
 type Envelope map[string]any
 
+// Relay is e carrying a chair's relay: the chair's envelope IS the plan, so each of the plan's
+// fields is a key of the envelope. A verdict the sitting recorded is the plan's `verdict`.
+func (e Envelope) Relay(plan map[string]any) {
+	for k, v := range plan {
+		e[k] = v
+	}
+}
+
 // HeldBy is the blockers a stubbed plan readying parties states, as `dispatch next` would: a plan
 // that permits no PASS names what holds it (record.Plan's Blockers is empty only when PassPermitted
 // is true), and each party the verb readies is readied by a blocker on the gate's list. One per
