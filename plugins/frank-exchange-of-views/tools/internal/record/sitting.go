@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -237,17 +236,14 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// through the ordinary route with a grade and a required fix — with the PASS gate behind
 		// it when the gap is material by its class or grade. A second duty here would be the same
 		// fact told twice.
-		// THE POSITION IS OWED BY THE SEAT SeatOwesPosition NAMES, and among blue seats that is the
-		// responding one: its sitting that found an engaged gap open owes the bench an argument.
-		// The state is PositionSittings' — the reading capture's record-parity audit fails a closed
-		// sitting on — so this list and that audit cannot disagree about which sitting is short.
-		// MISSING AND UNRESOLVED ARE ONE ITEM HERE: the seat reading its own list is the seat that
-		// can still file. A lane, the frontier and the synthesizer have no row and no item.
-		//
-		// THE CHAIR ARM HOLDS NO SUCH ITEM, on purpose: its blocking items are the PASS gate's
-		// blockers and nothing else, so its position is held by its prompt and by capture.
-		if p, sitting := positionSittingNow(evs, win, seatID); sitting && (p.State == PositionMissing || p.State == PositionUnresolved) {
-			add("this sitting's position is missing — it found " + strings.Join(p.Blue.Open, ", ") + " still open, and the bench reads no argument of yours for a sitting whose position is not on the record")
+		// BLUE-RESPOND OWES ITS CLOSING ON EACH DOCKETED GAP (closingowed.go): the PASS gate's
+		// blocker whose owner it is, the reading capture's record-parity audit holds it to, so this
+		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
+		// the synthesizer are party to no dispute and owe none.
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+			if b.Kind == BlockerClosingOwed && b.Owner == seatID {
+				add(b.WorkItem())
+			}
 		}
 	case "chair":
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
@@ -290,8 +286,9 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
-	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, AND CHECKING A
-	// REOPENED CITATION OR PROOF IT OWNS (reopenedOwnerOf). Beyond the two duties every seat holds above
+	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
+	// REOPENED CITATION OR PROOF IT OWNS (reopenedOwnerOf), AND ITS CLOSING ON A GAP OF ITS OWN THAT
+	// IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above
 	// this switch (the log channel, and the sitting it was dispatched for), each is a PASS blocker
 	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it — so it
 	// qualifies under the rule at the top of this file, and it is the kind table's own sentence.
@@ -307,7 +304,7 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened) || b.Owner != seatID {
+			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
 			if b.Kind == BlockerReopened && win.LatestSittingOf(seatID) <= b.since {
@@ -404,8 +401,8 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 // sittingOfBlueRespond is the sitting blue-respond's work list is read in: the latest of
 // record.BlueSittings, read while the run is running. sat is false for every other seat, and for a
 // blue-respond the record holds no dispatched sitting of. Once blue has registered for its dispatch,
-// the gaps the list names as found closed (engagedOf) are read off it — the sitting PositionSittings
-// holds to a position — so the list cannot excuse a position over one set of gaps and name another.
+// the gaps the list names as found closed (engagedOf) are read off it — the sitting the manifest's
+// owed set reads — so the list cannot excuse a row over one set of gaps and name another.
 func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSitting, bool) {
 	if seatID != blueRespondSeat {
 		return BlueSitting{}, false
@@ -424,8 +421,7 @@ type EngagedJSON struct {
 	GapIDs []string `json:"gap_ids"`
 	// FoundClosed is each of those a close landed on after the dispatch and before this sitting's
 	// register — its lens sat first and closed it — or, where the sitting has not registered yet,
-	// before this read. It is what the sitting's envelope names as found closed, and when it holds
-	// every gap of GapIDs the sitting owes no position. Never omitted: an empty list
+	// before this read. It is what the sitting's envelope names as found closed. Never omitted: an empty list
 	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
 }

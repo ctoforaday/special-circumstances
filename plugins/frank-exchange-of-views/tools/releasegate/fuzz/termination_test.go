@@ -175,7 +175,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				e["plan"] = plan([]any{party("red-lens-evidence", "G1"), party("blue-respond", "G1")}, false, false, nil, "engaged")
 			}
 		case strings.HasPrefix(seatID, "red-lens-"):
-			return debatejs.Envelope{"synopsis": "lens"}
+			return debatejs.Envelope{}
 		case seatID == "blue-respond":
 			// Blue manifests what the PLAN engaged it on — a ruled gap the chair re-engages is still
 			// blue's to answer this sitting; whether the record would ever engage it is the record's

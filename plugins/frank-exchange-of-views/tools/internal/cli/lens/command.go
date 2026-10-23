@@ -5,7 +5,8 @@
 // against its own budget. A gap belongs to the lens that minted it for its whole life — regrade
 // and close are the originator's acts, refused at the record for any other seat
 // (plans/roundless.md §III.B.3). The chair dispatches the lens when its gap needs acting on; the
-// bench disposes of a docketed gap through its ruling.
+// bench disposes of a docketed gap through its ruling, on the closings its parties file — the lens's
+// among them.
 package lens
 
 import (
@@ -29,6 +30,7 @@ func Verbs() []*cobra.Command {
 		newRenderPage(),
 		newCorroborate(),
 		newReproduce(),
+		seat.Closing("closing-red"),
 		seat.Log(),
 	)
 }

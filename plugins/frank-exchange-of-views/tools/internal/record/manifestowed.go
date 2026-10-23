@@ -93,9 +93,8 @@ type BlueSitting struct {
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
-// reading of "what did this blue sitting owe": the manifest counts receipts off it, and
-// PositionSittings — behind capture's record-parity audit and blue's work list — holds each
-// sitting that found an engaged gap open to a position. A dispatch blue never sat has no sitting here.
+// reading of "what did this blue sitting owe": the manifest counts receipts off it, and the work
+// list names the gaps it found closed. A dispatch blue never sat has no sitting here.
 //
 // ITS BOUNDS ARE THE SHARED ONES. The sitting begins where sittingFor says and ends where
 // sittingCloser says at when — blue's own next register, its agent's stop, or after the run the end

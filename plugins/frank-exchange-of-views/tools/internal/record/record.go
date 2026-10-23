@@ -1153,6 +1153,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
+		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
+			return err
+		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
@@ -1209,6 +1212,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 	case *recordpb.Position:
+		if err := PositionRefusal(seatID); err != nil {
+			return err
+		}
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
@@ -1687,6 +1693,36 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
+// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
+// closing is an argument the bench reads when it rules a docketing, so one with nothing before the
+// bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
+// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
+func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var mintedBy string
+	var docketed int64
+	found, err := queryRowAt(q, []any{&mintedBy, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return err // an unknown gap is requireGap's refusal, not this one's
+	}
+	if !IsClosingParty(seatID, mintedBy) {
+		return feov.Errorf(feov.RoleViolation,
+			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
+				"An argument about no one gap is the chair's position",
+			mintedBy, gapID, blueRespondSeat, seatID)
+	}
+	if docketed == 0 {
+		return feov.Errorf(feov.Validation,
+			"%s is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. "+
+				"A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap",
+			gapID)
+	}
+	return nil
 }
 
 // reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its

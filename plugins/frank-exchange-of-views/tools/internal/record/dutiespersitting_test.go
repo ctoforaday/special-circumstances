@@ -104,8 +104,8 @@ func TestNoBlueSeatIsToldARevisionIsMissing(t *testing.T) {
 					t.Errorf("%s's work list names a revision, an act no surface offers: %q", seat, it.What)
 				}
 			}
-			if owes := seat == "blue-respond"; hasItem(s, "this sitting's position is missing") != owes {
-				t.Errorf("%s's work list holds a position item = %v, want %v: %+v", seat, !owes, owes, s.Open)
+			if listsItem(s, "position") {
+				t.Errorf("%s's work list names a position, which no blue seat files: %+v", seat, s.Open)
 			}
 			if seat != "blue-respond" && !s.Complete {
 				t.Errorf("%s sat, owes nothing, and its work list is not complete: %+v", seat, s.Open)
@@ -167,10 +167,6 @@ func TestWhatABlueSittingOwesIsWhatItFoundOpenWhetherOrNotItHasEnded(t *testing.
 			}
 			if got := len(ss[0].Open) > 0; got != c.owes {
 				t.Errorf("the sitting owes an answer = %v, want %v", got, c.owes)
-			}
-			p, sitting := positionSittingNow(m.Events, m.At, "blue-respond")
-			if !sitting || (p.State != PositionNotOwed) != c.owes {
-				t.Errorf("the work list's reading of the sitting = %q (found %v), want it owing a position = %v", p.State, sitting, c.owes)
 			}
 		})
 	}
