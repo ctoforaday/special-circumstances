@@ -45,7 +45,7 @@ func newVerdict() *cobra.Command {
 			// a seat that cannot get past it has nowhere to go. The set is rendered from the
 			// same declaration the help renders, so the two cannot say different things.
 			return nil, feov.Errorf(feov.Validation,
-				"--%s must be one of %s (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
+				"--%s must be one of %s, spelled exactly (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
 				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
 		}
 		if _, err := record.Append(s.Identity(), &recordpb.Gate{Verdict: &v}); err != nil {

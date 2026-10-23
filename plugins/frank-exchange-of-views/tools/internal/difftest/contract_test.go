@@ -145,7 +145,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"unclassified mint without a reason", []string{"mint", "--class", "unclassified", "--check-kind", "document", "--check", "x", "--problem", "p", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
 		{"mint with bad grade", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
 		{"mint with dangling supersedes", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
-		{"close unknown gap", []string{"close", "--id", noSuchGap, "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
+		{"close unknown gap", []string{"close", "--id", noSuchGap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
 		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without anchor", []string{"close", "--id", "GAP001"}},
 		{"regression close without successor", []string{"close", "--id", "GAP001", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
@@ -260,11 +260,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
 		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},
 		{"a second manifest row for a gap in one sitting", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked it again"}},
-		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
+		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
-		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "repaired", "--reason", "restating"}},
-		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "not_a_defect", "--reason", "restating otherwise"}},
+		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
+		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
 
 		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two findings on
 		// one sentence; the refusal prints what the record holds about each and the replacement's

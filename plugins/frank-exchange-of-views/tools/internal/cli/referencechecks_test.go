@@ -40,7 +40,7 @@ var referenceChecks = []struct {
 	extra   []string
 }{
 	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
+		extra: []string{"--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
@@ -98,9 +98,9 @@ var referenceChecks = []struct {
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
 	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--carried-from", "1", "--reason", "r"}},
+		extra: []string{"--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--carried-from", "1", "--reason", "r"}},
+		extra: []string{"--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	// A READ'S REFERENCE IS CHECKED TOO: the changes view scoped to a gap nobody minted answers
 	// with nothing, which reads as a gap nobody has answered.
 	{verb: []string{"show", "changes"}, flag: "--id", against: "the board", bogus: "G2"},

@@ -325,6 +325,10 @@ func answerDrives() []answerDrive {
 			carry := func(as string) []string {
 				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", as, "--reason", "restating"}
 			}
+			// THE EPOCH IS PART OF THE CLAIM: a carry naming a sitting the gap was not closed in is refused.
+			if r := d.refused("a carry naming another epoch", "red-chair", "carry", "--id", "G1", "--carried-from", "7", "--as", "repaired", "--reason", "restating"); !strings.Contains(r, "names no closure of gap") {
+				d.t.Fatalf("a carry naming another epoch was refused for another reason:\n%s", r)
+			}
 			d.admitted("the carry", "red-chair", carry("repaired")...)
 			d.endsWithRow(d.refused("a second carry in the sitting", "red-chair", carry("not_a_defect")...), rowClose)
 			d.docketMotion("a docket motion on the closed gap, by the chair", "red-chair")

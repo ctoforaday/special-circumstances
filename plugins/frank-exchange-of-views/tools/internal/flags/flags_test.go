@@ -163,12 +163,8 @@ func TestCSVSet(t *testing.T) {
 		{"single", "G1", []string{"G1"}},
 		{"several", "G1,G2,G3", []string{"G1", "G2", "G3"}},
 		{"surrounding space per item is trimmed", " G1 , G2 ", []string{"G1", "G2"}},
-		{"empty items are dropped, not recorded as \"\"", "G1,,G2", []string{"G1", "G2"}},
-		{"trailing comma", "G1,", []string{"G1"}},
-		{"leading comma", ",G1", []string{"G1"}},
 		{"the empty string yields no items", "", nil},
-		{"only separators yield no items", ",,,", nil},
-		{"only whitespace yields no items", "  ,  ", nil},
+		{"only whitespace yields no items", "   ", nil},
 		{"interior space is preserved — the item is not re-split", "a b,c", []string{"a b", "c"}},
 		{"multibyte items survive intact", "日本語,✓,—", []string{"日本語", "✓", "—"}},
 	}
@@ -240,38 +236,34 @@ func TestCSVGivenIsSeparateFromEmptiness(t *testing.T) {
 	}
 }
 
-// pflag calls Set once per occurrence of a repeated flag, so a second Set must
-// REPLACE the first — accumulating would silently union two lineages.
-func TestCSVSetReplacesRatherThanAccumulates(t *testing.T) {
+// AN EMPTY ITEM IS REFUSED: dropping it would record a list other than the one typed.
+func TestCSVRefusesAnEmptyItem(t *testing.T) {
+	for _, in := range []string{"G1,,G2", "G1,", ",G1", ",,,", "  ,  "} {
+		var c CSV
+		if err := c.Set(in); err == nil || !strings.Contains(err.Error(), "empty item") {
+			t.Errorf("Set(%q) = %v, %q; want an empty item refused", in, err, c.Value())
+		}
+	}
+}
+
+// pflag calls Set once per occurrence of a repeated flag, so a SECOND OCCURRENCE IS REFUSED: merging
+// would union two lists, and replacing would drop one the seat also stated. The first list stands.
+func TestCSVRefusesASecondOccurrence(t *testing.T) {
 	var c CSV
 	if err := c.Set("a,b,c"); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.Set("x"); err != nil {
-		t.Fatal(err)
+	if err := c.Set("x"); err == nil || !strings.Contains(err.Error(), "more than once") {
+		t.Fatalf("a second Set = %v; want it refused", err)
 	}
-	got := c.Value()
-	if len(got) != 1 || got[0] != "x" {
-		t.Fatalf("Value() = %q after re-Set, want [x] — a repeated flag must replace", got)
-	}
-	// Set truncates the existing backing array rather than allocating, so a slice
-	// a caller already took from Value() must not be rewritten underneath it.
-	var d CSV
-	if err := d.Set("first,second"); err != nil {
-		t.Fatal(err)
-	}
-	held := d.Value()
-	if err := d.Set("third,fourth"); err != nil {
-		t.Fatal(err)
-	}
-	if held[0] != "first" || held[1] != "second" {
-		t.Errorf("a previously returned Value() was mutated by a later Set: %q", held)
+	if got := c.Value(); len(got) != 3 || got[0] != "a" {
+		t.Errorf("Value() = %q after a refused second Set, want [a b c]", got)
 	}
 }
 
 func TestCSVStringRoundTrips(t *testing.T) {
 	var c CSV
-	if err := c.Set(" a , b ,, c "); err != nil {
+	if err := c.Set(" a , b , c "); err != nil {
 		t.Fatal(err)
 	}
 	// String is what pflag echoes as the default/current value; it must show the

@@ -107,8 +107,13 @@ func sourceURL(path string) string {
 	return sourceSrvURL + path
 }
 
-// sourceBody is the text the loopback source serves at path, which a cite of it quotes.
-func sourceBody(path string) string { return "fuzz source body for " + path }
+// sourceBody is the text the loopback source serves at path, which a cite of it quotes: one
+// sentence, so a span of all of it starts where the source starts a sentence.
+func sourceBody(path string) string { return "Fuzz source body for " + path + "." }
+
+// sourceFragment is a span sourceBody holds once that starts inside its clause, which the tool
+// refuses (fetchcache.SpanBoundary).
+func sourceFragment(path string) string { return "source body for " + path }
 
 // mootPending and mootSpent carry the sweep's single `close --as moot` drive. Package-level and
 // atomic because the sweep runs its seeds concurrently and each seed runs its seats concurrently:
@@ -375,6 +380,10 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
+	// fragmentsDriven counts the cites driven to be refused for a span that starts mid-clause
+	// (sourceFragment); refuse holds each to the refusal. bogusSpans alternates the two refused
+	// spans with no draw of its own. The sweep gates fragmentsDriven at zero.
+	fragmentsDriven, bogusSpans int
 	// reopenedReadied counts the plans that readied the owner of every reopened blocker they hold
 	// (readiedForReopened), and reopenedPlans the plans holding one, whoever they readied.
 	// proofReopenedReadied counts, by owner, the reopened PROOFS whose owner a plan readied; the
@@ -665,6 +674,20 @@ func (r *runner) orderRefused(seatID string) {
 	default:
 		r.ordersRefused++
 	}
+}
+
+// nextBogusSpanIsFragment alternates the cites that type a span to be refused between a mid-clause
+// fragment and words the source does not hold, drawing nothing from the run's RNG, and counts the
+// fragments.
+func (r *runner) nextBogusSpanIsFragment() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bogusSpans++
+	if r.bogusSpans%2 == 1 {
+		r.fragmentsDriven++
+		return true
+	}
+	return false
 }
 
 // citeSpanRefused holds the tool to refusing a cite whose source span the source's text does not
@@ -2449,11 +2472,18 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		r.mu.Unlock()
 		if first {
 			absent := "fuzz-absent-" + id + ".js"
-			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
+			// The output carries an environment error the tool recognises: --expect-error on a run
+			// that failed nothing is refused.
+			body := "console.error('ls: cannot access /fuzz-absent: No such file or directory'); process.exit(3);"
 			if err := r.writeScript(absent, body); err == nil {
 				r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
+			}
+			clean := "fuzz-clean-" + id + ".js"
+			if err := r.writeScript(clean, "console.log(1)"); err == nil {
+				r.refuse(feov.Validation, "prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+					"--script", clean, "--expect-error", "--reason", "fuzz: claims a failure the run does not have")
 			}
 		}
 	}
@@ -2595,8 +2625,18 @@ func (r *runner) carryPrior(seatID string) {
 	r.mu.Unlock()
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
+		epoch, ok := r.closedEpoch(carried)
+		if !ok {
+			return
+		}
+		// THE EPOCH IS THE CLOSURE'S OWN, read off the board: a carry naming another sitting is
+		// refused, and a drive in ten states one to see it refused.
+		if r.coin(10) {
+			r.refuse(feov.Validation, "carry", "--seat-id", seatID, "--id", carried,
+				"--carried-from", strconv.Itoa(epoch+1000), "--as", "repaired")
+		}
 		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
-			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
+			"--carried-from", strconv.Itoa(epoch), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
 		// how the annotation deleted it silently. Both shapes are legal and both are driven.
@@ -2869,17 +2909,23 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(25, "--quote", "across the whole sampled corpus").
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			// EVERY CITE OF A SOURCE WITH TEXT QUOTES WORDS THE TOOL FINDS IN IT. The sweep's sources
-			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span it
-			// does not hold instead, and the tool must refuse it (citeSpan). One draw, where the
-			// drive drew one before, so every later draw of the run is the one it was.
+			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span the tool
+			// must refuse instead — alternately words the source does not hold (citeSpanRefused) and
+			// a fragment cut from inside its clause (sourceFragment). One draw, where the drive drew
+			// one before, so every later draw of the run is the one it was.
 			span, held := sourceBody(path), true
 			if r.coin(15) {
 				span, held = "fuzz words the source does not hold", false
 			}
-			if !held {
+			switch {
+			case !held && r.nextBogusSpanIsFragment():
+				// A SPAN CUT FROM INSIDE A CLAUSE, which the source holds once: refused, and the
+				// refusal shows the sentence rather than placing the fragment.
+				cite.set("--source-span", sourceFragment(path)).refuse(feov.Validation)
+			case !held:
 				out, err := cite.set("--source-span", span).result()
 				r.citeSpanRefused(seatID, out, err)
-			} else {
+			default:
 				// THE KEY NAMES THE CITATION, everything it states: a retry of the same act under it is
 				// idempotent, and the record refuses a key naming another.
 				cite.set("--source-span", span).keyed(40, "C").admit()
@@ -3751,6 +3797,9 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
+	// fragmentsDriven is the cites driven to be refused for a span starting mid-clause
+	// (runner.fragmentsDriven).
+	fragmentsDriven int
 	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
@@ -4957,6 +5006,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closingsFiled, res.closingsLeft, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsLeft, r.closingWaits, r.positionsWithheld
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
+	res.fragmentsDriven = r.fragmentsDriven
 	res.quotesRefused = r.quotesRefused
 	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
@@ -5680,6 +5730,7 @@ func TestFuzzDebate(t *testing.T) {
 	closingsFiled, closingsLeft := 0, 0             // closings filed on a docketed gap, and left unfiled
 	closingWaits := 0                               // plans that kept the bench waiting on a closing
 	positionsWithheld := 0                          // chair sittings that withheld a permitted PASS and argued why
+	fragmentsDriven := 0                            // cites driven to be refused for a span starting mid-clause
 	reopenedReadied, reopenedPlans := 0, 0          // plans that readied every reopened blocker's owner, of those holding one
 	proofReopenedReadied := map[string]int{}        // reopened proofs whose owner a plan readied, by owner
 	owedKeptBy := map[string]int{}                  // those folds, by each kind of debt they held
@@ -5763,6 +5814,7 @@ func TestFuzzDebate(t *testing.T) {
 			positionsWithheld += o.positionsWithheld
 			ordersRefused += o.ordersRefused
 			spansRefused += o.spansRefused
+			fragmentsDriven += o.fragmentsDriven
 			quotesRefused += o.quotesRefused
 			bridgesRefused += o.bridgesRefused
 			bridgesNamed += o.bridgesNamed
@@ -5939,6 +5991,11 @@ func TestFuzzDebate(t *testing.T) {
 		// refusal of a span the source does not hold is reached only by the drive that types one.
 		if spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", completed)
+		}
+		// THE SPAN-BOUNDARY GATE. Every other held span is a whole sentence, so the refusal of one
+		// cut from inside a clause is reached only by the drive that types sourceFragment.
+		if fragmentsDriven == 0 {
+			t.Errorf("fuzz drove ZERO cites of a span starting mid-clause across %d runs — the refusal that keeps a fragment reading the other way off the record is unexercised (false green)", completed)
 		}
 		// THE REPORT'S-SENTENCE GATE. The lens drive quotes a real span of the report under every
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive

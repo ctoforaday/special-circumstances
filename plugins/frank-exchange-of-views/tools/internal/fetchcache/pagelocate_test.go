@@ -139,17 +139,17 @@ func TestASpanInAPagesTextIsFoundOnceWithTheTextAroundIt(t *testing.T) {
 	if e.TextSha, err = StoreText(run, e.Sha, []byte(body)); err != nil {
 		t.Fatal(err)
 	}
-	loc, err := LocateSourceSpan(run, e, "a Fermat pseudoprime to base a, and a is a Fermat liar")
+	loc, err := LocateSourceSpan(run, e, "An odd composite n for which a^(n-1) is 1 mod n is a Fermat pseudoprime to base a, and a is a Fermat liar")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body[loc.Start:loc.End] != loc.Matched || loc.Matched != "a Fermat pseudo-\nprime to base a, and a is a Fermat liar" {
+	if body[loc.Start:loc.End] != loc.Matched || loc.Matched != "An odd composite n for which a^(n-1) is 1 mod n is a Fermat pseudo-\nprime to base a, and a is a Fermat liar" {
 		t.Errorf("matched %q at [%d,%d)", loc.Matched, loc.Start, loc.End)
 	}
 	if loc.TextSha != e.TextSha || len(loc.Pages) != 0 {
 		t.Errorf("text sha %q, pages %v: want the extraction's sha and no page", loc.TextSha, loc.Pages)
 	}
-	if len(loc.Before) > SpanWindow+3 || len(loc.After) > SpanWindow+3 || !strings.HasSuffix(loc.Before, "Filler words before. An odd composite n for which a^(n-1) is 1 mod n is ") ||
+	if len(loc.Before) > SpanWindow+3 || len(loc.After) > SpanWindow+3 || !strings.HasSuffix(loc.Before, "Filler words before. Filler words before. ") ||
 		!strings.HasPrefix(loc.After, ". Twice said.") {
 		t.Errorf("window: before %q, after %q", loc.Before, loc.After)
 	}

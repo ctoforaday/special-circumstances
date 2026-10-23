@@ -924,7 +924,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	// The full triple closes it.
 	out, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:f",
-		"--reason", "verified against the ref")
+		"--reason", "verified against the ref", "--as", "repaired")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -937,7 +937,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	}
 
 	// Closing an unknown gap is refused before anything is written.
-	_, err = runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G2",
+	_, err = runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G2", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 		"--reason", "supplied so the refusal under test is the reference one")
 	if err == nil {
@@ -995,7 +995,7 @@ func TestCloseRecordsItsProse(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
-		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason", "the whole closure record"); err != nil {
+		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason", "the whole closure record", "--as", "repaired"); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastBody(t, runDir, &recordpb.Close{}).GetProse(); got != "the whole closure record" {
@@ -1264,6 +1264,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		{"remand with a direction and --final", "--as remanded requires --direction, and never --reopens-on or --final", stated, true},
 		{"remand with a direction and --reopens-on", "--as remanded requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
 		{"remand with neither", "--as remanded requires --direction", omitting("--direction"), false},
+		{"a blank --reopens-on is not an absent one", "--reopens-on is empty", with("--reopens-on", ""), false},
 		{"remand with a blank direction", "--as remanded requires --direction", with("--direction", ""), false},
 		{"remand with a whitespace direction", "--as remanded requires --direction", with("--direction", " \t"), false},
 	} {

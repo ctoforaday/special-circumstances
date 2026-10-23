@@ -153,7 +153,7 @@ func actRows() map[string]actRow {
 					t.Fatal(err)
 				}
 				must(t, runDir, "prove", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
-					"--script", s, "--reason", "the computation a lens re-runs", "--expect-error")
+					"--script", s, "--reason", "the computation a lens re-runs")
 				return actVars{"proof": lastBody(t, runDir, &recordpb.Proof{}).GetProofId()}
 			},
 			act: func(v actVars, text string) []string {

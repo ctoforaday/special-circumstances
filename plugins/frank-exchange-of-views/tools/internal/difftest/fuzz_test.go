@@ -369,6 +369,8 @@ var fuzzArms = []fuzzArm{
 			}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--as", "repaired_with_regression") // no successor: the validation path
+			} else {
+				f = append(f, "--as", "repaired")
 			}
 			return f
 		}},
@@ -384,9 +386,13 @@ var fuzzArms = []fuzzArm{
 	// twice, both before any gap had closed.
 	{name: "chair carry", weight: 2, seats: []string{"red-chair"}, verb: []string{"carry"},
 		flags: func(rng *rand.Rand) []string {
-			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", "1"}
+			// The epoch is the closure's own, and the record refuses any other: the generator draws
+			// the epochs a closure in these sequences can hold.
+			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", pick(rng, []string{"0", "1"})}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--as", "repaired_with_regression")
+			} else {
+				f = append(f, "--as", "repaired")
 			}
 			return f
 		}},
@@ -472,7 +478,7 @@ var tourArms = []fuzzArm{
 		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
 	tourArm("lens close", []string{"red-lens-evidence"}, []string{"close"},
 		func(t string) []string {
-			return []string{"--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
+			return []string{"--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
 		}, nil),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
 }

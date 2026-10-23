@@ -466,7 +466,7 @@ func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMoti
 	// overlay the board fold applies, asked of the record (queries.go).
 	current, found, err := gradeAt(q, g.GetGapId(), col)
 	if err != nil {
-		return nil // a record that cannot be read does not block the filing; requireGap already ran
+		return fmt.Errorf("the record could not be read to tell whether this motion asks for a change, so nothing is filed — retry the call: %w", err)
 	}
 	if !found {
 		return nil // requireGap answered this already
@@ -1086,6 +1086,15 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			if len(prior) == 0 {
 				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+			}
+			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
+			// naming the wrong sitting was recorded as the seat's statement of where the closure
+			// came from. An archive's carry predates the check, and migrate carries it as written.
+			if !Migrating {
+				if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
+					return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
+						b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
+				}
 			}
 		}
 		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
@@ -1735,4 +1744,13 @@ func requireUnclassifiedReason(m *recordpb.Mint) error {
 		}
 	}
 	return fmt.Errorf("--class unclassified requires --reason — %s", why)
+}
+
+// joinInts renders epochs as a refusal names them: "2", "2, 4".
+func joinInts(ns []int) string {
+	parts := make([]string, len(ns))
+	for i, n := range ns {
+		parts[i] = strconv.Itoa(n)
+	}
+	return strings.Join(parts, ", ")
 }
