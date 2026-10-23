@@ -72,25 +72,34 @@ func newProve() *cobra.Command {
 		tells := spanVoiceTells(why)
 
 		// The script's own sha settles it, and costs a file read rather than an execution.
-		if prior, priorID, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+		key := seat.Str(cmd, flags.Key)
+		if prior, err := record.ExistingProofByKey(run, s.SeatID, key); err != nil {
 			return nil, err
-		} else if prior != "" {
+		} else if prior != nil {
 			now, serr := proof.ScriptSha(run.Dir(), script)
 			if serr != nil {
 				return nil, serr
 			}
-			if now != prior {
+			if now != prior.GetProofSha() {
 				return nil, feov.Errorf(feov.Conflict, "--key %q already names proof %s on this run, and %s hashes to %s — "+
 					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
 					"leave you citing a proof of something else. Give this program its own --key",
-					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
+					key, prior.GetProofSha()[:12], script, now[:12])
 			}
-			// A proof on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the
-			// retry, at the location it stored.
-			if err := seat.PlaceOwed(s, priorID, seat.Str(cmd, flags.Key)); err != nil {
+			// THE SAME PROGRAM IS NOT YET THE SAME ACT: a retry states the sentence it backs, the
+			// method it cites, the gap it answers and its note again, or it is a second proof reusing
+			// the name.
+			retry := &recordpb.Proof{}
+			proofFields(cmd, retry, why)
+			if err := seat.RepeatsKeyed(key, "proof", prior.GetProofId(), prior, retry, proveAsserted...); err != nil {
 				return nil, err
 			}
-			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil
+			// A proof on the record without its anchor — one migrate brought forward from an archive
+			// whose run crashed between the two — is finished by the retry, at the location it states.
+			if err := seat.PlaceOwed(s, prior.GetProofId(), key); err != nil {
+				return nil, err
+			}
+			return proveResult{SHA: prior.GetProofSha(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		res, err := proof.Run(run.Dir(), script)
@@ -151,7 +160,7 @@ func newProve() *cobra.Command {
 	seat.Require(c, flags.Quote, flags.Script)
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
-	c.Flags().String(flags.Key, "", flags.DescKey)
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another program, --quote, --cites, --answers or --reason is refused: a handle names one proof")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
 	seat.Records(c, "proof")
 	return c
@@ -166,6 +175,15 @@ func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Answers = proto.String(seat.Str(cmd, flags.Answers))
 	body.Cites = proto.String(seat.Str(cmd, flags.Cites))
 	body.Text = proto.String(why)
+}
+
+// proveAsserted is what a proof states besides its program, and so what a retry under its key must
+// state again.
+var proveAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
+	{Flag: flags.Cites, Field: "cites"},
+	{Flag: flags.Answers, Field: "answers"},
+	{Flag: flags.Reason, Field: "text"},
 }
 
 func proveRefusal(err error) error { return anchortext.Refusal(err) }

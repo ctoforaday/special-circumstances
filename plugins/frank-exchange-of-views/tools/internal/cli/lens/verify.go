@@ -2,6 +2,7 @@ package lens
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strconv"
@@ -414,6 +415,11 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 				return nil, feov.Errorf(feov.Conflict, "you corroborated %s on this claim already, as citation %s: %s. A corroboration is one per source and claim, and its retry repeats it; a different reading of the same source is a verification of that citation — `verify --anchor %s`",
 					body.GetUrl(), prior.GetLabel(), readingWords(prior), prior.GetLabel())
 			}
+			if was, now := statedOtherwise(prior, body); was != "" {
+				return nil, feov.Errorf(feov.Conflict, "you corroborated %s on this claim already, as citation %s, stated with %s; this repeat states %s. "+
+					"A corroboration is one per source and claim and its retry repeats it, so this one records nothing and is refused",
+					body.GetUrl(), prior.GetLabel(), was, now)
+			}
 			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
 			// the retry, at the claim it stored.
 			if err := seat.PlaceOwed(s, prior.GetLabel(), ""); err != nil {
@@ -469,6 +475,31 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 func sameReading(stored, retry *recordpb.Verify) bool {
 	return stored.GetOutcome() == retry.GetOutcome() && bridgeWord(stored) == bridgeWord(retry) &&
 		stored.GetConfidence() == retry.GetConfidence()
+}
+
+// statedOtherwise is what a corroboration retry states besides its reading — the title, the date it
+// was read and its reason — where that differs from the stored corroboration, as the flags that
+// state it then and now; "" where every one repeats.
+func statedOtherwise(stored, retry *recordpb.Verify) (was, now string) {
+	var w, n []string
+	for _, f := range []struct{ flag, s, r string }{
+		{flags.Title, stored.GetTitle(), retry.GetTitle()},
+		{flags.AccessDate, stored.GetAccessDate(), retry.GetAccessDate()},
+		{flags.Reason, stored.GetText(), retry.GetText()},
+	} {
+		if f.s == f.r {
+			continue
+		}
+		w, n = append(w, statedAs(f.flag, f.s)), append(n, statedAs(f.flag, f.r))
+	}
+	return strings.Join(w, " "), strings.Join(n, " ")
+}
+
+func statedAs(flag, v string) string {
+	if v == "" {
+		return "no --" + flag
+	}
+	return fmt.Sprintf("--%s %q", flag, v)
 }
 
 // readingWords renders a stored reading for the refusal that names it.

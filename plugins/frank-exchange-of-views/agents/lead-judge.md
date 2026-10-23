@@ -237,7 +237,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
@@ -477,9 +477,11 @@ Enumerated values:
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
+
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 

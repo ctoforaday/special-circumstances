@@ -73,10 +73,11 @@ func newCite() *cobra.Command {
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != nil {
-			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source at the same span,
-			// or it is a second citation reusing the name. The sentence is not compared: a retry does
-			// not read --quote, and is finished at the location the citation stored.
-			retry := &recordpb.Cite{Url: proto.String(url), SourceSpan: proto.String(span)}
+			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source, under the same
+			// title, at the same span, for the same sentence and with the same argument, or it is a
+			// second citation reusing the name.
+			retry := &recordpb.Cite{SourceSpan: proto.String(span)}
+			citeFields(cmd, retry, why)
 			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
 				return nil, err
 			}
@@ -162,7 +163,7 @@ func newCite() *cobra.Command {
 		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause: "+fetchcache.SpanBoundary+". "+
 		"It records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span or --reason is refused: a handle names one citation")
 	return c
 }
 
@@ -175,7 +176,13 @@ func newCite() *cobra.Command {
 // offered" stays distinct from an empty one.
 // citeAsserted is what a citation states, and so what a retry under its key must state again: the
 // source and the span relied on in it.
-var citeAsserted = []seat.Asserted{{Flag: flags.URL, Field: "url"}, {Flag: flags.SourceSpan, Field: "source_span"}}
+var citeAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
+	{Flag: flags.URL, Field: "url"},
+	{Flag: flags.Title, Field: "title"},
+	{Flag: flags.SourceSpan, Field: "source_span"},
+	{Flag: flags.Reason, Field: "text"},
+}
 
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Location = proto.String(seat.Location(cmd))

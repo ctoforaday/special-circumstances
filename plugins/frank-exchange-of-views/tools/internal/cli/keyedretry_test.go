@@ -30,7 +30,8 @@ func keyedRun(t *testing.T) string {
 }
 
 // keyedRetry is one keyed verb: its first call, the retries that state the act otherwise (each with
-// the stored statement its refusal must name), and the retries that differ only in location.
+// the stored statement its refusal must name), and the retries that differ only in what the act
+// does not compare.
 type keyedRetry struct {
 	verb, seat string
 	typ        recordpb.EventType
@@ -38,7 +39,7 @@ type keyedRetry struct {
 	args       []string            // the first call, after --run and --seat-id
 	differ     map[string][]string // flag -> replacement pair, applied to args
 	names      map[string]string   // flag -> the stored statement the refusal names
-	located    [][]string          // replacement pairs that change the location alone
+	located    [][]string          // replacement pairs that change only what is not compared
 	restated   map[string][]string // whole retries (after --run and --seat-id) -> the stored statement named
 	gaps       bool                // mint two gaps and file two findings first: {G1} {G2} {F1} {F2} in the calls
 }
@@ -49,16 +50,17 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 			args: []string{"--key", "K1", "--quote", keyedStored, "--reason", "the bound is unsourced",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"},
 			differ: map[string][]string{
+				"--quote":      {"--quote", keyedOther},
 				"--reason":     {"--reason", "another claim"},
 				"--severity":   {"--severity", "high"},
 				"--likelihood": {"--likelihood", "high"},
 				"--impact":     {"--impact", "high"},
 			},
 			names: map[string]string{
+				"--quote":  `--quote "` + keyedStored + `"`,
 				"--reason": `--reason "the bound is unsourced"`, "--severity": "--severity low",
 				"--likelihood": "--likelihood low", "--impact": "--impact low",
-			},
-			located: [][]string{{"--quote", keyedOther}}},
+			}},
 		{verb: "finding", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_FINDING, idField: "finding_id",
 			args: []string{"--key", "K2", "--about-kind", "section", "--about", "H", "--reason", "a case is missing",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"},
@@ -79,6 +81,8 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 				"--impact":     {"--impact", "high"},
 				"--complexity": {"--complexity", "high"},
 				"--class":      {"--class", "unsourced_claim"},
+				"--quote":      {"--quote", keyedOther},
+				"--reason":     {"--reason", "the argument, put again"},
 			},
 			names: map[string]string{
 				"--problem": `--problem "the bound is unsourced"`, "--fix": `--fix "source the bound"`,
@@ -86,9 +90,9 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 				"--severity": "--severity medium", "--likelihood": "--likelihood medium", "--impact": "--impact medium",
 				"--complexity": "--complexity low",
 				"--class":      "--class spec_underspecification",
-			},
-			// red's argument is not the gap: a retry restating it is the same gap.
-			located: [][]string{{"--quote", keyedOther}, {"--reason", "the argument, put again"}}},
+				"--quote":      `--quote "` + keyedStored + `"`,
+				"--reason":     `--reason "red's argument"`,
+			}},
 		{verb: "mint", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_MINT, idField: "gap_id", gaps: true,
 			args: []string{"--key", "K2", "--quote", keyedStored, "--new", "The measured latency is capped.",
 				"--class", "spec_underspecification", "--problem", "the word is loose", "--fix", "tighten it",
@@ -112,12 +116,11 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 		{verb: "edit", seat: blueSeat, typ: recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
 			args: []string{"--key", "E1", "--quote", "is bounded", "--new", "is capped", "--reason", "plainer"},
 			differ: map[string][]string{
-				"--new":   {"--new", "is limited"},
-				"--quote": {"--quote", "drains in order"},
+				"--new":    {"--new", "is limited"},
+				"--quote":  {"--quote", "drains in order"},
+				"--reason": {"--reason", "plainer, put again"},
 			},
-			names: map[string]string{"--new": `--new "is capped"`, "--quote": `--quote "is bounded"`},
-			// blue's argument is not the change.
-			located: [][]string{{"--reason", "plainer, put again"}}},
+			names: map[string]string{"--new": `--new "is capped"`, "--quote": `--quote "is bounded"`, "--reason": `--reason "plainer"`}},
 		{verb: "edit", seat: blueSeat, typ: recordpb.EventType_EVENT_TYPE_BLUE_EDIT, gaps: true,
 			args:   []string{"--key", "E2", "--quote", "drains in order", "--new", "drains first in, first out", "--answers", "{G1}", "--reason", "exact"},
 			differ: map[string][]string{"--answers": {"--answers", "{G2}"}},

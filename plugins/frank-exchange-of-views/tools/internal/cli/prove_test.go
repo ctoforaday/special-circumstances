@@ -167,3 +167,39 @@ func TestProveRefusesAMisquotedLocation(t *testing.T) {
 		t.Fatal("a proof anchored to text the report does not contain was accepted")
 	}
 }
+
+// A PROOF'S KEY NAMES ONE PROOF, not one program: a retry under it states the sentence, its note and
+// the gap it answers again, and a retry stating any of them otherwise is refused naming the stored
+// statement, recording nothing.
+func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
+	runDir := newRun(t)
+	const first, second = "Nine is composite.", "Ten is composite."
+	seat := proveSeat(t, runDir, "# H\n\n"+first+"\n\n"+second+"\n")
+	s := script(t, runDir, "nine.js", "console.log(9%3)")
+	args := []string{"prove", "--run", runDir, "--seat-id", seat, "--key", "P1", "--script", s, "--quote", first, "--reason", "trial division"}
+	if _, err := run(t, args...); err != nil {
+		t.Fatalf("prove: %v", err)
+	}
+	if out, err := run(t, args...); err != nil || !strings.Contains(out, "idempotent") {
+		t.Errorf("an identical retry = %q, %v; want the stored proof, idempotent", out, err)
+	}
+	for flag, swap := range map[string][2]string{
+		"--quote":  {first, second},
+		"--reason": {"trial division", "a sieve"},
+	} {
+		retry := append([]string(nil), args...)
+		for i := range retry {
+			if retry[i] == swap[0] {
+				retry[i] = swap[1]
+			}
+		}
+		before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF)
+		_, err := run(t, retry...)
+		if err == nil || !strings.Contains(err.Error(), flag+` "`+swap[0]+`"`) {
+			t.Errorf("a retry with another %s = %v; want a conflict naming the stored %s", flag, err, flag)
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); n != before {
+			t.Errorf("the refused retry recorded %d proof(s)", n-before)
+		}
+	}
+}

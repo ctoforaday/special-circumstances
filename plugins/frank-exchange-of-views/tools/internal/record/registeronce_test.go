@@ -1,16 +1,20 @@
 package record_test
 
-// A REGISTER IS ONCE PER DISPATCH, AND ITS DISPATCH NUMBER IS THE SITTING'S RANK.
+// A REGISTER IS ONCE PER DISPATCH, AND ITS DISPATCH NUMBER IS THE SITTING'S RANK. A second register
+// in one sitting is refused, naming the registration the record holds, and writes nothing.
 //
 // Measured on universe-m31: four sittings held two registers from one agent — the seat's first act
 // registered it silently, then the seat ran `register` itself — and each repeat advanced the
 // dispatch count, so the chair's 12th sitting printed "dispatch 13".
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -41,10 +45,20 @@ func eventCount(t *testing.T, run record.Run) int {
 	return len(fam.Events)
 }
 
+// refusedRepeat asserts err is the repeat-register refusal naming the stored dispatch.
+func refusedRepeat(t *testing.T, err error, dispatch string) {
+	t.Helper()
+	var fe *feov.Error
+	if err == nil || !errors.As(err, &fe) || fe.Code != feov.Conflict ||
+		!strings.Contains(err.Error(), "already registered in this sitting ("+dispatch) {
+		t.Errorf("the repeat = %v; want a conflict naming %s", err, dispatch)
+	}
+}
+
 // THE M31 CHAIR, REPLAYED: twelve bracketed sittings, a register in each, and a second register in
-// the 8th and the 12th. Every answer is the sitting's own number, the repeat answers what the first
-// did and writes nothing, and the 12th sitting says 12.
-func TestARepeatedRegisterAnswersTheStoredOneAndWritesNothing(t *testing.T) {
+// the 8th and the 12th. Every answer is the sitting's own number, the repeat is refused naming the
+// dispatch the first answered and writes nothing, and the 12th sitting says 12.
+func TestARepeatedRegisterIsRefusedAndWritesNothing(t *testing.T) {
 	dir, run := bracketedRun(t)
 	chair := record.Identity{Run: run, SeatID: "red-chair"}
 	for i := 1; i <= 12; i++ {
@@ -62,13 +76,8 @@ func TestARepeatedRegisterAnswersTheStoredOneAndWritesNothing(t *testing.T) {
 			continue
 		}
 		before := eventCount(t, run)
-		again, _, err := record.RegisterSeat(chair, "", "")
-		if err != nil {
-			t.Fatalf("sitting %d, the repeat: %v", i, err)
-		}
-		if again != first {
-			t.Errorf("sitting %d: the repeat answered dispatch %d, the register it repeats said %d", i, again, first)
-		}
+		_, _, err = record.RegisterSeat(chair, "", "")
+		refusedRepeat(t, err, fmt.Sprintf("dispatch %d", first))
 		if after := eventCount(t, run); after != before {
 			t.Errorf("sitting %d: the repeat wrote %d event(s)", i, after-before)
 		}
@@ -95,17 +104,18 @@ func TestTheDispatchNumberCountsSittingsNotRegisters(t *testing.T) {
 	}
 }
 
-// WITH NO BRACKET THE FIRST REGISTER OPENS THE SITTING, and the agent's repeat joins nothing new: one
-// sitting, one register. This is the shape a seat of blue's researcher configuration has.
+// WITH NO BRACKET THE FIRST REGISTER OPENS THE SITTING, and the agent's repeat is refused and opens
+// nothing new: one sitting, one register. This is the shape a seat of blue's researcher
+// configuration has.
 func TestARepeatedRegisterOpensNoSecondSitting(t *testing.T) {
 	_, run := bracketedRun(t)
 	blue := record.Identity{Run: run, SeatID: "blue-respond"}
 	t.Setenv(seatenv.AgentVar, "agent_blue_1")
-	for range 2 {
-		if d, _, err := record.RegisterSeat(blue, "", ""); err != nil || d != 1 {
-			t.Fatalf("register = dispatch %d, %v; want 1", d, err)
-		}
+	if d, _, err := record.RegisterSeat(blue, "", ""); err != nil || d != 1 {
+		t.Fatalf("register = dispatch %d, %v; want 1", d, err)
 	}
+	_, _, err := record.RegisterSeat(blue, "", "")
+	refusedRepeat(t, err, "dispatch 1")
 	if n, err := record.SittingsOf(run, "blue-respond"); err != nil || n != 1 {
 		t.Errorf("SittingsOf = %d, %v; want 1", n, err)
 	}
@@ -125,9 +135,9 @@ func TestARegisterWithNoAgentOpensASittingEachTime(t *testing.T) {
 	}
 }
 
-// THE BENCH'S REPEAT IS THE SAME REGISTRATION ONLY UNDER THE SAME OCCASION. A second word for one
-// dispatch contradicts the record, and is refused without writing.
-func TestABenchRepeatNamingAnotherOccasionIsRefused(t *testing.T) {
+// THE BENCH'S REPEAT IS REFUSED UNDER EITHER OCCASION: under the same one it is a second register, and
+// under another a second word for one dispatch that contradicts the record. Neither writes.
+func TestABenchRepeatIsRefusedUnderEitherOccasion(t *testing.T) {
 	dir, run := bracketedRun(t)
 	bench := record.Identity{Run: run, SeatID: "judge"}
 	bracket(t, dir, benchConfig, "agent_bench_1")
@@ -135,12 +145,11 @@ func TestABenchRepeatNamingAnotherOccasionIsRefused(t *testing.T) {
 	if _, _, err := record.RegisterSeat(bench, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
-	if d, _, err := record.RegisterSeat(bench, "", "docket"); err != nil || d != 1 {
-		t.Errorf("the same occasion again = dispatch %d, %v; want the stored dispatch 1", d, err)
-	}
 	before := eventCount(t, run)
-	_, _, err := record.RegisterSeat(bench, "", "petition")
-	if err == nil || !strings.Contains(err.Error(), `"docket"`) {
+	_, _, err := record.RegisterSeat(bench, "", "docket")
+	refusedRepeat(t, err, `dispatch 1, occasion "docket"`)
+	_, _, err = record.RegisterSeat(bench, "", "petition")
+	if err == nil || !strings.Contains(err.Error(), `"docket"`) || !strings.Contains(err.Error(), `"petition"`) {
 		t.Errorf("a repeat naming another occasion = %v; want it refused naming the stored one", err)
 	}
 	if after := eventCount(t, run); after != before {

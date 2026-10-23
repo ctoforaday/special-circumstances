@@ -25,8 +25,19 @@ func TestACorroborationRetryIsHeldToTheReadingItRepeats(t *testing.T) {
 		t.Fatalf("the first corroboration was refused: %v", err)
 	}
 
-	// An identical retry is idempotent, and echoes the STORED row: its title, not the request's.
-	out, err := run(t, append(corroborateArgs(runDir, first...), "--json", "--title", "Another Title")...)
+	// A retry naming another title is a second statement of the act, and is refused naming both.
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_VERIFY)
+	if _, err := run(t, append(corroborateArgs(runDir, first...), "--title", "Another Title")...); err == nil ||
+		feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), `--title "A Bridged Source"`) ||
+		!strings.Contains(err.Error(), `--title "Another Title"`) {
+		t.Errorf("a retry naming another title = %v; want a conflict naming both titles", err)
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_VERIFY); n != before {
+		t.Errorf("the refused retry recorded %d verify event(s)", n-before)
+	}
+
+	// An identical retry is idempotent, and echoes the STORED row.
+	out, err := run(t, append(corroborateArgs(runDir, first...), "--json")...)
 	if err != nil {
 		t.Fatalf("an identical retry was refused: %v", err)
 	}
@@ -119,6 +130,9 @@ func TestACiteKeyNamesOneCitation(t *testing.T) {
 	}{
 		"url":         {base("https://y", "The measured latency is bounded."), `--url "https://x"`},
 		"source-span": {base("https://x", "The measured latency is bounded.", "--source-span", "src"), "no --source-span"},
+		"quote":       {base("https://x", "The queue drains in order."), `--quote "The measured latency is bounded."`},
+		"title":       {base("https://x", "The measured latency is bounded.", "--title", "U"), `--title "T"`},
+		"reason":      {base("https://x", "The measured latency is bounded.", "--reason", "it says so"), "no --reason"},
 	} {
 		if _, err := run(t, c.args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), c.names) {
 			t.Errorf("%s: a keyed cite differing from the stored one answered %v; want a conflict naming %s", name, err, c.names)

@@ -1375,7 +1375,7 @@ func AppendFresh(s Context, gapID string, write func(guards ...record.Guard) err
 // places, are asked of the record the Anchor lands on: an anchor placed in between is not placed twice.
 //
 // Its refusal is its own, never the verb's first-call wording: that wording teaches a seat to fix
-// --quote, and a retry places the stored location whatever --quote says.
+// --quote, and a retry is held to the --quote the act stored (RepeatsKeyed), so another one is a new act.
 func PlaceOwed(s Context, id, key string) error {
 	body := &recordpb.Anchor{Id: proto.String(id)}
 	_, err := record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error {
@@ -1396,7 +1396,7 @@ func PlaceOwed(s Context, id, key string) error {
 				repeats, anew = fmt.Sprintf("under --key %q", key), fmt.Sprintf(", under a --key other than %q", key)
 			}
 			return feov.Errorf(feov.Conflict, "the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
-				"A call %s repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. "+
+				"A call %s repeats that act, its --quote included, so it cannot move the anchor. "+
 				"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
 				anchor.Kind(id), loc, state, repeats, anew)
 		})(l)

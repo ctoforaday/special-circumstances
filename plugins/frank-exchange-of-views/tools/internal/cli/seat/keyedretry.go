@@ -25,9 +25,9 @@ type Asserted struct {
 // A KEY IS ONE ACT'S NAME, as it is one program's for `prove` and one citation's for `cite`: a
 // retry that states a different grade, subject or text is a second act reusing the name, and
 // answering it with the first leaves the seat holding something other than what it asked for.
-// What is not listed is not compared — the location above all, because a retry does not read
-// --quote and is finished at the location the act stored. An absent field and an empty one are
-// the same statement.
+// Every fact the act's verb records from a flag is listed by its caller, the location included: a
+// retry that quotes other text is another act. An absent field and an empty one are the same
+// statement.
 func RepeatsKeyed(key, noun, id string, stored, retry proto.Message, asserted ...Asserted) error {
 	s, r := stored.ProtoReflect(), retry.ProtoReflect()
 	var was, now []string
