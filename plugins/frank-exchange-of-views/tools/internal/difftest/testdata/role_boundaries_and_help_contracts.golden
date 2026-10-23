@@ -33,6 +33,7 @@ Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
+  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
@@ -78,6 +79,7 @@ Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
+  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
@@ -249,6 +251,7 @@ Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
   edit         change the report — the only path into report.md, and how every repair lands
+  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author

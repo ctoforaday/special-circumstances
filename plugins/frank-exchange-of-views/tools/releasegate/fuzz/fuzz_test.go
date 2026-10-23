@@ -327,6 +327,12 @@ type runner struct {
 	registered map[string]bool
 	// lensSittings is each lens's sittings this run, by seat: the cost the retirement rule bounds.
 	lensSittings map[string]int
+	// blueSittings is blue-respond's sittings this run, and blueAgain those it sat on successors it
+	// engaged (gblock's ruling R2): the cost the second sitting adds, and how often it is driven.
+	blueSittings, blueAgain int
+	// againOn is the successors blue engaged its next sitting on, which the engine sits it on next:
+	// the plan's party names the chair's gaps, so the second sitting reads its own here.
+	againOn []string
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
 	// next write — kept here so the driver can name a prior epoch to --carried-from without reading
@@ -1307,6 +1313,9 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		}
 		r.lensSittings[seatID]++
 	}
+	if seatID == "blue-respond" {
+		r.blueSittings++
+	}
 	if seatID == "red-chair" {
 		r.chairRegisters++
 	}
@@ -1653,8 +1662,8 @@ func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
 	args := append([]string{"--json", "finding", "--seat-id", seatID,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise"}, anchorArgs...)
 	out, err := r.exec(args...)
-	// THE LENSES SIT CONCURRENTLY, and any lens's finding quoting a claim raises its
-	// contradiction, so another lens can raise one between this lens's board read and its write.
+	// THE LENSES SIT CONCURRENTLY, and any lens's finding naming a contradiction raises it, so
+	// another lens can raise one between this lens's board read and its write.
 	// A refusal of a raise BY ID is admissible only when the record now holds that contradiction
 	// raised or answered; every other refusal fails the run.
 	if id := contradictionAbout(anchorArgs); id != "" {
@@ -1695,6 +1704,35 @@ func contradictionAbout(anchorArgs []string) string {
 		return ""
 	}
 	return ref
+}
+
+// quoteRaisesNothing files a finding quoting claim and fails the run if any contradiction reads
+// raised by it: only a finding naming a contradiction's id raises it.
+func (r *runner) quoteRaisesNothing(seatID, claim string) {
+	out, err := r.exec("--json", "finding", "--seat-id", seatID, "--quote", claim,
+		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
+	if err != nil {
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+		return
+	}
+	var env struct {
+		Result struct {
+			FindingID string `json:"finding_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
+		r.noteActErr("an admitted finding's --json result names no finding_id: " + firstLine(out))
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+		if c.RaisedBy == env.Result.FindingID {
+			r.noteActErr("finding " + env.Result.FindingID + " quoting the claim raised contradiction " + c.ID + ", which it does not name")
+		}
+	}
 }
 
 // contradictionUnraised reports whether the record lists contradiction id as unanswered with no
@@ -3206,6 +3244,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// answering it) is refused as an act on a closed gap. Blue works what is still open; the
 		// manifest still names what it was engaged on.
 		engaged := r.engaged(seatID)
+		r.mu.Lock()
+		again := r.againOn
+		r.againOn = nil
+		r.mu.Unlock()
+		if again != nil {
+			engaged = again // the engine sits blue again on the successors it engaged, not the plan's gaps
+			r.mu.Lock()
+			r.blueAgain++
+			r.mu.Unlock()
+		}
 		stillOpen := map[string]bool{}
 		for _, id := range r.openGaps() {
 			stillOpen[id] = true
@@ -3244,7 +3292,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			manifest = append(manifest, id)
 		}
 		r.maybePetition(seatID)
-		return map[string]any{"manifest": manifest}
+		env := map[string]any{"manifest": manifest}
+		if again == nil {
+			r.engageSuccessors(seatID, env)
+		}
+		return env
 
 	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
 	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
@@ -3614,21 +3666,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
 				// saying the report asserts what its source does not, and a PASS is refused until
-				// a finding quotes that claim — for a verification, the sentence its anchor marks,
-				// which for a quarter of the citations is the edited one. The tool will not write
-				// the finding itself, because that would mean inventing its three grades. Driving the remedy here is
-				// what makes both the gate and the act that clears it real in the sweep; without
-				// it every run with a negative reading would wedge at the verdict.
+				// a finding naming the contradiction by its id raises it and the gap minted from
+				// that finding answers it. The tool will not write the finding itself, because that
+				// would mean inventing its three grades. Driving the remedy here is what makes both
+				// the gate and the act that clears it real in the sweep; without it every run with a
+				// negative reading would wedge at the verdict.
 				//
-				// BOTH ANSWERS, AND SOMETIMES LATER. A finding quoting the claim answers it while the
-				// report holds the sentence; one naming the contradiction by its id answers it either
-				// way. Left on a coin to the lens's next sitting (answerContradictions), the answer
-				// often follows a blue sitting that edited the cited sentence away — the case a quote
-				// can no longer reach and the id still does.
+				// A QUOTE RAISES NOTHING. On a coin the lens first files a finding quoting the claim
+				// — for a verification, the sentence its anchor marks, which for a quarter of the
+				// citations is the edited one — and the contradiction must still read unraised.
+				//
+				// NOW OR LATER. Left on a coin to the lens's next sitting (answerContradictions), the
+				// raise often follows a blue sitting that edited the cited sentence away, and the id
+				// still names it.
 				if outcome == "refutes" || outcome == "absent" {
 					switch {
 					case r.coin(40):
-						r.raiseAndMint(seatID, "--quote", read)
+						r.quoteRaisesNothing(seatID, read)
+						r.answerContradictions(seatID)
 					case r.forceVerified || r.coin(50):
 						r.answerContradictions(seatID)
 					}
@@ -3750,6 +3805,8 @@ type outcome struct {
 	epochLimit bool
 	// lensSittings is the runner's.
 	lensSittings map[string]int
+	// blueSittings and blueAgain are the runner's.
+	blueSittings, blueAgain int
 
 	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
 	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
@@ -5023,6 +5080,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
+	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
 	res.budgetRefused = r.budgetRefused
 	res.ownAnswers = r.ownAnswers
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
@@ -5680,6 +5738,7 @@ func TestFuzzDebate(t *testing.T) {
 	// 60 was a number the gates did not depend on; at production shape a run costs ~2.2x what the
 	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
 	mootPending.Store(true)
+	engageRefusalPending.Store(true)
 	mootSpent.Store(false)
 	resetClassDrive()
 
@@ -5707,6 +5766,7 @@ func TestFuzzDebate(t *testing.T) {
 	var failures []outcome
 	var completed int
 	verdicts := map[string]int{}
+	blueSits, blueAgains := 0, 0 // blue-respond sittings across the sweep, and those on an engaged successor (R2)
 	epochHist := map[int]int{}
 	// limitExits is the runs the epoch limit ended: CEILING by the run's term. limitForced is
 	// whether limitSeed's run was one of them.
@@ -5754,7 +5814,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings)
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -5781,6 +5841,8 @@ func TestFuzzDebate(t *testing.T) {
 			mu.Lock()
 			completed++
 			verdicts[o.verdict]++
+			blueSits += o.blueSittings
+			blueAgains += o.blueAgain
 			// THE FORCED RUN'S OWN VERDICT, kept rather than folded into the histogram. A
 			// declining drive has to be reported as itself, and "the forced run ended CEILING"
 			// is the whole diagnosis; a count says only that nothing reached the word.
@@ -5869,6 +5931,7 @@ func TestFuzzDebate(t *testing.T) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
+	t.Logf("BLUESTAT blue-respond sittings=%d (on an engaged successor %d) over %d runs", blueSits, blueAgains, completed)
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
@@ -6001,7 +6064,7 @@ func TestFuzzDebate(t *testing.T) {
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive
 		// that quotes the source's sentence.
 		if quotesRefused == 0 {
-			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
+			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction's claim the report's own sentence is unexercised (false green)", completed)
 		}
 		// THE BRIDGE GATE. supports_with_bridge names what it bridged; a reading naming none is
 		// refused. Both halves must run, or the required value is unexercised behind a green sweep.
@@ -7267,3 +7330,57 @@ func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
 		}
 	}
 }
+
+// engageSuccessors is blue's R2 act (gblock, 2026-10-23): where its work list names an engaged gap it
+// found closed with an open successor, it records `engage` on exactly those and relays them in its
+// envelope, and the engine sits it once more this epoch. Before the owed set, once per sweep, it
+// asks with a gap the record names as no successor — the refusal the ruling requires.
+func (r *runner) engageSuccessors(seatID string, env map[string]any) {
+	w, err := record.WorkOfSeat(r.run(), "blue", seatID)
+	if err != nil || w.Engaged == nil {
+		return
+	}
+	var closed, lineage []string
+	for _, f := range w.Engaged.FoundClosed {
+		closed = append(closed, f.ID)
+		lineage = append(lineage, f.Successors...)
+	}
+	succ := w.Engaged.SuccessorsOwed
+	if len(closed) == 0 {
+		return
+	}
+	found := []any{}
+	for _, id := range closed {
+		found = append(found, id)
+	}
+	env["found_closed"] = found
+	if len(succ) == 0 {
+		return
+	}
+	if engageRefusalPending.CompareAndSwap(true, false) {
+		named := map[string]bool{}
+		for _, g := range lineage {
+			named[g] = true
+		}
+		for _, other := range r.openGaps() {
+			if !named[other] {
+				r.refuse(feov.Validation, "engage", "--seat-id", seatID, "--ids", other)
+				break
+			}
+		}
+	}
+	if _, err := r.exec("engage", "--seat-id", seatID, "--ids", strings.Join(succ, ",")); err != nil {
+		return
+	}
+	out := []any{}
+	for _, g := range succ {
+		out = append(out, g)
+	}
+	env["successors"] = out
+	r.mu.Lock()
+	r.againOn = succ
+	r.mu.Unlock()
+}
+
+// engageRefusalPending drives the engage refusal once per sweep.
+var engageRefusalPending atomic.Bool
