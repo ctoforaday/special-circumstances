@@ -553,11 +553,11 @@ func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) 
 func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("this finding answers contradiction %q, which is not an events.id", ref)
+		return "", fmt.Errorf("this finding raises contradiction %q, which is not an events.id", ref)
 	}
 	to, landed := newID[n]
 	if !landed {
-		return "", fmt.Errorf("this finding answers contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
+		return "", fmt.Errorf("this finding raises contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
 	}
 	return strconv.FormatInt(to, 10), nil
 }
