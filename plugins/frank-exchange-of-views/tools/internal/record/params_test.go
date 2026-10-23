@@ -44,3 +44,22 @@ func TestRunParamsAreReadFromTheRunConfigWithLoudRefusals(t *testing.T) {
 		}
 	}
 }
+
+// A RUN-CONFIG THAT IS THERE AND CANNOT BE READ IS NOT A RUN WITH NO TERMS. Absent is setup's
+// defaults; unreadable is an error, because the terms it holds are what the run's budgets and
+// limits are checked against. A directory where the file stands is a read no box can make.
+func TestAnUnreadableRunConfigIsAnErrorNotTheDefaults(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "inputs", "run-config.json"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := paramsIn(dir); err == nil || !strings.Contains(err.Error(), "could not be read") {
+		t.Errorf("paramsIn over an unreadable run-config = %v, want the read error", err)
+	}
+	if _, err := convergenceFractionIn(dir); err == nil {
+		t.Error("convergenceFractionIn over an unreadable run-config answered the default")
+	}
+	if rc, err := readRunConfig(t.TempDir()); rc != nil || err != nil {
+		t.Errorf("a run with no run-config = (%v, %v), want no terms and no error", rc, err)
+	}
+}
