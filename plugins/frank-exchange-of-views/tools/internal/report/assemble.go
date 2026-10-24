@@ -826,8 +826,8 @@ func withdrawnClaims(fam record.Family) string {
 // red actually observed at the leaf, and the two sitting together is what lets a reader see a
 // restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
-func provenance(m *recordpb.Mint, findings map[string]*record.Event) string {
-	fb := m.GetFoundBy()
+func provenance(g *record.Gap, findings map[string]*record.Event) string {
+	fb := g.FoundBy()
 	if len(fb) == 0 {
 		return ""
 	}
@@ -884,7 +884,7 @@ func boardSection(fam record.Family) string {
 			// what lets a reader see a restatement drift from its evidence. Unresolvable ids
 			// (a found_by naming no finding on the record) are kept as bare ids rather than
 			// silently dropped — an unresolvable citation is itself worth seeing.
-			foundBy := provenance(g.Mint, findings)
+			foundBy := provenance(g, findings)
 			// `class` is a GapClass word, not a grade — it goes through `grade` only for that
 			// helper's em-dash-when-empty arm. `grade` takes `any` and asserts a string, so the
 			// enum is converted to its word HERE: passed bare it compiles and prints `—`.
@@ -932,7 +932,7 @@ func boardSection(fam record.Family) string {
 			// claimed. A run where every finding was minted and every gap closed printed red's
 			// leaf-level words nowhere. The closure answers what happened; it does not restate
 			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), closureDetail(g), provenance(g.Mint, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), closureDetail(g), provenance(g, findings)))
 		}
 	}
 	var b strings.Builder
@@ -1190,7 +1190,7 @@ func unmintedFindings(fam record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.GetFoundBy() {
+		for _, lbl := range g.FoundBy() {
 			minted[lbl] = true
 		}
 	}

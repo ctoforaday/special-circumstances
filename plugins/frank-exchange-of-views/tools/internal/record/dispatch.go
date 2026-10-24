@@ -18,7 +18,7 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a proof it judged unsound; empty for blue readied to fix or retire a proof judged unsound; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
@@ -498,6 +498,26 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			engage(b.Owner, "")
 			plan.Why = append(plan.Why, contradictionReadiness(b, false))
+		// A PROOF A LENS'S STANDING JUDGEMENT CALLS UNSOUND READIES TWO SEATS (gblock, 2026-10-24): the
+		// judging lens to mint its gap, until it has, and blue to fix or retire the proof — each once
+		// per cause, where blue's cause moves when the gap is minted, so blue sits with the gap's fix
+		// in hand.
+		case b.Kind == BlockerUnsoundProof:
+			if b.answeredBy == "" && seatclass.RoleOfSeat(b.Owner) == "lens" {
+				if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
+					plan.Why = append(plan.Why, unsoundReadiness(b, b.Owner, true))
+				} else {
+					engage(b.Owner, "")
+					plan.Why = append(plan.Why, unsoundReadiness(b, b.Owner, false))
+				}
+			}
+			cause := max(b.since, b.answeredAt)
+			if _, sat := firstAfter(ends.through[blueRespondSeat], cause); sat {
+				plan.Why = append(plan.Why, unsoundReadiness(b, blueRespondSeat, true))
+				continue
+			}
+			engage(blueRespondSeat, "")
+			plan.Why = append(plan.Why, unsoundReadiness(b, blueRespondSeat, false))
 		}
 	}
 	for _, s := range order {
@@ -1244,7 +1264,23 @@ func contradictionReadiness(b Blocker, satSince bool) string {
 	if satSince {
 		return fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b))
 	}
-	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it with a finding naming its id and mint its gap from that finding, which takes no mint of its budget", b.Owner, b.Detail, contradictionFact(b))
+	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it with a finding naming its id and answer it with the gap minted from that finding, which takes no mint of its budget, or with the open gap that already holds its defect, credited with that finding", b.Owner, b.Detail, contradictionFact(b))
+}
+
+// unsoundReadiness is the plan's reason for seat on an unsound-proof blocker: the judging lens, ready
+// to mint its gap, or blue, ready to fix or retire the proof — or, where it has sat since the cause,
+// that it is not readied again.
+func unsoundReadiness(b Blocker, seat string, satSince bool) string {
+	if seat == blueRespondSeat {
+		if satSince {
+			return fmt.Sprintf("%s has sat since proof %s was judged unsound and left it standing — readied once per cause, so not again", seat, b.Subject)
+		}
+		return fmt.Sprintf("%s: proof %s stands judged unsound by %s — ready, to fix the proof or retire it", seat, b.Subject, ownerOr(b, unsoundJudge))
+	}
+	if satSince {
+		return fmt.Sprintf("%s has sat since it judged proof %s unsound and minted no gap about it — readied once per judgement, so not again", seat, b.Subject)
+	}
+	return fmt.Sprintf("%s judged proof %s unsound and no gap of its carries that to blue — ready, to mint its gap about the proof, which takes no mint of its budget", seat, b.Subject)
 }
 
 // benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no

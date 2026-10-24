@@ -392,7 +392,7 @@ const LENS_OR_BLUE_PARTY = {
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a proof it judged unsound; empty for blue readied to fix or retire a proof judged unsound; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
     occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
   },
 }
@@ -414,7 +414,7 @@ const PLAN = {
     epoch: { type: 'integer', minimum: 0, description: 'the epoch the record has reached: the chair sittings opened so far, this one included' },
     final_sitting: { type: 'boolean', description: "this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit" },
     epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
-    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'contradiction', 'reopened', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
+    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'contradiction', 'reopened', 'unsound_proof', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
     verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
   },

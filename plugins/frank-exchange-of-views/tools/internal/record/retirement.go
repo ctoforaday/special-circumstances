@@ -139,7 +139,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
 //     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
 //   - A blocker on the stream whose owner it is (events is eventBlockersOf): a contradiction it read,
-//     an anchor reopened since its check.
+//     an anchor reopened since its check, a proof it judged unsound that no gap of its carries yet.
 //   - For the lens that owns proofs (proofOwnerOf), each proof nobody has judged.
 //
 // The work list keeps offering an item after the lens has sat on it; only the debt ends there.
@@ -161,6 +161,11 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 		owe(minted[n.gap], n.at, n.item)
 	}
 	for _, b := range events {
+		// A PROOF IT JUDGED UNSOUND IS OWED UNTIL ITS GAP IS MINTED: from then the gap carries it to
+		// blue, and what clears the blocker is blue's fix or retire, which the lens cannot do.
+		if b.Kind == BlockerUnsoundProof && b.answeredBy != "" {
+			continue
+		}
 		if b.Owner != "" {
 			out[b.Owner] = append(out[b.Owner], owedBlocker(b))
 		}

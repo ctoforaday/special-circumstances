@@ -435,8 +435,13 @@ var defines = map[recordpb.EventType]bool{
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
 // stop at the first.
+//
+// A credit names its gap too, and one gap may be credited with several raising findings — each its
+// own act. A retried credit lands as a second act, which the write path refuses: the contradiction
+// its finding raised is answered by then.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE: true,
+	recordpb.EventType_EVENT_TYPE_STALE:  true,
+	recordpb.EventType_EVENT_TYPE_CREDIT: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -912,13 +917,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(q, b); err != nil {
+		if err := requireNotAnOpenGap(q, seatID, b); err != nil {
 			return err
 		}
 		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
 		// carries the contradiction's id in its own anchor, where the gap's found_by reaches it.
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -999,11 +1007,18 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
+	case *recordpb.Credit:
+		if err := requireCreditAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Finding:
 		if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
 				return err
 			}
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.

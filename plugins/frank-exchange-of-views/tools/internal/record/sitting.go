@@ -254,9 +254,16 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// blocker whose owner it is, the reading capture's record-parity audit holds it to, so this
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
 		// the synthesizer are party to no dispute and owe none.
+		//
+		// IT OWES THE FIX OR RETIRE OF A PROOF A LENS'S STANDING JUDGEMENT CALLS UNSOUND (unsoundproof.go):
+		// the PASS gate's blocker, cleared by blue's retire, or by the fresh sound judgement blue's edit
+		// of the sentence reopens it for.
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			if b.Kind == BlockerClosingOwed && b.Owner == seatID {
+			switch {
+			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				add(b.WorkItem())
+			case b.Kind == BlockerUnsoundProof && seatID == blueRespondSeat:
+				add(blueUnsoundItem(b))
 			}
 		}
 	case "chair":
@@ -318,6 +325,17 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+			// A PROOF IT JUDGED UNSOUND IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
+			// the list as not owed — blue's fix or retire clears it, or the lens's own sound judgement
+			// if it judges the sentence again.
+			if b.Kind == BlockerUnsoundProof && b.Owner == seatID {
+				if b.answeredBy == "" {
+					add(b.WorkItem())
+				} else {
+					may(b.WorkItem())
+				}
+				continue
+			}
 			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
