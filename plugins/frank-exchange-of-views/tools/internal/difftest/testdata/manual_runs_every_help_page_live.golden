@@ -1349,7 +1349,13 @@ engine-stopped --reason "<the error>" writes the error the engine stopped on to 
 
 Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one that was cut off.
 
-IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting recorded before the stop (finished).
+IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run resumes against it.
+
+The answer says which of three states the run is in:
+  - no outcome: the run is open to its seats, and the same workflow run resumes against it;
+  - the outcome, and no assembled documents: the assembly sitting stamped the outcome and stopped before the bench's `assemble` wrote the run's documents, so the assembly is unfinished and the same workflow run resumes it — the bench sits again to assemble;
+  - the outcome, and the assembled documents: the assembly finished, there is nothing to resume, and the run is captured.
+The assembly's mark is its documents, because the bench's `assemble` writes them and no event: the assembly sitting's stop is no mark, since the sitting stops whether or not the assembly ran. Capture re-assembles the documents from the record at the close. A run directory that cannot be read is said so, and is never read as finished.
 
 `ops log` reads the entry back, beside what the seats filed.
 

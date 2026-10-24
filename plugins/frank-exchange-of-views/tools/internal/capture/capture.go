@@ -1902,7 +1902,9 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// are ingested, is what makes that table the run's and not the moment's. The audits below then
 	// screen the documents that ship. A run that never reached assembly has no run.md and is not
 	// assembled here: the bench's act is what makes a run's documents exist.
-	if _, serr := os.Stat(filepath.Join(run.Dir(), reportdoc.FileRun)); serr == nil {
+	if written, werr := reportdoc.AssemblyWritten(run); werr != nil {
+		lines = append(lines, "documents: whether the bench assembled them could not be read — "+jsSlice(werr.Error(), 200)+"; they are not re-assembled")
+	} else if written {
 		if a, aerr := reportdoc.Assemble(run); aerr != nil {
 			lines = append(lines, "documents: re-assembly FAILED — "+jsSlice(aerr.Error(), 200)+"; they stand as the bench assembled them")
 		} else {
