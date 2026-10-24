@@ -246,7 +246,8 @@ hooks attribute every subagent in that project to it, a dev session's included. 
 and the capture they still attribute every `lead-judge` subagent, the bench's assembly sitting's
 configuration, and once capture has run they attribute nothing. Run the engine from
 its own source tree (a detached worktree), never from the worktree you develop in. `setup` refuses a
-second live run in one project, and prunes the rows of runs that are no longer live.
+second live run in one project, and a run whose outcome is recorded and that was not captured; it
+prunes the rows of runs that were captured or whose directory is gone.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a
