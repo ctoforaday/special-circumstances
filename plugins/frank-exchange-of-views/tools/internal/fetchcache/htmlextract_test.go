@@ -57,7 +57,7 @@ func TestAnHTMLPageWithNoTextSaysSo(t *testing.T) {
 func TestAFetchedPageHasItsTextBesideIt(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
 	page := []byte(`<html><head><title>T</title></head><body><p>Trial division finds 7.</p></body></html>`)
-	entry := EntryFor(run, "https://example.org/trial", &Attempt{ContentType: "text/html", Body: page, TextRetrieved: true})
+	entry := EntryFor(run, "https://example.org/trial", &Attempt{ContentType: "text/html", Body: page, TextRetrieved: true}, SubstitutionNamedBackend)
 	if entry.TextExtracted == nil || !*entry.TextExtracted || entry.Extractor != htmlExtractorID || entry.TextSha == "" {
 		t.Fatalf("entry = %+v, want the page's text extracted and hashed", entry)
 	}

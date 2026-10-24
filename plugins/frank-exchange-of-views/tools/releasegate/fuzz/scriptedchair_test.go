@@ -1,5 +1,7 @@
 package fuzz
 
+import "maps"
+
 // A SCRIPTED CHAIR FOR TESTS THAT HAVE NO RECORD.
 //
 // The dispatch loop reads who sits from the chair's relayed plan, and in production the plan is
@@ -19,17 +21,17 @@ var benchThenBlue = []map[string]any{
 	plan([]any{party("red-lens-evidence", "G1"), party("blue-respond", "G1")}, false, false, nil, "G1 ruled and open"),
 }
 
-// relayScriptedPlan puts the sitting's plan on a chair envelope: the n-th chair sitting relays
+// relayScriptedPlan makes a chair envelope the sitting's plan — the envelope IS the plan: the n-th chair sitting relays
 // plans[n-1], and a sitting past the end relays an empty PASS-permitted plan with a PASS verdict,
 // which is how the loop ends. The sitting ordinal is read off the label debate.js assigns
 // (`red-chair #n · slug`), the same way the termination gate reads it.
 func relayScriptedPlan(e map[string]any, label string, plans []map[string]any) {
 	n := sittingOf(label)
 	if n >= 1 && n <= len(plans) {
-		e["plan"] = plans[n-1]
+		maps.Copy(e, plans[n-1])
 		e["verdict"] = "FAIL"
 	} else {
-		e["plan"] = plan([]any{}, true, false, nil, "no lens is ready and nothing material is open")
+		maps.Copy(e, plan([]any{}, true, false, nil, "no lens is ready and nothing material is open"))
 		e["verdict"] = "PASS"
 	}
 }

@@ -1,7 +1,7 @@
-prompt sha256: 4763b0ef863c195f2ed9dce899f163ec43ea2bc7fdf8a51e2ebf237b625d1cd2
+prompt sha256: 9d06618720a6b462334acf1d0f0458400b4aed567fad8f0491bd1c7ecbc067b2
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
-Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
+Debate outcome: VERIFIED after 4 chair sitting(s) — the chair recorded PASS with the board permitting it.
 THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs.
 There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 FIRST, STAMP HOW THIS RUN ENDED: it is VERIFIED.
@@ -38,7 +38,7 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help alone is authoritative; this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; one read instead of the projection is a snapshot of a record that has moved.
-YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your closings in the transcript, your grounds beside the acts on the board.
+YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue to the bench in the transcript, your grounds beside the acts on the board.
 The transcript is your case to the bench, which reads it when it rules, and to the reader of the run; the grounds on the board are what the other party's seats read and answer.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
 And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.

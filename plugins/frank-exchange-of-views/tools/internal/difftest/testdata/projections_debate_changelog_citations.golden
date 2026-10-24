@@ -38,27 +38,6 @@ minted GAP001
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ closing --run {RUN} --seat-id red-chair --id GAP001 --reason red's closing
-exit 0
-stdout:
-closing filed for GAP001
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
-  · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-
-$ position --run {RUN} --seat-id blue-respond --reason blue's round position
-exit 0
-stdout:
-position recorded
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
-
-$ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
-exit 0
-stdout:
-closing filed for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
-
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason figures recomputed; check run: pass
 exit 0
 stdout:
@@ -95,12 +74,25 @@ $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contes
 exit 0
 stdout:
 motion MOTION002 filed (docket)
-2 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
+2 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
   · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is docketed for the bench (motion MOTION002) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
   · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+
+$ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
+exit 0
+stdout:
+closing filed for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
+exit 0
+stdout:
+closing filed for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION002 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --direction the figure recomputed from its source --reason the rationale body
 exit 0
@@ -121,16 +113,15 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"red's round position"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"GAP001","text":"red's closing"},"key":"red-chair:closing:#1:GAP001","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify`: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body"},"seat_id":"judge","ts":14,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":15,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify`: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":9,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#1:GAP001","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":12,"type":"EVENT_TYPE_CLOSING"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"direction":"the figure recomputed from its source","disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":14,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- inquiries

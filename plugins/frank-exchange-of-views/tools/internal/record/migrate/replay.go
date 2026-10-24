@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -10,8 +11,11 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
@@ -23,30 +27,20 @@ type Options struct {
 	AcceptLoss map[string]bool
 }
 
-// Refusal is one event the replay could not land, with the words of whichever layer refused
-// it — the registry, or the current write path's own validation. Refusals are the tool's
-// OUTPUT: an old record may hold acts that were legal under the rules of their day, and
-// each refusal class gets decided in review. There is no flag that skips validation.
-type Refusal struct {
-	OldID int64  `json:"old_id"`
-	Word  string `json:"word"`
-	Err   string `json:"error"`
-}
-
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
 	In                map[string]int // old events per word, as read
 	Out               map[string]int // new events per word, as written
-	Refusals          []Refusal
-	AcceptedLosses    map[string]string  // word -> the entry's stated reason
-	SourceHash        string             // sha256 over the event stream AS READ — the logical record
-	IDs               map[string]string  // archived id or finding label -> the id the migrated record carries
-	Serialized        map[string]int     // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills       []StatedFill       // values supplied where the source predates the field
-	ClassTranslations []ClassTranslation // the archived class slugs an authored row of gapclass.go carried, and onto what
-	GapAnchors        GapPlacement       // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder       string             // what became of the order of the report's text (order.go)
-	ProseRewrites     []ProseRewrite     // every archived id rewritten inside a seat's wording, in order
+	Refusals          []migration.Refusal
+	AcceptedLosses    map[string]string            // word -> the entry's stated reason
+	SourceHash        string                       // sha256 over the event stream AS READ — the logical record
+	IDs               map[string]string            // archived id or finding label -> the id the migrated record carries
+	Serialized        map[string]int               // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills       []migration.StatedFill       // values supplied where the source predates the field
+	ClassTranslations []migration.ClassTranslation // the archived class slugs an authored row of gapclass.go carried, and onto what
+	GapAnchors        migration.GapPlacement       // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder       string                       // what became of the order of the report's text (order.go)
+	ProseRewrites     []migration.ProseRewrite     // every archived id rewritten inside a seat's wording, in order
 
 	base string // the report's base as the source wrote it
 }
@@ -214,7 +208,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			var ok bool
 			links, head, ok = chainOf(old.Key)
 			if !ok {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
 					Err: fmt.Sprintf("this act begins a correction chain (%s) whose head the source does not hold — the chain's last replacement is absent, so nothing says which act stands", strings.Join(links, " -> "))})
 				continue
 			}
@@ -222,7 +216,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		}
 		seatID, err := rm.seat(old.SeatID)
 		if err != nil {
-			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
 		bodies, err := reg.Translate(src)
@@ -232,16 +226,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				res.AcceptedLosses[loss.Word] = loss.Reason
 				continue
 			}
-			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
 		if bodies, err = reproduceAnchors(bodies, proofAnchors); err != nil {
-			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
 		ts, err := record.ParseStamp(old.TS)
 		if err != nil {
-			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
 				Err: fmt.Sprintf("unparseable ts %q: %v", old.TS, err)})
 			continue
 		}
@@ -264,6 +258,19 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if q, ok := body.(*recordpb.Inquiry); ok {
 				carryInquiryMethod(q, proposalMethod)
 			}
+			// AN ARGUMENT THE WRITE REFUSES IS WRITTEN AS NO EVENT (epoch 38). A closing is a
+			// party's argument on a docketed gap and a position is the chair's; an archive holds the
+			// chair's closings, blue's and the lanes' positions, and blue's closings on gaps no
+			// docket motion stood on. Each is an argument its seat made under the rule of its day:
+			// re-attributed, it is authorship the record never held, and converted, it asserts a
+			// filing never made, so it is left out — the residue, stated with the change, that
+			// run-archive/ holds byte for byte. Asked after rm.apply, so a shard-era gap label
+			// reads as the gap it was remapped to.
+			if drop, err := refusedArgument(batch.Querier(), body, seatID); err != nil {
+				return nil, err
+			} else if drop {
+				continue
+			}
 			if b, ok := body.(*recordpb.BaseIngest); ok {
 				res.base = b.GetText()
 				if inOrder {
@@ -281,7 +288,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if d, ok := body.(*recordpb.Dispatch); ok && d.Pin != nil {
 				to, landed := newID[d.GetPin()]
 				if !landed {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
 						Err: fmt.Sprintf("this dispatch pins event %d, which wrote no event on the migrated record before it — the pin would name whatever event holds that number", d.GetPin())})
 					continue
 				}
@@ -292,7 +299,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if st, ok := body.(*recordpb.Stale); ok && st.Through != nil {
 				to, landed := newID[st.GetThrough()]
 				if !landed {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
 						Err: fmt.Sprintf("this stale refusal reads from event %d, which wrote no event on the migrated record before it — the read point would name whatever event holds that number", st.GetThrough())})
 					continue
 				}
@@ -303,7 +310,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// refuses an id it cannot place.
 			if pl, ok := body.(*recordpb.Plan); ok {
 				if err := TranslatePlanIDs(pl, newID); err != nil {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
+				if err := CarryPlanVerdict(pl, batch.Querier()); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 			}
@@ -313,7 +324,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 				to, err := contradictionRef(f.GetAboutRef(), newID)
 				if err != nil {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 				f.AboutRef = proto.String(to)
@@ -324,14 +335,14 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// stamp the source carries is kept as recorded. Both the fill and the translation count
 			// are recorded once the write lands: a refused mint stamped nothing.
 			var translatedSlug string
-			var fill *StatedFill
+			var fill *migration.StatedFill
 			if m, ok := body.(*recordpb.Mint); ok {
 				slug, _ := src.Fields["class"].(string)
 				if archivedGapClasses[slug] != "" {
 					translatedSlug = slug
 				}
 				if m.ClassMaterial == nil && m.Class != nil {
-					fill = &StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
+					fill = &migration.StatedFill{Where: "mint " + m.GetGapId(), Slug: slug,
 						Value: recordpb.Word(recordpb.MaterialDefault(m.GetClass())), Why: preFieldFillWhy}
 				}
 			}
@@ -346,12 +357,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 			anchorAfter, err := place.step(body)
 			if err != nil {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
 			ev, err := batch.Append(id, body)
 			if err != nil {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
 			res.Out[wordOf(ev)]++
@@ -377,7 +388,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
 				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 				}
@@ -539,4 +550,25 @@ func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 		return "", fmt.Errorf("this finding answers contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
 	}
 	return strconv.FormatInt(to, 10), nil
+}
+
+// refusedArgument reports whether body is a closing or a position the write path refuses from
+// seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
+// event. A read that fails is returned, never taken for a refusal.
+func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bool, error) {
+	var err error
+	switch b := body.(type) {
+	case *recordpb.Closing:
+		err = record.ClosingRefusal(q, b.GetGapId(), seatID)
+	case *recordpb.Position:
+		err = record.PositionRefusal(seatID)
+	}
+	if err == nil {
+		return false, nil
+	}
+	var refusal *feov.Error
+	if !errors.As(err, &refusal) {
+		return false, fmt.Errorf("reading whether the write refuses an archived %T: %w", body, err)
+	}
+	return true, nil
 }

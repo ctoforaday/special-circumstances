@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
@@ -147,41 +148,43 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	}
 }
 
-// A REFUTING CORROBORATION IS RAISED BY THE FINDING ITS READER FILES, through the verbs: the
-// quote the corroboration was held to is one a finding can place.
-func TestARefutingCorroborationIsRaisedByAFindingAtItsQuote(t *testing.T) {
+// A REFUTING CORROBORATION IS RAISED BY THE FINDING THAT NAMES IT, through the verbs: a finding
+// quoting the sentence that holds the claim raises nothing.
+func TestARefutingCorroborationIsRaisedByTheFindingNamingIt(t *testing.T) {
 	runDir := corroborateRun(t)
-	contradictions := func() []string {
-		t.Helper()
-		b, err := record.FamilyOf(runtest.Open(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var claims []string
-		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-			if c.RaisedBy == "" {
-				claims = append(claims, c.Claim)
-			}
-		}
-		return claims
-	}
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+	out, err := run(t, "--json", "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
 		"--quote", "the finding prose lands in a quoted sentence.", "--as", "refutes", "--confidence", "high",
-		"--reason", "the source says the opposite at page 9"); err != nil {
+		"--reason", "the source says the opposite at page 9")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := contradictions(); len(got) != 1 {
+	if got := unraisedClaims(t, runDir); len(got) != 1 {
 		t.Fatalf("unanswered contradictions = %v, want the one just recorded", got)
 	}
-	// The finding quotes the whole sentence, as `show report` prints it; the claim is a clause of it.
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "k1",
-		"--quote", corroborated, "--reason", "the source says the opposite at page 9",
-		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
-		t.Fatal(err)
+	// The reading names the contradiction it opened, and that id is the one the finding names.
+	var printed struct {
+		Result struct {
+			Contradiction struct {
+				ID     string `json:"id"`
+				Opened bool   `json:"opened"`
+			} `json:"contradiction"`
+		} `json:"result"`
 	}
-	if got := contradictions(); len(got) != 0 {
-		t.Errorf("unraised contradictions = %v after a finding at the sentence, want none", got)
+	if err := json.Unmarshal([]byte(out), &printed); err != nil {
+		t.Fatalf("corroborate --json: %v\n%s", err, out)
+	}
+	if c := printed.Result.Contradiction; c.ID != unansweredContradictions(t, runDir)[0].ID || !c.Opened {
+		t.Fatalf("corroborate printed contradiction %+v, want the one it opened, %s", c, unansweredContradictions(t, runDir)[0].ID)
+	}
+	// The finding quotes the whole sentence, as `show report` prints it; the claim is a clause of it.
+	lensFinding(t, runDir, "red-lens-evidence", "q1", "--quote", corroborated)
+	if got := unraisedClaims(t, runDir); len(got) != 1 {
+		t.Errorf("unraised contradictions = %v after a finding at the sentence, want it still unraised: a quote raises nothing", got)
+	}
+	lensFinding(t, runDir, "red-lens-evidence", "k1", "--about-kind", "contradiction", "--about", printed.Result.Contradiction.ID)
+	if got := unraisedClaims(t, runDir); len(got) != 0 {
+		t.Errorf("unraised contradictions = %v after the finding naming it, want none", got)
 	}
 }
 

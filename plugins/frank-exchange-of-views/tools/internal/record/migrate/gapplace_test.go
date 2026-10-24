@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -97,7 +98,7 @@ func (s *shapeSource) cite(id, quote string) *record.Event {
 	s.t.Helper()
 	ev, err := record.Append(record.Identity{Run: s.run, SeatID: shapeBlue}, &recordpb.Cite{Label: proto.String(id), Location: proto.String(quote),
 		Url: proto.String("https://example.org/" + id), Title: proto.String("S"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"),
-		WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum()})
+		WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum()})
 	if err != nil {
 		s.t.Fatalf("seeding a cite: %v", err)
 	}
@@ -111,7 +112,7 @@ func (s *shapeSource) proof(id, quote string) {
 
 func (s *shapeSource) corroboration(id, quote string) {
 	s.t.Helper()
-	s.add(shapeLens, &recordpb.Verify{Label: proto.String(id), Claim: proto.String(quote), Url: proto.String("https://example.org/" + id),
+	s.add(shapeLens, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Label: proto.String(id), Claim: proto.String(quote), Url: proto.String("https://example.org/" + id),
 		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf")})
 }
@@ -127,7 +128,7 @@ func (s *shapeSource) edit(old, new string, exact bool) {
 
 // archived spells every id of a migrated text as the source spelled it, so a fixture written in the
 // archived spelling states what it expects in the spelling it was written in.
-func archived(m *migrate.Manifest, s string) string {
+func archived(m *migration.Manifest, s string) string {
 	for old, id := range m.IDs {
 		s = strings.ReplaceAll(s, id, old)
 	}
@@ -135,7 +136,7 @@ func archived(m *migrate.Manifest, s string) string {
 }
 
 // migrated is the source brought forward, its render, and the edits it carries.
-func (s *shapeSource) migrated() (*migrate.Manifest, string, []*recordpb.BlueEdit, record.Run) {
+func (s *shapeSource) migrated() (*migration.Manifest, string, []*recordpb.BlueEdit, record.Run) {
 	s.t.Helper()
 	to := recordtest.TmpRun(s.t)
 	m, err := migrate.Migrate(s.dir, to, migrate.Entries(), migrate.Options{})

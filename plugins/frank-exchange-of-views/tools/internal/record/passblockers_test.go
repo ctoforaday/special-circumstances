@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -44,6 +45,11 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
+		{"proof judged unsound", BlockerUnsoundProof, true, true, func(b *stage) {
+			// judged in the lens's last sitting, at the head, with its gap minted, so nothing else holds.
+			b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
+				add(evLens, aboutProof("G-1", "P-1"))
+		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
 		{"stale area uncovered", BlockerStaleArea, true, true, func(b *stage) {
@@ -59,7 +65,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
 			b.regrade(outsideLens, "G1", "trivial")
 		}, false},
+		// THE CLOSING IS FILED: blue-respond's is the only one owed, the minter being no cast lens.
 		{"docket motion on an open gap", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.docketMotion("red-chair", "M1", "G1")
+			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
+		}, false},
+		{"a party's closing owed on a docketed gap", BlockerClosingOwed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")
 		}, false},
@@ -81,6 +93,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},
 	}
+	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
+	// and the docket motion is an unruled motion until the bench rules it.
+	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerUnruledMotion}
 	covered := map[BlockerKind]bool{}
 	for _, r := range rows {
 		covered[r.kind] = true
@@ -111,7 +126,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, bl := range blockers {
-				if bl.Kind != c.kind {
+				if bl.Kind != c.kind && bl.Kind != beside[c.kind] {
 					t.Errorf("fixture: %s holds as well, want only %q", bl.Kind, c.kind)
 				}
 			}
@@ -137,6 +152,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				}
 				if every := kindOf(c.kind).every; (failErr != nil) != every {
 					t.Errorf("FAIL refused = %v (%v), want refused exactly when the kind holds every verdict (%v)", failErr != nil, failErr, every)
+				}
+				// THE REFUSAL IS A CONFLICT WITH THE BOARD, by its code: a caller reading the envelope
+				// tells a blocked verdict from a tool failure without reading the sentence.
+				for verdict, err := range map[string]error{"PASS": passErr, "FAIL": failErr} {
+					if err != nil && feov.CodeOf(err) != string(feov.Conflict) {
+						t.Errorf("the %s refusal is coded %q, want %q: %v", verdict, feov.CodeOf(err), feov.Conflict, err)
+					}
 				}
 			}
 

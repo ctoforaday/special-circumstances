@@ -157,7 +157,7 @@ func newProve() *cobra.Command {
 			body.Drift = proto.String(res.Drift)
 		}
 		proofFields(cmd, body, why)
-		if err := seat.AppendPlaced(s, body, label, location, proveRefusal); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, location, proveRefusal); err != nil {
 			return nil, err
 		}
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil

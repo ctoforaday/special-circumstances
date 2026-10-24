@@ -57,8 +57,8 @@ type dispatchResult struct {
 	standing bool
 }
 
-// Relay is the plan alone: the machine form prints the object the chair's envelope carries as
-// `plan`, so the relay is a copy of the verb's output.
+// Relay is the plan alone: the machine form prints the object the chair's envelope is, so the
+// relay is a copy of the verb's output.
 func (r dispatchResult) Relay() any { return r.Plan }
 
 func (r dispatchResult) Human() string {
@@ -116,6 +116,9 @@ func (r dispatchResult) Human() string {
 		fmt.Fprintf(&b, "relay: NOT PRINTED (%v) — ask again in the machine form and relay what it prints\n", err)
 		return strings.TrimRight(b.String(), "\n")
 	}
-	fmt.Fprintf(&b, "relay — your envelope's `plan` is this object, copied whole; the lines above are its reading, not the relay:\n%s\n", relay)
+	if r.Verdict != "" {
+		fmt.Fprintf(&b, "  your verdict this sitting: %s — the workflow reads it off this plan\n", r.Verdict)
+	}
+	fmt.Fprintf(&b, "relay — your envelope is this object, its fields copied whole; the lines above are its reading, not the relay:\n%s\n", relay)
 	return strings.TrimRight(b.String(), "\n")
 }

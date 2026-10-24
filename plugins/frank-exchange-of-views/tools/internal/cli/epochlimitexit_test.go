@@ -49,6 +49,15 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	recordtest.Seed(t, runDir, evs...)
 }
 
+// argue files both parties' closings on limitGap — blue's and its minting lens's — so the plan
+// convenes the bench for its docketing: no party's closing is then awaited.
+func argue(t *testing.T, runDir string) {
+	t.Helper()
+	for _, seat := range []string{"blue-respond", "red-lens-evidence"} {
+		asSeat(t, runDir, seat, "closing", "--id", limitGap, "--reason", "the case of "+seat)
+	}
+}
+
 // setEpochLimit writes the run's epoch limit where setup records it.
 func setEpochLimit(t *testing.T, runDir string, limit int) {
 	t.Helper()
@@ -312,6 +321,9 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 			stageRetiredLens(t, runDir, tc.withGap)
 			setEpochLimit(t, runDir, 5)
 			motionID := tc.file(t, runDir)
+			if tc.withGap {
+				argue(t, runDir)
+			}
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 				t.Fatalf("the plan at epoch 4 of 5 = %+v, want the bench alone dispatched", plan)
 			}
@@ -354,6 +366,7 @@ func TestABenchRulingAtAnExitBeforeTheLastEpochIsNotTheEpochLimit(t *testing.T) 
 				setEpochLimit(t, runDir, tc.limit)
 			}
 			motionID := docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+			argue(t, runDir)
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.EpochLimitReached || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 				t.Fatalf("the plan at the chair's fourth sitting = %+v, want the bench dispatched on the docket", plan)
 			}

@@ -435,8 +435,13 @@ var defines = map[recordpb.EventType]bool{
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
 // stop at the first.
+//
+// A credit names its gap too, and one gap may be credited with several raising findings — each its
+// own act. A retried credit lands as a second act, which the write path refuses: the contradiction
+// its finding raised is answered by then.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE: true,
+	recordpb.EventType_EVENT_TYPE_STALE:  true,
+	recordpb.EventType_EVENT_TYPE_CREDIT: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -903,8 +908,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
-		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
-		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
+		// exempts, with its reason, so this arm reads the same live and on replay: the screen's
+		// match and the report-voice refusal are off; the roster, the mint budget and the
 		// --distinct-from reference stay on.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
@@ -912,13 +917,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(q, b); err != nil {
+		if err := requireNotAnOpenGap(q, seatID, b); err != nil {
 			return err
 		}
 		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
 		// carries the contradiction's id in its own anchor, where the gap's found_by reaches it.
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -999,11 +1007,18 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
+	case *recordpb.Credit:
+		if err := requireCreditAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Finding:
 		if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
 				return err
 			}
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
@@ -1089,12 +1104,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
 			// naming the wrong sitting was recorded as the seat's statement of where the closure
-			// came from. An archive's carry predates the check, and migrate carries it as written.
-			if !Migrating {
-				if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
-					return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
-						b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
-				}
+			// came from.
+			if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
+				return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
+					b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
 			}
 		}
 		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
@@ -1153,6 +1166,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
+		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
+			return err
+		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
@@ -1209,6 +1225,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 	case *recordpb.Position:
+		if err := PositionRefusal(seatID); err != nil {
+			return err
+		}
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
@@ -1396,6 +1415,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireDispatchOccasions(b); err != nil {
 			return err
 		}
+		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
+		// nothing else — a lane, the frontier and the synthesizer are dispatched by no row.
+		if seatclass.RoleOfSeat(seatID) == "blue" {
+			if err := requireEngage(q, seatID, b); err != nil {
+				return err
+			}
+		}
 	case *recordpb.Plan:
 		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
 			return err
@@ -1524,12 +1550,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
-		//
-		// A migration replays an outcome already recorded, so it is not held to the bench's motions.
-		if !Migrating {
-			if err := requireBenchMotionsRuled(q); err != nil {
-				return err
-			}
+		if err := requireBenchMotionsRuled(q); err != nil {
+			return err
 		}
 	case *recordpb.Cite:
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
@@ -1559,6 +1581,18 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// the field unstamped renders exactly like a cite of the paper.
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+		}
+		// AND WHOSE BYTES WERE READ, for the same reason: an unstamped cite of a recovered copy
+		// renders exactly like a cite of the typed url. copy_url belongs to a substitution — on the
+		// url's own bytes it would name a second place nothing read — and a followed pointer or a
+		// fuller copy is always fetched from somewhere, so either without one is a write that lost it.
+		// A citation fetches what it records, so the cache always held its copy: not_cached is a
+		// reading's word and on a cite is a write that lost the entry.
+		if b.GetCopySubstitution() == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED {
+			return fmt.Errorf("cite carries copy_substitution not_cached — cite fetches the source it records, so the cache holds the copy it read, and the tool stamps that copy before it writes")
+		}
+		if err := copyProvenance("cite", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
 		}
 		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
 		// none. The span, its place and the text around it are one fact: a span without the source's
@@ -1619,8 +1653,33 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
+		// WHOSE BYTES THE READING WAS MADE AGAINST is the tool's to stamp, as on a cite.
+		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
+		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// copyProvenance holds an act's copy pair to one shape. An unstamped kind renders exactly like the
+// url's own bytes. copy_url belongs to a substitution — beside the url's own bytes, or where the
+// record holds no copy, it would name a place nothing read — and a followed pointer or a fuller
+// copy is always fetched from somewhere, so either without one is a write that lost it.
+func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string) error {
+	switch kind {
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED:
+		return fmt.Errorf("%s carries no copy_substitution — the tool stamps whose bytes were read (none, followed_link, recovered, fuller_copy, named_backend or not_cached) before it writes, and this write skipped that", act)
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED,
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED:
+		if copyURL != nil {
+			return fmt.Errorf("%s carries copy_url %q with copy_substitution %s — a copy url names where substituted bytes came from, and this act records none", act, *copyURL, recordpb.Word(kind))
+		}
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY:
+		if copyURL == nil || *copyURL == "" {
+			return fmt.Errorf("%s carries copy_substitution %s and no copy_url — that route always fetches its bytes from a url, and the tool records it before it writes", act, recordpb.Word(kind))
 		}
 	}
 	return nil
@@ -1687,6 +1746,36 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
+// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
+// closing is an argument the bench reads when it rules a docketing, so one with nothing before the
+// bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
+// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
+func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var mintedBy string
+	var docketed int64
+	found, err := queryRowAt(q, []any{&mintedBy, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return err // an unknown gap is requireGap's refusal, not this one's
+	}
+	if !IsClosingParty(seatID, mintedBy) {
+		return feov.Errorf(feov.RoleViolation,
+			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
+				"An argument about no one gap is the chair's position",
+			mintedBy, gapID, blueRespondSeat, seatID)
+	}
+	if docketed == 0 {
+		return feov.Errorf(feov.Validation,
+			"%s is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. "+
+				"A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap",
+			gapID)
+	}
+	return nil
 }
 
 // reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its

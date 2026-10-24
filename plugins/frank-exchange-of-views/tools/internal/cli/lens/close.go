@@ -64,14 +64,12 @@ func newClose() *cobra.Command {
 		// correctly refused it as "no evidence shown". A full epoch, for something three
 		// lines of trial division settle while leaving an artifact red can re-run.
 		//
-		// The guard reads the board, like the estoppel guard above it. A run whose board
-		// cannot be read does not block the closure: refusing on infrastructure would
-		// strand an epoch, and the check is a demand, not a safety property.
-		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
-			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
-				return nil, feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
-					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
-			}
+		// AN UNREADABLE RECORD REFUSES THE CLOSURE (gblock, 2026-10-23). A closure admitted
+		// because the check could not be asked is a closure the tool vouched for on nothing.
+		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
+			func(id string) (bool, error) { return computationGapKind(run, id) },
+			func(id string) (bool, error) { return record.ProofAnswers(run, id) }); err != nil {
+			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
@@ -112,6 +110,33 @@ func newClose() *cobra.Command {
 // closurePayload builds what a closure records before either verb adds its own evidence.
 
 // closeResult names the closed gap and the closure class it was retired under.
+
+// requireComputationAnswered refuses a closure of a computation gap no proof answers, and refuses
+// any closure whose gap's check kind, or proof join, could not be read.
+func requireComputationAnswered(gapID string, isComputation, proofAnswers func(string) (bool, error)) error {
+	kind, err := isComputation(gapID)
+	if err != nil {
+		return unreadableRefusal("the check kind "+gapID+" was minted with", err)
+	}
+	if !kind {
+		return nil
+	}
+	answered, err := proofAnswers(gapID)
+	if err != nil {
+		return unreadableRefusal("whether a proof answers "+gapID, err)
+	}
+	if !answered {
+		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+			gapID, gapID)
+	}
+	return nil
+}
+
+// unreadableRefusal is the refusal a guard returns when the record it asks cannot be read: the
+// act is not admitted on a check nobody could make, and the read error is named.
+func unreadableRefusal(what string, err error) error {
+	return feov.Wrap(feov.Internal, err, "the record could not be read to establish %s, so nothing is recorded — retry the call: %v", what, err)
+}
 
 // computationGapKind reports whether the named gap was minted as a computation check.
 func computationGapKind(run record.Run, gapID string) (bool, error) {

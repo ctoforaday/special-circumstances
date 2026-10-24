@@ -84,7 +84,8 @@ func newCite() *cobra.Command {
 			if err := seat.PlaceOwed(s, prior.GetLabel(), key); err != nil {
 				return nil, err
 			}
-			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Origin: recordpb.Word(prior.GetSourceTextOrigin()), Idempotent: true, VoiceTells: tells}, nil
+			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), Pages: prior.GetPages(), Origin: recordpb.Word(prior.GetSourceTextOrigin()),
+				CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
@@ -134,6 +135,14 @@ func newCite() *cobra.Command {
 			// AND WHICH PART OF THE WORK THE COPY IS — a summary_only citation of an abstract and
 			// one of a paper read the same until this was on the record.
 			SourceCompleteness: entry.SourceCompleteness().Enum(),
+			// AND WHOSE BYTES WERE READ. The seat typed --url; the cache may have answered it with
+			// the full text the page pointed to, a copy recovered after a refusal, a fuller copy, or
+			// a named backend's answer. sha256 above is those bytes' hash, and without this the
+			// citation said it read the typed url.
+			CopySubstitution: entry.CopySubstitution().Enum(),
+		}
+		if entry.Substitution != "" && entry.CopyURL != "" {
+			body.CopyUrl = proto.String(entry.CopyURL)
 		}
 		if at.located {
 			body.SourceSpan = proto.String(span)
@@ -149,10 +158,20 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(at.loc.ReadingSha)
 		}
 		citeFields(cmd, body, why)
-		if err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
+		if _, err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
-		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: at.pages(), Origin: recordpb.Word(at.origin), VoiceTells: tells}, nil
+		// WHOSE BYTES WERE CITED, as the record holds them: read back from the stored row, so blue
+		// learns of a substituted copy from the act that recorded it, not first from the report.
+		stored, err := record.CiteByLabel(run, label)
+		if err != nil {
+			return nil, err
+		}
+		if stored == nil {
+			return nil, feov.Errorf(feov.Internal, "citation %s was written and is not on the record", label)
+		}
+		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: at.pages(), Origin: recordpb.Word(at.origin),
+			CopySubstitution: recordpb.Word(stored.GetCopySubstitution()), CopyURL: stored.GetCopyUrl(), VoiceTells: tells}, nil
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
@@ -263,8 +282,12 @@ type citeResult struct {
 	Pages []int32 `json:"pages,omitempty"`
 	// Origin is where the source's text came from; "none" says the citation carries no span
 	// because the tool holds no text to have found one in.
-	Origin     string `json:"source_text_origin"`
-	Idempotent bool   `json:"idempotent,omitempty"`
+	Origin string `json:"source_text_origin"`
+	// CopySubstitution is whose bytes the citation read — `none`, the url's own, or the route by
+	// which a copy stood in for it — and CopyURL where that copy was read, when it was.
+	CopySubstitution string `json:"copy_substitution"`
+	CopyURL          string `json:"copy_url,omitempty"`
+	Idempotent       bool   `json:"idempotent,omitempty"`
 	// VoiceTells is ADVICE on the title, and the citation is already recorded by the time it renders.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -272,11 +295,11 @@ type citeResult struct {
 func (r citeResult) Human() string {
 	note := reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 	if r.Idempotent {
-		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + note
+		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 	}
 	span := ""
 	if r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE) {
 		span = ". It carries no source span: the tool holds no text for this source"
 	}
-	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + span + note
+	return "citation recorded: " + r.Label + " — an invisible anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")" + span + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 }

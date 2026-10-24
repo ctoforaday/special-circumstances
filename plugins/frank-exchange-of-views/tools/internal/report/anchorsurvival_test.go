@@ -83,7 +83,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// events below add no marker of their own (the report_op view excludes them).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-09-05"),
@@ -109,8 +109,8 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("blue-respond", &recordpb.Position{
-		Text: proto.String("the interleaving is model-checked<!--proof:P-00000001--> and G1 does not stand"),
+	add("red-chair", &recordpb.Position{
+		Text: proto.String("the PASS is withheld: the interleaving is model-checked<!--proof:P-00000001--> and G1 still stands"),
 	})
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

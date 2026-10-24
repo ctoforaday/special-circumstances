@@ -10,13 +10,13 @@ import (
 )
 
 // M30'S BRIDGE OVER AN INVERTED TERM HAS NO HOME NOW. The evidence lens recorded
-// supports_with_bridge on C-4f4b8cfa at events 138 and 386 while its own reason said the source
+// supports_with_bridge on C-4f4b8cfa at events 138 and 383 while its own reason said the source
 // names the base the liar and the report names the composite — none of the three bridges. Written
 // again, live, at the place it was written, each is refused for naming no bridge; the write that
 // would carry one must say which of the three it was.
 func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 	whole := archivedEvents(t, m30Archive)
-	for _, n := range []int{138, 386} {
+	for _, n := range []int{138, 383} {
 		v := whole[n-1].GetVerify()
 		if v.GetAnchor() != "C-4f4b8cfa" || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE || v.Bridge != nil {
 			t.Fatalf("event %d is not the evidence lens's kindless supports_with_bridge on C-4f4b8cfa: %v", n, whole[n-1])
@@ -43,7 +43,7 @@ func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 // supports_with_bridge is admitted under Migrating, where an archive before the field holds it.
 func TestABridgeBelongsToSupportsWithBridgeAlone(t *testing.T) {
 	v := func(o recordpb.SourceOutcome, k *recordpb.BridgeKind) *recordpb.Verify {
-		return &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String("C-00000001"), Outcome: o.Enum(), Bridge: k,
+		return &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Claim: proto.String("c"), Anchor: proto.String("C-00000001"), Outcome: o.Enum(), Bridge: k,
 			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("t")}
 	}
 	run := mustRun(t, t.TempDir())

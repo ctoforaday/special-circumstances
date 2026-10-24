@@ -8,8 +8,10 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 $ register --run {RUN} --seat-id red-lens-evidence
 exit 0
@@ -41,8 +43,10 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high --distinct-from GAP001
 exit 0
@@ -56,19 +60,33 @@ $ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
-NOTHING HERE IS YOURS TO CLEAR (5 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+dispatch against head 3:
+  red-lens-evidence — GAP002
+  blue-respond — GAP002
+  · red-lens-evidence: never sat — audits the report at head 3
+  · GAP001: open and not material (graded low) — readies nobody
+  · GAP002: open, material, 0 exchange(s) (0 stalled) — below its limits
+  your verdict this sitting: FAIL — the workflow reads it off this plan
+relay — your envelope is this object, its fields copied whole; the lines above are its reading, not the relay:
+{"key":"PLANKEY001","head":3,"parties":[{"seat_id":"red-lens-evidence","gap_ids":["GAP002"]},{"seat_id":"blue-respond","gap_ids":["GAP002"]}],"docket":[],"remand_owed":[],"exchanges":[{"gap_id":"GAP002","count":0,"unresolved":0}],"pass_permitted":false,"stale_areas":[],"ceiling":false,"max_epochs":0,"epoch":2,"final_sitting":false,"epoch_limit_reached":false,"blockers":[{"kind":"material_gap","subject":"GAP002","owner":"red-lens-evidence"},{"kind":"lens_ready","subject":"red-lens-evidence","owner":"red-lens-evidence"}],"why":["red-lens-evidence: never sat — audits the report at head 3","GAP001: open and not material (graded low) — readies nobody","GAP002: open, material, 0 exchange(s) (0 stalled) — below its limits"],"verdict":"FAIL"}
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP002 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · lens red-lens-evidence is ready — PASS is refused while it is
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","distinct_from":["GAP001"],"fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
+{"cast":{"seat_ids":["red-lens-evidence","red-chair","blue-lane-1","blue-synthesize","blue-respond","frontier","judge"]},"key":"harness:setup:cast","seat_id":"harness","ts":0,"type":"EVENT_TYPE_CAST"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":2,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","distinct_from":["GAP001"],"fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
+{"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_DISPATCH"}
+{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[\"GAP002\"]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP002\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP002\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP002\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: open and not material (graded low) — readies nobody\",\"GAP002: open, material, 0 exchange(s) (0 stalled) — below its limits\"],\"verdict\":\"FAIL\"}"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_PLAN"}
 
 ═══ RENDERS ═══
 -- inquiries

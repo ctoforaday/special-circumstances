@@ -754,7 +754,8 @@ func TestActResultsNameTheirIDByKind(t *testing.T) {
 	if gid != handleText(t, runDir, "G1") {
 		t.Errorf("mint --json result %v, want gap_id G1", g)
 	}
-	if c := result("closing", "--run", runDir, "--seat-id", "red-chair", "--id", gid, "--reason", "argued"); c["gap_id"] != gid {
+	docketFile(t, runDir, "blue-respond", gid, "the bench's to settle")
+	if c := result("closing", "--run", runDir, "--seat-id", lensSeat, "--id", gid, "--reason", "argued"); c["gap_id"] != gid {
 		t.Errorf("closing --json result %v, want gap_id %s", c, gid)
 	}
 }
@@ -1065,9 +1066,12 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
+		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: this
+		// run has ingested no base, so nothing can say whether the claim ever stood or has left.
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID,
-			"--quote", "the claim as it stood", "--reason", "refuted"); err != nil {
-			t.Errorf("a complete retirement was refused: %v", err)
+			"--quote", "the claim as it stood", "--reason", "refuted"); err == nil ||
+			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), "no base has been ingested") {
+			t.Errorf("a retirement over a run with no report was answered %v; want it refused, naming the read", err)
 		}
 	})
 
@@ -1386,9 +1390,9 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 // collide and neither is dedup'd away.
 func TestClosingIsKeyedPerGap(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair"
-	// Both gaps must EXIST: a closing names the gap it argues, and that reference is
-	// checked at write time. The lens mints them; the closing is the chair's.
+	seatID := lensSeat
+	// Both gaps must EXIST and be DOCKETED: a closing names the gap it argues, and both the reference
+	// and the docketing are checked at write time. The lens mints them and argues each.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	for i := 0; i < 2; i++ {
@@ -1399,6 +1403,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 		}
 	}
 	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
+		docketFile(t, runDir, "blue-respond", id, "the bench's to settle")
 		if _, err := run(t, "closing", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--reason", "argued "+id); err != nil {
 			t.Fatal(err)
@@ -1465,15 +1470,16 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		chairSitsAgain(t, runDir)
 	}
 
-	failDir := newRun(t)
+	failDir := castRun(t)
 	mint2(failDir)
 	if _, err := run(t, "verdict", "--run", failDir, "--seat-id", seatID, "--as", "FAIL"); err != nil {
 		t.Fatalf("FAIL must be allowed with open gaps: %v", err)
 	}
 
-	runDir := newRun(t)
+	runDir := castRun(t)
 	mint2(runDir)
 	_, err := run(t, "verdict", "--run", runDir, "--seat-id", seatID, "--as", "PASS")
 	if err == nil {
@@ -1539,7 +1545,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 
 // verdict is the chair's terminal act: it renders and checkpoints.
 func TestVerdictRendersAndCheckpoints(t *testing.T) {
-	runDir := newRun(t)
+	runDir := castRun(t)
 	seatID := lensSeat // the lens that mints is the one that closes
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -1554,6 +1560,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
 	}
+	chairSitsAgain(t, runDir)
 	out, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair", "--as", "PASS")
 	if err != nil {
 		t.Fatal(err)
@@ -1865,6 +1872,57 @@ func setArmField(m protoreflect.Message, name string) (protoreflect.Message, pro
 		}
 	}
 	return m, nil
+}
+
+// seedCast puts on runDir the cast setup writes before any seat registers: the four seats these
+// fixtures register — the evidence lens, the chair, blue and the bench — and blue-synthesize, the
+// seat that ingests the report. A verdict prints the plan the record folds (record.RecordVerdict),
+// and the record folds a plan only on a cast.
+func seedCast(t *testing.T, runDir string) {
+	t.Helper()
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-synthesize", "blue-respond", "judge"}}))
+}
+
+// castRun is a run as a real one stands when its lens is first sent to sit: the cast setup writes,
+// the report blue-synthesize ingests (seedBlueReport), and the chair's first sitting, whose `dispatch
+// next` records the plan naming each cast lens at the report head. A verdict records the plan, which
+// pins the report head, so it needs one; and a lens is SAT only through a sitting opened after a
+// dispatch naming it — a lens that registers here audits the head, and one that never does holds a
+// PASS as "never sat".
+func castRun(t *testing.T) string {
+	t.Helper()
+	dir := newRun(t)
+	seedCast(t, dir)
+	seedBlueReport(t, dir)
+	registerChairOnce(t, dir)
+	if out, err := run(t, "dispatch", "next", "--run", dir, "--seat-id", "red-chair"); err != nil {
+		t.Fatalf("dispatch next: %v\n%s", err, out)
+	}
+	return dir
+}
+
+// castSeats sits the seats castRun's cast names beside blue-synthesize: the lens castRun dispatched,
+// then the chair's next sitting, then blue and the bench.
+func castSeats(t *testing.T, runDir string) {
+	t.Helper()
+	registerLensOnce(t, runDir)
+	chairSitsAgain(t, runDir)
+	registerSeatOnce(t, runDir, "blue-respond")
+	// The bench owes an OCCASION and no other seat may pass one.
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "docket"); err != nil {
+		t.Fatalf("register judge: %v", err)
+	}
+}
+
+// chairSitsAgain opens the chair's next sitting: the workflow comes back to the chair once the seats
+// its dispatch named have sat, and a verdict — which records the next plan — is refused in the sitting
+// whose dispatch they sat for.
+func chairSitsAgain(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
+		t.Fatalf("register red-chair: %v", err)
+	}
 }
 
 // newRun makes a run directory as `setup` leaves it before any seat sits: the empty record. A gap's

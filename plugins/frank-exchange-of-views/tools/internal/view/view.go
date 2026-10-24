@@ -269,7 +269,7 @@ func ledgerMD(in Input) []byte {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.GetFoundBy() {
+		for _, lbl := range g.FoundBy() {
 			credited[lbl] = true
 		}
 	}
@@ -304,7 +304,7 @@ func ledgerMD(in Input) []byte {
 			supersedes = " | supersedes " + strings.Join(s, " ")
 		}
 		foundBy := ""
-		for i, id := range g.Mint.GetFoundBy() {
+		for i, id := range g.FoundBy() {
 			// a credit naming no finding on the record stays visible, bare
 			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}
@@ -644,12 +644,26 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// blue-respond (BLUE) (record/closingowed.go). The write path admits no other
+		// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
+		var positions, redClosings, blueClosings []*record.Event
+		for _, l := range re {
+			switch {
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
+				positions = append(positions, l)
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && record.PartyOf(l) == "blue":
+				blueClosings = append(blueClosings, l)
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
+				redClosings = append(redClosings, l)
+			}
+		}
+		for _, l := range positions {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](l); ok {
 				parts = append(parts, "### RED\n"+p.GetText())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
+		for _, l := range redClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
@@ -668,12 +682,7 @@ func debateMD(in Input) []byte {
 				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if p, ok := recordpb.BodyAs[*recordpb.Position](l); ok {
-				parts = append(parts, "### BLUE\n"+p.GetText())
-			}
-		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+		for _, l := range blueClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}

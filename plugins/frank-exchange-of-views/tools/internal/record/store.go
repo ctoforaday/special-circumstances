@@ -86,10 +86,10 @@ func openRunForRead(run Run) (*sql.DB, error) {
 				"not the same as a run that recorded nothing, and reporting it as an empty board "+
 				"would make every invariant pass over zero events. Read it with a binary of the "+
 				"event-schema epoch it was written under (a run states its own epoch in "+
-				"inputs/run-config.json as eventSchema, where it has one; this binary writes epoch %d), or replay "+
-				"it through this one: `--seat-id operator "+
-				"migrate --from <runDir> --to <freshDir>` re-drives every shard event through "+
-				"the current write path and says what it translated; a run "+
+				"inputs/run-config.json as eventSchema, where it has one; this binary writes epoch %d), or migrate "+
+				"it: `feov-migrate --from <runDir> --to <freshDir>` — the plugin's operator binary, installed in "+
+				"its bin/ beside feov-record — re-drives every shard event through "+
+				"the current write path into a fresh run and says what it translated; a run "+
 				"directory is created by `setup` and does not outlive the schema that made it — unless migrated",
 				abs, len(shards), filepath.Base(shards[0]), dbName, EventSchema)
 		}

@@ -7,14 +7,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// m20Archive is universe-m20: 465 events at the epoch this binary reads. Blue's edit at event 415
-// reopened proof P-9e198e9a, last judged at event 384.
+// m20Archive is universe-m20: 463 events at the epoch this binary reads. Blue's edit at event 414
+// reopened proof P-9e198e9a, last judged at event 383.
 const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 
 // THE PROOF'S OWNER IS READIED FOR A REOPENED PROOF, AND ANY LENS'S LATER CHECK CLEARS IT.
 //
-// In m20 two lenses opened sittings after the edit (the dark-side lens at event 429, the evidence
-// lens at 430). The dark-side lens judged the proof at event 432 and the evidence lens at 436.
+// In m20 two lenses opened sittings after the edit (the dark-side lens at event 427, the evidence
+// lens at 428). The dark-side lens judged the proof at event 430 and the evidence lens at 434.
 // Every surface said the PASS waited "until red-lens-evidence re-runs it" while the fold had
 // cleared the anchor three events earlier, on another seat's check. The fold is the rule: a check
 // is a reading from a sitting opened after the edit, whichever lens makes it. What the surfaces
@@ -25,16 +25,16 @@ const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 // reproduce joined to events on the proof's anchor).
 func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	whole := archivedEvents(t, m20Archive)
-	if len(whole) != 465 || whole[414].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
-		whole[431].GetSeatId() != "red-lens-dark-side" || whole[431].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE ||
-		whole[435].GetSeatId() != evLens || whole[435].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE {
-		t.Fatalf("the archive is not the m20 this test reads: %d events, 415 a %s, 432 %s's %s, 436 %s's %s", len(whole),
-			whole[414].GetType(), whole[431].GetSeatId(), whole[431].GetType(), whole[435].GetSeatId(), whole[435].GetType())
+	if len(whole) != 463 || whole[413].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
+		whole[429].GetSeatId() != "red-lens-dark-side" || whole[429].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE ||
+		whole[433].GetSeatId() != evLens || whole[433].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE {
+		t.Fatalf("the archive is not the m20 this test reads: %d events, 414 a %s, 430 %s's %s, 434 %s's %s", len(whole),
+			whole[413].GetType(), whole[429].GetSeatId(), whole[429].GetType(), whole[433].GetSeatId(), whole[433].GetType())
 	}
-	const fact = "P-9e198e9a's sentence changed at edit 415 and no sitting opened since has checked it (its last check is event 384)"
+	const fact = "P-9e198e9a's sentence changed at edit 414 and no sitting opened since has checked it (its last check is event 383)"
 
 	// After both lenses opened their sittings, before either re-ran the proof.
-	run := archiveAt(t, m20Archive, whole, 431)
+	run := archiveAt(t, m20Archive, whole, 429)
 	var owners []string
 	for _, b := range mustBlockers(t, run) {
 		if b.Kind == BlockerReopened {
@@ -67,9 +67,9 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 		}
 	}
 
-	// The dark-side lens's judgement, event 432: the anchor is checked, four events before the
+	// The dark-side lens's judgement, event 430: the anchor is checked, four events before the
 	// evidence lens's own.
-	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 432)) {
+	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 430)) {
 		if b.Kind == BlockerReopened {
 			t.Errorf("%s still holds the PASS after the dark-side lens re-ran it from a sitting opened after the edit", b.Subject)
 		}

@@ -250,7 +250,7 @@ enum EventType {
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
   EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
@@ -274,7 +274,7 @@ enum EventType {
   reserved 21;
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
-  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into its sitting"];
+  EVENT_TYPE_POSITION = 23 [(means) = "the chair's argument to the bench on what is about no one gap"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
   EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
@@ -291,6 +291,7 @@ enum EventType {
   EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
+  EVENT_TYPE_CREDIT = 42 [(means) = "a lens crediting an open gap with its own finding that raised a contradiction — the gap's found_by gains the finding, and the gap answers the contradiction as a gap minted from it would"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -731,15 +732,16 @@ message Event {
     SittingLimit sitting_limit = 57;
     Plan plan = 59;
     Stale stale = 60;
+    Credit credit = 61;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, 60 for the stale refusal, which is what the reserve is for — the block shrinks and
-  // nothing is renumbered.
-  reserved 61 to 80;
+  // plan, 60 for the stale refusal, 61 for the credit, which is what the reserve is for — the block
+  // shrinks and nothing is renumbered.
+  reserved 62 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -1124,7 +1126,8 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
-  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_PROOF = 5 [(means) = "a proof, by its anchor, whose sentence was judged unsound", (gap_may_name) = true];
 }
 
 message Finding {
@@ -1217,6 +1220,27 @@ enum SourceCompleteness {
   SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// CopySubstitution is WHOSE BYTES A CITATION READ, stamped by the tool from what the fetch recorded;
+// a seat never types it. The seat types a url, and the cache can answer it with bytes from
+// somewhere else: the full text the url's page pointed to, a copy the recovery chain took when the
+// url refused, a fuller copy taken because the url's page was not the work's body, or a backend a
+// fetch named. Each is a legitimate answer and none is the url's own, and a citation that recorded
+// only the typed url claimed to have read it. copy_url beside it names where the bytes came from;
+// sha256 is already those bytes' hash.
+//
+// AN ENUM AND NOT AN EMPTY copy_url, for WorkStatus's reason: an empty field folds "the url's own
+// bytes" together with "nobody recorded whose", and only NONE rests on the fetch having said so.
+enum CopySubstitution {
+  COPY_SUBSTITUTION_UNSPECIFIED = 0;
+  COPY_SUBSTITUTION_NONE = 1 [(means) = "the cited bytes are the typed url's own: the url answered, and its answer is what was read"];
+  COPY_SUBSTITUTION_FOLLOWED_LINK = 2 [(means) = "the typed url's page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named"];
+  COPY_SUBSTITUTION_RECOVERED = 3 [(means) = "the typed url refused this container, and the tool's recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool's own statement of what the recovery found, not a document"];
+  COPY_SUBSTITUTION_FULLER_COPY = 4 [(means) = "the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version"];
+  COPY_SUBSTITUTION_NAMED_BACKEND = 5 [(means) = "a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document"];
+  COPY_SUBSTITUTION_NOT_RECORDED = 6 [(means) = "this citation or reading predates the field; written only by migrate"];
+  COPY_SUBSTITUTION_NOT_CACHED = 7 [(means) = "a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records"];
+}
+
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
 // seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
 // disable that check for the row.
@@ -1270,6 +1294,12 @@ message Cite {
 
   // WHICH PART OF THE WORK THE CITED COPY IS, stamped from the fetch index like the two above.
   optional SourceCompleteness source_completeness = 17 [(prose) = false];
+
+  // WHOSE BYTES THE CITATION READ, stamped from the fetch index like the three above, and where
+  // they came from when they are not the typed url's own. copy_url is set exactly when the
+  // substitution is not NONE and the bytes were fetched from somewhere.
+  optional CopySubstitution copy_substitution = 24 [(prose) = false];
+  optional string copy_url = 25 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field. `source_text_read` was the seat's assertion of how much of the
@@ -1354,6 +1384,14 @@ message Verify {
   // verification rows, which blue reads to find where its evidence is thinnest and every lens reads
   // before adjudicating the same citation, and the verb's own output.
   optional BridgeKind bridge = 17 [(sql) = { flag: "bridge" }];
+
+  // WHOSE BYTES RED'S READING WAS MADE AGAINST, stamped by the tool from the run's fetch cache as
+  // Cite's pair is: the entry the source's url resolves to when the reading is written — the
+  // citation's url for `verify`, the typed url for `corroborate`. A cache with no copy of it is
+  // not_cached. Their readers: `show evidence`'s verification rows and a labelled corroboration's
+  // source row, and a labelled corroboration's note and Bibliography line in the report.
+  optional CopySubstitution copy_substitution = 18 [(prose) = false];
+  optional string copy_url = 19 [(prose) = false];
 
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;
@@ -2304,6 +2342,34 @@ message Stale {
   // THROUGH IS THE LAST ACT THE REFUSAL SHOWED, not this event's own id: an act on the gap recorded
   // between the check and this write was never shown, and a read point at this event would pass it.
   optional int64 through = 2 [(sql) = { references: "events.id" }];
+}
+
+// Credit is a lens naming an OPEN gap as the answer to a contradiction its own finding raised
+// (gblock, 2026-10-24): the gap's found_by gains the finding, and the contradiction fold
+// (contradictionsOf) reads the gap as answering it, exactly as it reads a gap minted from that
+// finding. The gap's class then decides materiality, as for every gap.
+//
+// IT EXISTS BECAUSE THE DUPLICATE SCREEN IS RIGHT. A lens that raised a contradiction owes the gap
+// that answers it; where the board already holds that defect as an open gap, the answering mint is
+// a duplicate and the screen refuses it. On universe-m32 that refusal fell seven times on three
+// raises whose defect G-f417112d already held, and six sittings ended owing the answer. The
+// credit answers with the gap that exists, and no second gap is minted.
+//
+// A CREDIT IS NOT A MINT: it takes no budget and moves no gap's ownership. The gap stays its
+// minting lens's to close or regrade.
+message Credit {
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    flag: "id"
+    why: "the credit names the open gap that answers the contradiction"
+  }];
+  // found_by is the RAISING FINDING — the one id a gap's found_by holds, so the credit adds it there.
+  optional string found_by = 2 [(sql) = {
+    required: true
+    references: "finding.id"
+    why: "the credit names the finding of yours that raised the contradiction, which the gap's found_by gains"
+  }];
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

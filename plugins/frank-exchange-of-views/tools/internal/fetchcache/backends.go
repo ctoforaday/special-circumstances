@@ -93,6 +93,12 @@ type Attempt struct {
 	// DOI is the identifier the backends were asked about — resolved once from the url, by
 	// Recover, and carried on the answer so the entry built from it need not resolve it again.
 	DOI string
+	// URL is where these bytes were fetched from, set by the backend at the fetch that returned
+	// them. Empty where the body is the tool's own statement of what the backend found — "no open
+	// copy exists", "the archive did not answer" — which was read from no url. A citation of these
+	// bytes records it as its copy_url; Via is a sentence for a seat, and nothing reads a url
+	// back out of it.
+	URL string
 }
 
 // ---------- identifiers ----------
@@ -618,7 +624,8 @@ func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 	if doi == "" {
 		return nil, nil
 	}
-	resp, err := f.Fetch(crossrefWorks + doi + "?mailto=" + ContactEmail)
+	recordURL := crossrefWorks + doi + "?mailto=" + ContactEmail
+	resp, err := f.Fetch(recordURL)
 	if err != nil {
 		return nil, nil
 	}
@@ -646,6 +653,7 @@ func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 	return &Attempt{
 		Body:        resp.Body,
 		ContentType: "application/json",
+		URL:         recordURL,
 		Via: fmt.Sprintf("bibliographic record only (Crossref, doi %s): %q, %s %s, pp. %s — THE TEXT WAS NOT RETRIEVED",
 			doi, cr.Message.Title[0], venue, year, cr.Message.Page),
 		TextRetrieved: false,
@@ -712,7 +720,8 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			if !ok {
 				return nil
 			}
-			resp, err := f.Fetch(c.SnapshotURL())
+			snapURL := c.SnapshotURL()
+			resp, err := f.Fetch(snapURL)
 			if err != nil {
 				return nil
 			}
@@ -721,6 +730,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 				when = fmt.Sprintf("%s-%s-%s", when[0:4], when[4:6], when[6:8])
 			}
 			return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
+				URL: snapURL,
 				Via: fmt.Sprintf("archive.org capture of %s (%s) — a snapshot, NOT the live source; for a subscription "+
 					"article this is usually the landing page and not the text, so read it before citing it as read",
 					when, c.SnapshotURL())}
@@ -754,12 +764,12 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			// archived asks the web archive for the copy the index named at loc, when that host would
 			// not hand it over; why says how it would not.
 			archived := func(loc, why string) *Attempt {
-				snap := archivedCopy(f, loc)
+				snap, snapURL := archivedCopy(f, loc)
 				if snap == nil {
 					return nil
 				}
 				return &Attempt{Body: snap.Body, ContentType: SniffedMediaType(snap.ContentType, snap.Body),
-					TextRetrieved: true, Facts: facts, Version: typed[loc].Version,
+					TextRetrieved: true, URL: snapURL, Facts: facts, Version: typed[loc].Version,
 					License: firstNonEmpty(typed[loc].License, facts.License),
 					Via: fmt.Sprintf("open-access copy of doi %s, taken from the web archive's snapshot of %s "+
 						"because that host %s — the copy is the one the index named, and the archive is where it "+
@@ -818,14 +828,14 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 						hopped[pdf] = true
 						if hr, herr := f.Fetch(pdf); herr == nil && ShellReason(hr.ContentType, hr.Body) == "" {
 							held.offer(&Attempt{Body: hr.Body, ContentType: SniffedMediaType(hr.ContentType, hr.Body), TextRetrieved: true,
-								Facts: facts, Version: t.Version, License: firstNonEmpty(t.License, facts.License),
+								URL: pdf, Facts: facts, Version: t.Version, License: firstNonEmpty(t.License, facts.License),
 								Via: fmt.Sprintf("open-access copy, located by doi %s at %s — the pdf the landing page %s names in its own citation_pdf_url",
 									doi, pdf, loc)}, doi)
 						}
 					}
 				}
 				held.offer(&Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
-					Facts: facts, Version: t.Version, License: firstNonEmpty(t.License, facts.License),
+					URL: loc, Facts: facts, Version: t.Version, License: firstNonEmpty(t.License, facts.License),
 					Via: fmt.Sprintf("open-access copy, located by doi %s at %s (%s, candidate %d of %d the OA indexes listed)",
 						doi, loc, versionWords(t.Version), i+1, len(locs))}, doi)
 				if held.bodyBearing() {
@@ -861,7 +871,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			resp, err := f.Fetch(pdf)
 			if err == nil {
 				return &Attempt{Body: resp.Body, ContentType: SniffedMediaType(resp.ContentType, resp.Body), TextRetrieved: true,
-					Via: "arXiv " + id + " (" + pdf + "); the LaTeX source is at " + eprint}
+					URL: pdf, Via: "arXiv " + id + " (" + pdf + "); the LaTeX source is at " + eprint}
 			}
 			// A REFUSED PDF IS NOT AN ABSENT PAPER, and returning nil here said it was. arXiv
 			// answers 200 for CLIP and the bytes are 6.8 MB, over this tool's cap; the seat then
@@ -875,7 +885,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 			// the Via says so where a seat will read it.
 			if hr, herr := f.Fetch(html); herr == nil {
 				return &Attempt{Body: hr.Body, ContentType: MediaType(hr.ContentType), TextRetrieved: true,
-					Via: fmt.Sprintf("arXiv %s as arXiv's OWN HTML RENDERING (%s), because the PDF at %s could not be "+
+					URL: html, Via: fmt.Sprintf("arXiv %s as arXiv's OWN HTML RENDERING (%s), because the PDF at %s could not be "+
 						"taken: %v. This is not the PDF and HAS NO PAGE NUMBERS — quote it as the HTML, never as a page "+
 						"of the paper. The LaTeX source is at %s", id, html, pdf, err, eprint)}
 			}
@@ -961,8 +971,9 @@ func EricRecord(f Fetcher, rawURL string) (*Attempt, error) {
 	if q == "" {
 		return nil, nil
 	}
-	resp, err := f.Fetch("https://api.ies.ed.gov/eric/?search=" + url.QueryEscape(q) +
-		"&format=json&rows=1&fields=id,title,author,description,source,publicationdateyear,e_fulltextauth")
+	recordURL := "https://api.ies.ed.gov/eric/?search=" + url.QueryEscape(q) +
+		"&format=json&rows=1&fields=id,title,author,description,source,publicationdateyear,e_fulltextauth"
+	resp, err := f.Fetch(recordURL)
 	if err != nil {
 		return nil, nil
 	}
@@ -989,9 +1000,10 @@ func EricRecord(f Fetcher, rawURL string) (*Attempt, error) {
 	// is a broken link rather than an absent document — and it is reported as the record, not as a
 	// silent failure to fetch.
 	if d.FullTextAuth == 1 {
-		if pdf, perr := f.Fetch("https://files.eric.ed.gov/fulltext/" + d.ID + ".pdf"); perr == nil && len(pdf.Body) > 0 {
+		pdfURL := "https://files.eric.ed.gov/fulltext/" + d.ID + ".pdf"
+		if pdf, perr := f.Fetch(pdfURL); perr == nil && len(pdf.Body) > 0 {
 			return &Attempt{
-				Body: pdf.Body, ContentType: "application/pdf", TextRetrieved: true,
+				Body: pdf.Body, ContentType: "application/pdf", TextRetrieved: true, URL: pdfURL,
 				Via: fmt.Sprintf("ERIC %s (https://files.eric.ed.gov/fulltext/%s.pdf): %q, %s %d — full text, authorised by ERIC",
 					d.ID, d.ID, d.Title, d.Source, d.Year),
 			}, nil
@@ -1004,6 +1016,7 @@ func EricRecord(f Fetcher, rawURL string) (*Attempt, error) {
 	return &Attempt{
 		Body:        resp.Body,
 		ContentType: "application/json",
+		URL:         recordURL,
 		Via: fmt.Sprintf("bibliographic record only (ERIC %s): %q — %s, %s %d. %s "+
 			"ERIC states it holds NO authorised full text for this record, which is a fact about the "+
 			"world and not about this container — THE TEXT WAS NOT RETRIEVED",
@@ -1098,11 +1111,12 @@ func versionWords(v string) string {
 // still exist" — and it fires only after a refusal, so it costs nothing on the path that works.
 //
 // The `if_` suffix on the timestamp asks the archive for the bytes it stored rather than its own
-// framed replay of them; without it the body comes back wrapped in the archive's navigation.
-func archivedCopy(f Fetcher, rawURL string) *Response {
+// framed replay of them; without it the body comes back wrapped in the archive's navigation. The
+// url returned is the snapshot's, the one the bytes were fetched from.
+func archivedCopy(f Fetcher, rawURL string) (*Response, string) {
 	resp, err := f.Fetch("https://archive.org/wayback/available?url=" + url.QueryEscape(rawURL))
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 	var r struct {
 		Snapshots struct {
@@ -1115,20 +1129,21 @@ func archivedCopy(f Fetcher, rawURL string) *Response {
 		} `json:"archived_snapshots"`
 	}
 	if json.Unmarshal(resp.Body, &r) != nil {
-		return nil
+		return nil, ""
 	}
 	c := r.Snapshots.Closest
 	// A SNAPSHOT OF A REFUSAL IS NOT A COPY. The archive stores whatever it was served, including
 	// the 403 page and the challenge interstitial, and its own status field is the only thing that
 	// separates those from the document.
 	if !c.Available || c.URL == "" || (c.Status != "" && c.Status != "200") {
-		return nil
+		return nil, ""
 	}
-	snap, serr := f.Fetch(strings.Replace(c.URL, "/"+c.Timestamp+"/", "/"+c.Timestamp+"if_/", 1))
+	snapURL := strings.Replace(c.URL, "/"+c.Timestamp+"/", "/"+c.Timestamp+"if_/", 1)
+	snap, serr := f.Fetch(snapURL)
 	if serr != nil || ShellReason(snap.ContentType, snap.Body) != "" {
-		return nil
+		return nil, ""
 	}
-	return snap
+	return snap, snapURL
 }
 
 // heldCopy is the best answer an open-access walk has seen so far, by how much of the work it

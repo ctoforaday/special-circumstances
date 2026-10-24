@@ -1,11 +1,13 @@
 // Package lens is the red lens seat's contract.
 //
 // A lens audits the report against its area and puts what it finds on the board itself: it
-// records findings, verifies citations, screens the board with near-match, and MINTS its own gaps
-// against its own budget. A gap belongs to the lens that minted it for its whole life — regrade
+// records findings, verifies citations, screens the board with near-match, MINTS its own gaps
+// against its own budget, and credits an open gap with a contradiction it raised whose defect that
+// gap already holds. A gap belongs to the lens that minted it for its whole life — regrade
 // and close are the originator's acts, refused at the record for any other seat
 // (plans/roundless.md §III.B.3). The chair dispatches the lens when its gap needs acting on; the
-// bench disposes of a docketed gap through its ruling.
+// bench disposes of a docketed gap through its ruling, on the closings its parties file — the lens's
+// among them.
 package lens
 
 import (
@@ -24,11 +26,13 @@ func Verbs() []*cobra.Command {
 		newClose(),
 		newRegrade(),
 		newNearMatch(),
+		newCredit(),
 		newFinding(),
 		newVerify(),
 		newRenderPage(),
 		newCorroborate(),
 		newReproduce(),
+		seat.Closing("closing-red"),
 		seat.Log(),
 	)
 }

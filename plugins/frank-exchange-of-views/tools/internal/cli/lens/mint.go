@@ -207,19 +207,11 @@ func newMint() *cobra.Command {
 		// against the lens's own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
 		guards = append(guards, record.Check(func(l *record.Landing) error {
-			fam, berr := l.Family()
-			if berr != nil {
-				return nil
-			}
-			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
-				!contains(supersedes.Value(), prior) {
-				return estopped{prior: prior, prescribed: prescribed}
-			}
-			return nil
+			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
 		}))
 
 		var est estopped
-		switch err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
+		switch _, err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
 		case errors.As(err, &est):
 			prior, prescribed := est.prior, est.prescribed
 			msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
@@ -269,8 +261,8 @@ func newMint() *cobra.Command {
 		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a proof whose sentence you judged unsound; use instead of --quote")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a proof's anchor. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
@@ -413,4 +405,24 @@ var mintAsserted = []seat.Asserted{
 	{Flag: flags.About, Field: "about_ref"},
 	{Flag: flags.Supersedes, Field: "supersedes"},
 	{Flag: flags.FoundBy, Field: "found_by"},
+}
+
+// familyReader is the one read the estoppel guard makes of the record a mint lands on.
+type familyReader interface {
+	Family() (record.Family, error)
+}
+
+// requireNotEstopped refuses a mint whose location is text this lens prescribed and blue applied
+// verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
+// read to ask: a gap opened because the estoppel question could not be asked is one the tool
+// admitted on nothing.
+func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
+	fam, err := l.Family()
+	if err != nil {
+		return unreadableRefusal("whether this location is text you prescribed", err)
+	}
+	if prior, prescribed := record.EstoppelConflict(fam, quote); prior != "" && !contains(supersedes, prior) {
+		return estopped{prior: prior, prescribed: prescribed}
+	}
+	return nil
 }

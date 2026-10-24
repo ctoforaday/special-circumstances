@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -270,14 +271,16 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 	}
 }
 
-// A HAND-FILED DOCKET MOTION READIES THE BENCH BEFORE IMPASSE, and on a trifle. The escalation
-// route is a party's, not only the dispatch's; the motion stands until ruled, and PASS is refused
-// while it stands — so a docket nobody is dispatched to rule would strand the run.
+// A HAND-FILED DOCKET MOTION READIES THE BENCH BEFORE IMPASSE, and on a trifle, once both parties
+// have filed their closings on it. The escalation route is a party's, not only the dispatch's; the
+// motion stands until ruled, and PASS is refused while it stands — so a docket nobody is dispatched
+// to rule would strand the run.
 func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").dispatch(2, evLens).register(evLens).
 											mint(evLens, "G1", "high").mint(evLens, "G2", "low").
 											register("blue-respond").docketMotion("blue-respond", "M1", "G1").docketMotion("blue-respond", "M2", "G2").
+											closing("blue-respond", "G1").closing("blue-respond", "G2").closing(evLens, "G1").closing(evLens, "G2").
 											register("red-chair")
 	plan, err := PlanDispatch(b.seed())
 	if err != nil {
@@ -368,8 +371,10 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	}
 }
 
-// At impasse the plan dockets the gap and readies the bench — nobody else.
-func TestTheBenchIsReadyWhenAGapReachesImpasseAndTheVerbDocketsIt(t *testing.T) {
+// At impasse the plan dockets the gap and readies its two parties for their closings, engaged on
+// no gap — the closing is not an exchange — and not the bench: nothing on the record answers a
+// docketing not yet filed.
+func TestAtImpasseTheVerbDocketsTheGapAndReadiesItsPartiesForTheirClosings(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
 	// Three party sittings for two countable exchanges: each is closed by the parties sitting again.
@@ -384,8 +389,13 @@ func TestTheBenchIsReadyWhenAGapReachesImpasseAndTheVerbDocketsIt(t *testing.T) 
 	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" {
 		t.Fatalf("docket = %v, want [G1]", plan.Docket)
 	}
-	if len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" || plan.Parties[0].GapIDs[0] != "G1" {
-		t.Fatalf("parties = %+v, want the bench on G1 alone", plan.Parties)
+	if len(plan.Parties) != 2 {
+		t.Fatalf("parties = %+v, want the lens and blue alone", plan.Parties)
+	}
+	for _, seat := range []string{evLens, "blue-respond"} {
+		if p, ok := partyOf(plan, seat); !ok || len(p.GapIDs) != 0 {
+			t.Errorf("%s: want readied for its closing with no gap engaged, got %+v (named %v)", seat, p, ok)
+		}
 	}
 	if plan.PassPermitted || plan.Ceiling {
 		t.Errorf("neither PASS nor CEILING while the bench has not ruled: %+v", plan)
@@ -539,6 +549,8 @@ func TestAFailOnAConvergentBoardIsRefused(t *testing.T) {
 	fail := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}
 	if _, err := Append(chair, fail); err == nil || !strings.Contains(err.Error(), "converged") {
 		t.Fatalf("a FAIL over a converged board landed: %v", err)
+	} else if feov.CodeOf(err) != string(feov.Conflict) {
+		t.Errorf("the convergence refusal is coded %q, want %q", feov.CodeOf(err), feov.Conflict)
 	}
 	c, _ := convergenceOf(viewOf(t, run))
 	if c.Peak != 9 || c.Mass != 1 || c.MaxSeverityMass != 1 || c.FreshMaterialMints != 0 {

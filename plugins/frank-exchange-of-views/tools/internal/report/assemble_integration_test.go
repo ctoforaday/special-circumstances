@@ -92,7 +92,6 @@ func TestAssembleEndToEnd(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
-	add("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
 	add("blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
 		Question: proto.String("model-check the two-writer interleaving"),
@@ -117,6 +116,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 		Basis:    proto.String("red cannot settle G1 without the model-check"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 	})
+	// BLUE ARGUES THE DOCKETED GAP in its closing before the bench rules.
+	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
 	add("judge", &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Opinion:  proto.String("a model-check is owed before this closes"),
@@ -196,7 +197,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("report.md still carries the docket (%q) — the split did not happen", want)
 		}
 	}
-	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: remanded"} {
+	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE CLOSING — G1\nG1 is repaired", "G1: remanded"} {
 		if !strings.Contains(deb, want) {
 			t.Errorf("debate.md missing %q\n---\n%s", want, deb)
 		}
@@ -404,14 +405,14 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	})
 	// A SECOND source, cited only from red's board — so its reference lands in docket.md and
 	// nowhere else. This is the case a global weave gets wrong and a per-file weave gets right.
-	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000002"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("beefcafe"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-08-04"),
@@ -429,10 +430,20 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	// And a proof anchored from the transcript, so debate.md must define P1 for itself too.
-	add("blue-respond", &recordpb.Position{
+	// And a proof anchored from the transcript, so debate.md must define P1 for itself too: blue's
+	// closing on the docketed gap.
+	add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
+	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"),
 		Text: proto.String("the interleaving is model-checked<!--proof:P-00000001--> and G1 does not stand"),
 	})
+	add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("the model check settles it"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
+			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"), ReviewFlag: proto.String("false"),
+			Settled:   proto.String("the claim as it stood may not be re-asserted"),
+			Direction: proto.String("a model-check of the two-writer interleaving"),
+		}}})
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),

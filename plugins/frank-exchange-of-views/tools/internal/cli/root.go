@@ -267,7 +267,6 @@ bench rules and never originates.`,
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
 			newEngineStopped(),   // operator: the engine's own stop, written to the log
-			newMigrate(),         // operator: replay an old record through this binary into a fresh run
 			newManual(seatID),    // every surface: every command's own help, in one call
 		)
 	}

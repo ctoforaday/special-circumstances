@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
 // Convergence is the never-hard-fail predicate (plans/roundless.md §III.B.2.1) over the board as it
@@ -104,7 +106,7 @@ func requireFailIsNotConvergent(w writeView, blockers []Blocker) error {
 	if len(own) > 0 {
 		pass = "Where nothing still stops you but your own items, issue `--as PASS` once they are done: " + strings.Join(own, "; ") + "."
 	}
-	return fmt.Errorf("FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
+	return feov.Errorf(feov.Conflict, "FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
 		"A FAIL here holds the report open on gaps that change no reader decision. %s "+
 		"Where a defect does, record no verdict and state the defect in your `position` — or, where it lies in a stale area, in that area's `spot-check`; the gaps that are not material stay open on the board",
 		c.Mass, c.Fraction*100, c.Peak, pass)

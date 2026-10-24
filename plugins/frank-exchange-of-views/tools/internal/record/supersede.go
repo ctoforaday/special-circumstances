@@ -62,7 +62,9 @@ const (
 // ruling on an INQUIRY: a docket motion names a gap, an inquiry is not one, and no verb files a
 // motion on an inquiry — so that refusal ends without a tail. An anchor, a finding and a mint are
 // keyed on an id the tool mints per act, so a second with the same key is a retried write and
-// nothing else. No verb records an observe.
+// nothing else. No verb records an observe. A credit is numbered, so no key refuses a second; what
+// the write path refuses is a credit of a raise already answered, and no act takes a credit back,
+// as none takes back a mint's found_by.
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
 // the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The
@@ -230,7 +232,8 @@ func oneASitting(typ recordpb.EventType, field protoreflect.Name) (held bool, pe
 
 // RefusesARepeat answers whether the record refuses a second act of this type in one sitting on
 // the strength of its KEY: a singleton, or a body that can carry a key field and references what
-// the field names rather than defining it. Derived from the three declarations deriveKey reads
+// the field names rather than defining it — unless the type is numbered, whose every act keys on
+// the seat's ordinal. Derived from the three declarations deriveKey reads
 // (singleton, keyFields, defines), so a type that joins one of them owes a row in superseders
 // without a list to extend — a verb that records such a type and finds no row refuses to mount
 // (cli/seat teachAnswer).
@@ -238,7 +241,7 @@ func RefusesARepeat(typ recordpb.EventType) bool {
 	if singleton[typ] {
 		return true
 	}
-	return !defines[typ] && typeKeyField(typ) != ""
+	return !defines[typ] && !numbered[typ] && typeKeyField(typ) != ""
 }
 
 // typeKeyField is the first key field a body of this type can carry, or "".

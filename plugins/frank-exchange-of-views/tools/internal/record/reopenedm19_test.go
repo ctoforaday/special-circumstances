@@ -14,11 +14,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// m19Archive is universe-m19, the run this rule was written from: 504 events migrated, outcome VERIFIED,
+// m19Archive is universe-m19, the run this rule was written from: 496 events migrated, outcome VERIFIED,
 // with two citations and a proof whose sentences blue rewrote after their last check.
 const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 
-// m19Reopened is what m19 owes at its chair's verdict (event 498), as events.id.
+// m19Reopened is what m19 owes at its chair's verdict (event 490), as events.id.
 //
 // THE IDS ARE LITERALS, DERIVED BY SQL OUTSIDE THE FOLD — the last `blue_edit_reopened` row naming
 // each anchor, and the last verify or reproduce of it before that — so a wrong fold cannot agree
@@ -26,9 +26,9 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 // events in order; a migration that renumbers them re-derives the three pairs from the migrated
 // record and updates this table in the same commit. The anchors do not move.
 var m19Reopened = []reopened{
-	{anchor: "C-706fda63", edit: 406, lastCheck: 178},
-	{anchor: "C-4dae2507", edit: 375, lastCheck: 337},
-	{anchor: "P-cd9f4c5a", proof: true, sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 375, lastCheck: 336},
+	{anchor: "C-706fda63", edit: 400, lastCheck: 175},
+	{anchor: "C-4dae2507", edit: 370, lastCheck: 332},
+	{anchor: "P-cd9f4c5a", proof: true, sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 370, lastCheck: 331},
 }
 
 // m19Owner is who owes each reopened anchor's check in m19's cast, which seats every lens: the
@@ -94,21 +94,21 @@ func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 }
 
 // M19 PASSED OVER THREE CHECKS OF SENTENCES IT NO LONGER CARRIED. Its evidence lens found against
-// C-706fda63 (event 111); blue rewrote the sentence to answer it (edit 406); no seat read the new
-// sentence against the source, and the chair's PASS at 498 was admitted. Under this rule the plans
+// C-706fda63 (event 112); blue rewrote the sentence to answer it (edit 400); no seat read the new
+// sentence against the source, and the chair's PASS at 490 was admitted. Under this rule the plans
 // that followed the edits ready each anchor's owner — the evidence lens for the citations, the
 // computation lens for the proof — and the PASS is refused naming all three.
 func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	whole := archivedEvents(t, m19Archive)
-	if len(whole) != 504 || whole[497].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
-		t.Fatalf("the archive holds %d events and its event 498 is a %s, want 504 and the chair's verdict", len(whole), whole[497].GetType())
+	if len(whole) != 496 || whole[489].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
+		t.Fatalf("the archive holds %d events and its event 490 is a %s, want 496 and the chair's verdict", len(whole), whole[489].GetType())
 	}
 	fact := func(r reopened) string {
 		return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", r.anchor, r.edit, r.lastCheck)
 	}
 
 	// The record before the chair's verdict.
-	run := m19At(t, whole, 497)
+	run := m19At(t, whole, 489)
 	blockers, err := PassBlockers(run)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	// its last sitting (retirement.go).
 	var got []reopened
 	var ready []string
-	raisedOnly := false
+	unraised := false
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
 			if !strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ") {
@@ -126,15 +126,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			ready = append(ready, b.Subject)
 			continue
 		}
-		// AND A CONTRADICTION ITS EVIDENCE LENS RAISED AND MINTED NO GAP FROM: the reading at 115,
-		// raised by a finding alone, which answers nothing since the class default wins (gblock,
-		// 2026-10-19).
-		if b.Kind == BlockerContradiction && b.Subject == "115" && b.Owner == evLens && b.raisedBy != "" {
-			raisedOnly = true
+		// AND A CONTRADICTION NO FINDING NAMED: the reading at 112. The archive's finding about it
+		// quotes the claim and names no contradiction, and a quote raises nothing.
+		if b.Kind == BlockerContradiction && b.Subject == "112" && b.Owner == evLens && b.raisedBy == "" {
+			unraised = true
 			continue
 		}
 		if b.Kind != BlockerReopened {
-			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and contradiction 115", b.Kind, b.Subject, b.Owner)
+			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and contradiction 112", b.Kind, b.Subject, b.Owner)
 			continue
 		}
 		r := reopened{anchor: b.Subject, proof: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
@@ -143,8 +142,8 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		}
 		got = append(got, r)
 	}
-	if !raisedOnly {
-		t.Error("contradiction 115, raised by a finding with no gap minted from it, does not hold the PASS")
+	if !unraised {
+		t.Error("contradiction 112, which no finding named, does not hold the PASS unraised")
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)
@@ -154,7 +153,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
-		t.Fatal("the gate admits the PASS m19's chair recorded at event 498")
+		t.Fatal("the gate admits the PASS m19's chair recorded at event 490")
 	}
 	plan, err := PlanDispatch(run)
 	if err != nil {
@@ -187,23 +186,23 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	for _, r := range standingOf(t, run) {
 		rows = append(rows, reopened{anchor: r.Anchor, edit: r.Edit, lastCheck: r.LastCheck})
 	}
-	if want := []reopened{{anchor: "C-706fda63", edit: 406, lastCheck: 178}, {anchor: "C-4dae2507", edit: 375, lastCheck: 337}, {anchor: "P-cd9f4c5a", edit: 375, lastCheck: 336}}; !slices.Equal(rows, want) {
+	if want := []reopened{{anchor: "C-706fda63", edit: 400, lastCheck: 175}, {anchor: "C-4dae2507", edit: 370, lastCheck: 332}, {anchor: "P-cd9f4c5a", edit: 370, lastCheck: 331}}; !slices.Equal(rows, want) {
 		t.Errorf("show evidence reopened = %+v\nwant %+v", rows, want)
 	}
-	// A proof reopened and retired in one blue sitting (edits 439 and 442, retire 443) owes nothing.
+	// A proof reopened and retired in one blue sitting (edits 432 and 435, retire 436) owes nothing.
 	if at, err := EvidenceAt(run, "P-c1c0989f"); err != nil || at.Proof == nil || at.Reopened != nil {
 		t.Errorf("show evidence --anchor P-c1c0989f: reopened = %+v (%v), want the proof with no reopened row", at.Reopened, err)
 	}
 
-	// The two plans that followed the edits: the chair's dispatches at events 385 and 414 readied
+	// The two plans that followed the edits: the chair's dispatches at events 379 and 407 readied
 	// architecture, voice and blue, then architecture alone. Each now readies the evidence lens for
 	// the citations and the computation lens for the proof.
 	for _, c := range []struct {
 		before int
 		owed   []string
 	}{
-		{385, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
-		{414, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
+		{379, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
+		{407, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
 	} {
 		plan, err := PlanDispatch(m19At(t, whole, c.before-1))
 		if err != nil {

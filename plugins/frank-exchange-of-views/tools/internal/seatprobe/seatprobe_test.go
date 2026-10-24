@@ -51,7 +51,7 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 		seat    string
 		payload proto.Message
 	}{
-		{seat: "blue-respond", payload: &recordpb.Position{Text: proto.String("the round's narrative")}},
+		{seat: "blue-respond", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
 
 	c, err := Read(surface(), runtest.Open(t, runDir), "blue-respond")
@@ -61,8 +61,8 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 	if c.Role != "blue" {
 		t.Fatalf("role = %q, want blue", c.Role)
 	}
-	if c.Used["position"] != 1 {
-		t.Errorf("position not counted: %v", c.Used)
+	if c.Used["edit"] != 1 {
+		t.Errorf("edit not counted: %v", c.Used)
 	}
 	for _, verb := range c.Unused {
 		if verb == "mint" || verb == "verdict" || verb == "opinion" {
@@ -143,7 +143,7 @@ func TestAnEmptyLogIsNotReportedAsACleanBoard(t *testing.T) {
 		seat    string
 		payload proto.Message
 	}{
-		{seat: "blue-respond", payload: &recordpb.Position{Text: proto.String("n")}},
+		{seat: "blue-respond", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
 	out, err := Report(surface(), runtest.Open(t, runDir), []string{"blue-respond"}, nil, nil)
 	if err != nil {

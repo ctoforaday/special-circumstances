@@ -38,6 +38,7 @@ func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 		StaleAreas: []StaleArea{{SeatID: "red-lens-voice"}},
 		Blockers:   []PlanBlocker{{Kind: BlockerReopened}},
 		Why:        []string{"w"},
+		Verdict:    "PASS",
 	}
 	printed := func(p Plan) map[string]any {
 		b, err := json.Marshal(p)

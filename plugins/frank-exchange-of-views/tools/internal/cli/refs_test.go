@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // EVERY CROSS-REFERENCE, CHECKED.
@@ -42,7 +44,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
-		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "red-chair",
+		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "t"}},
 		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "r"}},
@@ -189,7 +191,9 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 // So the rule is not about mint-time state, which would refuse all 9. It is a completion
 // duty, and this test holds both halves: the 7 stay legal, the 2 are caught.
 func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
-	runDir := seatRun(t)
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
+	runDir := castRun(t)
+	castSeats(t, runDir)
 	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.

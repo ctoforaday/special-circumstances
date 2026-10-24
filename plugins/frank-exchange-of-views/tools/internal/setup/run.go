@@ -155,7 +155,19 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// live runs they bracket no sitting, count no call and inject no run for either. Every seat of
 	// both runs then acts unbracketed and uncapped. Two runs at once need two checkouts, each with
 	// its own marker.
-	for _, p := range runlive.PruneRunLive(cfg.Cwd) {
+	pruned, perr := runlive.PruneRunLive(cfg.Cwd)
+	if perr != nil {
+		// The rows judged dead are still in the file, and a dead row the refusal below would read as
+		// another live run is exactly what a prune exists to clear.
+		fmt.Fprintln(stderr, "run-setup: COULD NOT PRUNE THE LIVE-RUN MARKER — refusing to create the run:")
+		for _, p := range pruned {
+			fmt.Fprintf(stderr, "  no longer live, still in the marker: %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
+		}
+		fmt.Fprintf(stderr, "  error: %v\n", perr)
+		fmt.Fprintln(stderr, "  remedy: make .claude/run-live.json writable (or remove those rows by hand), then re-run setup")
+		return 1
+	}
+	for _, p := range pruned {
 		fmt.Fprintf(stdout, "run-setup: pruned the live-run marker's row for %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
 	}
 	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
@@ -305,7 +317,15 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		p, _ := splitPin(c)
 		pinnedPaths = append(pinnedPaths, p)
 	}
-	marker := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	marker, merr := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	if merr != nil {
+		// The run directory exists but the run is NOT live: the hooks find a seat's run only through
+		// this marker, so a run launched now would bracket no sitting and count no call.
+		fmt.Fprintf(stderr, "run-setup: the run directory %s is built, but the live-run marker could not be written: %v\n", cfg.RunDir, merr)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run until it is, so do not launch it.")
+		fmt.Fprintln(stderr, "  remedy: make .claude/ writable, then re-run setup with the same arguments — setup is idempotent for its own run")
+		return 1
+	}
 	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
 	// the marker does, and writing it second makes the ordering obvious to anyone reading for
 	// which of the two is derived from the other. Neither is — that is the point.

@@ -34,8 +34,9 @@ type Gap struct {
 	// Closed asks the builder to close this gap after minting it, so the board can carry an
 	// archive (spot-check has nothing to sample against an empty one).
 	Closed bool
-	// RedClosing and BlueClosing are the two sides' closing arguments on this gap, filed before
-	// the bench sits.
+	// RedClosing and BlueClosing are the two parties' closing arguments on this gap — the minting
+	// lens's and blue-respond's — filed once the board's docket motion on it stands, before the
+	// bench sits.
 	//
 	// THE BENCH'S PROMPT PROMISES THEM. debate.js tells the judge its ruling basis is confined to
 	// "the two closings, the transcript, and the final state" and that "both sides have filed
@@ -357,9 +358,8 @@ Reversibility under load was not tested.
 		},
 		Expect: []Expectation{
 
-			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a docket motion is filed by any seat but the bench. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
+			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a docket motion is filed by any seat but the bench. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A gap blue puts before the bench owes blue's closing on it: the bench rules from the two parties' closings, the transcript and the final state, and waits for both. A blue that escalates and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond", Verb: "inquiry record", Because: "Two inquiries are ruled and neither has a fate. Every inquiry at proposed or underway owes its fate recorded each epoch — an inquiry declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead leaves the first one unanswered."},
-			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
 		},
 	}
 }
@@ -427,7 +427,6 @@ Figures were read from the deployed configuration.
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. No `close` is on the chair's surface at all, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so a spot-check has something to sample: the archive's size is replayed from the board, and the report shows the reader which sittings re-read it and what each found."},
-			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody. A chair that notices and says nothing leaves the gap in the tooling invisible."},
 		},
 	}
@@ -480,9 +479,9 @@ Figures were read from the deployed configuration at the pinned revision.
 				Fix:      "Correct every site.",
 				Check:    "No site states a contradicting figure.", CheckKind: "document",
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
-				Baits: "closing",
-				Why: "A gap red RE-RAISES is docket-bound. The closing is red's case to the bench, and a " +
-					"re-raise with no closing leaves the bench ruling on blue's account alone.",
+				Baits: "motion docket file",
+				Why: "A gap red RE-RAISES is docket-bound: it goes before the bench, where its parties — " +
+					"the minting lens and blue — argue it in their closings.",
 			},
 		},
 		Inquiries: []Inquiry{
@@ -497,8 +496,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed an inquiry and it is unruled; the projection blue reads shows an unruled inquiry as one nobody has sat on."},
 			{Seat: "red-chair", Verb: "inquiry review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part the lens's `verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The read is owed whenever the report or an inquiry has changed since the last one, and `verdict --as PASS` is refused while it is owed, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that inquiry."},
-			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
-			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
+			{Seat: "red-chair", Verb: "motion docket file", Because: "THIS puts the gap on the record as one the bench owes an answer to, and its parties — the minting lens and blue — then argue it in their closings. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit — and the chair relays it. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
@@ -739,6 +737,11 @@ The combined effect is largest when the two are applied together.
 					"to misreport the data.",
 			},
 		},
+		// THE GAP IS BEFORE THE BENCH: the dispatch docketed it at impasse, and both parties argued it.
+		Motions: []Motion{{
+			Subject: "docket", Filer: "red-chair", GapID: "G1",
+			Basis: "at impasse under the run's terms — the exchanges on G1 reached their limit without resolving it; the bench owes a ruling",
+		}},
 		Expect: []Expectation{
 			{Seat: "judge", Verb: "halt", Because: "The safety and consent boundary is the bench's own act, on its own channel, and capture relays the written opinion to the human VERBATIM. A bench that disposes of the gap and lets the run continue has treated a boundary as a finding."},
 		},
@@ -797,10 +800,53 @@ The comparison rests on the operator's own cost model, which is not published.
 	}
 }
 
+// lensClosing is the lens sitting after its gap was docketed at impasse: blue has filed its closing,
+// and the bench sits once the lens has filed its own (record/closingowed.go). The closing is the
+// lens's brief to the bench, owed once per docketing — the act a lens that only audits and mints
+// never reaches.
+func lensClosing() Board {
+	return Board{
+		Name: "lens-closing", Seat: "red-lens-evidence",
+		Report: `# Does the cache layer reduce origin load? — research report
+
+## TL;DR
+
+The cache layer cuts origin requests by 60%.
+
+## Findings
+
+Origin requests fell by 60% after the cache layer shipped.
+
+The fall coincides with the cache layer's release.
+`,
+		Gaps: []Gap{{
+			Key: "attribution", Class: "derivation_status_overclaim",
+			Location: `Origin requests fell by 60% after the cache layer shipped.`,
+			Problem:  "A before-and-after fall is attributed to the cache layer with no control for the traffic change in the same window.",
+			Fix:      "State what else changed in the window, or narrow the claim to the coincidence.",
+			Check:    "The report either controls for the traffic change or claims only that the fall coincides with the release.", CheckKind: "document",
+			Severity: "high", Likelihood: "high", Impact: "medium", Complexity: "low",
+			Baits: "closing",
+			Why: "The gap is the lens's own and the bench rules it on its two parties' closings. Blue has argued " +
+				"its side; a lens that files nothing leaves the bench ruling on blue's account alone.",
+			BlueClosing: "The report says the fall followed the release, and it did. Red asks for a control the data " +
+				"does not carry; the sentence claims no more than the timing, and narrowing it further would " +
+				"withhold a measured fall.",
+		}},
+		Motions: []Motion{{
+			Subject: "docket", Filer: "red-chair", GapID: "G1",
+			Basis: "at impasse under the run's terms — the exchanges on G1 reached their limit without resolving it; the bench owes a ruling",
+		}},
+		Expect: []Expectation{
+			{Seat: "red-lens-evidence", Verb: "closing", Because: "G1 is this lens's gap and it is docketed: the bench sits on it once both parties have filed their closings, and blue has filed. The closing is the lens's case — its strongest evidence and its answer to blue's — and its work list names it as owed."},
+		},
+	}
+}
+
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out
@@ -819,10 +865,16 @@ func Boards() map[string]Board {
 // filing verbs by role the way the RULING verbs already are, or accept the openness and say so
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
-	"lens motion docket file":    "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
-	"lens motion grade file":     "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"lens motion docket file": "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
+	"lens motion grade file":  "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
+		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
+		"record-parity audit holds the duty instead.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
+	"lens credit": "possible and real — a lens whose answering mint the duplicate screen refuses credits the open gap it names — but " +
+		"its sitting needs a contradiction the lens read and raised, a refuting reading and a raising finding, and a board stages " +
+		"neither; the record's tests and the release fuzz drive it whole.",
 }
 
 // AlwaysTaken are the verbs no board needs to bait, with why.
@@ -834,5 +886,6 @@ var AlwaysTaken = map[string]string{
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately",
+	"engage":   "blue's act on a fact the record computes, not a choice a board can bait: its work list BLOCKS on it exactly when an engaged gap it found closed has an open successor, and the write refuses any other set. A probe board stages no dispatch, so no board can engage blue on a gap a lens closed first; the record's tests and the release fuzz drive it",
 	"inquest":  "the bench's read path — the raw record it rules from. Exempt for the same reason as `show`, and additionally because what the bench READS to reach a ruling is not what a board can bait: the ruling is the accounted act",
 }

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -208,9 +209,9 @@ func TestARaisedContradictionIsRaisedOnTheMigratedRecord(t *testing.T) {
 // sliceOf is a source over events already read.
 type sliceOf []OldEvent
 
-func (s sliceOf) Events() ([]OldEvent, error) { return s, nil }
-func (s sliceOf) Files() []SourceFile         { return nil }
-func (s sliceOf) Close() error                { return nil }
+func (s sliceOf) Events() ([]OldEvent, error)   { return s, nil }
+func (s sliceOf) Files() []migration.SourceFile { return nil }
+func (s sliceOf) Close() error                  { return nil }
 
 // A REFERENCE MIGRATE CANNOT TRANSLATE IS A REFUSAL BY NAME, and a carried reproduce with no proof of
 // its script before it has nowhere to go.

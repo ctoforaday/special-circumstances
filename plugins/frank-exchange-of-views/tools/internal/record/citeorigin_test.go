@@ -40,6 +40,21 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 		// AND THE THIRD: a cite of an abstract with nothing saying so renders like a cite of the paper.
 		{"no completeness", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(),
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()}, "carries no source_completeness"},
+		// AND THE FOURTH: whose bytes the citation read. Unstamped, a recovered copy renders as the
+		// typed url's own; a copy url on the url's own bytes names a place nothing read; a followed
+		// pointer or a fuller copy is always fetched from a url, so either without one lost it. A
+		// recovery whose body is the tool's own statement was read from no url, and says so.
+		{"no copy substitution", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()}, 0, ""), "carries no copy_substitution"},
+		{"a copy url on the url's own bytes", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, "https://elsewhere"), "a copy url names where substituted bytes came from"},
+		{"a followed pointer with no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, ""), "followed_link and no copy_url"},
+		{"a fuller copy with no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY, ""), "fuller_copy and no copy_url"},
+		{"a recovered copy and its url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, "https://web.archive.org/x"), ""},
+		{"a recovery read from no url", copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, ""), ""},
 	} {
 		err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {
@@ -54,6 +69,20 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 func stamped(c *recordpb.Cite) *recordpb.Cite {
 	c.WorkStatus = recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()
 	c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum()
+	c.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum()
+	return c
+}
+
+// copied is stamped with the copy fields set as given: a zero kind leaves it unstamped.
+func copied(c *recordpb.Cite, kind recordpb.CopySubstitution, copyURL string) *recordpb.Cite {
+	stamped(c)
+	c.CopySubstitution = nil
+	if kind != 0 {
+		c.CopySubstitution = kind.Enum()
+	}
+	if copyURL != "" {
+		c.CopyUrl = proto.String(copyURL)
+	}
 	return c
 }
 
@@ -80,5 +109,51 @@ func TestAVerifyPageAndItsHashesAreOneFact(t *testing.T) {
 	whole.Page, whole.PageRenderSha, whole.ReadingRenderSha = proto.Int32(2), proto.String("a"), proto.String("b")
 	if err := validateRun(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, whole); err != nil && strings.Contains(err.Error(), "written together") {
 		t.Errorf("a page with both hashes was refused as partial: %v", err)
+	}
+}
+
+// A READING CARRIES WHOSE BYTES IT WAS MADE AGAINST, held to the cite's shape, and not_cached — the
+// cache held no copy when red recorded it — is a reading's word that a cite, which fetches what it
+// records, never carries.
+func TestAReadingsCopyIsCheckedAtTheWrite(t *testing.T) {
+	run := mustRun(t, t.TempDir())
+	reading := func(kind recordpb.CopySubstitution, copyURL string) *recordpb.Verify {
+		v := &recordpb.Verify{Claim: proto.String("c"), Anchor: proto.String("c-1"), Text: proto.String("r"),
+			Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
+			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}
+		if kind != 0 {
+			v.CopySubstitution = kind.Enum()
+		}
+		if copyURL != "" {
+			v.CopyUrl = proto.String(copyURL)
+		}
+		return v
+	}
+	for _, tc := range []struct {
+		name string
+		body *recordpb.Verify
+		want string
+	}{
+		{"unstamped", reading(0, ""), "verify carries no copy_substitution"},
+		{"the url's own bytes", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, ""), ""},
+		{"a copy url on the url's own bytes", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, "https://elsewhere"), "a copy url names where substituted bytes came from"},
+		{"not cached", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED, ""), ""},
+		{"a copy url where the cache held none", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED, "https://elsewhere"), "a copy url names where substituted bytes came from"},
+		{"a followed pointer with no url", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, ""), "followed_link and no copy_url"},
+		{"a fuller copy and its url", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY, "https://repo/x"), ""},
+		{"a named backend read from no url", reading(recordpb.CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND, ""), ""},
+	} {
+		err := validateRun(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, tc.body)
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: refused: %v", tc.name, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: err = %v, want a refusal saying %q", tc.name, err, tc.want)
+		}
+	}
+	cite := copied(&recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE.Enum()},
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED, "")
+	if err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, cite); err == nil || !strings.Contains(err.Error(), "cite carries copy_substitution not_cached") {
+		t.Errorf("a cite stamped not_cached was not refused: %v", err)
 	}
 }

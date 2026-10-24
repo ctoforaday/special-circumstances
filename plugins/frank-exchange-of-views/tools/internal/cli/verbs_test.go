@@ -416,7 +416,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 	}{
 		{"bench", "halt", "judge", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
-		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
+		{"blue", "closing", "blue-respond", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
@@ -429,6 +429,9 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 				restore()
 			}
 			runDir := seeded
+			if tc.verb == "closing" {
+				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle") // a closing argues a docketing
+			}
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
 			if _, err := runAt(t, args...); err != nil {

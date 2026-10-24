@@ -19,7 +19,7 @@ func TestEveryLabelNamesTheRunByItsDirectory(t *testing.T) {
 		e := Envelope{"rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "open_gaps": 0}
 		if seatID == "red-chair" {
-			e["plan"] = planWith([]any{}, []any{})
+			e.Relay(planWith([]any{}, []any{}))
 		}
 		return e
 	}

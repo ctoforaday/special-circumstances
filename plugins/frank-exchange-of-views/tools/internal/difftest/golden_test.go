@@ -9,6 +9,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -46,7 +50,7 @@ func TestGolden(t *testing.T) {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			m := newMapper()
-			prepareRun(t, bin, runDir, m, sc.seed)
+			prepareRun(t, bin, runDir, m, sc.seed, sc.cast)
 
 			var transcript strings.Builder
 
@@ -160,9 +164,12 @@ func TestGolden(t *testing.T) {
 // SHARED, because the determinism fuzz used to start from a bare directory. With no report, every
 // lens verb that anchors into the report could only ever refuse — so the fuzz could not have exercised an acceptance even once its
 // commands were spelled right.
-func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string) {
+func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string, cast []string) {
 	t.Helper()
 	seed(t, runDir, files)
+	if cast != nil {
+		seedCast(t, runDir, cast)
+	}
 	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
 	// unless its --quote quote is present. Ensure a report carrying the
 	// scenario quotes (a claim under ## S2 / ## S4) exists; a scenario may override.
@@ -187,6 +194,19 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 		}
 		m.observe(filepath.Join(runDir, "records"))
 	}
+}
+
+// seedCast writes the run's cast under the harness seat, the first event on the record, as setup
+// writes it before any seat sits.
+func seedCast(t *testing.T, runDir string, seats []string) {
+	t.Helper()
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:cast", &recordpb.Cast{SeatIds: seats}))
+}
+
+// castOf is the cast setup writes for a run auditing these lens areas with one blue lane.
+func castOf(areas ...string) []string {
+	seats, _ := record.CastFor(areas, 1)
+	return seats
 }
 
 func compareGolden(t *testing.T, name, got string) {

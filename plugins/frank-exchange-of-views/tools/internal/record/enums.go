@@ -260,7 +260,7 @@ var EnumFields = map[string][]EnumField{
 	// `finding`, and the ABOUT is the anchor a quote could not provide.
 	"finding": {{
 		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
-		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an inquiry id either names an inquiry this run proposed or it does not",
+		Why: "a subject that is not report text has no sentence to quote, and borrowing an innocent one as a handle points a reader at prose the finding itself calls fine. These targets are references the record can CHECK",
 	}},
 	// `inquiry`, the event type whose body holds the status set.
 	"inquiry": {{

@@ -271,14 +271,14 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "docket"}})
 	chair := 0
 	return func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "fragment dispatch", "rulings": []any{}, "dispositions": []any{},
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{gap}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
 			if chair == 1 {
-				e["plan"] = plan(parties, []any{gap}, debatejs.HeldBy(parties), false)
+				e.Relay(plan(parties, []any{gap}, debatejs.HeldBy(parties), false))
 			} else {
-				e["plan"] = plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true)
+				e.Relay(plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true))
 				e["verdict"] = "PASS"
 			}
 		}

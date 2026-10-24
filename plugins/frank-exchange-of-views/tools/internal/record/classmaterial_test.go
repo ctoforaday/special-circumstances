@@ -171,7 +171,7 @@ func TestPreChangeRunRefusedNamingMigrate(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mint into a pre-change run landed")
 	}
-	for _, want := range []string{`"mint" table has no "class_material" column`, "migrate"} {
+	for _, want := range []string{`"mint" table has no "class_material" column`, "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q: %v", want, err)
 		}

@@ -94,7 +94,8 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s adm
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s argument to the bench on one docketed gap — its minting lens''s or blue-respond''s');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('credit', 'a lens crediting an open gap with its own finding that raised a contradiction — the gap''s found_by gains the finding, and the gap answers the contradiction as a gap minted from it would');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
@@ -108,7 +109,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion fil
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into its sitting');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair''s argument to the bench on what is about no one gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
@@ -272,9 +273,10 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL,
   "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor', 1);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('proof', 'a proof, by its anchor, whose sentence was judged unsound', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
 
 CREATE TABLE "enum_check_kind" (
@@ -313,6 +315,18 @@ INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_asked', '
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_the_work', 'the copy is not the work at all: a sign-in page, a book''s sales page');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('unverified', 'nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book''s pdf');
+
+CREATE TABLE "enum_copy_substitution" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('followed_link', 'the typed url''s page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('fuller_copy', 'the typed url''s page was not known to carry the work''s body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('named_backend', 'a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool''s own statement of what the backend found, not a document');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('none', 'the cited bytes are the typed url''s own: the url answered, and its answer is what was read');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_cached', 'a reading only: this run''s fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('not_recorded', 'this citation or reading predates the field; written only by migrate');
+INSERT INTO "enum_copy_substitution" ("value", "means") VALUES ('recovered', 'the typed url refused this container, and the tool''s recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool''s own statement of what the recovery found, not a document');
 
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
@@ -680,9 +694,12 @@ CREATE TABLE "cite" (
   "source_after" TEXT,
   "work_status" TEXT,
   "source_completeness" TEXT,
+  "copy_substitution" TEXT,
+  "copy_url" TEXT,
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
-  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
+  FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "cite_pages" (
@@ -709,11 +726,14 @@ CREATE TABLE "verify" (
   "work_status" TEXT,
   "source_completeness" TEXT,
   "bridge" TEXT,
+  "copy_substitution" TEXT,
+  "copy_url" TEXT,
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
-  FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value")
+  FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value"),
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
 ) STRICT;
 
 CREATE TABLE "proof" (
@@ -888,6 +908,14 @@ CREATE TABLE "stale" (
   "through" INTEGER,
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("through") REFERENCES "events"("id")
+) STRICT;
+
+CREATE TABLE "credit" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "gap_id" TEXT NOT NULL,
+  "found_by" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("found_by") REFERENCES "finding"("id")
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
@@ -1289,6 +1317,22 @@ JOIN "motion_docket" md ON md."event_id" = mo."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
+-- THE FINDINGS A GAP IS FOUND BY: the ones its mint named, then each finding a lens CREDITED to it
+-- since (credit), in the order the credits landed. Keyed on the gap's mint event, the key its mint's
+-- own rows carry, so a reader of a gap's found_by reads this and gets both arms; reading
+-- "mint_found_by" alone drops every credit and prints a gap that answers a contradiction as one that
+-- answers nothing.
+CREATE VIEW "gap_found_by" AS
+SELECT f."event_id" AS "event_id", f."ord" AS "ord", f."value" AS "value"
+FROM "mint_found_by" f
+UNION ALL
+SELECT m."event_id",
+  (SELECT count(*) FROM "mint_found_by" x WHERE x."event_id" = m."event_id")
+    + (SELECT count(*) FROM "credit" p WHERE p."gap_id" = c."gap_id" AND p."event_id" < c."event_id"),
+  c."found_by"
+FROM "credit" c
+JOIN "mint" m ON m."gap_id" = c."gap_id";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
 -- materiality rule, which convergence_at reads at every other point of the record.
@@ -1388,7 +1432,7 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  (SELECT count(*) FROM "gap_found_by"    f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
   -- silently reads a number a regrade may have moved, which is why the overlay is answered here
