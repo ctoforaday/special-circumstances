@@ -2377,10 +2377,13 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	out, err := r.exec(first...)
 	if err != nil && strings.Contains(out, "already holds an open gap") {
 		if own {
+			// READ AGAIN AFTER THE REFUSAL: the raise's reader may mint from it concurrently, and a
+			// raise answered in between is a mint that answers nothing, refused as any duplicate is.
+			// An answer is never undone, so a raise still unanswered now was unanswered at the write.
 			gap := creditNamed(out, foundBy)
-			if gap == "" {
+			if gap == "" && r.ownUnansweredRaise(seatID, foundBy) {
 				r.noteActErr("the duplicate screen refused " + seatID + "'s mint answering its own raise " + foundBy + " without naming the credit: " + firstLine(out))
-			} else if r.coin(50) {
+			} else if gap != "" && r.coin(50) {
 				r.credit(seatID, gap, foundBy)
 				return ""
 			}
