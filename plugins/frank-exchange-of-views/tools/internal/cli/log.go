@@ -7,7 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// newShowLog is the OPERATOR's read of the log, mounted under the operator's `show`.
+// newShowLog is the OPERATOR's read of the log, mounted under the operator's `ops`.
 //
 // # Why it is not a seat projection
 //
@@ -19,7 +19,7 @@ import (
 //
 // `log` is the seats' write verb. A read at the operator's root under the same word made one
 // command name a write on four surfaces and a read on the fifth. Every operator read is under
-// `show`, so `log` only ever writes.
+// `ops`, so `log` only ever writes.
 func newShowLog() *cobra.Command {
 	return &cobra.Command{
 		Use:   "log",
