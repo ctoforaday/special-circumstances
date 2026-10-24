@@ -144,7 +144,7 @@ CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse after the one more exchange the bench''s remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench''s remand granted, and remanded again — and the derivation''s reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
