@@ -17,7 +17,7 @@ var ErrSpanMidClause = errors.New("span cuts into a clause")
 const SpanBoundary = "a span starts at the start of the source's text (or of an OCR page), where the source starts a sentence — after . ! ? or … (closers and reference marks such as [12] allowed), a blank line or a markup tag, at a character that is not a lowercase letter — " +
 	"or just after a clause mark: a comma, semicolon or colon, a dash, or an opening bracket or quote; a span may also open with that bracket or quote. " +
 	"It ends at the end of the source's text (or of an OCR page), where the source ends a sentence — at . ! ? or … (closers and reference marks allowed) before whitespace and a character that is not a lowercase letter, or before a blank line or a markup tag — " +
-	"or just before a clause mark: a comma, semicolon or colon, a dash, or a closing bracket or quote; a span may also close with that mark, bracket or quote. " +
+	"or just before a clause mark: a comma, semicolon or colon, a dash, a closing bracket or quote, or a spaced opening bracket ( or [; a span may also close with that mark, bracket or quote. " +
 	"The tool never widens a span: quote more"
 
 // THE SOURCE'S SENTENCES ARE READ BY A SCANNER OVER PLAIN TEXT, not by anchor.Sentences. That
@@ -35,8 +35,9 @@ const SpanBoundary = "a span starts at the start of the source's text (or of an 
 // cut before the clause ends can drop what the sentence goes on to say about its subject — m31's
 // "by each integer from 2 up to the square root of" stops before its object, and a span stopping
 // before a trailing formula ("…of a given integer" before "n") is refused on the same terms,
-// whatever the formula adds. Before an OPENING bracket is not an end, as after a closing one is
-// not a start.
+// whatever the formula adds. A spaced opening bracket ends a span: what it opens restates or
+// qualifies, as "p divides b (that is, p ∣ ab ⟹ …)" does. An unspaced one is inside an expression,
+// as in "f(x)".
 //
 // THE START OF A TEXT IS A START WHATEVER ITS CASE. An OCR page that opens mid-sentence continues
 // the page before, and a span may not run across pages (ErrSpanStraddles): refusing the page's
@@ -94,7 +95,8 @@ func spanEndsAtBoundary(text string, end int) bool {
 	if z, ok := terminatorRunFrom(text, k); ok && endsSentence(text, z) {
 		return true
 	}
-	return clauseMarkStarts(text, k) || closesUnit(text, k, k+utf8.RuneLen(runeAt(text, k)))
+	return clauseMarkStarts(text, k) || closesUnit(text, k, k+utf8.RuneLen(runeAt(text, k))) ||
+		(k > end && (text[k] == '(' || text[k] == '['))
 }
 
 // endsSentence reports whether the terminator run that stops at z ends a sentence: after any
