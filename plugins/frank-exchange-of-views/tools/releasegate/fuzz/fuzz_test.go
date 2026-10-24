@@ -861,7 +861,20 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	if len(gaps) > 0 {
 		kinds = append(kinds, "gap")
 	}
+	// A PROOF BY ITS ANCHOR: the subject a judge's answering gap names (answerUnsound), and one any
+	// finding or gap may name, which answers no judgement.
+	var proofs []string
+	if b, ok := r.board(); ok {
+		for _, p := range record.EvidenceJSONOf(b.Events, b.At).Proofs {
+			proofs = append(proofs, p.Anchor)
+		}
+	}
+	if len(proofs) > 0 {
+		kinds = append(kinds, "proof")
+	}
 	switch pick(r.rng, kinds) {
+	case "proof":
+		return "proof", proofs[r.rng.Intn(len(proofs))]
 	case "inquiry":
 		return "inquiry", inq[r.rng.Intn(len(inq))]
 	case "gap":
