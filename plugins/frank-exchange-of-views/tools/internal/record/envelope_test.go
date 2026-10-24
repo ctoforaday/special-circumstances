@@ -409,3 +409,43 @@ func TestADocketMotionAfterTheFilersClosingThisSittingIsRefused(t *testing.T) {
 		t.Errorf("in a later sitting the docket motion is refused: %v", err)
 	}
 }
+
+// AN UNSOUND JUDGEMENT HOLDS EACH PARTY'S ENVELOPE UNTIL THAT PARTY'S OWN ACT (m32): the judging lens's
+// until it mints its gap about the proof — the PASS stays held after it — and blue's until its edit
+// reopens the proof or its retire takes it out.
+func TestAnUnsoundJudgementHoldsEachPartysEnvelopeUntilItsOwnAct(t *testing.T) {
+	const judged = "judged the sentence proof P-1 backs unsound"
+	t.Run("the judging lens, until its gap", func(t *testing.T) {
+		if r := refusalOf(t, unsoundBoard(t).seed(), compLens); !strings.Contains(r, judged) {
+			t.Fatalf("the unanswered judgement does not hold its judge's envelope: %q", r)
+		}
+		run := unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")).seed()
+		if r := refusalOf(t, run, compLens); r != "" {
+			t.Errorf("its gap minted, the judge's envelope is refused: %q", r)
+		}
+		if got := unsoundOf(t, run); len(got) != 1 {
+			t.Errorf("its gap minted, the PASS blocker is gone: %+v", got)
+		}
+	})
+	blueSat := func(t *testing.T) *stage {
+		b := unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1"))
+		return b.dispatch(b.at(), blueRespondSeat).register(blueRespondSeat)
+	}
+	t.Run("blue, until its fix", func(t *testing.T) {
+		if r := refusalOf(t, blueSat(t).seed(), blueRespondSeat); !strings.Contains(r, judged) || !strings.Contains(r, "gap G-1 states the defect") {
+			t.Fatalf("the standing judgement does not hold blue's envelope: %q", r)
+		}
+		for name, fix := range map[string]func(b *stage){
+			"an edit that reopens the proof": func(b *stage) { b.reopen("P-1") },
+			"a retire that takes it out": func(b *stage) {
+				b.add(blueRespondSeat, &recordpb.Retire{Claim: proto.String("the sentence"), Reason: proto.String("refuted"), Anchors: []string{"P-1"}})
+			},
+		} {
+			b := blueSat(t)
+			fix(b)
+			if r := refusalOf(t, b.seed(), blueRespondSeat); r != "" {
+				t.Errorf("%s: blue's envelope is refused: %q", name, r)
+			}
+		}
+	})
+}

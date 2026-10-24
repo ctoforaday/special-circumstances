@@ -879,8 +879,10 @@ func (r *runner) closedThisSitting(seatID, gapID string) bool {
 // dischargeOwed clears what the seat's sitting still owes before its envelope, by the acts that
 // clear each (record.EnvelopeRefusal refuses an envelope while one stands): its closing on each
 // docketed gap, and for blue-respond a proof for each computation gap its sitting is engaged on and
-// nothing answers; for the anchor's owner each reopened citation or proof unchecked this sitting;
-// and each contradiction the lens read (answerContradictions, in the lens branch).
+// nothing answers, and the fix of each proof a lens's standing judgement calls unsound (fixUnsound);
+// for the anchor's owner each reopened citation or proof unchecked this sitting; and each
+// contradiction the lens read, and the gap about each proof it judged unsound (answerContradictions
+// and answerUnsound, in the lens branch).
 func (r *runner) dischargeOwed(seatID string) {
 	if bs, err := record.PassBlockers(r.runHandle); err == nil {
 		for _, b := range bs {
@@ -892,6 +894,7 @@ func (r *runner) dischargeOwed(seatID string) {
 		}
 	}
 	if seatID == "blue-respond" {
+		r.fixUnsound(seatID)
 		w, err := record.WorkOfSeat(r.run(), "blue", seatID)
 		if err != nil || w.Engaged == nil {
 			return
@@ -911,18 +914,107 @@ func (r *runner) dischargeOwed(seatID string) {
 	if seatID != "red-lens-evidence" && seatID != r.proofOwner {
 		return
 	}
+	// AN ANCHOR THE DRIVE ALREADY TOUCHED THIS SITTING IS TRIED AGAIN, its refusal not expected either
+	// way: the touch may have been a verify the drive meant to be refused (a --page on a pageless
+	// source), which recorded nothing and left the item standing; one that was recorded makes this
+	// second act a refused repeat, and the item cleared or not this sitting's to clear. The envelope
+	// check after the drive is what says the item is gone.
 	for _, it := range r.reopened() {
-		if !(it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence") || !r.firstThisSitting(seatID, it.Anchor) {
+		if !(it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence") {
 			continue
 		}
+		var a *cmd
 		if it.Sha != "" {
-			r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", "sound").
-				set("--reason", "fuzz: read the script against the sentence as it now stands").admit()
+			a = r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", "sound").
+				set("--reason", "fuzz: read the script against the sentence as it now stands")
 		} else {
-			r.do("verify", seatID).set("--anchor", it.Anchor).set("--as", "supports").set("--confidence", pick(r.rng, verifyConfidence)).
-				set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
+			a = r.do("verify", seatID).set("--anchor", it.Anchor).set("--as", "supports").set("--confidence", pick(r.rng, verifyConfidence)).
+				set("--reason", "fuzz: read the sentence as it now stands against its source")
+		}
+		if r.firstThisSitting(seatID, it.Anchor) {
+			a.admit()
+		} else {
+			_, err := a.result()
+			noteEither(a.args, "a reopened anchor the drive touched earlier in the sitting", err == nil)
 		}
 	}
+}
+
+// fixUnsound is blue's half of an unsound judgement: for every proof a lens's standing judgement
+// calls unsound, it rewrites the sentence the proof backs, prefacing its words and keeping the anchor — the fix
+// the work list names, which reopens the proof for a fresh judgement (record.BlockerUnsoundProof
+// stands no longer; the judging lens's sitting after the edit owes the reopened check).
+func (r *runner) fixUnsound(seatID string) {
+	bs, err := record.PassBlockers(r.runHandle)
+	if err != nil {
+		r.noteActErr("the blockers could not be read to say which unsound proofs " + seatID + " owes a fix: " + err.Error())
+		return
+	}
+	fixed := map[string]bool{}
+	for _, b := range bs {
+		if b.Kind != record.BlockerUnsoundProof || fixed[b.Subject] {
+			continue
+		}
+		fixed[b.Subject] = true
+		cur, err := reportproj.RenderFromRecord(r.run())
+		if err != nil {
+			r.noteActErr("the report could not be rendered to fix proof " + b.Subject + ": " + err.Error())
+			return
+		}
+		// ONE TIME IN TEN, BLUE TRIES TO END WITH THE PROOF UNFIXED, and the record refuses its envelope
+		// naming it.
+		if r.coin(10) {
+			r.envelopeRefusedEarly(seatID, "judged the sentence proof "+b.Subject+" backs unsound")
+		}
+		words := wordsBefore(cur, b.Subject)
+		if words == "" {
+			r.noteActErr("proof " + b.Subject + " is judged unsound and no prose standing once in the report precedes its anchor, so the drive has no span to fix")
+			continue
+		}
+		// PREPENDED, so every span the drive quotes from this prose still stands in it: the seeded
+		// anchor sentence carries the drive's corroborations and findings.
+		r.do("edit", seatID).set("--quote", words).set("--new", "Recomputed, "+words).
+			set("--reason", "fuzz: the sentence now says what the script behind "+b.Subject+" shows").admit()
+	}
+}
+
+// wordsBefore is the run of prose standing right before the anchor run that holds id's token in cur
+// — back to the previous anchor token or line break — when it is non-blank and occurs once in cur;
+// "" otherwise.
+func wordsBefore(cur, id string) string {
+	at := strings.Index(cur, anchor.Token(id))
+	if at < 0 {
+		return ""
+	}
+	// THE RUN THE TOKEN STANDS IN: anchors abut (anchor.SkipRun), so the prose ends where the first
+	// token of the run begins.
+	ends := map[int]int{}
+	var last []int
+	anchor.Each(cur[:at], func(start, end int, _ string) {
+		ends[end] = start
+		last = append(last, end)
+	})
+	for {
+		start, abuts := ends[at]
+		if !abuts {
+			break
+		}
+		at = start
+	}
+	start := 0
+	for _, e := range last {
+		if e <= at {
+			start = e
+		}
+	}
+	if nl := strings.LastIndexByte(cur[:at], '\n'); nl+1 > start {
+		start = nl + 1
+	}
+	words := strings.TrimSpace(cur[start:at])
+	if words == "" || strings.Count(cur, words) != 1 {
+		return ""
+	}
+	return words
 }
 
 // chairPosition files the chair's position: owed where its sitting withheld a PASS the plan
@@ -2163,6 +2255,11 @@ func (r *runner) judgement() string {
 // that no gap of its carries, it mints its gap about the proof — outside its budget, so a refusal for
 // budget fails the run — and, on a coin, judges again a proof whose gap it minted in an earlier
 // sitting, which is what clears the blocker where blue has not retired or reopened it.
+//
+// THE GAPS ARE MINTED AFTER THE RE-JUDGEMENTS, from the blockers as they then stand: a proof judged
+// unsound again in this sitting is owed a gap from this sitting on (the earlier one carried the
+// earlier judgement), and the drive's last act on it is the one its envelope is checked against. The
+// lens drive calls this again after its last judging act for the same reason.
 func (r *runner) answerUnsound(seatID string) {
 	bs, err := record.PassBlockers(r.run())
 	if err != nil {
@@ -2170,15 +2267,24 @@ func (r *runner) answerUnsound(seatID string) {
 		return
 	}
 	for _, b := range bs {
-		if b.Kind != record.BlockerUnsoundProof || b.Owner != seatID {
+		if b.Kind == record.BlockerUnsoundProof && b.Owner == seatID && b.AnsweredBy() != "" &&
+			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
+			r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", r.judgement()).
+				set("--reason", "fuzz: judged the sentence its gap carried again").admit()
+		}
+	}
+	if bs, err = record.PassBlockers(r.run()); err != nil {
+		r.noteActErr("the blockers could not be read to say which unsound judgements " + seatID + " owes a gap: " + err.Error())
+		return
+	}
+	for _, b := range bs {
+		if b.Kind != record.BlockerUnsoundProof || b.Owner != seatID || b.AnsweredBy() != "" {
 			continue
 		}
-		if b.AnsweredBy() != "" {
-			if r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
-				r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", r.judgement()).
-					set("--reason", "fuzz: judged the sentence its gap carried again").admit()
-			}
-			continue
+		// ONE TIME IN TEN, THE JUDGE TRIES TO END WITH ITS GAP UNMINTED, and the record refuses its
+		// envelope naming the judgement.
+		if r.coin(10) {
+			r.envelopeRefusedEarly(seatID, "judged the sentence proof "+b.Subject+" backs unsound")
 		}
 		args := []string{"--json", "mint", "--seat-id", seatID,
 			"--problem", "fuzz: the script behind " + b.Subject + " does not establish the sentence it backs",
@@ -4139,6 +4245,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// while one stands (record.EnvelopeRefusal), so one the drive left for later is raised here.
 		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
+		// A PROOF JUDGED UNSOUND AFTER answerUnsound RAN — a reopened proof re-run, one the owner was
+		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
+		r.answerUnsound(seatID)
 		// A LENS PETITIONS ON THE RECORD — its return is prose, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
 		// unruled and is refused (envelopeRefusedEarly).
