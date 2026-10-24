@@ -34,9 +34,17 @@ func TestAConcurrentReaderNeverSeesAPartialMarker(t *testing.T) {
 			defer wg.Done()
 			for !stop.Load() {
 				reads.Add(1)
-				// readRunLive's own two steps, kept apart so a failure says which one failed.
+				// readRunLive's own steps — shared lock, read, decode — kept apart so a failure says
+				// which one failed.
 				kind := ""
-				if b, err := readSharingDelete(marker); err != nil {
+				release, lerr := rlockMarker(proj)
+				b, err := readSharingDelete(marker)
+				if lerr == nil {
+					release()
+				}
+				if lerr != nil {
+					kind = "lock: " + lerr.Error()
+				} else if err != nil {
 					kind = "open/read: " + err.Error()
 				} else if runs, readable := decodeRunLive(b); !readable {
 					kind = fmt.Sprintf("unparseable, %d bytes", len(b))
