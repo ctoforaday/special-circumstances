@@ -99,10 +99,10 @@ func TestACiteOfTextTheSourceDoesNotHoldIsRefused(t *testing.T) {
 // A PAGE'S LINE BREAK INSIDE A HYPHENATED WORD is found with the word typed whole.
 func TestAnHTMLSpanIsFoundAcrossALineEndHyphen(t *testing.T) {
 	runDir := fermatRun(t, "text/html")
-	if out, err := fermatCite(t, runDir, "--source-span", "The photosynthesis section"); err != nil {
+	if out, err := fermatCite(t, runDir, "--source-span", "The photosynthesis section is unrelated filler"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
-	if got := firstCiteEvent(t, runDir).GetSourceMatched(); got != "The photo-\nsynthesis section" {
+	if got := firstCiteEvent(t, runDir).GetSourceMatched(); got != "The photo-\nsynthesis section is unrelated filler" {
 		t.Errorf("matched %q, want the page's own bytes across the break", got)
 	}
 }

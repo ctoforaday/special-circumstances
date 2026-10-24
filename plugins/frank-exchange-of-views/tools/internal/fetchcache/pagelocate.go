@@ -126,12 +126,11 @@ type spanText struct {
 // what an audit has to see. There is no minimum length; a span the text holds twice is refused
 // instead, so the text kept around it is the place blue quoted.
 //
-// A SPAN STARTS WHERE THE SOURCE STARTS A SENTENCE OR A CLAUSE (SpanBoundary). A fragment cut
-// from inside a clause can drop its subject and read the other way — "when n is composite is
-// known as a Fermat liar" from "Any a such that … when n is composite is known as a Fermat liar"
-// — and a lens judges the span, so the refusal shows the sentence it sits in. The end is not
-// held: on the cites measured, a span ending mid-clause dropped a trailing qualifier or a formula
-// and kept its meaning, and the fragment that inverted it was cut at the start.
+// A SPAN STARTS AND ENDS WHERE THE SOURCE STARTS AND ENDS A SENTENCE OR A CLAUSE (SpanBoundary).
+// A fragment cut from inside a clause can drop its subject and read the other way — "when n is
+// composite is known as a Fermat liar" from "Any a such that … when n is composite is known as a
+// Fermat liar" — or stop before what the clause says of it, and a lens judges the span, so the
+// refusal shows the sentence it sits in. The tool never widens the span: blue quotes more.
 func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error) {
 	if strings.TrimSpace(span) == "" {
 		return SpanLocation{}, fmt.Errorf("%w: the span is empty", ErrSpanAbsent)
@@ -185,9 +184,8 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 				ErrSpanRepeated, len(hits), pagesOf(hits))
 		case len(hits) == 1:
 			h := hits[0]
-			if !spanStartsAtBoundary(h.t.text, h.start) {
-				return SpanLocation{}, fmt.Errorf("%w: the source's sentence it sits in reads «%s»; quote from that sentence's start or from a clause boundary inside it (%s)",
-					ErrSpanMidClause, sentenceAround(h.t.text, h.start, h.end), SpanBoundary)
+			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
+				return SpanLocation{}, err
 			}
 			loc.Start, loc.End, loc.TextSha = h.start, h.end, h.t.sha
 			if h.t.page > 0 {
