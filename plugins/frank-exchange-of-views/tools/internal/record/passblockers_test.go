@@ -437,7 +437,8 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		// The assembly sitting records the outcome, and is convened to rule every bench motion.
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
 			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
 		}
@@ -450,7 +451,8 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		// The assembly sitting records the outcome, and is convened to rule every bench motion.
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
 		if err == nil {
 			t.Fatal("outcome admitted over the bench's unruled motions")
@@ -495,7 +497,7 @@ func TestOnlyTheChairsListHoldsWhatAnotherSeatClears(t *testing.T) {
 		dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium")
 	b.add(evLens, contradictingVerify("the sky is green"))
 	b.docketMotion("red-chair", "M1", "G1")
-	b.register("blue-respond").register("judge")
+	b.register("blue-respond").benchRegister(recordpb.Occasion_OCCASION_TERMINAL)
 	run := b.seed()
 	for role, seat := range map[string]string{"lens": evLens, "blue": "blue-respond", "bench": "judge"} {
 		s := sittingOfRunT(t, run, role, seat)

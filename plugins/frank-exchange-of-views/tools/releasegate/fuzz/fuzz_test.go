@@ -3344,11 +3344,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	// is told and types at `register` — so the fuzz stands in for the seat instead of guessing at it.
 	case debatejs.OccasionOf(prompt) == "petition":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
-		// THE FORCED-UNVERIFIED SHAPE SITS AND RULES NOTHING, so the petition stands to the exit,
-		// is not re-readied, and the terminal sitting — convened by the plan's bench-owned
-		// blocker — is what rules it.
+		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
+		// naming the petitions it was convened for: a petition sitting cannot end with one standing,
+		// so it then rules them like any other. The run's UNVERIFIED exit is the chair's unruled
+		// grade motions, which hold a PASS and not the chair's sitting.
 		if r.forceUnverified {
-			return map[string]any{"rulings": arr()}
+			r.envelopeRefusedEarly(seatID, "motion ")
 		}
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
@@ -3406,7 +3407,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			res = append(res, row)
 		}
-		r.benchEnds(seatID)
 		return map[string]any{"dispositions": res}
 
 	case debatejs.OccasionOf(prompt) == "assemble":
@@ -4014,6 +4014,9 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		p, resolve, reject := vm.NewPromise()
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
+			if env != nil {
+				r.envelopeEnds(seatID)
+			}
 			if env != nil && schema != nil {
 				if why := r.schemas.refusal(schema, env); why != "" {
 					r.noteSchemaRefusal(seatID, why)
@@ -6343,7 +6346,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Log(execReport())
 	t.Log(eitherReport())
 	t.Log(failReport())
-	t.Log(benchEndReport())
+	t.Log(envelopeReport())
 	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
 	// own for the reason #635 was filed about: a second test reading this package-level tally
 	// would run at whatever point its declaration order put it, and a gate that reads a tally
@@ -7298,7 +7301,7 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 		// the twin (record.BenchEnvelopeRefusal — the PreToolUse hook denies the envelope call with
 		// it). Driven before the last of two or more motions on the gap is ruled.
 		if i == len(motionIDs)-1 && i > 0 && r.coin(50) {
-			r.benchEndRefused(seatID, motionID)
+			r.envelopeRefusedEarly(seatID, "motion "+motionID+" ")
 		}
 		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
 			"--as", disposition, "--principle", "correctness", "--tension", "cost",
@@ -7307,31 +7310,33 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	}
 }
 
-// benchEndRefused drives the bench's envelope while docket motion standing is unruled on a gap its
-// sitting is convened on: the record must refuse it, naming the motion.
-func (r *runner) benchEndRefused(seatID, standing string) {
-	refusal, err := record.BenchEnvelopeRefusal(r.run(), seatID)
+// envelopeRefusedEarly drives a seat's envelope while an item it owes stands: the record must refuse
+// it (record.EnvelopeRefusal — the PreToolUse hook denies the envelope call with it), naming the item.
+func (r *runner) envelopeRefusedEarly(seatID, standing string) {
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
 	switch {
 	case err != nil:
-		r.noteActErr("the bench's envelope could not be checked against the record: " + err.Error())
-	case !strings.Contains(refusal, standing+" (on "):
-		r.noteActErr(fmt.Sprintf("the bench's envelope with docket motion %s standing was not refused naming it: %q", standing, refusal))
+		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
+	case !strings.Contains(refusal, standing):
+		r.noteActErr(fmt.Sprintf("%s's envelope with %q standing was not refused naming it: %q", seatID, standing, refusal))
 	default:
-		noteBenchEnd("refused: a twin docket motion stands")
+		noteEnvelope(seatID, "refused, driven before its last item was cleared")
 	}
 }
 
-// benchEnds drives the bench's envelope at the end of its docket sitting, every motion on its gaps
-// ruled: the record must admit it.
-func (r *runner) benchEnds(seatID string) {
-	refusal, err := record.BenchEnvelopeRefusal(r.run(), seatID)
+// envelopeEnds is every seat's envelope at the end of its drive: a seat's sitting ends only once
+// nothing it owes stands (record.EnvelopeRefusal), so a drive that returns its envelope with an item
+// standing is a drive that leaves undone what the record would refuse the seat for.
+func (r *runner) envelopeEnds(seatID string) {
+	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
 	switch {
 	case err != nil:
-		r.noteActErr("the bench's envelope could not be checked against the record: " + err.Error())
+		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
 	case refusal != "":
-		r.noteActErr("the bench ruled every docket motion it was convened on and its envelope was refused: " + refusal)
+		noteEnvelope(seatID, "refused at the end of its drive")
+		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal)
 	default:
-		noteBenchEnd("admitted: every motion on its gaps ruled")
+		noteEnvelope(seatID, "admitted")
 	}
 }
 
