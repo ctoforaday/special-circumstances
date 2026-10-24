@@ -51,7 +51,7 @@ is two script invocations.
    Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
    finding (missing telemetry line, shard self-report diverging from disk) — report it like an
    UNVERIFIED: plainly, never smoothed over.
-   Your judgment half: read the log record (`show log`) and dedupe attributed
+   Your judgment half: read the log record (`ops log`) and dedupe attributed
    near-duplicates (same complaint, different wording). The seats' log entries are on the
    record alone — no envelope carries one and no audit reconciles a second copy.
 
