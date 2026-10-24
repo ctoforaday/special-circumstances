@@ -225,6 +225,52 @@ func TestTheJudgementsOwnSittingsGapAnswersIt(t *testing.T) {
 	}
 }
 
+// A REPEAT UNSOUND JUDGEMENT IS REFUSED while the judge's earlier `unsound` of the sentence stands —
+// the sentence unchanged since — and the gap it minted about the proof is open. The refusal names the
+// gap. A sound judgement, another lens's, a judgement after blue's edit, and one whose gap closed are
+// each admitted.
+func TestARepeatUnsoundJudgementIsRefused(t *testing.T) {
+	again := func(s recordpb.Soundness) *recordpb.Reproduce {
+		return &recordpb.Reproduce{ProofId: proto.String("P-1"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_NOT_RUN.Enum(),
+			Soundness: s.Enum(), Note: proto.String("read again")}
+	}
+	answered := func() *stage { return unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")) }
+	for _, c := range []struct {
+		name   string
+		board  func() *stage
+		seat   string
+		as     recordpb.Soundness
+		refuse bool
+	}{
+		{"in the judgement's own sitting", answered, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, true},
+		{"in a later sitting", func() *stage {
+			b := answered()
+			return b.dispatch(b.at(), compLens).register(compLens)
+		}, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, true},
+		{"judged sound instead", answered, compLens, recordpb.Soundness_SOUNDNESS_SOUND, false},
+		{"before its gap is minted", func() *stage { return unsoundBoard(t) }, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
+		{"its gap closed", func() *stage { return answered().closeGap(compLens, "G-1") }, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
+		{"after blue's edit changed the sentence", func() *stage {
+			b := answered().reopen("P-1")
+			return b.dispatch(b.at(), compLens).register(compLens)
+		}, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
+		{"by another lens", func() *stage {
+			return answered().dispatch(2, evLens).register(evLens)
+		}, evLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := Append(Identity{Run: c.board().seed(), SeatID: c.seat}, again(c.as))
+			if !c.refuse {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			mustRefuse(t, err, "P-1", "gap G-1", "still open", "has not changed", "Nothing is recorded")
+		})
+	}
+}
+
 // THE JUDGE OWES ITS GAP, NOT THE FIX: its lens fold names the debt until the gap is minted, and not
 // after, so a lens that has carried its judgement to blue may retire.
 func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {

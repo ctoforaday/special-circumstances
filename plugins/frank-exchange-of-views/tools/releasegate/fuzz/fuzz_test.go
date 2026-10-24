@@ -411,8 +411,11 @@ type runner struct {
 	// unsoundReadied counts the plans holding an unsound-proof blocker that readied its judge or blue,
 	// unsoundPlans the plans holding one, and unsoundAnswers the gaps a judge minted about a proof it
 	// judged unsound. unsoundReadyErr is the first plan that held one and readied neither, with no
-	// reason saying either had sat since.
+	// reason saying either had sat since. unsoundRepeats counts the repeat unsound judgements the tool
+	// refused over the judge's open gap, and unsoundOverOpen the gaps a judge minted about a proof
+	// while a gap of its own about that proof was open.
 	unsoundReadied, unsoundPlans, unsoundAnswers int
+	unsoundRepeats, unsoundOverOpen              int
 	unsoundReadyErr                              string
 	proofReopenedReadied                         map[string]int
 	owedKept, proofOwedKept                      int
@@ -2263,7 +2266,8 @@ func (r *runner) judgement() string {
 // answerUnsound is the judging lens's half of an unsound judgement: for every proof it judged unsound
 // that no gap of its carries, it mints its gap about the proof — outside its budget, so a refusal for
 // budget fails the run — and, on a coin, judges again a proof whose gap it minted in an earlier
-// sitting, which is what clears the blocker where blue has not retired or reopened it.
+// sitting, which is what clears the blocker where blue has not retired or reopened it. A drawn
+// `unsound` there, while that gap is open, is driven to the record's refusal and tallied.
 //
 // THE GAPS ARE MINTED AFTER THE RE-JUDGEMENTS, from the blockers as they then stand: a proof judged
 // unsound again in this sitting is owed a gap from this sitting on (the earlier one carried the
@@ -2275,11 +2279,26 @@ func (r *runner) answerUnsound(seatID string) {
 		r.noteActErr("the blockers could not be read to say which unsound judgements " + seatID + " owes a gap: " + err.Error())
 		return
 	}
+	open := map[string]bool{}
+	for _, g := range r.openGaps() {
+		open[g] = true
+	}
 	for _, b := range bs {
 		if b.Kind == record.BlockerUnsoundProof && b.Owner == seatID && b.AnsweredBy() != "" &&
 			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
-			r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", r.judgement()).
-				set("--reason", "fuzz: judged the sentence its gap carried again").admit()
+			as := r.judgement()
+			a := r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", as).
+				set("--reason", "fuzz: judged the sentence its gap carried again")
+			// AN UNSOUND JUDGEMENT OF THE SAME SENTENCE, WHILE ITS GAP IS OPEN, IS REFUSED: the gap
+			// already carries it, and no second gap is owed.
+			if as == "unsound" && open[b.AnsweredBy()] {
+				a.refuse(feov.Conflict)
+				r.mu.Lock()
+				r.unsoundRepeats++
+				r.mu.Unlock()
+				continue
+			}
+			a.admit()
 		}
 	}
 	if bs, err = record.PassBlockers(r.run()); err != nil {
@@ -2300,6 +2319,7 @@ func (r *runner) answerUnsound(seatID string) {
 			"--check-kind", "document", "--check", "the sentence says what the script shows", "--fix", pick(r.rng, []string{dirApply, dirCounter}),
 			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
 			"--about-kind", "proof", "--about", b.Subject, "--reason", "fuzz: carrying an unsound judgement to blue"}
+		overOpen := r.ownOpenGapAbout(seatID, b.Subject)
 		if open := r.openGaps(); len(open) > 0 {
 			args = append(args, "--distinct-from", strings.Join(open, ","))
 		}
@@ -2328,8 +2348,52 @@ func (r *runner) answerUnsound(seatID string) {
 		}
 		r.minter[env.Result.GapID] = seatID
 		r.unsoundAnswers++
+		if overOpen {
+			r.unsoundOverOpen++
+		}
 		r.mu.Unlock()
 	}
+}
+
+// ownOpenGapAbout reports whether the board holds an open gap seatID minted about proof anchor
+// since the sentence last changed (an edit reopening the anchor) and since seatID last judged it
+// sound: a gap carrying an unsound judgement of the sentence as it stands. A gap about the sentence
+// before an edit, or before the judge's own sound, carried a judgement since answered.
+func (r *runner) ownOpenGapAbout(seatID, anchor string) bool {
+	fam, err := record.FamilyOf(r.runHandle)
+	if err != nil {
+		return false
+	}
+	open := map[string]bool{}
+	for _, g := range r.openGaps() {
+		open[g] = true
+	}
+	ids := fam.At.IDs(fam.Events)
+	var since int64
+	minted := map[string]int64{}
+	for i, e := range fam.Events {
+		body, _ := recordpb.Body(e)
+		switch b := body.(type) {
+		case *recordpb.BlueEdit:
+			if slices.Contains(b.GetReopened(), anchor) {
+				since = ids[i]
+			}
+		case *recordpb.Reproduce:
+			if e.GetSeatId() == seatID && b.GetProofId() == anchor && b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND {
+				since = ids[i]
+			}
+		case *recordpb.Mint:
+			if e.GetSeatId() == seatID && b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_PROOF && b.GetAboutRef() == anchor {
+				minted[b.GetGapId()] = ids[i]
+			}
+		}
+	}
+	for g, at := range minted {
+		if open[g] && at > since {
+			return true
+		}
+	}
+	return false
 }
 
 // keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
@@ -4375,8 +4439,9 @@ type outcome struct {
 	// proofReopenedReadied, owedKept, proofOwedKept and owedKeptBy are the runner's.
 	reopenedReadied, reopenedPlans int
 	// unsoundReadied, unsoundPlans and unsoundAnswers are the runner's (runner.tallyUnsound,
-	// runner.answerUnsound).
+	// runner.answerUnsound), and so are unsoundRepeats and unsoundOverOpen.
 	unsoundReadied, unsoundPlans, unsoundAnswers int
+	unsoundRepeats, unsoundOverOpen              int
 	proofReopenedReadied                         map[string]int
 	owedKept, proofOwedKept                      int
 	owedKeptBy                                   map[string]int
@@ -5604,6 +5669,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.budgetRefused = r.budgetRefused
 	res.ownAnswers = r.ownAnswers
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
+	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.credits = r.credits
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
@@ -6341,6 +6407,7 @@ func TestFuzzDebate(t *testing.T) {
 	budgetRefused := 0                                      // mints refused a lens holding its whole mint budget open
 	ownAnswers := 0                                         // mints that answered the minting lens's own raise
 	unsoundReadied, unsoundPlans, unsoundAnswers := 0, 0, 0 // plans readying for an unsound proof, of those holding one; gaps carrying one
+	unsoundRepeats, unsoundOverOpen := 0, 0                 // repeat unsound judgements refused; gaps minted over an open own gap about the proof
 	credits := 0                                            // open gaps credited with a raise the screen refused to mint
 	unclassifiedMinted, unclassifiedRefused := 0, 0         // catch-all mints landed; refused for want of a reason
 	rulerFilingsRefused := 0                                // filings refused the seat that rules their subject
@@ -6436,6 +6503,8 @@ func TestFuzzDebate(t *testing.T) {
 			unsoundReadied += o.unsoundReadied
 			unsoundPlans += o.unsoundPlans
 			unsoundAnswers += o.unsoundAnswers
+			unsoundRepeats += o.unsoundRepeats
+			unsoundOverOpen += o.unsoundOverOpen
 			reopenedPlans += o.reopenedPlans
 			for k, v := range o.proofReopenedReadied {
 				proofReopenedReadied[k] += v
@@ -6496,6 +6565,13 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one); %d gap(s) minted carrying an unsound judgement", unsoundReadied, unsoundPlans, unsoundAnswers)
 	if completed > 0 && (unsoundReadied == 0 || unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound proof in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-proof blocker's readiness or its answering gap is unexercised (false green)", unsoundReadied, unsoundPlans, unsoundAnswers, completed)
+	}
+	// A REPEAT UNSOUND OVER THE JUDGE'S OPEN GAP IS REFUSED, and a gap minted over an open one of the
+	// judge's own about the same proof is what the refusal removes: a fresh judgement after blue's
+	// edit, or one after the judge's own sound, is the only way to it.
+	t.Logf("unsound repeats: %d repeat unsound judgement(s) refused over the judge's open gap; %d gap(s) minted about a proof while the judge's own gap about the sentence as it stands was open", unsoundRepeats, unsoundOverOpen)
+	if completed > 0 && unsoundRepeats == 0 {
+		t.Errorf("fuzz drew no repeat unsound judgement over an open gap across %d runs — the refusal is unexercised (false green)", completed)
 	}
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", owedKept, proofOwedKept, owedKeptBy)

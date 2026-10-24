@@ -1,6 +1,10 @@
 package record
 
-import "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+)
 
 // A STANDING UNSOUND JUDGEMENT IS A PASS BLOCKER (gblock, 2026-10-24): "The judging lens is readied
 // to mint its gap, and blue to fix or retire the proof. It clears when the proof is re-run sound or
@@ -31,6 +35,9 @@ type unsoundProof struct {
 	// it has; answeredAt is that mint's events.id.
 	answeredBy string
 	answeredAt int64
+	// answers is every gap the judge minted about this proof from the judgement's sitting on, in
+	// record order; answeredBy is the first.
+	answers []string
 }
 
 // unsoundProofsOf is every standing unsound judgement on the record, in the order the record placed
@@ -65,8 +72,10 @@ func unsoundProofsOf(evs []*Event, win WindowIndex) []unsoundProof {
 			}
 			for _, m := range mints[s.anchor] {
 				if m.seat == c.seat && m.at > from {
-					u.answeredBy, u.answeredAt = m.gap, m.at
-					break
+					if u.answeredBy == "" {
+						u.answeredBy, u.answeredAt = m.gap, m.at
+					}
+					u.answers = append(u.answers, m.gap)
 				}
 			}
 			out = append(out, u)
@@ -87,6 +96,50 @@ func answersOwnUnsound(evs []*Event, win WindowIndex, seatID string, kind record
 		}
 	}
 	return ""
+}
+
+// A REPEAT UNSOUND JUDGEMENT IS REFUSED (gblock, 2026-10-24): a lens that judges a proof's sentence
+// unsound again, while its earlier `unsound` of that sentence stands and a gap it minted about the
+// proof from that judgement's sitting on is open, is refused, and the refusal names the gap.
+//
+// UNCHANGED IS THE LEDGER'S STANDING (anchorStanding.stands): the judgement stands exactly while the
+// report carries the sentence it judged. An edit naming the anchor reopens it, and a judgement after
+// that is a fresh one, admitted; a retire takes the anchor out. The open gap already carries the
+// judgement to blue. A second judgement of the same sentence would owe a second gap (answeredBy reads
+// from the judgement's own sitting on), mintable past the duplicate screen only by a distinctness
+// claim that is false — the release-gate fuzz minted ~490 such gaps per 40 runs. A `sound`
+// re-judgement is never refused here: it clears the blocker. Another lens's judgement is its own.
+//
+// Replay exempts it: an archived judgement is what a seat DID, recorded before this refusal existed.
+func requireNotARepeatUnsound(q recordsql.Querier, seatID string, b *recordpb.Reproduce) error {
+	if Migrating || b.GetSoundness() != recordpb.Soundness_SOUNDNESS_UNSOUND {
+		return nil
+	}
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's proof judgements could not be read, so whether %s already stands judged unsound by %s cannot be told: %v", b.GetProofId(), seatID, err)
+	}
+	for _, u := range unsoundProofsOf(evs, win) {
+		if u.anchor != b.GetProofId() || u.judge != seatID {
+			continue
+		}
+		for _, g := range u.answers {
+			closed, err := gapState(q, g)
+			if err != nil {
+				return err
+			}
+			if closed {
+				continue
+			}
+			return feov.Errorf(feov.Conflict,
+				"you judged the sentence proof %s backs unsound at event %d, the sentence has not changed since that judgement, and gap %s, which you minted about the proof, is still open — "+
+					"that gap stands for the judgement, so `--as unsound` is not recorded again and no second gap is owed. Nothing is recorded. "+
+					"The judgement and its gap stand until blue edits the sentence, which reopens the proof for a fresh judgement, or retires the proof; "+
+					"`--as sound`, where your reading of the sentence has changed, is recorded and clears the judgement",
+				u.anchor, u.since, g)
+		}
+	}
+	return nil
 }
 
 // ownUnsoundAnswers is the gaps seatID minted that answer a standing unsound judgement of its own:
