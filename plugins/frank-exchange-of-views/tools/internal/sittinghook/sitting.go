@@ -55,11 +55,12 @@ const writerName = "feov-sitting-write"
 // The values cannot drift silently: TestThePhaseStringsMatchTheWriters asserts them against
 // sittingwrite's own, from the test binary, where the heavy import costs nothing.
 const (
-	phaseOpen    = "open"
-	phaseClose   = "close"
-	phaseLimit   = "limit"
-	phaseRefusal = "refusal"
-	phaseFailure = "failure"
+	phaseOpen     = "open"
+	phaseClose    = "close"
+	phaseLimit    = "limit"
+	phaseRefusal  = "refusal"
+	phaseFailure  = "failure"
+	phaseEnvelope = "envelope"
 )
 
 // Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
@@ -87,6 +88,26 @@ func Refusal(runDir, agentID, text string) error {
 // Failure is Refusal's twin for a call that failed rather than one a hook denied.
 func Failure(runDir, agentID, text string) error {
 	return toolEntry(runDir, phaseFailure, agentID, text)
+}
+
+// Envelope asks the writer whether the record refuses the envelope the agent is returning, and
+// returns the refusal, "" when there is none. The PreToolUse hook denies the call with it.
+//
+// THE WRITER'S STDOUT IS THE REFUSAL, kept even when the writer exits non-zero: it prints the
+// refusal before it logs it, so a failed log reaches the caller as the error beside a refusal that
+// still stands.
+func Envelope(runDir, agentID string) (string, error) {
+	writer := writerPath()
+	if writer == "" {
+		return "", fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
+	}
+	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, stderr.String())
+	}
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 func toolEntry(runDir, phase, agentID, text string) error {
