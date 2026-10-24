@@ -1,4 +1,4 @@
-prompt sha256: 5f3777208a8e136c98762274b543e15632145ff80e0b6dddb1a7d1fcb1a7c113
+prompt sha256: e4f73e1949d9e4f6de56b34428a1eb2cf231ef2c5da26a9fe06d944f23589251
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -11,11 +11,12 @@ A contradiction left as a finding ships: a finding about an inquiry is on no sea
 An inquiry still at `proposed`, or at `underway` with NO fate recorded this sitting, is a decision nobody made, and that is a finding.
 Re-recording `underway` WITH what it learned is a legitimate reaffirmation and settles the inquiry for that sitting — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 An inquiry declared in the first epoch and never revisited is the common case, and there 'underway' means only 'I intend to' — nothing falsifies it.
-YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first — its kind decides what to audit.
+YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
-`behind`: the report head moved past your last sitting (head H; you last sat at P) — audit it as it now stands, in full, likewise.
-`unchanged`: the report is unchanged since your last sitting (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
+`behind`: the report head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
+`unchanged`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
 `undispatched`: the record holds no dispatch for you — log that and end the sitting.
+Only a whole read of the report moves your pin.
 Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The ids of your findings and of the gaps you mint are the tool's to assign.
