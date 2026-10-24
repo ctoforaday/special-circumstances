@@ -53,6 +53,9 @@ func TestASpanStartsWhereTheSourceStartsASentenceOrAClause(t *testing.T) {
 		{"after a markup tag, lowercase", "<p>We prove <b>it</b> holds.</p>", "holds", false},
 		{"after a greater-than sign", "It holds when a > b and fails else.", "b and fails", false},
 		{"a digit after a terminator", "It is composite. 91 is 7 times 13.", "91 is 7 times 13", true},
+		{"after a terminator and a reference mark", "It grows exponentially.[127] However, it is used.", "However", true},
+		{"after an ellipsis, uppercase", "It holds for 10 bases… After that it fails.", "After that it fails", true},
+		{"after a bracketed word that is no reference mark", "It is prime [as shown] and odd.", "and odd", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f := fold(c.text, hyphenAsIs)
@@ -139,5 +142,118 @@ func TestTheRefusalsSentenceEndsAtATerminatorOrABlankLine(t *testing.T) {
 		if got := sentenceAround(c.text, i, i+len(c.span)); got != c.want {
 			t.Errorf("sentence around %q = %q, want %q", c.span, got, c.want)
 		}
+	}
+}
+
+// m32PrimeElement is the definition m32's blue cited (C-a36dce3f, C-c6aacaea): one sentence whose
+// condition runs on past a comma into a second clause and a restating parenthesis.
+const m32PrimeElement = "An element p of a commutative ring R is said to be prime if it is not the zero element or a unit, " +
+	"and for all a, b in R, whenever p divides ab, p divides a or p divides b (that is, p ∣ a b ⟹ p ∣ a ∨ p ∣ b).\n"
+
+// EACH ROW IS A SPAN AND WHETHER THE BOUNDARY RULE ADMITS ITS END, found in its text by the rule's
+// own locator so the end is the byte after the span's last.
+func TestASpanEndsWhereTheSourceEndsASentenceOrAClause(t *testing.T) {
+	for _, c := range []struct {
+		name, text, span string
+		admit            bool
+	}{
+		{"before a terminator", m31Fermat, "In this case n is called Fermat pseudoprime to base a", true},
+		{"with its terminator", m31Fermat, "In this case n is called Fermat pseudoprime to base a.", true},
+		{"m31: the whole definition, before its terminator", m31Fermat, "when n is composite is known as a Fermat liar", true},
+		{"before a comma", m31Fermat, "If one wants to test whether p is prime", true},
+		{"with its comma", m31Fermat, "If one wants to test whether p is prime,", true},
+		{"m32 C-a36dce3f: just before the comma of “, and for all a, b in R” — a clause mark, so admitted", m32PrimeElement,
+			"An element p of a commutative ring R is said to be prime if it is not the zero element or a unit", true},
+		{"before a semicolon", "Any divisor establishes n as composite; otherwise it is prime.", "Any divisor establishes n as composite", true},
+		{"before a colon", "There are two cases: n is prime or composite.", "There are two cases", true},
+		{"before an em dash, closed", "Fermat’s test—the first one—holds.", "Fermat’s test", true},
+		{"with its em dash", "Fermat’s test—the first one—holds.", "Fermat’s test—", true},
+		{"before an en dash, spaced", "Fermat’s test – the first one – holds.", "Fermat’s test", true},
+		{"before a spaced keyboard hyphen", "Fermat's test - the first one - holds.", "Fermat's test", true},
+		{"before a doubled keyboard hyphen", "Fermat's test -- the first one -- holds.", "Fermat's test", true},
+		{"just inside a closing bracket", "A prime number (or a prime) is a natural number.", "or a prime", true},
+		{"closing with the bracket", "A prime number (or a prime) is a natural number.", "A prime number (or a prime)", true},
+		{"just inside a curly quote", "It is called “the sieve” by all.", "the sieve", true},
+		{"with a terminator and a closer", "He said “it holds.” It fails for 91.", "He said “it holds.”", true},
+		{"before a reference mark", "It grows exponentially.[127] However, it is used.", "It grows exponentially", true},
+		{"before a blank line", "Concept\n\nFermat's little theorem states it.", "Concept", true},
+		{"before a markup tag", "<p>We prove it</p><p>Next.</p>", "We prove it", true},
+		{"at the text's end", "it holds for every base", "it holds for every base", true},
+		{"before an ellipsis and a capital", "It holds for 10 bases… After that it fails.", "It holds for 10 bases", true},
+		{"mid-clause", m31Fermat, "If one wants to test", false},
+		{"mid-word", m31Fermat, "If one wan", false},
+		{"m31 C-2165a593: before the object of its preposition", "This method divides n by each integer from 2 up to the square root of n. Any such integer proves it.",
+			"This method divides n by each integer from 2 up to the square root of", false},
+		{"m31 C-16d602ea: cut before a trailing formula — refused, whatever the formula adds",
+			"The most basic method of checking the primality of a given integer ⁠ n {\\displaystyle n} ⁠ is called trial division.",
+			"The most basic method of checking the primality of a given integer", false},
+		{"m32 C-c6aacaea: before an opening bracket", m32PrimeElement, "whenever p divides ab, p divides a or p divides b", false},
+		{"a comma inside a number is no clause mark", "The count is 3,215 primes.", "The count is 3", false},
+		{"a decimal point is no terminator", "Spot Welding 3.7 is used.", "Spot Welding 3", false},
+		{"before a word hyphen", "It is a well-known test.", "It is a well", false},
+		{"before an apostrophe", "Fermat's test holds.", "Fermat", false},
+		{"before an abbreviation's lowercase", "Use a base, e.g. two or three.", "Use a base, e.g", false},
+		{"with an abbreviation's terminator", "Use a base, e.g. two or three.", "Use a base, e.g.", false},
+		{"before a single line break, lowercase", "it holds for every\nbase a coprime to n.", "it holds for every", false},
+		{"before a greater-than sign", "It holds when a > b and fails else.", "It holds when a", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := fold(c.text, hyphenAsIs)
+			want := fold(c.span, hyphenAsIs).s
+			i := strings.Index(f.s, want)
+			if i < 0 {
+				t.Fatalf("%q not in the text", c.span)
+			}
+			if got := spanEndsAtBoundary(c.text, f.end[i+len(want)-1]); got != c.admit {
+				t.Errorf("%q admitted %v, want %v", c.span, got, c.admit)
+			}
+		})
+	}
+}
+
+// THROUGH THE VERB'S LOCATOR, a span cut before its clause ends is refused with the sentence it
+// sits in, the side it is cut on and the rule, and the same span quoted to the sentence's end is
+// placed. The tool does not widen the first into the second.
+func TestASpanCutBeforeItsClauseEndsIsRefusedWithTheSentence(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	yes := true
+	text := "Trial division\n\nThis method divides n by each integer from 2 up to the square root of n. Any such integer proves it.\n"
+	e, err := Store(run, Entry{URL: "https://ex/trial", ContentType: "text/html", TextExtracted: &yes, Extractor: htmlExtractorID}, []byte("<html>"+text+"</html>"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.TextSha, err = StoreText(run, e.Sha, []byte(text)); err != nil {
+		t.Fatal(err)
+	}
+	_, err = LocateSourceSpan(run, e, "This method divides n by each integer from 2 up to the square root of")
+	sentence := "This method divides n by each integer from 2 up to the square root of n."
+	for _, want := range []string{"ends inside one", sentence, SpanBoundary} {
+		if !errors.Is(err, ErrSpanMidClause) || !strings.Contains(err.Error(), want) {
+			t.Errorf("the cut span: %v\nwant ErrSpanMidClause saying %q", err, want)
+		}
+	}
+	if loc, err := LocateSourceSpan(run, e, "This method divides n by each integer from 2 up to the square root of n"); err != nil || loc.Matched != "This method divides n by each integer from 2 up to the square root of n" {
+		t.Errorf("the span to its sentence's end: %+v, %v", loc, err)
+	}
+	if _, err := LocateSourceSpan(run, e, "by each integer from 2 up to the square root of"); !errors.Is(err, ErrSpanMidClause) || !strings.Contains(err.Error(), "starts and ends inside one") {
+		t.Errorf("cut on both sides: %v", err)
+	}
+}
+
+// AN OCR PAGE'S END IS A SPAN'S END whatever stands there: a sentence the next page finishes
+// cannot be quoted across the page break, so the part of it on this page is quotable.
+func TestAnOCRPagesSpanEndsAtABoundary(t *testing.T) {
+	run, e := ocrSource(t, map[int]string{
+		1: "The method used is spot welding when the",
+		2: "sheet is thin; arc welding applies otherwise.",
+	})
+	if _, err := LocateSourceSpan(run, e, "The method used is spot welding when the"); err != nil {
+		t.Errorf("to the page's end: %v — the part of the sentence on this page is quotable", err)
+	}
+	if _, err := LocateSourceSpan(run, e, "The method used is spot welding"); !errors.Is(err, ErrSpanMidClause) {
+		t.Errorf("mid-clause on page 1: %v, want ErrSpanMidClause", err)
+	}
+	if _, err := LocateSourceSpan(run, e, "sheet is thin"); err != nil {
+		t.Errorf("before a semicolon on page 2: %v", err)
 	}
 }
