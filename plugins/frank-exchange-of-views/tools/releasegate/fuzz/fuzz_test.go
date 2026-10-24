@@ -2040,6 +2040,16 @@ func (r *runner) tallyUnsound(plan map[string]any, party map[any]bool) {
 	}
 }
 
+// judgement is a lens's verdict on a proof's sentence: drawn, except in a run forced to a verdict,
+// whose drive is its verdict — a standing unsound holds the PASS (record.BlockerUnsoundProof) and
+// readies its judge and blue, which no forced run's march to its verdict accounts for.
+func (r *runner) judgement() string {
+	if r.forceVerified || r.forceUnverified {
+		return "sound"
+	}
+	return pick(r.rng, []string{"sound", "unsound"})
+}
+
 // answerUnsound is the judging lens's half of an unsound judgement: for every proof it judged unsound
 // that no gap of its carries, it mints its gap about the proof — outside its budget, so a refusal for
 // budget fails the run — and, on a coin, judges again a proof whose gap it minted in an earlier
@@ -2056,7 +2066,7 @@ func (r *runner) answerUnsound(seatID string) {
 		}
 		if b.AnsweredBy() != "" {
 			if r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
-				r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+				r.do("reproduce", seatID).set("--anchor", b.Subject).set("--as", r.judgement()).
 					set("--reason", "fuzz: judged the sentence its gap carried again").admit()
 			}
 			continue
@@ -3755,7 +3765,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							continue
 						}
 						if it.Sha != "" {
-							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", r.judgement()).
 								set("--reason", "fuzz: read the script against the sentence as it now stands").admit()
 						} else {
 							r.do("verify", seatID).set("--anchor", it.Anchor).
@@ -3772,7 +3782,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if seatID == r.proofOwner && r.coin(35) {
 					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
 						if a := pick(r.rng, offered); r.firstThisSitting(seatID, a) {
-							r.do("reproduce", seatID).set("--anchor", a).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+							r.do("reproduce", seatID).set("--anchor", a).set("--as", r.judgement()).
 								set("--reason", "fuzz: read the script against the sentence it backs").admit()
 						}
 					}
@@ -6886,7 +6896,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 			}
 			continue
 		}
-		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--anchor", at, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
+		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--anchor", at, "--as", r.judgement(), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
 			continue
 		}
