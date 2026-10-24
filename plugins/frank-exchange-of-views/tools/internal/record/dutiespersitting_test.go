@@ -56,12 +56,12 @@ func (b *stage) closeGap(lens, gap string) *stage {
 func TestTheLogIsOfferedEverySittingAndBlocksNone(t *testing.T) {
 	first := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).logEntry(evLens)
+			register("red-chair").sit(2, evLens).logEntry(evLens)
 	}
 	if listsItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
 		t.Fatal("a lens that logged this sitting is told its log is open")
 	}
-	again := first().register("red-chair").dispatch(2, evLens).register(evLens).add(evLens, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("something this sitting actually did")})
+	again := first().register("red-chair").sit(2, evLens).add(evLens, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("something this sitting actually did")})
 	s := sittingOfRunT(t, again.seed(), "lens", evLens)
 	if !listsItem(s, "the log is open") {
 		t.Fatal("a lens in its second sitting, which acted and filed no log, is not told the log is open")
@@ -77,7 +77,7 @@ func TestTheLogIsOfferedEverySittingAndBlocksNone(t *testing.T) {
 // sitting_close around it, each carrying the agent's id and type.
 func TestASittingThatRecordedNothingOwesNoLog(t *testing.T) {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens)
+		register("red-chair").sit(2, evLens)
 	s := sittingOfRunT(t, st.seed(), "lens", evLens)
 	if listsItem(s, "the log is open") {
 		t.Error("a sitting that recorded nothing is told to file a log saying it recorded nothing")
@@ -96,7 +96,7 @@ func TestNoBlueSeatIsToldARevisionIsMissing(t *testing.T) {
 	for _, seat := range []string{"blue-lane-1", "frontier", "blue-synthesize", "blue-respond"} {
 		t.Run(seat, func(t *testing.T) {
 			b := newStage(t).cast(evLens, "red-chair", "blue-lane-1", "frontier", "blue-synthesize", "blue-respond", "judge").ingest().
-				register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+				register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
 				register("red-chair").dispatch(2, "blue-respond", "G1").register(seat)
 			s := sittingOfRunT(t, b.seed(), "blue", seat)
 			for _, it := range s.Open {
@@ -119,7 +119,7 @@ func TestNoBlueSeatIsToldARevisionIsMissing(t *testing.T) {
 // spot-check item a chair's list carries is the stale area that holds its PASS.
 func TestAChairSittingOverAnUnsampledArchiveOwesNoSpotCheck(t *testing.T) {
 	unsampled := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").closeGap(evLens, "G1").
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").closeGap(evLens, "G1").
 		register("red-chair")
 	s := sittingOfRunT(t, unsampled.seed(), "chair", "red-chair")
 	if len(s.Open) == 0 {
@@ -185,7 +185,7 @@ func TestARefusalTheToolLoggedAsksTheSeatForWhatItExpected(t *testing.T) {
 	}
 	sat := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens)
+			register("red-chair").sit(2, evLens)
 	}
 	s := sittingOfRunT(t, refusal(sat()).seed(), "lens", evLens)
 	if !listsItem(s, "has already recorded 1 refused or failed call") {

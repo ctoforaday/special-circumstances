@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // WHAT THIS SEAT STILL OWES, ON THE READ IT ALREADY DOES.
@@ -91,10 +92,11 @@ type SittingJSON struct {
 	// — which is the difference this exists to make.
 	Complete bool   `json:"complete"`
 	Open     []Item `json:"open"`
-	// LastSitting is a lens's latest sitting strictly before the dispatch it is sitting for, on the
-	// read it already does first. Present for every lens, with an explicit kind — first, behind,
-	// unchanged or undispatched — never inferred from an absent field; absent for every other role.
-	LastSitting *LastSittingJSON `json:"last_sitting,omitempty"`
+	// LastRead is a lens's pin before the dispatch it is sitting for — the head the whole report was
+	// last served to it at (lastReadBefore) — on the read it already does first. Present for every
+	// lens, with an explicit kind — first, behind, unchanged or undispatched — never inferred from an
+	// absent field; absent for every other role.
+	LastRead *LastReadJSON `json:"last_read,omitempty"`
 	// MintBudget is a lens's standing against its mint budget — what it holds open, its budget
 	// with every term, and what is left — from the reading the write refuses a mint on
 	// (lensMintStanding). Present for every lens whose standing reads; absent for every other
@@ -130,8 +132,8 @@ type unverifiableFunc func(anchor string) string
 func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string, reads sittingReads) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	if role == "lens" {
-		ls := lastSittingBefore(evs, ids, win, seatID)
-		s.LastSitting = &ls
+		ls := lastReadBefore(evs, ids, win, seatID)
+		s.LastRead = &ls
 	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 	may := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: false}) }
@@ -148,10 +150,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// It is NON-BLOCKING on purpose: finding nothing is a legitimate audit, so this must not hold the
 	// turn open the way an owed register does. Present-but-not-blocking is what the Item.Blocks field
 	// is for, and the audit is the work it was added to be able to express.
-	if s.LastSitting != nil {
-		switch s.LastSitting.Kind {
+	if s.LastRead != nil {
+		switch s.LastRead.Kind {
 		case "first":
-			may("audit the report in full — you have sat through no sitting on it before this one, so nothing of it is yet yours to have read")
+			may("audit the report in full — no sitting of yours before this one was served it whole, so nothing of it is yet yours to have read. " + ServedPinNote)
 		case "behind":
 			// THE PINS ARE NAVIGATION, NOT THE AUDIT SURFACE, and this item said the opposite.
 			//
@@ -164,8 +166,12 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			//
 			// So it states the fact and points at the duty, and the seat's constitution keeps saying
 			// what the duty is. A work list that argues with a MUST teaches a seat to weigh the two.
-			may(fmt.Sprintf("the report moved while you were away — you last sat at %d and it is at %d now, so re-read it in full; the pins are here to show you WHAT changed, not to narrow what you audit",
-				s.LastSitting.Pin, s.LastSitting.Head))
+			//
+			// IT SPEAKS OF BEFORE THIS SITTING, because that is what lastReadBefore measures: a whole read
+			// in this sitting does not move it, and "it is at H now, re-read it" stayed on the list after
+			// the read it asked for (#1565 smoke: 14 work-list reads in 12 sittings).
+			may(fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
+				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
 		}
 	}
 
@@ -682,12 +688,8 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 // gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join
 // the close gate reads, so the sitting and the gate cannot disagree about what is owed.
 
-// sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing but the
-// bookkeeping that brackets it.
-//
-// THE BOOKKEEPING IS NOT AN ACT. A register is the seat announcing itself, a log is the channel this
-// predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
-// them would make every sitting look busy and the empty case unreachable.
+// sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type
+// recordsql.NotActs does not list, the definition seat_metrics counts acts by.
 //
 // It reads the one window every per-sitting reader does (thisSitting), so "this sitting" means one thing
 // on this surface: the seat's acts the write path stored in its latest sitting — opened by its
@@ -699,19 +701,9 @@ func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
 		return false
 	}
 	for _, e := range thisSitting(evs, win, seatID) {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER,
-			recordpb.EventType_EVENT_TYPE_LOG,
-			recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
-			recordpb.EventType_EVENT_TYPE_SITTING_CLOSE,
-			// A stale refusal is the tool's record of what it showed the seat, not an act of the seat's.
-			recordpb.EventType_EVENT_TYPE_STALE,
-			// The stored plan is the record's copy of what `dispatch next` printed; the rows are the
-			// act. A chair that asked and was told nobody sits recorded nothing.
-			recordpb.EventType_EVENT_TYPE_PLAN:
-			continue
+		if !slices.Contains(recordsql.NotActs, e.GetType()) {
+			return false
 		}
-		return false
 	}
 	return true
 }

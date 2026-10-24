@@ -113,6 +113,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair'
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
@@ -918,6 +919,12 @@ CREATE TABLE "credit" (
   FOREIGN KEY ("found_by") REFERENCES "finding"("id")
 ) STRICT;
 
+CREATE TABLE "report_read" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "head" INTEGER NOT NULL,
+  FOREIGN KEY ("head") REFERENCES "events"("id")
+) STRICT;
+
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
@@ -1104,11 +1111,8 @@ SELECT
   --   acts = 0            an EMPTY sitting, which has no task complexity in it at all, so its
   --                       cost is pure overhead and needs no normalising
   --
-  -- BOOKKEEPING IS NOT AN ACT. register announces the seat, log is the channel a sitting closes,
-  -- sitting_open/sitting_close are the harness's own brackets, and plan is the record's copy of
-  -- what the chair's dispatch printed (its rows are the act) — counting any of them would make
-  -- every sitting look productive and the empty case unreachable, which is the plausible zero this
-  -- column exists to remove.
+  -- BOOKKEEPING IS NOT AN ACT: the types excluded are NotActs, the one list every count of acts
+  -- reads, so no two of them can count one sitting differently.
   --
   -- SCOPED TO THE SITTING, not the run: events_w carries the sitting ordinal and seat_of_agent
   -- carries this agent's, so the count is what THIS sitting recorded rather than what the seat
@@ -1116,7 +1120,7 @@ SELECT
   -- defect the work list had before duties were made per-sitting.
   (SELECT COUNT(*) FROM "events_w" ew
      WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
-       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','plan'))  AS "acts"
+       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','stale','report_read','plan'))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";

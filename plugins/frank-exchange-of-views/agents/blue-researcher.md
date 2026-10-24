@@ -340,7 +340,7 @@ Available Commands:
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register     NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+  register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   retire       take a claim out of the report, when it cannot stand and no edit will save it
 
 Command groups — each holds commands THIS page does not list:
@@ -711,11 +711,11 @@ Flags:
       --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
-ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds and your first record after it. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not — a lens's whole read of the report among them — so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 
@@ -889,7 +889,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §12
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,answering,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_direction,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate,successors:[string]}],successors_owed:[string]},declarations:[{holding,epoch,gaps:[{id,status,fate,closed_by,closed_epoch}]}]}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_read:{kind,pin,head},mint_budget:{open,answering,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_direction,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate,successors:[string]}],successors_owed:[string]},declarations:[{holding,epoch,gaps:[{id,status,fate,closed_by,closed_epoch}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 

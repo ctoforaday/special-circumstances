@@ -17,9 +17,11 @@ import (
 // added here for the records printed after it, the old row kept for the records printed before. The
 // format strings each names (TestEveryIDTheVerbPrintsIsTranslated renders every one):
 //   - head: `never sat — audits the report at head %d`, `has sat through no sitting — … — audits the
-//     report at head %d`, `head %d moved past its last sitting's pin %d` (retirement.go, the lens
+//     report at head %d`, `head %d moved past its last sitting's pin %d`; from epoch 44 `… was served
+//     the whole report, behind head %d` and `… at its pin %d, behind head %d` (retirement.go, the lens
 //     fold's readiness);
-//   - pin: `sat at the head (pin %d)`, `retired (pin %d)` and the line above (retirement.go);
+//   - pin: `sat at the head (pin %d)`, `retired (pin %d)` and the lines above; from epoch 44 `served
+//     the report at the head (pin %d)` (retirement.go);
 //   - opened at: `its sitting opened at %d %s, so it counts neither as sat nor toward retirement`
 //     (retirement.go, unsatSitting), in the lens fold's `has sat through no sitting` and `head moved`
 //     lines. Two tokens: a bare `at` would read the count in `it retires at %d` as an id;

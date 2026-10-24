@@ -43,6 +43,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [retire](#retire) | lens, chair, blue, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
+| [report read](#report-read) | lens, chair, operator |
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
@@ -460,9 +461,19 @@ Lens retirement is the record's state for a lens that has stopped finding materi
 
 ## stale area
 
-A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.
 
 **Delivered to:** chair, operator
+
+## report read
+
+A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
+
+**Delivered to:** lens, chair, operator
+
+**Collisions:**
+
+- **pin (a dispatch's)** — a dispatch's pin is the head the chair engages a party at; a lens's pin is the head of its latest report read in a sitting it sat through, and the lens is ready while the report head is past it
 
 ## disposition
 

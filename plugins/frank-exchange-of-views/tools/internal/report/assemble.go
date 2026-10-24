@@ -1327,6 +1327,10 @@ func debate(fam record.Family) string {
 			if kept[e] {
 				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+e.GetRegrade().GetBasis())
 			}
+			// THE REPORT SERVED TO A LENS: which lens was given the whole report at which head.
+			if rr, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
+				epoch = append(epoch, record.ServedLine(e.GetSeatId(), rr.GetHead()))
+			}
 		}
 
 		// PETITIONS: the filing AND the ruling, in event order, in one block.

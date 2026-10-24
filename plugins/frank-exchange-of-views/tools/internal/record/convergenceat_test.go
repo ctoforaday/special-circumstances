@@ -49,7 +49,7 @@ func setFraction(t *testing.T, run Run, f float64) {
 // the write path admits it.
 func TestARegradeBeforeAFailIsTheGradeTheGateReads(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).
+		register("red-chair").sit(2, evLens).
 		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
 		add("red-chair", failVerdict()).
 		add(evLens, repairClose("G1")).

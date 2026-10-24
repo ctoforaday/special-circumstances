@@ -19,7 +19,7 @@ func (b *stage) limit(seat string, n int) *stage {
 // sitHooked is one sitting of a lens as the shipped workflow runs it: a dispatch at pin, the hook's
 // bracket for agent, and — when stopped — the agent's stop.
 func (b *stage) sitHooked(pin int64, lens, agent string, stopped bool) *stage {
-	b.dispatch(pin, lens).bracket(lens, agent)
+	b.dispatch(pin, lens).bracket(lens, agent).served(lens, pin)
 	if stopped {
 		b.stop(agent)
 	}
@@ -163,16 +163,16 @@ func TestADebtOutlivesASittingStoppedAtTheLimit(t *testing.T) {
 // told where it last sat.
 func TestALensLastSittingSkipsASittingStoppedAtTheLimit(t *testing.T) {
 	for _, limited := range []bool{true, false} {
-		b := retBoard(t).dispatch(2, evLens).bracket(evLens, "a1")
+		b := retBoard(t).dispatch(2, evLens).bracket(evLens, "a1").served(evLens, 2)
 		if limited {
 			b.limit(evLens, 1)
 		}
 		b.stop("a1").ingest()
 		b.sitHooked(b.at(), evLens, "a2", false)
-		ls := sittingOfRunT(t, b.seed(), "lens", evLens).LastSitting
+		ls := sittingOfRunT(t, b.seed(), "lens", evLens).LastRead
 		want := map[bool]string{true: "first", false: "behind"}[limited]
 		if ls == nil || ls.Kind != want {
-			t.Errorf("limited=%v: last_sitting = %+v, want kind %s", limited, ls, want)
+			t.Errorf("limited=%v: last_read = %+v, want kind %s", limited, ls, want)
 		}
 	}
 }
