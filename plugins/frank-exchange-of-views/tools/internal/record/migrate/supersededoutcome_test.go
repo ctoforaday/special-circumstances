@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -57,7 +58,7 @@ func sourceProse(e migrate.OldEvent) string {
 // respelled is an archived outcome's prose with the migration's own stated rewrites of that field
 // applied in the order it made them: the archived ids its prose names, respelled to the migrated
 // ids. Only the written outcome's prose is rewritten, so these are its rewrites alone.
-func respelled(prose string, rw []migrate.ProseRewrite) string {
+func respelled(prose string, rw []migration.ProseRewrite) string {
 	var b strings.Builder
 	for _, r := range rw {
 		if r.Field != "Outcome.prose" {
@@ -122,7 +123,7 @@ func TestASupersededOutcomeIsNotWritten(t *testing.T) {
 			if want := respelled(sourceProse(latest), res.Rewritten); got[0].GetProse() != want {
 				t.Errorf("the migrated outcome's prose is not the source's latest:\n got  %q\n want %q", got[0].GetProse(), want)
 			}
-			want := migrate.SupersededOutcome{OldID: first.ID, Seat: first.SeatID, Verdict: strings.ToLower(firstVerdict), SupersededBy: latest.ID}
+			want := migration.SupersededOutcome{OldID: first.ID, Seat: first.SeatID, Verdict: strings.ToLower(firstVerdict), SupersededBy: latest.ID}
 			if len(res.SupersededOutcomes) != 1 || res.SupersededOutcomes[0] != want {
 				t.Errorf("the manifest states superseded outcomes %+v, want [%+v]", res.SupersededOutcomes, want)
 			}
