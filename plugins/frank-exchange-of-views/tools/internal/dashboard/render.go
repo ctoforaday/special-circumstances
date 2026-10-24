@@ -458,12 +458,23 @@ func RenderHTML(m Model) string {
 		}
 	}
 	if m.Terminal {
-		w("\n<h2>Seats (run complete)</h2>\n")
+		// AN OUTCOME IS NOT THE RUN'S END. The bench decides the run and then assembles in the same
+		// sitting, and only capture ends it (record.RunEnded, which Live reads): until then a seat
+		// with no stop on the record may be the assembly sitting at work, and saying it "did not
+		// finish" would call a running seat dead.
+		captured := m.Live.State == record.StateEnded
+		decided, count, unfinished := "the bench recorded this run's outcome, and the run was captured", "never finished", "did not finish"
+		if captured {
+			w("\n<h2>Seats (run complete)</h2>\n")
+		} else {
+			w("\n<h2>Seats — outcome recorded, not yet captured</h2>\n")
+			decided, count, unfinished = "the bench recorded this run's outcome; capture has not run", "have no stop on the record yet", "no stop on the record yet"
+		}
 		if len(liveOrder) > 0 {
-			w(fmt.Sprintf(`<p class="muted">the bench recorded this run's outcome. %d seat(s) never finished:</p><table>`, len(liveOrder)))
+			w(fmt.Sprintf(`<p class="muted">%s. %d seat(s) %s:</p><table>`, decided, len(liveOrder), count))
 			for _, lbl := range liveOrder {
 				g := liveGroups[lbl]
-				fate := "did not finish"
+				fate := unfinished
 				if doneLabels[lbl] {
 					fate = "superseded — a later attempt completed"
 				}
@@ -475,17 +486,22 @@ func RenderHTML(m Model) string {
 			}
 			w("</table>")
 		} else {
-			w(`<p class="muted">the bench recorded this run's outcome.</p>`)
+			w(fmt.Sprintf(`<p class="muted">%s.</p>`, decided))
 		}
 	} else {
 		// THE HEADING IS A CLAIM, and it used to be made unconditionally. A workflow killed by an
 		// idle SIGTERM cannot lift its own marker, so this branch went on saying "live" over a
 		// record that had stopped moving 41 minutes earlier — with the ETA beside it still
 		// projecting three. Both facts were on this page and nothing compared them.
-		if m.Live.State == record.StateStale {
+		switch m.Live.State {
+		case record.StateStale:
 			w("\n<h2>Seats — STOPPED</h2>\n")
 			w(fmt.Sprintf(`<p class="stale">%s</p>`, esc(m.Live.Says())))
-		} else {
+		case record.StateEnded:
+			// Captured with no outcome on the record: a run that stopped before the bench decided it.
+			w("\n<h2>Seats — captured without an outcome</h2>\n")
+			w(fmt.Sprintf(`<p class="muted">%s</p>`, esc(m.Live.Says())))
+		default:
 			w("\n<h2>Seats live now</h2>\n")
 			w(fmt.Sprintf(`<p class="muted">%s</p>`, esc(m.Live.Says())))
 		}
@@ -494,7 +510,10 @@ func RenderHTML(m Model) string {
 			for _, lbl := range liveOrder {
 				g := liveGroups[lbl]
 				status := "running"
-				if g.oldest != nil {
+				switch {
+				case m.Live.State == record.StateEnded:
+					status = "did not finish"
+				case g.oldest != nil:
 					mins := int(math.Round((etaNow(m) - *g.oldest) / 60000))
 					if mins < 1 {
 						mins = 1

@@ -358,7 +358,9 @@ func BoundSeat(run record.Run) func() (string, error) {
 // seat the record binds this agent to, through RefusalSeat.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("", seatenv.AgentID()).Dir })
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string {
+		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}).Dir
+	})
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.
