@@ -3406,6 +3406,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			res = append(res, row)
 		}
+		r.benchEnds(seatID)
 		return map[string]any{"dispositions": res}
 
 	case debatejs.OccasionOf(prompt) == "assemble":
@@ -6342,6 +6343,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Log(execReport())
 	t.Log(eitherReport())
 	t.Log(failReport())
+	t.Log(benchEndReport())
 	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
 	// own for the reason #635 was filed about: a second test reading this package-level tally
 	// would run at whatever point its declaration order put it, and a gate that reads a tally
@@ -7291,11 +7293,45 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 		}
 		motionIDs = []string{filed.Result.MotionID}
 	}
-	for _, motionID := range motionIDs {
+	for i, motionID := range motionIDs {
+		// THE BENCH TRIES TO END WITH A TWIN STANDING, and the record refuses its envelope naming
+		// the twin (record.BenchEnvelopeRefusal — the PreToolUse hook denies the envelope call with
+		// it). Driven before the last of two or more motions on the gap is ruled.
+		if i == len(motionIDs)-1 && i > 0 && r.coin(50) {
+			r.benchEndRefused(seatID, motionID)
+		}
 		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
 			"--as", disposition, "--principle", "correctness", "--tension", "cost",
 			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
 		r.admit(args...)
+	}
+}
+
+// benchEndRefused drives the bench's envelope while docket motion standing is unruled on a gap its
+// sitting is convened on: the record must refuse it, naming the motion.
+func (r *runner) benchEndRefused(seatID, standing string) {
+	refusal, err := record.BenchEnvelopeRefusal(r.run(), seatID)
+	switch {
+	case err != nil:
+		r.noteActErr("the bench's envelope could not be checked against the record: " + err.Error())
+	case !strings.Contains(refusal, standing+" (on "):
+		r.noteActErr(fmt.Sprintf("the bench's envelope with docket motion %s standing was not refused naming it: %q", standing, refusal))
+	default:
+		noteBenchEnd("refused: a twin docket motion stands")
+	}
+}
+
+// benchEnds drives the bench's envelope at the end of its docket sitting, every motion on its gaps
+// ruled: the record must admit it.
+func (r *runner) benchEnds(seatID string) {
+	refusal, err := record.BenchEnvelopeRefusal(r.run(), seatID)
+	switch {
+	case err != nil:
+		r.noteActErr("the bench's envelope could not be checked against the record: " + err.Error())
+	case refusal != "":
+		r.noteActErr("the bench ruled every docket motion it was convened on and its envelope was refused: " + refusal)
+	default:
+		noteBenchEnd("admitted: every motion on its gaps ruled")
 	}
 }
 

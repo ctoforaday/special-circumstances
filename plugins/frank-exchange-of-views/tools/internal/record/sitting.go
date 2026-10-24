@@ -330,10 +330,23 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// whose gavel the schema gives the bench, the same set the outcome refusal names
 		// (requireBenchMotionsRuled). A second walk of the motions here could disagree with that
 		// refusal, which is the drift the one list exists to end (#1202).
+		//
+		// A DOCKET MOTION ON A GAP THIS SITTING IS CONVENED ON HOLDS THE SITTING as well (docketHeld):
+		// its envelope is refused while one stands (BenchEnvelopeRefusal), and the item says so.
+		_, held := docketHeld(evs, ids, win)
+		holds := map[string]bool{}
+		for _, b := range held {
+			holds[b.Subject] = true
+		}
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			if b.Kind == BlockerUnruledMotion && b.Owner == benchSeat {
-				add("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours — the run cannot end in a verdict while it stands")
+			if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
+				continue
 			}
+			if holds[b.Subject] {
+				add("motion " + b.Subject + " (" + b.Detail + ") is unruled on " + b.About + ", a gap this sitting is convened on — your envelope is refused while it stands, and the run cannot end in a verdict while it stands")
+				continue
+			}
+			add("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours — the run cannot end in a verdict while it stands")
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
