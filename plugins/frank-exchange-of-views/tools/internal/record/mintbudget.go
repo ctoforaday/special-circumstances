@@ -297,6 +297,11 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	} else if own != "" {
 		return nil
 	}
+	if own, err := answersOwnUnsoundAt(w.q, seatID, m); err != nil {
+		return feov.Wrap(feov.Conflict, err, "the record's proof judgements could not be read, so whether this mint answers one %s made cannot be told: %v", seatID, err)
+	} else if own != "" {
+		return nil
+	}
 	st, err := lensMintStanding(w.q, w.report, w.files.params, seatID, area)
 	if err != nil {
 		return err
@@ -331,7 +336,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction answers it and takes no mint — it is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about a proof whose sentence your standing judgement calls unsound, answers it and takes no mint — it is admitted at the cap, and does not count while it is open"
 
 // answersOwnRaiseAt is the contradiction a mint by seatID crediting foundBy would answer that seatID's
 // own finding raised — its id, or "" where it answers none. It is the fold's own question asked of
@@ -353,7 +358,8 @@ func answersOwnRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (st
 	return "", nil
 }
 
-// ownAnswersAt is the gaps that answer a contradiction seatID's own finding raised. Those seatID
+// ownAnswersAt is the gaps that answer a contradiction seatID's own finding raised, or a standing
+// unsound judgement of seatID's own (ownUnsoundAnswers). Those seatID
 // minted are the gaps its budget does not count (lensMintStanding); one another seat minted from
 // that finding answers it all the same, and counts against its own minter's budget.
 func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
@@ -367,7 +373,29 @@ func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
 			out[c.answeredBy] = true
 		}
 	}
+	// THE PROOF'S FOLD READS THE WHOLE LEDGER — the checks, the edits and the retires — so it takes
+	// the stream the contradictions' narrower read does not hold.
+	all, allWin, err := eventsAt(q)
+	if err != nil {
+		return nil, err
+	}
+	for g := range ownUnsoundAnswers(all, allWin, seatID) {
+		out[g] = true
+	}
 	return out, nil
+}
+
+// answersOwnUnsoundAt is the proof a mint by seatID answers — its own standing unsound judgement of
+// the proof the mint is about, which no gap answers yet — or "" where it answers none.
+func answersOwnUnsoundAt(q recordsql.Querier, seatID string, m *recordpb.Mint) (string, error) {
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_PROOF {
+		return "", nil
+	}
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return "", err
+	}
+	return answersOwnUnsound(evs, win, seatID, m.GetAboutKind(), m.GetAboutRef()), nil
 }
 
 // mintStanding is where a lens stands against its mint budget: the gaps it minted that are open
@@ -375,8 +403,8 @@ func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
 // read; Budget then holds the area, the unit, the ratio and the floor, and no units or total.
 type mintStanding struct {
 	Open int
-	// Answering is the open gaps this seat minted that answer a contradiction it raised: open, and
-	// outside Open.
+	// Answering is the open gaps this seat minted that answer a contradiction it raised or a proof it
+	// judged unsound: open, and outside Open.
 	Answering  int
 	Budget     LensBudget
 	MeasureErr error
@@ -464,7 +492,8 @@ type MintBudgetJSON struct {
 	// Open is the gaps this seat minted that are open now (the gap view's "open"), less Answering.
 	Open int `json:"open"`
 	// Answering is the open gaps this seat minted that answer a contradiction its own finding
-	// raised: they take no mint, so Open leaves them out and Left does not spend on them.
+	// raised or a proof it judged unsound: they take no mint, so Open leaves them out and Left does
+	// not spend on them.
 	Answering int `json:"answering"`
 	// Budget is max(floor, ceil(units × mints / per)) — or, where Measured is false, the floor alone.
 	Budget int `json:"budget"`
@@ -518,7 +547,7 @@ func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
 	}
 	answering := ""
 	if st.Answering > 0 {
-		answering = fmt.Sprintf(", and %d more that answer contradictions you raised", st.Answering)
+		answering = fmt.Sprintf(", and %d more that answer a contradiction you raised or a proof you judged unsound", st.Answering)
 	}
 	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d%s — %s — so %s; %s. %s",
 		st.Open, b.Budget, answering, b.Arithmetic(), leftWords, tail, mintAnswerOutsideBudget)

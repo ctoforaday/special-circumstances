@@ -920,6 +920,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
 		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
+		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -1004,6 +1007,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
 				return err
 			}
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
