@@ -385,6 +385,25 @@ func TestALogLineNamesEveryAnchorKindByItsID(t *testing.T) {
 	}
 }
 
+// A TOKEN THAT SHOWS THE SHAPE, NOT AN ID, IS STILL A TOKEN. The `--anchor` refusal teaches "a
+// `<!--cite:C-…-->`, `<!--fx:F-…-->` … token", and the #1565 log stored "a ``, ``, `` or `` token":
+// no id reader knew the placeholders, so the invisible layer took them whole.
+func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
+	var shown []string
+	for _, k := range anchor.Kinds() {
+		id := anchor.ID(k, [4]byte{})
+		shown = append(shown, id[:2]+"…")
+	}
+	msg := "an anchor is a `" + anchor.Token(shown[0]) + "` or `" + anchor.Token(shown[1]) + "` token, an elided <!--fx:…--> one, or `" + anchor.Token(shown[2]) + "`"
+	want := "an anchor is a `" + shown[0] + "` or `" + shown[1] + "` token, an elided … one, or `" + shown[2] + "`"
+	if got := LogLine(msg); got != want {
+		t.Errorf("LogLine(%q):\n got %q\nwant %q", msg, got, want)
+	}
+	if got := LogLine(msg); strings.Contains(got, "<!--") {
+		t.Errorf("a log line still holds a marker a document would read as one: %q", got)
+	}
+}
+
 // Each id of a run of tokens, and the id of a token touching a word, reads as its own word: on
 // universe-m29 the log read "recorded scriptG-bde527ebF-01be5d5aF-16662ce7".
 func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {

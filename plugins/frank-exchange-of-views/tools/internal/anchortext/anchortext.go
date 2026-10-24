@@ -82,8 +82,9 @@ func annotationLen(s string, i int) int {
 // `--match "negligible[.]"` is a pattern that names the punctuation this would remove.
 func Visible(s string) string { return normalizeQuote(s) }
 
-// LogLine is a message as one line of the run's log holds it: every anchor token written as the id
-// it holds, and the rest of the invisible layer and the line breaks out (Visible).
+// LogLine is a message as one line of the run's log holds it: every anchor token written as what it
+// holds — the id, or the placeholder a message shows the token's shape with ("C-…") — and the rest
+// of the invisible layer and the line breaks out (Visible).
 //
 // A TOKEN IN A LOG ENTRY IS A MARKER, NOT A MENTION. Every document that renders the log strips a
 // finding's or a gap's token and weaves a citation's or a proof's into a note, so a refusal naming
@@ -93,10 +94,15 @@ func Visible(s string) string { return normalizeQuote(s) }
 // AN ID STANDS APART FROM THE WORD OR ID BESIDE IT. A token touches the text it marks, and a run of
 // tokens touches itself, so the bare ids alone read "recorded scriptG-bde527ebF-01be5d5a" on
 // universe-m29: a space separates an id from a letter or digit on either side of it.
+//
+// A TOKEN IS READ AS WRITTEN, NOT ONLY AS A REAL ID (anchor.EachWritten). A refusal that teaches the
+// token's shape — `--anchor` takes "a `<!--cite:C-…-->` … token" — holds placeholders, which no id
+// reader recognises, so Visible took them as comments and the #1565 log stored "a ``, ``, `` or ``
+// token". What the token holds cannot forge a marker: the delimiters a document reads as one are gone.
 func LogLine(s string) string {
 	var b strings.Builder
 	last := 0
-	anchor.Each(s, func(start, end int, id string) {
+	anchor.EachWritten(s, func(start, end int, id string) {
 		b.WriteString(s[last:start])
 		if out := b.String(); out != "" && isWordByte(out[len(out)-1]) {
 			b.WriteByte(' ')
