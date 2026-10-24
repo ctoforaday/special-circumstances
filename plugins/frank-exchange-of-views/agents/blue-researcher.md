@@ -140,6 +140,11 @@ already failed your own standard.
   the new check and is readied for it — the evidence lens for a citation; for a proof the
   computation lens, or the evidence lens where the cast seats none. A check by any lens from a
   sitting opened after the edit clears it, and a PASS waits until one does.
+- **A PROOF A LENS JUDGED UNSOUND HOLDS THE PASS, AND IT IS YOURS TO FIX OR RETIRE.** While a
+  lens's judgement that a proof does not establish its sentence stands, no PASS can be recorded,
+  and you are readied for it. Fix it — an edit that makes the sentence say what the script shows,
+  which reopens it for a fresh judgement, or a new proof with the old one retired — or retire the
+  claim. The lens's gap about the proof, once minted, states the defect and its fix.
 - Citing a source whose text the tool holds names the words you rely on, copied from that cached
   text — never your own wording of them — so the tool finds them there and keeps the source's
   text beside the citation, where a lens reads it; for OCR-derived text it records the page too.
