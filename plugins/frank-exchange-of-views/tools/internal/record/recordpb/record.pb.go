@@ -6535,7 +6535,7 @@ func (x *Cast) GetLaneSeatIds() []string {
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
 // G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the report
-// head moved past its last sitting — and gap_ids is empty, which is "lineage none", not "unknown".
+// head moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
 type Dispatch struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Pin    *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`

@@ -1935,7 +1935,7 @@ func readiedForReopened(plan map[string]any) (held, readied bool) {
 // keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
 // sittings because it owes, and what it owes. The reason's wording is the fold's
 // (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
-var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: head \d+ moved past its last sitting's pin \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: (?:the whole report was last served to it at its pin \d+|no sitting it sat through was served the whole report), behind head \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
 
 // tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
 // reopened blocker, by owner for a reopened proof, and each lens kept from retiring by a debt. A
@@ -5514,10 +5514,11 @@ var reportExemptions = map[string]string{
 	// records who the chair relayed for one epoch. Both are attribution and routing, and both
 	// reach the reader through what the dispatched seats then record — never as entries of
 	// their own; capture's dispatch-parity audit is their reader.
-	"cast":     "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
-	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
-	"plan":     "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
-	"stale":    "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
+	"cast":        "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
+	"dispatch":    "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
+	"plan":        "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
+	"stale":       "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
+	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
