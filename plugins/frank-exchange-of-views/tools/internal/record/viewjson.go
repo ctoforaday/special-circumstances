@@ -1262,6 +1262,37 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	return workJSONOfGaps(gaps, 0, backingOf(r.evs), ""), nil
 }
 
+// unverifiableIn reads, from the report as it renders now, why a citation's sentence cannot be
+// verified — the report does not render, its anchor is not in it, or it stands bare — the checks
+// `verify` refuses on (cli/lens/verify.go citedSentence). The report renders on the first question,
+// and only then: most work lists ask none.
+func unverifiableIn(r workReads) unverifiableFunc {
+	var (
+		rendered  bool
+		report    string
+		renderErr error
+		bare      []string
+	)
+	return func(id string) string {
+		if !rendered {
+			rendered = true
+			report, renderErr = renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+			if renderErr == nil {
+				bare = claimcount.BareAnchorIDs(report)
+			}
+		}
+		switch {
+		case renderErr != nil:
+			return "the report does not render (" + renderErr.Error() + ")"
+		case !strings.Contains(report, anchor.Token(id)):
+			return "its anchor is not in the report"
+		case slices.Contains(bare, id):
+			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
+		}
+		return ""
+	}
+}
+
 // workView reads the work list's answers on one snapshot of the record (workReadsAt); its callers
 // fold them after the transaction closes.
 func workView(run Run) (workReads, error) {
@@ -1351,7 +1382,19 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	evs, win := r.evs, r.win
 	epoch := epochOfSeatOnBoard(evs, win, seatID)
 	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
-	w.Sitting = SittingOf(evs, win.IDs(evs), win, gaps, role, seatID)
+	reads := sittingReads{unverifiable: unverifiableIn(r)}
+	var budget *MintBudgetJSON
+	var budgetLine string
+	if role == "lens" {
+		budget, budgetLine = mintBudgetOf(run, seatID)
+		reads.mintsLeft = func() (int, bool) {
+			if budget == nil {
+				return 0, false
+			}
+			return budget.Left, true
+		}
+	}
+	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	if role == "lens" {
 		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
 		// are the same reader's rows, joined to the gap they are about.
@@ -1371,10 +1414,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		//
 		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
 		// it follows the statement that the list is empty where SittingOf made one.
-		budget, line := mintBudgetOf(run, seatID)
 		w.Sitting.MintBudget = budget
-		if line != "" {
-			w.Sitting.Open = append(w.Sitting.Open, Item{What: line})
+		if budgetLine != "" {
+			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine})
 		}
 	}
 	if role == "bench" || role == "chair" {
