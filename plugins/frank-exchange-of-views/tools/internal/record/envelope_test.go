@@ -310,6 +310,20 @@ func TestAContradictionAnotherLensRaisedHoldsItsReaderOnlyBelowItsCap(t *testing
 	if _, open := itemsOn(t, run, "lens", evLens, "you have none left"); len(open) != 1 {
 		t.Errorf("the contradiction is not listed with why it does not hold the reader: %+v", open)
 	}
+	t.Run("raised by the reader itself, it holds the reader at its cap: that mint takes none", func(t *testing.T) {
+		b := newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").register(evLens).add(evLens, contradictingVerify("the sky is green"))
+		for i := 1; i <= 15; i++ {
+			b.mint(evLens, fmt.Sprintf("G%d", i), "low")
+		}
+		run := b.seed()
+		if _, err := Append(Identity{Run: run, SeatID: evLens}, referenceFinding("F-f0000001", onlyContradiction(t, b.runDir).ID)); err != nil {
+			t.Fatal(err)
+		}
+		if r := refusalOf(t, run, evLens); !strings.Contains(r, "the sky is green") {
+			t.Errorf("the reader's own raise does not hold its envelope at its cap: %q", r)
+		}
+	})
 }
 
 // THE CHAIR'S BLOCKING ITEMS HOLD A PASS, NOT ITS SITTING: its envelope is refused on none of them.
