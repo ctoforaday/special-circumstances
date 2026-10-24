@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -41,6 +42,12 @@ func (b *stage) reopen(anchors ...string) *stage {
 		Text: proto.String("why"), Reopened: anchors})
 }
 
+// ingestCited ingests a report whose one sentence carries citation C-1 and the word reopen's edit
+// replaces, so the reopened citation is one a verify can reach (unverifiableIn).
+func (b *stage) ingestCited() *stage {
+	return b.add("harness", &recordpb.BaseIngest{Text: proto.String("# report\n\nThe claim stands before " + anchor.Token("C-1") + ".\n")})
+}
+
 // at is the events.id of the act last staged: the seed stores the acts in order from 1.
 func (b *stage) at() int64 { return int64(b.n) }
 
@@ -48,7 +55,7 @@ func (b *stage) at() int64 { return int64(b.n) }
 // citation it verified in its last sitting. The edit that reopens the citation is the test's.
 func reopenedBoard(t *testing.T, lenses ...string) *stage {
 	seats := append(append([]string{evLens}, lenses...), "red-chair", "blue-respond", "judge")
-	return newStage(t).cast(seats...).ingest().register("red-chair").
+	return newStage(t).cast(seats...).ingestCited().register("red-chair").
 		dispatch(2, evLens).register(evLens).cite("C-1").sit(2, evLens).supports(evLens, "C-1")
 }
 

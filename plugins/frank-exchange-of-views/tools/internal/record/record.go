@@ -1298,6 +1298,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
+			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
+				return err
+			}
 		}
 	case *recordpb.MotionRule:
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
@@ -1750,6 +1753,33 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row
+// (the sitting reading oncePerSittingSQL's).
+const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id"
+     WHERE e."seat_id" = ?1 AND c."gap_id" = ?2
+       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+     ORDER BY e."id" LIMIT 1`
+
+// requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
+// filed in the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an
+// obligation nobody can discharge). The motion docketing the gap again owes each party a closing on
+// it, and that sitting holds one closing per gap, so the filer's sitting could not end
+// (EnvelopeRefusal). It is filed in a later sitting.
+func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var closing int64
+	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID)
+	if err != nil || !found {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"%s already filed its closing on %s in this sitting (event %d), and a docket motion now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
+			"Nothing was recorded; file the docket motion in a later sitting",
+		seatID, gapID, closing, gapID)
 }
 
 // ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's

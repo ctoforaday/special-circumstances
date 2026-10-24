@@ -1,12 +1,9 @@
 package record
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // docketHeld is what holds the bench's current sitting open: every docket motion standing unruled
@@ -18,7 +15,7 @@ import (
 // bench's sitting for a gap on its NEWEST unruled filing (benchSatFor). A bench that rules one of two
 // has therefore sat for the other: no plan readies it again, and the run stalls with nobody ready
 // until the terminal sitting (#1557). So the sitting that sat for both owes both, and its envelope is
-// refused while either stands (BenchEnvelopeRefusal).
+// refused while either stands (benchHeld, EnvelopeRefusal).
 //
 // THE GAPS ARE THE ROWS THIS SITTING ANSWERS: each bench dispatch row convening a docket whose first
 // docket sitting after it is this one (benchRowSitting's rule). A motion on a gap no such row names
@@ -58,41 +55,49 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 	return gaps, motions
 }
 
-// heldMotionsSentence names each motion holding the sitting with the gap it is on.
-func heldMotionsSentence(motions []Blocker) string {
-	named := make([]string, 0, len(motions))
-	for _, b := range motions {
-		named = append(named, b.Subject+" (on "+b.About+")")
+// benchHeld is the unruled motions whose gavel is the bench's that its CURRENT sitting is convened
+// to rule, by the occasion that sitting's register states — the bench's blocking items, and so what
+// refuses its envelope (EnvelopeRefusal). Every other unruled bench motion waits for the sitting
+// convened for it, and is listed without blocking: the outcome refusal (requireBenchMotionsRuled)
+// still holds the run on it.
+//
+//   - docket: every docket motion on a gap the sitting is convened on (docketHeld).
+//   - petition: every petition filed before the sitting opened. One petition sitting hears a filing
+//     (benchReadiness), so a petition this sitting leaves is one no later plan convenes it for. A
+//     petition filed during the sitting waits for its own.
+//   - terminal and assemble: every one. The run's outcome is refused while any stands.
+//   - a bench that has not sat, or a sitting with no occasion, holds none.
+func benchHeld(evs []*Event, ids []int64, win WindowIndex) map[string]bool {
+	held := map[string]bool{}
+	opening := win.LatestSittingOf(benchSeat)
+	if opening == 0 {
+		return held
 	}
-	return strings.Join(named, ", ")
-}
-
-// BenchEnvelopeRefusal is the refusal of the bench's envelope while a docket motion stands unruled
-// on a gap its current sitting is convened on (docketHeld), naming each one; "" when nothing holds
-// the sitting, and for every other seat. The PreToolUse hook gives it to the seat as the denial of
-// the call that returns its envelope, so the sitting cannot end until each is ruled.
-func BenchEnvelopeRefusal(run Run, seatID string) (string, error) {
-	if seatID != benchSeat {
-		return "", nil
+	occasion := recordpb.Occasion_OCCASION_UNSPECIFIED
+	for o, at := range benchOccasionSittings(evs, ids, win) {
+		if slices.Contains(at, opening) {
+			occasion = o
+		}
 	}
-	var refusal string
-	err := readSnapshot(run, func(q recordsql.Querier) error {
-		if noRecord(q) {
-			return nil
+	switch occasion {
+	case recordpb.Occasion_OCCASION_DOCKET:
+		_, motions := docketHeld(evs, ids, win)
+		for _, b := range motions {
+			held[b.Subject] = true
 		}
-		evs, win, err := eventsAt(q)
-		if err != nil {
-			return err
+	case recordpb.Occasion_OCCASION_PETITION:
+		for _, b := range unruledMotionBlockers(evs, ids, win) {
+			subj, _ := MotionSubjectEnum(b.motionSubject)
+			if b.Owner == benchSeat && subj == recordpb.MotionSubject_MOTION_SUBJECT_PETITION && b.since < opening {
+				held[b.Subject] = true
+			}
 		}
-		gaps, motions := docketHeld(evs, win.IDs(evs), win)
-		if len(motions) == 0 {
-			return nil
+	case recordpb.Occasion_OCCASION_TERMINAL, recordpb.Occasion_OCCASION_ASSEMBLE:
+		for _, b := range unruledMotionBlockers(evs, ids, win) {
+			if b.Owner == benchSeat {
+				held[b.Subject] = true
+			}
 		}
-		refusal = fmt.Sprintf("your envelope is refused: this sitting is convened on %s, and %d docket motion(s) on it stand unruled — %s. "+
-			"The sitting cannot end while any stands: a motion you leave is one no later plan convenes you for. "+
-			"Rule each with `motion docket rule`, then return your envelope",
-			strings.Join(gaps, ", "), len(motions), heldMotionsSentence(motions))
-		return nil
-	})
-	return refusal, err
+	}
+	return held
 }

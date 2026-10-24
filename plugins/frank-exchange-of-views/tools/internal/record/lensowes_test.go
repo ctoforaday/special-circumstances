@@ -191,7 +191,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				}
 			}
 			// The owner's sitting after the edit lists it as blocking.
-			after := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingest().register("red-chair")
+			after := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingestCited().register("red-chair")
 			for _, l := range c.cast {
 				after.sit(2, l)
 			}
