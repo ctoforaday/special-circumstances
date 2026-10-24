@@ -2,7 +2,7 @@
 
 > STATUS (2026-10-24): proposed, not started; revised after audit round 1. Written against
 > `62fe337e` (`EventSchema` 37; 29 archived runs). Forks F1–F5 and rulings R-split, R-show, R-fs,
-> R-commit by gblock; N1–N2 open. Census ledger: `~/.claude/scratch/compute-plan/round2/census.tsv`.
+> R-commit, N1–N2 by gblock. Census ledger: `~/.claude/scratch/compute-plan/round2/census.tsv`.
 
 ## I. Summary & Goals
 
@@ -59,7 +59,7 @@ footnote. A shown block leaves the report as every anchor does: `edit` the sente
 | Part | Scope | Epoch |
 |---|---|---|
 | 1a | `prove` → `compute`; directory + argv; two-value basis; `K-` anchors | E1 |
-| 1b | `--input` (cited bytes, read-only); operator `rerun` re-fetches and verifies inputs | E2 |
+| 1b | `--input` (cited bytes, read-only); operator `archive rerun` re-fetches and verifies inputs | E2 |
 | 1c | `--show table\|image\|text` on `compute`; images exist only as shown blocks | E3 |
 | 2 | `--show image\|text` on `cite` | E4 |
 
@@ -75,7 +75,7 @@ E1–E4 are the next free epochs when each part lands.
 | S4 | 1a | A keyed retry restates every recorded flag or is refused; program, argv and inputs are in the sha | V1a.4 |
 | S5 | 1a | `reproduce` compares output, exit and `out/`; `RERUN_REPRODUCED` only when all three are equal | V1a.5 |
 | S6 | 1a | All 29 archives migrate with zero refusals; per-archive assertions of III.1.6 hold; 0 computations that re-ran from the old store fail from the migrated one | V1a.6 |
-| S7 | 1b | `--input C-…` materialises the cached bytes read-only at `sources/C-…`; the archive commits no source bytes; `rerun` on an extracted archive with no `cache/` re-fetches, verifies sha256, and re-runs — refusing loudly on mismatch | V1b.1–3 |
+| S7 | 1b | `--input C-…` materialises the cached bytes read-only at `sources/C-…`; the archive commits no source bytes; `archive rerun` on an extracted archive with no `cache/` re-fetches, verifies sha256, and re-runs — refusing loudly on mismatch | V1b.1–3 |
 | S8 | 1c | `--show table` renders the CSV under "*Table n.* R"; `--show image` embeds PNG/SVG under "*Figure n.* R" in report.md and (as `data:` URI) report.html; `--show text` inlines markdown refused where `edit` would refuse it | V1c.1 |
 | S9 | 1c | An image in authored text is refused at `edit` and `ingest` | V1c.2 |
 | S10 | 1c | Shown blocks appear in `show report --assembled --json`; the bare read carries the anchor only and says so | V1c.3 |
@@ -273,8 +273,8 @@ invariant.
 |---|---|
 | `compute --input C-…` (repeatable) [MODIFY] | the citation's cached bytes (`fetchcache.Read`) placed read-only at `sources/C-…` in each copy; id + sha256 enter `bundle_sha`. Refused: a citation not on the record, or bytes the cache does not hold |
 | `reproduce`, capture's audit [MODIFY] | materialise `sources/` the same way |
-| Archive [unchanged] | `ArchiveRecord` commits no `cache/` (`capture.go:2007`, R-commit): the record holds each citation's URL and sha256, never its bytes |
-| `feov-record rerun <runDir>` [NEW] (N1) | operator, for an extracted and migrated archive: re-fetch each input citation by its `url` (`fetchcache.Resolve`, paced), verify sha256 against the record — refuse loudly naming url, recorded sha and fetched sha — then re-run every computation (III.1.4) and print reproduced / differs / moved per computation; exit non-zero on any refusal or difference. Writes no event. `--citations` verifies every citation the same way (N2) |
+| Archive [MODIFY] | `ArchiveRecord` moves from `capture` into a package `archive` that owns the tarball format; `capture` calls it and still writes the tarball. It commits no `cache/` (`capture.go:2007`, R-commit): the record holds each citation's URL and sha256, never its bytes |
+| `feov-record archive rerun <runDir>` [NEW] (N1) | operator command group `archive` — acts on an archived run; `rerun` its one member. Input: an extracted archive brought to the current epoch by `migrate` (an older epoch is refused by `requireDeclaredSchema`, pointing to `migrate`): re-fetch each input citation by its `url` (`fetchcache.Resolve`, paced), verify sha256 against the record — refuse loudly naming url, recorded sha and fetched sha — then re-run every computation (III.1.4) and print reproduced / differs / moved per computation; exit non-zero on any refusal or difference. Writes no event. `--citations` verifies every citation the same way (N2) |
 | Help, prompts [MODIFY] | `compute --help`: inputs are citations, read at `sources/<id>`; blue-researcher source: compute from what you cited |
 | migrate | replay only: migrated computations hold no inputs |
 
@@ -296,7 +296,7 @@ invariant.
 | Change | Detail |
 |---|---|
 | `cite --show text` | the quoted span as a block quote; verification unchanged |
-| `cite --show image --page N --region x0,y0,x1,y1` | PDF: `pagerender` at its fixed resolution, cropped (fractions of the page); an image source: the whole image. Stored as a derived cache entry keyed (source sha, page, region, renderer) — in `cache/`, never committed (R-commit); `rerun` re-derives it from the re-fetched source |
+| `cite --show image --page N --region x0,y0,x1,y1` | PDF: `pagerender` at its fixed resolution, cropped (fractions of the page); an image source: the whole image. Stored as a derived cache entry keyed (source sha, page, region, renderer) — in `cache/`, never committed (R-commit); `archive rerun` re-derives it from the re-fetched source |
 | Evidence lens `verify` | reads the crop beside `render-page`'s render of the same page — fidelity at the leaf, no seat program between |
 | First test | `fetchcache` has no `image/*` branch (`grep 'image/' internal/fetchcache internal/cli/blue`: imports only); whether `cite` accepts an image source is measured before the verb is built |
 | migrate | replay only: migrated citations are not shown |
@@ -317,7 +317,7 @@ repository root; every hit's meaning read and recorded, one line per consumer, i
 | C6 | `grep -rn 'ast\.Image\|"!\[\|<img' --include=*.go tools \| grep -v _test` | `md.go:437` (+ a comment, `pdfextract.go:28`) | 1 | 1c |
 | C7 | `grep -nP '(?i:\bprove\b\|reproduce\|proof)' releasegate/fuzz/fuzz_test.go` | prove :1757 :2436 :2455 :2461 :2981 :6604; reproduce :1817 :3463 :3480 :6465; store :4577; bases :5390–:5391; `dirProveDrifts` :2656 (now passes `--variance`); "unjudged proof " :1919 :1942 | all | 1a; an `--input` action 1b; a `--show` action 1c |
 | C8 | `grep -rnP '"P-"\|P-…\|\bP-[0-9a-f]{4,8}\b\|\[\^P\|\bP-\b' --include=*.go tools` | 27 lines / 13 files non-test; 215 / 46 test | all | 1a (`anchor.Token("P-…")` in `flags/shapes.go:155,162,194`, `cli/seat/verbs.go:286,293,299`, `cli/lens/close.go:86`, `cli/lens/reproduce.go:144`, `record/refs.go:118`; `P-…` prose at `verbs.go:656,671`; `[^P` at `layout.go:580,591`, `report/notes.go:10–20`, `report/proofs.go:40,45`) |
-| C9 | names: `compute`, `computations`, `sources`, `rerun` across Go, md, js | `"compute"` only as a refused `--check-kind` spelling (`cli/checkkind_test.go:146`); `sources` = cited sources (`evidenceview.go:278`), the same sense; `rerun` = the `Rerun` enum and capture's re-run audit, the same concept | — | 1a–1b |
+| C9 | names: `compute`, `computations`, `sources`, `rerun`, `archive` across Go, md, js | `"compute"` only as a refused `--check-kind` spelling (`cli/checkkind_test.go:146`); `sources` = cited sources (`evidenceview.go:278`), the same sense; `rerun` = the `Rerun` enum and capture's re-run audit, the same concept ; `archive` has three senses — the run-archive tarball (`capture.go`, `run-archive/`: the group's sense), the web-archive fetch backend (`fetchcache/backends.go:41`, seat-facing `--via archive`) and the closed gaps the chair spot-checks (`record/spotcheck.go:43`). The group is operator-only and renders on no seat page (no seat constitution names `capture`), so neither seat-facing sense meets it | — | 1a–1b |
 
 Named consumers, meaning checked: `capture/capture.go:2006` (archive contents — changes, 1a);
 `capture.go:2007` (no `cache/` — R-commit keeps it true); `capture/proofrerun.go:155` (`Observed`/
@@ -336,10 +336,10 @@ kept true, §IV R8); `law/precedents.md:11–20` (a past run's facts and a human
 | R4 | Image bytes flap across machines (fonts, float, salted ids) | M × M × M | `SOURCE_DATE_EPOCH`, `MATPLOTLIBRC` with `svg.hashsalt` (III.1.2); toolchain sha explains a re-run's difference; `VARIANT` exists |
 | R5 | Inlined `text` smuggles process voice | M × M × L | It passes `edit`'s checks; the voice lens reads assembled text |
 | R6 | A caption overclaims its chart | M × M × M | Caption = `--reason`, judged against the image (1c help) |
-| R7 | **Filesystem residue (R-fs)** — see table below | M × M × H | Stated; `rerun` surfaces it from the archive; #1560 |
+| R7 | **Filesystem residue (R-fs)** — see table below | M × M × H | Stated; `archive rerun` surfaces it from the archive; #1560 |
 | R8 | **Redistribution (R-commit)** | L × H × L | No source bytes enter `run-archive/` (public): citations are URL + sha256; crops re-derived. Bundles and their `out/` are committed, as `proofs/` is today — a bundle could embed copied source text (≤ 1 MiB); the lens reads bundles |
-| R9 | **Link rot / moving sources** — a re-fetch 404s or returns other bytes | M × M × M | `rerun` refuses loudly per input; the computation is then not re-runnable from the archive, and says so — never a silent pass |
-| R10 | `rerun` re-fetching a whole archive breaks the fetch politeness contract | L × M × L | `fetchcache.Resolve`'s pacing; `--citations` is opt-in (N2) |
+| R9 | **Link rot / moving sources** — a re-fetch 404s or returns other bytes | M × M × M | `archive rerun` refuses loudly per input; the computation is then not re-runnable from the archive, and says so — never a silent pass |
+| R10 | `archive rerun` re-fetching a whole archive breaks the fetch politeness contract | L × M × L | `fetchcache.Resolve`'s pacing; `--citations` is opt-in (N2) |
 
 **What the two-path copy catches (R7):**
 
@@ -348,8 +348,8 @@ kept true, §IV R8); `law/precedents.md:11–20` (a past run's facts and a human
 | a bundle file | same | correct |
 | `../x` escaping the copy | different depths → different targets | moved → refused |
 | the run tree by relative path (`cache/…`) | missing in both | environment error or exit → refused |
-| `sources/C-…` (1b) | materialised in both | correct; verified from the archive by `rerun` |
-| the run tree by absolute path | the same file in both | **`REPRODUCIBLE` — residue**: fails from the archive, where `rerun` reports it |
+| `sources/C-…` (1b) | materialised in both | correct; verified from the archive by `archive rerun` |
+| the run tree by absolute path | the same file in both | **`REPRODUCIBLE` — residue**: fails from the archive, where `archive rerun` reports it |
 | the network | may agree | residue (R3) |
 
 ## V. Verification Plan
@@ -371,7 +371,7 @@ and flag change). Re-armed by: any edit under `plugins/frank-exchange-of-views/t
 | V1a.6 | migrate tests on the archives of III.1.6, each assertion row; then the round-1 probe (`audit-r1/probe.sh`) with its NEW arm pointed at each migrated `computations/<sha>/dir/` | a refusal, a failed assertion, or fewer than 107 reproducing |
 | V1a.7 | Delete-the-row: each pinned env var, each `remap` admission (`P-` in `hexID`, `archivedToken`, `[^Pn]`), each refusal arm — a test fails for each | a deletion leaves the suite green |
 | V1b.1 | `--input`: bytes at `sources/C-…`, read-only, in both copies; a citation not on the record / not cached → refused; a different input under the same key → Conflict | any |
-| V1b.2 | `rerun` on a fixture archive with no `cache/` against a local server: correct bytes → re-runs; changed bytes → refused naming url and both shas; 404 → refused | a pass on mismatch |
+| V1b.2 | `archive rerun` on a fixture archive with no `cache/` against a local server: correct bytes → re-runs; changed bytes → refused naming url and both shas; 404 → refused | a pass on mismatch |
 | V1b.3 | Real data: `scripts/universe.sh build`, grep the staged marketplace for `compute --input`, a smoke (`--smoke`) on a question with a CSV source; extract its archive to a clean scratch dir, `feov-record migrate`, `feov-record rerun` | any computation fails from the archive |
 | V1c.1 | Assembly goldens for each `Show`; report.html carries `data:image/` and no external `src`; delete each `Show` case → a test fails | a block missing, misnumbered, or external |
 | V1c.2 | `edit` and `ingest` adding `![x](y)` → refused; all 29 archives still migrate with zero refusals | accepted, or a migration refusal |
@@ -379,7 +379,7 @@ and flag change). Re-armed by: any edit under `plugins/frank-exchange-of-views/t
 | V1c.4 | Smoke as V1b.3 with `--show table` and `--show image`; read report.md and report.html | a figure or table absent |
 | V1c.5 | Keyed retry with a different `--show` → refused; `out/` with 0 or 2 files, a CSV cell holding a newline, an undecodable PNG → refused | any is recorded |
 | V2.1 | `cite --show image` crop equals a crop of `render-page`'s raster; `verify` reads both | differs |
-| V2.2 | `rerun` re-derives the crop from the re-fetched source; `run-archive/` holds no crop (`tar tzf`) | a crop is committed |
+| V2.2 | `archive rerun` re-derives the crop from the re-fetched source; `run-archive/` holds no crop (`tar tzf`) | a crop is committed |
 | V* | `/prosthetic-conscience:plan-audit plans/compute-and-show.md` | FAIL |
 
 ## Forks
@@ -394,6 +394,6 @@ and flag change). Re-armed by: any edit under `plugins/frank-exchange-of-views/t
 | R-split | One PR or several | **Ruled:** 1a / 1b / 1c / 2, each its own epoch and translation | One PR at one epoch |
 | R-show | Build `--show` | **Ruled:** yes — the displayed content is the output | Typed markdown tables |
 | R-fs | Filesystem sandbox | **Ruled:** not now; residue stated (R7); #1560 | Sandbox in 1a |
-| R-commit | Input bytes in `run-archive/` | **Ruled:** none; the archive commits the citation; `rerun` re-fetches and verifies | Commit cited bytes |
-| N1 | Home of the archive re-run (no operator command exists: `cli/proofrerun.go` is the in-re-run refusal) | Top-level operator `rerun <runDir>`, sharing capture's re-run audit — `rerun` is the record's word (`Rerun`) | A `capture` flag (capture needs transcripts an archive lacks); `ops` (its read-only contract is broken by running programs) |
-| N2 | `rerun --citations`: verify every citation, not only inputs | Ship in 1b, opt-in | Inputs only; citations later |
+| R-commit | Input bytes in `run-archive/` | **Ruled:** none; the archive commits the citation; `archive rerun` re-fetches and verifies | Commit cited bytes |
+| N1 | Home of the archive re-run (no operator command exists: `cli/proofrerun.go` is the in-re-run refusal) | **Ruled:** a group `archive`, member `archive rerun <runDir>`; `capture` stays top-level and writes the tarball through package `archive`, the format's one owner | ~~`capture` moved into `archive`~~ (capture closes a live run from its transcripts); ~~top-level `rerun`~~ |
+| N2 | `archive rerun --citations`: verify every citation, not only inputs | **Ruled:** ship in 1b, opt-in | Inputs only; citations later |
