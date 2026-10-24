@@ -8162,12 +8162,12 @@ const file_record_proto_rawDesc = "" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\xc1\x01\n" +
 	"\fVERDICT_PASS\x10\x01\x1a\xae\x01\x8a\xb5\x18\xa9\x01nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word\x12a\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\xf4\x04\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\x98\x06\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x86\x02\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xec\x01\x8a\xb5\x18\xe7\x01every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so\x12f\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xaa\x03\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x90\x03\x8a\xb5\x18\x8b\x03the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — and the derivation's reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
 	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
