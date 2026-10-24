@@ -421,7 +421,7 @@ A PROOF YOU JUDGE UNSOUND HOLDS THE PASS until it is judged sound again or retir
 
 FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented id fails here rather than resolving to nothing.
 
-ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
+ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from a red proposal — yours or another lens's — is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where the prescription sits beside the complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
 A REPLACEMENT IS VERIFIED BY THE RULE BLUE'S ACCEPT APPLIES IT WITH. The tool plans the edit blue's accept would make of your quote and your replacement — on the report as it stands, your gap's anchor at the end of the quote — and where the accept would refuse it, the mint is refused and nothing is recorded. A mint recorded `fix_basis: verified` is one the accept applies while the text around it stands. The accept moves the gap's and the findings' anchors at the sentence's end to the end of your replacement. Any other anchor in the span — a citation or a proof, which backs its sentence, or one inside the sentence — stays only where your replacement keeps its sentence word for word, or holds the anchor itself as `show report` prints it. Where neither is right, prescribe no replacement and state the fix as prose: it is recorded `proposed`.
 
@@ -761,7 +761,7 @@ Flags:
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
