@@ -30,6 +30,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -789,6 +790,9 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if s.SeatID == "" {
 		return s, feov.Errorf(feov.MissingField, "--seat-id is required (state it once at `register`; after that it is bound and read back for you)")
 	}
+	if err := requireOpenRecord(cmd, s); err != nil {
+		return s, err
+	}
 	if err := requireBound(cmd, s); err != nil {
 		return s, err
 	}
@@ -1148,4 +1152,35 @@ func SplitGroups(root *cobra.Command) {
 	// "Additional Commands:" heading of its own, which reads as a third category of seat surface
 	// rather than as the plumbing it is.
 	root.SetHelpCommandGroupID(GroupVerbs)
+}
+
+// requireOpenRecord asks the record whether it takes this verb's act at all — the run has ended, the
+// record holds an outcome, or an outcome is stamped outside the assembly sitting
+// (record.RequireSeatMayWrite) — BEFORE the verb's own checks run, and before register-first: a verb
+// that refuses on a check of its own first tells a seat after the outcome what else is wrong with
+// an act the run no longer takes (`lens close` on a computation gap with no proof was told to wait
+// for blue's proof). A verb that writes no event type has nothing to ask; the write asks again
+// under its lock.
+//
+// A register states its occasion here, as its flag: the bench's register for the assemble occasion
+// is the one register an outcome leaves open, so a crashed assembly sitting can resume.
+func requireOpenRecord(cmd *cobra.Command, s Context) error {
+	if cmd == nil {
+		return nil
+	}
+	typ, ok := recordpb.EventTypeOf(RecordType(cmd))
+	if !ok {
+		return nil
+	}
+	var body proto.Message
+	if typ == recordpb.EventType_EVENT_TYPE_REGISTER {
+		reg := &recordpb.Register{}
+		if f := cmd.Flags().Lookup(flags.Occasion); f != nil {
+			if occ, known := record.OccasionOf(f.Value.String()); known {
+				reg.Occasion = occ.Enum()
+			}
+		}
+		body = reg
+	}
+	return record.RequireSeatMayWrite(s.handle(), s.SeatID, typ, body)
 }

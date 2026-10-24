@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -31,7 +32,11 @@ import (
 // Best-effort and silent: the refusal is what the seat must see, and a failure to record it must
 // not replace it. A refusal to the operator, or on a run that did not resolve, records nothing.
 //
-// A REFUSAL AFTER THE RUN'S OUTCOME IS RECORDED LIKE ANY OTHER. The record refuses every seat act
+// A REFUSAL AFTER THE RUN HAS ENDED IS NOT RECORDED, AND THE CALLER IS TOLD SO. An ended run — one
+// capture closed (record.RunEnded) — takes no write, this entry included: the refusal still prints,
+// and a line beside it says the run has ended, unless the refusal already says it.
+//
+// A REFUSAL AFTER THE RUN'S OUTCOME IS RECORDED LIKE ANY OTHER, until the run ends. The record refuses every seat act
 // once it holds an outcome (record.requireOpenToSeats) and takes the log entry that says so: the act
 // a seat reached for after the run ended is friction the operator reads, and dropping it would hide
 // exactly the seat that did not know the run was over. Capture re-assembles the documents from the
@@ -52,6 +57,12 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	// Folded with SittingsOf's error, for the same reason: a refusal is logged on a record that can
 	// take it, and one that cannot be read now gets no entry rather than a second failure.
 	if n, err := record.SittingsOf(run, seatID); err != nil || n == 0 {
+		return
+	}
+	if ended, eerr := record.RunEnded(run); eerr != nil || ended {
+		if ended && !errors.Is(err, record.ErrRunEnded) {
+			fmt.Fprintln(cmd.ErrOrStderr(), "feov-record: the run has ended — it was captured — so this refusal is not recorded on its log")
+		}
 		return
 	}
 	var given []string

@@ -286,3 +286,11 @@ func registerSeatOnce(t *testing.T, runDir, seatID string) {
 		t.Fatalf("register %s: %v", seatID, err)
 	}
 }
+
+// sitToAssemble opens the bench's assembly sitting, the one sitting whose outcome the write takes.
+func sitToAssemble(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
+		t.Fatalf("registering the bench's assembly sitting: %v", err)
+	}
+}

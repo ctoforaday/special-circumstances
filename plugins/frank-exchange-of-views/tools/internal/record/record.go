@@ -215,6 +215,10 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 			"no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
+	// AN ENDED RUN TAKES NOTHING (ended.go), a register included.
+	if err := requireRunNotEnded(run); err != nil {
+		return 0, "", err
+	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
 	db, err := openRun(run)
@@ -713,6 +717,10 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
+	// AN ENDED RUN TAKES NOTHING (ended.go), asked before anything is opened.
+	if err := requireRunNotEnded(run); err != nil {
+		return nil, err
+	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -723,6 +731,12 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 		return nil, err
 	}
 	files := filesOf(run)
+	// THE RECORD'S OWN REFUSAL OF A SEAT ACT COMES BEFORE THE VERB'S GUARDS (outcomeclosed.go): an
+	// act after the outcome is told the run ended, not what a guard finds wrong with it. writeIn asks
+	// it again, which costs one query and keeps it first for the writers that hold no guards.
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
+		return ev, err
+	}
 	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
 		return ev, err
 	}
@@ -770,9 +784,11 @@ var WriteBegins = func() {}
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS (outcomeclosed.go), asked FIRST: an act after the
-	// run's end is told the run ended, not what else is wrong with it.
-	if err := requireOpenToSeats(tx, seatID, typ); err != nil {
+	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS, AND ITS OUTCOME IS THE ASSEMBLY SITTING'S
+	// (outcomeclosed.go), asked FIRST: an act after the outcome is told the run ended, not what else
+	// is wrong with it. appendAct asks it before its guards as well; this covers every other writer
+	// (RegisterSeat, DispatchNext, a migration's Batch).
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
 		return err
 	}
 	if check != nil {

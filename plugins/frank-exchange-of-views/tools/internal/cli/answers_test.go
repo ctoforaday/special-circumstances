@@ -459,6 +459,7 @@ func answerDrives() []answerDrive {
 		{name: "outcome", row: rowOutcome, helps: []string{"bench outcome"}, drive: func(d drive) {
 			// THE OUTCOME CLOSES THE RECORD TO SEAT ACTS (record.requireOpenToSeats): a second is refused,
 			// and the certification the row names is admitted after it.
+			d.admitted("the assembly sitting", "judge", "register", "--occasion", "assemble")
 			d.admitted("the outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "the first")
 			if r := d.refused("a second outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "this replaces my earlier one"); !strings.Contains(r, "the run has its outcome") {
 				d.t.Fatalf("a second outcome is refused, but not as the run's end: %s", r)

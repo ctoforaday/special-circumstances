@@ -1999,6 +1999,14 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 			return nil, "", false, werr
 		}
 	}
+	// THE RUN HAS ENDED (record.EndedMark), written after capture's last write to the record: from
+	// here the record takes nothing. A mark that could not be written is a failed capture, as an
+	// unclosed run-live row is, and the report says which.
+	if merr := record.MarkEnded(run, now.UTC().Format(time.RFC3339)); merr != nil {
+		report = strings.TrimRight(report, "\n") + "\n- the run's end could not be marked (" + merr.Error() + "): its record still takes writes\n"
+		_ = os.WriteFile(auditPath, []byte(report), 0o644)
+		exitFail = true
+	}
 	for _, a := range audits {
 		if a.Verdict == "FAIL" {
 			exitFail = true

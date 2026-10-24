@@ -69,3 +69,14 @@ func mustRefuse(t *testing.T, err error, wants ...string) {
 		}
 	}
 }
+
+// sitToAssemble opens the bench's assembly sitting — the one sitting whose outcome the write takes
+// (requireAssemblySitting).
+func sitToAssemble(t *testing.T, run Run) Identity {
+	t.Helper()
+	id := Identity{Run: run, SeatID: benchSeat}
+	if _, _, err := RegisterSeat(id, "", recordpb.Word(recordpb.Occasion_OCCASION_ASSEMBLE)); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}

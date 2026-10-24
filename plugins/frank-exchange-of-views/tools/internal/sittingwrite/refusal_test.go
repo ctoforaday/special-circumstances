@@ -2,6 +2,7 @@ package sittingwrite
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -98,5 +99,25 @@ func TestAHookEntryIsWrittenAfterTheOutcome(t *testing.T) {
 	}
 	if limits, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_SITTING_LIMIT); err != nil || len(limits) != 1 {
 		t.Errorf("the harness's sitting limit after the outcome: %d event(s), err %v; want 1", len(limits), err)
+	}
+}
+
+// AN ENDED RUN TAKES NO HOOK ENTRY, AND SAYS SO. Once capture has marked the run's end
+// (record.MarkEnded, which capture calls at its close), the hook's entry is refused loudly — the
+// error names the ended run — and nothing is written; so is the harness's sitting limit.
+func TestAHookEntryIsRefusedOnceTheRunHasEnded(t *testing.T) {
+	runDir := newRun(t)
+	registerAs(t, runDir, "agent-1", "red-lens-adversary")
+	if err := record.MarkEnded(mustRun(t, runDir), "2026-10-24T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist"); !errors.Is(err, record.ErrRunEnded) {
+		t.Errorf("a hook entry on an ended run = %v, want the ended run's refusal", err)
+	}
+	if err := WriteLimit(runDir, "agent-1", 1, 150); !errors.Is(err, record.ErrRunEnded) {
+		t.Errorf("the harness's sitting limit on an ended run = %v, want the ended run's refusal", err)
+	}
+	if evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG); err != nil || len(evs) != 0 {
+		t.Errorf("the ended run took %d log entr(ies) (err %v)", len(evs), err)
 	}
 }

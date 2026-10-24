@@ -422,7 +422,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			register("red-chair").register(evLens)
 	}
 	t.Run("an unruled petition refuses it, and its ruling clears it", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").seed()
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		judge := Identity{Run: run, SeatID: "judge"}
 		_, err := Append(judge, outcome())
 		if err == nil || !strings.Contains(err.Error(), "M1") || !strings.Contains(err.Error(), "M1 (petition, ruled by the bench seat)") {
@@ -442,7 +442,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
 			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
 		}
@@ -455,7 +455,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
 		if err == nil {
 			t.Fatal("outcome admitted over the bench's unruled motions")
@@ -483,7 +483,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).
 			add("judge", &recordpb.Halt{Opinion: proto.String("consent gate")}).seed()
 		halted := &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_HALTED.Enum(), Prose: proto.String("halted")}
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, halted); err != nil {
