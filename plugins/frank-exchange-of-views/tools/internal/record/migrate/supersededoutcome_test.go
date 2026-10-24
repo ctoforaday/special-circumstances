@@ -151,3 +151,26 @@ func TestASingleOutcomeIsKept(t *testing.T) {
 		t.Errorf("the migrated record holds %d outcome(s), the source %d; want one each", n, want)
 	}
 }
+
+// A CORRECTED OUTCOME IS READ AS ITS CHAIN'S HEAD (outcomes.go). The chain is written as its head at
+// its root's place, so when a later outcome supersedes it, the outcome the manifest says was dropped
+// is what that place would have written — the head's verdict — not the root's the seat corrected.
+func TestASupersededCorrectedOutcomeStatesItsHead(t *testing.T) {
+	var o oldStream
+	o.add("judge", "register", "judge:register:#1", map[string]any{"agent_id": "j1", "occasion": "assemble"})
+	o.add("judge", "outcome", "judge:outcome:#1", map[string]any{"verdict": "UNVERIFIED", "prose": "first stamp"})
+	o.add("judge", "outcome", "judge:outcome:#1~1", map[string]any{"verdict": "CEILING", "prose": "first stamp, corrected"})
+	o.add("judge", "correction", "judge:correction:judge:outcome:#1",
+		map[string]any{"corrects": "judge:outcome:#1", "replacement": "judge:outcome:#1~1", "why": "the ceiling held"})
+	o.add("judge", "register", "judge:register:#2", map[string]any{"agent_id": "j2", "occasion": "assemble"})
+	o.add("judge", "outcome", "judge:outcome:#2", map[string]any{"verdict": "UNVERIFIED", "prose": "second stamp"})
+
+	res, _ := replaySlice(t, o.evs, migrate.Options{})
+	if len(res.Refusals) != 0 {
+		t.Fatalf("refusals: %+v", res.Refusals)
+	}
+	want := migration.SupersededOutcome{OldID: 2, Seat: "judge", Verdict: "ceiling", SupersededBy: 6}
+	if len(res.SupersededOutcomes) != 1 || res.SupersededOutcomes[0] != want {
+		t.Errorf("the manifest states superseded outcomes %+v, want [%+v]: the chain's head, at its root's place", res.SupersededOutcomes, want)
+	}
+}
