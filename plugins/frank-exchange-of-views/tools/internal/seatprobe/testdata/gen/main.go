@@ -32,9 +32,11 @@ func main() {
 }
 
 func run() error {
+	// 18pt FITS THE SENTENCE ON THE PAGE. A line that runs past the page's edge is clipped in the
+	// raster, and the engine reads the clipped tail as noise, so the sentence's end is unquotable.
 	vector := pdf([]string{
 		"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-	}, "BT /F1 30 Tf 60 600 Td ("+seatprobe.ScannedFixtureSentence+") Tj ET", "/Font << /F1 3 0 R >>")
+	}, "BT /F1 18 Tf 60 600 Td ("+seatprobe.ScannedFixtureSentence+") Tj ET", "/Font << /F1 3 0 R >>")
 
 	pool, err := webassembly.Init(webassembly.Config{MinIdle: 1, MaxIdle: 1, MaxTotal: 1})
 	if err != nil {

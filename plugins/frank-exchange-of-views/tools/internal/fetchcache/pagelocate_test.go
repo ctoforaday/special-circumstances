@@ -28,7 +28,7 @@ func TestAQuoteOfARemovedLineIsRefusedAsRemovedNotAsAbsent(t *testing.T) {
 		t.Fatal(err)
 	}
 	doc := Entry{Sha: sha, ContentType: "application/pdf"}
-	if loc, err := LocateSourceSpan(run, doc, "Spot Welding 3.7"); err != nil || len(loc.Pages) != 1 || loc.Pages[0] != 2 {
+	if loc, err := LocateSourceSpan(run, doc, "Spot Welding 3.7 (2-6)"); err != nil || len(loc.Pages) != 1 || loc.Pages[0] != 2 {
 		t.Fatalf("a quote of the reading: %v, %v", loc, err)
 	}
 	_, err := LocateSourceSpan(run, doc, "ee  ee Fe")
