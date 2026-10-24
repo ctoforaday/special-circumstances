@@ -6,7 +6,7 @@
 //
 // The record-backed audits (telemetry, record-parity) read the record IN-PROCESS, never by
 // spawning `chair show`. A seat's log entries are on the record and nowhere else, so no audit
-// here reconciles a second copy of them: the log is read with `show log`.
+// here reconciles a second copy of them: the log is read with `ops log`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
 // promote nothing, indistinguishably from a run with nothing to promote.
