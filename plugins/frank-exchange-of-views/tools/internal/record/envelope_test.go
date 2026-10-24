@@ -210,6 +210,30 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 			t.Errorf("contested in prose, blue's envelope is admitted: %q", r)
 		}
 	})
+	t.Run("a retire this sitting that took its sentence out admits it; the sentence gone without one does not", func(t *testing.T) {
+		gone := func(b *stage) {
+			sev := recordpb.Grade_GRADE_LOW
+			b.add(evLens, &recordpb.Mint{GapId: proto.String("G9"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
+				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Location: proto.String("a sentence the report no longer holds"),
+				Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		}
+		run := newStage(t).cast(evLens, "red-chair", blueSeatID, "judge").ingest().register("red-chair").dispatch(2, evLens).register(evLens)
+		gone(run)
+		bare := run.register("red-chair").dispatch(3, blueSeatID, "G9").register(blueSeatID)
+		if r := refusalOf(t, bare.seed(), blueSeatID); !strings.Contains(r, "gap G9 was minted --check-kind computation") {
+			t.Fatalf("its sentence gone with no retire, blue's envelope is admitted: %q", r)
+		}
+		other := computation(t, "G1", func(b *stage) {
+			b.add(blueSeatID, &recordpb.Retire{Claim: proto.String("another sentence"), Reason: proto.String("cut")})
+		})
+		if r := refusalOf(t, other, blueSeatID); !strings.Contains(r, "gap G1 was minted --check-kind computation") {
+			t.Errorf("a retire that left the gap's sentence standing admits blue's envelope: %q", r)
+		}
+		retired := bare.more().add(blueSeatID, &recordpb.Retire{Claim: proto.String("a sentence the report no longer holds"), Reason: proto.String("cut")}).seed()
+		if r := refusalOf(t, retired, blueSeatID); r != "" {
+			t.Errorf("retired this sitting, blue's envelope is refused: %q", r)
+		}
+	})
 	t.Run("a motion blue files on it this sitting admits it, and the item stays listed", func(t *testing.T) {
 		run := computation(t, "G1", func(b *stage) {
 			b.add(blueSeatID, &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
