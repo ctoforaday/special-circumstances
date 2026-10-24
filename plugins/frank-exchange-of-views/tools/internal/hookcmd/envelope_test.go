@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
 // THE CALL THAT RETURNS A SEAT'S ENVELOPE IS DENIED WITH THE RECORD'S REFUSAL, from the whole
-// PreToolUse path, and only that call: the bench's docket sitting cannot end while a docket motion
-// on a gap it is convened on stands unruled, and the harness re-asks a seat whose envelope call is
-// refused.
+// PreToolUse path, and only that call: a seat's sitting cannot end while a blocking item on its own
+// work list stands, and the harness re-asks a seat whose envelope call is refused.
 func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	cwd, runDir, _ := limitRun(t, 1000)
 	refusal, checkErr := "", error(nil)
@@ -60,8 +60,14 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	if d, _ := pre(envelopeTool); d == "deny" {
 		t.Error("an envelope the record does not refuse was denied")
 	}
-	refusal, checkErr = "", errors.New("feov-sitting-write is not beside this hook")
-	if d, _ := pre(envelopeTool); d == "deny" {
-		t.Error("an envelope whose check could not run was denied — every sitting of the run would end in a null return")
+	// A CHECK THAT CANNOT RUN REFUSES, naming the error (an unreadable record refuses).
+	refusal, checkErr = "", errors.New("the run's record is not readable at /x: no such file")
+	if d, r := pre(envelopeTool); d != "deny" || !strings.Contains(r, "the run's record is not readable at /x: no such file") {
+		t.Errorf("an envelope whose check could not run was not refused naming the error: decision %q, reason %q", d, r)
+	}
+	// A refusal printed before the check failed (the log write) is the refusal that stands.
+	refusal, checkErr = "your envelope is refused: M2 (on G1)", errors.New("the log write failed")
+	if d, r := pre(envelopeTool); d != "deny" || r != refusal {
+		t.Errorf("a refusal beside a failed log was not the denial: decision %q, reason %q", d, r)
 	}
 }

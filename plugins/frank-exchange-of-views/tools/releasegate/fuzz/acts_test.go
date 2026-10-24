@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // EVERY ACT THE DRIVE ISSUES SAYS WHAT IT EXPECTS THE TOOL TO ANSWER, and the answer is read.
@@ -355,32 +356,35 @@ func (r *runner) chairFail(seatID string) (verdict, printed string) {
 	return "", ""
 }
 
-// The bench's envelope at its docket sitting, by what the record answered (benchEndRefused,
-// benchEnds).
+// Every seat's envelope, by what the record answered (envelopeEnds, envelopeRefusedEarly): keyed by
+// seat, lanes as one.
 var (
-	benchEndMu  sync.Mutex
-	benchEndRow = map[string]int{}
+	envelopeMu  sync.Mutex
+	envelopeRow = map[string]int{}
 )
 
-func noteBenchEnd(class string) {
-	benchEndMu.Lock()
-	defer benchEndMu.Unlock()
-	benchEndRow[class]++
+func noteEnvelope(seatID, class string) {
+	if strings.HasPrefix(seatID, seatclass.LaneSeatPrefix) {
+		seatID = seatclass.LaneSeatPrefix + "N"
+	}
+	envelopeMu.Lock()
+	defer envelopeMu.Unlock()
+	envelopeRow[seatID+": "+class]++
 }
 
-// benchEndReport renders the bench's envelope tally for the sweep's log.
-func benchEndReport() string {
-	benchEndMu.Lock()
-	defer benchEndMu.Unlock()
-	keys := make([]string, 0, len(benchEndRow))
-	for k := range benchEndRow {
+// envelopeReport renders the envelope tally for the sweep's log.
+func envelopeReport() string {
+	envelopeMu.Lock()
+	defer envelopeMu.Unlock()
+	keys := make([]string, 0, len(envelopeRow))
+	for k := range envelopeRow {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	var b strings.Builder
-	b.WriteString("the bench's envelope at its docket sitting, by what the record answered:")
+	b.WriteString("every seat's envelope, by what the record answered:")
 	for _, k := range keys {
-		fmt.Fprintf(&b, "\n  %s: %d", k, benchEndRow[k])
+		fmt.Fprintf(&b, "\n  %s: %d", k, envelopeRow[k])
 	}
 	return b.String()
 }

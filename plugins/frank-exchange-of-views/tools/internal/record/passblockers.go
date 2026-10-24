@@ -69,8 +69,9 @@ type Blocker struct {
 	since int64
 	// lastCheck is the events.id of a reopened anchor's latest check, which does not clear it.
 	lastCheck int64
-	// raisedBy is the finding that raised a contradiction, "" until one has.
-	raisedBy string
+	// raisedBy is the finding that raised a contradiction, "" until one has, and raiser the seat
+	// that recorded it.
+	raisedBy, raiser string
 	// answeredBy is the gap the judging lens minted about an unsound proof, "" until it has, and
 	// answeredAt that mint's events.id.
 	answeredBy string
@@ -564,7 +565,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
 	for _, c := range unansweredContradictions(evs, win) {
-		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy})
+		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy, raiser: c.raiser})
 	}
 	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE CAST SEATS ITS OWNER. A blocker whose owner
 	// cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence` lists the

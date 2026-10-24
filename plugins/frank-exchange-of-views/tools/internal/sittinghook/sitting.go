@@ -105,7 +105,7 @@ func Envelope(runDir, agentID string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, stderr.String())
+		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }
