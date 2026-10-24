@@ -945,15 +945,24 @@ func (r *runner) dischargeOwed(seatID string) {
 // the work list names, which reopens the proof for a fresh judgement (record.BlockerUnsoundProof
 // stands no longer; the judging lens's sitting after the edit owes the reopened check).
 func (r *runner) fixUnsound(seatID string) {
-	bs, err := record.PassBlockers(r.runHandle)
-	if err != nil {
-		r.noteActErr("the blockers could not be read to say which unsound proofs " + seatID + " owes a fix: " + err.Error())
-		return
-	}
+	// ONE PROOF AT A TIME, FROM THE BLOCKERS AS THEY STAND AFTER THE LAST FIX: an edit of a sentence
+	// reopens every proof on it, so a proof read before it may stand no longer.
 	fixed := map[string]bool{}
-	for _, b := range bs {
-		if b.Kind != record.BlockerUnsoundProof || fixed[b.Subject] {
-			continue
+	for {
+		bs, err := record.PassBlockers(r.runHandle)
+		if err != nil {
+			r.noteActErr("the blockers could not be read to say which unsound proofs " + seatID + " owes a fix: " + err.Error())
+			return
+		}
+		var b record.Blocker
+		for _, x := range bs {
+			if x.Kind == record.BlockerUnsoundProof && !fixed[x.Subject] {
+				b = x
+				break
+			}
+		}
+		if b.Subject == "" {
+			return
 		}
 		fixed[b.Subject] = true
 		cur, err := reportproj.RenderFromRecord(r.run())
@@ -2728,8 +2737,14 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 				return ""
 			}
 		}
-		landedArgs = distinct(args)
-		out, err = r.exec(landedArgs...)
+		// AGAIN WHILE THE BOARD MOVES UNDER IT: every lens mints concurrently, and a gap minted between
+		// the board read and the write is one this mint has not named distinct.
+		for try := 0; try < 3; try++ {
+			landedArgs = distinct(args)
+			if out, err = r.exec(landedArgs...); err == nil || !strings.Contains(out, "already holds an open gap") {
+				break
+			}
+		}
 	}
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
