@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A SEAT THAT TYPED THE RECORD'S WORD IS TOLD THE FLAG'S, and only when that is actually true.
@@ -152,5 +154,44 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 				t.Errorf("the refused calls wrote %d %s event(s) — a flag the verb does not have must not reach the verb", n, tc.writes)
 			}
 		})
+	}
+}
+
+// A VERB'S FLAG TYPED BEFORE THE VERB IS NAMED AS THAT, and the call is refused, not reordered. On
+// the #1565 smoke an adversary lens typed `--key adv-f-tldr finding …` five times in one call; the
+// command name is read at the first word that is no flag's, so "adv-f-tldr" was the command, and each
+// refusal said "no command named adv-f-tldr exists … there is no seat to switch to" above the whole
+// surface's help — naming neither the flag nor the word it had taken as the name.
+func TestAVerbsFlagBeforeTheVerbIsNamedAndRefused(t *testing.T) {
+	runDir := seatRun(t)
+	registerLensOnce(t, runDir)
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
+
+	out, err := run(t, "--run", runDir, "--seat-id", lensSeat, "--key", "adv-f-tldr", "finding",
+		"--quote", "x", "--reason", "y")
+	if err == nil {
+		t.Fatal("a verb's flag before the verb was accepted — the tool chose which verb it belonged to")
+	}
+	msg := err.Error() + out
+	for _, want := range []string{
+		"--key came before the verb",
+		`"adv-f-tldr", was read as the command name`,
+		"`finding`", // a verb on this surface that takes --key, read from the tree
+		"Nothing ran.",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal does not say %q:\n%s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "no seat to switch to") || strings.Contains(msg, "Usage:") {
+		t.Errorf("the refusal still answers as an unknown command, or prints the whole surface:\n%s", msg)
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING); n != before {
+		t.Errorf("a refused call recorded a finding (%d -> %d)", before, n)
+	}
+
+	// A WORD AFTER A ROOT FLAG'S VALUE IS STILL A COMMAND NAME, and an unknown one is still told so.
+	if _, err := run(t, "--run", runDir, "--seat-id", lensSeat, "banana"); err == nil || !strings.Contains(err.Error(), `no command named "banana"`) {
+		t.Errorf("an unknown command after root flags is not refused as one: %v", err)
 	}
 }
