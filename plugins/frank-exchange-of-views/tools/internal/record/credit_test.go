@@ -101,6 +101,15 @@ func TestACreditAnswersARaiseWithTheOpenGap(t *testing.T) {
 	if !slices.Equal(foundBy, []string{"F-00000001", "F-00000003"}) {
 		t.Errorf("G-00000001's found_by on the board = %v, want the two credited findings in order", foundBy)
 	}
+	fam, err := FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := fam.Gap("G-00000001"); g == nil {
+		t.Error("the gap family holds no G-00000001")
+	} else if !slices.Equal(g.FoundBy(), []string{"F-00000001", "F-00000003"}) {
+		t.Errorf("the gap family's G-00000001 is found by %v, want the two credited findings — the report's provenance and verify read it", g.FoundBy())
+	}
 	raw, err := FindingsJSONBytes(run)
 	if err != nil {
 		t.Fatal(err)
