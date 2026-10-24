@@ -427,7 +427,7 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 ## contradiction
 
-A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
+A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a gap answers it — the gap minted from the finding that raised it by its id, or an open gap that finding's lens credits with it — or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
 
 **Delivered to:** lens, chair
 
@@ -454,7 +454,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns, no gap owed about a proof it judged unsound — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
 
 **Delivered to:** lens, chair, operator
 

@@ -461,7 +461,9 @@ func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify
 //     --about <id>`), and nothing else: a finding whose quote contains the claim raises nothing.
 //     The raise covers every reading joined so far. A reading of the claim after the finding opens
 //     a NEW contradiction with its own id: the raise was of what had been read.
-//   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding.
+//   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding, or
+//     an open gap the raising lens credits with it (credit) — the gap the board already holds for
+//     that defect, which the duplicate screen refuses to mint again (gblock, 2026-10-24).
 //     A source that contradicts or is silent on a claim is a citation defect, and citation classes
 //     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
 //     finding alone — which holds no gate and obliges nobody — does not discharge it. The gap's
@@ -516,6 +518,12 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 					c.answeredBy = b.GetGapId()
 				}
 			}
+		case *recordpb.Credit:
+			for _, c := range out {
+				if c.raisedBy != "" && c.answeredBy == "" && b.GetFoundBy() == c.raisedBy {
+					c.answeredBy, c.credited = b.GetGapId(), true
+				}
+			}
 		}
 	}
 	res := make([]contradiction, len(out))
@@ -550,7 +558,7 @@ func ContradictionOfReading(run Run, reading *Event) (*ReadingContradiction, err
 	} else if !found {
 		return nil, fmt.Errorf("the reading keyed %q is not on the record, so which contradiction it opened or joined cannot be read", reading.GetKey())
 	}
-	evs, win, err := eventsOfAt(db, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	evs, win, err := eventsOfAt(db, contradictionActs...)
 	if err != nil {
 		return nil, err
 	}
@@ -576,7 +584,7 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	if _, err := strconv.ParseInt(ref, 10, 64); err != nil {
 		return fmt.Errorf("--about %q is not a contradiction's id: it is the number `show evidence` lists as the `id` of each of its unanswered_contradictions", ref)
 	}
-	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	evs, win, err := eventsOfAt(q, contradictionActs...)
 	if err != nil {
 		return err
 	}
@@ -584,9 +592,9 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
 		switch {
 		case c.idWord() == ref && c.answeredBy != "":
-			return fmt.Errorf("contradiction %s is already answered, by gap %s minted from finding %s: a source read against the claim after it opens a new one with its own id", ref, c.answeredBy, c.raisedBy)
+			return fmt.Errorf("contradiction %s is already answered, by gap %s, which credits finding %s: a source read against the claim after it opens a new one with its own id", ref, c.answeredBy, c.raisedBy)
 		case c.idWord() == ref && c.raisedBy != "":
-			return fmt.Errorf("contradiction %s is already raised, by finding %s: one finding raises a contradiction, and the gap minted from it answers it — mint it with `--found-by %s`", ref, c.raisedBy, c.raisedBy)
+			return fmt.Errorf("contradiction %s is already raised, by finding %s: one finding raises a contradiction, and a gap crediting that finding answers it — the finding's lens mints that gap with `--found-by %s`, or credits the open gap that already holds its defect with `credit --id <the gap> --found-by %s`", ref, c.raisedBy, c.raisedBy, c.raisedBy)
 		case c.idWord() == ref:
 			return nil
 		case c.raisedBy == "":
@@ -637,13 +645,24 @@ func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 // that reading sits, which is when the lens came to owe it. anchor is the citation the opening
 // reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it and
 // raiser the seat that recorded that finding; answeredBy is the id of the gap minted from that
-// finding.
+// finding or credited with it.
 type contradiction struct {
 	id                           int64
 	claim, opener, reader        string
 	anchor, raisedBy, answeredBy string
 	raiser                       string
 	since                        int64
+	// credited says the answering gap was credited with the raising finding rather than minted
+	// from it: the gap was on the board, and its mint already counted, before it answered.
+	credited bool
+}
+
+// contradictionActs is the event types contradictionsOf folds: the readings that open, the findings
+// that raise, and the mints and credits that answer. Every reader of the fold reads these, so a
+// type that answers cannot be read by one reader and missed by another.
+var contradictionActs = []recordpb.EventType{
+	recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_CREDIT,
 }
 
 // idWord is the contradiction's id as every surface spells it: decimal, the `--about` value.

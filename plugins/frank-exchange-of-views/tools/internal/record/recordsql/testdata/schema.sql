@@ -95,6 +95,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s s
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'red closing a gap on a verified repair — red''s half of the closing vocabulary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a party''s argument to the bench on one docketed gap — its minting lens''s or blue-respond''s');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('credit', 'a lens crediting an open gap with its own finding that raised a contradiction — the gap''s found_by gains the finding, and the gap answers the contradiction as a gap minted from it would');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
@@ -272,9 +273,10 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL,
   "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor', 1);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('proof', 'a proof, by its anchor, whose sentence was judged unsound', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
 
 CREATE TABLE "enum_check_kind" (
@@ -908,6 +910,14 @@ CREATE TABLE "stale" (
   FOREIGN KEY ("through") REFERENCES "events"("id")
 ) STRICT;
 
+CREATE TABLE "credit" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "gap_id" TEXT NOT NULL,
+  "found_by" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
+  FOREIGN KEY ("found_by") REFERENCES "finding"("id")
+) STRICT;
+
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
@@ -1307,6 +1317,22 @@ JOIN "motion_docket" md ON md."event_id" = mo."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
+-- THE FINDINGS A GAP IS FOUND BY: the ones its mint named, then each finding a lens CREDITED to it
+-- since (credit), in the order the credits landed. Keyed on the gap's mint event, the key its mint's
+-- own rows carry, so a reader of a gap's found_by reads this and gets both arms; reading
+-- "mint_found_by" alone drops every credit and prints a gap that answers a contradiction as one that
+-- answers nothing.
+CREATE VIEW "gap_found_by" AS
+SELECT f."event_id" AS "event_id", f."ord" AS "ord", f."value" AS "value"
+FROM "mint_found_by" f
+UNION ALL
+SELECT m."event_id",
+  (SELECT count(*) FROM "mint_found_by" x WHERE x."event_id" = m."event_id")
+    + (SELECT count(*) FROM "credit" p WHERE p."gap_id" = c."gap_id" AND p."event_id" < c."event_id"),
+  c."found_by"
+FROM "credit" c
+JOIN "mint" m ON m."gap_id" = c."gap_id";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
 -- materiality rule, which convergence_at reads at every other point of the record.
@@ -1406,7 +1432,7 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  (SELECT count(*) FROM "gap_found_by"    f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
   -- silently reads a number a regrade may have moved, which is why the overlay is answered here

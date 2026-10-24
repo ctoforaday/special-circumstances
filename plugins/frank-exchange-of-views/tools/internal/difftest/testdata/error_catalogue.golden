@@ -290,6 +290,7 @@ Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
   closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
   corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
+  credit      answer a contradiction your finding raised with the open gap that already holds its defect
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help        Help about any command

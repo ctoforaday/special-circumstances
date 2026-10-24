@@ -93,6 +93,9 @@ func requiredProbes() map[string]requiredProbe {
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
+	// credit runs clean only where the lens raised a contradiction and an open gap holds its defect,
+	// which the act fixture does not stage; the record's tests drive it whole (credit_test.go).
+	probes["lens credit"] = requiredProbe{seat: lensSeat, fullIsRefused: true, args: fixed("credit", "--id", "G1", "--found-by", "F-00000001")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
