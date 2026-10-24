@@ -108,11 +108,15 @@ func TestTheWholeReportServedToALensIsRecordedAndNothingElseIs(t *testing.T) {
 	}
 }
 
-// A READ AFTER THE RUN'S OUTCOME SERVES THE REPORT AND RECORDS NOTHING: the record takes no act once
-// the run has ended.
+// A READ AFTER THE RUN'S OUTCOME SERVES THE REPORT AND RECORDS NOTHING: the record takes no seat
+// act once the run has its outcome, and a read is not one. Once the run is captured it is served
+// too, and still records nothing.
 func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, servedReport)
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, "", "assemble"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"},
 		&recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("ended")}); err != nil {
 		t.Fatal(err)
@@ -123,6 +127,16 @@ func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 	}
 	if got := readsOf(t, runDir); len(got) != 0 {
 		t.Errorf("a read after the outcome recorded %+v", got)
+	}
+	if err := record.MarkCaptured(runtest.Open(t, runDir), "2026-10-24T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat)
+	if err != nil || out != readReport(t, runDir) {
+		t.Fatalf("a read after the capture = %q, %v; want the report", out, err)
+	}
+	if got := readsOf(t, runDir); len(got) != 0 {
+		t.Errorf("a read after the capture recorded %+v", got)
 	}
 }
 

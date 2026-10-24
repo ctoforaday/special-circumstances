@@ -97,6 +97,9 @@ func (l *Landing) Verdict() (verdict, why string, ok bool, err error) {
 	return verdictOf(l.w.files, r)
 }
 
+// Outcome is RecordedOutcome asked of the landing record.
+func (l *Landing) Outcome() (string, error) { return recordedOutcomeAt(l.w.q) }
+
 // Prescription is the location and text gapID's mint recorded, as the landing record holds them.
 func (l *Landing) Prescription(gapID string) (loc, fix string, found bool, err error) {
 	return prescriptionAt(l.w.q, gapID)

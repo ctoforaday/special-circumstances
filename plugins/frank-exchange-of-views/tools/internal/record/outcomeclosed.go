@@ -27,6 +27,8 @@ import (
 //   - every log entry: the channel friction travels on, the tool's refusal entries included, so the
 //     refusal this check gives is itself recorded. A log is bookkeeping, not an act
 //     (sittingRecordedNothing reads it the same way);
+//   - a lens's whole-report read (ServeReport): a read, not an act — after the outcome the text is
+//     served and the read records nothing (ErrWritesNothing), so the run's record does not move;
 //   - the bench's declare and certify: the assembly sitting stamps the outcome FIRST and then states
 //     its holdings and what a human should re-examine before it assembles (debate.js, the assembly
 //     prompt) — every archived run with an outcome holds one or both after it.
@@ -71,7 +73,7 @@ func closedAtTheOutcome(seatID string, typ recordpb.EventType, body proto.Messag
 	switch {
 	case seatID == HarnessSeat:
 		return false
-	case typ == recordpb.EventType_EVENT_TYPE_LOG:
+	case typ == recordpb.EventType_EVENT_TYPE_LOG, typ == recordpb.EventType_EVENT_TYPE_REPORT_READ:
 		return false
 	case role == benchRole && (typ == recordpb.EventType_EVENT_TYPE_DECLARE || typ == recordpb.EventType_EVENT_TYPE_CERTIFY):
 		return false
