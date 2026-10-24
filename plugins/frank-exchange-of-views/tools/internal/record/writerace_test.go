@@ -125,7 +125,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			name: "the outcome while a party petitions the bench",
 			stage: func(t *testing.T) Run {
 				return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-					register("red-chair").register(evLens).register("judge").seed()
+					register("red-chair").register(evLens).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 			},
 			acts: func(t *testing.T) []*Event {
 				return []*Event{recordtest.At(t, "blue-respond", "race:motion:M7", petitionMotion("M7"))}

@@ -171,6 +171,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if v, err := RecordedOutcome(run); err != nil || v != "" {
 		t.Errorf("RecordedOutcome before any outcome = (%q, %v), want the honest empty", v, err)
 	}
+	sitToAssemble(t, run)
 	if _, err := Append(judge, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED),
 		Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)

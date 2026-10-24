@@ -75,6 +75,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 
 	t.Run("on a record that holds an outcome the answer names it, and says there is nothing to resume", func(t *testing.T) {
 		runDir := seatRun(t)
+		sitToAssemble(t, runDir)
 		if _, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended before a terminal state"); err != nil {
 			t.Fatalf("recording an outcome: %v", err)
 		}

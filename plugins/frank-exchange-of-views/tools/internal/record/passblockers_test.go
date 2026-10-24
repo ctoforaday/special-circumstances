@@ -422,7 +422,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			register("red-chair").register(evLens)
 	}
 	t.Run("an unruled petition refuses it, and its ruling clears it", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").seed()
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		judge := Identity{Run: run, SeatID: "judge"}
 		_, err := Append(judge, outcome())
 		if err == nil || !strings.Contains(err.Error(), "M1") || !strings.Contains(err.Error(), "M1 (petition, ruled by the bench seat)") {
@@ -485,7 +485,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).
 			add("judge", &recordpb.Halt{Opinion: proto.String("consent gate")}).seed()
 		halted := &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_HALTED.Enum(), Prose: proto.String("halted")}
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, halted); err != nil {
