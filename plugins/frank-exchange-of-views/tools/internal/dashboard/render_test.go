@@ -87,11 +87,13 @@ func fixtureRunDir(t *testing.T) string {
 // completions) — the .golden file is the review surface. The one invariant kept explicit is
 // negative: a complete run must NOT show the projected-remaining tile, and a golden regen must
 // not silently accept its return.
-func TestRenderHTMLTerminal(t *testing.T) {
+func terminalModel(t *testing.T, live record.LiveState) Model {
+	t.Helper()
 	runDir := fixtureRunDir(t)
 	m := baseModel(t, runDir)
 	m.Terminal = true
 	m.TerminalVerdict = "VERIFIED"
+	m.Live = record.Liveness{State: live}
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS"}`},
@@ -100,12 +102,46 @@ func TestRenderHTMLTerminal(t *testing.T) {
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
 	m.CostRows = []CostRow{{Epoch: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}
-	h := RenderHTML(m)
+	return m
+}
 
+// A CAPTURED RUN WITH AN OUTCOME is complete: a seat with no stop did not finish.
+func TestRenderHTMLTerminal(t *testing.T) {
+	h := RenderHTML(terminalModel(t, record.StateEnded))
 	if strings.Contains(h, "projected remaining") {
 		t.Error("terminal run must not show the projected-remaining tile")
 	}
 	goldentest.Assert(t, "render-terminal", h)
+}
+
+// AN OUTCOME IS NOT THE RUN'S END. Between the outcome and the capture the bench is assembling, so
+// the page says the run is decided and not captured, and a seat with no stop is not called one that
+// did not finish — it may be the assembly sitting at work.
+func TestRenderHTMLDecidedNotCaptured(t *testing.T) {
+	h := RenderHTML(terminalModel(t, record.StateLive))
+	for _, refused := range []string{"run complete", "did not finish"} {
+		if strings.Contains(h, refused) {
+			t.Errorf("a decided run not yet captured reads %q", refused)
+		}
+	}
+	goldentest.Assert(t, "render-decided", h)
+}
+
+// CAPTURED WITHOUT AN OUTCOME: the run stopped before the bench decided it, and nothing runs now.
+func TestRenderHTMLCapturedWithoutAnOutcome(t *testing.T) {
+	m := terminalModel(t, record.StateEnded)
+	m.Terminal, m.TerminalVerdict = false, ""
+	h := RenderHTML(m)
+	for _, want := range []string{"Seats — captured without an outcome", "run complete — captured", "did not finish"} {
+		if !strings.Contains(h, want) {
+			t.Errorf("a run captured without an outcome does not say %q", want)
+		}
+	}
+	for _, refused := range []string{"Seats live now", "running "} {
+		if strings.Contains(h, refused) {
+			t.Errorf("a captured run reads %q", refused)
+		}
+	}
 }
 
 // LIVE fixture: no report.md → ETA running + running-minutes + n× live-seat collapse. The golden
@@ -242,5 +278,25 @@ func TestTheDashboardCountsClaimsFromTheReport(t *testing.T) {
 	}
 	if h := RenderHTML(bare); !strings.Contains(h, "<b>not measured</b><span>blue claims</span>") {
 		t.Errorf("the page does not say the claim count is not measured")
+	}
+}
+
+// THE MODEL READS ENDED FROM THE CAPTURE MARK, NOT FROM THE OUTCOME. A run whose bench recorded its
+// outcome is Terminal — decided — and not ENDED until capture marks it.
+func TestTheModelReadsEndedFromTheCaptureMark(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir, recordtest.At(t, "judge", "judge:outcome:1", &recordpb.Outcome{
+		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Prose: proto.String("nobody was ready"),
+	}))
+	run := runtest.Open(t, dir)
+	m := BuildModel(run, t.TempDir(), Config{}, 0)
+	if !m.Terminal || m.Live.State == record.StateEnded {
+		t.Fatalf("a decided run not yet captured: Terminal %v, Live %s — want Terminal and not ENDED", m.Terminal, m.Live.State)
+	}
+	if err := record.MarkEnded(run, "2026-10-24T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if m := BuildModel(run, t.TempDir(), Config{}, 0); m.Live.State != record.StateEnded {
+		t.Errorf("a captured run: Live %s, want ENDED", m.Live.State)
 	}
 }

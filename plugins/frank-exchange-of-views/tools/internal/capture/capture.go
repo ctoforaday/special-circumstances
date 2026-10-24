@@ -139,11 +139,14 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 		// detail carries the read error so the operator sees what could not be read.
 		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — the record could not be read: " + err.Error()}
 	}
-	l := record.Assess(run, now, verdict != "")
 	if verdict != "" {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
 			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
 	}
+	// THE RECORD'S ACTIVITY, NOT THE RUN'S DISPOSITION: this audit runs before capture writes the
+	// mark that ends the run, and again on a run captured before, and either way it asks whether the
+	// record stopped moving before anyone captured it.
+	l := record.AssessActivity(run, now)
 	switch l.State {
 	case record.StateStale:
 		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
@@ -1999,7 +2002,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 			return nil, "", false, werr
 		}
 	}
-	// THE RUN HAS ENDED (record.EndedMark), written after capture's last write to the record: from
+	// THE RUN HAS ENDED (runlive.EndedMark), written after capture's last write to the record: from
 	// here the record takes nothing. A mark that could not be written is a failed capture, as an
 	// unclosed run-live row is, and the report says which.
 	if merr := record.MarkEnded(run, now.UTC().Format(time.RFC3339)); merr != nil {

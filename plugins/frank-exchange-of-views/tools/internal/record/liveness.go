@@ -149,13 +149,26 @@ func staleThreshold(events []*Event) (time.Duration, string, bool) {
 	return d, basis, true
 }
 
-// Assess is the whole verdict. `ended` is the caller's answer to "has capture run" — the one
-// fact the record cannot supply, because it is about the run's disposition rather than its
-// contents.
-func Assess(run Run, now time.Time, ended bool) Liveness {
+// Assess is the whole verdict. ENDED comes from the one source of that fact, the mark capture
+// writes at its close (RunEnded) — never from an outcome on the record, which says the bench has
+// decided the run while its assembly sitting and its capture may both still be ahead. A run that is
+// not ENDED is judged by its record's own activity (AssessActivity).
+func Assess(run Run, now time.Time) Liveness {
+	ended, err := RunEnded(run)
+	if err != nil {
+		return Liveness{State: StateUnmeasured, Basis: err.Error()}
+	}
 	if ended {
 		return Liveness{State: StateEnded, Basis: "the run was captured"}
 	}
+	return AssessActivity(run, now)
+}
+
+// AssessActivity is the record's own answer, LIVE, STALE or NOT MEASURED, and never ENDED: whether
+// the record is still moving, whatever the run's disposition. Capture asks it of a run it is
+// capturing — a run whose mark it has not yet written, or one it is capturing again — because its
+// question is whether the run stopped writing before anyone captured it.
+func AssessActivity(run Run, now time.Time) Liveness {
 	// ONE read of the record for both questions. This read the whole stream twice — once for
 	// the newest event, once for the cadence — and the two reads could even disagree if an
 	// event landed between them.

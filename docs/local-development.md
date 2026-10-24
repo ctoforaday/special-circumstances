@@ -242,7 +242,9 @@ env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u 
 
 **A run-live marker claims every subagent in its project.** While `.claude/run-live.json` names a
 live run — one whose directory exists and whose outcome is not yet recorded — the SubagentStart/Stop
-hooks attribute every subagent in that project to it, a dev session's included. Run the engine from
+hooks attribute every subagent in that project to it, a dev session's included. Between the outcome
+and the capture they still attribute every `lead-judge` subagent, the bench's assembly sitting's
+configuration, and once capture has run they attribute nothing. Run the engine from
 its own source tree (a detached worktree), never from the worktree you develop in. `setup` refuses a
 second live run in one project, and prunes the rows of runs that are no longer live.
 
