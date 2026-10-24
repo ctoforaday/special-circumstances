@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // remandDirection is the research direction the bench's remand states.
@@ -23,11 +24,16 @@ func remandRuling(motion, direction string) *recordpb.MotionRule {
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}
 }
 
-// sitClosed is one complete sitting of seat: its register, and the stop the SubagentStop hook
-// records when its agent returns, so the exchange fold can close it without the seat sitting again.
+// sitClosed is one complete sitting of seat: its register, the whole report served to it where it is a
+// lens, and the stop the SubagentStop hook records when its agent returns, so the exchange fold can
+// close it without the seat sitting again.
 func (b *stage) sitClosed(seat string) *stage {
 	agent := fmt.Sprintf("%s-agent-%d", seat, b.n+1)
-	return b.registerAs(seat, agent).stop(agent)
+	b.registerAs(seat, agent)
+	if seatclass.RoleOfSeat(seat) == "lens" {
+		b.served(seat, b.head())
+	}
+	return b.stop(agent)
 }
 
 // exchangeOn is one exchange on gap: the chair engages the minting lens and blue, and each sits

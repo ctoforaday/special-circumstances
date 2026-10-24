@@ -15,7 +15,7 @@ import (
 // the cast (so no lens is ready) and graded by moves: each regrades one gap's severity.
 func movedBoard(t *testing.T, moves ...[2]string) *stage {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+		dispatch(2, evLens).register(evLens).sit(2, evLens)
 	b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
 	b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 	for _, m := range moves {

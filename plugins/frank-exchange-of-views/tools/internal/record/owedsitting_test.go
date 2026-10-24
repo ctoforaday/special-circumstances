@@ -44,8 +44,8 @@ func planNames(p Plan, seat string) bool {
 // leaving without registering — so it never sat, its state never moved, and dispatch readied it again.
 func b5Shape(t *testing.T) *stage {
 	return newStage(t).cast(voiceLens, "red-chair", "blue-respond", "judge").ingest(). // head 2
-												register("red-chair").dispatch(2, voiceLens).register(voiceLens).logEntry(voiceLens). // it sat once
-												edit("", "a", "b").                                                                   // head 7
+												register("red-chair").sit(2, voiceLens).logEntry(voiceLens). // it sat once
+												edit("", "a", "b").                                          // head 7
 												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens).
 												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens) // and again, unregistered
 }
@@ -90,7 +90,8 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 		t.Fatalf("a sitting that acted and filed no log is not offered it, or cannot finish: complete=%v open=%+v", s.Complete, s.Open)
 	}
 	// It logs: the work list is complete, and dispatch agrees.
-	sat := b5Shape(t).register(voiceLens).logEntry(voiceLens).seed()
+	sb := b5Shape(t).register(voiceLens)
+	sat := sb.served(voiceLens, sb.head()).logEntry(voiceLens).seed()
 	s = sittingOfRunT(t, sat, "lens", voiceLens)
 	if !s.Complete || len(owedItems(s)) != 0 {
 		t.Fatalf("after its register and log the lens still owes: complete=%v open=%+v", s.Complete, s.Open)
@@ -110,7 +111,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 func TestEveryDispatchedSeatOwesTheSittingItWasDispatchedFor(t *testing.T) {
 	base := func() *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high").
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
 			register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").dispatch(2, "judge", "G1")
 	}
 	for _, c := range []struct{ role, seat string }{{"lens", evLens}, {"blue", "blue-respond"}, {"bench", "judge"}} {

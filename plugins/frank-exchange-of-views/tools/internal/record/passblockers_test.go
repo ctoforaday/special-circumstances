@@ -114,7 +114,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			}
 			b.register("red-chair")
 			if c.lensSat {
-				b.dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+				b.sit(2, evLens).sit(2, evLens)
 			}
 			c.build(b)
 			openChairSitting(b)
@@ -312,7 +312,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-				register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+				register("red-chair").sit(2, evLens).sit(2, evLens)
 			c.build(b)
 			b.register("red-chair")
 			run := b.seed()
@@ -359,7 +359,7 @@ func convergedBoard(t *testing.T) *stage {
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
 	// Two barren sittings at the head retire the lens, so no lens is ready and the board itself is
 	// all that holds PASS.
-	return st.register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).register("red-chair")
+	return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 }
 
 // A CONVERGED BOARD WITH ANOTHER SEAT'S BLOCKER ON IT ADMITS A FAIL (#1202). PASS was refused

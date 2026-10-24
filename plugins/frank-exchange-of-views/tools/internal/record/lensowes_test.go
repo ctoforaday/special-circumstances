@@ -184,7 +184,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				// The edit moved the head, so every lens is ready to audit it; owing the anchor's check
 				// is the owner's reason alone.
 				readied := slices.ContainsFunc(plan.Why, func(w string) bool {
-					return strings.HasPrefix(w, l+": head ") && strings.Contains(w, "it owes reopened "+c.anchor)
+					return strings.HasPrefix(w, l+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it owes reopened "+c.anchor)
 				})
 				if readied != (l == c.owner) || (l == c.owner && !ready) {
 					t.Errorf("%s readied for the reopened anchor = %v (party %v), want %v: %q", l, readied, ready, l == c.owner, plan.Why)

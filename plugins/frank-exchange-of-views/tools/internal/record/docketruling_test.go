@@ -127,7 +127,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-				register("red-chair").dispatch(2, evLens).register(evLens).
+				register("red-chair").sit(2, evLens).
 				mint(evLens, "G1", "high").seed()
 			blue := sit(t, run, "blue-respond")
 			mustAppend(t, blue, docketMotion("M1", "G1"))

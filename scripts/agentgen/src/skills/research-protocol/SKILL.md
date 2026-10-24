@@ -40,7 +40,7 @@ There is no search index.
 **Full read for the report** — red reads blue's report whole, in
 context, every sitting THE REPORT HAS MOVED. A snippet NEVER substitutes: a decontextualized
 quote is how audits go blind. This clause outranks any token saving, and the exception is not
-one: where the report stands at the head red already read, the whole-document read it is owed
+one: where the report stands at the head the tool last served red whole, the whole-document read it is owed
 is the one already performed, and performing it again returns the same bytes to the same reader.
 The Read tool caps ~25k tokens — a full-document read over that cap is consecutive whole windows,
 which satisfies the full-re-read MUST without a confidence discount.

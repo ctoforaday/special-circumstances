@@ -126,7 +126,7 @@ func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
 		register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).dispatch(2, evLens).
-		register(evLens).register("red-chair").seed()
+		register(evLens).served(evLens, 2).register("red-chair").seed()
 	plan, _, err := DispatchNext(chair(run))
 	if err != nil || len(plan.Parties) != 0 {
 		t.Fatalf("fixture: %d parties, %v; want nobody ready", len(plan.Parties), err)
@@ -172,12 +172,12 @@ func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
 		{"the report unchanged since the last review", func(b *stage) *stage {
 			return b.ingest().add("blue-respond", inquiry).register("red-chair").
 				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).
-				dispatch(2, evLens).register(evLens)
+				dispatch(2, evLens).register(evLens).served(evLens, 2)
 		}, false},
 		{"the report changed after the last review", func(b *stage) *stage {
 			b.ingest().add("blue-respond", inquiry).register("red-chair").
 				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).ingest()
-			return b.dispatch(b.at(), evLens).register(evLens)
+			return b.sit(b.at(), evLens)
 		}, true},
 	}
 	acts := []struct {
