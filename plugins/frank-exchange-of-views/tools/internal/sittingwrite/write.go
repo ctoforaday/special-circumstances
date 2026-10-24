@@ -63,8 +63,9 @@ const (
 )
 
 // WriteEnvelopeRefusal prints the record's refusal of the envelope the agent's seat is returning
-// (record.BenchEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
+// (record.AgentEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
 // Nothing is printed or written when the record refuses nothing, and for an agent bound to no seat.
+// A record that cannot be read is the error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
@@ -76,11 +77,7 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	seat, found, err := record.SeatOfAgent(run, agentID)
-	if err != nil || !found {
-		return err
-	}
-	refusal, err := record.BenchEnvelopeRefusal(run, seat)
+	refusal, _, err := record.AgentEnvelopeRefusal(run, agentID)
 	if err != nil || refusal == "" {
 		return err
 	}
