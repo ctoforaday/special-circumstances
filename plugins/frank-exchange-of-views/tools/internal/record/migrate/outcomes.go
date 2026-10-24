@@ -20,12 +20,14 @@ import (
 // event written from it and is refused by name, as every such reference to an unwritten act is.
 
 // supersededOutcomes is every source event that translates to an outcome and is followed in the
-// stream by another, keyed by its source id, never nil. A replacement in a correction chain is
-// written as its chain's head at the root's place, so it is not an outcome of its own here: the
-// chain's root stands for it.
-func supersededOutcomes(evs []OldEvent, reg Registry, replaces map[string]bool) map[int64]migration.SupersededOutcome {
+// stream by another, keyed by its source id, never nil. A correction chain is written as its head
+// at its root's place, so the chain is one outcome here, at the root's place, and what it says is
+// its head's — the act the seat meant, and the one the source's readers took. headOf is the act a
+// place writes: the head of the chain it begins, or the act itself.
+func supersededOutcomes(evs []OldEvent, reg Registry, replaces map[string]bool, headOf func(OldEvent) OldEvent) map[int64]migration.SupersededOutcome {
 	type held struct {
-		old     OldEvent
+		old     OldEvent // the place: the act, or the root of its chain
+		head    OldEvent // what the place writes
 		verdict string
 	}
 	var outcomes []held
@@ -33,10 +35,11 @@ func supersededOutcomes(evs []OldEvent, reg Registry, replaces map[string]bool) 
 		if replaces[old.Key] {
 			continue
 		}
-		bodies, _ := reg.Translate(old)
+		head := headOf(old)
+		bodies, _ := reg.Translate(head)
 		for _, b := range bodies {
 			if o, ok := b.(*recordpb.Outcome); ok {
-				outcomes = append(outcomes, held{old, recordpb.Word(o.GetVerdict())})
+				outcomes = append(outcomes, held{old, head, recordpb.Word(o.GetVerdict())})
 				break
 			}
 		}
@@ -47,7 +50,7 @@ func supersededOutcomes(evs []OldEvent, reg Registry, replaces map[string]bool) 
 	}
 	last := outcomes[len(outcomes)-1].old.ID
 	for _, h := range outcomes[:len(outcomes)-1] {
-		out[h.old.ID] = migration.SupersededOutcome{OldID: h.old.ID, Seat: h.old.SeatID, Verdict: h.verdict, SupersededBy: last}
+		out[h.old.ID] = migration.SupersededOutcome{OldID: h.old.ID, Seat: h.head.SeatID, Verdict: h.verdict, SupersededBy: last}
 	}
 	return out
 }

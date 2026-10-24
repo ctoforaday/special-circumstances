@@ -158,8 +158,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 		}
 	}
-	// AN OUTCOME THE SOURCE FOLLOWS WITH ANOTHER IS NOT WRITTEN (outcomes.go).
-	superseded := supersededOutcomes(evs, reg, replaces)
 	// chainOf is the chain a root begins: its links in order, root first, and its head.
 	chainOf := func(root string) (links []string, head OldEvent, ok bool) {
 		for k := root; ; {
@@ -175,6 +173,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			k = next
 		}
 	}
+	// AN OUTCOME THE SOURCE FOLLOWS WITH ANOTHER IS NOT WRITTEN (outcomes.go), and a corrected one is
+	// read as its chain's head, which is what its place writes.
+	superseded := supersededOutcomes(evs, reg, replaces, func(old OldEvent) OldEvent {
+		if _, corrected := corrects[old.Key]; corrected && old.Key != "" {
+			if _, head, ok := chainOf(old.Key); ok {
+				return head
+			}
+		}
+		return old
+	})
 	// THE ID TABLE IS FILLED BEFORE ANYTHING IS WRITTEN. A seat's prose names ids minted after it —
 	// a lane's inquiry argues against one a sibling lane proposed later in the stream — so the
 	// stream is translated once to learn every id it mints, and again, below, to write it. An id is
