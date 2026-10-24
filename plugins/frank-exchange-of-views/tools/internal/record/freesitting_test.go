@@ -139,11 +139,11 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	// `dispatch` readies a seat until it has SAT: if a hook-opened sitting did not count, the lens
 	// would be re-dispatched for the same unsat dispatch forever.
 	//
-	// THE LENS IS NOT READIED AGAIN: it sat at the head (retirement.go), and the fold that says so
-	// reads the hook-opened sitting through the same ledger the work list does. The chair plans
-	// after the lens returned, so its agent's stop is on the record: a sitting still open is not
-	// one it sat through (satThrough).
-	plan, err := PlanDispatch(hookOpened().stop("agent-lens-1").seed())
+	// THE LENS IS NOT READIED AGAIN once the report was served to it in that sitting: its pin is the
+	// head (retirement.go), and the fold that says so reads the hook-opened sitting through the same
+	// ledger the work list does. The chair plans after the lens returned, so its agent's stop is on
+	// the record: a sitting still open is not one it sat through (satThrough).
+	plan, err := PlanDispatch(hookOpened().served(evLens, 2).stop("agent-lens-1").seed())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,9 +151,22 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	if len(plan.Parties) != 0 || strings.Contains(why, "never sat") {
 		t.Errorf("the lens sat (hook-opened) and dispatch still treats it as unsat: parties %+v, why %s", plan.Parties, why)
 	}
-	if !strings.Contains(why, evLens+": sat at the head (pin 2)") {
+	if !strings.Contains(why, evLens+": served the report at the head (pin 2)") {
 		t.Errorf("the lens fold did not count the hook-opened sitting, so it reached the ledger "+
 			"for the work list and not for the fold: %s", why)
+	}
+
+	// A SITTING THAT WAS NEVER SERVED THE REPORT COUNTS AS SAT, AND LEAVES THE LENS BEHIND THE HEAD.
+	// It is one sitting toward retirement, so the readying is bounded; it moves no pin, so the lens
+	// that skipped its audit is ready at the head again rather than read as having done it (#1458).
+	plan, err = PlanDispatch(hookOpened().stop("agent-lens-1").seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	why = strings.Join(plan.Why, " | ")
+	if _, ready := partyOf(plan, evLens); !ready || strings.Contains(why, "never sat") ||
+		!strings.Contains(why, evLens+": no sitting it sat through was served the whole report, behind head 2 — audits the report (1 sitting(s) in a row") {
+		t.Errorf("a sat sitting that was never served the report: parties %+v, why %s — want the lens ready behind the head, one sitting counted", plan.Parties, why)
 	}
 }
 

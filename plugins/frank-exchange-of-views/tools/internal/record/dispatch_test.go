@@ -277,7 +277,7 @@ func TestASubMaterialGapDoesNotReadyBlue(t *testing.T) {
 // to rule would strand the run.
 func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").dispatch(2, evLens).register(evLens).
+											register("red-chair").sit(2, evLens).
 											mint(evLens, "G1", "high").mint(evLens, "G2", "low").
 											register("blue-respond").docketMotion("blue-respond", "M1", "G1").docketMotion("blue-respond", "M2", "G2").
 											closing("blue-respond", "G1").closing("blue-respond", "G2").closing(evLens, "G1").closing(evLens, "G2").
@@ -316,7 +316,7 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 // the release sweep). Held as material: its minter and blue are engaged on it.
 func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").dispatch(2, evLens).register(evLens).
+											register("red-chair").sit(2, evLens).
 											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
 											register("red-chair")
 	plan, err := PlanDispatch(b.seed())
@@ -346,7 +346,7 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 // permitted. With a material gap open and below its limits, its two parties are ready.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens). // two barren sittings: retired
+											register("red-chair").sit(2, evLens).sit(2, evLens). // two barren sittings: retired
 											register("red-chair")
 	plan, err := PlanDispatch(b.seed())
 	if err != nil {
@@ -357,7 +357,7 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	}
 
 	b2 := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high").
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
 		register("red-chair")
 	plan2, _ := PlanDispatch(b2.seed())
 	want := map[string][]string{evLens: {"G1"}, "blue-respond": {"G1"}}
@@ -376,7 +376,7 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 // docketing not yet filed.
 func TestAtImpasseTheVerbDocketsTheGapAndReadiesItsPartiesForTheirClosings(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high")
 	// Three party sittings for two countable exchanges: each is closed by the parties sitting again.
 	for i := 0; i < 3; i++ {
 		b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
@@ -457,8 +457,8 @@ func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	}
 	// Both sit twice and find nothing: both retire at the head, and the PASS lands.
 	b2 := newStage(t).cast(evLens, logic, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).
-		dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).
+		register("red-chair").dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).served(evLens, 2).served(logic, 2).
+		dispatch(2, evLens).dispatch(2, logic).register(evLens).register(logic).served(evLens, 2).served(logic, 2).
 		register("red-chair")
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, pass); err != nil {
 		t.Fatalf("PASS refused with every cast lens retired at the head: %v", err)
@@ -468,7 +468,7 @@ func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 // An open gap that is not material (a by-grade class graded below medium) does not hold the gate; a material one does.
 func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).mint(evLens, "G1", "low").
+		register("red-chair").sit(2, evLens).sit(2, evLens).mint(evLens, "G1", "low").
 		register("red-chair")
 	run := b.seed()
 	chair := Identity{Run: run, SeatID: "red-chair"}
@@ -477,7 +477,7 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 		t.Fatalf("a low-severity open gap held the gate: %v", err)
 	}
 	b2 := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
 		register("red-chair")
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, pass); err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN: G1") {
 		t.Fatalf("a MEDIUM gap is material and must hold the gate: %v", err)

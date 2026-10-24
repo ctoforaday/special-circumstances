@@ -65,6 +65,31 @@ func TestDispatchedPartiesAndSittingsAgree(t *testing.T) {
 	}
 }
 
+// A REPORT READ OPENS NO SITTING. It is what the tool served a lens in a sitting the lens already
+// opened: a dispatched lens's read leaves the relay faithful, and a read by a lens nobody dispatched,
+// with no sitting of its own, is no stray sitting.
+func TestAReportReadIsNoSittingToTheRelay(t *testing.T) {
+	n := 0
+	at := func(seat string, body proto.Message) *record.Event {
+		n++
+		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
+	}
+	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
+	read := func(seat string) *record.Event { return at(seat, &recordpb.ReportRead{Head: proto.Int64(2)}) }
+	evs := []*record.Event{
+		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
+		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		reg("red-chair"), at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
+		reg("red-lens-evidence"), read("red-lens-evidence"), read("red-lens-logic"),
+		reg("red-chair"),
+	}
+	dir := t.TempDir()
+	recordtest.Seed(t, dir, evs...)
+	if a := DispatchParityAudit(runtest.Open(t, dir), nil, false); a.Verdict != "PASS" {
+		t.Fatalf("a relay with report reads in it = %s: %s", a.Verdict, a.Detail)
+	}
+}
+
 // THE WARM RUN, as the B6 record holds it: the chair registered ONCE and sat four times, and ran
 // `dispatch next` twice in its first sitting (prose, then --json), writing the plan twice with
 // nobody sitting between. Every party sat for every dispatch. Grouped by epoch (the chair's stored

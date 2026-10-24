@@ -56,7 +56,7 @@ func (b *stage) at() int64 { return int64(b.n) }
 func reopenedBoard(t *testing.T, lenses ...string) *stage {
 	seats := append(append([]string{evLens}, lenses...), "red-chair", "blue-respond", "judge")
 	return newStage(t).cast(seats...).ingestCited().register("red-chair").
-		dispatch(2, evLens).register(evLens).cite("C-1").dispatch(2, evLens).register(evLens).supports(evLens, "C-1")
+		dispatch(2, evLens).register(evLens).cite("C-1").sit(2, evLens).supports(evLens, "C-1")
 }
 
 // reopenedOf is the run's reopened blockers.
@@ -111,7 +111,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	}
 
 	c := reopenedBoard(t).reopen("C-1")
-	cleared := c.dispatch(c.at(), evLens).register(evLens).supports(evLens, "C-1").seed()
+	cleared := c.sit(c.at(), evLens).supports(evLens, "C-1").seed()
 	if got := reopenedOf(t, cleared); len(got) != 0 {
 		t.Errorf("blockers after a later sitting's verify = %+v, want none", got)
 	}
@@ -122,7 +122,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	// A cleared citation whose sentence changes again is reopened again: the clearing check is the
 	// one the second edit outdates.
 	d := reopenedBoard(t).reopen("C-1")
-	d.dispatch(d.at(), evLens).register(evLens).supports(evLens, "C-1")
+	d.sit(d.at(), evLens).supports(evLens, "C-1")
 	check = d.at()
 	d.reopen("C-1")
 	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (reopened{anchor: "C-1", edit: d.at(), lastCheck: check}) {
@@ -170,7 +170,7 @@ func TestACheckWithNoSittingDoesNotClear(t *testing.T) {
 
 func TestAnUnreachableVerifyDoesNotClear(t *testing.T) {
 	b := reopenedBoard(t).reopen("C-1")
-	b.dispatch(b.at(), evLens).register(evLens).verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
+	b.sit(b.at(), evLens).verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
 	if got := reopenedRows(t, b); len(got) != 1 || got[0].lastCheck != b.at() {
 		t.Fatalf("rows after a later sitting's `unreachable` = %+v, want C-1 still reopened — nothing was verified", got)
 	}
@@ -209,7 +209,7 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 			continue
 		}
 		b := reopenedBoard(t).reopen("C-1")
-		b.dispatch(b.at(), evLens).register(evLens).verify(evLens, "C-1", o)
+		b.sit(b.at(), evLens).verify(evLens, "C-1", o)
 		if cleared := len(reopenedRows(t, b)) == 0; cleared != want {
 			t.Errorf("a later sitting's verify %s clears = %v, want %v", o, cleared, want)
 		}
@@ -239,7 +239,7 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 				continue
 			}
 			b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
-			b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "P-1", "s1", rerun, s)
+			b.sit(b.at(), evLens).reproduce(evLens, "P-1", "s1", rerun, s)
 			if cleared := len(reopenedRows(t, b)) == 0; cleared != want {
 				t.Errorf("a later sitting's judgement (rerun %s, %s) clears = %v, want %v", rerun, s, cleared, want)
 			}
@@ -259,7 +259,7 @@ func TestAJudgementClearsOnlyTheAnchorItNames(t *testing.T) {
 	if got := reopenedRows(t, b); len(got) != 2 {
 		t.Fatalf("fixture: rows before the judgement = %+v, want P-1 and P-2", got)
 	}
-	b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, sound)
+	b.sit(b.at(), evLens).reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, sound)
 	if got := reopenedRows(t, b); len(got) != 1 || got[0].anchor != "P-2" {
 		t.Errorf("rows after a later sitting judged P-1 = %+v, want P-2 alone", got)
 	}
@@ -295,7 +295,7 @@ func TestAReopenedFindingOrGapIsNotOwed(t *testing.T) {
 // F3: the check is owed by the evidence lens, and any lens's makes it.
 func TestAnyLensesLaterSittingClears(t *testing.T) {
 	b := reopenedBoard(t, outsideLens).reopen("C-1")
-	b.dispatch(b.at(), outsideLens).register(outsideLens).supports(outsideLens, "C-1")
+	b.sit(b.at(), outsideLens).supports(outsideLens, "C-1")
 	if got := reopenedOf(t, b.seed()); len(got) != 0 {
 		t.Errorf("blockers after %s's later sitting verified = %+v, want none", outsideLens, got)
 	}
@@ -305,7 +305,7 @@ func TestAnyLensesLaterSittingClears(t *testing.T) {
 // item it already is, and holds nothing.
 func TestANeverCheckedCitationStaysAvailableNotOwed(t *testing.T) {
 	b := reopenedBoard(t).cite("C-2").reopen("C-2")
-	run := b.dispatch(b.at(), evLens).register(evLens).seed()
+	run := b.sit(b.at(), evLens).seed()
 	if got := reopenedOf(t, run); len(got) != 0 {
 		t.Fatalf("blockers = %+v, want none: C-2 was never checked", got)
 	}
@@ -322,7 +322,7 @@ func TestANeverCheckedCitationStaysAvailableNotOwed(t *testing.T) {
 // forced-VERIFIED run ended UNVERIFIED on it.
 func TestAnUnreachableFirstCheckAfterTheEditDoesNotReopen(t *testing.T) {
 	b := reopenedBoard(t, outsideLens).cite("C-2").reopen("C-2")
-	b.dispatch(b.at(), outsideLens).register(outsideLens).verify(outsideLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
+	b.sit(b.at(), outsideLens).verify(outsideLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
 	run := b.seed()
 	if got := reopenedOf(t, run); len(got) != 0 {
 		t.Fatalf("blockers = %+v, want none: C-2 was never checked before the edit, and the check after it read nothing", got)
@@ -434,7 +434,7 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	// The epoch limit, over an open material gap G1.
 	coverage := base(why(epochTwo(t), "2"), term)
 	withReopened := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high").cite("C-1").supports(evLens, "C-1").
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").cite("C-1").supports(evLens, "C-1").
 		reopen("C-1").register("red-chair")
 	if got := why(withReopened, "2"); got != term+"; reopened and unchecked: C-1"+coverage {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
@@ -452,9 +452,9 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	}
 }
 
-// F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting and the lens does nothing
-// in it: it has sat at the head, the next plan does not ready it again, and the blocker still holds
-// the PASS. A second edit of the sentence is a second reopening and a head move, and readies it
+// F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting, the report is served to it
+// and it does nothing else: its pin is the head, the next plan does not ready it again, and the
+// blocker still holds the PASS. A second edit of the sentence is a second reopening and a head move, and readies it
 // again: the owner owes the check, so it is not retired (lensOwesOf).
 func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	// It has sat at the moved head, so only a reopened anchor readies the lens.
@@ -468,17 +468,24 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	}
 
 	b := board().register("red-chair")
-	b.dispatch(b.at(), evLens).bracket(evLens, "agent-1").stop("agent-1").register("red-chair")
+	b.dispatch(b.at(), evLens).bracket(evLens, "agent-1").served(evLens, b.at()).stop("agent-1").register("red-chair")
 	run := b.seed()
 	second, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lensReady(second) || !strings.Contains(whyOf(second), evLens+": sat at the head") {
-		t.Errorf("the plan after a sitting that did nothing: parties %+v, why %q — want the lens left alone and told why", second.Parties, second.Why)
+	if lensReady(second) || !strings.Contains(whyOf(second), evLens+": served the report at the head") {
+		t.Errorf("the plan after a sitting that was served the report and did nothing: parties %+v, why %q — want the lens left alone and told why", second.Parties, second.Why)
 	}
 	if got := reopenedOf(t, run); len(got) != 1 || second.PassPermitted {
 		t.Errorf("blockers %+v, pass_permitted %v — want C-1 still holding the PASS", got, second.PassPermitted)
+	}
+	// A SITTING NEVER SERVED THE REPORT IS NOT A LOOK AT THE HEAD: the reopening readies the lens once,
+	// and the head readies it again until the report is served to it.
+	u := board().register("red-chair")
+	u.dispatch(u.at(), evLens).bracket(evLens, "agent-1").stop("agent-1").register("red-chair")
+	if unserved := planOf(t, u); !lensReady(unserved) || !strings.Contains(whyOf(unserved), ", behind head ") {
+		t.Errorf("the plan after a sitting never served the report: parties %+v, why %q — want the lens ready behind the head", unserved.Parties, unserved.Why)
 	}
 
 	c := board().register("red-chair")

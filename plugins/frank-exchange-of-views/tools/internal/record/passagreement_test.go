@@ -68,7 +68,7 @@ func passItems(s SittingJSON) []string {
 // accepted it; it settled the contradiction by trying the verdict.
 func TestTheChairsPassItemsAreTheGatesGaps(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).
+		register("red-chair").sit(2, evLens).
 		mint(evLens, "G1", "low").mint(evLens, "G2", "medium").
 		register("red-chair")
 	items := passItems(sittingOfRunT(t, b.seed(), "chair", "red-chair"))
@@ -78,7 +78,7 @@ func TestTheChairsPassItemsAreTheGatesGaps(t *testing.T) {
 
 	// A superseded ancestor holds the gate whatever its grade, and the list says so.
 	s := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).
+		register("red-chair").sit(2, evLens).
 		mint(evLens, "G1", "low").mintSuperseding(evLens, "G3", "low", "G1").
 		register("red-chair")
 	items = passItems(sittingOfRunT(t, s.seed(), "chair", "red-chair"))

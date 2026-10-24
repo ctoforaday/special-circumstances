@@ -13,8 +13,33 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// sit is one sitting of a lens: a dispatch naming it at pin, and its register.
-func (b *stage) sit(pin int64, lens string) *stage { return b.dispatch(pin, lens).register(lens) }
+// sit is one sitting of a lens: a dispatch naming it at pin, its register, and the whole report served
+// to it at pin.
+func (b *stage) sit(pin int64, lens string) *stage {
+	return b.sitUnserved(pin, lens).served(lens, pin)
+}
+
+// sitUnserved is one sitting of a lens that was never served the whole report: a dispatch at pin and
+// its register.
+func (b *stage) sitUnserved(pin int64, lens string) *stage {
+	return b.dispatch(pin, lens).register(lens)
+}
+
+// head is the stage's report head: the id of its latest ingest or edit — its count, as seeded.
+func (b *stage) head() int64 {
+	for i := len(b.evs) - 1; i >= 0; i-- {
+		switch b.evs[i].GetType() {
+		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_BASE_INGEST:
+			return int64(b.n - (len(b.evs) - 1 - i))
+		}
+	}
+	return 0
+}
+
+// served is the whole report served to lens at head, in its current sitting.
+func (b *stage) served(lens string, head int64) *stage {
+	return b.add(lens, &recordpb.ReportRead{Head: proto.Int64(head)})
+}
 
 // retBoard is the retirement fixtures' base: one cast lens, a report ingested at head 2, the chair
 // seated. Each test adds the lens's sittings, mints and head moves it is about.
@@ -75,11 +100,17 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 		t.Fatalf("a lens that has never sat is ready for its first look: %+v", never)
 	}
 	same := planOf(t, retBoard(t).sit(2, evLens))
-	if lensReady(same) || !strings.Contains(whyOf(same), "sat at the head (pin 2)") {
+	if lensReady(same) || !strings.Contains(whyOf(same), "served the report at the head (pin 2)") {
 		t.Fatalf("a lens that sat at the head is not readied for a second look at the same report: %+v", same)
 	}
+	// A SITTING AT THE HEAD THAT WAS NEVER SERVED THE REPORT IS NOT A LOOK AT IT (#1458): the lens is
+	// still behind the head, and readied to audit it.
+	unserved := planOf(t, retBoard(t).sitUnserved(2, evLens))
+	if !lensReady(unserved) || !strings.Contains(whyOf(unserved), "no sitting it sat through was served the whole report, behind head 2") {
+		t.Fatalf("a lens that sat at the head and was never served the report is ready to audit it: %+v", unserved)
+	}
 	moved := planOf(t, retBoard(t).sit(2, evLens).ingest())
-	if !lensReady(moved) || !strings.Contains(whyOf(moved), "moved past its last sitting's pin 2") {
+	if !lensReady(moved) || !strings.Contains(whyOf(moved), "the whole report was last served to it at its pin 2, behind head") {
 		t.Fatalf("a lens is ready when the head has moved past its last sitting's pin: %+v", moved)
 	}
 }
@@ -88,7 +119,7 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 // not ready a second audit of the report it has just read.
 func TestALensThatMintedAtTheHeadIsEngagedOnItsGapAlone(t *testing.T) {
 	plan := planOf(t, retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")))
-	if !lensReady(plan) || gaplessParty(plan) || !strings.Contains(whyOf(plan), "sat at the head (pin 2)") {
+	if !lensReady(plan) || gaplessParty(plan) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
 		t.Fatalf("a lens with an open material gap sits for the gap, and the head has not moved: %+v", plan)
 	}
 }
@@ -192,7 +223,7 @@ func TestPassRefusedWhileALensHasNotSeenTheHead(t *testing.T) {
 		t.Fatalf("pass_permitted while the head has moved past a lens's last sitting: %+v", plan)
 	}
 	_, err = Append(Identity{Run: run, SeatID: "red-chair"}, passGate)
-	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "moved past its last sitting's pin") {
+	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "the whole report was last served to it at its pin") {
 		t.Fatalf("a chair's PASS over a lens the head has moved past must be refused at the write path, naming the lens: %v", err)
 	}
 }
@@ -278,8 +309,8 @@ func TestWhyCarriesState(t *testing.T) {
 		want string
 	}{
 		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
-		{"sat at the head", planOf(t, retBoard(t).sit(2, evLens)), "sat at the head (pin 2) — ready when the head moves"},
-		{"head moved", planOf(t, retBoard(t).sit(2, evLens).ingest()), "moved past its last sitting's pin 2 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)"},
+		{"served at the head", planOf(t, retBoard(t).sit(2, evLens)), "served the report at the head (pin 2) — ready when the head moves"},
+		{"head moved", planOf(t, retBoard(t).sit(2, evLens).ingest()), "the whole report was last served to it at its pin 2, behind head 7 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)"},
 		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
 		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
@@ -292,25 +323,25 @@ func TestWhyCarriesState(t *testing.T) {
 // sitting for — which is why the fact cannot be the latest dispatch's own sitting (sittingFor),
 // which is the current one once the register lands.
 func TestLensWorkCarriesLastSitting(t *testing.T) {
-	last := func(t *testing.T, b *stage) LastSittingJSON {
+	last := func(t *testing.T, b *stage) LastReadJSON {
 		t.Helper()
 		run := b.seed()
 		out, err := WorkJSONBytes(run, "lens", evLens)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(string(out), `"last_sitting"`) {
-			t.Fatalf("the lens's work view carries no last_sitting key:\n%s", out)
+		if !strings.Contains(string(out), `"last_read"`) {
+			t.Fatalf("the lens's work view carries no last_read key:\n%s", out)
 		}
 		var w struct {
 			Sitting struct {
-				LastSitting LastSittingJSON `json:"last_sitting"`
+				LastRead LastReadJSON `json:"last_read"`
 			} `json:"sitting"`
 		}
 		if err := json.Unmarshal(out, &w); err != nil {
 			t.Fatal(err)
 		}
-		return w.Sitting.LastSitting
+		return w.Sitting.LastRead
 	}
 	if got := last(t, retBoard(t)); got.Kind != "undispatched" {
 		t.Errorf("never dispatched: %+v", got)
@@ -456,13 +487,13 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
 	beh := sittingOfRunT(t, b.sit(head, evLens).seed(), "lens", evLens)
-	if !listsItem(beh, "re-read it in full") {
+	if !listsItem(beh, "reads it in full") {
 		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
 	}
 	if listsItem(beh, "not the whole document") {
 		t.Errorf("the item tells the lens to audit a fragment, which adversarial-audit forbids: %+v", beh.Open)
 	}
-	if !listsItem(beh, "is at") {
+	if !listsItem(beh, "dispatched against head") {
 		t.Errorf("the item does not name the range the lens must audit: %+v", beh.Open)
 	}
 

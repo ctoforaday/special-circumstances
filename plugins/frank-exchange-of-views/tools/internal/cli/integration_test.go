@@ -264,12 +264,20 @@ func registerChairOnce(t *testing.T, runDir string) {
 	registerSeatOnce(t, runDir, "red-chair")
 }
 
-// registerLensOnce seats `lensSeat` — ONCE, whatever path did it. A seat registers before it acts,
-// and a lens's mints are counted against its budget by seat id, so every mint helper here sits the
-// same lens rather than a fresh one per call.
+// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and serves it the whole report
+// where one is ingested, as a lens's audit does. A seat registers before it acts, and a lens's mints
+// are counted against its budget by seat id, so every mint helper here sits the same lens rather than
+// a fresh one per call. The read is the lens's pin (record.ServeReport): a lens that sat and was never
+// served the report is still ready at the head, and every PASS these fixtures drive waits on it.
 func registerLensOnce(t *testing.T, runDir string) {
 	t.Helper()
 	registerSeatOnce(t, runDir, lensSeat)
+	if _, head, err := record.ReportAtHead(runtest.Open(t, runDir)); err != nil || head == 0 {
+		return
+	}
+	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("serve %s the report: %v", lensSeat, err)
+	}
 }
 
 func registerSeatOnce(t *testing.T, runDir, seatID string) {

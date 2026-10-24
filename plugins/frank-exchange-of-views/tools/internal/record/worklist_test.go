@@ -17,7 +17,7 @@ import (
 func chairBoard(t *testing.T, lensSat bool) *stage {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
 	if lensSat {
-		b.dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+		b.sit(2, evLens).sit(2, evLens)
 	}
 	return b
 }
