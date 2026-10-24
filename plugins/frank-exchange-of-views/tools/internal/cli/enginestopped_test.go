@@ -91,7 +91,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "never assembled") || !strings.Contains(out, "resumes it") {
 			t.Errorf("the answer does not send an unfinished assembly to resume: %s", out)
 		}
-		if strings.Contains(out, "nothing to resume") || strings.Contains(out, "captured") {
+		if strings.Contains(out, "nothing to resume") || strings.Contains(out, "capture it") {
 			t.Errorf("the answer calls an unassembled run finished: %s", out)
 		}
 		if len(stops(t, runDir)) != 1 {
@@ -112,7 +112,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 			t.Fatalf("assembling: %v", err)
 		}
 		out := logStop(t, runDir, stop)
-		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "nothing to resume") || !strings.Contains(out, "captured") {
+		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "nothing to resume") || !strings.Contains(out, "capture it") {
 			t.Errorf("the answer does not send a finished assembly to capture: %s", out)
 		}
 		if strings.Contains(out, "resumes") {

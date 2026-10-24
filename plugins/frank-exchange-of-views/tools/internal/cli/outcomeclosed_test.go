@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -209,6 +210,37 @@ func TestTheOutcomeIsRecordedOnlyInTheAssemblySitting(t *testing.T) {
 	}
 }
 
+// THE DOCUMENTS ARE ASSEMBLED IN THE ASSEMBLY SITTING AND NOWHERE ELSE (gblock, 2026-10-24:
+// "Assemble only in assembly"), so run.md says the assembly sitting assembled (report.AssemblyWritten).
+// A bench registered for any other occasion is refused the assembly, naming the occasion its sitting
+// holds, and no document is written; the same bench registered for the assembly writes them.
+func TestTheDocumentsAreAssembledOnlyInTheAssemblySitting(t *testing.T) {
+	for _, occ := range []string{"docket", "petition", "terminal"} {
+		t.Run(occ, func(t *testing.T) {
+			as(t, "")
+			runDir := seatRun(t)
+			as(t, "agent_bench_"+occ)
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", occ); err != nil {
+				t.Fatalf("registering the %s sitting: %v", occ, err)
+			}
+			_, err := run(t, "assemble", "--run", runDir, "--seat-id", "judge")
+			if err == nil || !strings.Contains(err.Error(), "this assembly is refused") || !strings.Contains(err.Error(), "was registered for the "+occ+" occasion") {
+				t.Fatalf("an assembly in the %s sitting = %v, want the refusal naming the occasion", occ, err)
+			}
+			if written, err := report.AssemblyWritten(runtest.Open(t, runDir)); err != nil || written {
+				t.Fatalf("the refused assembly wrote the run's documents: (%v, %v)", written, err)
+			}
+			assembleAndStamp(t, runDir, "agent_bench_assemble")
+			if _, err := run(t, "assemble", "--run", runDir, "--seat-id", "judge"); err != nil {
+				t.Fatalf("the assembly sitting's assembly was refused: %v", err)
+			}
+			if written, err := report.AssemblyWritten(runtest.Open(t, runDir)); err != nil || !written {
+				t.Errorf("the assembly sitting's assembly wrote no run.md: (%v, %v)", written, err)
+			}
+		})
+	}
+}
+
 // A CRASHED ASSEMBLY SITTING CAN BE RESUMED AFTER ITS STAMP. A fresh agent registers the bench for
 // the assemble occasion, and its declaration, certification and assembly land; a bench register
 // for any other occasion is a seat act the outcome closes.
@@ -220,8 +252,15 @@ func TestAResumedAssemblySittingTakesItsActsAfterTheOutcome(t *testing.T) {
 
 	registers := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER)
 	as(t, "agent_bench_terminal_late")
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "terminal"); err == nil || !strings.Contains(err.Error(), closedRefusal) {
+	_, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "terminal")
+	if err == nil || !strings.Contains(err.Error(), closedRefusal) {
 		t.Fatalf("a terminal register after the outcome = %v, want the closed record's refusal", err)
+	}
+	// The bench is told what its assembly sitting still takes, not that nothing reaches the run.
+	for _, want := range []string{"occasion, its declaration, its certification and the assembly"} {
+		if !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "Nothing a seat records now") {
+			t.Errorf("the bench's refusal after the outcome does not name what it may still do (%q): %v", want, err)
+		}
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER); n != registers {
 		t.Errorf("the refused register recorded %d register(s)", n-registers)
@@ -270,6 +309,9 @@ func TestAfterTheOutcomeTheClosedRecordIsTheFirstRefusal(t *testing.T) {
 	_, err := runAt(t, closeArgs...)
 	if err == nil || !strings.Contains(err.Error(), closedRefusal) || strings.Contains(err.Error(), "check-kind computation") {
 		t.Fatalf("after the outcome the close = %v, want the closed record's refusal and not the proof's", err)
+	}
+	if !strings.Contains(err.Error(), "Nothing a seat records now reaches the run but the bench's assembly sitting; a log entry still lands") {
+		t.Errorf("a lens's refusal after the outcome does not say what it may still do: %v", err)
 	}
 }
 

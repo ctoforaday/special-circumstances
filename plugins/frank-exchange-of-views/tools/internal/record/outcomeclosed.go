@@ -50,10 +50,18 @@ func requireOpenToSeats(q recordsql.Querier, seatID string, typ recordpb.EventTy
 	if err != nil || v == "" {
 		return err
 	}
+	// WHAT THE SEAT MAY STILL DO, by its role: the bench is the one seat with a sitting left — its
+	// assembly sitting, resumed — and a refusal that told it nothing reaches the run would contradict
+	// the prompt that dispatched it to declare, certify and assemble.
+	still := "Nothing a seat records now reaches the run but the bench's assembly sitting; a log entry still lands"
+	if seatclass.RoleOfSeat(seatID) == benchRole {
+		still = "The bench still sits to assemble: its register for the " + recordpb.Word(recordpb.Occasion_OCCASION_ASSEMBLE) +
+			" occasion, its declaration, its certification and the assembly land in that sitting, and a log entry lands from any seat"
+	}
 	return feov.Errorf(feov.Conflict,
 		"the run has its outcome, %s, and the record is closed to seat acts: this %s is refused. "+
-			"The outcome was derived from the record as it stood, and nothing a seat records now reaches the run; a log entry still lands",
-		strings.ToUpper(v), recordpb.Word(typ))
+			"The outcome was derived from the record as it stood. %s",
+		strings.ToUpper(v), recordpb.Word(typ), still)
 }
 
 // closedAtTheOutcome is whether a write of typ by seatID is a seat act the run's outcome closes —
@@ -83,7 +91,11 @@ func closedAtTheOutcome(seatID string, typ recordpb.EventType, body proto.Messag
 // every act it writes joins, recordsql's sittingOf), and the register in it. A sitting with no
 // register in it — a bracket the seat never registered in — states no occasion, and is refused
 // with the rest.
-func requireAssemblySitting(q recordsql.Querier, seatID string) error {
+//
+// THE DOCUMENTS ARE ASSEMBLED THERE TOO (gblock, 2026-10-24: "Assemble only in assembly"), by the
+// same question (RequireAssemblySitting): run.md on disk then says the assembly sitting assembled
+// the run (report.AssemblyWritten), which is what a stopped engine and capture read it for.
+func requireAssemblySitting(q recordsql.Querier, seatID string, act assemblyAct) error {
 	var occasion string
 	found, err := queryRowAt(q, []any{&occasion},
 		`SELECT COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
@@ -100,10 +112,47 @@ func requireAssemblySitting(q recordsql.Querier, seatID string) error {
 	if found && occasion != "" {
 		held = "the " + occasion + " occasion"
 	}
+	if act == actAssemble {
+		return feov.Errorf(feov.Conflict,
+			"the run's documents are assembled in the bench's %s sitting, and this sitting of %s was registered for %s: this assembly is refused and writes nothing. "+
+				"The documents are the assembly sitting's last act, and run.md on disk is what says that sitting finished — rule what is yours to rule here, and the documents are assembled when the bench sits to assemble",
+			assemble, seatID, held)
+	}
 	return feov.Errorf(feov.Conflict,
 		"the outcome is recorded in the bench's %s sitting, and this sitting of %s was registered for %s: this outcome is refused and records nothing. "+
 			"The run's outcome closes the record to seat acts, so it is the assembly sitting's first act — rule what is yours to rule here, and the outcome is stamped when the bench sits to assemble",
 		assemble, seatID, held)
+}
+
+// assemblyAct is which of the assembly sitting's own acts requireAssemblySitting is asked about,
+// for the refusal's words: the outcome, an event, or the assembly, which writes documents and no event.
+type assemblyAct int
+
+const (
+	actOutcome assemblyAct = iota
+	actAssemble
+)
+
+// RequireAssemblySitting is `bench assemble`'s question of the record, asked before it writes a
+// document: the run was not captured (a captured run takes nothing, its documents included), and
+// the seat's current sitting was registered for the assemble occasion. A run with no record yet
+// holds no such sitting, and is refused with the rest. Assembly writes no event, so nothing asks
+// this under a write lock: a register that lands between the question and the write opens a
+// sitting that is the seat's own, and changes no answer.
+func RequireAssemblySitting(run Run, seatID string) error {
+	if err := requireRunNotCaptured(run); err != nil {
+		return err
+	}
+	db, err := openRunForRead(run)
+	if err != nil {
+		return err
+	}
+	if db == nil {
+		return feov.Errorf(feov.Conflict,
+			"the run's documents are assembled in the bench's %s sitting, and %s has no sitting on a record that holds nothing: this assembly is refused and writes nothing",
+			recordpb.Word(recordpb.Occasion_OCCASION_ASSEMBLE), seatID)
+	}
+	return requireAssemblySitting(db, seatID, actAssemble)
 }
 
 // requireSeatMayWriteAt is every seat act's first question of the record, asked before a verb's
@@ -116,7 +165,7 @@ func requireSeatMayWriteAt(q recordsql.Querier, seatID string, typ recordpb.Even
 		return err
 	}
 	if typ == recordpb.EventType_EVENT_TYPE_OUTCOME {
-		return requireAssemblySitting(q, seatID)
+		return requireAssemblySitting(q, seatID, actOutcome)
 	}
 	return nil
 }

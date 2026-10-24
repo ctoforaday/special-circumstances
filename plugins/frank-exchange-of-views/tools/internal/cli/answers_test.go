@@ -146,7 +146,7 @@ const (
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
 	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
-	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your declaration, your certification and a log entry"
+	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
 )
 
 const (

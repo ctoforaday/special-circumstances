@@ -66,10 +66,17 @@ var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileI
 // measures one document of the deliverable and reports the others as clean.
 func Files() []string { return append([]string(nil), docOrder...) }
 
-// AssemblyWritten is whether the bench's `assemble` wrote the run's documents: run.md, the run
-// document, is on disk. Capture re-assembles the set at the close only for a run where it is, and
-// `engine-stopped` sends a stopped run to capture only where it is — one fact, two readers, so the
-// two cannot disagree about whether a run reached assembly.
+// AssemblyWritten is whether the bench's assembly sitting assembled the run's documents: run.md,
+// the run document, is on disk. Capture re-assembles the set at the close only for a run where it
+// is, and `engine-stopped` sends a stopped run to capture only where it is — one fact, two
+// readers, so the two cannot disagree about whether a run reached assembly.
+//
+// WHAT run.md PROVES. The bench's `assemble` is the one writer of the set outside capture, and the
+// record refuses it in every sitting but one registered for the assemble occasion, on a run not yet
+// captured (record.RequireAssemblySitting), which is the one sitting the outcome may be stamped in
+// as well. So run.md on disk says an assembly sitting assembled the run. It does not say the
+// outcome came first — the prompt orders that, and the record holds the outcome's own event — nor
+// which assembly sitting: a resumed one assembles over the same files.
 //
 // IT IS A FILE BECAUSE THE RECORD HOLDS NO SUCH FACT. Assembly writes documents and no event, and
 // the assembly sitting's own close is no substitute: the sitting's span closes when its seat stops,

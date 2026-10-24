@@ -5401,7 +5401,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// friction after the outcome (record.requireOpenToSeats) — so the bench's documents predate
 	// entries the documents that ship carry. The oracles judge those. Like capture, it re-assembles
 	// only a run the bench assembled: the bench's act is what makes a run's documents exist.
-	if _, serr := os.Stat(filepath.Join(runDir, reportdoc.FileRun)); serr == nil {
+	if written, werr := reportdoc.AssemblyWritten(oracleRun); werr != nil {
+		res.err = "documents: whether the bench assembled them could not be read: " + werr.Error()
+		return res
+	} else if written {
 		if _, aerr := reportdoc.Assemble(oracleRun); aerr != nil {
 			res.err = "documents: re-assembling the run at its close failed: " + aerr.Error()
 			return res

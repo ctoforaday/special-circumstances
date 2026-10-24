@@ -61,10 +61,10 @@ func newEngineStopped() *cobra.Command {
 			"  - the outcome, and no assembled documents: the assembly sitting stamped the outcome and stopped before " +
 			"the bench's `assemble` wrote the run's documents, so the assembly is unfinished and the same workflow run resumes it — " +
 			"the bench sits again to assemble;\n" +
-			"  - the outcome, and the assembled documents: the assembly finished, there is nothing to resume, and the run " +
-			"is captured.\n" +
-			"The assembly's mark is its documents, because the bench's `assemble` writes them and no event: the assembly sitting's " +
-			"stop is no mark, since the sitting stops whether or not the assembly ran. Capture re-assembles the documents from " +
+			"  - the outcome, and the assembled documents: the assembly finished and there is nothing to resume — capture it.\n" +
+			"The documents are what says the assembly finished: the bench's `assemble` writes them and no event, and only in the " +
+			"sitting registered for the assemble occasion. The assembly sitting's stop says nothing of it, since the sitting " +
+			"stops whether or not the assembly ran. Capture re-assembles the documents from " +
 			"the record at the close. A run directory that cannot be read is said so, and is never read as finished.\n\n" +
 			"`ops log` reads the entry back, beside what the seats filed.",
 		Args:          cobra.NoArgs,
@@ -129,5 +129,5 @@ func stoppedState(run record.Run) string {
 		return held + ", and the run's documents were never assembled: the assembly sitting stopped before it finished, " +
 			"and the same workflow run resumes it — the bench sits again to assemble"
 	}
-	return held + ", and the run's documents are assembled: the assembly finished, there is nothing to resume, and the run is captured"
+	return held + ", and the run's documents are assembled: the assembly finished and there is nothing to resume — capture it"
 }
