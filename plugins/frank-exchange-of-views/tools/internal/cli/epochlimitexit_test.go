@@ -311,7 +311,9 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 				return docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
 			},
 			func(t *testing.T, runDir string) {
-				ruleDocket(t, runDir, docketFile(t, runDir, "blue-respond", limitGap, "filed with the bench already sitting"), "repaired")
+				// Filed by a seat that filed no closing on the gap this sitting: both parties did
+				// (argue), and a party's docket motion over its own closing is refused.
+				ruleDocket(t, runDir, docketFile(t, runDir, "red-chair", limitGap, "filed with the bench already sitting"), "repaired")
 			},
 			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "repaired") }},
 		{"a petition the bench heard and left", false, "petition", filePetition, func(*testing.T, string) {}, denyPetition},
