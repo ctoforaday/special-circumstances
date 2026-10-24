@@ -158,6 +158,75 @@ func TestTheChangeLogCarriesTheDiffAndIsSelectable(t *testing.T) {
 	}
 }
 
+// --id SCOPES BOTH FORMS OF `show changes`, from one selection. Only the markdown read it: as the
+// judge on the #1565 smoke, `show changes --id <gap> --json` returned all 55 of the run's edits and no
+// required_fix while the bare form beside it was scoped to the gap.
+func TestChangesScopedToAGapIsScopedInBothForms(t *testing.T) {
+	runDir, id := answeredBoard(t)
+	dispatchBlueOnto(t, runDir, id)
+	editAnswering(t, runDir, id)
+	// Blue's own edit, answering no gap: the one a scoped read must leave out.
+	if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E2",
+		"--quote", "and rising", "--new", "and still rising", "--reason", "blue's own wording"); err != nil {
+		t.Fatalf("blue edit answering no gap: %v\n%s", err, out)
+	}
+
+	all, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatalf("show changes --json: %v", err)
+	}
+	var whole struct {
+		Gap   json.RawMessage   `json:"gap"`
+		Edits []json.RawMessage `json:"edits"`
+	}
+	if e := json.Unmarshal([]byte(all), &whole); e != nil {
+		t.Fatalf("changes --json is not valid JSON (%v):\n%s", e, all)
+	}
+	if len(whole.Edits) != 2 || string(whole.Gap) != "null" {
+		t.Fatalf("the unscoped form holds %d edit(s) and gap=%s, want both edits and a null gap:\n%s", len(whole.Edits), whole.Gap, all)
+	}
+
+	out, err := run(t, "show", "changes", "--id", id, "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatalf("show changes --id --json: %v", err)
+	}
+	var page struct {
+		Gap *struct {
+			ID              string `json:"id"`
+			RequiredFix     string `json:"required_fix"`
+			AcceptanceCheck string `json:"acceptance_check"`
+			Problem         string `json:"problem"`
+		} `json:"gap"`
+		Edits []struct {
+			Answers, Reason string
+		} `json:"edits"`
+		Counts struct{ Edits int } `json:"counts"`
+	}
+	if e := json.Unmarshal([]byte(out), &page); e != nil {
+		t.Fatalf("changes --id --json is not valid JSON (%v):\n%s", e, out)
+	}
+	if page.Gap == nil || page.Gap.ID != id || page.Gap.RequiredFix != "qualify it" ||
+		page.Gap.AcceptanceCheck != "the sentence names the source's range" || page.Gap.Problem != "the figure rests on one source" {
+		t.Errorf("the scoped JSON does not carry what red required of %s:\n%s", id, out)
+	}
+	if len(page.Edits) != 1 || page.Edits[0].Answers != id || page.Counts.Edits != 1 {
+		t.Errorf("the scoped JSON holds %d edit(s), want the one answering %s:\n%s", len(page.Edits), id, out)
+	}
+
+	md, err := run(t, "show", "changes", "--id", id, "--run", runDir, "--seat-id", lensSeat)
+	if err != nil {
+		t.Fatalf("show changes --id: %v", err)
+	}
+	for _, want := range []string{"qualify it", "Edits blue recorded against it (1)", "the source gives a moderate figure"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("the scoped markdown is missing %q:\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "blue's own wording") {
+		t.Errorf("the scoped markdown holds the edit answering no gap:\n%s", md)
+	}
+}
+
 // THE BOARD IS SELECTABLE TOO, and an empty selection renders `[]` rather than dropping the key: a
 // missing array reads as "this projection has no such list", which is a different answer from "none
 // of them matched".

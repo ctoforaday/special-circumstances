@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE DIFF STACK, MADE READABLE (#268 → #267).
@@ -31,9 +30,16 @@ import (
 //     above the edits blue recorded against them, with the exact old→new spans.
 
 // changesMD renders the blue_edit stack. gapID "" is the unscoped form.
+//
+// THE EDITS ARE record.ChangesOf's, the selection the --json form marshals, so the two renderings
+// of one call cannot hold different edits.
 func changesMD(in Input, gapID string) ([]byte, error) {
-	if gapID != "" {
-		return changesForGap(in, gapID)
+	sel, err := record.ChangesOf(in.Run, gapID)
+	if err != nil {
+		return nil, err
+	}
+	if sel.Gap != nil {
+		return changesForGap(sel), nil
 	}
 
 	out := []string{
@@ -46,36 +52,25 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		"side, scope it — `show changes --id <gap>`.",
 		"",
 	}
-	// THE GROUP IS THE SITTING, not an epoch: the record carries no epoch column, and what a reader
-	// catching up wants is "since this seat's previous sitting" — so the heading changes when the
-	// editing seat or its sitting ordinal does. The ordinal is the sitting the record holds the edit
-	// in (in.At): an edit filed under a register that names a repaired sitting is grouped under the
-	// sitting it names rather than under a heading of its own.
+	// THE GROUP IS THE SITTING, not an epoch: what a reader catching up wants is "since this seat's
+	// previous sitting" — so the heading changes when the editing seat or its sitting ordinal does.
+	// The ordinal is the sitting the record holds the edit in (events_w): an edit filed under a
+	// register that names a repaired sitting is grouped under the sitting it names rather than under a
+	// heading of its own.
 	var group string
-	n, total := 0, 0
-	for _, e := range in.Events {
-		w := in.At.Of(e)
-		// THE BODY IS THE TYPE. Matching the message cannot go stale against the enum the way
-		// `e.Type == "blue_edit"` could, and it is the same assertion the reader needs anyway.
-		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok {
-			continue
-		}
-		total++
-		if g := fmt.Sprintf("`%s` #%d", e.GetSeatId(), w.Sitting); g != group {
+	n, total := 0, len(sel.Edits)
+	for _, ed := range sel.Edits {
+		if g := fmt.Sprintf("`%s` #%d", ed.Seat, ed.Sitting); g != group {
 			group, n = g, 0
 			out = append(out, "## "+g, "")
 		}
 		n++
 		answers := "_no gap — blue's own_"
-		if id := ed.GetAnswers(); id != "" {
+		if id := ed.Answers; id != "" {
 			answers = "answers **" + id + "**"
 		}
-		// `reason` WAS THE PAYLOAD KEY; `text` is the field — BlueEdit carries no `reason`
-		// (blue/edit.go writes the prose under it, and the frozen key census lists blue_edit as
-		// answers/applied_verbatim/edit_key/new/old/text).
 		out = append(out, fmt.Sprintf("- **#%d** `%s` %s · %s — %s",
-			n, e.GetSeatId(), answers, delta(ed.GetOld(), ed.GetNew()), ed.GetText()))
+			n, ed.Seat, answers, delta(ed.Old, ed.New), ed.Reason))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
@@ -115,95 +110,69 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 }
 
 // changesForGap is the comparison form: what red required, then what blue did about it.
-func changesForGap(in Input, gapID string) ([]byte, error) {
-	g, ok := record.GapsByID(in.Gaps)[gapID]
-	if !ok {
-		return nil, fmt.Errorf("no gap %s on the board — --id takes a gap id (a mint created it), and a view that answered for an id nobody minted would be inventing a comparison", gapID)
-	}
-
+func changesForGap(sel record.ChangesJSON) []byte {
+	g := sel.Gap
 	out := []string{
-		fmt.Sprintf("# blue changes answering %s — RENDERED PROJECTION", gapID),
+		fmt.Sprintf("# blue changes answering %s — RENDERED PROJECTION", g.ID),
 		"",
 		"## What red required",
 		"",
 	}
-	if g.Mint != nil {
-		// FIELD NAME, NOT FLAG WORD. mint stores this as `required_fix` while the seat types
-		// --fix (recordpb/required.go declares the split). Reading it as "fix" no longer
-		// compiles; before the schema it rendered every gap as unprescribed, in silence.
-		if fix := g.Mint.GetRequiredFix(); fix != "" {
-			out = append(out, fix, "")
-		} else {
-			// A gap may legitimately carry no prescription — red states the defect and
-			// leaves the remedy to blue. Naming that is not the same as an empty field.
-			out = append(out, "_No required_fix was prescribed — red stated the defect and left the remedy to blue._", "")
-		}
-		// The CONCRETE proposal, when red made one. Shown as the diff blue could apply
-		// verbatim — and labelled with what applying it costs and does not cost, because the
-		// cheapest path is always compliance and that gradient should be visible, not felt.
-		if fo, fn := g.Mint.GetLocation(), g.Mint.GetFixNew(); fn != "" {
-			out = append(out,
-				"**Red proposed exact text** (`fix_basis: "+g.Mint.GetFixBasis()+"` — red stated this against the live document, so it applies cleanly):",
-				"",
-				"```diff",
-				"- "+oneLine(fo),
-				"+ "+oneLine(fn),
-				"```",
-				"",
-				"Blue is NOT obliged to apply it. Three paths stay open: apply it verbatim, counter-edit with",
-				"blue's own fix, or dispute. Applying is the cheapest, which is exactly why declining has to",
-				"stay a real option — a run in which blue never declines is manufacturing agreement, not earning it.",
-				"")
-		}
-		if check := g.Mint.GetAcceptanceCheck(); check != "" {
-			out = append(out, "**Acceptance check** (what red runs at re-audit): "+check, "")
-		}
-		if problem := g.Mint.GetProblem(); problem != "" {
-			out = append(out, "**The defect**: "+problem, "")
-		}
+	if fix := g.RequiredFix; fix != "" {
+		out = append(out, fix, "")
+	} else {
+		// A gap may legitimately carry no prescription — red states the defect and
+		// leaves the remedy to blue. Naming that is not the same as an empty field.
+		out = append(out, "_No required_fix was prescribed — red stated the defect and left the remedy to blue._", "")
+	}
+	// The CONCRETE proposal, when red made one. Shown as the diff blue could apply
+	// verbatim — and labelled with what applying it costs and does not cost, because the
+	// cheapest path is always compliance and that gradient should be visible, not felt.
+	if fn := g.FixNew; fn != "" {
+		out = append(out,
+			"**Red proposed exact text** (`fix_basis: "+g.FixBasis+"` — red stated this against the live document, so it applies cleanly):",
+			"",
+			"```diff",
+			"- "+oneLine(g.Location),
+			"+ "+oneLine(fn),
+			"```",
+			"",
+			"Blue is NOT obliged to apply it. Three paths stay open: apply it verbatim, counter-edit with",
+			"blue's own fix, or dispute. Applying is the cheapest, which is exactly why declining has to",
+			"stay a real option — a run in which blue never declines is manufacturing agreement, not earning it.",
+			"")
+	}
+	if check := g.AcceptanceCheck; check != "" {
+		out = append(out, "**Acceptance check** (what red runs at re-audit): "+check, "")
+	}
+	if problem := g.Problem; problem != "" {
+		out = append(out, "**The defect**: "+problem, "")
 	}
 
-	// The envelope carries the seat, the record holds the sitting the edit belongs to — a repair's
-	// edits are the repaired sitting's — and the body carries the spans; the render needs
-	// all three, so the assertion is made ONCE here rather than repeated (and possibly ignored)
-	// below.
-	type recordedEdit struct {
-		ev      *record.Event
-		sitting int
-		body    *recordpb.BlueEdit
-	}
-	var edits []recordedEdit
-	for _, e := range in.Events {
-		w := in.At.Of(e)
-		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && ed.GetAnswers() == gapID {
-			edits = append(edits, recordedEdit{ev: e, sitting: w.Sitting, body: ed})
-		}
-	}
-
-	if len(edits) == 0 {
+	if len(sel.Edits) == 0 {
 		out = append(out,
 			"## Edits blue recorded against it: NONE",
 			"",
 			"_Blue recorded no edit answering this gap. That is not proof nothing changed — an edit",
 			"that omitted `--answers` is invisible here — but it is the honest state of the join, and",
 			"the unscoped `show changes` lists every edit including the unattributed ones._", "")
-		return []byte(strings.Join(out, "\n")), nil
+		return []byte(strings.Join(out, "\n"))
 	}
 
-	out = append(out, fmt.Sprintf("## Edits blue recorded against it (%d)", len(edits)), "")
-	for i, e := range edits {
+	out = append(out, fmt.Sprintf("## Edits blue recorded against it (%d)", len(sel.Edits)), "")
+	for i, e := range sel.Edits {
 		out = append(out,
-			fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.ev.GetSeatId(), e.sitting, delta(e.body.GetOld(), e.body.GetNew())),
+			fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, delta(e.Old, e.New)),
 			"",
-			"**Blue's reason**: "+e.body.GetText(),
+			"**Blue's reason**: "+e.Reason,
 			"",
 			"```diff",
-			"- "+oneLine(e.body.GetOld()),
-			"+ "+oneLine(e.body.GetNew()),
+			"- "+oneLine(e.Old),
+			"+ "+oneLine(e.New),
 			"```",
 			"")
 	}
-	return []byte(strings.Join(out, "\n")), nil
+	return []byte(strings.Join(out, "\n"))
 }
 
 // delta reports the size change in CHARACTERS (runes, not bytes) — the unit a seat reading

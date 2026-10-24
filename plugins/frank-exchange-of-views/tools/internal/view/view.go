@@ -210,6 +210,9 @@ type Input struct {
 	// At is where each of Events sits on the record, as the loader read it (record.WindowIndex):
 	// every epoch and `seat #N` a view prints is read here.
 	At record.WindowIndex
+	// Run is the record itself, for the view that reads its own selection rather than the fold:
+	// `changes` renders record.ChangesOf, the value its --json form marshals.
+	Run record.Run
 }
 
 // InputOf assembles the render input from the record.
@@ -218,7 +221,7 @@ func InputOf(run record.Run) (Input, error) {
 	if err != nil {
 		return Input{}, err
 	}
-	return Input{Gaps: fam.Gaps, Events: fam.Events, At: fam.At}, nil
+	return Input{Gaps: fam.Gaps, Events: fam.Events, At: fam.At, Run: run}, nil
 }
 
 // Markdown returns one markdown projection, rendered in-memory from the record.

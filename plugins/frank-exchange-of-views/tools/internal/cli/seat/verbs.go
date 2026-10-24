@@ -791,8 +791,11 @@ func renderView(cmd *cobra.Command, want string) error {
 		// select over them instead of rendering the report and grepping. 8 of m10's 23 unscoped
 		// `changes` calls asked for a --json that did not exist, then inspected the refusal envelope
 		// (`jq 'keys'`, `jq '.error'`) to work out why.
+		//
+		// --id SCOPES BOTH FORMS through one selection (record.ChangesOf), so the JSON holds the gap's
+		// mint and the edits answering it exactly where the markdown does.
 		case "changes":
-			b, err := record.ChangesJSONBytes(run)
+			b, err := record.ChangesJSONBytes(run, Str(cmd, flags.ID))
 			if err != nil {
 				return err
 			}
