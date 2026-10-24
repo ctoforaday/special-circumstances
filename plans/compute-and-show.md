@@ -360,7 +360,7 @@ deterministic or state the invariant; output and `out/` are unbounded and commit
 |---|---|
 | `cite --show text` | the quoted span as a block quote; verification unchanged |
 | `cite --show image --page N --region x0,y0,x1,y1` | PDF: `pagerender` at its fixed resolution, cropped to the region in its pixels; an image source: the whole image. Stored as a derived cache entry keyed (source sha, page, region, renderer) — in `cache/`, never committed (R-commit); `archive rerun` re-derives it from the re-fetched source |
-| Absent crop | report.md, report.html, `show report --assembled` and `devcmd/archdump` render "*Figure n.* R — not in this run's cache: C-…, page N, region …; `archive rerun` re-derives it". Never a silent omission |
+| Absent crop | report.md, report.html, `show report --assembled` and `devcmd/archdump` render "*Figure n.* R — <source title>, page N: image not held in this copy" (subject terms only — report-voice ruling); run.md's log names the absent crop (C-…, region) and `archive rerun`, which re-derives it. Never a silent omission |
 | Evidence lens `verify` | reads the crop beside `render-page`'s render of the same page — fidelity at the leaf, no seat program between |
 | First test | `fetchcache` has no `image/*` branch (`grep 'image/' internal/fetchcache internal/cli/blue`: imports only); whether `cite` accepts an image source is measured before the verb is built |
 | migrate | replay only: migrated citations are not shown |
