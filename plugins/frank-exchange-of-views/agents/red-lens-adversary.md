@@ -203,7 +203,7 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
   reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
@@ -623,11 +623,11 @@ Flags:
       --quote string     the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing — scored for a location-match bonus
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
-ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds and your first record after it. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not — a lens's whole read of the report among them — so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 
@@ -829,7 +829,7 @@ THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just 
 
 THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. Blue's `ingest` and `edit` refuse report text that carries one. --assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`.
 
-A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it.
+A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat.
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 

@@ -487,13 +487,13 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
 	beh := sittingOfRunT(t, b.sit(head, evLens).seed(), "lens", evLens)
-	if !listsItem(beh, "re-read it in full") {
+	if !listsItem(beh, "reads it in full") {
 		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
 	}
 	if listsItem(beh, "not the whole document") {
 		t.Errorf("the item tells the lens to audit a fragment, which adversarial-audit forbids: %+v", beh.Open)
 	}
-	if !listsItem(beh, "is at") {
+	if !listsItem(beh, "dispatched against head") {
 		t.Errorf("the item does not name the range the lens must audit: %+v", beh.Open)
 	}
 

@@ -147,7 +147,10 @@ func TestABenchRepeatIsRefusedUnderEitherOccasion(t *testing.T) {
 	}
 	before := eventCount(t, run)
 	_, _, err := record.RegisterSeat(bench, "", "docket")
-	refusedRepeat(t, err, `dispatch 1, occasion "docket"`)
+	refusedRepeat(t, err, "dispatch 1")
+	if err == nil || !strings.Contains(err.Error(), `occasion "docket"`) {
+		t.Errorf("the repeat = %v; want it naming the stored occasion", err)
+	}
 	_, _, err = record.RegisterSeat(bench, "", "petition")
 	if err == nil || !strings.Contains(err.Error(), `"docket"`) || !strings.Contains(err.Error(), `"petition"`) {
 		t.Errorf("a repeat naming another occasion = %v; want it refused naming the stored one", err)

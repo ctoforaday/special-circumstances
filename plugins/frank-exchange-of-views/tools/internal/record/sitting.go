@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // WHAT THIS SEAT STILL OWES, ON THE READ IT ALREADY DOES.
@@ -165,7 +166,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			//
 			// So it states the fact and points at the duty, and the seat's constitution keeps saying
 			// what the duty is. A work list that argues with a MUST teaches a seat to weigh the two.
-			may(fmt.Sprintf("the report moved since it was last served to you whole — at %d, and it is at %d now, so re-read it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
+			//
+			// IT SPEAKS OF BEFORE THIS SITTING, because that is what lastReadBefore measures: a whole read
+			// in this sitting does not move it, and "it is at H now, re-read it" stayed on the list after
+			// the read it asked for (#1565 smoke: 14 work-list reads in 12 sittings).
+			may(fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
 				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
 		}
 	}
@@ -683,12 +688,8 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 // gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join
 // the close gate reads, so the sitting and the gate cannot disagree about what is owed.
 
-// sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing but the
-// bookkeeping that brackets it.
-//
-// THE BOOKKEEPING IS NOT AN ACT. A register is the seat announcing itself, a log is the channel this
-// predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
-// them would make every sitting look busy and the empty case unreachable.
+// sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type
+// recordsql.NotActs does not list, the definition seat_metrics counts acts by.
 //
 // It reads the one window every per-sitting reader does (thisSitting), so "this sitting" means one thing
 // on this surface: the seat's acts the write path stored in its latest sitting — opened by its
@@ -700,21 +701,9 @@ func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
 		return false
 	}
 	for _, e := range thisSitting(evs, win, seatID) {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER,
-			recordpb.EventType_EVENT_TYPE_LOG,
-			recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
-			recordpb.EventType_EVENT_TYPE_SITTING_CLOSE,
-			// A stale refusal is the tool's record of what it showed the seat, not an act of the seat's,
-			// and so is a report read: what the tool served it.
-			recordpb.EventType_EVENT_TYPE_STALE,
-			recordpb.EventType_EVENT_TYPE_REPORT_READ,
-			// The stored plan is the record's copy of what `dispatch next` printed; the rows are the
-			// act. A chair that asked and was told nobody sits recorded nothing.
-			recordpb.EventType_EVENT_TYPE_PLAN:
-			continue
+		if !slices.Contains(recordsql.NotActs, e.GetType()) {
+			return false
 		}
-		return false
 	}
 	return true
 }

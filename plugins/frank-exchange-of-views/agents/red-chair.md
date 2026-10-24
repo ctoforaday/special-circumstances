@@ -138,7 +138,7 @@ Available Commands:
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
-  register    NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
@@ -383,11 +383,11 @@ Flags:
       --reason string   REQUIRED — your sitting's argument — your THINKING, not your process. → SHARED §4
 ========
 $ feov-record register --help
-NOT needed to look, only to RECORD — once per sitting, before your first record; the one call needing your seat id
+NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
 
 It binds your seat to you on the record: every later call resolves it, and your run is injected on every call, so you type neither again.
 
-ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not, so a sitting that has already recorded something owes no register.
+ONCE PER SITTING. A second register in the same sitting is refused and records nothing; the refusal names the registration the record holds and your first record after it. Where this command takes nothing but your seat id, your first act that records makes the register for you when you have not — a lens's whole read of the report among them — so a sitting that has already recorded something owes no register.
 
 A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispatch with your identity, so where one agent type seats one seat the record knows you sat. Look, find nothing owed, and end the turn having run nothing — this included.
 

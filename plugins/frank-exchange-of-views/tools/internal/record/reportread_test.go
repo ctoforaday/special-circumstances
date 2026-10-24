@@ -140,3 +140,35 @@ func TestAReportReadIsALensesAtTheReportsHead(t *testing.T) {
 		t.Errorf("a lens's read at the head: %v", err)
 	}
 }
+
+// ONE DEFINITION OF AN ACT (recordsql.NotActs), READ BY EVERY COUNT OF ACTS. A lens sitting holding
+// only its register and a whole read is empty to the work list and to seat_metrics, whose `acts`
+// cost.md counts its empty sittings by — the #1565 smoke printed "Empty sittings: 0 of 77" over such
+// a sitting. A chair sitting holding only its register and a log is no act to the counterparty count.
+func TestASittingOfOnlyBookkeepingIsEmptyToEveryCountOfActs(t *testing.T) {
+	run := retBoard(t).dispatch(2, evLens).registerAs(evLens, "agent_lens").served(evLens, 2).seed()
+	m, err := MergedEvents(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sittingRecordedNothing(m.Events, m.At, evLens) {
+		t.Errorf("the work list counts the read of a sitting holding only a register and a read as an act")
+	}
+	if _, err := AppendSeatTurns(run, "agent_lens", turns(2)); err != nil {
+		t.Fatal(err)
+	}
+	var acts int
+	queryOne(t, run, `SELECT "acts" FROM "seat_metrics" WHERE "agent_id" = 'agent_lens'`, &acts)
+	if acts != 0 {
+		t.Errorf("seat_metrics.acts = %d for a sitting holding only a register and a read, want 0", acts)
+	}
+
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").logEntry("red-chair")
+	m, err = MergedEvents(b.seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := counterpartyOf(m.Events, m.At, "blue", 1); c.Acts != 0 || c.ActsThisEpoch != 0 {
+		t.Errorf("the chair's register and log count as %d act(s), %d this epoch; want none: %s", c.Acts, c.ActsThisEpoch, c.Reading)
+	}
+}

@@ -279,10 +279,11 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 		return 0, "", err
 	}
 	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
-	sitting, stored, found, err := registeredSitting(tx, reg.GetAgentId(), seatID)
+	held, found, err := registeredSitting(tx, reg.GetAgentId(), seatID)
 	if err != nil {
 		return 0, "", err
 	}
+	sitting := held.sitting
 	if !found {
 		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
 			return 0, "", err
@@ -300,7 +301,7 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 		return 0, "", err
 	}
 	if found {
-		return 0, "", repeatRegister(seatID, dispatch, stored, occ)
+		return 0, "", repeatRegister(seatID, dispatch, held, occ)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, "", err
@@ -319,49 +320,75 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	return dispatch, dbName, nil
 }
 
-// registeredSitting is the sitting this agent's earlier register as seatID belongs to, and the
-// occasion it stated, if it made one and no stop of the agent (a sitting_close naming it) is on the
-// record since. No agent id finds nothing: such a register cannot be tied to a sitting.
-func registeredSitting(tx *sql.Tx, agentID, seatID string) (sitting int64, occasion string, found bool, err error) {
+// heldRegister is the registration a sitting already holds for an agent: its sitting, the register's
+// event, the occasion it stated, and the seat's first record after it in that sitting (0 and "" where
+// none follows) — the act that made the register for the seat, where the seat did not run one.
+type heldRegister struct {
+	sitting, event int64
+	occasion       string
+	nextID         int64
+	nextKind       string
+}
+
+// registeredSitting is the registration this agent's earlier register as seatID holds, if it made
+// one and no stop of the agent (a sitting_close naming it) is on the record since. No agent id finds
+// nothing: such a register cannot be tied to a sitting.
+func registeredSitting(tx *sql.Tx, agentID, seatID string) (h heldRegister, found bool, err error) {
 	if agentID == "" {
-		return 0, "", false, nil
+		return h, false, nil
 	}
 	err = tx.QueryRow(
-		`SELECT e."sitting_id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		`SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
 		  WHERE r."agent_id" = ? AND e."seat_id" = ?
 		    AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id")
 		  ORDER BY e."id" DESC LIMIT 1`,
-		agentID, seatID).Scan(&sitting, &occasion)
+		agentID, seatID).Scan(&h.sitting, &h.event, &h.occasion)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, "", false, nil
+		return h, false, nil
 	}
 	if err != nil {
-		return 0, "", false, fmt.Errorf("asking whether this agent already registered as %s: %w", seatID, err)
+		return h, false, fmt.Errorf("asking whether this agent already registered as %s: %w", seatID, err)
 	}
-	return sitting, occasion, true, nil
+	err = tx.QueryRow(`SELECT "id", "type" FROM "events" WHERE "seat_id" = ? AND "sitting_id" = ? AND "id" > ? ORDER BY "id" LIMIT 1`,
+		seatID, h.sitting, h.event).Scan(&h.nextID, &h.nextKind)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return h, false, fmt.Errorf("asking what %s recorded after its register: %w", seatID, err)
+	}
+	return h, true, nil
 }
 
 // repeatRegister is the refusal of a second register in one sitting: it names the registration the
-// record holds — the dispatch, and the occasion where the seat states one — and records nothing.
-// A repeat naming another occasion contradicts the stored one, and says so.
-func repeatRegister(seatID string, dispatch int, stored string, occ *recordpb.Occasion) error {
-	held := fmt.Sprintf("dispatch %d", dispatch)
-	if stored != "" {
-		held += fmt.Sprintf(", occasion %q", stored)
+// record holds — the dispatch, the register's event, the occasion where the seat states one, and
+// the seat's first record after it, which is the act that registered the seat where it ran no
+// register itself — and records nothing. A repeat naming another occasion contradicts the stored
+// one, and says so.
+//
+// THE FIRST RECORD IS NAMED BECAUSE THE SEAT CANNOT SEE IT. Measured on the #1565 smoke: four lenses
+// whose whole read of the report registered them ran `register` next, were refused naming only the
+// dispatch, and each blamed the dispatch bracket.
+func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.Occasion) error {
+	held := fmt.Sprintf("dispatch %d, register at event %d", dispatch, h.event)
+	if h.occasion != "" {
+		held += fmt.Sprintf(", occasion %q", h.occasion)
 	}
 	asked := ""
 	if occ != nil {
 		asked = recordpb.Word(*occ)
 	}
-	if asked != stored {
+	if asked != h.occasion {
 		return feov.Errorf(feov.Conflict,
 			"%s is already registered in this sitting (%s); a sitting is convened for one occasion, so a register naming %q is refused and records nothing",
 			seatID, held, asked)
 	}
+	first := ""
+	if h.nextID != 0 {
+		first = fmt.Sprintf(" — your %s at event %d is your first record after it", h.nextKind, h.nextID)
+	}
 	return feov.Errorf(feov.Conflict,
-		"%s is already registered in this sitting (%s), so this register is refused and records nothing: a register is once per sitting. "+
+		"%s is already registered in this sitting (%s), so this register is refused and records nothing: a register is once per sitting, "+
+			"and where this command takes nothing but your seat id, your first act that records makes it for you%s. "+
 			"Every act you record in this sitting is already attributed to %s",
-		seatID, held, seatID)
+		seatID, held, first, seatID)
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.

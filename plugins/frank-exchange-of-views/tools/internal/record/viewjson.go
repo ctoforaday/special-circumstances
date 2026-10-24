@@ -706,7 +706,7 @@ type GapBackingJSON struct {
 type CounterpartyJSON struct {
 	// Role is whose activity this describes: the party this seat is waiting on or disposing of.
 	Role string `json:"role"`
-	// Acts is how many substantive events that party has recorded in the whole run, and
+	// Acts is how many acts (recordsql.NotActs) that party has recorded in the whole run, and
 	// ActsThisEpoch how many in the epoch this seat is sitting in. Zero for both is "has not
 	// started"; zero this epoch with a positive total is "worked earlier, not yet here".
 	Acts          int `json:"acts"`
@@ -1320,12 +1320,8 @@ func counterpartyOf(evs []*Event, win WindowIndex, role string, epoch int) Count
 	}
 	c := CounterpartyJSON{Role: other}
 	for _, e := range evs {
-		if PartyOf(e) != other {
+		if PartyOf(e) != other || slices.Contains(recordsql.NotActs, e.GetType()) {
 			continue
-		}
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER:
-			continue // arriving is not acting
 		}
 		c.Acts++
 		r := win.Of(e).Epoch
