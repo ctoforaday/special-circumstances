@@ -1007,6 +1007,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
+		if err := requireNotARepeatUnsound(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Credit:
 		if err := requireCreditAnswers(q, seatID, b); err != nil {
 			return err
