@@ -5568,6 +5568,7 @@ var reportExemptions = map[string]string{
 	"cast":     "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
 	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
 	"plan":     "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
+	"credit":   "carries no prose: it adds its finding to an open gap's found_by, and the report renders that finding where it renders every gap's — the gap's surfaced-by lines",
 	"stale":    "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
