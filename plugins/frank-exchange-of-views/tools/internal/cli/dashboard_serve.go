@@ -200,7 +200,7 @@ func selfSignedCert(ips []net.IP) (tls.Certificate, error) {
 }
 
 // watchIsOver answers the ONE question both watchers ask, in one place: is there anything left on
-// this run to watch? Not whether the run has ENDED — only capture ends it (record.RunEnded) — but
+// this run to watch? Not whether the run was CAPTURED (record.RunCaptured) — but
 // whether its debate is over, which a watcher keyed to capture alone never learns (#270).
 //
 // Three signals, because each alone is a part-answer:

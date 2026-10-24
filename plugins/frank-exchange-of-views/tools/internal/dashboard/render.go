@@ -458,11 +458,11 @@ func RenderHTML(m Model) string {
 		}
 	}
 	if m.Terminal {
-		// AN OUTCOME IS NOT THE RUN'S END. The bench decides the run and then assembles in the same
-		// sitting, and only capture ends it (record.RunEnded, which Live reads): until then a seat
+		// AN OUTCOME IS NOT THE CAPTURE. The bench decides the run and then assembles in the same
+		// sitting, and only capture closes it (record.RunCaptured, which Live reads): until then a seat
 		// with no stop on the record may be the assembly sitting at work, and saying it "did not
 		// finish" would call a running seat dead.
-		captured := m.Live.State == record.StateEnded
+		captured := m.Live.State == record.StateCaptured
 		decided, count, unfinished := "the bench recorded this run's outcome, and the run was captured", "never finished", "did not finish"
 		if captured {
 			w("\n<h2>Seats (run complete)</h2>\n")
@@ -497,7 +497,7 @@ func RenderHTML(m Model) string {
 		case record.StateStale:
 			w("\n<h2>Seats — STOPPED</h2>\n")
 			w(fmt.Sprintf(`<p class="stale">%s</p>`, esc(m.Live.Says())))
-		case record.StateEnded:
+		case record.StateCaptured:
 			// Captured with no outcome on the record: a run that stopped before the bench decided it.
 			w("\n<h2>Seats — captured without an outcome</h2>\n")
 			w(fmt.Sprintf(`<p class="muted">%s</p>`, esc(m.Live.Says())))
@@ -511,7 +511,7 @@ func RenderHTML(m Model) string {
 				g := liveGroups[lbl]
 				status := "running"
 				switch {
-				case m.Live.State == record.StateEnded:
+				case m.Live.State == record.StateCaptured:
 					status = "did not finish"
 				case g.oldest != nil:
 					mins := int(math.Round((etaNow(m) - *g.oldest) / 60000))

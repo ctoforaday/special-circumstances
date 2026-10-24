@@ -1156,7 +1156,7 @@ func SplitGroups(root *cobra.Command) {
 	root.SetHelpCommandGroupID(GroupVerbs)
 }
 
-// requireOpenRecord asks the record whether it takes this verb's act at all — the run has ended, the
+// requireOpenRecord asks the record whether it takes this verb's act at all — the run was captured, the
 // record holds an outcome, or an outcome is stamped outside the assembly sitting
 // (record.RequireSeatMayWrite) — BEFORE the verb's own checks run, and before register-first: a verb
 // that refuses on a check of its own first tells a seat after the outcome what else is wrong with

@@ -69,11 +69,11 @@ func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 	}
 }
 
-// ENDED HAS ONE SOURCE: THE MARK CAPTURE WRITES. A run whose bench recorded its outcome is decided,
-// not ended — its assembly sitting may still be at work and capture has not run — and the write
+// CAPTURED HAS ONE SOURCE: THE MARK CAPTURE WRITES. A run whose bench recorded its outcome is decided,
+// not captured — its assembly sitting may still be at work and capture has not run — and the write
 // path, which refuses on the mark alone, takes its writes. A liveness verdict fed "has a verdict"
-// called that run ENDED while the record still took writes; the two readings must be one.
-func TestAssessSaysEndedOnlyOnceCaptured(t *testing.T) {
+// called that run captured while the record still took writes; the two readings must be one.
+func TestAssessSaysCapturedOnlyOnceCaptured(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 10, 20*time.Second, now)
 	run := mustRun(t, dir)
@@ -90,18 +90,18 @@ func TestAssessSaysEndedOnlyOnceCaptured(t *testing.T) {
 		t.Fatalf("the outcome is not on the record (%q, %v) — this test needs a decided run", v, err)
 	}
 	at := time.Now()
-	if l := Assess(run, at); l.State == StateEnded {
+	if l := Assess(run, at); l.State == StateCaptured {
 		t.Fatalf("a run with an outcome and no capture mark reads %s (%s) — an outcome is not the run's end", l.State, l.Basis)
 	}
-	if err := MarkEnded(run, at.UTC().Format(time.RFC3339)); err != nil {
+	if err := MarkCaptured(run, at.UTC().Format(time.RFC3339)); err != nil {
 		t.Fatal(err)
 	}
-	if l := Assess(run, at); l.State != StateEnded {
-		t.Errorf("a captured run reads %s (%s), want ENDED", l.State, l.Basis)
+	if l := Assess(run, at); l.State != StateCaptured {
+		t.Errorf("a captured run reads %s (%s), want CAPTURED", l.State, l.Basis)
 	}
 	// The record's own activity is asked apart from the disposition: capture asks it of a run it is
 	// capturing again, and a mark there must not answer for the record.
-	if l := AssessActivity(run, at); l.State == StateEnded {
+	if l := AssessActivity(run, at); l.State == StateCaptured {
 		t.Errorf("AssessActivity read the capture mark: %s", l.State)
 	}
 }

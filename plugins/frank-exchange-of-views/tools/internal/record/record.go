@@ -215,8 +215,8 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 			"no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
-	// AN ENDED RUN TAKES NOTHING (ended.go), a register included.
-	if err := requireRunNotEnded(run); err != nil {
+	// A CAPTURED RUN TAKES NOTHING (captured.go), a register included.
+	if err := requireRunNotCaptured(run); err != nil {
 		return 0, "", err
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
@@ -744,8 +744,8 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
-	// AN ENDED RUN TAKES NOTHING (ended.go), asked before anything is opened.
-	if err := requireRunNotEnded(run); err != nil {
+	// A CAPTURED RUN TAKES NOTHING (captured.go), asked before anything is opened.
+	if err := requireRunNotCaptured(run); err != nil {
 		return nil, err
 	}
 	ev := &Event{}

@@ -74,7 +74,7 @@ func TestTheAgentThatRecordedTheOutcomeKeepsItsRun(t *testing.T) {
 // THE BENCH KEEPS A DECIDED RUN, AND A CAPTURED RUN IS NOBODY'S. A resume dispatches an assembly
 // sitting that stopped after its stamp again, as a fresh agent the mark does not name; the record
 // admits its acts, so the hooks bind any agent of the bench's configuration to the decided run. No
-// other configuration is bound, and nothing is once capture has marked the run ended.
+// other configuration is bound, and nothing is once capture has marked the run captured.
 func TestADecidedRunIsLiveForTheBenchUntilItIsCaptured(t *testing.T) {
 	proj := t.TempDir()
 	run := filepath.Join(proj, "research", "r")
@@ -97,20 +97,20 @@ func TestADecidedRunIsLiveForTheBenchUntilItIsCaptured(t *testing.T) {
 			t.Errorf("%+v after the outcome: %v, want %v", tc.caller, got, tc.want)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(run, EndedMark), []byte("2026-10-24T00:00:00Z\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run, CapturedMark), []byte("2026-10-24T00:00:00Z\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range []Caller{{ID: "a-fresh", Type: BenchAgentType}, {ID: "a-bench", Type: BenchAgentType}, {}} {
-		if got := StateOf(proj, m, c); got != RowEnded {
-			t.Errorf("%+v once captured: %v, want RowEnded", c, got)
+		if got := StateOf(proj, m, c); got != RowCaptured {
+			t.Errorf("%+v once captured: %v, want RowCaptured", c, got)
 		}
 	}
-	// Captured with no outcome recorded — a run that stopped before the bench decided it — is ended too.
+	// Captured with no outcome recorded — a run that stopped before the bench decided it — is nobody's too.
 	if err := os.Remove(filepath.Join(run, OutcomeMark)); err != nil {
 		t.Fatal(err)
 	}
-	if got := StateOf(proj, m, Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence"}); got != RowEnded {
-		t.Errorf("a captured run with no outcome: %v, want RowEnded", got)
+	if got := StateOf(proj, m, Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence"}); got != RowCaptured {
+		t.Errorf("a captured run with no outcome: %v, want RowCaptured", got)
 	}
 }
 

@@ -109,7 +109,7 @@ func TestAResumedAssemblySittingIsRecordedAfterTheOutcome(t *testing.T) {
 	}
 
 	// CAPTURED: nothing binds — a bench agent, and the agent that recorded the outcome.
-	if err := os.WriteFile(filepath.Join(runDir, runlive.EndedMark), []byte("2026-10-24T00:00:00Z\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, runlive.CapturedMark), []byte("2026-10-24T00:00:00Z\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	before = len(*got)

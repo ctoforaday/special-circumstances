@@ -107,7 +107,7 @@ func terminalModel(t *testing.T, live record.LiveState) Model {
 
 // A CAPTURED RUN WITH AN OUTCOME is complete: a seat with no stop did not finish.
 func TestRenderHTMLTerminal(t *testing.T) {
-	h := RenderHTML(terminalModel(t, record.StateEnded))
+	h := RenderHTML(terminalModel(t, record.StateCaptured))
 	if strings.Contains(h, "projected remaining") {
 		t.Error("terminal run must not show the projected-remaining tile")
 	}
@@ -129,7 +129,7 @@ func TestRenderHTMLDecidedNotCaptured(t *testing.T) {
 
 // CAPTURED WITHOUT AN OUTCOME: the run stopped before the bench decided it, and nothing runs now.
 func TestRenderHTMLCapturedWithoutAnOutcome(t *testing.T) {
-	m := terminalModel(t, record.StateEnded)
+	m := terminalModel(t, record.StateCaptured)
 	m.Terminal, m.TerminalVerdict = false, ""
 	h := RenderHTML(m)
 	for _, want := range []string{"Seats — captured without an outcome", "run complete — captured", "did not finish"} {
@@ -281,22 +281,22 @@ func TestTheDashboardCountsClaimsFromTheReport(t *testing.T) {
 	}
 }
 
-// THE MODEL READS ENDED FROM THE CAPTURE MARK, NOT FROM THE OUTCOME. A run whose bench recorded its
-// outcome is Terminal — decided — and not ENDED until capture marks it.
-func TestTheModelReadsEndedFromTheCaptureMark(t *testing.T) {
+// THE MODEL READS CAPTURED FROM THE CAPTURE MARK, NOT FROM THE OUTCOME. A run whose bench recorded its
+// outcome is Terminal — decided — and not CAPTURED until capture marks it.
+func TestTheModelReadsCapturedFromTheCaptureMark(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, recordtest.At(t, "judge", "judge:outcome:1", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Prose: proto.String("nobody was ready"),
 	}))
 	run := runtest.Open(t, dir)
 	m := BuildModel(run, t.TempDir(), Config{}, 0)
-	if !m.Terminal || m.Live.State == record.StateEnded {
-		t.Fatalf("a decided run not yet captured: Terminal %v, Live %s — want Terminal and not ENDED", m.Terminal, m.Live.State)
+	if !m.Terminal || m.Live.State == record.StateCaptured {
+		t.Fatalf("a decided run not yet captured: Terminal %v, Live %s — want Terminal and not CAPTURED", m.Terminal, m.Live.State)
 	}
-	if err := record.MarkEnded(run, "2026-10-24T00:00:00Z"); err != nil {
+	if err := record.MarkCaptured(run, "2026-10-24T00:00:00Z"); err != nil {
 		t.Fatal(err)
 	}
-	if m := BuildModel(run, t.TempDir(), Config{}, 0); m.Live.State != record.StateEnded {
-		t.Errorf("a captured run: Live %s, want ENDED", m.Live.State)
+	if m := BuildModel(run, t.TempDir(), Config{}, 0); m.Live.State != record.StateCaptured {
+		t.Errorf("a captured run: Live %s, want CAPTURED", m.Live.State)
 	}
 }

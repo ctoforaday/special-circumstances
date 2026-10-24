@@ -91,8 +91,8 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 // its latest register, or the bracket that named its seat). An agent bound to no seat is no seat,
 // and nothing is written for it. A run with an outcome takes the entry: a seat's call denied or
 // failed after the outcome is friction like any other (record.requireOpenToSeats lets every log
-// entry land). A run that has ENDED — capture closed it — takes nothing, and the refusal is
-// returned (record.ErrRunEnded).
+// entry land). A run that was CAPTURED takes nothing, and the refusal is
+// returned (record.ErrRunCaptured).
 func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	typ, ok := map[Phase]recordpb.LogType{
 		Refusal: recordpb.LogType_LOG_TYPE_REFUSAL,

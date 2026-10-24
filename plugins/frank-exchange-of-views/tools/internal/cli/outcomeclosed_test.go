@@ -273,11 +273,11 @@ func TestAfterTheOutcomeTheClosedRecordIsTheFirstRefusal(t *testing.T) {
 	}
 }
 
-// AN ENDED RUN TAKES NOTHING (gblock, 2026-10-24: "Ended run takes nothing"). Once capture has run,
+// A CAPTURED RUN TAKES NOTHING (gblock, 2026-10-24: "Ended run takes nothing"). Once capture has run,
 // every write is refused, a log entry included; the refusal a seat meets still prints, the tool's
-// entry for it is not written, and the caller is told the run has ended. Between the outcome and the
-// end the refusal is friction on the log (TestARunWithAnOutcomeRefusesSeatActsAndLogsEach).
-func TestAnEndedRunTakesNothing(t *testing.T) {
+// entry for it is not written, and the caller is told the run was captured. Between the outcome and the
+// capture the refusal is friction on the log (TestARunWithAnOutcomeRefusesSeatActsAndLogsEach).
+func TestACapturedRunTakesNothing(t *testing.T) {
 	t.Chdir(t.TempDir())
 	as(t, "")
 	runDir := seatRun(t)
@@ -286,7 +286,7 @@ func TestAnEndedRunTakesNothing(t *testing.T) {
 	if _, err := run(t, "capture", runDir, t.TempDir(), "--seat-id", record.OperatorRole); err != nil && !strings.Contains(err.Error(), "FAIL") {
 		t.Logf("capture: %v", err)
 	}
-	if ended, err := record.RunEnded(runtest.Open(t, runDir)); err != nil || !ended {
+	if ended, err := record.RunCaptured(runtest.Open(t, runDir)); err != nil || !ended {
 		t.Fatalf("capture did not end the run: (%v, %v)", ended, err)
 	}
 	events := countAll(t, runDir)
@@ -302,7 +302,7 @@ func TestAnEndedRunTakesNothing(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			as(t, c.agent)
 			_, err := run(t, c.argv...)
-			if err == nil || !strings.Contains(err.Error(), "the run has ended") {
+			if err == nil || !strings.Contains(err.Error(), "the run was captured") {
 				t.Fatalf("%s after the capture = %v, want the ended run's refusal", c.name, err)
 			}
 		})
@@ -312,10 +312,10 @@ func TestAnEndedRunTakesNothing(t *testing.T) {
 		// the ended run's, and its log entry is the one write withheld.
 		as(t, "")
 		_, stderr, err := runSeen(t, "regrade", "--run", runDir, "--seat-id", lensSeat, "--no-such-flag", "x")
-		if err == nil || strings.Contains(err.Error(), "the run has ended") {
+		if err == nil || strings.Contains(err.Error(), "the run was captured") {
 			t.Fatalf("an unknown flag after the capture = %v, want the flag's own refusal", err)
 		}
-		if !strings.Contains(stderr, "the run has ended") {
+		if !strings.Contains(stderr, "the run was captured") {
 			t.Errorf("the caller was not told its refusal is not recorded: stderr %q", stderr)
 		}
 	})

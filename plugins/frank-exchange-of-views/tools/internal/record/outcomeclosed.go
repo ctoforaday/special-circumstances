@@ -109,8 +109,8 @@ func requireAssemblySitting(q recordsql.Querier, seatID string) error {
 // requireSeatMayWriteAt is every seat act's first question of the record, asked before a verb's
 // guards and validation so an act the record no longer takes is told that, and not what else is
 // wrong with it: the record holds an outcome (requireOpenToSeats), or an outcome is stamped outside
-// the assembly sitting (requireAssemblySitting). Whether the run has ENDED is asked of the run where
-// a write begins (requireRunNotEnded), before this.
+// the assembly sitting (requireAssemblySitting). Whether the run was CAPTURED is asked of the run where
+// a write begins (requireRunNotCaptured), before this.
 func requireSeatMayWriteAt(q recordsql.Querier, seatID string, typ recordpb.EventType, body proto.Message) error {
 	if err := requireOpenToSeats(q, seatID, typ, body); err != nil {
 		return err
@@ -127,7 +127,7 @@ func requireSeatMayWriteAt(q recordsql.Querier, seatID string, typ recordpb.Even
 // knows of its act before it composes it — a register's occasion — or nil. The write asks again
 // under its lock (writeIn), where an outcome committed in between is seen.
 func RequireSeatMayWrite(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
-	if err := requireRunNotEnded(run); err != nil {
+	if err := requireRunNotCaptured(run); err != nil {
 		return err
 	}
 	db, err := openRunForRead(run)

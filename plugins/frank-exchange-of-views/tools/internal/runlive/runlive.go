@@ -70,17 +70,17 @@ type RunLive struct {
 // run it is the two-live-runs fault, and `setup` refuses naming it — never the silent one.
 const OutcomeMark = ".outcome-recorded"
 
-// EndedMark is the file `capture` writes into the run directory at its close: the run has ENDED.
+// CapturedMark is the file `capture` writes into the run directory at its close: the run was CAPTURED.
 // It is the one source of that fact — the record refuses every write to a run that holds it
-// (record.RunEnded), the liveness verdict reads ENDED from it (record.Assess), and no row whose run
+// (record.RunCaptured), the liveness verdict reads CAPTURED from it (record.Assess), and no row whose run
 // holds it is live for anyone (StateOf). An outcome is a different fact: the bench has decided the
 // run, and its assembly sitting may still be at work.
-const EndedMark = ".run-captured"
+const CapturedMark = ".run-captured"
 
-// Ended reports whether the run in runDir was captured. An unreadable mark is still a mark: its
+// Captured reports whether the run in runDir was captured. An unreadable mark is still a mark: its
 // existence is the fact, and the error says it could not be asked.
-func Ended(runDir string) (bool, error) {
-	_, err := os.Stat(filepath.Join(runDir, EndedMark))
+func Captured(runDir string) (bool, error) {
+	_, err := os.Stat(filepath.Join(runDir, CapturedMark))
 	switch {
 	case err == nil:
 		return true, nil
@@ -106,7 +106,7 @@ type Caller struct {
 // outcomeMark is the mark's content: the agent whose sitting recorded the outcome.
 //
 // THE RECORDING SEAT KEEPS ITS RUN UNTIL ITS SITTING ENDS. The assembly seat records the outcome
-// first and then assembles in the same sitting; if the mark ended the run for it too, its next tool
+// first and then assembles in the same sitting; if the mark closed the run to it too, its next tool
 // calls would carry no agent identity and its sitting would never close on the record. Agent ids
 // are unique per dispatch, so the exception expires with that one sitting.
 type outcomeMark struct {
@@ -129,10 +129,10 @@ func WriteOutcomeMark(runDir, agentID string) error {
 type RowState int
 
 const (
-	RowLive    RowState = iota // its directory exists, it was not captured, and its outcome is not recorded — or the caller is its assembly sitting's
-	RowGone                    // its run directory is not there
-	RowDecided                 // its run's outcome is recorded (OutcomeMark), and the caller is no bench agent
-	RowEnded                   // its run was captured (EndedMark)
+	RowLive     RowState = iota // its directory exists, it was not captured, and its outcome is not recorded — or the caller is its assembly sitting's
+	RowGone                     // its run directory is not there
+	RowDecided                  // its run's outcome is recorded (OutcomeMark), and the caller is no bench agent
+	RowCaptured                 // its run was captured (CapturedMark)
 )
 
 // Why names a row's state in the words a pruning report needs.
@@ -142,7 +142,7 @@ func (s RowState) Why() string {
 		return "its run directory is gone"
 	case RowDecided:
 		return "its outcome is recorded"
-	case RowEnded:
+	case RowCaptured:
 		return "it was captured"
 	}
 	return "it is live"
@@ -167,8 +167,8 @@ func (s RowState) Why() string {
 //     agent dispatched in the project for some other purpose in that window, whose acts the record
 //     refuses all the same unless it sits to assemble.
 //
-// A captured run (EndedMark) is live for no one, the recording agent included. A mark that cannot
-// be asked about counts as captured, as the record's own refusal does (record.RunEnded).
+// A captured run (CapturedMark) is live for no one, the recording agent included. A mark that cannot
+// be asked about counts as captured, as the record's own refusal does (record.RunCaptured).
 //
 // A ROW WHOSE RECORD CANNOT BE OPENED STILL COUNTS AS LIVE, deliberately. Its directory is there
 // and something may be writing into it; alone, it resolves and the writers that open it fail
@@ -179,8 +179,8 @@ func StateOf(projectDir string, m RunLiveMarker, caller Caller) RowState {
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return RowGone
 	}
-	if ended, err := Ended(dir); ended || err != nil {
-		return RowEnded
+	if captured, err := Captured(dir); captured || err != nil {
+		return RowCaptured
 	}
 	b, err := readSharingDelete(filepath.Join(dir, OutcomeMark))
 	if errors.Is(err, fs.ErrNotExist) {

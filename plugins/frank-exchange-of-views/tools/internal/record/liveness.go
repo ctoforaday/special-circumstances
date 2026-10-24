@@ -57,8 +57,8 @@ type Activity struct {
 type LiveState string
 
 const (
-	// StateEnded: the run finished and was captured. Nothing is expected to move again.
-	StateEnded LiveState = "ENDED"
+	// StateCaptured: the run was captured. Nothing is expected to move again.
+	StateCaptured LiveState = "CAPTURED"
 	// StateLive: the record moved recently enough to be consistent with work in progress.
 	StateLive LiveState = "LIVE"
 	// StateStale: the marker says a run is open and the record has stopped moving. The run is
@@ -149,22 +149,22 @@ func staleThreshold(events []*Event) (time.Duration, string, bool) {
 	return d, basis, true
 }
 
-// Assess is the whole verdict. ENDED comes from the one source of that fact, the mark capture
-// writes at its close (RunEnded) — never from an outcome on the record, which says the bench has
+// Assess is the whole verdict. CAPTURED comes from the one source of that fact, the mark capture
+// writes at its close (RunCaptured) — never from an outcome on the record, which says the bench has
 // decided the run while its assembly sitting and its capture may both still be ahead. A run that is
-// not ENDED is judged by its record's own activity (AssessActivity).
+// not CAPTURED is judged by its record's own activity (AssessActivity).
 func Assess(run Run, now time.Time) Liveness {
-	ended, err := RunEnded(run)
+	captured, err := RunCaptured(run)
 	if err != nil {
 		return Liveness{State: StateUnmeasured, Basis: err.Error()}
 	}
-	if ended {
-		return Liveness{State: StateEnded, Basis: "the run was captured"}
+	if captured {
+		return Liveness{State: StateCaptured, Basis: "the run was captured"}
 	}
 	return AssessActivity(run, now)
 }
 
-// AssessActivity is the record's own answer, LIVE, STALE or NOT MEASURED, and never ENDED: whether
+// AssessActivity is the record's own answer, LIVE, STALE or NOT MEASURED, and never CAPTURED: whether
 // the record is still moving, whatever the run's disposition. Capture asks it of a run it is
 // capturing — a run whose mark it has not yet written, or one it is capturing again — because its
 // question is whether the run stopped writing before anyone captured it.
@@ -196,7 +196,7 @@ func AssessActivity(run Run, now time.Time) Liveness {
 // threshold, because "stopped" is a judgement and the reader is owed the basis for it.
 func (l Liveness) Says() string {
 	switch l.State {
-	case StateEnded:
+	case StateCaptured:
 		return "run complete — captured"
 	case StateLive:
 		return fmt.Sprintf("live — last event %s ago (%s), stale after %s",

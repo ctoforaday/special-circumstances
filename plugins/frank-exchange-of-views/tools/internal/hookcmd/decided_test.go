@@ -66,7 +66,7 @@ func TestAfterTheOutcomeTheHookBindsTheBenchAlone(t *testing.T) {
 
 	// CAPTURED: live for no one, the recording agent and the bench included — the mark alone, with
 	// the row capture would also remove still in the marker.
-	if err := os.WriteFile(filepath.Join(runDir, runlive.EndedMark), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, runlive.CapturedMark), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, agent := range []string{"af7e5h0000000000a", "a0r1g1na1000000001"} {
