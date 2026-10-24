@@ -35,7 +35,22 @@ func TestAfterTheOutcomeTheHookBindsTheBenchAlone(t *testing.T) {
 		if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {
 			t.Fatal(err)
 		}
-		return out.String()
+		if out.Len() == 0 {
+			return ""
+		}
+		// THE COMMAND AS THE SEAT'S SHELL RECEIVES IT, decoded: the document escapes a Windows path's
+		// separators, so the raw bytes never contain the run directory there.
+		var doc struct {
+			H struct {
+				Updated struct {
+					Command string `json:"command"`
+				} `json:"updatedInput"`
+			} `json:"hookSpecificOutput"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatalf("not JSON: %v\n%s", err, out.String())
+		}
+		return doc.H.Updated.Command
 	}
 	const lens = "frank-exchange-of-views:red-lens-evidence"
 
