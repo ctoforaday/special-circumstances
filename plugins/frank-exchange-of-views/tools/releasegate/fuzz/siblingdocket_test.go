@@ -3,8 +3,11 @@ package fuzz
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -24,6 +27,15 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// THE CAST, as setup writes it: the chair's dispatch below is checked against it.
+	stageRun, err := record.NewRun(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cast, lanes := record.CastFor(nil, 1)
+	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatal(err)
 	}
 	r := newRunner(bin, runDir, newLockedRand(7))
@@ -49,7 +61,24 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 		t.Fatalf("the setup stands %d unruled docket motion(s) on %s, want the two filed: %v", len(got), gapID, got)
 	}
 
+	// THE CHAIR CONVENES THE BENCH ON THE GAP, so the record holds the dispatch row the bench's
+	// docket sitting answers — the row its envelope is held to.
+	r.sit("chair", "red-chair")
+	if _, err := r.exec("--json", "dispatch", "next", "--seat-id", "red-chair"); err != nil {
+		t.Fatalf("the chair's dispatch: %v", err)
+	}
 	r.sit("bench", "judge", "docket")
+	// ITS ENVELOPE IS REFUSED WHILE EITHER TWIN STANDS, naming each.
+	var refusal string
+	refusal, err = record.BenchEnvelopeRefusal(r.run(), "judge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range r.unruledDocketMotions(gapID) {
+		if !strings.Contains(refusal, m+" (on "+gapID+")") {
+			t.Errorf("the bench's envelope with both twins standing does not name %s: %q", m, refusal)
+		}
+	}
 	r.benchDisposes("judge", gapID, "remanded", "--direction", "blue pursuing the stated direction",
 		"--reason", "fuzz: carried with a stated direction for "+gapID)
 	if r.actErr != "" {
@@ -57,5 +86,9 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	}
 	if left := r.unruledDocketMotions(gapID); len(left) > 0 {
 		t.Errorf("the bench sat for %s and left docket motion(s) %v standing — the plan never readies it for them again", gapID, left)
+	}
+	r.benchEnds("judge")
+	if r.actErr != "" {
+		t.Errorf("the bench's envelope after ruling both: %s", r.actErr)
 	}
 }

@@ -62,6 +62,9 @@ const (
 	StageRefusalLog hookfailures.Stage = "refusal-log"
 	// StageFailureLog is the PostToolUseFailure hook's one job: a seat's failed call to the log.
 	StageFailureLog hookfailures.Stage = "failure-log"
+	// StageEnvelope is the check of a seat's envelope against the record (refuseEnvelope): a check
+	// that could not run lets the envelope through, and says so here.
+	StageEnvelope hookfailures.Stage = "envelope-check"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -176,6 +179,12 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if denied {
 		return nil
 	}
+	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
+	// refuses it (refuseEnvelope). Nothing is injected into it, and it is no Bash call or Read.
+	if in.ToolName == envelopeTool {
+		refuseEnvelope(in, cwdOf(raw), stdout, rec)
+		return nil
+	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
 	// every other tool stops here, before the marker search a Read would otherwise pay for.
 	if !hookgate.Wants(in) {
@@ -285,6 +294,39 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 		rec.OKIn(runlive.StageUnusable, i.MarkerDir)
 	}
 }
+
+// envelopeTool is the tool a Workflow seat returns its envelope with: the harness tells each seat to
+// call it exactly once to end its work, and to call it again when the call is refused.
+const envelopeTool = "StructuredOutput"
+
+// refuseEnvelope denies the call returning a seat's envelope when the record refuses it
+// (record.BenchEnvelopeRefusal, asked through the writer): the bench's docket sitting cannot end
+// while a docket motion stands unruled on a gap it is convened on. The writer logs the refusal.
+//
+// A CHECK THAT CANNOT RUN LETS THE ENVELOPE THROUGH and records why. Refusing every envelope over a
+// missing writer would end every sitting of the run in a null return.
+func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
+	agentID := callerAgent(in)
+	if agentID == "" {
+		return
+	}
+	runDir := seatRunDir(cwd, agentID, rec)
+	if runDir == "" {
+		return
+	}
+	refusal, err := envelopeRefusal(runDir, agentID)
+	if err != nil {
+		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record in full: "+err.Error())
+	} else {
+		rec.OK(StageEnvelope)
+	}
+	if refusal != "" {
+		emitPreDeny(stdout, refusal)
+	}
+}
+
+// envelopeRefusal is a variable for the reason recordLimit is.
+var envelopeRefusal = sittinghook.Envelope
 
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit
