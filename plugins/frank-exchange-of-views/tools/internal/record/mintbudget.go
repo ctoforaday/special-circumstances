@@ -374,7 +374,12 @@ func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
 		}
 	}
 	// THE PROOF'S FOLD READS THE WHOLE LEDGER — the checks, the edits and the retires — so it takes
-	// the stream the contradictions' narrower read does not hold.
+	// the stream the contradictions' narrower read does not hold, and only where seatID has minted a
+	// gap about a proof: every mint and every work list asks this.
+	if about, err := recordHasAt(q, `SELECT 1 FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."about_kind" = ? AND e."seat_id" = ? LIMIT 1`,
+		recordpb.Word(recordpb.AboutKind_ABOUT_KIND_PROOF), seatID); err != nil || !about {
+		return out, err
+	}
 	all, allWin, err := eventsAt(q)
 	if err != nil {
 		return nil, err
