@@ -1430,6 +1430,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireNoBlockers(w, b.GetVerdict(), blockers); err != nil {
 			return err
 		}
+	case *recordpb.ReportRead:
+		if err := requireReportReadAt(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.SpotCheck:
 		if err := requireGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err

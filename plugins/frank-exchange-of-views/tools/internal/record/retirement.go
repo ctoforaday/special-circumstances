@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -37,11 +38,15 @@ import (
 //
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
 //     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
-//     own gaps. Its PIN is the head that dispatch recorded.
+//     own gaps.
+//   - ITS PIN IS THE HEAD THE WHOLE REPORT WAS LAST SERVED TO IT AT (reportread.go): the latest
+//     report read in a sitting it sat through. Opening a sitting is not auditing the report, and the
+//     dispatch's own pin is the head the chair asked it to audit, not one it was given: a lens whose
+//     sitting at the head ended without the whole report served to it is still behind the head, and
+//     ready at it, until it is served it or retires.
 //   - IT COUNTS WHEN THE LENS SAT THROUGH IT (satThrough). A sitting stopped at the per-sitting call
-//     limit, or one that never closed, is neither sat nor barren: it moves no pin and adds nothing
-//     to the count. Opening a sitting is not auditing the report, and a lens cut off at the final
-//     head would otherwise read as having audited it.
+//     limit, or one that never closed, is neither sat nor barren: a read in it moves no pin, and it
+//     adds nothing to the count.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
 //     A productive sitting returns the count to zero, a retired lens's included.
@@ -56,7 +61,7 @@ type lensFold struct {
 	seat     string
 	barren   int      // trailing sittings with no fresh material mint
 	sittings int      // sittings it sat through
-	pin      int64    // pin of the last dispatch it sat through (satThrough); 0 when it has sat through none
+	pin      int64    // the head of its latest report read in a sitting it sat through (pinOf); 0 when it has none
 	owes     []string // what it owes (lensOwesOf), each named
 	ready    bool
 	why      string
@@ -91,15 +96,24 @@ func (f lensFold) readiness(head int64, short string) (bool, string) {
 	case f.sittings == 0:
 		return true, fmt.Sprintf("%s: never sat — audits the report at head %d", f.seat, head)
 	case head > f.pin:
-		why := fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", f.seat, head, f.pin, f.barren, f.retiresWhy())
+		why := fmt.Sprintf("%s: %s, behind head %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", f.seat, servedClause(f.pin), head, f.barren, f.retiresWhy())
 		if short != "" {
 			why += "; " + short
 		}
 		return true, why
 	case f.barren >= retiresAfter:
-		return false, fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
+		return false, fmt.Sprintf("%s: served the report at the head (pin %d) — ready when the head moves; %s", f.seat, f.pin, f.retiresWhy())
 	}
-	return false, fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+	return false, fmt.Sprintf("%s: served the report at the head (pin %d) — ready when the head moves", f.seat, f.pin)
+}
+
+// servedClause is the fold's account of a lens's pin: the head the whole report was last served to it
+// at, or that no sitting it sat through was served it.
+func servedClause(pin int64) string {
+	if pin == 0 {
+		return "no sitting it sat through was served the whole report"
+	}
+	return fmt.Sprintf("the whole report was last served to it at its pin %d", pin)
 }
 
 // unsatSitting is the clause on a sitting the lens did not sit through: the place it opened at and
@@ -206,7 +220,7 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 }
 
 // StaleArea is a retired lens whose pin the report head has moved past: text it will not audit
-// again changed after it last sat. The chair reads those changes against the area's duties and
+// again changed after the whole report was last served to it. The chair reads those changes against the area's duties and
 // names the area in its spot-check before a PASS.
 type StaleArea struct {
 	SeatID string `json:"seat_id"`
@@ -220,12 +234,13 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
+	reads := servedOf(evs, ids, win)
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat, owes: owes[seat]}
+		f := lensFold{seat: seat, owes: owes[seat], pin: pinOf(reads[seat], ends, seat, math.MaxInt64)}
 		sat := map[int64]bool{}
 		var sittings []int64
 		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is
@@ -238,9 +253,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 				continue
 			}
 			short = ""
-			if ends.sat(seat, r) {
-				f.pin = d.pin
-			} else {
+			if !ends.sat(seat, r) {
 				short = unsatSitting(r, ends.short[r])
 			}
 			if !sat[r] {
@@ -421,23 +434,23 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 
-// LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting it SAT
-// THROUGH strictly before the dispatch it is now sitting for. Kind is first | behind | unchanged |
-// undispatched; first is a lens that has sat through none.
-type LastSittingJSON struct {
+// LastReadJSON is a lens's pin as its work view carries it: the head the whole report was last served
+// to it at, in a sitting it SAT THROUGH that opened before the dispatch it is now sitting for, beside
+// that dispatch's head. Kind is first | behind | unchanged | undispatched; first is a lens no such
+// sitting was served the report in.
+type LastReadJSON struct {
 	Kind string `json:"kind"`
 	Pin  int64  `json:"pin"`
 	Head int64  `json:"head"`
 }
 
-// lastSittingBefore is NOT the latest dispatch's own sitting. The lens reads its work view once its
-// sitting has opened — at the hook's bracket or at its register — and sittingFor counts that
-// opening as having sat, so the sitting for the latest dispatch is the current one, and every lens
-// would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for, or owes);
-// a prior sitting is a dispatch d before D whose sitting opened before D and that it sat through
-// (satThrough), so an unsat earlier dispatch cannot borrow the current opening, and a sitting
-// stopped at the call limit or never closed is not a read of the report it was pinned to.
-func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastSittingJSON {
+// lastReadBefore is NOT the fold's pin. The lens reads its work view in its current sitting, before
+// and after it is served the report, and a read in that sitting would turn `behind` into `unchanged`
+// halfway through the audit the work view asks for. D is the latest dispatch naming the seat (the one
+// it sits for, or owes); the pin is its reads in sittings that opened before D and that it sat through
+// (satThrough), so a sitting stopped at the call limit or never closed is not a read of the report it
+// was served.
+func lastReadBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastReadJSON {
 	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow
 	for i := len(ds) - 1; i >= 0; i-- {
@@ -447,27 +460,17 @@ func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string
 		}
 	}
 	if cur == nil {
-		return LastSittingJSON{Kind: "undispatched"}
+		return LastReadJSON{Kind: "undispatched"}
 	}
-	ends := satThroughOf(evs, ids, win, openings)
-	var prior *dispatchRow
-	for i := range ds {
-		d := ds[i]
-		if d.seat != seatID || d.at >= cur.at {
-			continue
-		}
-		if r, ok := sittingFor(openings[seatID], d); ok && r < cur.at && ends.sat(seatID, r) {
-			prior = &ds[i]
-		}
-	}
-	ls := LastSittingJSON{Head: cur.pin}
+	pin := pinOf(servedOf(evs, ids, win)[seatID], satThroughOf(evs, ids, win, openings), seatID, cur.at)
+	ls := LastReadJSON{Pin: pin, Head: cur.pin}
 	switch {
-	case prior == nil:
+	case pin == 0:
 		ls.Kind = "first"
-	case prior.pin < cur.pin:
-		ls.Kind, ls.Pin = "behind", prior.pin
+	case pin < cur.pin:
+		ls.Kind = "behind"
 	default:
-		ls.Kind, ls.Pin = "unchanged", prior.pin
+		ls.Kind = "unchanged"
 	}
 	return ls
 }

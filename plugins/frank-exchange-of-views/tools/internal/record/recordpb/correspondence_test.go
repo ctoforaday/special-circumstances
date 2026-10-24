@@ -83,7 +83,10 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And one more for `stale`: the tool's refusal of an act on a gap that moved after the seat's
 	// sitting opened, recorded as the seat's read point.
-	const wantBodies = 34
+	//
+	// And one more for `report_read`: the tool serving a lens the whole report at a head, which is
+	// the lens's pin.
+	const wantBodies = 35
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

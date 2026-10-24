@@ -1654,6 +1654,20 @@ type DebateEpochJSON struct {
 	// the lens saying, after its re-audit, that the gap stands and what its check still finds
 	// failing. The bench reads it with the closings.
 	RedKeeps []DebateKeepJSON `json:"red_keeps"`
+	// Served is each whole report the tool served a lens this epoch (ReportRead): the lens and the
+	// head, which is its pin once its sitting closes. Served, not read: the tool cannot see a read.
+	Served []DebateServedJSON `json:"served"`
+}
+
+// DebateServedJSON is one whole report served to a lens: the lens and the head it was served at.
+type DebateServedJSON struct {
+	SeatID string `json:"seat_id"`
+	Head   int64  `json:"head"`
+}
+
+// ServedLine is debate.md's line for a report served to a lens, word for word.
+func ServedLine(seatID string, head int64) string {
+	return fmt.Sprintf("### REPORT SERVED — %s\nthe whole report was served to %s at head %d", seatID, seatID, head)
 }
 
 // DebateKeepJSON is one regrade that kept the grade: the gap, the lens that minted it, and its
@@ -1714,7 +1728,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			return s
 		}
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}}
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}, Served: []DebateServedJSON{}}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())
@@ -1755,6 +1769,9 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			if kept[e] {
 				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
+		}
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
+			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: e.GetReportRead().GetHead()})
 		}
 		for _, c := range blueClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
@@ -1829,7 +1846,8 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 	// A regrade that keeps the grade is judged against the gap's grades at its place: the mint's,
 	// overlaid by every earlier regrade (KeptGrades).
 	recordpb.EventType_EVENT_TYPE_MINT,
-	recordpb.EventType_EVENT_TYPE_REGRADE)
+	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_REPORT_READ)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }

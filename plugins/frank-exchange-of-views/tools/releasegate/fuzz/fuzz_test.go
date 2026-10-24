@@ -3455,6 +3455,18 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
+		// THE AUDIT IS SERVED THE WHOLE REPORT, and that read is the lens's pin: a lens that is not
+		// served it at the head is ready at the head again, until it is or retires. Most sittings
+		// read it, in either whole form; the rest read only a selection, which serves part of it and
+		// moves nothing, so the sweep reaches a lens readied again at a head it sat at.
+		switch n := r.rng.Intn(10); {
+		case n < 5:
+			r.readOnly("show", seatID, "report")
+		case n < 9:
+			r.readOnly("show", seatID, "report", "--json")
+		default:
+			r.readOnly("show", seatID, "report", "--json", "--match", "§")
+		}
 		r.checkProofOffers(seatID)
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
@@ -5327,6 +5339,9 @@ var verbsWithEvents = []string{
 	// The tool's refusal of an act on a gap that moved after the seat's sitting opened, recorded as
 	// the seat's read point. Lenses sit concurrently in the sweep, so a seed reaches it.
 	"stale",
+	// The whole report served to a lens: its pin. A lens sitting reads the report whole most of the
+	// time (the red-lens arm of the dispatch), so every seed reaches it.
+	"report_read",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.

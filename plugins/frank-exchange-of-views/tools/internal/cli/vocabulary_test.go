@@ -148,6 +148,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		// The plan is the dispatch verb's second record: it stores the plan it prints beside the
 		// rows, and no flag supplies a byte of it.
 		"plan": "written by `dispatch next` beside its dispatch rows, from the plan it prints",
+		// The report read is the lens's whole read of the report: the tool stamps the head it served,
+		// and no flag supplies it.
+		"report_read": "written by a lens's whole `show report`, from the head it serves",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

@@ -300,10 +300,10 @@ func foldPlan(params Params, r planReads) Plan {
 	evs, win, fresh := r.evs, r.win, r.fresh
 	plan.Verdict = chairVerdictOf(evs, win)
 
-	// Source 1: each cast lens that has never sat, or whose last sitting the head has moved past,
-	// until it retires owing nothing (retirement.go) — the same fold the PASS gate refuses from. A
-	// lens engaged that has opened no sitting since has not sat, so its pin has not moved and it
-	// stays ready.
+	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
+	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
+	// fold the PASS gate refuses from. A lens whose sitting ended without the report served to it at
+	// the head has no new pin, so it stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
@@ -700,7 +700,7 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // for a dispatch is the first sitting it opened after the dispatch row (dispatchLedger: the hook's
 // bracket, or a register no bracket preceded), and a seat that has not opened one
 // since has not sat. Every reader of the question asks it here — the lens's readiness fold
-// (lensStates) and its last sitting (lastSittingBefore), the bench's sitting for a docketing
+// (lensStates), the bench's sitting for a docketing
 // (benchSatFor), the exchange count (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.
 //
@@ -734,8 +734,9 @@ func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 // so the record can never hold more about it than that it opened, and it is sat through there.
 // A register outside any subagent — a headless seat, a run no hook reached — is that case.
 //
-// The readers of "has this lens sat" ask it here: the lens fold's pin, never-sat and retirement
-// count (lensStates), its last sitting (lastSittingBefore), the lapse of what it owes
+// The readers of "has this lens sat" ask it here: the lens fold's pin (a report read counts only in a
+// sitting the lens sat through), never-sat and retirement
+// count (lensStates), its pin before its dispatch (lastReadBefore), the lapse of what it owes
 // (lensOwesOf) and the once-per-contradiction readiness (foldPlan). The plan, the work lists,
 // the PASS gate and retirement reach it through passBlockersOf, so they agree at every state.
 type satThrough struct {

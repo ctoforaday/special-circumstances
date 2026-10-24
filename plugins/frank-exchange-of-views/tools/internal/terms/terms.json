@@ -788,13 +788,29 @@
     },
     {
       "term": "stale area",
-      "definition": "A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.",
+      "definition": "A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.",
       "seats": [
         "chair",
         "operator"
       ],
       "bans": [],
       "collisions": []
+    },
+    {
+      "term": "report read",
+      "definition": "A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.",
+      "seats": [
+        "lens",
+        "chair",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "pin (a dispatch's)",
+          "resolution": "a dispatch's pin is the head the chair engages a party at; a lens's pin is the head of its latest report read in a sitting it sat through, and the lens is ready while the report head is past it"
+        }
+      ]
     },
     {
       "term": "disposition",

@@ -113,7 +113,7 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 				st.add(evLens, &recordpb.Mint{GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 					CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
 					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
-				return st.register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).register("red-chair").seed()
+				return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair").seed()
 			},
 			acts: func(t *testing.T) []*Event {
 				return []*Event{recordtest.At(t, evLens, "race:close:G1", repairClose("G1"))}

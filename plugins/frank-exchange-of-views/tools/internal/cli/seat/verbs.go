@@ -280,7 +280,7 @@ var views = []struct {
 	// that answer a question only the bench asks.
 	inquest bool
 }{
-	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("P-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.AssembledNote, "", false, record.ReportJSON{}, false},
+	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`", reportLong, "", false, record.ReportJSON{}, false},
 	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. Each gap's `minted_by` is the seat that minted it, the one seat that may close or regrade it; its `found_by` is the findings it was minted from. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. JSON by default; --format markdown gives the human-verification rendering. " + record.LocationStates + ". Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`", "", true, record.BoardJSON{}, false},
 	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`", "Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}, false},
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`", viewLong("work", "", ""), "*", true, record.WorkJSON{}, false},
@@ -338,8 +338,18 @@ type scopedPara struct {
 	text  string
 }
 
+// reportLong is the report's page for every seat.
+var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("P-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.AssembledNote
+
+// reportPage is the report's page: every seat's, and the lens's paragraph on what its whole read
+// records (record.ServeReport).
+var reportPage = []scopedPara{
+	{text: reportLong},
+	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it."},
+}
+
 // scopedPages are the projections whose page is scoped by role, by name.
-var scopedPages = map[string][]scopedPara{"work": workPage}
+var scopedPages = map[string][]scopedPara{"work": workPage, "report": reportPage}
 
 // viewLong is a projection's page for one role: the paragraphs of its scoped page that are that
 // role's, in order, or `long` where the projection has none. role "" is no seat's tree and gets
@@ -947,7 +957,29 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		var b []byte
 		var head int64
-		if asJSON {
+		// THE WHOLE REPORT SERVED TO A LENS IS RECORDED, and it is the lens's pin (record.ServeReport):
+		// both whole forms, bare and --json, and no read at an anchor or a selection, which serve part
+		// of it. The text is printed after the read is committed, so a read the record could not take
+		// is refused rather than served unrecorded.
+		serve := role == "lens" && Str(cmd, flags.Anchor) == "" && !cmd.Flags().Changed(flags.Window)
+		if serve {
+			sel, serr := SelectorOf(cmd)
+			if serr != nil {
+				return serr
+			}
+			serve = !sel.Active()
+		}
+		if serve {
+			s, err := Begin(cmd)
+			if err != nil {
+				return err
+			}
+			text, h, err := record.ServeReport(s.Identity())
+			if err != nil {
+				return err
+			}
+			b, head = []byte(text), h
+		} else if asJSON {
 			text, h, err := record.ReportAtHead(run)
 			if err != nil {
 				return err

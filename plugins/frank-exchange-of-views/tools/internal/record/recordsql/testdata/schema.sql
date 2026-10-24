@@ -112,6 +112,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair'
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
@@ -906,6 +907,12 @@ CREATE TABLE "stale" (
   "through" INTEGER,
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("through") REFERENCES "events"("id")
+) STRICT;
+
+CREATE TABLE "report_read" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "head" INTEGER NOT NULL,
+  FOREIGN KEY ("head") REFERENCES "events"("id")
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
