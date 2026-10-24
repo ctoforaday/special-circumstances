@@ -78,7 +78,7 @@ var regions = []region{
 		"the record's roster (seatclass.Seats and Lane, flags.LensAreas, the Occasion enum, record.MassMappingVersion). Edit the roster",
 		func() ([]byte, error) { return render(fromTheRecord()) }},
 	{vocabBegin, vocabEnd, "envelope vocabulary",
-		"the record's enums and record.Plan (recordpb.GradeWords, MotionVerdicts, MotionFields, EnumFields, PartySeats, DispatchOccasions, the blocker kinds, and record.Plan's fields and tags). Edit the declaration",
+		"the record's enums, record.Plan and record.LensEnvelope (recordpb.GradeWords, MotionVerdicts, MotionFields, EnumFields, PartySeats, DispatchOccasions, the blocker kinds, and the fields and tags of record.Plan and record.LensEnvelope). Edit the declaration",
 		func() ([]byte, error) {
 			v, err := vocabularyFromTheRecord()
 			if err != nil {
