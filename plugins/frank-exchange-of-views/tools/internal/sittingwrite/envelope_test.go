@@ -14,9 +14,9 @@ import (
 )
 
 // THE WRITER PRINTS THE RECORD'S REFUSAL OF THE AGENT'S ENVELOPE AND LOGS IT under the agent's seat:
-// a bench docket sitting with a twin docket motion standing on its gap. Another seat's agent gets
-// nothing printed and nothing logged.
-func TestTheWriterPrintsAndLogsTheBenchsEnvelopeRefusal(t *testing.T) {
+// a bench docket sitting with twin docket motions standing on its gap. An agent bound to no seat gets
+// nothing printed and nothing logged, and a run with no record is an error the hook refuses on.
+func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	runDir := newRun(t)
 	n := 0
 	at := func(seat string, body proto.Message) *recordpb.Event {
@@ -46,12 +46,16 @@ func TestTheWriterPrintsAndLogsTheBenchsEnvelopeRefusal(t *testing.T) {
 	if err := WriteEnvelopeRefusal(runDir, "agent-bench", &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "M1 (on G1), M2 (on G1)") {
+	if !strings.Contains(out.String(), "motion M1 ") || !strings.Contains(out.String(), "motion M2 ") {
 		t.Fatalf("the writer did not print the refusal naming both twins: %q", out.String())
 	}
-	var lens bytes.Buffer
-	if err := WriteEnvelopeRefusal(runDir, "agent-lens", &lens); err != nil || lens.Len() != 0 {
-		t.Errorf("a lens's envelope was refused over the bench's docket (%v): %q", err, lens.String())
+	var stray bytes.Buffer
+	if err := WriteEnvelopeRefusal(runDir, "agent-of-no-seat", &stray); err != nil || stray.Len() != 0 {
+		t.Errorf("an agent bound to no seat had its envelope refused (%v): %q", err, stray.String())
+	}
+	var none bytes.Buffer
+	if err := WriteEnvelopeRefusal(newRun(t), "agent-bench", &none); err == nil || none.Len() != 0 {
+		t.Errorf("a run with no record was checked as one with nothing to refuse (%v): %q", err, none.String())
 	}
 	evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
@@ -60,7 +64,7 @@ func TestTheWriterPrintsAndLogsTheBenchsEnvelopeRefusal(t *testing.T) {
 	if len(evs) != 1 || evs[0].GetSeatId() != "judge" {
 		t.Fatalf("want the bench's one refusal entry, got %d entr(ies)", len(evs))
 	}
-	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "M2 (on G1)") {
+	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "motion M2 ") {
 		t.Errorf("the entry is not the tool's refusal naming the twins: %v", l)
 	}
 }

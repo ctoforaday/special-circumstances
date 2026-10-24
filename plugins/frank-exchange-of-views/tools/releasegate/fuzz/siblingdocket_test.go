@@ -70,12 +70,12 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	r.sit("bench", "judge", "docket")
 	// ITS ENVELOPE IS REFUSED WHILE EITHER TWIN STANDS, naming each.
 	var refusal string
-	refusal, err = record.BenchEnvelopeRefusal(r.run(), "judge")
+	refusal, err = record.EnvelopeRefusal(r.run(), "judge")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, m := range r.unruledDocketMotions(gapID) {
-		if !strings.Contains(refusal, m+" (on "+gapID+")") {
+		if !strings.Contains(refusal, "motion "+m+" ") {
 			t.Errorf("the bench's envelope with both twins standing does not name %s: %q", m, refusal)
 		}
 	}
@@ -87,7 +87,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	if left := r.unruledDocketMotions(gapID); len(left) > 0 {
 		t.Errorf("the bench sat for %s and left docket motion(s) %v standing — the plan never readies it for them again", gapID, left)
 	}
-	r.benchEnds("judge")
+	r.envelopeEnds("judge")
 	if r.actErr != "" {
 		t.Errorf("the bench's envelope after ruling both: %s", r.actErr)
 	}

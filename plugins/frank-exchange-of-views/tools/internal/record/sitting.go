@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -107,6 +108,26 @@ type SittingJSON struct {
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
 func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string) SittingJSON {
+	return sittingOf(evs, ids, win, gaps, role, seatID, sittingReads{})
+}
+
+// sittingReads is what a seat's list needs beyond the stream and the gap rows to say whether its
+// sitting can clear an item; a zero value reads every item as clearable.
+type sittingReads struct {
+	// unverifiable: why no verify can reach a citation (unverifiableIn).
+	unverifiable unverifiableFunc
+	// mintsLeft: a lens's mints left on its budget, and whether that reads (mintBudgetOf).
+	mintsLeft func() (int, bool)
+}
+
+// unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
+// now — the reasons `verify` refuses every outcome on — or "" where it can. nil reads every citation
+// as verifiable.
+type unverifiableFunc func(anchor string) string
+
+// sittingOf is SittingOf with the reads WorkOfSeat supplies (sittingReads): an item those reads say
+// the sitting cannot clear is listed, and does not block.
+func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string, reads sittingReads) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	if role == "lens" {
 		ls := lastSittingBefore(evs, ids, win, seatID)
@@ -198,7 +219,12 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// is not counted, the bench has not sat for the docketing, no exchange is counted for blue or
 	// the minting lens — so the seat is readied again, epoch after epoch, until its sitting opens.
 	// That covers every seat a dispatch names: the lenses, blue-respond and the bench.
-	if d, owed := owedSitting(evs, win, seatID); owed {
+	// THE BENCH'S ROW CAN CONVENE IT TWICE — a petition and a docket, petition first — and its
+	// sitting already registered for one occasion owes the other's register to the NEXT sitting: a
+	// second register in this one is refused as a repeat, so this sitting cannot clear it.
+	if d, owed := owedSitting(evs, win, seatID); owed && seatID == benchSeat && benchRegisteredSince(evs, win, d) {
+		may(fmt.Sprintf("the dispatch against report head %d also convenes you for a sitting of its own you have not opened yet — this sitting is registered for its occasion, and the next is registered for the other", d.pin))
+	} else if owed {
 		add(fmt.Sprintf("you were dispatched against report head %d and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
 	// THE CHAIR OWES THE SAME REGISTER, AND NO DISPATCH NAMES IT, so the item above never reaches
@@ -219,16 +245,32 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
 		// tries to close one unproved, so an unanswered demand does not settle — it carries into
 		// the next epoch.
+		//
+		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
+		// act answers it there (gblock, 2026-10-24): a proof naming it, which ends the debt; a motion
+		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
+		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
+		var engaged []string
+		if e := engagedOf(evs, win, gaps, seatID); e != nil {
+			engaged = e.GapIDs
+		}
+		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
 			if !g.AwaitingProof {
 				continue
 			}
 			id := g.ID
-			// TWO HONEST ANSWERS, and the second is not a lesser one: there is no verb for
-			// contesting a check_kind, so a seat that thinks the demand is wrong argues it in
-			// the edit that answers the gap. Naming only `prove` would make disagreement look
-			// like non-compliance.
-			add("gap " + id + " was minted --check-kind computation and no proof answers it; prose cannot close it")
+			const what = " was minted --check-kind computation and no proof answers it; prose cannot close it"
+			switch {
+			case !slices.Contains(engaged, id):
+				may("gap " + id + what + " — this sitting is not engaged on it")
+			case moved[id]:
+				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a proof names it")
+			case retired && g.LocationState == LocationGone:
+				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a proof names it")
+			default:
+				add("gap " + id + what)
+			}
 		}
 		// THERE IS NO PER-INQUIRY DUTY HERE, and the absence is a ruling rather than a dropped
 		// check. Presence is not a question: the inquiries reach the report on the worklist,
@@ -341,6 +383,31 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerReopened && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
+			// A CITATION THIS SITTING READ AS UNREACHABLE IS NOT ITS TO CLEAR: its verify read nothing,
+			// so it stands reopened, and no act of this sitting's reads it. A later sitting's verify,
+			// or blue's retire of the citation, clears it; the PASS stays held meanwhile.
+			if b.Kind == BlockerReopened && unreachableThisSitting(evs, win, seatID)[b.Subject] {
+				may(b.WorkItem() + " — your verify this sitting found its source unreachable, so this sitting cannot clear it")
+				continue
+			}
+			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every
+			// outcome on it (cli/lens/verify.go citedSentence), and blue's retire of its claim, or a
+			// report that renders again, is what moves it.
+			if b.Kind == BlockerReopened && b.Detail == "" && reads.unverifiable != nil {
+				if why := reads.unverifiable(b.Subject); why != "" {
+					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
+					continue
+				}
+			}
+			// A CONTRADICTION ANOTHER LENS RAISED, AT THE READER'S MINT CAP, is not its to clear: the
+			// gap it mints from another seat's finding takes one of its mints (answersOwnRaiseAt), and
+			// it has none left. The raiser's own mint from that finding takes none.
+			if b.Kind == BlockerContradiction && b.raiser != "" && b.raiser != seatID && reads.mintsLeft != nil {
+				if left, read := reads.mintsLeft(); read && left <= 0 {
+					may(b.WorkItem() + " — finding " + b.raisedBy + " that raised it is " + b.raiser + "'s, so a gap you mint from it takes a mint and you have none left; " + b.raiser + "'s own mint from it takes none, so this sitting cannot clear it")
+					continue
+				}
+			}
 			add(b.WorkItem())
 		}
 	case "bench":
@@ -349,22 +416,20 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// (requireBenchMotionsRuled). A second walk of the motions here could disagree with that
 		// refusal, which is the drift the one list exists to end (#1202).
 		//
-		// A DOCKET MOTION ON A GAP THIS SITTING IS CONVENED ON HOLDS THE SITTING as well (docketHeld):
-		// its envelope is refused while one stands (BenchEnvelopeRefusal), and the item says so.
-		_, held := docketHeld(evs, ids, win)
-		holds := map[string]bool{}
-		for _, b := range held {
-			holds[b.Subject] = true
-		}
+		// ONLY WHAT THIS SITTING IS CONVENED TO RULE BLOCKS (benchHeld): a blocking item refuses the
+		// sitting's envelope (EnvelopeRefusal), and a motion another sitting is convened for — a docket
+		// on a gap whose closings this sitting was not convened on, a petition filed while it sat — is
+		// not this sitting's to rule. It stays on the list, holding the outcome.
+		held := benchHeld(evs, ids, win)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
 				continue
 			}
-			if holds[b.Subject] {
-				add("motion " + b.Subject + " (" + b.Detail + ") is unruled on " + b.About + ", a gap this sitting is convened on — your envelope is refused while it stands, and the run cannot end in a verdict while it stands")
+			if held[b.Subject] {
+				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands")
 				continue
 			}
-			add("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours — the run cannot end in a verdict while it stands")
+			may("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands")
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
@@ -541,6 +606,54 @@ func thisSitting(evs []*Event, win WindowIndex, seatID string) []*Event {
 	for _, e := range evs {
 		if e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
 			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// benchRegisteredSince reports whether the bench's current sitting opened after the dispatch row d and
+// registered an occasion. d.at is a place in the stream's positions, as owedSitting reads it.
+func benchRegisteredSince(evs []*Event, win WindowIndex, d dispatchRow) bool {
+	seq := make([]int64, len(evs))
+	for i := range seq {
+		seq[i] = int64(i)
+	}
+	if placesOf(evs, seq, win)[win.LatestSittingOf(benchSeat)] <= d.at {
+		return false
+	}
+	for _, e := range thisSitting(evs, win, benchSeat) {
+		if r, ok := recordpb.BodyAs[*recordpb.Register](e); ok && r.Occasion != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// answeredByActThisSitting is the gaps the seat filed a motion on in its current sitting (a docket
+// or grade motion names its gap), and whether it recorded a retire there.
+func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved map[string]bool, retired bool) {
+	moved = map[string]bool{}
+	for _, e := range thisSitting(evs, win, seatID) {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
+				if g != "" {
+					moved[g] = true
+				}
+			}
+		}
+		if _, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			retired = true
+		}
+	}
+	return moved, retired
+}
+
+// unreachableThisSitting is the anchors the seat verified as unreachable in its current sitting.
+func unreachableThisSitting(evs []*Event, win WindowIndex, seatID string) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range thisSitting(evs, win, seatID) {
+		if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && v.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE {
+			out[v.GetAnchor()] = true
 		}
 	}
 	return out
