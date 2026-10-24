@@ -763,7 +763,16 @@ func Require(c *cobra.Command, names ...string) *cobra.Command {
 // Begin runs a verb's preconditions and returns its seat context. It is a plain function
 // called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
 // to reason about. It requires the run dir and seat id and holds the seat to its role.
-func Begin(cmd *cobra.Command) (Context, error) {
+func Begin(cmd *cobra.Command) (Context, error) { return begin(cmd, true) }
+
+// beginRead is Begin for a verb that records nothing (NewRead). It refuses everything Begin refuses
+// about WHO is asking and WHERE — a read answering from another seat's surface or another run's
+// record looks exactly like the right answer — and holds no agent to register-first: a seat looks
+// before it registers, and a read that registered it would spend the register its first record
+// makes, leaving its own `register` refused as a repeat.
+func beginRead(cmd *cobra.Command) (Context, error) { return begin(cmd, false) }
+
+func begin(cmd *cobra.Command, records bool) (Context, error) {
 	// ONE RESOLUTION, Of's, refused in Run's order: the run's disagreement first — before "--run
 	// is required" and before the seat-id checks, because a seat pointed at the wrong run must not
 	// get a message about anything else — then the run's existence, then the identity.
@@ -789,8 +798,10 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if s.SeatID == "" {
 		return s, feov.Errorf(feov.MissingField, "--seat-id is required (state it once at `register`; after that it is bound and read back for you)")
 	}
-	if err := requireBound(cmd, s); err != nil {
-		return s, err
+	if records {
+		if err := requireBound(cmd, s); err != nil {
+			return s, err
+		}
 	}
 	// THE ROLE CHECK IS GONE BECAUSE THERE IS NOTHING LEFT TO RECONCILE. It compared the role in
 	// the command PATH against the seat id, which was a real guard while a seat typed both: two
@@ -940,16 +951,28 @@ func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, 
 // differs by role — and register's and friction's were byte-identical at every call site but one,
 // where the difference was the word "seat" against "sitting". Four hand-kept copies of one
 // paragraph, which is the shape that goes stale in three places and nobody notices.
-func NewKeyed(name, key string, run Handler) *cobra.Command { return newVerb(name, key, "", run) }
+func NewKeyed(name, key string, run Handler) *cobra.Command {
+	c := newVerb(name, key, "")
+	annotate(c, recordsKey, name)
+	c.RunE = HandlerRunE(run)
+	return c
+}
 
 // NewRead is New for a verb that only reads: its page also states the --json success it emits,
 // generated from the verb's result type, because a seat that does not know the key names guesses
 // them — and a guessed key that misses reads as output that was never JSON.
+//
+// A READ RECORDS NOTHING, SO IT CARRIES NO RECORD TYPE AND REGISTERS NO ONE. Only an act that
+// records registers a seat, as register's page says. A read that went through Begin registered
+// its seat as a side effect, and the seat's own register later in the sitting was then refused as
+// a repeat — universe-m33's voice lens met exactly that after a `near-match`.
 func NewRead(name string, result Result, run Handler) *cobra.Command {
-	return newVerb(name, name, readOutput(result), run)
+	c := newVerb(name, name, readOutput(result))
+	c.RunE = readRunE(run)
+	return c
 }
 
-func newVerb(name, key, output string, run Handler) *cobra.Command {
+func newVerb(name, key, output string) *cobra.Command {
 	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
@@ -957,8 +980,6 @@ func newVerb(name, key, output string, run Handler) *cobra.Command {
 		Long:         d.menu + "\n\n" + d.detail + output + "\n" + LogFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
-		Annotations:  map[string]string{recordsKey: name},
-		RunE:         HandlerRunE(run),
 	}
 	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full
 	// event log after every write — O(events) per mutation — to keep the markdown current
@@ -980,9 +1001,14 @@ func newVerb(name, key, output string, run Handler) *cobra.Command {
 // flag references) -> the work -> Emit. New wires it; a verb built as a raw cobra command — the
 // motion verbs, whose help is composed per subject — sets it as its RunE, so its preconditions and
 // its refusal's envelope are the same as every other verb's.
-func HandlerRunE(run Handler) func(*cobra.Command, []string) error {
+func HandlerRunE(run Handler) func(*cobra.Command, []string) error { return runE(Begin, run) }
+
+// readRunE is HandlerRunE for a verb that records nothing: beginRead in place of Begin.
+func readRunE(run Handler) func(*cobra.Command, []string) error { return runE(beginRead, run) }
+
+func runE(begin func(*cobra.Command) (Context, error), run Handler) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		s, err := Begin(cmd)
+		s, err := begin(cmd)
 		if err != nil {
 			return Emit(cmd, nil, err)
 		}
