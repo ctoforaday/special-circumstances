@@ -2011,7 +2011,23 @@ func (r *runner) answerUnsound(seatID string) {
 			}
 			continue
 		}
+		var env struct {
+			Result struct {
+				GapID string `json:"gap_id"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
+			r.noteActErr("an admitted mint's --json result names no gap_id: " + firstLine(out))
+			continue
+		}
+		// THE MINTER IS RECORDED, so the drive's closes and regrades of the gap go to its originator;
+		// the lens's stock of fresh defects is not spent — this gap carries a judgement, not a find.
 		r.mu.Lock()
+		if r.minter == nil {
+			r.minter = map[string]string{}
+			r.lensMints = map[string]int{}
+		}
+		r.minter[env.Result.GapID] = seatID
 		r.unsoundAnswers++
 		r.mu.Unlock()
 	}
