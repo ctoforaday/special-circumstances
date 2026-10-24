@@ -435,8 +435,13 @@ var defines = map[recordpb.EventType]bool{
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
 // stop at the first.
+//
+// A credit names its gap too, and one gap may be credited with several raising findings — each its
+// own act. A retried credit lands as a second act, which the write path refuses: the contradiction
+// its finding raised is answered by then.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE: true,
+	recordpb.EventType_EVENT_TYPE_STALE:  true,
+	recordpb.EventType_EVENT_TYPE_CREDIT: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -912,13 +917,16 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(q, b); err != nil {
+		if err := requireNotAnOpenGap(q, seatID, b); err != nil {
 			return err
 		}
 		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
 		// carries the contradiction's id in its own anchor, where the gap's found_by reaches it.
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -999,11 +1007,18 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
+	case *recordpb.Credit:
+		if err := requireCreditAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Finding:
 		if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
 				return err
 			}
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
@@ -1281,6 +1296,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
+				return err
+			}
+			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
 			}
 		}
@@ -1731,6 +1749,33 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row
+// (the sitting reading oncePerSittingSQL's).
+const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id"
+     WHERE e."seat_id" = ?1 AND c."gap_id" = ?2
+       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+     ORDER BY e."id" LIMIT 1`
+
+// requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
+// filed in the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an
+// obligation nobody can discharge). The motion docketing the gap again owes each party a closing on
+// it, and that sitting holds one closing per gap, so the filer's sitting could not end
+// (EnvelopeRefusal). It is filed in a later sitting.
+func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var closing int64
+	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID)
+	if err != nil || !found {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"%s already filed its closing on %s in this sitting (event %d), and a docket motion now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
+			"Nothing was recorded; file the docket motion in a later sitting",
+		seatID, gapID, closing, gapID)
 }
 
 // ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's

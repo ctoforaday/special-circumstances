@@ -162,8 +162,8 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 }
 
 // BLUE-RESPOND'S ENVELOPE IS HELD BY WHAT ITS SITTING OWES: an `engage` on the successor of a gap it
-// found closed, and the proof a computation gap it is engaged on demands — or its prose answer, the
-// honest contest of the demand.
+// found closed, and the proof a computation gap it is engaged on demands, until a recorded act — a
+// proof, a motion on the gap, a retire of its sentence — answers it. Prose does not.
 func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 	t.Run("an owed engage holds it, and engaging admits it", func(t *testing.T) {
 		_, run := m31Epoch10(t)
@@ -204,13 +204,23 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 			t.Errorf("proved, blue's envelope is refused: %q", r)
 		}
 	})
-	t.Run("an edit answering it this sitting — the contest — admits it, and the item stays listed", func(t *testing.T) {
+	t.Run("an edit answering it in prose — the contest — does not admit it", func(t *testing.T) {
 		run := computation(t, "G1", func(b *stage) { b.edit("G1", "x", "y") })
+		if r := refusalOf(t, run, blueSeatID); !strings.Contains(r, "gap G1 was minted --check-kind computation") {
+			t.Errorf("contested in prose, blue's envelope is admitted: %q", r)
+		}
+	})
+	t.Run("a motion blue files on it this sitting admits it, and the item stays listed", func(t *testing.T) {
+		run := computation(t, "G1", func(b *stage) {
+			b.add(blueSeatID, &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
+				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
+					Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
+		})
 		if r := refusalOf(t, run, blueSeatID); r != "" {
-			t.Errorf("contested in prose, blue's envelope is refused: %q", r)
+			t.Errorf("a motion filed on it, blue's envelope is refused: %q", r)
 		}
 		if _, open := itemsOn(t, run, "blue", blueSeatID, "gap G1 was minted"); len(open) != 1 {
-			t.Errorf("the contested gap's debt is not listed: %+v", open)
+			t.Errorf("the moved gap's debt is not listed: %+v", open)
 		}
 	})
 }
@@ -344,13 +354,34 @@ func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 	if _, err := EnvelopeRefusal(run, "no-such-seat"); err == nil {
 		t.Error("an id that is no seat was checked as one")
 	}
-	if err := os.Remove(filepath.Join(run.Records(), dbName)); err != nil {
-		t.Fatal(err)
+	// A run directory with no record: removing an open one is refused on Windows.
+	run = mustRun(t, newRun(t))
+	if _, err := os.Stat(filepath.Join(run.Records(), dbName)); err == nil {
+		t.Fatal("the fixture run has a record, so this measures nothing")
 	}
 	if _, err := EnvelopeRefusal(run, benchSeat); err == nil || !strings.Contains(err.Error(), "not readable") {
 		t.Errorf("a missing record was not an error naming it: %v", err)
 	}
 	if _, _, err := AgentEnvelopeRefusal(run, "agent-x"); err == nil {
 		t.Error("an agent's envelope was checked against a missing record")
+	}
+}
+
+// A DOCKET MOTION THAT WOULD OWE ITS FILER A CLOSING ITS SITTING CANNOT FILE IS REFUSED (gblock,
+// 2026-10-24): the filer has filed its closing on the gap this sitting, and the sitting holds one per
+// gap. Filed in a later sitting, it is admitted.
+func TestADocketMotionAfterTheFilersClosingThisSittingIsRefused(t *testing.T) {
+	b := docketed(t).register("blue-respond").closing("blue-respond", "G1")
+	run := b.seed()
+	_, err := Append(Identity{Run: run, SeatID: "blue-respond"}, docketMotion("M2", "G1"))
+	if err == nil || !strings.Contains(err.Error(), "already filed its closing on G1 in this sitting") {
+		t.Fatalf("a docket motion after the filer's closing this sitting = %v, want refused naming the closing", err)
+	}
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, docketMotion("M3", "G1")); err != nil {
+		t.Errorf("the other party, which filed no closing this sitting, is refused: %v", err)
+	}
+	run = b.more().register("red-chair").register("blue-respond").seed()
+	if _, err := Append(Identity{Run: run, SeatID: "blue-respond"}, docketMotion("M4", "G1")); err != nil {
+		t.Errorf("in a later sitting the docket motion is refused: %v", err)
 	}
 }

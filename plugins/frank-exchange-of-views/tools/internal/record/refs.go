@@ -120,6 +120,16 @@ func requireProofAnchor(q recordsql.Querier, id, flag string) (sha string, err e
 	return s.String, nil
 }
 
+// requireAboutProof refuses an act about a proof that names no proof on the record: the anchor is
+// checked at the write, as every other reference here is, so a gap about a proof always reaches one.
+func requireAboutProof(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
+	if kind != recordpb.AboutKind_ABOUT_KIND_PROOF {
+		return nil
+	}
+	_, err := requireProofAnchor(q, ref, "--about")
+	return err
+}
+
 // ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
 // copy of the same refusal alike: blue's own act, in blue's words.
 const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"

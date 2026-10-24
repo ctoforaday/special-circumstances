@@ -246,18 +246,15 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// tries to close one unproved, so an unanswered demand does not settle — it carries into
 		// the next epoch.
 		//
-		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING CAN ANSWER IT: on a gap its dispatch engaged it
-		// on, and until it answers. TWO HONEST ANSWERS, and the second is not a lesser one: there is
-		// no verb for contesting a check_kind, so a seat that thinks the demand is wrong argues it in
-		// the edit that answers the gap (`--answers`). Naming only `prove` would make disagreement
-		// look like non-compliance, and holding the sitting after that edit would refuse its envelope
-		// over an answer it gave. The gap still awaits its proof — the lens's close is refused
-		// without one — so the item stays, not blocking.
+		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
+		// act answers it there (gblock, 2026-10-24): a proof naming it, which ends the debt; a motion
+		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
+		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
 		if e := engagedOf(evs, win, gaps, seatID); e != nil {
 			engaged = e.GapIDs
 		}
-		contested := editsAnsweringThisSitting(evs, win, seatID)
+		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
 			if !g.AwaitingProof {
 				continue
@@ -267,8 +264,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			switch {
 			case !slices.Contains(engaged, id):
 				may("gap " + id + what + " — this sitting is not engaged on it")
-			case contested[id]:
-				may("gap " + id + what + " — your edit this sitting answered it in prose, and the lens's close stays refused until a proof names it")
+			case moved[id]:
+				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a proof names it")
+			case retired && g.LocationState == LocationGone:
+				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a proof names it")
 			default:
 				add("gap " + id + what)
 			}
@@ -296,9 +295,16 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// blocker whose owner it is, the reading capture's record-parity audit holds it to, so this
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
 		// the synthesizer are party to no dispute and owe none.
+		//
+		// IT OWES THE FIX OR RETIRE OF A PROOF A LENS'S STANDING JUDGEMENT CALLS UNSOUND (unsoundproof.go):
+		// the PASS gate's blocker, cleared by blue's retire, or by the fresh sound judgement blue's edit
+		// of the sentence reopens it for.
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			if b.Kind == BlockerClosingOwed && b.Owner == seatID {
+			switch {
+			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				add(b.WorkItem())
+			case b.Kind == BlockerUnsoundProof && seatID == blueRespondSeat:
+				add(blueUnsoundItem(b))
 			}
 		}
 	case "chair":
@@ -360,6 +366,17 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+			// A PROOF IT JUDGED UNSOUND IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
+			// the list as not owed — blue's fix or retire clears it, or the lens's own sound judgement
+			// if it judges the sentence again.
+			if b.Kind == BlockerUnsoundProof && b.Owner == seatID {
+				if b.answeredBy == "" {
+					add(b.WorkItem())
+				} else {
+					may(b.WorkItem())
+				}
+				continue
+			}
 			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
@@ -612,15 +629,23 @@ func benchRegisteredSince(evs []*Event, win WindowIndex, d dispatchRow) bool {
 	return false
 }
 
-// editsAnsweringThisSitting is the gaps the seat's edits in its current sitting name in --answers.
-func editsAnsweringThisSitting(evs []*Event, win WindowIndex, seatID string) map[string]bool {
-	out := map[string]bool{}
+// answeredByActThisSitting is the gaps the seat filed a motion on in its current sitting (a docket
+// or grade motion names its gap), and whether it recorded a retire there.
+func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (moved map[string]bool, retired bool) {
+	moved = map[string]bool{}
 	for _, e := range thisSitting(evs, win, seatID) {
-		if b, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && b.GetAnswers() != "" {
-			out[b.GetAnswers()] = true
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			for _, g := range []string{m.GetDocket().GetGapId(), m.GetGrade().GetGapId()} {
+				if g != "" {
+					moved[g] = true
+				}
+			}
+		}
+		if _, ok := recordpb.BodyAs[*recordpb.Retire](e); ok {
+			retired = true
 		}
 	}
-	return out
+	return moved, retired
 }
 
 // unreachableThisSitting is the anchors the seat verified as unreachable in its current sitting.

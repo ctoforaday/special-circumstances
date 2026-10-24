@@ -399,7 +399,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 	}
 
-	foundBy, err := listValuesByEvent(q, "mint_found_by")
+	foundBy, err := listValuesByEvent(q, "gap_found_by")
 	if err != nil {
 		return out, err
 	}
@@ -1024,7 +1024,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		r.absent = noRecord(q)
 		return r, err
 	}
-	if r.foundBy, err = listValuesByEvent(q, "mint_found_by"); err != nil {
+	if r.foundBy, err = listValuesByEvent(q, "gap_found_by"); err != nil {
 		return r, err
 	}
 	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
@@ -1528,6 +1528,11 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 				mintedBy[id] = append(mintedBy[id], m.GetGapId())
 			}
 		}
+		// A CREDIT ADDS THE FINDING TO AN OPEN GAP'S found_by, so the gap credits it as its mint's
+		// own list would.
+		if c, ok := recordpb.BodyAs[*recordpb.Credit](e); ok {
+			mintedBy[c.GetFoundBy()] = append(mintedBy[c.GetFoundBy()], c.GetGapId())
+		}
 	}
 	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
@@ -1575,7 +1580,8 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 // every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
 var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
 	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_MINT)
+	recordpb.EventType_EVENT_TYPE_MINT,
+	recordpb.EventType_EVENT_TYPE_CREDIT)
 
 // FindingsJSONBytes renders the findings view as indented JSON.
 func FindingsJSONBytes(run Run) ([]byte, error) { return findingsView.jsonBytes(run) }
