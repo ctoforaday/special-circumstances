@@ -291,6 +291,7 @@ enum EventType {
   EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
+  EVENT_TYPE_CREDIT = 42 [(means) = "a lens crediting an open gap with its own finding that raised a contradiction — the gap's found_by gains the finding, and the gap answers the contradiction as a gap minted from it would"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -731,15 +732,16 @@ message Event {
     SittingLimit sitting_limit = 57;
     Plan plan = 59;
     Stale stale = 60;
+    Credit credit = 61;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, 60 for the stale refusal, which is what the reserve is for — the block shrinks and
-  // nothing is renumbered.
-  reserved 61 to 80;
+  // plan, 60 for the stale refusal, 61 for the credit, which is what the reserve is for — the block
+  // shrinks and nothing is renumbered.
+  reserved 62 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -1124,7 +1126,7 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
-  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
 }
 
 message Finding {
@@ -2339,6 +2341,34 @@ message Stale {
   // THROUGH IS THE LAST ACT THE REFUSAL SHOWED, not this event's own id: an act on the gap recorded
   // between the check and this write was never shown, and a read point at this event would pass it.
   optional int64 through = 2 [(sql) = { references: "events.id" }];
+}
+
+// Credit is a lens naming an OPEN gap as the answer to a contradiction its own finding raised
+// (gblock, 2026-10-24): the gap's found_by gains the finding, and the contradiction fold
+// (contradictionsOf) reads the gap as answering it, exactly as it reads a gap minted from that
+// finding. The gap's class then decides materiality, as for every gap.
+//
+// IT EXISTS BECAUSE THE DUPLICATE SCREEN IS RIGHT. A lens that raised a contradiction owes the gap
+// that answers it; where the board already holds that defect as an open gap, the answering mint is
+// a duplicate and the screen refuses it. On universe-m32 that refusal fell seven times on three
+// raises whose defect G-f417112d already held, and six sittings ended owing the answer. The
+// credit answers with the gap that exists, and no second gap is minted.
+//
+// A CREDIT IS NOT A MINT: it takes no budget and moves no gap's ownership. The gap stays its
+// minting lens's to close or regrade.
+message Credit {
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    flag: "id"
+    why: "the credit names the open gap that answers the contradiction"
+  }];
+  // found_by is the RAISING FINDING — the one id a gap's found_by holds, so the credit adds it there.
+  optional string found_by = 2 [(sql) = {
+    required: true
+    references: "finding.id"
+    why: "the credit names the finding of yours that raised the contradiction, which the gap's found_by gains"
+  }];
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

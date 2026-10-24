@@ -338,32 +338,45 @@ const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raise
 // the record before the mint (contradictionsOf), so the mint it admits is the gap the count then
 // leaves out (ownAnswersAt). A raise another seat recorded, or one already answered, is none.
 func answersOwnRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (string, error) {
-	if len(foundBy) == 0 {
-		return "", nil
-	}
-	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
-	if err != nil {
+	c, err := ownRaiseAt(q, seatID, foundBy)
+	if err != nil || c == nil {
 		return "", err
+	}
+	return c.idWord(), nil
+}
+
+// ownRaiseAt is the unanswered contradiction seatID's own finding raised that a mint crediting
+// foundBy would answer, or nil. The duplicate screen reads it too: an answering mint it refuses is
+// told the raising finding, which the crediting act names.
+func ownRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (*contradiction, error) {
+	if len(foundBy) == 0 {
+		return nil, nil
+	}
+	evs, win, err := eventsOfAt(q, contradictionActs...)
+	if err != nil {
+		return nil, err
 	}
 	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
 		if c.raiser == seatID && c.answeredBy == "" && slices.Contains(foundBy, c.raisedBy) {
-			return c.idWord(), nil
+			return &c, nil
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
-// ownAnswersAt is the gaps that answer a contradiction seatID's own finding raised. Those seatID
+// ownAnswersAt is the gaps MINTED to answer a contradiction seatID's own finding raised. A gap
+// credited with the raise was minted for itself and counted then; crediting it takes nothing off
+// its minter's count, or a lens could free a slot by crediting its own open gap. Those seatID
 // minted are the gaps its budget does not count (lensMintStanding); one another seat minted from
 // that finding answers it all the same, and counts against its own minter's budget.
 func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
-	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_MINT)
+	evs, win, err := eventsOfAt(q, contradictionActs...)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]bool{}
 	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
-		if c.answeredBy != "" && c.raiser == seatID {
+		if c.answeredBy != "" && c.raiser == seatID && !c.credited {
 			out[c.answeredBy] = true
 		}
 	}
