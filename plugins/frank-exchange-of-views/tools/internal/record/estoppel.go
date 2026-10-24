@@ -68,18 +68,27 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	return out
 }
 
-// EstoppelConflict reports the gap whose prescribed text `quote` is relitigating, or "".
+// Estoppel is a prescription a mint's quote relitigates: the gap whose fix it is, the seat that minted
+// that gap — the author of the prescription — and the prescribed text.
+type Estoppel struct{ Gap, PrescribedBy, Text string }
+
+// EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one.
+//
+// RED IS THE PARTY BOUND, NOT THE LENS THAT WROTE IT. The guard was written when one red seat minted
+// every gap, so "red's prescription" and "the minting seat's prescription" were the same set; with the
+// lenses minting, a lens's mint against another lens's applied fix is refused too, and the refusal
+// names the author from the record rather than telling the minting lens the words were its own.
 //
 // Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
 // of the prescribed sentence or a span that swallows it whole, and both are the same act.
-func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
+func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
 	// VISIBLE, NOT MERELY COLLAPSED. Collapsing whitespace alone leaves the anchors, and the
 	// two sides of this comparison differ by exactly that: `fix_new` is red's prose, written before
 	// any anchor existed, while `quote` is taken from the report, which anchors the sentence the
 	// moment the fix lands. On raw bytes this check goes blind at the instant it becomes relevant.
 	q := anchortext.Visible(quote)
 	if len(q) == 0 {
-		return "", ""
+		return Estoppel{}, false
 	}
 	for id, fixNew := range appliedVerbatim(f.Events, GapsByID(f.Gaps)) {
 		p := anchortext.Visible(fixNew)
@@ -87,10 +96,20 @@ func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
 			continue
 		}
 		if strings.Contains(p, q) || strings.Contains(q, p) {
-			return id, fixNew
+			return Estoppel{Gap: id, PrescribedBy: minterOf(f.Events, id), Text: fixNew}, true
 		}
 	}
-	return "", ""
+	return Estoppel{}, false
+}
+
+// minterOf is the seat whose mint created gapID: the event's seat, which the record stamps at the write.
+func minterOf(evs []*Event, gapID string) string {
+	for _, e := range evs {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetGapId() == gapID {
+			return e.GetSeatId()
+		}
+	}
+	return ""
 }
 
 // DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),
