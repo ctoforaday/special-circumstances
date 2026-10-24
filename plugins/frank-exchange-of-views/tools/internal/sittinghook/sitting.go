@@ -211,7 +211,7 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	if in.AgentID == "" || in.AgentType == "" {
 		return nil
 	}
-	inferred := runlive.InferRunDir(in.Cwd, in.AgentID)
+	inferred := runlive.InferRunDir(in.Cwd, runlive.Caller{ID: in.AgentID, Type: in.AgentType})
 	if inferred.Why.Fault() {
 		// A marker that cannot be used is not "no run": it is a run whose seats' sittings are all
 		// being dropped — and with two live runs, both runs' sittings. Only the fault shapes are

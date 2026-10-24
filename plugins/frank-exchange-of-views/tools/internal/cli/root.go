@@ -134,7 +134,9 @@ func newRoot() *cobra.Command {
 // pre-parse scan of os.Args for --run would be a second flag parser guessing at the same fact.
 // Where no run resolves there is no record to ask, so the answer is the flag or nothing.
 func dispatchedSeat() string {
-	runDir, err := seatenv.Resolve("", func() string { return runlive.InferRunDir("", seatenv.AgentID()).Dir })
+	runDir, err := seatenv.Resolve("", func() string {
+		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}).Dir
+	})
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}

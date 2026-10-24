@@ -427,7 +427,7 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 ## contradiction
 
-A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a gap answers it — the gap minted from the finding that raised it by its id, or an open gap that finding's lens credits with it — or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
+A contradiction is a source red read that refutes, or is silent on, a claim of the report, raised by the finding that names its id (a reading of that claim after the raise opens a new contradiction with its own id), and held open until a gap answers it — the gap minted from that finding, or an open gap that finding's lens credits with it — or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it; the finding alone answers nothing, and a contradiction is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
 
 **Delivered to:** lens, chair
 

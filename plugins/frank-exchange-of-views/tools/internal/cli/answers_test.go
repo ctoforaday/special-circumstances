@@ -146,6 +146,7 @@ const (
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
 	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
+	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your declaration, your certification and a log entry"
 )
 
 const (
@@ -455,7 +456,16 @@ func answerDrives() []answerDrive {
 		{name: "declare", row: "a new declaration", helps: []string{"bench declare"}, drive: twice("judge", "declare")},
 		{name: "certify", row: "a new certification", helps: []string{"bench certify"}, drive: twice("judge", "certify")},
 		{name: "halt", row: "a new halt", helps: []string{"bench halt"}, drive: twice("judge", "halt")},
-		{name: "outcome", row: "a new outcome", helps: []string{"bench outcome"}, drive: twice("judge", "outcome", "--as", "UNVERIFIED")},
+		{name: "outcome", row: rowOutcome, helps: []string{"bench outcome"}, drive: func(d drive) {
+			// THE OUTCOME CLOSES THE RECORD TO SEAT ACTS (record.requireOpenToSeats): a second is refused,
+			// and the certification the row names is admitted after it.
+			d.admitted("the assembly sitting", "judge", "register", "--occasion", "assemble")
+			d.admitted("the outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "the first")
+			if r := d.refused("a second outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "this replaces my earlier one"); !strings.Contains(r, "the run has its outcome") {
+				d.t.Fatalf("a second outcome is refused, but not as the run's end: %s", r)
+			}
+			d.admitted("the certification that answers it", "judge", "certify", "--reason", "the stamp's reason was wrong, and this is what a human should re-examine")
+		}},
 	}
 }
 

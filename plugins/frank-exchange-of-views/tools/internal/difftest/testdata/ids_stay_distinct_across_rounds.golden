@@ -23,7 +23,7 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r1 first
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r1 first
 exit 0
 stdout:
 minted GAP001
@@ -31,7 +31,7 @@ minted GAP001
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
 exit 0
 stdout:
 minted GAP002
@@ -52,7 +52,7 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class doctrine_vs_implementation --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
 exit 0
 stdout:
 minted GAP003
@@ -95,10 +95,10 @@ motion MOTION001 ruled rejected
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
-{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP003","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP003","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP003","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP003","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `spot-check` with --ids --reason: --ids names gap GAP001, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_LOG"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_HIGH"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}

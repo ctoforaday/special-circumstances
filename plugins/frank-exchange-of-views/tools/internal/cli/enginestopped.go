@@ -28,7 +28,7 @@ import (
 //
 // # Why it is a log entry and not an outcome
 //
-// An outcome closes the record to every seat, and a run the engine stopped is one an operator can
+// An outcome closes the record to seat acts, and a run the engine stopped is one an operator can
 // still resume. Without an entry, its record reads exactly as a run cut off mid-sitting does: the
 // last sitting, then nothing.
 //
@@ -53,7 +53,7 @@ func newEngineStopped() *cobra.Command {
 			"Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the " +
 			"only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one " +
 			"that was cut off.\n\n" +
-			"IT RECORDS NO OUTCOME. An outcome closes the record to every seat; this leaves it open, so the same workflow run " +
+			"IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run " +
 			"resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting " +
 			"recorded before the stop (finished).\n\n" +
 			"`ops log` reads the entry back, beside what the seats filed.",

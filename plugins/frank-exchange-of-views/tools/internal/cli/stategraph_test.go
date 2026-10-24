@@ -241,7 +241,7 @@ func probeEntity(t *testing.T, e entityProbe) (edges []stateEdge, deadEnds, over
 // ---- the gap ----
 
 func gapMint() probeAct {
-	return probeAct{"mint", []string{"mint", "--key", "k1", "--class", "spec_underspecification",
+	return probeAct{"mint", []string{"mint", "--about-kind", "section", "--about", "Findings", "--key", "k1", "--class", "spec_underspecification",
 		"--problem", "p", "--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",
 		"--reason", "the board needs something to argue about"}}

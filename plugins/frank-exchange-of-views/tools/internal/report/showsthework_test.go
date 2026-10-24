@@ -90,7 +90,7 @@ func TestEvidenceShowsEveryReadingOfEachCitation(t *testing.T) {
 // against what. An open gap carries red's argument too.
 func TestTheBoardShowsHowEachGapClosed(t *testing.T) {
 	mint := func(gap, reason string) *record.Event {
-		return recordtest.Event(t, "red-lens-voice", &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("problem of " + gap),
+		return recordtest.Event(t, "red-lens-voice", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("problem of " + gap),
 			RequiredFix: proto.String("fix for " + gap), AcceptanceCheck: proto.String("check for " + gap), MintReason: proto.String(reason),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity:  recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})

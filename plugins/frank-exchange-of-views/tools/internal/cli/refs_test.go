@@ -51,7 +51,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"close --successor", "no mint event created", []string{"close", "--seat-id", lensSeat,
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "G99"}},
-		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", lensSeat,
+		{"mint --found-by", "no lens recorded", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", lensSeat,
 			"--key", "k2", "--class", "spec_underspecification", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--complexity", "low", "--found-by", "F-0000f9f9"}},
@@ -169,7 +169,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	runDir := seatRun(t)
 	ancestor := mintGap(t, runDir, "the-ancestor", "policy_without_mechanism")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "the-successor", "--class", "policy_without_mechanism",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -197,7 +197,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "the-successor", "--class", "risk_coverage_omission",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
