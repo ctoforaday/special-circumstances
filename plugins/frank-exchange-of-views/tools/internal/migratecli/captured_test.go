@@ -21,7 +21,7 @@ func TestACapturedRunMigratesAndStaysCaptured(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(from, runlive.CapturedMark), stamp, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	to := filepath.Join(t.TempDir(), "migrated")
+	to := filepath.Join(recordtest.TmpRun(t), "migrated")
 	var stdout, stderr bytes.Buffer
 	if code := Main([]string{"--from", from, "--to", to}, &stdout, &stderr); code != 0 {
 		t.Fatalf("feov-migrate over a captured run: exit %d\nstderr: %s", code, stderr.String())
