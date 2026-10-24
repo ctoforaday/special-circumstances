@@ -872,6 +872,9 @@ var NoSituation = map[string]string{
 		"record-parity audit holds the duty instead.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
+	"lens credit": "possible and real — a lens whose answering mint the duplicate screen refuses credits the open gap it names — but " +
+		"its sitting needs a contradiction the lens read and raised, a refuting reading and a raising finding, and a board stages " +
+		"neither; the record's tests and the release fuzz drive it whole.",
 }
 
 // AlwaysTaken are the verbs no board needs to bait, with why.

@@ -68,6 +68,10 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
+		// Claim B's contradiction (event 11), raised by its id and answered by crediting the open G2.
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000003"), Text: str("claim B is not in the source"),
+			AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: str("11")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Credit{GapId: str("G2"), FoundBy: str("F-00000003")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofId: str("P-00000001"), ProofSha: str("abc"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
