@@ -32,7 +32,6 @@ package runlive
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -125,7 +124,7 @@ func Read(projectDir string) State {
 	if projectDir == "" {
 		return State{}
 	}
-	raw, err := readSharingDelete(filepath.Join(projectDir, ".claude", "run-live.json"))
+	raw, err := readMarker(projectDir)
 	if err != nil {
 		return State{}
 	}

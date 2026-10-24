@@ -105,7 +105,7 @@ var threePages = []string{
 
 func TestOCRCiteRecordsThePageItsSpanSitsOn(t *testing.T) {
 	runDir, sha := ocrRun(t, threePages)
-	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J"); err != nil {
+	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	c := firstCiteEvent(t, runDir)
@@ -119,13 +119,13 @@ func TestOCRCiteRecordsThePageItsSpanSitsOn(t *testing.T) {
 	if c.GetSourceTextOrigin() != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR {
 		t.Errorf("origin = %v, want ocr", c.GetSourceTextOrigin())
 	}
-	if c.GetOcrEngine() != rec.Engine || c.GetOcrTextSha() != rec.TextSha || c.GetSourceSpan() != "Annexes A through J" {
+	if c.GetOcrEngine() != rec.Engine || c.GetOcrTextSha() != rec.TextSha || c.GetSourceSpan() != "Annexes A through J are informative" {
 		t.Errorf("pins = %q %q %q, want the reading's %q %q and the span", c.GetOcrEngine(), c.GetOcrTextSha(), c.GetSourceSpan(), rec.Engine, rec.TextSha)
 	}
 	// THE OFFSETS NAME THE PAGE'S READING, and the text around the span is that page's.
 	page := threePages[1]
-	if c.GetSpanTextSha() != rec.Pages[1].TextSha || page[c.GetSpanStart():c.GetSpanEnd()] != "Annexes A through J" ||
-		c.GetSourceBefore() != "The integrity levels are four.\n" || c.GetSourceAfter() != " are informa-\ntive." {
+	if c.GetSpanTextSha() != rec.Pages[1].TextSha || page[c.GetSpanStart():c.GetSpanEnd()] != "Annexes A through J are informa-\ntive" ||
+		c.GetSourceBefore() != "The integrity levels are four.\n" || c.GetSourceAfter() != "." {
 		t.Errorf("span at [%d,%d) of %q, before %q, after %q; want page 2's reading", c.GetSpanStart(), c.GetSpanEnd(), c.GetSpanTextSha(), c.GetSourceBefore(), c.GetSourceAfter())
 	}
 }
@@ -204,7 +204,7 @@ func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 	})
 	t.Run("unread scan", func(t *testing.T) {
 		runDir, _ := ocrRun(t, threePages, "--ocr=false")
-		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J")
+		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative")
 		mustRefuse(t, err, out, "the tool holds none for", "(none)", "`fetch --url "+ocrURL+"` to read a scan first")
 	})
 	t.Run("incomplete reading", func(t *testing.T) {
@@ -212,7 +212,7 @@ func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 		if err := os.Remove(fetchcache.PageTextPath(runtest.Open(t, runDir), sha, 3)); err != nil {
 			t.Fatal(err)
 		}
-		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J")
+		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative")
 		mustRefuse(t, err, out, "incomplete on disk", "`fetch --url "+ocrURL+"` re-derives it")
 	})
 }
@@ -220,7 +220,7 @@ func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 // pagedCite records a cite of the p2 span and returns its label.
 func pagedCite(t *testing.T, runDir string) string {
 	t.Helper()
-	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J"); err != nil {
+	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	return firstCiteEvent(t, runDir).GetLabel()

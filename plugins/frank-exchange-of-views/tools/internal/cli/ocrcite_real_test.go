@@ -61,7 +61,7 @@ func TestOCRCiteOnRealScan(t *testing.T) {
 	if out, err := cite("Annexes A through Q"); err == nil || !strings.Contains(err.Error(), "not in the text at") {
 		t.Fatalf("a span the reading does not hold was not refused: %v\n%s", err, out)
 	}
-	if out, err := cite("Annexes A through J"); err != nil {
+	if out, err := cite("Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	c := firstCiteEvent(t, runDir)
