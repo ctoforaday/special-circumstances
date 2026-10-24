@@ -24,14 +24,38 @@ func TestAConcurrentReaderNeverSeesAPartialMarker(t *testing.T) {
 	var stop atomic.Bool
 	var wg sync.WaitGroup
 	var unreadable, reads atomic.Int64
+	// What each failed read got: an open error, empty or torn bytes, or a file with no rows.
+	var kindsMu sync.Mutex
+	kinds := map[string]int{}
+	marker := filepath.Join(proj, ".claude", "run-live.json")
 	for r := 0; r < 4; r++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for !stop.Load() {
 				reads.Add(1)
-				if runs, readable := readRunLive(proj); !readable || len(runs) == 0 {
+				// readRunLive's own steps — shared lock, read, decode — kept apart so a failure says
+				// which one failed.
+				kind := ""
+				release, lerr := rlockMarker(proj)
+				b, err := readSharingDelete(marker)
+				if lerr == nil {
+					release()
+				}
+				if lerr != nil {
+					kind = "lock: " + lerr.Error()
+				} else if err != nil {
+					kind = "open/read: " + err.Error()
+				} else if runs, readable := decodeRunLive(b); !readable {
+					kind = fmt.Sprintf("unparseable, %d bytes", len(b))
+				} else if len(runs) == 0 {
+					kind = "no rows"
+				}
+				if kind != "" {
 					unreadable.Add(1)
+					kindsMu.Lock()
+					kinds[kind]++
+					kindsMu.Unlock()
 				}
 			}
 		}()
@@ -54,19 +78,19 @@ func TestAConcurrentReaderNeverSeesAPartialMarker(t *testing.T) {
 		t.Fatalf("a write failed while readers polled: %v", werr)
 	}
 	if n := unreadable.Load(); n != 0 {
-		t.Fatalf("%d of %d concurrent reads found the marker unreadable or empty — a reader saw a partial write", n, reads.Load())
+		t.Fatalf("%d of %d concurrent reads found the marker unreadable or empty — a reader saw a partial write; the reads got %v", n, reads.Load(), kinds)
 	}
-	// No temporary file is left beside the marker.
+	// No temporary file is left beside the marker and its lock.
 	entries, err := os.ReadDir(filepath.Join(proj, ".claude"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Name() != "run-live.json" {
-		names := []string{}
-		for _, e := range entries {
-			names = append(names, e.Name())
-		}
-		t.Fatalf(".claude holds %v, want run-live.json alone", names)
+	names := []string{}
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if len(names) != 2 || names[0] != "run-live.json" || names[1] != MarkerLock {
+		t.Fatalf(".claude holds %v, want run-live.json and %s", names, MarkerLock)
 	}
 }
 
@@ -91,4 +115,44 @@ func TestAFailedMarkerWriteIsReported(t *testing.T) {
 			t.Fatal("a write that failed reported success")
 		}
 	})
+}
+
+// A READER WAITS OUT A WRITER. A writer holds MarkerLock exclusive from its read to its rename;
+// readRunLive takes it shared, so its open can never land inside the rename, where on Windows it
+// finds no file. While the lock is held the read does not return; once released it sees the marker.
+func TestAReaderWaitsForAWriterHoldingTheMarkerLock(t *testing.T) {
+	proj := t.TempDir()
+	if _, err := WriteRunLiveMarker(proj, "research/x", nil, time.Now(), "", ""); err != nil {
+		t.Fatal(err)
+	}
+	release, err := lockMarker(proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type result struct {
+		runs     []RunLiveMarker
+		readable bool
+	}
+	done := make(chan result, 1)
+	go func() {
+		runs, readable := readRunLive(proj)
+		done <- result{runs, readable}
+	}()
+	select {
+	case <-done:
+		release()
+		t.Fatal("readRunLive returned while a writer held the marker lock")
+	case <-time.After(200 * time.Millisecond):
+	}
+	if err := release(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case r := <-done:
+		if !r.readable || len(r.runs) != 1 {
+			t.Fatalf("after the writer released, readRunLive saw %+v", r)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("readRunLive did not return after the writer released the lock")
+	}
 }

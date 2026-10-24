@@ -167,8 +167,13 @@ type Pruned struct {
 // recorded — and returns what it removed, so the caller can say so. The file goes when no row is
 // left. A marker it cannot read is left alone: nothing in it can be judged. An error means the rows
 // it names as pruned are STILL in the file.
-func PruneRunLive(projectDir string) ([]Pruned, error) {
-	runs, readable := readRunLive(projectDir)
+func PruneRunLive(projectDir string) (_ []Pruned, err error) {
+	release, err := lockMarker(projectDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = errors.Join(err, release()) }()
+	runs, readable := readMarkerFile(projectDir)
 	if !readable {
 		return nil, nil
 	}
@@ -268,11 +273,29 @@ func ReadRunLive(projectDir string) []RunLiveMarker {
 // able to say that a marker is BROKEN rather than empty, because only one of those is a fault a
 // human should be told about. One decoder serves both, so the two can never disagree about the
 // shape of the file.
+//
+// It holds the marker's lock shared (MarkerLock), so its open never lands inside a writer's rename;
+// a lock it cannot take is a marker it cannot read.
 func readRunLive(projectDir string) (runs []RunLiveMarker, readable bool) {
+	release, err := rlockMarker(projectDir)
+	if err != nil {
+		return nil, false
+	}
+	defer release()
+	return readMarkerFile(projectDir)
+}
+
+// readMarkerFile is readRunLive without the lock, for a writer that already holds it exclusive.
+func readMarkerFile(projectDir string) (runs []RunLiveMarker, readable bool) {
 	b, err := readSharingDelete(filepath.Join(projectDir, ".claude", "run-live.json"))
 	if err != nil {
 		return nil, false
 	}
+	return decodeRunLive(b)
+}
+
+// decodeRunLive is readRunLive's decoder: the rows with a run directory, and whether b parsed.
+func decodeRunLive(b []byte) (runs []RunLiveMarker, readable bool) {
 	var f RunLive
 	if json.Unmarshal(b, &f) != nil {
 		return nil, false
@@ -306,12 +329,17 @@ func SameRun(projectDir, a, b string) bool {
 // WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state) and returns its
 // path. `now` is injected so the sole non-deterministic field is controllable in tests. An error
 // means the run is NOT live: the hooks cannot find it.
-func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) (string, error) {
+func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) (_ string, err error) {
 	dir := filepath.Join(projectDir, ".claude")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 	p := filepath.Join(dir, "run-live.json")
+	release, err := lockMarker(projectDir)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = errors.Join(err, release()) }()
 	if pinnedPaths == nil {
 		pinnedPaths = []string{}
 	}
@@ -329,7 +357,7 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	// AN UPSERT, NOT AN OVERWRITE. Overwriting is what made a stale marker self-healing and
 	// SILENT; with a list it would also be what makes a second run erase the first one's row,
 	// which is the cross-run erasure `capture` already carries a guard against.
-	runs := ReadRunLive(projectDir)
+	runs, _ := readMarkerFile(projectDir)
 	replaced := false
 	for i := range runs {
 		if SameRun(projectDir, runs[i].RunDir, runDir) {
@@ -358,7 +386,12 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 // run A lift run B's marker — guarded since 2026-08-22 by comparing paths, which is a guard
 // where a per-run row is a removal of the class.
 func RemoveRunLiveEntry(projectDir, runDir string) (found bool, remaining int, err error) {
-	runs := ReadRunLive(projectDir)
+	release, err := lockMarker(projectDir)
+	if err != nil {
+		return false, 0, err
+	}
+	defer func() { err = errors.Join(err, release()) }()
+	runs, _ := readMarkerFile(projectDir)
 	kept := runs[:0]
 	for _, m := range runs {
 		if SameRun(projectDir, m.RunDir, runDir) {
