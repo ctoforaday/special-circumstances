@@ -355,6 +355,36 @@ func (r *runner) chairFail(seatID string) (verdict, printed string) {
 	return "", ""
 }
 
+// The bench's envelope at its docket sitting, by what the record answered (benchEndRefused,
+// benchEnds).
+var (
+	benchEndMu  sync.Mutex
+	benchEndRow = map[string]int{}
+)
+
+func noteBenchEnd(class string) {
+	benchEndMu.Lock()
+	defer benchEndMu.Unlock()
+	benchEndRow[class]++
+}
+
+// benchEndReport renders the bench's envelope tally for the sweep's log.
+func benchEndReport() string {
+	benchEndMu.Lock()
+	defer benchEndMu.Unlock()
+	keys := make([]string, 0, len(benchEndRow))
+	for k := range benchEndRow {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString("the bench's envelope at its docket sitting, by what the record answered:")
+	for _, k := range keys {
+		fmt.Fprintf(&b, "\n  %s: %d", k, benchEndRow[k])
+	}
+	return b.String()
+}
+
 // The chair's FAIL tally, by the door its act went through and what it got.
 var (
 	failMu  sync.Mutex
