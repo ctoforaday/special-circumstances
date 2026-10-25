@@ -386,8 +386,8 @@ func TestALogLineNamesEveryAnchorKindByItsID(t *testing.T) {
 }
 
 // A TOKEN THAT SHOWS THE SHAPE, NOT AN ID, IS STILL A TOKEN. The `--anchor` refusal teaches "a
-// `<!--cite:C-…-->`, `<!--fx:F-…-->` … token", and the #1565 log stored "a ``, ``, `` or `` token":
-// no id reader knew the placeholders, so the invisible layer took them whole.
+// `<!--cite:C-…-->`, `<!--fx:F-…-->` … token", and the #1565 log stored each as an empty pair of
+// backticks: no id reader knew the placeholders, so the invisible layer took them whole.
 func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
 	var shown []string
 	for _, k := range anchor.Kinds() {

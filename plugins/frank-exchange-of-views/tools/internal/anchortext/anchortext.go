@@ -97,8 +97,8 @@ func Visible(s string) string { return normalizeQuote(s) }
 //
 // A TOKEN IS READ AS WRITTEN, NOT ONLY AS A REAL ID (anchor.EachWritten). A refusal that teaches the
 // token's shape — `--anchor` takes "a `<!--cite:C-…-->` … token" — holds placeholders, which no id
-// reader recognises, so Visible took them as comments and the #1565 log stored "a ``, ``, `` or ``
-// token". What the token holds cannot forge a marker: the delimiters a document reads as one are gone.
+// reader recognises, so Visible took them as comments and the #1565 log stored each as an empty pair
+// of backticks. What the token holds cannot forge a marker: the delimiters a document reads as one are gone.
 func LogLine(s string) string {
 	var b strings.Builder
 	last := 0
