@@ -14,11 +14,23 @@ var ErrSpanMidClause = errors.New("span cuts into a clause")
 
 // SpanBoundary is the boundary rule in a seat's words: the one statement of it that cite's --help
 // and the mid-clause refusal both render, beside SpanNormalisation.
-const SpanBoundary = "a span starts at the start of the source's text (or of an OCR page), where the source starts a sentence — after . ! ? or … (closers and reference marks such as [12] allowed), a blank line or a markup tag, at a character that is not a lowercase letter — " +
-	"or just after a clause mark: a comma, semicolon or colon, a dash, or an opening bracket or quote; a span may also open with that bracket or quote. " +
-	"It ends at the end of the source's text (or of an OCR page), where the source ends a sentence — at . ! ? or … (closers and reference marks allowed) before whitespace and a character that is not a lowercase letter, or before a blank line or a markup tag — " +
-	"or just before a clause mark: a comma, semicolon or colon, a dash, a closing bracket or quote, or a spaced opening bracket ( or [; a span may also close with that mark, bracket or quote. " +
+const SpanBoundary = "a span starts and ends at a boundary of the source's text; a clause mark is a comma, semicolon or colon followed by whitespace, or a dash (a hyphen counts when spaced or doubled). " +
+	"A span STARTS at the start of the text (or of an OCR page); with an opening bracket or quote; just after a clause mark or an opening bracket or quote; " +
+	"or just after one of these when its first character is not a lowercase letter: a sentence end (. ! ? or …, closers and reference marks such as [12] allowed, then whitespace), a blank line, or a markup tag. " +
+	"It ENDS at the end of the text (or of an OCR page), or before a blank line or a markup tag; with a clause mark or a closing bracket or quote; just before a clause mark, a closing bracket or quote, or a spaced opening bracket ( or [; " +
+	"or on or just before a sentence end: . ! ? or … (closers and reference marks allowed), then whitespace and a character that is not a lowercase letter. " +
+	"In «" + spanExample + "» the spans «" + spanExampleWhole + "» and «" + spanExampleClause + "» are accepted; «" + spanExampleCutStart + "» is refused (it starts inside a clause), and so is «" + spanExampleCutEnd + "» (it ends inside one). " +
 	"The tool never widens a span: quote more"
+
+// The worked example SpanBoundary shows, each span admitted or refused as it says
+// (TestSpanBoundarysExampleIsWhatTheToolDoes).
+const (
+	spanExample         = "Fermat's test is fast, but it is not proof."
+	spanExampleWhole    = "Fermat's test is fast"
+	spanExampleClause   = "but it is not proof."
+	spanExampleCutStart = "test is fast"
+	spanExampleCutEnd   = "but it is"
+)
 
 // THE SOURCE'S SENTENCES ARE READ BY A SCANNER OVER PLAIN TEXT, not by anchor.Sentences. That
 // splitter reads markdown blocks first, and a source's text is not markdown: an extraction's
@@ -380,7 +392,7 @@ func isTerminator(r rune) bool { return strings.ContainsRune(".!?…", r) }
 // isCloser is a closing bracket or quote, straight quotes included.
 func isCloser(r rune) bool { return strings.ContainsRune(")]}”’»\"'", r) }
 
-// notLower reports whether the first letter-bearing character at i is not a lowercase letter.
+// notLower reports whether the character at i is not a lowercase letter.
 func notLower(text string, i int) bool { return !unicode.IsLower(runeAt(text, i)) }
 
 func runeAt(text string, i int) rune {
