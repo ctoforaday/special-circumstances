@@ -782,16 +782,17 @@ jobs:
     # would race it for the save (see that job's setup-go comment). The compile is a minute or two
     # against a sweep of fifteen to thirty-five.
     #
-    # timeout-minutes 75: the sweep package measured 7-34 min on the October 2026 nightlies (run
-    # 39932969235, the slowest, 2044s, while sharing the runner with the rest of the module). The
-    # test's own -timeout=60m fires first and names the hung test; this bound is for a runner
-    # that never reaches it.
+    # timeout-minutes 115: the sweep package measured 7-34 min on the October 2026 nightlies (run
+    # 39932969235, 2044s, while sharing the runner with the rest of the module), and this job's
+    # first run, alone on its runner, finished 36 of 40 debates in 60 min (run 40174102731). The
+    # test's own -timeout=100m fires first and names the running test; this bound is for a
+    # runner that never reaches it.
     #
     # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
     # new run and the old one finishes and reports against its own commit.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 115
     env:
       GOTOOLCHAIN: local
     defaults:
@@ -844,7 +845,12 @@ jobs:
           FEOV_RELEASE_GATE: "1"
         run: |
           log="$RUNNER_TEMP/release-fuzz.log"
-          go test -v -count=1 -timeout=60m ./releasegate/fuzz/ >"$log" 2>&1 || { tail -80 "$log"; exit 1; }
+          go test -v -count=1 -timeout=100m ./releasegate/fuzz/ >"$log" 2>&1 || {
+            # The verdict lines, not the goroutine dump a timeout ends with: the dump is in the
+            # uploaded log.
+            grep -E '^(--- |panic:|FAIL|ok)|RUNSTAT|running tests:|^[[:space:]]+Test[A-Za-z]+ \(' "$log" | tail -60
+            exit 1
+          }
           grep -E "^(--- |ok)" "$log" | tail -30
           grep -q '^--- PASS: TestFuzzDebate' "$log" || {
             echo "::error::the sweep did not run TestFuzzDebate; the gate guarded nothing"
