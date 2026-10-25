@@ -22,7 +22,7 @@ func newCapture() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "capture <runDir> <transcriptDir>",
 		Short:         "run /research's post-hoc capture auditor (operator; integrity audits + cost.md/tarball/scorecards)",
-		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the Workflow's journal from <transcriptDir>, packs each seat transcript at the path the record's sitting closes name (naming every seat whose transcript it cannot read, and why), writes cost.md from those transcripts, re-assembles the run's documents from the record, runs the integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md, folding the cost, tier check, board telemetry and audits into run.md, and exiting 2 on any audit FAIL or when this run's row could not be removed from the run-live marker. The record-backed audits read the record in-process.",
+		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the Workflow's journal from <transcriptDir>, packs each seat transcript at the path the record's sitting closes name (naming every seat whose transcript it cannot read, and why), writes cost.md from those transcripts, re-assembles the run's documents from the record, runs the integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, archives the raw record to run-archive/<run>.tar.gz, and removes this run's row from the run-live marker — writing run-record-audit.md, folding the cost, tier check, board telemetry and audits into run.md, and exiting 2 on any audit FAIL or when this run's row could not be removed from the run-live marker. The record-backed audits read the record in-process. Run it from the project the run was set up from: run-archive/, feov-memory/, law/ and .claude/run-live.json are written in the working directory, and the stray-records audit walks it.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -38,7 +38,14 @@ func newCapture() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			audits, report, exitFail, err := capture.Run(run, args[1], time.Now())
+			// THE PROJECT IS WHERE THE OPERATOR STANDS: the directory /research was launched from,
+			// where setup wrote the run-live row. Stated, never inferred from the run directory's
+			// ancestors.
+			project, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("capture writes run-archive/, feov-memory/, law/ and .claude/run-live.json in the working directory, and the working directory could not be read: %w", err)
+			}
+			audits, report, exitFail, err := capture.Run(run, args[1], project, time.Now())
 			if err != nil {
 				return err
 			}
