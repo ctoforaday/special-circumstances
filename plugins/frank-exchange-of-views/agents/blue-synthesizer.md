@@ -798,7 +798,7 @@ $ feov-record show work --help
 
 A BLOCKING ITEM HOLDS YOUR SITTING: the call that returns your envelope is refused while any blocking item your own act clears stands, and the refusal names each — clear them, then return it again. An envelope the record cannot be read to check is refused as well, naming the read error. An item your sitting cannot clear is listed with `blocks: false` and says why — another seat clears it, or a later sitting does.
 
-An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran (on its owning lens's list alone: the computation lens, or the evidence lens where the cast seats none), an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified or a proof nobody re-ran (each on its owning lens's list alone: a citation on the evidence lens's; a proof on the computation lens's, or the evidence lens's where the cast seats none), a source blue never cited, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
 A GAP WHOSE LENS KEPT ITS GRADE after your last answer has an item carrying the lens's reason — what its own check still finds failing — until you answer the gap again.
 

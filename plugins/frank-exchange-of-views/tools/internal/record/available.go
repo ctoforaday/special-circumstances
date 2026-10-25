@@ -167,17 +167,19 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
 			add("gap " + o.GapID + " had a grade motion ACCEPTED and no regrade followed it: " + o.accepted() + " — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
-		for _, key := range citedClaimsWithoutVerify(evs) {
-			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
+		// A CITATION OR PROOF NOBODY CHECKED IS ON ITS OWNER'S LIST ALONE (anchorOwnerOf). Every other
+		// lens reads the anchor's standing check off `show evidence` and audits its sentence as content.
+		cast := castOfEvents(evs)
+		if seatID == anchorOwnerOf(cast, false) {
+			for _, key := range citedClaimsWithoutVerify(evs) {
+				add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
+			}
 		}
-		// A PROOF IS ON ITS OWNER'S LIST ALONE (proofOwnerOf). Every other lens judges the proof's
-		// sentence as content and reads its standing verdict off `show evidence`.
-		//
-		// THE ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
+		// THE PROOF ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
 		// takes and the seat reads in the report. When the verb took the script's sha256 and the
 		// item named the anchor, three lenses on universe-m11 spent 22 proof-file reads and 14
 		// filesystem hunts translating one into the other, for 12 re-runs.
-		if seatID == proofOwnerOf(castOfEvents(evs)) {
+		if seatID == anchorOwnerOf(cast, true) {
 			for _, o := range proofChecksOwed(evs, win) {
 				//
 				// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
@@ -515,7 +517,7 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 // with the first anchor's re-run, and its sentence shipped judged by a verdict on another.
 //
 // A reopened anchor — judged, then edited — is not an item here: it is the reopened row, owed by
-// the same owner and holding a PASS (reopenedEvidence, reopenedOwnerOf).
+// the same owner and holding a PASS (reopenedEvidence, anchorOwnerOf).
 //
 // Every proof carries its script's sha: the write refuses one without (validate), because no act
 // could discharge the item it would put here.
@@ -540,23 +542,34 @@ func proofChecksOwed(evs []*Event, win WindowIndex) []proofOwed {
 	return out
 }
 
-// computationSeat is the computation lens's seat — the owner of every unjudged proof where the
-// cast seats it (proofOwnerOf).
+// computationSeat is the computation lens's seat — the owner of every proof's check where the cast
+// seats it (anchorOwnerOf).
 const computationSeat = "red-lens-computation"
 
-// proofOwnerOf is the lens whose work list offers a proof nobody has judged: the computation lens
-// where the cast seats it, else the evidence lens, else none.
+// anchorOwnerOf is the lens that owes the check of an anchor of one kind — proof says which: a
+// citation's is the evidence lens; a proof's is the computation lens, else the evidence lens; ""
+// where the cast seats none. It is the one answer to "who owes this anchor's check": the work list
+// that offers a citation or proof nobody checked, the debt that keeps a lens from retiring
+// (lensOwesOf), and the owner of a reopened anchor's blocker, whom dispatch readies (passBlockersOf).
 //
 // ONE LENS OWNS A PROOF (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
 // for the rest it's just content to judge?" A proof item on every lens's list put lenses dispatched
 // together in a race to re-run and judge one script — universe-m26 re-ran one script 16 times across
-// five lenses. Every other lens reads the proof's standing verdict and judges its sentence as
-// content. A cast seating neither lens offers the proof to nobody, and it ships stated "not judged"
-// in the report's evidence, as a proof nobody judged does in any cast; a proof never held a PASS
-// for being unjudged.
-func proofOwnerOf(cast []string) string {
+// five lenses.
+//
+// ONE LENS OWNS A CITATION (gblock, 2026-10-25), and for the same reason: every lens's list offered
+// every citation nobody had verified, and lenses opened together verified the same ones — on the
+// run measured, 12 of the 15 first-epoch verifies were by lenses other than the evidence lens, and
+// later runs put 42 of 58 and 35 of 45 there.
+//
+// Every other lens reads the anchor's standing check and judges its sentence as content. A cast
+// seating no owner offers the anchor to nobody: a citation ships with no verification on its
+// evidence entry and a proof stated "not judged", as either does in any cast where nobody checked
+// it. Neither holds a PASS for being unchecked: owing it keeps the owner from retiring, so the owner
+// sits again each time the head moves.
+func anchorOwnerOf(cast []string, proof bool) string {
 	switch {
-	case slices.Contains(cast, computationSeat):
+	case proof && slices.Contains(cast, computationSeat):
 		return computationSeat
 	case slices.Contains(cast, evidenceSeat):
 		return evidenceSeat

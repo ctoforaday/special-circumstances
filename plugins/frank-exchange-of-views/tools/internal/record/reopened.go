@@ -1,7 +1,5 @@
 package record
 
-import "slices"
-
 // reopened is one citation or proof whose sentence an edit changed and that no sitting opened
 // since has checked. edit and lastCheck are events.id.
 type reopened struct {
@@ -35,7 +33,7 @@ type reopened struct {
 // path lets every lens make one, so the row reads the sitting a check came from and never the seat:
 // on universe-m20 the dark-side lens re-ran P-9e198e9a seven seconds before the evidence lens did,
 // and the anchor was checked from the first. Who is ASKED is a separate fact and has one answer per
-// anchor — the blocker's owner (reopenedOwnerOf), which is the seat dispatch readies and whose work
+// anchor — the blocker's owner (anchorOwnerOf), which is the seat dispatch readies and whose work
 // list blocks.
 func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 	var out []reopened
@@ -45,17 +43,4 @@ func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 		}
 	}
 	return out
-}
-
-// reopenedOwnerOf is the lens that owes a reopened anchor's check, "" where the cast seats none: a
-// proof's is its owner (proofOwnerOf), the lens that judges it first; a citation's is the evidence
-// lens, whose area leaf-node verification is.
-func reopenedOwnerOf(cast []string, r reopened) string {
-	switch {
-	case r.proof:
-		return proofOwnerOf(cast)
-	case slices.Contains(cast, evidenceSeat):
-		return evidenceSeat
-	}
-	return ""
 }

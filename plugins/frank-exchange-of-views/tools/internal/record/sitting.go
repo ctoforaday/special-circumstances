@@ -355,7 +355,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
-	// REOPENED CITATION OR PROOF IT OWNS (reopenedOwnerOf), AND ITS CLOSING ON A GAP OF ITS OWN THAT
+	// REOPENED CITATION OR PROOF IT OWNS (anchorOwnerOf), AND ITS CLOSING ON A GAP OF ITS OWN THAT
 	// IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above
 	// this switch (the log channel, and the sitting it was dispatched for), each is a PASS blocker
 	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it — so it
@@ -366,9 +366,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// on it would hold it on work it cannot do; the next plan readies the lens, and that sitting
 	// lists it.
 	//
-	// Nothing else blocks a lens. The acts a lens genuinely has open to it — verifying a citation
-	// nobody checked, corroborating one blue never cited, and, for the lens that owns proofs (proofOwnerOf), re-running a
-	// proof nobody re-ran — come from availableOf and land on this same list carrying Blocks:false: available work, none of
+	// Nothing else blocks a lens. The acts a lens genuinely has open to it — corroborating a source
+	// blue never cited and, for the lens that owns the anchor (anchorOwnerOf), verifying a citation
+	// nobody checked or re-running a proof nobody re-ran — come from availableOf and land on this same list carrying Blocks:false: available work, none of
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {

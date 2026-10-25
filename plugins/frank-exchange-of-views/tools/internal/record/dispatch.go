@@ -1104,9 +1104,9 @@ const chairSeat = "red-chair"
 // the bench.
 const benchSeat = "judge"
 
-// evidenceSeat is the evidence lens's seat — the one that owes the check of a reopened citation and
-// is readied for it (reopenedOwnerOf). Another lens's check from a sitting opened after the edit
-// clears the anchor as well (reopenedEvidence).
+// evidenceSeat is the evidence lens's seat — the one that owes every citation's check, and a proof's
+// where the cast seats no computation lens (anchorOwnerOf). Another lens's check clears a citation
+// as well (citedClaimsWithoutVerify, reopenedEvidence).
 const evidenceSeat = "red-lens-evidence"
 
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
