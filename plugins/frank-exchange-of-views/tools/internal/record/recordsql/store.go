@@ -267,6 +267,72 @@ func SealedSize(path string) (int64, error) {
 	return st.Size(), nil
 }
 
+// A RECORD FILE IS NEVER OPENED BESIDE ITS OWN CONNECTION. On Linux, closing ANY descriptor to a
+// file drops EVERY POSIX lock the process holds on it — the advisory locks SQLite's unix VFS
+// places are per process and per inode, not per descriptor. An idle WAL connection holds a SHARED
+// lock on the database and the dead-man-switch lock on its -shm, both visible in /proc/locks; one
+// os.Open/Close of record.db by the same process releases them while the connection still
+// believes it holds them, and SQLite does not re-take a lock it believes it has. Another seat can
+// then judge itself the last connection and recover or truncate a log this process is using.
+// SQLite defers closing its OWN descriptors while a lock is held on the inode; a Go descriptor
+// gets no such care, which is why the two acts below exist instead of a file copy.
+
+// SnapshotInto writes a consistent copy of the record at path to dst, through the record's own
+// connection: `VACUUM INTO` reads inside one read transaction, so the copy is one committed state
+// with the write-ahead log folded in — ONE file, never a torn set of database, log and
+// shared-memory scratch copied at three different moments. dst is replaced; the write goes to a
+// sibling first and is renamed, so a reader never finds half a snapshot.
+func SnapshotInto(path, dst string) error {
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	tmp := dst + ".partial"
+	if err := os.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if _, err := db.Exec(`VACUUM INTO ?`, tmp); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("snapshotting %s: %w", path, err)
+	}
+	return os.Rename(tmp, dst)
+}
+
+// SealedBytes seals the record at path and returns the database file's bytes, read while NO
+// connection to it is open in this process.
+//
+// THE BYTES ARE THE RECORD EXACTLY, which is why this releases the connection rather than taking
+// a SQLite copy: an archive is the raw record migrate hashes and replays, and VACUUM rewrites
+// every page and may renumber the rowids of a table without an INTEGER PRIMARY KEY. The cache
+// lock is held across the read, so nothing in this process opens the record mid-read; the next
+// Open takes a fresh connection and its locks.
+func SealedBytes(path string) ([]byte, error) {
+	if err := Seal(path); err != nil {
+		return nil, err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+	openMu.Lock()
+	defer openMu.Unlock()
+	if db, ok := openCache[abs]; ok {
+		delete(openCache, abs)
+		if err := db.Close(); err != nil {
+			return nil, err
+		}
+	}
+	n, err := SealedSize(path)
+	if err != nil {
+		return nil, err
+	}
+	if n != 0 {
+		return nil, fmt.Errorf("%s: %d bytes remain in the write-ahead log after sealing. A database read "+
+			"without its log is a shorter, complete-looking run", path, n)
+	}
+	return os.ReadFile(path)
+}
+
 // CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.
 func CloseAll() error {
 	openMu.Lock()
