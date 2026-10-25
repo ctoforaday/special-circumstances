@@ -94,8 +94,17 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if s := outcomeStamp(ceiling); s != "**Outcome:** CEILING-TERMINATED" {
 		t.Errorf("the verdict field must be the word alone: %q", s)
 	}
-	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "never audited by a red pass") || !strings.Contains(g, "travels OUT of the run") {
+	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "NOT a judged failure to verify") || !strings.Contains(g, "travels OUT of the run") {
 		t.Errorf("the CEILING gloss must name the re-audit debt and not read as a failure: %q", g)
+	}
+	// WHICH LIMIT IS THE RECORD'S. An epoch-limit stop on the #1565 smoke printed the gap-limit
+	// sentence — "every open material gap reached its limit … and remanded again" — over a gap with no
+	// exchange and nothing remanded. The gloss carries the derivation's reason for THIS ceiling and
+	// asserts no other cause.
+	epochLimit := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), VerdictBasis: proto.String(record.VerdictDerived),
+		VerdictWhy: proto.String("epoch limit 12 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted")}
+	if g := verdictGloss(epochLimit); !strings.Contains(g, "(epoch limit 12 reached") || strings.Contains(g, "every open material gap reached its limit") {
+		t.Errorf("an epoch-limit ceiling's gloss must state the epoch limit and assert no gap limit: %q", g)
 	}
 	// THE BASIS RIDES THE STAMP AS STATE ("State on the stamp, prose to run.md"): the word first, the
 	// basis in parentheses, and not one word of what it means — that is basisNote, in run.md.
@@ -277,9 +286,17 @@ func TestInquiriesSplitByFate(t *testing.T) {
 	if strings.Contains(alt, "profile the hot path") {
 		t.Errorf("an underway inquiry must not appear under alternatives:\n%s", alt)
 	}
-	// No inquiries of a fate → flagged, not blank.
-	if none := inquirySection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
-		t.Errorf("empty fate should say so: %q", none)
+	// No inquiries of a fate → the heading stays, and the section states the absence in the subject's
+	// terms, each section its own sentence.
+	empty := record.NewFamily(nil, record.Merged{})
+	for heading, want := range map[string]string{
+		"Research areas":             "No approach was put forward or pursued.",
+		"Future research directions": "No approach was kept for later research.",
+		"Alternatives considered":    "No approach was weighed and set aside.",
+	} {
+		if got := inquirySection(t, empty, heading); !strings.Contains(got, "## "+heading) || !strings.Contains(got, want) || strings.Contains(got, "record") {
+			t.Errorf("an empty %s must say %q, in the subject's terms: %q", heading, want, got)
+		}
 	}
 }
 

@@ -480,7 +480,7 @@ Flags:
 Enumerated values:
   --as
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
+    CEILING     the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — and the derivation's reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 ========
@@ -550,7 +550,7 @@ Flags:
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
