@@ -19,7 +19,6 @@ var declared = Declared{
 		"close",
 		"close_anchors",
 		"closing",
-		"credit",
 		"declare",
 		"declare_gap_ids",
 		"dispatch",
@@ -63,7 +62,6 @@ var declared = Declared{
 		"log",
 		"manifest_row",
 		"mint",
-		"mint_distinct_from",
 		"mint_found_by",
 		"mint_supersedes",
 		"motion",
@@ -108,7 +106,6 @@ var declared = Declared{
 		"close":                           {"anchor_seat", "anchor_target", "anchor_tool", "carried_from", "closure_class", "event_id", "gap_id", "prose", "successor"},
 		"close_anchors":                   {"event_id", "ord", "value"},
 		"closing":                         {"event_id", "gap_id", "text"},
-		"credit":                          {"event_id", "found_by", "gap_id"},
 		"declare":                         {"event_id", "holding"},
 		"declare_gap_ids":                 {"event_id", "ord", "value"},
 		"dispatch":                        {"event_id", "pin", "seat_id"},
@@ -152,7 +149,6 @@ var declared = Declared{
 		"log":                             {"event_id", "source", "text", "type"},
 		"manifest_row":                    {"event_id", "gap_id", "row"},
 		"mint":                            {"about_kind", "about_ref", "acceptance_check", "check_kind", "class", "class_material", "complexity_cost", "event_id", "fix_basis", "fix_new", "gap_id", "impact", "likelihood", "location", "mint_key", "mint_reason", "problem", "required_fix", "severity"},
-		"mint_distinct_from":              {"event_id", "ord", "value"},
 		"mint_found_by":                   {"event_id", "ord", "value"},
 		"mint_supersedes":                 {"event_id", "ord", "value"},
 		"motion":                          {"basis", "event_id", "filing_case", "motion_id", "relief"},
@@ -396,7 +392,7 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "gap_found_by"    f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
   -- silently reads a number a regrade may have moved, which is why the overlay is answered here
@@ -473,16 +469,6 @@ LEFT JOIN (
   GROUP BY b0."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
 ) gb`,
-		"gap_found_by": `CREATE VIEW "gap_found_by" AS
-SELECT f."event_id" AS "event_id", f."ord" AS "ord", f."value" AS "value"
-FROM "mint_found_by" f
-UNION ALL
-SELECT m."event_id",
-  (SELECT count(*) FROM "mint_found_by" x WHERE x."event_id" = m."event_id")
-    + (SELECT count(*) FROM "credit" p WHERE p."gap_id" = c."gap_id" AND p."event_id" < c."event_id"),
-  c."found_by"
-FROM "credit" c
-JOIN "mint" m ON m."gap_id" = c."gap_id"`,
 		"gap_grade": `CREATE VIEW "gap_grade" AS
 WITH "act" AS MATERIALIZED (
   SELECT r."gap_id" AS "gap_id", r."event_id" AS "seq",
