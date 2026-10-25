@@ -459,7 +459,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// a seat to stop before it has started. universe-m21's synthesizer quoted "no other projection
 	// holds work for you" as its only evidence about the record, and proposed five approaches the
 	// record already held.
-	if len(s.Open) == 0 && (role != "blue" || seatID == blueRespondSeat) {
+	if len(s.Open) == 0 && WorkArrivesAsItems(role, seatID) {
 		may("nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act")
 	}
 	s.Complete = !s.Blocked()
