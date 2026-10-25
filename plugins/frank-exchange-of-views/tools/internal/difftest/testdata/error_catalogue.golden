@@ -542,7 +542,7 @@ feov-record: position: red-chair has already recorded a position this sitting, a
 
 ── repeat target: the chair's spot-check
 exit 0
-spot-check: nothing to sample, recorded with its reason
+spot-check recorded with its reason: named no archived closure
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
