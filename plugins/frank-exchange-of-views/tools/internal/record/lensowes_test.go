@@ -42,13 +42,13 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 		owes string
 	}{
 		{"a proof it owns that nobody judged", compLens, []string{compLens, evLens},
-			func(b *stage) { b.proof("P-1", "s1") }, "unjudged proof P-1"},
+			func(b *stage) { b.proof("P-1", "s1") }, "unchecked P-1"},
 		{"a citation it owns reopened since its check", evLens, []string{evLens},
-			func(b *stage) { b.cite("C-1").supports(evLens, "C-1").reopen("C-1") }, "reopened C-1"},
+			func(b *stage) { b.cite("C-1").supports(evLens, "C-1").reopen("C-1") }, "unchecked C-1"},
 		{"a proof it owns reopened since its judgement", compLens, []string{compLens, evLens},
 			func(b *stage) {
 				b.proof("P-1", "s1").reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
-			}, "reopened P-1"},
+			}, "unchecked P-1"},
 		{"a contradiction it read that nothing answers", evLens, []string{evLens},
 			func(b *stage) { b.add(evLens, contradictingVerify("the sky is green")) }, "contradiction "},
 	} {
@@ -181,7 +181,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				// The edit moved the head, so every lens is ready to audit it; owing the anchor's check
 				// is the owner's reason alone.
 				readied := slices.ContainsFunc(plan.Why, func(w string) bool {
-					return strings.HasPrefix(w, l+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it owes reopened "+c.anchor)
+					return strings.HasPrefix(w, l+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it owes unchecked "+c.anchor)
 				})
 				if readied != (l == c.owner) || (l == c.owner && !ready) {
 					t.Errorf("%s readied for the reopened anchor = %v (party %v), want %v: %q", l, readied, ready, l == c.owner, plan.Why)

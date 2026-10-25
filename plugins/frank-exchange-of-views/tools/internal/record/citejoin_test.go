@@ -11,10 +11,11 @@ import (
 
 // THE LENS WAS NEVER TOLD ABOUT AN UNVERIFIED CITATION.
 //
-// citedClaimsWithoutVerify joined on `cite_key`, falling back to `key`. A `cite` event carries
-// neither — its keys are access_date, claim, label, location, sha256, title, url — so the lookup
-// always missed and the affordance returned empty on every board in the tool's lifetime. "Nothing
-// outstanding" and "the join key is not on the event" are the same bytes.
+// The first reader of "a citation nobody checked" joined on `cite_key`, falling back to `key`. A
+// `cite` event carries neither — its keys are access_date, claim, label, location, sha256, title,
+// url — so the lookup always missed and the affordance returned empty on every board in the tool's
+// lifetime. "Nothing outstanding" and "the join key is not on the event" are the same bytes. The
+// reader now is the anchor ledger's unchecked state (uncheckedAnchors).
 //
 // These use the payload shapes the verbs actually write, so a rename on either side fails here
 // rather than going quiet.
@@ -44,20 +45,26 @@ func verifyEvent(t *testing.T, anchor string) *Event {
 	})
 }
 
+// uncheckedIDs is the anchors a record of evs holds unchecked.
+func uncheckedIDs(t *testing.T, evs ...*Event) []string {
+	t.Helper()
+	m := loadedT(t, evs...)
+	var out []string
+	for _, u := range uncheckedAnchors(m.Events, m.At) {
+		out = append(out, u.anchor)
+	}
+	return out
+}
+
 func TestAnUnverifiedCitationIsAfforded(t *testing.T) {
-	b := NewFamily(nil, Merged{Events: []*Event{citeEvent(t, "c-a08c9764", "the floor is 30 days")}})
-	got := citedClaimsWithoutVerify(b.Events)
+	got := uncheckedIDs(t, citeEvent(t, "c-a08c9764", "the floor is 30 days"))
 	if len(got) != 1 || got[0] != "c-a08c9764" {
 		t.Fatalf("an unverified citation afforded %v — the join key is not reaching the event", got)
 	}
 }
 
 func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
-	b := NewFamily(nil, Merged{Events: []*Event{
-		citeEvent(t, "c-a08c9764", "the floor is 30 days"),
-		verifyEvent(t, "c-a08c9764"),
-	}})
-	if got := citedClaimsWithoutVerify(b.Events); len(got) != 0 {
+	if got := uncheckedIDs(t, citeEvent(t, "c-a08c9764", "the floor is 30 days"), verifyEvent(t, "c-a08c9764")); len(got) != 0 {
 		t.Errorf("the affordance survived its own discharge: %v", got)
 	}
 }
@@ -66,9 +73,8 @@ func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
 // it is a check against a source blue never cited, so it carries no anchor and must not silence a
 // citation nobody looked at.
 func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
-	indep := recordtest.Event(t, "red-lens-evidence", &recordpb.Verify{Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
-	b := NewFamily(nil, Merged{Events: []*Event{citeEvent(t, "c-a08c9764", "x"), indep}})
-	if got := citedClaimsWithoutVerify(b.Events); len(got) != 1 {
+	indep := recordtest.Event(t, "red-lens-evidence", &recordpb.Verify{Claim: proto.String("c"), Text: proto.String("read"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH)})
+	if got := uncheckedIDs(t, citeEvent(t, "c-a08c9764", "x"), indep); len(got) != 1 {
 		t.Errorf("an independent verify silenced an uninspected citation: %v", got)
 	}
 }

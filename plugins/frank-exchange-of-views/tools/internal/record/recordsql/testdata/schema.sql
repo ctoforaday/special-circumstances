@@ -273,10 +273,10 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL,
   "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
 ) STRICT;
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('anchor', 'a citation or proof, by its anchor, whose check failed: a proof judged unsound, or a citation whose cited work was not read', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor', 1);
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('proof', 'a proof, by its anchor, whose sentence was judged unsound', 1);
 INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
 
 CREATE TABLE "enum_check_kind" (
@@ -313,7 +313,7 @@ INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('abstract', 't
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('full', 'the copy carries the work''s body: its platform marks the body sections, or it is a pdf covering the page span the work declares');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_asked', 'the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run''s cache. It says NOTHING about whether the copy is complete');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_recorded', 'this citation predates the field; written only by migrate');
-INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_the_work', 'the copy is not the work at all: a sign-in page, a book''s sales page');
+INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('not_the_work', 'the copy is not the work at all: a sign-in page, a book''s sales page. A reading of it is no reading of the cited work, whatever it found there: it leaves the citation unread');
 INSERT INTO "enum_source_completeness" ("value", "means") VALUES ('unverified', 'nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book''s pdf');
 
 CREATE TABLE "enum_copy_substitution" (
@@ -336,7 +336,7 @@ INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('unreachable', 'you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('unreachable', 'you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and you owe a gap about it, outside your mint budget, asking blue to retire it or cite a source a lens can read');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('weak', 'it gestures at the claim, or is itself uncorroborated: thin support, not none');
 
 CREATE TABLE "enum_confidence" (
@@ -796,7 +796,9 @@ CREATE TABLE "retire" (
   "claim" TEXT NOT NULL,
   "reason" TEXT NOT NULL,
   "superseded_by" TEXT,
-  "removal_basis" TEXT
+  "removal_basis" TEXT,
+  "claim_kept" INTEGER,
+  CHECK ("claim_kept" IS NULL OR "claim_kept" IN (0, 1))
 ) STRICT;
 
 CREATE TABLE "retire_anchors" (

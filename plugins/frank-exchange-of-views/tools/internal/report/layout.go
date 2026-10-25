@@ -201,7 +201,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return recordVerification(a.fam) }},
 	{File: FileChangelog, Heading: "Claims retired", Composer: Tool,
 		From:    "the retirements on the record",
-		Path:    "Blue's `retire`, which records the claim as it stood and why it went.",
+		Path:    "Blue's `retire`, which records the claim as it stood and why it went, or the citation it took off a sentence that stays.",
 		compose: func(a *assembly, _ Section) string { return withdrawnClaims(a.fam) }},
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
 		From:    "the bench's statements that a later one replaced",

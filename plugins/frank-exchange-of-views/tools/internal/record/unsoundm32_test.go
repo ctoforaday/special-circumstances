@@ -72,8 +72,8 @@ func TestM32UnsoundProofHoldsThePassAndReadies(t *testing.T) {
 		readied[p.SeatID] = true
 	}
 	wants := map[string]string{
-		compLens:        compLens + " judged proof P-5ba8edea unsound and no gap of its carries that to blue — ready",
-		blueRespondSeat: blueRespondSeat + " has sat since proof P-5ba8edea was judged unsound",
+		compLens:        compLens + "'s check of proof P-5ba8edea judged it unsound and no gap of its carries that to blue — ready",
+		blueRespondSeat: blueRespondSeat + " has sat since proof P-5ba8edea's check failed",
 	}
 	for seat, why := range wants {
 		said := false

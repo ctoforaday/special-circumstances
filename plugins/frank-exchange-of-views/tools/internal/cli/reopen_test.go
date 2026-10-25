@@ -40,7 +40,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		}
 		return record.EvidenceJSONOf(b.Events, b.At)
 	}
-	if got := evidence().Reopened; len(got) != 0 {
+	if got := evidence().Unchecked; len(got) != 0 {
 		t.Fatalf("reopened = %v before any edit, want none", got)
 	}
 
@@ -51,7 +51,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		"--new", "the parser rejects an empty body in this line.", "--reason", "unrelated"); err != nil {
 		t.Fatal(err)
 	}
-	if got := evidence().Reopened; len(got) != 0 {
+	if got := evidence().Unchecked; len(got) != 0 {
 		t.Errorf("reopened = %v after an edit elsewhere in the document, want none", got)
 	}
 
@@ -62,7 +62,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		"--reason", "rewrote the sentence red corroborated"); err != nil {
 		t.Fatal(err)
 	}
-	got := evidence().Reopened
+	got := evidence().Unchecked
 	if len(got) != 1 || !strings.HasPrefix(got[0].Anchor, "C-") || got[0].Edit <= got[0].LastCheck {
 		t.Fatalf("reopened = %+v, want the corroboration's citation, its edit after its check — the footnote now backs a sentence nobody read", got)
 	}
@@ -89,7 +89,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	if got := lastBody(t, runDir, &recordpb.Verify{}).GetClaim(); got != "§2 an entirely different assertion now." {
 		t.Errorf("the re-verification's claim = %q, want the sentence as it now stands", got)
 	}
-	if got := evidence().Reopened; len(got) != 0 {
+	if got := evidence().Unchecked; len(got) != 0 {
 		t.Errorf("reopened = %+v after a later sitting verified it, want none", got)
 	}
 }
@@ -117,20 +117,20 @@ func anchoredLine(t *testing.T, runDir string) (string, string) {
 // THE PAGE THE PASS REFUSAL SENDS A SEAT TO SAYS WHAT IT IS LOOKING AT. A `reopened` row is three
 // values and two of them are bare numbers: the page says they are event ids, which one is the
 // edit, and what removes the row — the lens's whole instruction for clearing it.
-func TestShowEvidenceHelpSaysWhatAReopenedRowMeans(t *testing.T) {
+func TestShowEvidenceHelpSaysWhatAnUncheckedRowMeans(t *testing.T) {
 	h := help(t, "show", "evidence", "--help", "--seat-id", "red-lens-evidence")
 	for _, want := range []string{
-		"A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked",
+		"An `unchecked` ROW IS A CITATION OR PROOF WITH NO CHECK OF THE SENTENCE THE REPORT CARRIES",
 		"`edit` and `last_check` are event ids",
-		"from a sitting opened after `edit`, removes the row",
-		"`--as unreachable` does not",
+		"from a sitting opened after `edit`, where there is one — removes the row",
+		"`--as unreachable`, or one of a copy the tool stamped not_the_work, reads nothing",
 	} {
 		if !strings.Contains(h, want) {
 			t.Errorf("`show evidence --help` does not say %q", want)
 		}
 	}
 	// The shape is on the page as the fields the binary prints, at the table and at one anchor.
-	for _, tree := range []string{"reopened:[{anchor,edit,last_check}]", "reopened:{anchor,edit,last_check}"} {
+	for _, tree := range []string{"unchecked:[{anchor,edit,last_check}]", "unchecked:{anchor,edit,last_check}"} {
 		if !strings.Contains(h, tree) {
 			t.Errorf("`show evidence --help` does not print the shape %s", tree)
 		}

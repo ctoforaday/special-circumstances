@@ -59,7 +59,7 @@ func TestEveryIDTheVerbPrintsIsTranslated(t *testing.T) {
 	word := func() string { return strconv.FormatInt(id(), 10) }
 	const seat = "red-lens-logic"
 	owes := func() []string {
-		return []string{record.OwedBlocker(record.BlockerContradiction, word()), record.OwedBlocker(record.BlockerReopened, "C-1")}
+		return []string{record.OwedBlocker(record.BlockerContradiction, word()), record.OwedBlocker(record.BlockerUnchecked, "C-1")}
 	}
 	head := id()
 	var why []string

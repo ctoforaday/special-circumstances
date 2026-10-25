@@ -23,7 +23,9 @@ An anchor your quote carries, at its start or its end, or one in the middle of t
 
 A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MARKS. When your replacement holds more sentences than the text it replaces, write each anchor your quote carries after the sentence that now holds its claim. A replacement that carries two or more anchors from the end of that text to the end of its own last sentence is refused, and the refusal prints what the record says each one marks beside your sentences, numbered. Where every one of them does belong on the last sentence, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word.
 
-Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened: its owning lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your edit clears it, and a PASS waits until one does.
+Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened — unchecked again: its owning lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your edit clears it, and a PASS waits until one does.
+
+A CITATION NEVER STANDS BARE. A replacement that would leave a citation's anchor with no prose before it in its sentence is refused, naming the anchor: it would back no sentence, and no lens could check it. Keep a sentence before it, or, where the sentence it backs is to go, retire the citation first — a `retire` naming that citation and no claim — while the sentence still stands, then edit the sentence out.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 

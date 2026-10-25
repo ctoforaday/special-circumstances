@@ -166,27 +166,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
 			add("gap " + o.GapID + " had a grade motion ACCEPTED and no regrade followed it: " + o.accepted() + " — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
-		// A CITATION OR PROOF NOBODY CHECKED IS ON ITS OWNER'S LIST ALONE (anchorOwnerOf). Every other
-		// lens reads the anchor's standing check off `show evidence` and audits its sentence as content.
-		if seatID == anchorOwnerOf(false) {
-			for _, key := range citedClaimsWithoutVerify(evs) {
-				add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
-			}
-		}
-		// THE PROOF ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
-		// takes and the seat reads in the report. When the verb took the script's sha256 and the
-		// item named the anchor, three lenses on universe-m11 spent 22 proof-file reads and 14
-		// filesystem hunts translating one into the other, for 12 re-runs.
-		if seatID == anchorOwnerOf(true) {
-			for _, o := range proofChecksOwed(evs, win) {
-				//
-				// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
-				// RE-RUNNING it, not by reading it" and handed over the re-run's id — so the first thing
-				// a lens could do with the item was record a verdict on a script it had not read (wave A,
-				// 2026-10-09: three placeholder verdicts, each of which stands).
-				add(o.item())
-			}
-		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
 		// A lens dispatched on its own open gap has one question before it re-reads anything: did
@@ -444,111 +423,14 @@ func regradesAwaitedOf(evs []*Event, win WindowIndex, open map[string]bool) []ow
 	return out
 }
 
-// citedClaimsWithoutVerify finds citations on the record that nobody checked.
-//
-// THE JOIN IS THE CITATION ANCHOR, and it was neither of the keys this used to read.
-//
-// It looked for `cite_key`, then `key`, on both sides. A `cite` event carries neither — its keys
-// are access_date, claim, label, location, sha256, title, url — so the lookup always missed, the
-// slice was always empty, and no lens was ever told about an unverified citation. "Nothing is
-// outstanding" and "the join key is not on the event" were the same bytes, and the affordance had
-// never fired in the tool's lifetime.
-//
-// It also hid a second defect: the instruction that dead path handed over named `--key`, a flag
-// `lens verify` does not have, so the one time it fired it would have failed. Neither was visible
-// because the other kept it off the board.
-//
-// `blue cite` records the anchor id as `label` (c-<hex>, the token it splices into the report);
-// `lens verify` records the citation it checked as `anchor`. An INDEPENDENT verify carries no
-// anchor and deliberately discharges nothing: it is a check against a source blue never cited.
-//
-// A citation whose anchor left the report with a retired claim is owed nothing: `verify` refuses
-// it, having no sentence to read the source against, so offering it would offer a refused act.
-func citedClaimsWithoutVerify(evs []*Event) []string {
-	verified := map[string]bool{}
-	for i := range evs {
-		body, ok := recordpb.Body(evs[i])
-		if !ok {
-			continue
-		}
-		if r, isRetire := body.(*recordpb.Retire); isRetire {
-			for _, a := range r.GetAnchors() {
-				verified[a] = true
-			}
-		}
-		if v, isVerify := body.(*recordpb.Verify); isVerify {
-			// A CORROBORATION carries no anchor and discharges nothing: the empty anchor is what
-			// makes a verification one.
-			if k := v.GetAnchor(); k != "" {
-				verified[k] = true
-			}
-		}
-	}
-	var out []string
-	seen := map[string]bool{}
-	for i := range evs {
-		body, ok := recordpb.Body(evs[i])
-		if !ok {
-			continue
-		}
-		c, isCite := body.(*recordpb.Cite)
-		if !isCite {
-			continue
-		}
-		k := c.GetLabel()
-		if k == "" || verified[k] || seen[k] {
-			continue
-		}
-		seen[k] = true
-		out = append(out, k)
-	}
-	return out
-}
-
-// proofChecksOwed finds the proof anchors whose sentence nobody has judged. `print("7 is prime")`
-// reproduces perfectly forever, which is why the audit is a re-run AND a reading, never either alone.
-//
-// AN ITEM IS PER ANCHOR, AND IT SAYS WHAT THE SCRIPT ALREADY HAS. A re-run belongs to the script
-// and answers for every proof on it; a soundness verdict belongs to one sentence (proofverdict.go).
-// So a second anchor on a script that was already re-run is still owed — its sentence was never
-// judged — and the act it is owed re-runs nothing. Keyed by sha, the second anchor's item vanished
-// with the first anchor's re-run, and its sentence shipped judged by a verdict on another.
-//
-// A reopened anchor — judged, then edited — is not an item here: it is the reopened row, owed by
-// the same owner and holding a PASS (reopenedEvidence, anchorOwnerOf).
-//
-// Every proof carries its script's sha: the write refuses one without (validate), because no act
-// could discharge the item it would put here.
-func proofChecksOwed(evs []*Event, win WindowIndex) []proofOwed {
-	ledger := anchorChecksOf(evs, win)
-	reruns := scriptRerunsOf(evs)
-	var out []proofOwed
-	seen := map[string]bool{}
-	for _, e := range evs {
-		p, isProof := recordpb.BodyAs[*recordpb.Proof](e)
-		if !isProof || p.GetProofId() == "" || seen[p.GetProofId()] {
-			continue
-		}
-		seen[p.GetProofId()] = true
-		s := ledger.at(p.GetProofId())
-		v := proofVerdictOf(s, reruns)
-		if s.retired || v.soundness != SoundnessNotJudged {
-			continue
-		}
-		out = append(out, proofOwed{ProofRef: ProofRef{Anchor: s.anchor, Sha: s.sha}, rerun: v.rerunWord()})
-	}
-	return out
-}
-
 // computationSeat is the computation lens's seat — the owner of every proof's check
 // (anchorOwnerOf).
 const computationSeat = "red-lens-computation"
 
 // anchorOwnerOf is the lens that owes the check of an anchor of one kind — proof says which: a
 // citation's is the evidence lens, a proof's the computation lens. Every run seats both. It is the
-// one answer to "who owes this anchor's check": the work list that offers a citation or proof nobody
-// checked, the debt that keeps a lens from retiring (lensOwesOf), and the owner of a reopened
-// anchor's blocker, whom dispatch readies (passBlockersOf).
+// one answer to "who owes this anchor's check": the owner of an unchecked anchor's blocker, whose work
+// list it blocks, whose debt it is (lensOwesOf), and whom dispatch readies (passBlockersOf).
 //
 // ONE LENS OWNS A PROOF (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
 // for the rest it's just content to judge?" A proof item on every lens's list put lenses dispatched
@@ -566,37 +448,6 @@ func anchorOwnerOf(proof bool) string {
 		return computationSeat
 	}
 	return evidenceSeat
-}
-
-// ProofRef is a recorded proof named BOTH ways: the anchor the report carries and the verb takes,
-// and the sha256 of the script every proof on it shares.
-type ProofRef struct {
-	Anchor string
-	Sha    string
-}
-
-// proofOwed is one proof anchor whose sentence nobody judged, with its script's standing re-run.
-type proofOwed struct {
-	ProofRef
-	// rerun is the script state, one of reproduced | differs | calls_the_tool | not_rerun.
-	rerun string
-}
-
-// item is the work-list line, in the order the act needs: read the script, then judge. A script
-// with a re-run is never re-run again, whatever that re-run showed, so the act an item names turns
-// on one thing: whether the script has a re-run.
-func (o proofOwed) item() string {
-	read := "`show evidence --anchor " + o.Anchor + "` prints the script and its recorded output"
-	if o.rerun == RerunNone {
-		return "proof " + o.Anchor + " is recorded and nobody has re-run it — a proof is audited by READING its script and then RE-RUNNING it, never by reading alone: " +
-			read + ", and `reproduce --anchor " + o.Anchor + "` then re-runs it and records your verdict on its sentence in one act"
-	}
-	showed := "did not reproduce (" + o.rerun + ")"
-	if o.rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED) {
-		showed = "REPRODUCED"
-	}
-	return "proof " + o.Anchor + "'s script was re-run and " + showed + ", and nobody has judged whether it establishes THIS sentence — one script can back several, and a verdict on another is not a verdict on this one: " +
-		read + ", and `reproduce --anchor " + o.Anchor + "` records your verdict on its sentence without re-running it"
 }
 
 // remandOwedItem is the work item a remand's exchange puts on the list of each seat the dispatch

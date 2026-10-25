@@ -395,7 +395,7 @@ const LENS_OR_BLUE_PARTY = {
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a proof it judged unsound; empty for blue readied to fix or retire a proof judged unsound; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a check of its that failed; empty for blue readied to remedy a failed check — fix or retire a proof judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
     occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
   },
 }
@@ -417,7 +417,7 @@ const PLAN = {
     epoch: { type: 'integer', minimum: 0, description: 'the epoch the record has reached: the chair sittings opened so far, this one included' },
     final_sitting: { type: 'boolean', description: "this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit" },
     epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
-    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'remand_owed', 'contradiction', 'reopened', 'unsound_proof', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
+    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'remand_owed', 'contradiction', 'unchecked', 'failed_check', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
     verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
   },
@@ -1152,18 +1152,20 @@ const verdictNow = () => halted ? outcomeWord('HALTED')
   : noProgress ? outcomeWord('UNVERIFIED')
   : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')
-// A CEILING OVER A REOPENED CITATION OR PROOF NAMES IT, as the record's own derived reason does
-// (verdict.go): the run ends on its term or its limits with an anchor nobody read against the
-// sentence the report carries. Reopened blockers only, and nothing when there is none.
-const reopenedClause = (plan) => {
-  const named = plan.blockers.filter((b) => b.kind === 'reopened').map((b) => b.subject)
-  return named.length ? `; reopened and unchecked: ${named.join(', ')}` : ''
+// A RUN THAT ENDS OVER AN UNCHECKED CITATION OR PROOF, OR ONE ON A FAILED CHECK, NAMES IT, as the
+// record's own derived reason does (verdict.go anchorsStanding): the run ends with an anchor nobody
+// read against the sentence the report carries, or one whose check failed. Those two kinds only, and
+// nothing when there is none.
+const anchorsStanding = (plan) => {
+  const unchecked = plan.blockers.filter((b) => b.kind === 'unchecked').map((b) => b.subject)
+  const failed = [...new Set(plan.blockers.filter((b) => b.kind === 'failed_check').map((b) => b.subject))]
+  return (unchecked.length ? `; unchecked: ${unchecked.join(', ')}` : '') + (failed.length ? `; on a failed check: ${failed.join(', ')}` : '')
 }
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : noProgress ? `no progress: the dispatch plan was the same for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head}, its parties, docket, exchange counts and standing blockers unchanged — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
-  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again') + reopenedClause(lastPlan)
-  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}` : 'the run ended before any dispatch')
+  : verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` : 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again') + anchorsStanding(lastPlan)
+  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}${anchorsStanding(lastPlan)}` : 'the run ended before any dispatch')
 let verdict = verdictNow()
 let terminationWhy = terminationWhyOf(verdict)
 log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)

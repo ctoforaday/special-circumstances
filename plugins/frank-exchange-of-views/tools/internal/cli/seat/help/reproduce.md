@@ -10,7 +10,7 @@ THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's enviro
 
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
-ONE LENS OWNS EACH PROOF: the computation lens. Its work list alone offers a proof nobody has judged, and it is readied for a judged one an edit reopens.
+ONE LENS OWNS EACH PROOF: the computation lens. A proof whose sentence nobody has judged as it stands — never judged, or an edit changed the sentence since — is on that lens's work list alone, it is readied for it, and a PASS waits until a lens judges it.
 
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT, and the SCRIPT IS RE-RUN ONCE: it is addressed by its sha256 and never changes, so its re-run stands for every proof on it WHATEVER IT SHOWED — reproduced, did not reproduce, or called the tool. A judgement of any of its sentences after that re-runs nothing: the result's `rerun` reads `not_run`, `standing_rerun` says what the re-run showed and `rerun_by` whose it is. A changed script is a new proof, with its own sha and its own re-run. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
 
@@ -18,7 +18,7 @@ READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof where it has to AND
 
 YOUR LATEST VERDICT ON A SENTENCE IS YOURS; ANOTHER LENS'S DOES NOT REPLACE IT. An `unsound` you record stands on that anchor beside any other lens's `sound` until you judge the sentence again or blue edits it — an edit reopens the anchor, and a judgement from a sitting opened after the edit is owed.
 
-AN `unsound` THAT STANDS HOLDS THE PASS until the sentence is judged sound again — by your own later verdict, or by one from a sitting opened after blue's edit — or blue retires the proof. You owe the gap that carries it to blue — a gap about this proof, minted in this sitting, with the fix blue must make; it takes no mint of your budget. Blue is readied to fix the proof or retire it, and you are readied until the gap is minted.
+AN `unsound` THAT STANDS HOLDS THE PASS until the sentence is judged sound again — by your own later verdict, or by one from a sitting opened after blue's edit — or blue retires the proof. You owe the gap that carries it to blue — a gap about this proof's anchor, minted in this sitting, with the fix blue must make; it takes no mint of your budget. Blue is readied to fix the proof or retire it, and you are readied until the gap is minted. That gap does not close while the judgement stands.
 
 AN `unsound` YOUR GAP CARRIES IS NOT RECORDED AGAIN. While your `unsound` of a sentence stands — the sentence has not changed since, because an edit reopens the proof — and a gap you minted about the proof since that judgement is open, judging the sentence `unsound` again is REFUSED and nothing is recorded: the refusal names the gap, which already carries the judgement to blue, and no second gap is owed. A `sound` verdict is recorded as ever, and clears the judgement. A judgement from a sitting opened after blue's edit is a fresh one, and is recorded whatever it finds.
 

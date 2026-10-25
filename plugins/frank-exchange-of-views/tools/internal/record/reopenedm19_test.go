@@ -25,7 +25,7 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 // with them by construction. They are the row ids of the archive as migrated, which replays its
 // events in order; a migration that renumbers them re-derives the three pairs from the migrated
 // record and updates this table in the same commit. The anchors do not move.
-var m19Reopened = []reopened{
+var m19Reopened = []unchecked{
 	{anchor: "C-706fda63", edit: 400, lastCheck: 175},
 	{anchor: "C-4dae2507", edit: 370, lastCheck: 332},
 	{anchor: "P-cd9f4c5a", proof: true, sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 370, lastCheck: 331},
@@ -33,7 +33,7 @@ var m19Reopened = []reopened{
 
 // m19Owner is who owes each reopened anchor's check: the evidence lens a citation's, the computation
 // lens the proof's (anchorOwnerOf).
-func m19Owner(r reopened) string {
+func m19Owner(r unchecked) string {
 	if r.proof {
 		return computationSeat
 	}
@@ -103,7 +103,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	if len(whole) != 496 || whole[489].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
 		t.Fatalf("the archive holds %d events and its event 490 is a %s, want 496 and the chair's verdict", len(whole), whole[489].GetType())
 	}
-	fact := func(r reopened) string {
+	fact := func(r unchecked) string {
 		return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", r.anchor, r.edit, r.lastCheck)
 	}
 
@@ -118,7 +118,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	// report on the record and every unretired lens is behind the head: an owner's reason names its
 	// reopened check, any other's that it was never served the report.
 	owners := map[string]bool{computationSeat: true, evLens: true}
-	var got []reopened
+	var got []unchecked
 	var ready []string
 	unraised := false
 	for _, b := range blockers {
@@ -126,7 +126,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			switch {
 			case !strings.Contains(b.foldWhy, "no sitting it sat through was served the whole report"):
 				t.Errorf("%s is ready for %q, want it behind the head: the archive records no report read", b.Subject, b.foldWhy)
-			case owners[b.Subject] && (!strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ")):
+			case owners[b.Subject] && (!strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "unchecked ")):
 				t.Errorf("%s is ready for %q, want it unretired because it owes a reopened check", b.Subject, b.foldWhy)
 			}
 			ready = append(ready, b.Subject)
@@ -138,11 +138,11 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			unraised = true
 			continue
 		}
-		if b.Kind != BlockerReopened {
+		if b.Kind != BlockerUnchecked {
 			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and contradiction 112", b.Kind, b.Subject, b.Owner)
 			continue
 		}
-		r := reopened{anchor: b.Subject, proof: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
+		r := unchecked{anchor: b.Subject, proof: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
 		if b.Owner != m19Owner(r) {
 			t.Errorf("reopened %s is owned by %q, want %s", b.Subject, b.Owner, m19Owner(r))
 		}
@@ -170,7 +170,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
 	for _, r := range m19Reopened {
-		owed := reopenedOwed(Blocker{Owner: m19Owner(r)})
+		owed := uncheckedOwed(Blocker{Owner: m19Owner(r)})
 		if !strings.Contains(refusal.Error(), fact(r)+" — "+m19Owner(r)+" owes the check and is the seat readied for it") || !strings.Contains(refusal.Error(), "clears it, whichever lens records it; ") {
 			t.Errorf("the PASS refusal does not state %q:\n%v", fact(r), refusal)
 		}
@@ -181,23 +181,23 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			t.Errorf("the plan's reasons do not state %q: %q", fact(r), plan.Why)
 		}
 		at, err := EvidenceAt(run, r.anchor)
-		if err != nil || at.Reopened == nil || *at.Reopened != (EvidenceReopenedJSON{Anchor: r.anchor, Edit: r.edit, LastCheck: r.lastCheck}) {
-			t.Errorf("show evidence --anchor %s: reopened = %+v (%v), want edit %d, last check %d", r.anchor, at.Reopened, err, r.edit, r.lastCheck)
+		if err != nil || at.Unchecked == nil || *at.Unchecked != (EvidenceUncheckedJSON{Anchor: r.anchor, Edit: r.edit, LastCheck: r.lastCheck}) {
+			t.Errorf("show evidence --anchor %s: reopened = %+v (%v), want edit %d, last check %d", r.anchor, at.Unchecked, err, r.edit, r.lastCheck)
 		}
 	}
-	if !strings.Contains(chair, "(`reproduce --anchor "+m19Reopened[2].anchor+"`, which re-runs nothing once the script has a re-run)") {
+	if !strings.Contains(chair, "`reproduce --anchor "+m19Reopened[2].anchor+"` records your verdict on its sentence without re-running it") {
 		t.Errorf("the proof's item does not carry the anchor its judgement takes:\n%s", chair)
 	}
-	var rows []reopened
+	var rows []unchecked
 	for _, r := range standingOf(t, run) {
-		rows = append(rows, reopened{anchor: r.Anchor, edit: r.Edit, lastCheck: r.LastCheck})
+		rows = append(rows, unchecked{anchor: r.Anchor, edit: r.Edit, lastCheck: r.LastCheck})
 	}
-	if want := []reopened{{anchor: "C-706fda63", edit: 400, lastCheck: 175}, {anchor: "C-4dae2507", edit: 370, lastCheck: 332}, {anchor: "P-cd9f4c5a", edit: 370, lastCheck: 331}}; !slices.Equal(rows, want) {
+	if want := []unchecked{{anchor: "C-706fda63", edit: 400, lastCheck: 175}, {anchor: "C-4dae2507", edit: 370, lastCheck: 332}, {anchor: "P-cd9f4c5a", edit: 370, lastCheck: 331}}; !slices.Equal(rows, want) {
 		t.Errorf("show evidence reopened = %+v\nwant %+v", rows, want)
 	}
 	// A proof reopened and retired in one blue sitting (edits 432 and 435, retire 436) owes nothing.
-	if at, err := EvidenceAt(run, "P-c1c0989f"); err != nil || at.Proof == nil || at.Reopened != nil {
-		t.Errorf("show evidence --anchor P-c1c0989f: reopened = %+v (%v), want the proof with no reopened row", at.Reopened, err)
+	if at, err := EvidenceAt(run, "P-c1c0989f"); err != nil || at.Proof == nil || at.Unchecked != nil {
+		t.Errorf("show evidence --anchor P-c1c0989f: reopened = %+v (%v), want the proof with no reopened row", at.Unchecked, err)
 	}
 
 	// The two plans that followed the edits: the chair's dispatches at events 379 and 407 readied
@@ -223,14 +223,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		// Each owner is readied because it owes the anchors' checks: its reason names every one it owns.
 		for _, r := range m19Reopened {
 			if !slices.ContainsFunc(plan.Why, func(w string) bool {
-				return strings.HasPrefix(w, m19Owner(r)+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "reopened "+r.anchor)
+				return strings.HasPrefix(w, m19Owner(r)+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "unchecked "+r.anchor)
 			}) {
 				t.Errorf("the plan at event %d does not ready %s for %s: %q", c.before, m19Owner(r), r.anchor, plan.Why)
 			}
 		}
 		var owed []string
 		for _, b := range plan.Blockers {
-			if b.Kind == BlockerReopened {
+			if b.Kind == BlockerUnchecked {
 				owed = append(owed, b.Subject)
 			}
 		}

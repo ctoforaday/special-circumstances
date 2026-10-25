@@ -26,7 +26,7 @@ func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 			}
 			run := b.seed()
 			for _, lens := range c.cast {
-				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "proof P-1 is recorded and nobody has re-run it")
+				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "proof P-1 is on the record and nobody has judged")
 				if want := lens == c.owner; listed != want {
 					t.Errorf("%s's work list offers the unjudged proof = %v, want %v", lens, listed, want)
 				}
@@ -69,12 +69,12 @@ func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 			ids := fam.At.IDs(fam.Events)
 			debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil))
 			for _, lens := range c.cast {
-				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "citation C-1 is on the record and nobody has verified it")
+				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "citation C-1 is on the record and nobody has read its source")
 				want := lens == c.owner
 				if listed != want {
 					t.Errorf("%s's work list offers the unverified citation = %v, want %v", lens, listed, want)
 				}
-				if owes := slices.Contains(debts[lens], "unverified citation C-1"); owes != want {
+				if owes := slices.Contains(debts[lens], "unchecked C-1"); owes != want {
 					t.Errorf("%s owes the unverified citation = %v, want %v: %q", lens, owes, want, debts[lens])
 				}
 			}
@@ -130,8 +130,8 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 			for _, k := range []struct {
 				owner, never, item, debt, again string
 			}{
-				{c.citation, "C-1", "citation C-1 is on the record and nobody has verified it", "unverified citation C-1", "C-2"},
-				{c.proofOwner, "P-1", "proof P-1 is recorded and nobody has re-run it", "unjudged proof P-1", "P-2"},
+				{c.citation, "C-1", "citation C-1 is on the record and nobody has read its source", "unchecked C-1", "C-2"},
+				{c.proofOwner, "P-1", "proof P-1 is on the record and nobody has judged", "unchecked P-1", "P-2"},
 			} {
 				if got := reopened[k.again]; got != k.owner {
 					t.Errorf("reopened %s's blocker is owned by %q, want %q", k.again, got, k.owner)

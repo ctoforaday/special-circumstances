@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -115,26 +116,19 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	// open material gap is at impasse after the one more exchange its remand granted and the bench
 	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
 	// epoch limit, a term setup records. A record with no cast cannot reach it.
+	standing := ""
 	if cast != nil {
 		params, err := files.params()
 		if err != nil {
 			return "", "", false, err
 		}
 		plan := foldPlan(params, *r.plan)
-		// A CEILING OVER A REOPENED ANCHOR NAMES IT. The run ends on its term or its limits with a
-		// citation or proof nobody read against the sentence the report carries, and the reason is
-		// where a reader of the outcome learns which. No other blocker kind is named: the reason
-		// states why the run stopped, and the board states what else is open.
-		var named []string
-		for _, b := range plan.Blockers {
-			if b.Kind == BlockerReopened {
-				named = append(named, b.Subject)
-			}
-		}
-		standing := ""
-		if len(named) > 0 {
-			standing = "; reopened and unchecked: " + strings.Join(named, ", ")
-		}
+		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term, its
+		// limits or no terminal state with a citation or proof nobody has read against the sentence the
+		// report carries, or one whose check failed, and the reason is where a reader of the outcome
+		// learns which. No other blocker kind is named: the reason states why the run stopped, and the
+		// board states what else is open.
+		standing = anchorsStanding(plan.Blockers)
 		switch {
 		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
@@ -145,7 +139,31 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing, true, nil
 		}
 	}
-	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil
+	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil
+}
+
+// anchorsStanding is the outcome reason's clause naming each citation or proof that holds the PASS by
+// its own state — unchecked, or on a failed check — or "" where none does.
+func anchorsStanding(bs []PlanBlocker) string {
+	var unchecked, failed []string
+	for _, b := range bs {
+		switch b.Kind {
+		case BlockerUnchecked:
+			unchecked = append(unchecked, b.Subject)
+		case BlockerFailedCheck:
+			if !slices.Contains(failed, b.Subject) {
+				failed = append(failed, b.Subject)
+			}
+		}
+	}
+	out := ""
+	if len(unchecked) > 0 {
+		out += "; unchecked: " + strings.Join(unchecked, ", ")
+	}
+	if len(failed) > 0 {
+		out += "; on a failed check: " + strings.Join(failed, ", ")
+	}
+	return out
 }
 
 // RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict

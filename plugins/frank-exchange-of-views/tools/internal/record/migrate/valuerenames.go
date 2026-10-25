@@ -21,7 +21,10 @@ var valueRenames = map[protoreflect.FullName]map[string]string{
 	// ONE CONCEPT, ONE WORD: what blue proposes and the chair rules on is an inquiry, and an
 	// archive may spell the anchor kind or an open or confirmed fate with an earlier word for the
 	// same value. (A motion's subject is its arm, which inquiryArm respells.)
-	"feov.record.v1.AboutKind":     {"avenue": "inquiry"},
+	"feov.record.v1.AboutKind": {"avenue": "inquiry",
+		// ONE KIND FOR EVERY ANCHOR WHOSE CHECK FAILED: a gap about a proof judged unsound is a gap
+		// about its anchor, as one about a citation nobody could read is (EventSchema 46).
+		"proof": "anchor"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
 	// A GAP'S CLASS: every archived slug the closed set merged, dropped or never had (gapclass.go).
 	"feov.record.v1.GapClass": archivedGapClasses,

@@ -810,6 +810,12 @@ func withdrawnClaims(fam record.Family) string {
 		if claim == "" {
 			continue
 		}
+		// A CITATION RETIRED FROM A SENTENCE THAT STAYS is not a claim that left: the row says the
+		// sentence stays and its source went, so a reader never takes the sentence for one withdrawn.
+		if r.GetClaimKept() {
+			rows = append(rows, fmt.Sprintf("- **%s** — stays in the report; a source it cited was retired from it: %s (%s #%d)", concise(claim), r.GetReason(), e.GetSeatId(), w.Sitting))
+			continue
+		}
 		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), r.GetReason(), e.GetSeatId(), w.Sitting)
 		if s := r.GetSupersededBy(); s != "" {
 			row += "\n  - superseded by: " + s
@@ -830,7 +836,7 @@ func withdrawnClaims(fam record.Family) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return "_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
+	return "_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went, or the source it took off a sentence that stays. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.

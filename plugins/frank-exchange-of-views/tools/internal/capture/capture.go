@@ -441,7 +441,7 @@ func AssemblyScreen(run record.Run) Audit {
 		}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) nobody has checked",
+		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) no reading of the sentence they back has reached",
 			ev.Counts.Sources, ever, ev.Counts.SourcesUnverified)}
 }
 

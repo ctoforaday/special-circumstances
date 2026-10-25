@@ -332,8 +332,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
-			// refuses an id it cannot place.
+			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanKinds(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanIDs(pl, newID); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue

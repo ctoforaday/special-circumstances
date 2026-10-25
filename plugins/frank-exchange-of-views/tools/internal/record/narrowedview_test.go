@@ -223,8 +223,8 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0].Claim != "claim B" {
 		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding naming it and a gap minted from that finding", ej.UnansweredContradictions)
 	}
-	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 7, LastCheck: 6}) {
-		t.Errorf("reopened = %+v, want C-00000001 at edit 7, last check 6 — a recorded edit reopened it after its check", ej.Reopened)
+	if len(ej.Unchecked) != 1 || ej.Unchecked[0] != (EvidenceUncheckedJSON{Anchor: "C-00000001", Edit: 7, LastCheck: 6}) {
+		t.Errorf("reopened = %+v, want C-00000001 at edit 7, last check 6 — a recorded edit reopened it after its check", ej.Unchecked)
 	}
 }
 

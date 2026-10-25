@@ -967,7 +967,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
 		}
-		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
@@ -1049,7 +1049,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
-		if err := requireNotARepeatUnsound(q, seatID, b); err != nil {
+		if err := requireNotARepeatFailedCheck(q, seatID, b.GetProofId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
 			return err
 		}
 	case *recordpb.Finding:
@@ -1058,7 +1058,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
-		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -1097,6 +1097,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Close:
 		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
+			return err
+		}
+		if err := requireFailedCheckAnswered(q, b); err != nil {
 			return err
 		}
 		if b.CarriedFrom == nil {
@@ -1712,6 +1715,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// WHOSE BYTES THE READING WAS MADE AGAINST is the tool's to stamp, as on a cite.
 		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
 			return err
+		}
+		if b.GetAnchor() != "" {
+			if err := requireNotARepeatFailedCheck(q, seatID, b.GetAnchor(), !VerifyReads(b)); err != nil {
+				return err
+			}
 		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err

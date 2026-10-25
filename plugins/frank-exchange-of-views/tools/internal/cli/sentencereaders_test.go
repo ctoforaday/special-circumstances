@@ -24,7 +24,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 		"1. Gone item.\n2. Kept item.\n")
 	registerBlue(t, runDir)
 	resp := map[string][]byte{}
-	for _, u := range []string{"https://a/1", "https://a/2", "https://a/3", "https://a/4", "https://a/5"} {
+	for _, u := range []string{"https://a/1", "https://a/2", "https://a/3"} {
 		resp[u] = []byte("<html>a source at " + u + "</html>")
 	}
 	withFetcher(t, &fakeFetcher{resp: resp})
@@ -54,12 +54,22 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c1 := cite("Prices rose 3.5% in 2024", "https://a/1")
 	c1w := cite("Costs rose 4.5% in 2023", "https://a/2")
 	c2 := cite("91 = 7 × 13. ✓", "https://a/3")
-	c3 := cite("Gone soon", "https://a/4")
-	c4 := cite("Gone item", "https://a/5")
+	// A citation never stands bare, so the sentences cut down to their anchors are proved ones.
+	prove := func(sentence string) string {
+		t.Helper()
+		s := script(t, runDir, "p.js", "console.log('it holds');")
+		if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+			"--script", s, "--reason", "the computation settles it"); err != nil {
+			t.Fatalf("prove %q: %v", sentence, err)
+		}
+		return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+	}
+	c3 := prove("Gone soon")
+	c4 := prove("Gone item")
 
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
-		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "5" {
-			t.Errorf("count-claims = %q (%v), want 5: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
+		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "3" {
+			t.Errorf("count-claims = %q (%v), want 3 — the three citations: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
 		}
 	})
 	t.Run("an anchor left out of a rewritten claim is refused by its whole sentence", func(t *testing.T) {

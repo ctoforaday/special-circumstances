@@ -67,12 +67,12 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 		if err := requireGap(db, ref, "--about"); err != nil {
 			return nil, nil, err
 		}
-	case recordpb.AboutKind_ABOUT_KIND_PROOF:
+	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 		db, err := openRunForRead(run)
 		if err != nil {
 			return nil, nil, err
 		}
-		if _, err := requireProofAnchor(db, ref, "--about"); err != nil {
+		if err := requireAboutAnchor(db, k, ref); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_CONTRADICTION:

@@ -297,13 +297,12 @@ type EvidenceJSON struct {
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`
-	// Reopened are the citations and proofs REOPENED AND UNCHECKED: an edit changed the sentence
-	// each backs and no sitting opened since has checked it (reopenedEvidence). The reference
-	// stands and its referent changed, so its check is of a sentence the report no longer
-	// carries — stale, which is not refuted. It is the standing set: a check from a later sitting
-	// removes the row. Listed whether or not the evidence lens is in the cast; it holds a PASS
-	// only where it is (passBlockersOf).
-	Reopened []EvidenceReopenedJSON `json:"reopened"`
+	// Unchecked are the citations and proofs with no check of the sentence the report carries
+	// (uncheckedAnchors): nobody has checked it, or an edit changed the sentence and no sitting
+	// opened since has — the reference stands and its referent changed, so its check is of a
+	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
+	// check removes the row. It holds a PASS (passBlockersOf).
+	Unchecked []EvidenceUncheckedJSON `json:"unchecked"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
 	// not support the report, and nothing has answered it: no gap was minted from the finding that
 	// raised it, and the citation it was read against is neither retired nor backed
@@ -327,7 +326,8 @@ type EvidenceJSON struct {
 		// sentence not judged sound. It is stated because the honest zero and the unchecked case are
 		// otherwise the same empty space.
 		ProofsUnverified int `json:"proofs_unverified"`
-		// SourcesUnverified is its citation twin: cited, and nobody has checked it.
+		// SourcesUnverified is its citation twin: cited, and no reading of the sentence the report
+		// carries has reached it — unchecked, or checked and nothing read (anchorStanding.state).
 		SourcesUnverified int `json:"sources_unverified"`
 		// SourcesRefuted counts the citations red finds against NOW: a standing `refutes` or
 		// `absent` check of the sentence the report carries (CitationsFoundAgainst, the anchor
@@ -352,9 +352,10 @@ type EvidenceContradictionJSON struct {
 	RaisedBy string `json:"raised_by"`
 }
 
-// EvidenceReopenedJSON is one reopened citation or proof. Edit and LastCheck are events.id: the
-// edit that changed its sentence, and its latest check, which does not clear it.
-type EvidenceReopenedJSON struct {
+// EvidenceUncheckedJSON is one unchecked citation or proof. Edit and LastCheck are events.id: the
+// edit that changed its sentence, 0 when none did, and its latest check, 0 when it has none, which
+// does not clear it.
+type EvidenceUncheckedJSON struct {
 	Anchor    string `json:"anchor"`
 	Edit      int64  `json:"edit"`
 	LastCheck int64  `json:"last_check"`
@@ -371,9 +372,9 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	for _, c := range unansweredContradictions(evs, win) {
 		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor, RaisedBy: c.raisedBy})
 	}
-	out.Reopened = []EvidenceReopenedJSON{}
-	for _, r := range reopenedEvidence(evs, win) {
-		out.Reopened = append(out.Reopened, EvidenceReopenedJSON{Anchor: r.anchor, Edit: r.edit, LastCheck: r.lastCheck})
+	out.Unchecked = []EvidenceUncheckedJSON{}
+	for _, u := range uncheckedAnchors(evs, win) {
+		out.Unchecked = append(out.Unchecked, EvidenceUncheckedJSON{Anchor: u.anchor, Edit: u.edit, LastCheck: u.lastCheck})
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
@@ -550,8 +551,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			out.Counts.ProofsUnverified++
 		}
 	}
-	for _, s := range out.Sources {
-		if len(s.Verified) == 0 {
+	for _, s := range ledger.order {
+		if st := s.state(); !s.proof && (st == stateUnchecked || st == stateUnread) {
 			out.Counts.SourcesUnverified++
 		}
 	}
@@ -561,7 +562,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 // evidenceView is the evidence read from the record: the sources, proofs and their checks, the
 // findings that raise a contradicting check and the mints that answer it (unanswered_contradictions), and the edits that
-// reopen an anchor with the retires that take one out of the report (reopened).
+// change an anchor's sentence with the retires that take one out of the report (unchecked).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
@@ -588,10 +589,10 @@ type EvidenceAtJSON struct {
 	// it is a computation's. Exactly one is present.
 	Source *EvidenceSourceJSON  `json:"source,omitempty"`
 	Proof  *EvidenceProofAtJSON `json:"proof,omitempty"`
-	// Reopened is the anchor's row of the table's `reopened`, absent when it owes no check — the
-	// PASS refusal sends a seat here for a reopened anchor, and this is where it reads which edit
+	// Unchecked is the anchor's row of the table's `unchecked`, absent when it owes no check — the
+	// PASS refusal sends a seat here for an unchecked anchor, and this is where it reads which edit
 	// and which check.
-	Reopened *EvidenceReopenedJSON `json:"reopened,omitempty"`
+	Unchecked *EvidenceUncheckedJSON `json:"unchecked,omitempty"`
 }
 
 // EvidenceProofAtJSON is a proof's row WITH THE COMPUTATION ITSELF: the script the lens's
@@ -627,9 +628,9 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 		return EvidenceAtJSON{}, err
 	}
 	at := EvidenceAtJSON{Anchor: id}
-	for i := range ev.Reopened {
-		if ev.Reopened[i].Anchor == id {
-			at.Reopened = &ev.Reopened[i]
+	for i := range ev.Unchecked {
+		if ev.Unchecked[i].Anchor == id {
+			at.Unchecked = &ev.Unchecked[i]
 		}
 	}
 	for i := range ev.Proofs {

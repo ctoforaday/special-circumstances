@@ -51,6 +51,8 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, bench, operator |
 | [reopened](#reopened) | lens, chair, blue, operator |
+| [unchecked](#unchecked) | lens, chair, blue, operator |
+| [failed check](#failed-check) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -438,7 +440,7 @@ A contradiction is a source red read that refutes, or is silent on, a claim of t
 
 ## retire
 
-To retire a claim is to take it out of the report with the retire verb, on the record.
+To retire a claim is to take it out of the report with the retire verb, on the record; retiring a citation alone takes its anchor out of the report and keeps the sentence it stood on word for word.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -455,7 +457,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns, no gap owed about a proof it judged unsound — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns, no gap owed about a check of its that failed — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
 
 **Delivered to:** lens, chair, operator
 
@@ -561,7 +563,7 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 ## reopened
 
-A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+A citation or proof is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 **Delivered to:** lens, chair, blue, operator
 
@@ -569,3 +571,15 @@ A citation or proof is reopened when an edit changes its sentence and no sitting
 
 - **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof
 - **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened
+
+## unchecked
+
+A citation or proof is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
+
+**Delivered to:** lens, chair, blue, operator
+
+## failed check
+
+A failed check is a standing check of a citation or proof that failed — a lens judged the proof's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
+
+**Delivered to:** lens, chair, blue, bench, operator

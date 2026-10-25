@@ -6,7 +6,9 @@ judge a citation blue authored, when the anchor exists and you have read what it
 
 THIS VERB JUDGES A CITATION THAT EXISTS: a claim with NO citation is never verified as `absent`.
 
-ONE LENS OWNS EACH CITATION: the evidence lens. Its work list alone offers a citation nobody has verified, and it is readied for a verified one an edit reopens.
+ONE LENS OWNS EACH CITATION: the evidence lens. A citation no check of its sentence has reached — nobody has verified it, or an edit changed the sentence since — is on that lens's work list alone, it is readied for it, and a PASS waits until a lens reads it.
+
+A VERDICT THAT READS NOTHING LEAVES THE CITATION UNREAD. `unreachable`, or any verdict on a copy the tool stamped not_the_work (a sign-in page, a sales page), is no reading of the work: the citation stands on a failed check, which holds a PASS. The first lens to record such a verdict since the sentence last changed owes a gap about the citation's anchor, which takes no mint of its budget, asking blue to retire the citation or cite a source a lens can read; what this verb prints says so. That gap does not close while the citation stands unread, and a second such verdict of yours, while it is open and the sentence unchanged, is refused. A reading of the source — any other verdict, of a copy that is the work — clears it; so does blue's retire of the citation, and an edit of its sentence leaves it owed a fresh check.
 
 YOU NAME THE CITATION, AND THE TOOL READS ITS CLAIM. The anchor is the id inside the citation's token in the report. The claim recorded is the whole sentence of the report holding that token, whichever part of it the citation backs, as the report stands when you verify, under every outcome — the sentence the citation's source backs, contradicts or does not contain — and the tool prints it back with your verdict. What the SOURCE says goes in your reason.
 

@@ -120,14 +120,21 @@ func requireProofAnchor(q recordsql.Querier, id, flag string) (sha string, err e
 	return s.String, nil
 }
 
-// requireAboutProof refuses an act about a proof that names no proof on the record: the anchor is
-// checked at the write, as every other reference here is, so a gap about a proof always reaches one.
-func requireAboutProof(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
-	if kind != recordpb.AboutKind_ABOUT_KIND_PROOF {
+// requireAboutAnchor refuses an act about an anchor that names no citation or proof on the record:
+// the anchor is checked at the write, as every other reference here is, so a gap about an anchor
+// always reaches one.
+func requireAboutAnchor(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
+	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	_, err := requireProofAnchor(q, ref, "--about")
-	return err
+	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "proof" WHERE "proof_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? UNION ALL SELECT 1 FROM "verify" WHERE "label" = ? AND COALESCE("claim", '') != '' LIMIT 1`, ref, ref, ref)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("--about names %s, which no citation or proof on this record carries — it takes the id inside a `%s` or `%s` token in the report; `show evidence` lists every citation and proof by its anchor", ref, anchor.Token("C-…"), anchor.Token("P-…"))
+	}
+	return nil
 }
 
 // ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's

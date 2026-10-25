@@ -189,26 +189,23 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 			t.Errorf("the refusal left %d verification(s) on the record", got-before)
 		}
 	}
-	// cutDown edits the sentence down to its marker: the anchor stands bare.
-	cutDown := func(t *testing.T) (string, string) {
-		t.Helper()
+	// THE BARE CITATION IS AN ARCHIVED ONE. `blue edit` refuses to leave a citation bare, so the
+	// edit that did is appended to the record as a run from before that refusal holds it.
+	t.Run("bare", func(t *testing.T) {
 		runDir, anchor := citedClause(t)
 		tok := "<!--cite:" + anchor + "-->"
-		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-			"--quote", "The data shows the sky is blue"+tok+" and the grass is green.", "--new", tok,
-			"--reason", "the sentence cannot stand"); err != nil {
-			t.Fatalf("edit the sentence down to its marker: %v", err)
+		if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, &recordpb.BlueEdit{
+			Old:  proto.String("The data shows the sky is blue" + tok + " and the grass is green."),
+			New:  proto.String(tok),
+			Text: proto.String("the sentence cannot stand"),
+		}); err != nil {
+			t.Fatalf("the edit that left the citation bare: %v", err)
 		}
-		return runDir, anchor
-	}
-
-	t.Run("bare", func(t *testing.T) {
-		runDir, anchor := cutDown(t)
 		refused(t, runDir, anchor, anchor, "stands bare", "nothing to verify", "retire")
 	})
 	t.Run("retired", func(t *testing.T) {
-		runDir, anchor := cutDown(t)
-		if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", verifiedSentence,
+		runDir, anchor := citedClause(t)
+		if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
 			"--anchor", anchor, "--reason", "refuted"); err != nil {
 			t.Fatalf("retire: %v", err)
 		}

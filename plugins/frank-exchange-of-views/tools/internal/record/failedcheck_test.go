@@ -28,7 +28,7 @@ func aboutProof(gap, anchor string) *recordpb.Mint {
 	m := budgetMint(gap)
 	m.Severity = recordpb.Grade_GRADE_LOW.Enum()
 	m.Problem = proto.String("the script does trial division, and the sentence calls it a sieve")
-	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_PROOF.Enum(), proto.String(anchor)
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_ANCHOR.Enum(), proto.String(anchor)
 	return m
 }
 
@@ -40,7 +40,7 @@ func unsoundOf(t *testing.T, run Run) []Blocker {
 	}
 	var out []Blocker
 	for _, b := range all {
-		if b.Kind == BlockerUnsoundProof {
+		if b.Kind == BlockerFailedCheck {
 			out = append(out, b)
 		}
 	}
@@ -126,10 +126,10 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !parties(plan)[compLens] || !says(plan, compLens+" judged proof P-1 unsound and no gap of its carries that to blue — ready") {
+	if !parties(plan)[compLens] || !says(plan, compLens+"'s check of proof P-1 judged it unsound and no gap of its carries that to blue — ready") {
 		t.Errorf("the judge is not readied to mint its gap: parties %v, why %q", plan.Parties, plan.Why)
 	}
-	if !parties(plan)[blueRespondSeat] || !says(plan, "proof P-1 stands judged unsound by "+compLens+" — ready, to fix the proof or retire it") {
+	if !parties(plan)[blueRespondSeat] || !says(plan, "proof P-1 stands on a failed check by "+compLens+" — ready to remedy it: blue fixes the proof or retires it") {
 		t.Errorf("blue is not readied to fix or retire the proof: parties %v, why %q", plan.Parties, plan.Why)
 	}
 	lens := sittingOfRunT(t, run, "lens", compLens)
@@ -166,7 +166,7 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !says(plan, blueRespondSeat+" has sat since proof P-1 was judged unsound") {
+	if !says(plan, blueRespondSeat+" has sat since proof P-1's check failed") {
 		t.Errorf("blue is readied again for a cause it sat through: why %q", plan.Why)
 	}
 }
@@ -202,7 +202,7 @@ func TestTheGapAboutAnUnsoundJudgementTakesNoMint(t *testing.T) {
 func TestAnActAboutAProofNamesOne(t *testing.T) {
 	run := unsoundBoard(t).seed()
 	_, err := Append(Identity{Run: run, SeatID: compLens}, aboutProof("G-1", "P-9"))
-	mustRefuse(t, err, "P-9", "no proof on this record carries")
+	mustRefuse(t, err, "P-9", "no citation or proof on this record carries")
 }
 
 // A GAP MINTED IN THE JUDGEMENT'S OWN SITTING ANSWERS IT, before or after the reproduce; one from an
@@ -281,12 +281,12 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 		}
 		ids := fam.At.IDs(fam.Events)
 		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil))
-		return slices.Contains(debts[compLens], "unsound_proof P-1")
+		return slices.Contains(debts[compLens], "failed_check P-1")
 	}
 	before := owes(unsoundBoard(t).seed())
 	after := owes(unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")).seed())
 	if !before || after {
-		t.Errorf("the judge owes unsound_proof P-1 before its gap = %v, after = %v; want true, then false", before, after)
+		t.Errorf("the judge owes failed_check P-1 before its gap = %v, after = %v; want true, then false", before, after)
 	}
 }
 
@@ -301,7 +301,7 @@ func TestBlueIsReadiedAgainByTheJudgesGap(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, w := range plan.Why {
-		if strings.HasPrefix(w, blueRespondSeat+": proof P-1 stands judged unsound") {
+		if strings.HasPrefix(w, blueRespondSeat+": proof P-1 stands on a failed check") {
 			return
 		}
 	}
