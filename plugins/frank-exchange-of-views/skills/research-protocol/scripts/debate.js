@@ -167,7 +167,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 // carries. TestNoSeatPromptGrowsPastItsCeiling asks exactly that question of new prompt text, and
 // it was right: the first draft of this put a refusal's mechanics in the prompt and pushed three
 // seats past their ceilings.
-const emptySittingClause = ' A sitting with nothing to do runs no commands and returns its envelope.'
+const emptySittingClause = ' A sitting with nothing to do runs no commands.'
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A

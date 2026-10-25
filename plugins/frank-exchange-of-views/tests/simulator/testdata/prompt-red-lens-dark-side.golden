@@ -1,4 +1,4 @@
-prompt sha256: 52577189b7e600285d27556a285c842eb32183a923887e054a77322e75febf1e
+prompt sha256: b053d0dcdcff6c71de175ce442fcf42793851b1765f8b7987bfad0853d710a59
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -46,7 +46,7 @@ Serialize only where the second call cannot be written until the first has answe
 If you are about to send a message with one tool call in it, ask what else you already know you will need.
 READ a file with the file-reading tool (offset/limit), never sed/awk/head/tail/cat through the shell: a shell spawn costs 10-100x a native read and buys nothing.
 SEARCH with the search tool your session offers; where it offers none, or the tool refuses a path under the run directory ("Path does not exist" — a KNOWN HARNESS LIMIT, W1.11, do NOT log it as friction), search through the shell (grep, ls) — one command that finds the lines, never a whole file dumped to be read by eye.
-A sitting with nothing to do runs no commands and returns its envelope.
+A sitting with nothing to do runs no commands.
 SEAT_ID: red-lens-dark-side.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
