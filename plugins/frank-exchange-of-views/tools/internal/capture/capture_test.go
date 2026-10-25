@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -95,26 +96,32 @@ func itoa(n int) string {
 	return string(b)
 }
 
+// telemetryAudit runs TelemetryAudit on dir the way capture does: the family off the record.
+func telemetryAudit(t *testing.T, dir string) Audit {
+	t.Helper()
+	run := runtest.Open(t, dir)
+	fam, err := record.FamilyOf(run)
+	return TelemetryAudit(run, fam, err)
+}
+
 func TestTelemetryAudit(t *testing.T) {
-	// Telemetry is DERIVED from the record now, so the audit checks that the computed series
-	// (one row per epoch with a minted gap) covers every red epoch.
-	two := recordWithEpochs(t, 2)
-	if got := TelemetryAudit(runtest.Open(t, two), 2).Verdict; got != "PASS" {
-		t.Errorf("2 telemetry epochs cover 2 red epochs: want PASS, got %s", got)
+	// The red epochs are the record's epochs, not the chair's positions: these fixtures file no
+	// position, as a run that ends in PASS files none, and still hold N epochs.
+	for _, n := range []int{1, 7} {
+		a := telemetryAudit(t, recordWithEpochs(t, n))
+		want := "telemetry covers all " + itoa(n) + " red epoch(s) on the record"
+		if a.Verdict != "PASS" || a.Detail != want {
+			t.Errorf("%d epochs, no position: want PASS %q, got %s %q", n, want, a.Verdict, a.Detail)
+		}
 	}
-	// One telemetry epoch, three red epochs on the record → FAIL.
-	one := recordWithEpochs(t, 1)
-	if got := TelemetryAudit(runtest.Open(t, one), 3).Verdict; got != "FAIL" {
-		t.Errorf("1 telemetry epoch vs 3 red: want FAIL, got %s", got)
+	// A record with no epoch is a measured zero: SKIP, and it says the chair never sat.
+	if a := telemetryAudit(t, t.TempDir()); a.Verdict != "SKIP" || !strings.Contains(a.Detail, "the chair never sat") {
+		t.Errorf("no record: want SKIP naming the chair never sat, got %s %q", a.Verdict, a.Detail)
 	}
-	// No board epochs with red epochs on record → FAIL (the derived series is empty); with
-	// no red epochs → SKIP.
-	empty := t.TempDir()
-	if got := TelemetryAudit(runtest.Open(t, empty), 2).Verdict; got != "FAIL" {
-		t.Errorf("empty telemetry with red epochs: want FAIL, got %s", got)
-	}
-	if got := TelemetryAudit(runtest.Open(t, empty), 0).Verdict; got != "SKIP" {
-		t.Errorf("empty telemetry, no red epochs: want SKIP, got %s", got)
+	// A record that cannot be read is NOT MEASURED, never a count of 0.
+	a := TelemetryAudit(runtest.Open(t, t.TempDir()), record.Family{}, errors.New("disk on fire"))
+	if a.Verdict != "SKIP" || !strings.HasPrefix(a.Detail, "NOT MEASURED") || !strings.Contains(a.Detail, "disk on fire") {
+		t.Errorf("unreadable record: want SKIP NOT MEASURED with the error, got %s %q", a.Verdict, a.Detail)
 	}
 }
 
