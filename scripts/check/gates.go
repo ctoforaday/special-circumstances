@@ -340,7 +340,7 @@ func gateSet() []gate {
 		// pointing at CI's result rather than running forty debates.
 		gate{id: "release-fuzz", kind: kindTest, dir: "plugins/frank-exchange-of-views/tools", ciJob: "release-fuzz",
 			args: []string{"test", noCache, "-v", "-timeout=60m", "./releasegate/fuzz/"},
-			skip: "the release-fuzz CI job runs it with FEOV_RELEASE_GATE=1 on a pull request that changes what the sweeps drive; read that job's result, and sweep by hand at most once per PR, on the final head, only when CI cannot",
+			skip: "the release-fuzz CI job runs it with FEOV_RELEASE_GATE=1 on a pull request that changes what the sweeps drive; read that job's result, and run one fuzz invocation by hand at most once per PR, on the final head, only when CI cannot",
 			why:  "the debate sweeps hold on the branch that could break them"},
 		// The feov sweeps' release leg. Declared for the reason every release gate is: a
 		// gate that cannot run here must still appear in the report. Locally the same
