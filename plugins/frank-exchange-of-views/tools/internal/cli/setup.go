@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 )
@@ -38,7 +39,7 @@ func newSetup() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "setup <runDir>",
 		Short:         "build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)",
-		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
+		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult — its row names the session setup runs in (" + seatenv.SessionVar + ") as the run's lead session, and the hooks attribute only that session's agents to the run; another session leads it only through `take-over` — and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -67,6 +68,7 @@ func newSetup() *cobra.Command {
 				RunID:               runID,
 				ScriptPath:          scriptPath,
 				AllowSubstitution:   allowSubstitution,
+				Session:             seatenv.Session(),
 				Cwd:                 cwd,
 				Home:                home,
 			}

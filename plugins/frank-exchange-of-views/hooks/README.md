@@ -9,7 +9,8 @@ document.
 ## Every hook — run and identity injection
 
 RUN AND IDENTITY INJECTION (#281, #510), one dedicated binary. When a Bash call is made inside a live
-run (the payload cwd resolves a run marker), PreToolUse REWRITES the command, prefixing
+run (the payload's cwd finds a run marker, and the marker's live row names the payload's `session_id`
+as the run's lead), PreToolUse REWRITES the command, prefixing
 `export FEOV_RUN='<runDir>'; export FEOV_AGENT_ID='<agent>'; export FEOV_AGENT_TYPE='<type>'; ` — so a
 seat stops typing an absolute path it can mistype (measured: one typo cost five manifest receipts
 and produced a false bug report), and never loses the identity that binds it to its seat on the
@@ -79,7 +80,12 @@ A work list that could not be read says so in the injected text instead — "I c
 ONLY A SEAT IS RECORDED: the sibling event also fires at the MAIN agent's turn end, with a minted
 agent id and no agent_type — 19 seats against 50 turn ends in one measured session, separated by
 agent_type with zero exceptions either way (§7a). An event with no agent_type is not a sitting and is
-dropped. The bootstrap guard mirrors every other hook here: a fresh plugin-cache version ships
+dropped. AND ONLY THE RUN'S OWN SESSION'S SEAT: a run's members are the agents of the session that
+leads it, and every subagent's payload carries its dispatching session's `session_id` — so an agent of
+another conversation, in a worktree nested under the run's checkout, finds the marker and is still
+attributed to nothing. A payload with no `session_id`, or one of this plugin's agents from a session
+that leads no live run there, goes on the hook record (stage `run-membership`). The bootstrap guard
+mirrors every other hook here: a fresh plugin-cache version ships
 without binaries and an unguarded hook would crash-storm the window; the guard hands the missing
 binary to hooks/fetch-bin.sh, which says nothing on this event. THE PAYLOAD CANNOT NAME THE SEAT — it
 carries the harness handle and the agent configuration and nothing the workflow supplied (#290,

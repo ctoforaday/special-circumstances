@@ -59,6 +59,7 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 		Topic:         "a probe",
 		Model:         "haiku",
 		JudgmentModel: "haiku",
+		Session:       testLead,
 		Cwd:           home,
 		Home:          home,
 		Git:           func([]string) GitResult { return GitResult{Status: 0, Stdout: "abc1234\n"} },
@@ -314,10 +315,12 @@ func TestSetupReadsNoFeovMemory(t *testing.T) {
 	}
 }
 
-// A SECOND LIVE RUN IS REFUSED, NAMING THE FIRST AND HOW TO CLOSE IT (#1255). Driven end to end.
+// A SECOND LIVE RUN FOR ONE SESSION IS REFUSED, NAMING THE FIRST AND HOW TO CLOSE IT (#1255). Driven
+// end to end.
 //
 // The wrapper carries a seat's run into its own calls, but the hooks find a seat's run through this
-// project's marker, and with two live runs they bracket no sitting and count no call for either.
+// project's marker, among the runs its session leads, and with two of those they bracket no sitting
+// and count no call for either.
 // Setup used to open the second run with a notice; every seat of both runs then sat unrecorded.
 func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
@@ -325,7 +328,7 @@ func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	if err := os.MkdirAll(other, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_running", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_running", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 
@@ -334,11 +337,11 @@ func TestSetupRefusesASecondLiveRun(t *testing.T) {
 		t.Fatalf("exit %d, want 2 — a second live run must be refused:\n%s%s", code, out.String(), errb.String())
 	}
 	for _, want := range []string{
-		"ANOTHER RUN IS LIVE",
+		"THIS SESSION ALREADY LEADS A LIVE RUN",
 		"research/2026-08-01_running",                     // names the live run
 		"2026-08-01T09:00:00.000Z",                        // and when it started
 		"feov-record capture research/2026-08-01_running", // how to close it
-		"separate checkout",                               // or how to run beside it
+		"from another session",                            // or how to run beside it
 	} {
 		if !strings.Contains(errb.String(), want) {
 			t.Errorf("the refusal must carry %q:\n%s", want, errb.String())
@@ -368,10 +371,10 @@ func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
-	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_captured", nil, at, "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_captured", nil, at, "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 
@@ -414,7 +417,7 @@ func TestSetupRefusesWhileADecidedRunIsNotCaptured(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, rel, nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", ""); err != nil {
+			if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, rel, nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "", testLead); err != nil {
 				t.Fatal(err)
 			}
 
@@ -463,7 +466,7 @@ func TestSetupRefusesWhileADecidedRunIsNotCaptured(t *testing.T) {
 // gate must not be the thing that breaks it.
 func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 

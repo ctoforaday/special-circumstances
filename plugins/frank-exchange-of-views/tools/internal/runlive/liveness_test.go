@@ -27,16 +27,16 @@ func TestARunWhoseOutcomeIsRecordedYieldsToTheLiveRun(t *testing.T) {
 	mustMkdir(t, live)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	endRun(t, ended, "a-bench")
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/ended"},{"runDir":"research/live"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/ended","leadSession":"session-lead-under-test"},{"runDir":"research/live","leadSession":"session-lead-under-test"}]}`)
 
-	got := InferRunDir(proj, Caller{ID: "a-seat"})
+	got := InferRunDir(proj, Caller{ID: "a-seat", Session: testLead})
 	if got.Why != Resolved || got.Dir != live {
 		t.Fatalf("got %v %q, want Resolved to %q — the ended run's row still counts", got.Why, got.Dir, live)
 	}
 
 	// ALONE, the ended run resolves nothing: a later session in this project is in no run.
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/ended"}]}`)
-	if got := InferRunDir(proj, Caller{ID: "a-dev-session-agent"}); got.Why != NoRunOpen || got.Dir != "" {
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/ended","leadSession":"session-lead-under-test"}]}`)
+	if got := InferRunDir(proj, Caller{ID: "a-dev-session-agent", Session: testLead}); got.Why != NoRunOpen || got.Dir != "" {
 		t.Fatalf("got %v %q, want NoRunOpen — a dead run's row attributed a later session to it", got.Why, got.Dir)
 	}
 }
@@ -49,24 +49,24 @@ func TestTheAgentThatRecordedTheOutcomeKeepsItsRun(t *testing.T) {
 	run := filepath.Join(proj, "research", "r")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/r"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r","leadSession":"session-lead-under-test"}]}`)
 	endRun(t, run, "a-bench")
 
 	for agent, want := range map[string]Inference{"a-bench": Resolved, "a-other": NoRunOpen, "": NoRunOpen} {
-		if got := InferRunDir(proj, Caller{ID: agent}); got.Why != want {
+		if got := InferRunDir(proj, Caller{ID: agent, Session: testLead}); got.Why != want {
 			t.Errorf("agent %q: got %v, want %v", agent, got.Why, want)
 		}
 	}
 	// A mark naming no agent — an outcome recorded where no identity reached the verb — ends it for all.
 	endRun(t, run, "")
-	if got := InferRunDir(proj, Caller{}); got.Why != NoRunOpen {
+	if got := InferRunDir(proj, Caller{Session: testLead}); got.Why != NoRunOpen {
 		t.Errorf("a mark naming no agent: got %v, want NoRunOpen", got.Why)
 	}
 	// A mark that does not parse still says the outcome is recorded; only the exception is lost.
 	if err := os.WriteFile(filepath.Join(run, OutcomeMark), []byte("{ not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := InferRunDir(proj, Caller{ID: "a-bench"}); got.Why != NoRunOpen {
+	if got := InferRunDir(proj, Caller{ID: "a-bench", Session: testLead}); got.Why != NoRunOpen {
 		t.Errorf("an unparsable mark: got %v, want NoRunOpen", got.Why)
 	}
 }
@@ -80,16 +80,21 @@ func TestADecidedRunIsLiveForTheBenchUntilItIsCaptured(t *testing.T) {
 	run := filepath.Join(proj, "research", "r")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/r"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r","leadSession":"session-lead-under-test"}]}`)
 	endRun(t, run, "a-bench")
-	m := RunLiveMarker{RunDir: "research/r"}
+	m := RunLiveMarker{RunDir: "research/r", LeadSession: testLead}
 	for _, tc := range []struct {
 		caller Caller
 		want   RowState
 	}{
-		{Caller{ID: "a-fresh", Type: BenchAgentType}, RowLive},
-		{Caller{ID: "a-bench", Type: BenchAgentType}, RowLive},
-		{Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence"}, RowDecided},
+		{Caller{ID: "a-fresh", Type: BenchAgentType, Session: testLead}, RowLive},
+		// THE BENCH EXCEPTION IS THE LEAD SESSION'S. A bench agent another session dispatched — the
+		// recording agent's id included — is no assembly sitting of this run.
+		{Caller{ID: "a-fresh", Type: BenchAgentType, Session: "another-session"}, RowDecided},
+		{Caller{ID: "a-bench", Type: BenchAgentType, Session: "another-session"}, RowDecided},
+		{Caller{ID: "a-bench", Type: BenchAgentType}, RowDecided},
+		{Caller{ID: "a-bench", Type: BenchAgentType, Session: testLead}, RowLive},
+		{Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence", Session: testLead}, RowDecided},
 		{Caller{Type: BenchAgentType}, RowDecided}, // no agent: a main session is no seat
 		{Caller{}, RowDecided},
 	} {
@@ -100,7 +105,7 @@ func TestADecidedRunIsLiveForTheBenchUntilItIsCaptured(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(run, CapturedMark), []byte("2026-10-24T00:00:00Z\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []Caller{{ID: "a-fresh", Type: BenchAgentType}, {ID: "a-bench", Type: BenchAgentType}, {}} {
+	for _, c := range []Caller{{ID: "a-fresh", Type: BenchAgentType, Session: testLead}, {ID: "a-bench", Type: BenchAgentType, Session: testLead}, {}} {
 		if got := StateOf(proj, m, c); got != RowCaptured {
 			t.Errorf("%+v once captured: %v, want RowCaptured", c, got)
 		}
@@ -109,7 +114,7 @@ func TestADecidedRunIsLiveForTheBenchUntilItIsCaptured(t *testing.T) {
 	if err := os.Remove(filepath.Join(run, OutcomeMark)); err != nil {
 		t.Fatal(err)
 	}
-	if got := StateOf(proj, m, Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence"}); got != RowCaptured {
+	if got := StateOf(proj, m, Caller{ID: "a-lens", Type: "frank-exchange-of-views:red-lens-evidence", Session: testLead}); got != RowCaptured {
 		t.Errorf("a captured run with no outcome: %v, want RowCaptured", got)
 	}
 }
@@ -121,14 +126,14 @@ func TestTwoLiveRunsAreAFaultThatNamesBoth(t *testing.T) {
 	mustMkdir(t, filepath.Join(proj, "a"))
 	mustMkdir(t, filepath.Join(proj, "b"))
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":"a"},{"runDir":"b"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"b","leadSession":"session-lead-under-test"}]}`)
 
-	got := InferRunDir(proj, Caller{})
+	got := InferRunDir(proj, Caller{Session: testLead})
 	if !got.Why.Fault() || got.Dir != "" {
 		t.Fatalf("two live runs: Why %v, Dir %q — want a fault that resolves nothing", got.Why, got.Dir)
 	}
 	detail := FaultDetail(got)
-	for _, want := range []string{filepath.Join(proj, "a"), filepath.Join(proj, "b"), "capture", "separate checkout"} {
+	for _, want := range []string{filepath.Join(proj, "a"), filepath.Join(proj, "b"), "capture", "another session"} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("the fault must carry %q: %s", want, detail)
 		}
@@ -146,7 +151,7 @@ func TestPruneRemovesOnlyRowsThatAreNotLive(t *testing.T) {
 	if err := WriteOutcomeMark(filepath.Join(proj, "ended"), "a-bench"); err != nil {
 		t.Fatal(err)
 	}
-	writeMarker(t, proj, `{"runs":[{"runDir":"gone"},{"runDir":"ended"},{"runDir":"live"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"gone","leadSession":"session-lead-under-test"},{"runDir":"ended","leadSession":"session-lead-under-test"},{"runDir":"live","leadSession":"session-lead-under-test"}]}`)
 
 	pruned, err := PruneRunLive(proj)
 	if err != nil {

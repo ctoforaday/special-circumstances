@@ -118,19 +118,19 @@ func TestTheFailureHookLogsOnlyASeatsOwnFailures(t *testing.T) {
 		}
 		return out
 	}
-	fire(with(map[string]any{"agent_id": "a1"}))
-	fire(with(map[string]any{"agent_id": "a1", "is_interrupt": true}))
+	fire(with(map[string]any{"session_id": testLead, "agent_id": "a1"}))
+	fire(with(map[string]any{"session_id": testLead, "agent_id": "a1", "is_interrupt": true}))
 	fire(with(map[string]any{})) // the main session: no agent id
 	if len(logged) != 1 || !strings.HasPrefix(logged[0], "a1 | `Read` failed on `/x`") {
 		t.Fatalf("want exactly the seat's one real failure, got %q", logged)
 	}
 	// The run the hook attributes the failure to is the run its entry writes as `.`.
-	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": runDir + "/blue/report.md"}}))
+	fire(with(map[string]any{"session_id": testLead, "agent_id": "a1", "tool_input": map[string]string{"file_path": runDir + "/blue/report.md"}}))
 	if len(logged) != 2 || !strings.HasPrefix(logged[1], "a1 | `Read` failed on `./blue/report.md`") {
 		t.Errorf("the run's own path was logged as the seat typed it, not from the run directory: %q", logged)
 	}
 	// On Windows the run arrives as `C:\…\run` and a seat may type it with forward slashes.
-	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": filepath.ToSlash(runDir) + "/blue/report.md"}}))
+	fire(with(map[string]any{"session_id": testLead, "agent_id": "a1", "tool_input": map[string]string{"file_path": filepath.ToSlash(runDir) + "/blue/report.md"}}))
 	if len(logged) != 3 || !strings.HasPrefix(logged[2], "a1 | `Read` failed on `./blue/report.md`") {
 		t.Errorf("the run's own path, typed with forward slashes, was logged as the seat typed it: %q", logged)
 	}

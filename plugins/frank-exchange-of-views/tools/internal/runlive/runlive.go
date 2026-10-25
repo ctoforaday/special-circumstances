@@ -42,16 +42,23 @@ type RunLiveMarker struct {
 	// a resume. Empty when the launcher did not supply them: absent stays absent.
 	RunID      string `json:"runId,omitempty"`
 	ScriptPath string `json:"scriptPath,omitempty"`
+	// LeadSession is the session that leads the run: the one whose `setup` wrote this row, or the
+	// one that took the run over since (TakeOver). It is the run's MEMBERSHIP KEY — a hook payload
+	// belongs to this run only when its session_id is this one (InferRunDir). Every subagent a
+	// session dispatches carries that session's id on its hook payloads, the Workflow tool's seats
+	// included, so the run's seats match and an unrelated session's agents — a dev session in a
+	// worktree nested under this checkout — match nothing.
+	LeadSession string `json:"leadSession"`
 }
 
 // RunLive is the marker FILE: the runs `setup` opened in this project and nothing has closed.
 //
-// A LIST, AND AT MOST ONE OF ITS ROWS IS LIVE. The rows are what was written; which of them still
-// counts is RowState's to say, because only `setup` writes a row and only `capture` removes one, and
-// capture is optional — a run killed or never captured leaves its row behind. `setup` refuses a run
-// while another is live (#1255): the hooks find a seat's run through this file, and with two live
-// runs they cannot tell which a seat belongs to. The payload a hook receives names no run, so the
-// answer has to be the one live row or none.
+// A LIST, AND AT MOST ONE LIVE ROW PER LEAD SESSION. The rows are what was written; which of them
+// still counts is RowState's to say, because only `setup` writes a row and only `capture` removes
+// one, and capture is optional — a run killed or never captured leaves its row behind. The payload a
+// hook receives names no run, but it names its session, so a hook's run is the one live row its
+// session leads, or none. `setup` refuses a second live run for the same session (#1255): two rows
+// one session leads cannot be told apart.
 type RunLive struct {
 	Runs []RunLiveMarker `json:"runs"`
 }
@@ -98,9 +105,20 @@ const BenchAgentType = "frank-exchange-of-views:lead-judge"
 // Caller is the agent a hook or verb asks on behalf of: the harness's handle for it and the
 // configuration it was dispatched under, both attested on the payload. The zero Caller is a reader
 // that is no seat — a pruner, a watcher, an operator.
+//
+// Session is the session the agent belongs to — the payload's session_id, which every subagent
+// shares with the session that dispatched it — and decides which run, if any, is its
+// (InferRunDir). A verb has no payload, and takes it from the client's environment (seatenv.Session).
 type Caller struct {
-	ID   string
-	Type string
+	ID      string
+	Type    string
+	Session string
+}
+
+// Leads reports whether the caller's session leads the row's run. A caller with no session leads
+// nothing, and neither does a row naming none.
+func (c Caller) Leads(m RunLiveMarker) bool {
+	return c.Session != "" && c.Session == m.LeadSession
 }
 
 // outcomeMark is the mark's content: the agent whose sitting recorded the outcome.
@@ -160,6 +178,7 @@ func (s RowState) Why() string {
 //     (record.requireOpenToSeats takes its assemble-occasion register, its declare, certify and
 //     assemble). Without this its hooks bind it to no run: no sitting span, no injected run or
 //     identity, and every act it makes fails to find the run it was dispatched into;
+//   - both exceptions hold only for an agent of the session that leads the run (Caller.Leads);
 //   - every other agent, and every reader that is no seat, sees no live run. That is what the
 //     outcome mark is for (#1255): a decided run's row resolving as THE run for every later session
 //     in the project, and making a live run beside it ambiguous. A stray agent of another
@@ -185,6 +204,11 @@ func StateOf(projectDir string, m RunLiveMarker, caller Caller) RowState {
 	b, err := readSharingDelete(filepath.Join(dir, OutcomeMark))
 	if errors.Is(err, fs.ErrNotExist) {
 		return RowLive
+	}
+	// BOTH EXCEPTIONS ARE THE RUN'S OWN SESSION'S. A bench agent of another session — a dev session
+	// dispatching a lead-judge in a nested worktree — is no assembly sitting of this run.
+	if !caller.Leads(m) {
+		return RowDecided
 	}
 	if caller.ID != "" && caller.Type == BenchAgentType {
 		return RowLive
@@ -389,7 +413,13 @@ func SameRun(projectDir, a, b string) bool {
 // WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state) and returns its
 // path. `now` is injected so the sole non-deterministic field is controllable in tests. An error
 // means the run is NOT live: the hooks cannot find it.
-func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath string) (_ string, err error) {
+//
+// leadSession is the session launching the run, and is required: a row naming no session is a run
+// no hook payload can belong to.
+func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time, runID, scriptPath, leadSession string) (_ string, err error) {
+	if strings.TrimSpace(leadSession) == "" {
+		return "", errors.New("no lead session: a live-run row names the session that leads its run, and the hooks attribute nothing to a row without one")
+	}
 	dir := filepath.Join(projectDir, ".claude")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -413,6 +443,7 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 		Started:     now.UTC().Format("2006-01-02T15:04:05.000Z07:00"),
 		RunID:       runID,
 		ScriptPath:  scriptPath,
+		LeadSession: leadSession,
 	}
 	// AN UPSERT, NOT AN OVERWRITE. Overwriting is what made a stale marker self-healing and
 	// SILENT; with a list it would also be what makes a second run erase the first one's row,
@@ -421,6 +452,11 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	replaced := false
 	for i := range runs {
 		if SameRun(projectDir, runs[i].RunDir, runDir) {
+			// A RE-SETUP IS ITS LEAD'S OWN. Another session re-running setup on a run that is still
+			// live would otherwise replace the lead silently — the take-over without its refusal.
+			if lead := runs[i].LeadSession; lead != leadSession && StateOf(projectDir, runs[i], Caller{}) == RowLive {
+				return "", &LedElsewhere{Lead: lead}
+			}
 			runs[i] = marker
 			replaced = true
 			break
@@ -474,4 +510,58 @@ func marshalJSON(v any) ([]byte, error) {
 		return nil, err
 	}
 	return append(b, '\n'), nil
+}
+
+// TakeOver makes session `to` the lead of the run in runDir, in place of session `from`.
+//
+// A RESUME MAY RUN IN A NEW SESSION — a lead that crashed or restarted — and its seats then carry
+// the new session's id, which the row does not name: every sitting of the resumed run would go
+// unbracketed. The take-over is how the new lead says so, and it is REFUSABLE: `from` must be the
+// session the row names, so a session cannot take a run from a lead it did not name — the
+// operator reads the lead off the refusal or the marker and states it. A take-over by the session
+// already leading is a no-op.
+//
+// It refuses a run with no row, or whose row is no longer live: there is nothing to lead.
+func TakeOver(projectDir, runDir, from, to string) (prior string, err error) {
+	if strings.TrimSpace(to) == "" {
+		return "", errors.New("no session to take the run over: the caller's session id is unknown")
+	}
+	release, err := lockMarker(projectDir)
+	if err != nil {
+		return "", err
+	}
+	defer func() { err = errors.Join(err, release()) }()
+	runs, readable := readMarkerFile(projectDir)
+	if !readable {
+		return "", errors.New("the live-run marker in " + projectDir + " cannot be read")
+	}
+	for i := range runs {
+		if !SameRun(projectDir, runs[i].RunDir, runDir) {
+			continue
+		}
+		prior = runs[i].LeadSession
+		if s := StateOf(projectDir, runs[i], Caller{}); s != RowLive && s != RowDecided {
+			return prior, errors.New("its row is no longer live — " + s.Why())
+		}
+		if prior == to {
+			return prior, nil
+		}
+		if from != prior {
+			return prior, &LedElsewhere{Lead: prior}
+		}
+		runs[i].LeadSession = to
+		return prior, writeRunLive(projectDir, runs)
+	}
+	return "", errors.New("no live-run row for " + runDir + " in " + filepath.Join(projectDir, ".claude", "run-live.json"))
+}
+
+// LedElsewhere is TakeOver's refusal: the row's lead is not the session the caller named.
+type LedElsewhere struct{ Lead string }
+
+func (e *LedElsewhere) Error() string {
+	lead := e.Lead
+	if lead == "" {
+		lead = "no session"
+	}
+	return "the run is led by " + lead + ", not the session named"
 }

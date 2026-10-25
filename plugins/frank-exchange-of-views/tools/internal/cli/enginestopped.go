@@ -66,6 +66,8 @@ func newEngineStopped() *cobra.Command {
 			"sitting registered for the assemble occasion. The assembly sitting's stop says nothing of it, since the sitting " +
 			"stops whether or not the assembly ran. Capture re-assembles the documents from " +
 			"the record at the close. A run directory that cannot be read is said so, and is never read as finished.\n\n" +
+			"A resume from a session other than the one leading the run first runs `take-over`: the hooks attribute a seat only to " +
+			"the run its session leads.\n\n" +
 			"`ops log` reads the entry back, beside what the seats filed.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"io"
 	"os"
@@ -50,6 +51,10 @@ type Config struct {
 	// configured tier. It is recorded on the run rather than passed per seat: the seat is the
 	// party whose adversary strength is in question, so the decision cannot be its to make.
 	AllowSubstitution bool
+	// Session is the launching session's id (seatenv.Session), recorded on the run's live-run row
+	// as its lead: the hooks attribute a payload to the run only when its session_id is this one.
+	// Required — a run no session leads is a run none of whose seats can be attributed.
+	Session string
 
 	Cwd  string
 	Home string
@@ -96,6 +101,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	// Gate: a launching session, before the run dir exists. The run's members are the agents of the
+	// session that leads it, and the hooks tell them by the session_id on each payload; a run with no
+	// lead would have none.
+	if strings.TrimSpace(cfg.Session) == "" {
+		fmt.Fprintf(stderr, "run-setup: NO LAUNCHING SESSION — refusing to create the run: %s is unset.\n", seatenv.SessionVar)
+		fmt.Fprintln(stderr, "  The hooks attribute an agent to a run only when its payload's session_id is the session that")
+		fmt.Fprintln(stderr, "  leads the run, and setup records that session from the client's environment. Run setup from")
+		fmt.Fprintln(stderr, "  the Bash tool of the Claude Code session that will launch the run.")
+		return 2
+	}
+
 	// Gate: the epoch limit is 1 or more, before the run dir exists. A limit below 1 would end the
 	// run at its first chair sitting with nothing audited, and record.RunParams refuses to read it.
 	if cfg.MaxEpochs < 0 || (cfg.MaxEpochsSet && cfg.MaxEpochs < 1) {
@@ -103,14 +119,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// ONE LIVE RUN PER PROJECT (#1255). Rows that are no longer live are pruned and named first;
-	// another LIVE run refuses this one, before any run state exists.
+	// ONE LIVE RUN PER LEAD SESSION (#1255). Rows that are no longer live are pruned and named
+	// first; another LIVE run this session leads refuses this one, before any run state exists.
 	//
 	// The wrapper (#526) carries a seat's run into its own calls, but the HOOKS cannot use it: a
-	// hook's payload names no run, so they find one through this project's marker — and with two
-	// live runs they bracket no sitting, count no call and inject no run for either. Every seat of
-	// both runs then acts unbracketed and uncapped. Two runs at once need two checkouts, each with
-	// its own marker.
+	// hook's payload names no run, so they find one through this project's marker, among the rows its
+	// session leads — and with two of those live they bracket no sitting, count no call and inject no
+	// run for either. Every seat of both runs then acts unbracketed and uncapped. A live run another
+	// session leads is no ambiguity: its seats carry the other session's id.
 	//
 	// A DECIDED RUN THAT WAS NEVER CAPTURED REFUSES THIS ONE TOO (gblock, 2026-10-24: "Setup refuses
 	// B"), before the prune would take its row. Its outcome is recorded and nothing archived it:
@@ -134,18 +150,31 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	for _, p := range pruned {
 		fmt.Fprintf(stdout, "run-setup: pruned the live-run marker's row for %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
 	}
+	lead := runlive.Caller{Session: cfg.Session}
 	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
 		if runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) {
+			// THIS run's row, led by another session, refuses a re-setup here: setup would
+			// otherwise move the lead silently, which is a take-over without its refusal.
+			if !lead.Leads(m) {
+				fmt.Fprintln(stderr, "run-setup: THIS RUN IS LED BY ANOTHER SESSION — refusing to set it up again:")
+				fmt.Fprintf(stderr, "  run: %s, led by session %s; this session is %s\n", m.RunDir, orUnknown(m.LeadSession), cfg.Session)
+				fmt.Fprintln(stderr, "  remedy: if this session is resuming the run its predecessor led, take it over, naming that lead:")
+				fmt.Fprintf(stderr, "        feov-record take-over %s --from-session %s\n", m.RunDir, orUnknown(m.LeadSession))
+				return 2
+			}
 			continue
 		}
-		fmt.Fprintln(stderr, "run-setup: ANOTHER RUN IS LIVE IN THIS PROJECT — refusing to create the run:")
+		if !lead.Leads(m) {
+			continue
+		}
+		fmt.Fprintln(stderr, "run-setup: THIS SESSION ALREADY LEADS A LIVE RUN — refusing to create another:")
 		fmt.Fprintf(stderr, "  live: %s (started %s)\n", m.RunDir, orUnknown(m.Started))
-		fmt.Fprintln(stderr, "  The hooks find a seat's run through this project's live-run marker, and with two live runs")
-		fmt.Fprintln(stderr, "  they bracket no sitting and count no call for either.")
+		fmt.Fprintln(stderr, "  The hooks find a seat's run among the live runs its session leads, and with two they bracket")
+		fmt.Fprintln(stderr, "  no sitting and count no call for either.")
 		fmt.Fprintln(stderr, "  remedies:")
 		fmt.Fprintf(stderr, "    - finish it: resume it to an outcome, or abandon it — then close it with\n")
 		fmt.Fprintf(stderr, "        feov-record capture %s <its transcript dir> --seat-id operator\n", m.RunDir)
-		fmt.Fprintln(stderr, "    - or run this one from a separate checkout (`git worktree add`), which has its own marker")
+		fmt.Fprintln(stderr, "    - or launch this one from another session")
 		return 2
 	}
 
@@ -280,7 +309,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		p, _ := splitPin(c)
 		pinnedPaths = append(pinnedPaths, p)
 	}
-	marker, merr := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	marker, merr := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath, cfg.Session)
 	if merr != nil {
 		// The run directory exists but the run is NOT live: the hooks find a seat's run only through
 		// this marker, so a run launched now would bracket no sitting and count no call.
