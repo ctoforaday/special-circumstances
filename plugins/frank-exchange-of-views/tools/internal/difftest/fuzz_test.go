@@ -257,6 +257,16 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		}
 	}
 	res := replayResult{setup: setupEvents}
+	// THE SOURCES ARE IN THE CACHE BEFORE THE FIRST COMMAND, so no command's events depend on how
+	// long a socket took to answer (source_test.go says what that cost).
+	seedFuzzSources(t, runDir, cmds)
+	hits := fuzzSourceHits.Load()
+	defer func() {
+		if n := fuzzSourceHits.Load() - hits; n != 0 {
+			t.Errorf("the replay fetched the fuzz source over the network %d time(s): a cite missed the seeded run cache, "+
+				"so its event depends on fetch timing — seed every url the sequence names (seedFuzzSources)", n)
+		}
+	}()
 	for _, c := range cmds {
 		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, m, c)
