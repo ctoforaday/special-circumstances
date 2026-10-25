@@ -714,7 +714,8 @@ func assembledShapeSuffix(name string) string {
 	}
 	return "\n\nOUTPUT WITH --assembled --json: " + jsonshape.Tree(report.LayoutJSON{}) +
 		"\n\n`heading` IS SPELLED TWO WAYS. In --assembled --json it is the section's bare name — `Research areas`, no `#` marks. " +
-		"In the --json `lines` it is the heading line as the report writes it — `## Research areas`."
+		"In the --json `lines` it is the heading line as the report writes it — `## Research areas`." +
+		"\n\nEVERY SECTION CARRIES `text`, a string: a section that does not ship carries `\"\"` and `no_text`, which says why it has none."
 }
 
 // evidenceAt reads the one evidence entry at an anchor, and for a proof joins the artifact the
