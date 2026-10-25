@@ -89,20 +89,49 @@ func definedTerm(v protoreflect.EnumValueDescriptor, term string) (string, error
 // Spelling is the word a seat types: the enum value's name with its type prefix removed and
 // lowercased, so CLOSURE_CLASS_DEFECT_ACCEPTED reads as `defect_accepted`.
 func Spelling(v protoreflect.EnumValueDescriptor) string {
-	prefix := enumPrefix(v.Parent().(protoreflect.EnumDescriptor))
+	prefix := wordsOf(v.Parent().(protoreflect.EnumDescriptor)).prefix
 	return strings.ToLower(strings.TrimPrefix(string(v.Name()), prefix))
 }
 
 // BySpelling resolves a seat's word back to its value, exactly and case-sensitively: the gates
 // downstream compare literally, so anything looser here re-opens the hole one layer down.
 func BySpelling(e protoreflect.EnumDescriptor, word string) (protoreflect.EnumValueDescriptor, bool) {
+	v, ok := wordsOf(e).byWord[word]
+	return v, ok
+}
+
+// enumWords is one enum's spellings, built once per descriptor: every argument a seat types is
+// resolved through BySpelling, and a scan that rebuilds the prefix for every value on every call is
+// a measurable share of a short-lived process's CPU.
+type enumWords struct {
+	prefix string
+	byWord map[string]protoreflect.EnumValueDescriptor
+}
+
+// enumWordsOf is keyed by the descriptor itself, not its full name, so a descriptor built at run
+// time under a name the generated code also uses never reads the other one's words.
+var enumWordsOf sync.Map // protoreflect.EnumDescriptor → *enumWords
+
+func wordsOf(e protoreflect.EnumDescriptor) *enumWords {
+	if w, ok := enumWordsOf.Load(e); ok {
+		return w.(*enumWords)
+	}
+	prefix := enumPrefix(e)
+	w := &enumWords{prefix: prefix, byWord: map[string]protoreflect.EnumValueDescriptor{}}
 	for i := 0; i < e.Values().Len(); i++ {
 		v := e.Values().Get(i)
-		if !isZeroValue(v) && Spelling(v) == word {
-			return v, true
+		if isZeroValue(v) {
+			continue
+		}
+		word := strings.ToLower(strings.TrimPrefix(string(v.Name()), prefix))
+		// THE FIRST VALUE IN DECLARATION ORDER keeps a word, so an alias never answers for the value
+		// declared before it.
+		if _, taken := w.byWord[word]; !taken {
+			w.byWord[word] = v
 		}
 	}
-	return nil, false
+	actual, _ := enumWordsOf.LoadOrStore(e, w)
+	return actual.(*enumWords)
 }
 
 // SameWord reports whether two spellings differ only in case or separators — the typo class, and
