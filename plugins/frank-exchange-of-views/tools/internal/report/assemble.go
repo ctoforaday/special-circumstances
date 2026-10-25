@@ -757,11 +757,13 @@ func inquiries(a *assembly, s Section) string {
 		// decision, not a conversion, so nothing is invented here.
 		rows = append(rows, row)
 	}
-	body := "_(none on the record)_"
-	if len(rows) > 0 {
-		body = strings.Join(rows, "\n")
+	// AN EMPTY SECTION KEEPS ITS HEADING AND SAYS WHAT THE ABSENCE MEANS FOR THE SUBJECT, in the
+	// section's own sentence: that no approach was set aside is a fact about the research, where a
+	// placeholder about the record is the machinery speaking in the report.
+	if len(rows) == 0 {
+		return s.none
 	}
-	return body
+	return strings.Join(rows, "\n")
 }
 
 // endSentence ends prose with a full stop unless it already ends a sentence.

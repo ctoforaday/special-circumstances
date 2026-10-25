@@ -286,9 +286,17 @@ func TestInquiriesSplitByFate(t *testing.T) {
 	if strings.Contains(alt, "profile the hot path") {
 		t.Errorf("an underway inquiry must not appear under alternatives:\n%s", alt)
 	}
-	// No inquiries of a fate → flagged, not blank.
-	if none := inquirySection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
-		t.Errorf("empty fate should say so: %q", none)
+	// No inquiries of a fate → the heading stays, and the section states the absence in the subject's
+	// terms, each section its own sentence.
+	empty := record.NewFamily(nil, record.Merged{})
+	for heading, want := range map[string]string{
+		"Research areas":             "No approach was put forward or pursued.",
+		"Future research directions": "No approach was kept for later research.",
+		"Alternatives considered":    "No approach was weighed and set aside.",
+	} {
+		if got := inquirySection(t, empty, heading); !strings.Contains(got, "## "+heading) || !strings.Contains(got, want) || strings.Contains(got, "record") {
+			t.Errorf("an empty %s must say %q, in the subject's terms: %q", heading, want, got)
+		}
 	}
 }
 
