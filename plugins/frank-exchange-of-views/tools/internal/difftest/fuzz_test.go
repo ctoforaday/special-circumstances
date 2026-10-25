@@ -342,11 +342,6 @@ var fuzzArms = []fuzzArm{
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
 				"--about-kind", "section", "--about", "Findings"}
-			// GAP001 is on the board from the prologue, so naming it distinct drives the field the mint's
-			// duplicate screen is answered with.
-			if rng.Intn(4) == 0 {
-				f = append(f, "--distinct-from", "GAP001")
-			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}

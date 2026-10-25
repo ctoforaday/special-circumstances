@@ -14,21 +14,21 @@ import (
 
 // A LOOK REGISTERS NO ONE, so the seat's own register after it goes through.
 //
-// universe-m33: a voice lens screened a candidate with `near-match`, which records nothing, and the
-// read registered it as a side effect. Its explicit `register` two calls later was refused as a
+// universe-m33: a voice lens's first act was a read, which records nothing, and the read registered
+// it as a side effect. Its explicit `register` two calls later was refused as a
 // repeat, and it spent a log entry on the friction. Only an act that records registers a seat.
 func TestALookRegistersNoOneAndTheSeatsRegisterGoesThrough(t *testing.T) {
 	runDir := seatRun(t)
 	const agent = "agent_that_looked_first"
 	t.Setenv(seatenv.AgentVar, agent)
 
-	if _, err := run(t, "near-match", "--run", runDir, "--seat-id", lensSeat, "--problem", "a candidate defect"); err != nil {
-		t.Fatalf("an unregistered lens could not screen a candidate: %v", err)
+	if _, err := run(t, "show", "board", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("an unregistered lens could not read the board: %v", err)
 	}
 	if seatID, found, err := record.RegisteredSeatOfAgent(runtest.Open(t, runDir), agent); err != nil {
 		t.Fatal(err)
 	} else if found {
-		t.Fatalf("near-match records nothing and registered the agent as %q", seatID)
+		t.Fatalf("show board records nothing and registered the agent as %q", seatID)
 	}
 
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {

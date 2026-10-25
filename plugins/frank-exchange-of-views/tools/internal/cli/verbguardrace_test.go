@@ -205,7 +205,7 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	id := record.NewID("finding")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
-		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+		_, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
 			"--key", "G1", "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--complexity", "low",

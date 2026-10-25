@@ -30,7 +30,7 @@ func TestTheExitCodeAgreesWithTheAuditsItReports(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	audits, report, exitFail, err := Run(run, transcripts, time.Date(2026, 9, 7, 12, 0, 0, 0, time.UTC))
+	audits, report, exitFail, err := Run(run, transcripts, t.TempDir(), time.Date(2026, 9, 7, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestCaptureReassemblesTheRunDocumentAndFoldsItsOwnAudits(t *testing.T) {
 	if err := os.WriteFile(runMd, []byte("# placeholder — the bench's assembly, mid-sitting\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	audits, report, _, err := Run(run, t.TempDir(), time.Date(2026, 10, 17, 19, 0, 0, 0, time.UTC))
+	audits, report, _, err := Run(run, t.TempDir(), t.TempDir(), time.Date(2026, 10, 17, 19, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testin
 		t.Fatal(err)
 	}
 	transcripts := t.TempDir() // deliberately empty: no journal.jsonl
-	audits, report, _, err := Run(run, transcripts, time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC))
+	audits, report, _, err := Run(run, transcripts, t.TempDir(), time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("capture refused a run with no journal: %v — so its live marker can never be cleared", err)
 	}

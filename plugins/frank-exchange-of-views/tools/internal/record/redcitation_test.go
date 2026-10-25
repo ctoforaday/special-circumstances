@@ -236,7 +236,6 @@ func TestAQuoteRaisesNoContradiction(t *testing.T) {
 				t.Fatal(err)
 			}
 			answer := raisingGap("G-f0000002", "F-f0000002")
-			answer.DistinctFrom = []string{"G-f0000001"}
 			if _, err := Append(lens, answer); err != nil {
 				t.Fatal(err)
 			}

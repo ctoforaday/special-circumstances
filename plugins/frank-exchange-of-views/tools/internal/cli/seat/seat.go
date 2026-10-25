@@ -748,8 +748,8 @@ func RequiredUnless(c *cobra.Command, name, cond string) *cobra.Command {
 // Require is what a verb calls for a flag it cannot run without: the marker at the head of the
 // usage AND cobra's refusal when it is omitted, in one act, so the two cannot come apart. A dozen
 // verbs wrote them as a pair — `"REQUIRED — " + usage` beside a bare MarkFlagRequired — and the
-// pairs drifted both ways: `reproduce --id` carried the word with no refusal, `near-match --problem`
-// the refusal with no word. A flag the verb never registered is a programming error, and is
+// pairs drifted both ways: `reproduce --id` carried the word with no refusal, and other
+// flags the refusal with no word. A flag the verb never registered is a programming error, and is
 // refused at construction rather than skipped.
 func Require(c *cobra.Command, names ...string) *cobra.Command {
 	for _, n := range names {
@@ -971,7 +971,7 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 // A READ RECORDS NOTHING, SO IT CARRIES NO RECORD TYPE AND REGISTERS NO ONE. Only an act that
 // records registers a seat, as register's page says. A read that went through Begin registered
 // its seat as a side effect, and the seat's own register later in the sitting was then refused as
-// a repeat — universe-m33's voice lens met exactly that after a `near-match`.
+// a repeat — universe-m33's voice lens met exactly that after a read.
 func NewRead(name string, result Result, run Handler) *cobra.Command {
 	c := newVerb(name, name, readOutput(result))
 	c.RunE = readRunE(run)
@@ -1081,8 +1081,7 @@ func ProseRequired(c *cobra.Command) *cobra.Command {
 //
 // Measured before it existed: twenty-two flags across every seat surface refused when omitted
 // and rendered with no marker, and the m13/m14 seats paid one call each to learn what the help
-// could have told them (`near-match --problem` twice, `position --reason`, `motion docket rule
-// --reason`). markRequired writes the word from the schema and ProseRequired from the verb; this
+// could have told them (`position --reason`, `motion docket rule --reason`). markRequired writes the word from the schema and ProseRequired from the verb; this
 // is the writer for the requirements the other two mechanisms cannot see, and
 // TestHelpSaysRequiredExactlyWhereOmissionIsRefused holds every call here to the refusal it claims.
 func SaysRequired(c *cobra.Command, names ...string) *cobra.Command {

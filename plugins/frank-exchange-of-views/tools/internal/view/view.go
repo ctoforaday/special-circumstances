@@ -269,7 +269,7 @@ func ledgerMD(in Input) []byte {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.FoundBy() {
+		for _, lbl := range g.Mint.GetFoundBy() {
 			credited[lbl] = true
 		}
 	}
@@ -304,7 +304,7 @@ func ledgerMD(in Input) []byte {
 			supersedes = " | supersedes " + strings.Join(s, " ")
 		}
 		foundBy := ""
-		for i, id := range g.FoundBy() {
+		for i, id := range g.Mint.GetFoundBy() {
 			// a credit naming no finding on the record stays visible, bare
 			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}

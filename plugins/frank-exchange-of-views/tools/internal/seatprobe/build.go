@@ -73,7 +73,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		return tool(args...)
 	}
-	var gapIDs []string
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
 	closingsOf := map[string][]struct{ seat, text string }{}
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
@@ -134,9 +133,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 	for i, g := range b.Gaps {
 		minter := stagingLenses[i%len(stagingLenses)]
-		// A PROBE BOARD'S GAPS ARE DISTINCT BY CONSTRUCTION — each baits a different act — and the
-		// mint's duplicate screen reads two defects in one paragraph as near. The builder answers the
-		// screen with every gap it staged before this one.
 		args := []string{"mint", "--run", run.Dir(), "--seat-id", minter,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
@@ -144,9 +140,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 			"--severity", g.Severity, "--likelihood", g.Likelihood,
 			"--impact", g.Impact, "--complexity", g.Complexity,
 			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
-		if i > 0 {
-			args = append(args, "--distinct-from", strings.Join(gapIDs, ","))
-		}
 		out, err := exec(args...)
 		if err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
@@ -156,7 +149,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 			return fmt.Errorf("mint %s: the tool did not report a minted id in %q", g.Key, out)
 		}
 		ref := fmt.Sprintf("G%d", i+1)
-		staged[ref], gapIDs = gapID, append(gapIDs, gapID)
+		staged[ref] = gapID
 		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
 		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
 		for _, c := range []struct{ seat, text string }{{minter, g.RedClosing}, {"blue-respond", g.BlueClosing}} {

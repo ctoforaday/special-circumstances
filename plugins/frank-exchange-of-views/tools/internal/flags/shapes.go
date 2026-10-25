@@ -174,12 +174,6 @@ func CitationAnchor() *ShapedValue {
 		hint: "a citation anchor is a `" + anchor.Token("C-…") + "` token in the report or the id inside one — paste either — while `F-` is a finding and `P-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
-// FindingID refuses anything that is not a finding id.
-func FindingID() *ShapedValue {
-	return &ShapedValue{kind: "finding-id", re: idShape("finding"), unwrapsAnchor: true,
-		hint: "a finding id is F- and eight hex, as `finding` returned it — or its `" + anchor.Token("F-…") + "` token in the report; `show findings` lists every one"}
-}
-
 // InquiryID refuses anything that is not an inquiry id. Its letter is Q, for the QUESTION the inquiry
 // asks, which is what `--question` holds.
 func InquiryID() *ShapedValue {
