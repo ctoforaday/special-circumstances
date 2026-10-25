@@ -76,7 +76,6 @@ func TestCaptureReadsTheTranscriptsTheRecordNamesAndNamesEachMiss(t *testing.T) 
 // journal and nothing it reads as a seat, and the one transcript a stop names reaches the census,
 // the tarball, the turn ingest and cost.md.
 func TestCaptureRunReadsTheSeatTranscriptsFromTheRecord(t *testing.T) {
-	t.Chdir(t.TempDir())
 	home := t.TempDir() // the mirror purge reads it
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
@@ -93,7 +92,7 @@ func TestCaptureRunReadsTheSeatTranscriptsFromTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := runtest.Open(t, runDir)
-	_, report, _, err := Run(run, wf, time.Now())
+	_, report, _, err := Run(run, wf, t.TempDir(), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
