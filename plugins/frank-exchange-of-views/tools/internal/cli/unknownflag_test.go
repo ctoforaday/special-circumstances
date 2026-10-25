@@ -68,8 +68,8 @@ func TestTheSuggestionIsNotMadeForAFlagTheVerbDoesNotHave(t *testing.T) {
 // A FLAG CARRIED FROM A SIBLING VERB IS ANSWERED FROM THE TREE, IN A FEW LINES.
 //
 // Measured on the 2026-10-09 smoke: blue typed `retire --key` four times in one batch, having used
-// `--key` on fourteen edits, and a lens typed `finding --problem` twice, fourteen seconds after
-// `near-match --problem` was accepted. Each refusal was the verb's whole page — 3 506 bytes per
+// `--key` on fourteen edits, and a lens typed `finding --problem` twice, having used `--problem`
+// on its mints. Each refusal was the verb's whole page — 3 506 bytes per
 // retire, 9 029 for the two findings — and none said the one thing the seat had wrong: the flag
 // is a real one, on the verbs beside this one.
 //
@@ -96,7 +96,7 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 		{name: "the neighbour's problem flag", seat: "red-lens-evidence",
 			args: []string{"finding", "--quote", "§1 first — a finding sits in sec 1 here.", "--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "r", "--problem", "p"},
 			verb: "finding", role: "lens", writes: "finding",
-			says: []string{"unknown flag: --problem", "On this surface `mint` and `near-match` take it.",
+			says: []string{"unknown flag: --problem", "On this surface `mint` takes it.",
 				"This verb's flags: --about, --about-kind, --impact, --key, --likelihood, --quote, --reason, --severity.", "`" + InvokedAs() + " finding --help`"}},
 		{name: "a flag nothing takes", seat: "red-lens-evidence",
 			args: []string{"close", "--nonesuch", "x"},

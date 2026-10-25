@@ -142,9 +142,9 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 // required_fix/acceptance_check), and `estopped` carrying BENCH rulings alone.
 //
 // A SEAT'S OWN CLOSURE IS NOT A BAR. Red may reopen what red closed, so a red closure on this list
-// is history a seat is not working on — and `near-match` surfaces it with `closed_by` at the one
-// moment it decides reopen-or-new. What a seat cannot find out safely anywhere else is what the
-// BENCH ruled, because re-raising that is relitigation and nothing requires a screen before mint.
+// is history a seat is not working on — and the board carries it with `closed_by` for the moment
+// it decides reopen-or-new. What a seat cannot find out safely anywhere else is what the BENCH
+// ruled, because re-raising that is relitigation and nothing requires a board read before mint.
 func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"

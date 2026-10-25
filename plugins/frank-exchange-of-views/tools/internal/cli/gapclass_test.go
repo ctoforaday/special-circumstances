@@ -19,7 +19,7 @@ func mintClass(t *testing.T, runDir, key, class, severity, reason string) (strin
 	if reason != "" {
 		args = append(args, "--reason", reason)
 	}
-	return runMint(t, runDir, args...)
+	return runMint(t, args...)
 }
 
 // A GAP NO CLASS FITS SAYS WHY (D7). The catch-all without --reason is refused by the record's own

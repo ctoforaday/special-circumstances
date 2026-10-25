@@ -61,20 +61,7 @@ func (s *shapeSource) mint(id, quote string) {
 	s.add(shapeLens, &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(quote),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(), DistinctFrom: s.open()})
-}
-
-// open is every gap minted so far, which a fixture's gaps are distinct from by construction.
-func (s *shapeSource) open() []string {
-	b, err := record.BoardJSONOfRun(s.run)
-	if err != nil {
-		s.t.Fatal(err)
-	}
-	var out []string
-	for _, g := range b.Open {
-		out = append(out, g.ID)
-	}
-	return out
+		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()})
 }
 
 func (s *shapeSource) finding(id, quote string) {

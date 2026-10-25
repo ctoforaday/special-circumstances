@@ -569,7 +569,6 @@ var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf)
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
 	recordpb.EventType_EVENT_TYPE_MINT,
-	recordpb.EventType_EVENT_TYPE_CREDIT,
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
 	recordpb.EventType_EVENT_TYPE_RETIRE)
 

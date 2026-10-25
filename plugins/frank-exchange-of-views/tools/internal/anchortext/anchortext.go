@@ -123,8 +123,8 @@ func Tokenize(s string) map[string]bool {
 	// THE ANNOTATION LAYER IS NOT VOCABULARY. Splitting on non-alphanumerics turns an anchor into
 	// tokens — `<!--fx:f-dbd94684-->` yields "fx" and "dbd94684" — and both land in the union, so an
 	// anchored sentence scores LOWER against the same words than an unanchored one. The score degrades
-	// quietly rather than failing, which is why it survived: a near-match that should have warned about
-	// a duplicate just ranks lower. Stripped through the one definition of the layer.
+	// quietly rather than failing, which is why it survived: the sentence that should rank first just
+	// ranks lower. Stripped through the one definition of the layer.
 	for _, f := range strings.FieldsFunc(strings.ToLower(Visible(s)), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	}) {
@@ -136,7 +136,7 @@ func Tokenize(s string) map[string]bool {
 }
 
 // Jaccard is the overlap of two token sets: shared over union, 0..1. Empty on either side
-// is 0 (nothing to match), so a candidate or gap with no usable tokens simply does not rank.
+// is 0 (nothing to match), so a text with no usable tokens simply does not rank.
 func Jaccard(a, b map[string]bool) float64 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0

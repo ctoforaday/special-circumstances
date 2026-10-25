@@ -73,13 +73,22 @@ type (
 )
 
 // mapped is the workhorse era entry: rename old columns to their current names, drop the
-// ones whose retirement the schema recorded (each with its reason, which lands in the
-// refusal if the drop map is wrong), remap recorded value renames, then hold the result to
+// columns and lists whose retirement the schema recorded (each with its reason, which lands in
+// the refusal if the drop map is wrong), remap recorded value renames, then hold the result to
 // the same identity contract every kept word gets.
 func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entry {
 	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
 		out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,
-			Word: currentWord, Lists: old.Lists, Arms: old.Arms}
+			Word: currentWord, Arms: old.Arms}
+		for name, vals := range old.Lists {
+			if _, gone := dropped[name]; gone {
+				continue
+			}
+			if out.Lists == nil {
+				out.Lists = map[string][]string{}
+			}
+			out.Lists[name] = vals
+		}
 		for col, v := range old.Fields {
 			if _, gone := dropped[col]; gone {
 				continue

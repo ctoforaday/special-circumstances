@@ -113,8 +113,8 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "outcome", path: "outcome", role: "bench", code: "missing_field", short: true, logged: true},
 		{kind: "bad value", seat: lens, args: []string{"finding", "--quote", "q", "--reason", "r", "--severity", "banana"},
 			verb: "finding", path: "finding", role: "lens", code: "validation", short: true, logged: true},
-		{kind: "wrong arguments", seat: lens, args: []string{"near-match", "extra"},
-			verb: "near-match", path: "near-match", role: "lens", code: "validation", short: true, logged: true},
+		{kind: "wrong arguments", seat: lens, args: []string{"render-page", "extra"},
+			verb: "render-page", path: "render-page", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments, refused by the verb's own check", seat: chair, args: []string{"dispatch", "later"},
 			verb: "dispatch", path: "dispatch", role: "chair", code: "validation", teaches: true, logged: true},
 		// A FLAG GROUP has no row: no seat verb declares a group a call can violate (see

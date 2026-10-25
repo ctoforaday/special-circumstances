@@ -112,7 +112,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"), // re-dispatch rotates the nonce
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "b",
 					"--severity", "high", "--likelihood", "high", "--problem", "from the live dispatch",
-					"--impact", "high", "--distinct-from", "GAP001"), // a second gap, and the mint's screen is told so
+					"--impact", "high"), // a second gap
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},
 		},

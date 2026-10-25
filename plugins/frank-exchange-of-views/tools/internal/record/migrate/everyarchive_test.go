@@ -11,9 +11,9 @@ import (
 )
 
 // EVERY ARCHIVED RUN MIGRATES, with nothing refused. The per-run tests each pick one or two
-// tarballs, so a write-path check added later can refuse a run none of them covers: the mint
-// duplicate screen refused one historical mint in b8, and every act citing that gap cascaded after
-// it, while the suite stayed green. This is the census, not a sample.
+// tarballs, so a write-path check added later can refuse a run none of them covers, and every act
+// citing a refused act cascades after it while the suite stays green. This is the census, not a
+// sample.
 //
 // EVERY SEAT A MIGRATED RECORD HOLDS IS A SEAT. An archive spells its seats with rounds, lens
 // numbers and four bench ids; remap's `seat` translates each, and the role of an event's seat is

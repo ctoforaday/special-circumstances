@@ -1,4 +1,4 @@
-prompt sha256: 4c12a6f3f1d2d2a6bbd9f2f266d7eccfba88e18688269c69e40f9c8c1e4babdc
+prompt sha256: aeb9d47fbeaa30d3da29ff2b7b065a1337cd1205113edb1529dc0adf9a31d8af
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -29,7 +29,7 @@ The ids of your findings and of the gaps you mint are the tool's to assign.
 HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting.
 YOU MINT YOUR OWN GAPS.
-What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does.
+What you find that is real and belongs on the board goes there as YOUR gap: read the board first, because whether it already holds a candidate is your judgement — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does.
 A finding is your graded observation; a gap is your claim on the board.
 Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic.
 A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed.

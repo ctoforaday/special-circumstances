@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -129,10 +128,6 @@ type Gap struct {
 	ClosedEpoch int
 	HasClosed   bool
 	Mint        *recordpb.Mint
-	// Credits is each finding a lens credited the gap with since its mint (credit), in record order.
-	// FoundBy joins it to the mint's own list; a reader of what a gap was found by reads that, never
-	// Mint.found_by, which holds only the mint's half.
-	Credits []string
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
 	// closure arrives as one of two different messages.
 	//
@@ -166,12 +161,6 @@ type Gap struct {
 	// current severity against the floor. It is the gap view's "material" column (gap_grade's
 	// standing row), which FamilyOf reads.
 	Material bool
-}
-
-// FoundBy is the findings the gap is found by: its mint's found_by, then each finding a lens credited
-// it with since (Credits).
-func (g *Gap) FoundBy() []string {
-	return append(slices.Clone(g.Mint.GetFoundBy()), g.Credits...)
 }
 
 // NeedsComputation reports whether this gap's acceptance check is one PROSE CANNOT SETTLE.

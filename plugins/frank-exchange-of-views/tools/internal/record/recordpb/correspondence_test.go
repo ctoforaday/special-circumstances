@@ -86,10 +86,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And one more for `report_read`: the tool serving a lens the whole report at a head, which is
 	// the lens's pin.
-	//
-	// And one more for `credit`: a lens crediting an open gap with its finding that raised a
-	// contradiction whose defect the gap holds.
-	const wantBodies = 36
+	const wantBodies = 35
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

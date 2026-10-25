@@ -16,7 +16,7 @@ import (
 // EVERY DOCUMENT LOADS, HERE, RATHER THAN AT FIRST USE.
 //
 // Rendering moved out of package init because init order could not supply the values (measured: the
-// first version panicked on {{.NearMatchTopN}}, because package seat initializes before the package
+// first version panicked on a placeholder, because package seat initializes before the package
 // that supplies it). The cost of that move is that a malformed document now fails when its verb is
 // first constructed rather than at startup — so this forces all of them, and CI sees a broken one
 // without anybody having to run the verb it belongs to.

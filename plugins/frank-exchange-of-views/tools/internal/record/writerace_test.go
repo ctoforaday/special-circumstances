@@ -67,13 +67,6 @@ func gradeMotion(id, gap string, proposed recordpb.Grade) *recordpb.Motion {
 			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: proposed.Enum()}}}
 }
 
-func ordinalMint(gap, problem string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String(problem),
-		Location: proto.String("91 is the twenty-seventh semiprime."), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
-		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
-}
-
 func highMint(gap string) *recordpb.Mint {
 	return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("a material defect " + gap),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -134,21 +127,6 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 				return &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("ended")}
 			},
 			want: "M7 (petition, ruled by the bench seat)",
-		},
-		{
-			name: "a mint while another lens mints the same defect",
-			stage: func(t *testing.T) Run {
-				return newStage(t).cast("red-lens-dark-side", "red-lens-computation").ingest().
-					register("red-lens-dark-side").register("red-lens-computation").seed()
-			},
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "red-lens-dark-side", "race:mint:G1",
-					ordinalMint("G1", "91 is stated as the twenty-seventh semiprime and the second of the form 7·q; both ordinals are wrong."))}
-			},
-			seat: "red-lens-computation", body: func() proto.Message {
-				return ordinalMint("G2", "The ordinal position of 91 among semiprimes is stated wrongly: twenty-seventh and second of the form 7·q.")
-			},
-			want: "the board already holds an open gap this may be",
 		},
 		{
 			name: "a lens's two mints at once, one slot left",

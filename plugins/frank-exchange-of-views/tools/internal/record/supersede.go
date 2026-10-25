@@ -62,9 +62,7 @@ const (
 // ruling on an INQUIRY: a docket motion names a gap, an inquiry is not one, and no verb files a
 // motion on an inquiry — so that refusal ends without a tail. An anchor, a finding and a mint are
 // keyed on an id the tool mints per act, so a second with the same key is a retried write and
-// nothing else. No verb records an observe. A credit is numbered, so no key refuses a second; what
-// the write path refuses is a credit of a raise already answered, and no act takes a credit back,
-// as none takes back a mint's found_by.
+// nothing else. No verb records an observe.
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
 // the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The

@@ -439,7 +439,7 @@ func inStep(span string, a, at int, new string, s int) int {
 	return j
 }
 
-// nearestSentence is the sentence of text whose words overlap sent's most, by near-match's measure,
+// nearestSentence is the sentence of text whose words overlap sent's most (Jaccard over Tokenize),
 // or "" when none shares one — where a refused anchor's claim most likely now stands.
 func nearestSentence(text, sent string) (best string) {
 	words, most := anchortext.Tokenize(sent), 0.0

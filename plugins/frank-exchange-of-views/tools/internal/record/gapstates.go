@@ -74,7 +74,6 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 	byID := eventsByID(evs, win)
 	mints := map[string]*recordpb.Mint{}
 	regrades := map[string][]*recordpb.Regrade{}
-	credits := map[string][]string{}
 	for _, e := range evs {
 		switch m := mustBody(e).(type) {
 		case *recordpb.Mint:
@@ -83,15 +82,12 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 			}
 		case *recordpb.Regrade:
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
-		case *recordpb.Credit:
-			credits[m.GetGapId()] = append(credits[m.GetGapId()], m.GetFoundBy())
 		}
 	}
 	var out []*Gap
 	for _, row := range r.gaps {
 		g := &Gap{
 			ID: row.id, Epoch: row.epoch, Open: row.open, Mint: mints[row.id],
-			Credits:        credits[row.id],
 			Regrades:       regrades[row.id],
 			Severity:       gradeOrZero(row.sev),
 			Likelihood:     gradeOrZero(row.lik),
@@ -176,8 +172,8 @@ func FamilyOf(run Run) (Family, error) {
 	return familyOfReads(r)
 }
 
-// familyAt is FamilyOf asked of q, the write path's transaction: the mint's duplicate screen reads
-// the board the mint lands on.
+// familyAt is FamilyOf asked of q, the write path's transaction: a landing reads the board the write
+// lands on.
 func familyAt(q recordsql.Querier) (Family, error) {
 	r, err := familyReadsAt(q)
 	if err != nil {
@@ -203,13 +199,12 @@ func NewFamily(gaps []*Gap, m Merged) Family {
 }
 
 // gapFamilyActs narrows the whole stream to the acts the gap family reads — the mints and regrades
-// it folds, the credits that add to a gap's found_by, and the closes and docket rulings the gap view
-// names and it looks up — in record order.
+// it folds, and the closes and docket rulings the gap view names and it looks up — in record order.
 func gapFamilyActs(evs []*Event) []*Event {
 	var out []*Event
 	for _, e := range evs {
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE, recordpb.EventType_EVENT_TYPE_CREDIT,
+		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE,
 			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			out = append(out, e)
 		}

@@ -285,18 +285,13 @@ func contains(haystack []string, needle string) bool {
 
 // A READ VERB'S PAGE STATES THE JSON IT EMITS, and the keys are held to the ones that arrive — the
 // envelope's, and those of the result's first row (or of the result, for a verb that answers with one
-// object). near-match and render-page record nothing, and carried no tree until m28.
+// object). render-page records nothing, and carried no tree until m28.
 func TestEveryReadVerbDocumentsTheJSONItEmits(t *testing.T) {
 	cases := []struct {
 		verb []string
 		rows string // the result's list whose first row is checked; "" checks the result itself
 		call func(t *testing.T) (string, error)
 	}{
-		{[]string{"near-match"}, "matches", func(t *testing.T) (string, error) {
-			runDir := seatRun(t)
-			mintGap(t, runDir, "read-shape", "spec_underspecification")
-			return run(t, "near-match", "--run", runDir, "--seat-id", lensSeat, "--problem", "the defect", "--json")
-		}},
 		{[]string{"render-page"}, "", func(t *testing.T) (string, error) {
 			runDir, sha := ocrRun(t, threePages)
 			return run(t, "render-page", "--run", runDir, "--seat-id", lensSeat, "--sha", sha, "--page", "2", "--json")

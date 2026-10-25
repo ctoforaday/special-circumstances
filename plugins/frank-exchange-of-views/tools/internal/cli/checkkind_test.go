@@ -31,7 +31,7 @@ func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
 	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
 	registerLensOnce(t, runDir)  // and the lens mints
-	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "spec_underspecification",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",

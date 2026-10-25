@@ -50,13 +50,21 @@ func Entries() Registry {
 		// not carried. Its mints carry the slug, which valueRenames maps onto the set.
 		"class_new": {Translate: toNoEvent},
 		// A MINT'S COINING COLUMNS ARE NOT CARRIED, for the same reason: the jsonl era's mint-carried
-		// trio and the sqlite era's class_new flag both arrive here.
+		// trio and the sqlite era's class_new flag both arrive here. Nor is a mint's distinct_from
+		// list, which a source before epoch 45 may hold.
 		"mint": mapped("mint", nil, drops{
 			"class_new":     mintCoiningDrop,
 			"definition":    mintCoiningDrop,
 			"neighbor":      mintCoiningDrop,
 			"distinguisher": mintCoiningDrop,
+			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
 		}, nil),
+		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding its
+		// raising finding to an open gap's found_by, which answered the contradiction that finding
+		// raised. The record answers a contradiction with the gap minted from its raising finding and
+		// with nothing else, so a credited contradiction comes forward unanswered and the credited
+		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
+		"credit": {Translate: toNoEvent},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the proofs replayed before it
