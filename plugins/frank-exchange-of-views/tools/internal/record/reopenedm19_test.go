@@ -113,15 +113,21 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// AND EACH OWNER IS READY: it owes the check, so it is not retired, and the head has moved past
-	// its last sitting (retirement.go).
+	// AND EACH OWNER IS READY: it owes the check, so it is not retired, and its pin is behind the head
+	// (retirement.go). THE ARCHIVE PREDATES THE REPORT READ, so no lens of it was ever served the
+	// report on the record and every unretired lens is behind the head: an owner's reason names its
+	// reopened check, any other's that it was never served the report.
+	owners := map[string]bool{computationSeat: true, evLens: true}
 	var got []reopened
 	var ready []string
 	unraised := false
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
-			if !strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ") {
-				t.Errorf("%s is ready for %q, want it ready because it owes a reopened check", b.Subject, b.foldWhy)
+			switch {
+			case !strings.Contains(b.foldWhy, "no sitting it sat through was served the whole report"):
+				t.Errorf("%s is ready for %q, want it behind the head: the archive records no report read", b.Subject, b.foldWhy)
+			case owners[b.Subject] && (!strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ")):
+				t.Errorf("%s is ready for %q, want it unretired because it owes a reopened check", b.Subject, b.foldWhy)
 			}
 			ready = append(ready, b.Subject)
 			continue
@@ -148,8 +154,8 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)
 	}
-	if slices.Sort(ready); !slices.Equal(ready, []string{computationSeat, evLens}) {
-		t.Errorf("ready lenses = %q, want the two owners", ready)
+	if slices.Sort(ready); !slices.Contains(ready, computationSeat) || !slices.Contains(ready, evLens) {
+		t.Errorf("ready lenses = %q, want the two owners among them", ready)
 	}
 	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
@@ -217,7 +223,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		// Each owner is readied because it owes the anchors' checks: its reason names every one it owns.
 		for _, r := range m19Reopened {
 			if !slices.ContainsFunc(plan.Why, func(w string) bool {
-				return strings.HasPrefix(w, m19Owner(r)+": head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "reopened "+r.anchor)
+				return strings.HasPrefix(w, m19Owner(r)+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "reopened "+r.anchor)
 			}) {
 				t.Errorf("the plan at event %d does not ready %s for %s: %q", c.before, m19Owner(r), r.anchor, plan.Why)
 			}

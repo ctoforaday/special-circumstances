@@ -15,7 +15,7 @@ import (
 // and convenes the bench on it.
 func atImpasse(t *testing.T) Run {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high")
 	for i := 0; i < 3; i++ {
 		b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
 	}
@@ -125,7 +125,7 @@ func TestTwoAskingsOfDispatchNextRecordOneDecision(t *testing.T) {
 func TestDispatchNextRecordsThePlanOfTheRecordItLandsOn(t *testing.T) {
 	stage := func() Run {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high").
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
 			register("red-chair").seed()
 	}
 	closes := func() []*Event { return []*Event{recordtest.At(t, evLens, "race:close:G1", repairClose("G1"))} }

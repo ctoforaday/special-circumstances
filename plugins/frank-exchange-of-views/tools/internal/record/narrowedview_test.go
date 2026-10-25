@@ -108,6 +108,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
+		// The whole report served to a lens (debate).
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.ReportRead{Head: proto.Int64(1)}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),
@@ -429,7 +431,7 @@ func benchClosing(id string) *recordpb.MotionRule {
 func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	const gaps = 25
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens)
+		register("red-chair").sit(2, evLens)
 	for i := 1; i <= gaps; i++ {
 		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
 	}
@@ -571,7 +573,7 @@ func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T)
 func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(t *testing.T) {
 	const gaps = 25
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens)
+		register("red-chair").sit(2, evLens)
 	for i := 1; i <= gaps; i++ {
 		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
 	}

@@ -18,7 +18,8 @@ func (b *stage) closing(seat, gap string) *stage {
 // sat since: both parties' closings are awaited.
 func docketed(t *testing.T) *stage {
 	return newStage(t).cast(evLens, outsideLens, "red-chair", "blue-respond", "blue-lane-1", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).dispatch(2, outsideLens).register(evLens).register(outsideLens).mint(evLens, "G1", "medium").
+		register("red-chair").dispatch(2, evLens).dispatch(2, outsideLens).register(evLens).register(outsideLens).
+		served(evLens, 2).served(outsideLens, 2).mint(evLens, "G1", "medium").
 		register("red-chair").docketMotion("blue-respond", "M1", "G1")
 }
 
@@ -95,7 +96,7 @@ func TestADocketedGapOwesAClosingFromBothPartiesAndTheBenchWaits(t *testing.T) {
 	// A CLOSING ANSWERS THE DOCKETING IT FOLLOWS: one filed before the motion answers none.
 	t.Run("a closing filed before the docketing answers nothing", func(t *testing.T) {
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
 			closing(evLens, "G1").closing("blue-respond", "G1").
 			register("red-chair").docketMotion("blue-respond", "M1", "G1")
 		if got := closingOwners(t, b.seed()); len(got) != 2 {

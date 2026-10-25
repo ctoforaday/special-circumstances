@@ -98,21 +98,21 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, want{evLens, true, nil, nil, evLens + ` read a source contradicting "the sky is green" (contradiction `}},
 		{"a contradiction its lens has sat since is not readied again", func(b *stage) {
-			b.add(evLens, contradictingVerify("the sky is green")).dispatch(2, evLens).register(evLens)
+			b.add(evLens, contradictingVerify("the sky is green")).sit(2, evLens)
 		}, want{evLens, false, nil, nil, evLens + " has sat since it read a source contradicting"}},
 		// A reopened anchor's owner owes its check, so it is not retired, and the edit moved the head.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
-		}, want{evLens, true, nil, nil, evLens + ": head 10 moved past its last sitting's pin 2 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes reopened C-1)"}},
+		}, want{evLens, true, nil, nil, evLens + ": the whole report was last served to it at its pin 2, behind head 12 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes reopened C-1)"}},
 		{"a reopened citation its lens has sat since is not readied again", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
-		}, want{evLens, false, nil, nil, evLens + ": sat at the head (pin 10) — ready when the head moves"}},
+		}, want{evLens, false, nil, nil, evLens + ": served the report at the head (pin 12) — ready when the head moves"}},
 	}
 	for _, c := range rows {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-				register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+				register("red-chair").sit(2, evLens).sit(2, evLens)
 			c.build(b)
 			b.register("red-chair")
 			run := b.seed()
@@ -250,7 +250,7 @@ func TestTheDispatchRowCarriesTheBenchsOccasionsAndNoOtherSeats(t *testing.T) {
 func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
 	impasse := func() *stage {
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "high")
 		for i := 0; i < 3; i++ {
 			b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
 		}

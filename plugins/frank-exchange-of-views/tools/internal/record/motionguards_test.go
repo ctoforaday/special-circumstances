@@ -132,7 +132,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).
+		register("red-chair").sit(2, evLens).
 		mint(evLens, "G1", "high").mint(evLens, "G2", "high").seed()
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("severity is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),

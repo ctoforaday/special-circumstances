@@ -32,18 +32,21 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	lens := func() *record.Event {
 		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")})
 	}
+	served := func() *record.Event {
+		return at("red-lens-evidence", &recordpb.ReportRead{Head: proto.Int64(2)})
+	}
 	evs := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
-		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}),
+		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served(),
 	}
 	if withGap {
 		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(limitGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}
-	for range 2 { // it has sat at the head, so the head readies it for nothing further
-		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}))
+	for range 2 { // it has been served the report at the head, so the head readies it for nothing further
+		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served())
 	}
 	evs = append(evs, at("red-chair", &recordpb.Register{}))
 	recordtest.Seed(t, runDir, evs...)

@@ -115,7 +115,7 @@ func TestADispatchAskedAgainStands(t *testing.T) {
 			t.Errorf("%s: a different plan stood as the recorded one", name)
 		}
 	}
-	sat := newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).register(evLens).seed()
+	sat := newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").sit(2, evLens).seed()
 	if ok, _ := dispatchStandsOn(t, sat, same); ok {
 		t.Error("the lens sat since the dispatch, and the same plan stood — a new sitting's dispatch would go unrecorded")
 	}

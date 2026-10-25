@@ -123,7 +123,7 @@ func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
 func TestTheChairsWorkListIsTheSameWithAndWithoutAPosition(t *testing.T) {
 	sat := func(t *testing.T) *stage {
 		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+			register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
 			register("red-chair")
 	}
 	without := sittingOfRunT(t, sat(t).seed(), "chair", "red-chair")
@@ -152,7 +152,7 @@ func TestTheChairsWorkListIsTheSameWithAndWithoutAPosition(t *testing.T) {
 // and all. Its argument on a gap is its closing.
 func TestBlueRespondsWorkListAsksForNoPosition(t *testing.T) {
 	s := sittingOfRunT(t, newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "medium").
 		register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a").stop("blue-a").seed(), "blue", "blue-respond")
 	if listsItem(s, "position") {
 		t.Fatalf("blue-respond's list names a position: %+v", s.Open)

@@ -305,6 +305,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				st.Through = proto.Int64(to)
 			}
+			// A REPORT READ'S HEAD is an events.id too — the lens's pin — translated as a dispatch's.
+			if rr, ok := body.(*recordpb.ReportRead); ok && rr.Head != nil {
+				to, landed := newID[rr.GetHead()]
+				if !landed {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this report read was served at event %d, which wrote no event on the migrated record before it — the pin would name whatever event holds that number", rr.GetHead())})
+					continue
+				}
+				rr.Head = proto.Int64(to)
+			}
 			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place.
