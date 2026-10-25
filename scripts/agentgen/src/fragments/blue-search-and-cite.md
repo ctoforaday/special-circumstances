@@ -18,9 +18,9 @@
   read what each one marks on the record before you place it. The record lists each anchor
   whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
   stands, its referent moved, so its check is stale rather than refuted. Its owning lens owes
-  the new check and is readied for it — the evidence lens for a citation; for a proof the
-  computation lens, or the evidence lens where the cast seats none. A check by any lens from a
-  sitting opened after the edit clears it, and a PASS waits until one does.
+  the new check and is readied for it — the evidence lens for a citation, the computation lens
+  for a proof. A check by any lens from a sitting opened after the edit clears it, and a PASS
+  waits until one does.
 - **A PROOF A LENS JUDGED UNSOUND HOLDS THE PASS, AND IT IS YOURS TO FIX OR RETIRE.** While a
   lens's judgement that a proof does not establish its sentence stands, no PASS can be recorded,
   and you are readied for it. Fix it — an edit that makes the sentence say what the script shows,

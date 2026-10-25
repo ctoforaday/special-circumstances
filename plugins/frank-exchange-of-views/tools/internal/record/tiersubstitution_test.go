@@ -31,7 +31,7 @@ func runWithTiers(t *testing.T, cfg string) string {
 		t.Fatal(err)
 	}
 	// A lane is tier-bound because the CAST says it is a lane; its id carries no such fact.
-	seats, laneSeats := CastFor(nil, 1)
+	seats, laneSeats := CastFor(1)
 	recordtest.Seed(t, run, recordtest.At(t, HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}))
 	return run

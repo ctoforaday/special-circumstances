@@ -1104,8 +1104,8 @@ const chairSeat = "red-chair"
 // the bench.
 const benchSeat = "judge"
 
-// evidenceSeat is the evidence lens's seat — the one that owes every citation's check, and a proof's
-// where the cast seats no computation lens (anchorOwnerOf). Another lens's check clears a citation
+// evidenceSeat is the evidence lens's seat — the one that owes every citation's check
+// (anchorOwnerOf). Another lens's check clears a citation
 // as well (citedClaimsWithoutVerify, reopenedEvidence).
 const evidenceSeat = "red-lens-evidence"
 

@@ -1591,7 +1591,7 @@ func tarNames(t *testing.T, path string) []string {
 // tier-bound, which is the honest answer to a record that never said what the seat was.
 func castWithOneLane(t *testing.T) *recordpb.Event {
 	t.Helper()
-	seats, laneSeats := record.CastFor(nil, 1)
+	seats, laneSeats := record.CastFor(1)
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }

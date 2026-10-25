@@ -38,7 +38,7 @@ import (
 // An edit answers every check of the anchor at once: they are of a sentence the report no longer
 // carries, so none stands, and the anchor is REOPENED — owed a fresh check from a sitting opened
 // after the edit. Blue cannot dissolve red's verdict by rewording: the reopened anchor is owed,
-// and holds a PASS where the cast seats the lens that owns it (passBlockersOf).
+// and holds a PASS (passBlockersOf).
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
 // `reproduce` naming a proof.

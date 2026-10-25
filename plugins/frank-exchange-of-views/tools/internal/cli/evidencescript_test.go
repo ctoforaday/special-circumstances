@@ -24,11 +24,11 @@ import (
 // instead.
 
 // provenRun records one proof and returns its anchor and sha256 as the unscoped table lists them.
-// Its cast seats the evidence lens and no computation lens, so the proofs are the evidence lens's.
+// Its cast seats every lens; the proofs are the computation lens's.
 func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 	t.Helper()
 	runDir = newRun(t)
-	cast, lanes := record.CastFor([]string{"evidence", "logic"}, 1)
+	cast, lanes := record.CastFor(1)
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)
@@ -40,8 +40,10 @@ func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 		t.Fatal(err)
 	}
 	p := lastBody(t, runDir, &recordpb.Proof{})
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
-		t.Fatal(err)
+	for _, lens := range []string{"red-lens-evidence", "red-lens-computation"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return runDir, p.GetProofId(), p.GetProofSha()
 }
@@ -62,7 +64,7 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 
 	// THE WORK ITEM THAT SENDS A LENS TO THE PROOF SAYS WHERE ITS SCRIPT IS READ, before it names
 	// the act that re-runs it and records the verdict.
-	work, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "work")
+	work, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-computation", "work")
 	if err != nil {
 		t.Fatalf("show work: %v", err)
 	}
@@ -72,7 +74,7 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 	}
 
 	// BOTH PARTIES READ IT: the lens that judges the script, and blue, who wrote it and answers for it.
-	for _, seat := range []string{"red-lens-evidence", "blue-respond"} {
+	for _, seat := range []string{"red-lens-computation", "blue-respond"} {
 		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "evidence", "--anchor", anchor)
 		if err != nil {
 			t.Fatalf("%s: show evidence --anchor %s: %v", seat, anchor, err)

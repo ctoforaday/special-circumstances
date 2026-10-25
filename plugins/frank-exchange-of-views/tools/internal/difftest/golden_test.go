@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -207,9 +208,16 @@ func seedCast(t *testing.T, runDir string, seats []string) {
 	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:cast", &recordpb.Cast{SeatIds: seats}))
 }
 
-// castOf is the cast setup writes for a run auditing these lens areas with one blue lane.
+// castOf is a fixture's cast: the cast setup writes for one blue lane with only the lenses of
+// these areas, so a golden lists no lens its scenario never sits.
 func castOf(areas ...string) []string {
-	seats, _ := record.CastFor(areas, 1)
+	all, _ := record.CastFor(1)
+	var seats []string
+	for _, s := range all {
+		if area, lens := strings.CutPrefix(s, "red-lens-"); !lens || slices.Contains(areas, area) {
+			seats = append(seats, s)
+		}
+	}
 	return seats
 }
 

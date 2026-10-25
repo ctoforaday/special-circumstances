@@ -172,16 +172,12 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 			out[b.Owner] = append(out[b.Owner], owedBlocker(b))
 		}
 	}
-	cast := castOfEvents(evs)
-	if owner := anchorOwnerOf(cast, false); owner != "" {
-		for _, key := range citedClaimsWithoutVerify(evs) {
-			out[owner] = append(out[owner], "unverified citation "+key)
-		}
+	citations, proofs := anchorOwnerOf(false), anchorOwnerOf(true)
+	for _, key := range citedClaimsWithoutVerify(evs) {
+		out[citations] = append(out[citations], "unverified citation "+key)
 	}
-	if owner := anchorOwnerOf(cast, true); owner != "" {
-		for _, o := range proofChecksOwed(evs, win) {
-			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
-		}
+	for _, o := range proofChecksOwed(evs, win) {
+		out[proofs] = append(out[proofs], "unjudged proof "+o.Anchor)
 	}
 	return out
 }

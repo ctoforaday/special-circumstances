@@ -332,18 +332,6 @@ func TestAnUnreachableFirstCheckAfterTheEditDoesNotReopen(t *testing.T) {
 	}
 }
 
-// F7: with no evidence lens to dispatch, the anchor is shown and holds nothing.
-func TestNoEvidenceLensInTheCastNoBlocker(t *testing.T) {
-	run := newStage(t).cast(outsideLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		dispatch(2, outsideLens).register(outsideLens).cite("C-1").supports(outsideLens, "C-1").reopen("C-1").seed()
-	if rows := standingOf(t, run); len(rows) != 1 || rows[0].Anchor != "C-1" {
-		t.Fatalf("show evidence reopened = %+v, want C-1 listed", rows)
-	}
-	if got := reopenedOf(t, run); len(got) != 0 {
-		t.Errorf("blockers = %+v, want none: no seat on this cast is dispatched for it", got)
-	}
-}
-
 // F8: the sitting the evidence lens is readied into for a reopened anchor is a sitting like any
 // other in the lens fold — one that mints nothing fresh is barren.
 func TestAReopenedSittingCountsInTheRetirementFold(t *testing.T) {
