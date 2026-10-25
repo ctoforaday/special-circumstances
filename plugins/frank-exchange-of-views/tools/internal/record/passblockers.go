@@ -236,8 +236,8 @@ var blockerKinds = []blockerKind{
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
-	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (gblock,
-	// 2026-10-24: the bench's remand outranks materiality). A material gap holds it as material_gap
+	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (ruled by
+	// gblock 2026-10-24). A material gap holds it as material_gap
 	// whatever its remand; this row is the one a gap below material holds once the bench has sent it
 	// back, so the plan that readies its minting lens and blue never reads as permitting a PASS over
 	// the exchange it readies them for (routeOf).
