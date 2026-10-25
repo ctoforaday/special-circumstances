@@ -65,11 +65,11 @@ func TestARunWithAnOutcomeRefusesSeatActsAndLogsEach(t *testing.T) {
 	}
 	acts := []act{
 		{"a lens's mint", lensSeat, "agent_lens_late", recordpb.EventType_EVENT_TYPE_MINT, func(runDir, _ string) []string {
-			return append([]string{"mint", "--run", runDir, "--seat-id", lensSeat, "--key", "late",
+			return []string{"mint", "--run", runDir, "--seat-id", lensSeat, "--key", "late",
 				"--about-kind", "section", "--about", "Findings",
 				"--class", "spec_underspecification", "--problem", "a defect found late", "--fix", "the fix",
 				"--check-kind", "document", "--check", "the acceptance check",
-				"--severity", "medium", "--likelihood", "medium", "--impact", "medium"}, distinctFromOpen(t, runDir)...)
+				"--severity", "medium", "--likelihood", "medium", "--impact", "medium"}
 		}},
 		{"a lens's regrade", lensSeat, "agent_lens_late", recordpb.EventType_EVENT_TYPE_REGRADE, func(runDir, gap string) []string {
 			return []string{"regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap, "--severity", "low",

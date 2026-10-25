@@ -345,8 +345,8 @@ func TestEveryCommandPathNamedInAStringResolves(t *testing.T) {
 
 // EVERY FLAG A HELP PAGE NAMES IS ON THAT PAGE.
 //
-// A usage line is read on ONE page. `near-match --quote` carried the shared --quote contract,
-// whose last sentence says "Name the section in --reason" — and near-match has no --reason. A seat
+// A usage line is read on ONE page. A verb carrying the shared --quote contract, whose last
+// sentence says "Name the section in --reason", on a verb with no --reason sends a seat
 // following the page it is reading types a flag the page does not list, and the refusal it gets is
 // cobra's "unknown flag", which teaches nothing about where the sentence was meant to go.
 //

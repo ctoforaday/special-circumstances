@@ -73,7 +73,7 @@ The report is the research prose written for a reader of the subject: one docume
 
 **Collisions:**
 
-- **candidate** — a gap a lens is about to mint, screened by near-match, keeps the word; lane text is the report
+- **candidate** — a gap a lens is about to mint keeps the word; lane text is the report
 - **report.md** — blue/report.md is the synthesizer's file until ingest removes it; report.md at the run root is the assembled report
 
 ## run directory
@@ -428,7 +428,7 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 ## contradiction
 
-A contradiction is a source red read that refutes, or is silent on, a claim of the report, raised by the finding that names its id (a reading of that claim after the raise opens a new contradiction with its own id), and held open until a gap answers it — the gap minted from that finding, or an open gap that finding's lens credits with it — or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it; the finding alone answers nothing, and a contradiction is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
+A contradiction is a source red read that refutes, or is silent on, a claim of the report, raised by the finding that names its id (a reading of that claim after the raise opens a new contradiction with its own id), and held open until the gap minted from that finding answers it, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it; the finding alone answers nothing, and a contradiction is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
 
 **Delivered to:** lens, chair
 

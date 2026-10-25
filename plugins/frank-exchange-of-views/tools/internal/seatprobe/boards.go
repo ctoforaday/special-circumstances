@@ -368,7 +368,7 @@ Reversibility under load was not tested.
 // and an open gap that is NOT the chair's to close.
 //
 // THE CHAIR MINTS NOTHING AND CLOSES NOTHING (plans/roundless.md §III.B.3). This board used to
-// demand `mint`, `near-match` and `close` of the chair; those are the lens's verbs
+// demand `mint` and `close` of the chair; those are the lens's verbs
 // now and `lens-gaps` demands them of the lens that holds them. What is left here is the chair's
 // own job — running the debate: dispatch the parties, sample the archive, carry what an earlier
 // sitting settled, file the narrative.
@@ -530,7 +530,6 @@ The working group's standard has been withdrawn since the benchmark was run.
 		}},
 		Expect: []Expectation{
 			{Seat: "red-lens-evidence", Verb: "mint", Because: "The lens's core act since the chair stopped transcribing (roundless §III.B.3): a defect it can anchor to a sentence goes on the board as ITS gap, graded on every axis, against its own budget. The withdrawn standard is exactly that — a methodology claim whose foundation is gone."},
-			{Seat: "red-lens-evidence", Verb: "near-match", Because: "Before minting, the candidate is screened against the board, open and archived. A duplicate minted as fresh forks the lineage; the screen is a tool op and the lens runs it — the chair's eye is not in the loop any more."},
 			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
 			{Seat: "red-lens-evidence", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
@@ -872,9 +871,6 @@ var NoSituation = map[string]string{
 		"record-parity audit holds the duty instead.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
-	"lens credit": "possible and real — a lens whose answering mint the duplicate screen refuses credits the open gap it names — but " +
-		"its sitting needs a contradiction the lens read and raised, a refuting reading and a raising finding, and a board stages " +
-		"neither; the record's tests and the release fuzz drive it whole.",
 }
 
 // AlwaysTaken are the verbs no board needs to bait, with why.

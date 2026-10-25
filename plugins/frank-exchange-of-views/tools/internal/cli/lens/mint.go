@@ -28,13 +28,11 @@ import (
 // four different "R5-1"s in one round of run 3, and the collision class dies here
 // rather than being policed downstream.
 //
-// The duplicate screen runs AT THE WRITE because another lens may mint while this one works, so a
-// `near-match` read earlier cannot answer for the board as the mint finds it. A soft tell in the
-// printed text ("this run", "epoch 3") is flagged and not refused because a subject can use those
-// words too. What to do where a matched gap IS this defect is on the page (help/mint.md), once.
+// A soft tell in the printed text ("this run", "epoch 3") is flagged and not refused because a
+// subject can use those words too.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	var supersedes, foundBy, distinctFrom flags.CSV
+	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -159,7 +157,6 @@ func newMint() *cobra.Command {
 		p.ComplexityCost = seat.GradeOrNil(&cx)
 		p.Supersedes = supersedes.Value()
 		p.FoundBy = foundBy.Value()
-		p.DistinctFrom = distinctFrom.Value()
 
 		// Crash-retry idempotency: --key (the stable local label, e.g. the source lens finding) makes
 		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
@@ -276,7 +273,6 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
-	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -386,10 +382,7 @@ func contains(xs []string, want string) bool {
 }
 
 // mintAsserted is what a gap states, and so what a retry under its key must state again: everything
-// the seat says of the defect and where, and its argument for it. Not compared: --distinct-from,
-// which answers the duplicate screen against the board as the seat read it — a retry rebuilt after
-// a crash reads a board that has moved, and refusing it would send the seat to mint the same gap
-// again under another key.
+// the seat says of the defect and where, and its argument for it.
 var mintAsserted = []seat.Asserted{
 	{Flag: flags.Quote, Field: "location"},
 	{Flag: flags.Reason, Field: "mint_reason"},

@@ -827,7 +827,7 @@ func withdrawnClaims(fam record.Family) string {
 // restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
 func provenance(g *record.Gap, findings map[string]*record.Event) string {
-	fb := g.FoundBy()
+	fb := g.Mint.GetFoundBy()
 	if len(fb) == 0 {
 		return ""
 	}
@@ -1190,7 +1190,7 @@ func unmintedFindings(fam record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.FoundBy() {
+		for _, lbl := range g.Mint.GetFoundBy() {
 			minted[lbl] = true
 		}
 	}

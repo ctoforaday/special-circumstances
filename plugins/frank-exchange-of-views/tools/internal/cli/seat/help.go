@@ -64,10 +64,10 @@ const MenuLimit = 120
 
 // HelpValues are the facts a help document may RENDER rather than restate.
 //
-// `near-match` said "returns the top 5 gaps" by interpolating nearMatchTopN — the number came from
-// the constant that governs it, so changing the constant changed the sentence. Moving the help into
-// a file would have frozen a hand-typed 5 beside a constant free to move, which is the two-copies
-// shape this repository keeps deleting. A document names {{.NearMatchTopN}} instead.
+// `verdict` lists the PASS blockers by rendering record.PassBlockerGlosses — the list comes from
+// the table that governs it, so changing the table changes the sentence. A hand-typed list in the
+// file would sit beside a table free to move, which is the two-copies shape this repository keeps
+// deleting. A document names {{.PassBlockerKinds}} instead.
 //
 // missingkey=error, so a placeholder with no value is a PANIC and never renders "<no value>" into
 // a menu line where a seat would read it as the tool's considered wording.
@@ -76,8 +76,8 @@ var HelpValues = map[string]any{}
 type helpDoc struct{ menu, detail string }
 
 // RAW AT INIT, RENDERED AT USE. Rendering here would run before any other package's init had
-// contributed to HelpValues — measured: the first version panicked on {{.NearMatchTopN}} because
-// package seat initializes before package merge, which supplies it. The command tree is built after
+// contributed to HelpValues — measured: the first version panicked on a placeholder because
+// package seat initializes before the package that supplies it. The command tree is built after
 // every init has run, so resolution happens there.
 var helpSrc = mustLoadHelp()
 
