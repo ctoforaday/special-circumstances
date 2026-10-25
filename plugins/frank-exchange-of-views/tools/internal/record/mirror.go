@@ -4,9 +4,11 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -58,10 +60,14 @@ func MirrorDir(runDir string) (string, error) {
 // THE MIRROR IS ONE DATABASE FILE, taken through the record's own connection
 // (recordsql.SnapshotInto), and nothing else. A file copy of records/ is the wrong instrument
 // twice over: the database, its log and its shared memory are copied at three different moments
-// from a run whose other seats are still writing, and on Linux closing the copy's descriptor drops
-// the SHARED lock this process's connection holds on the live record. The snapshot is a committed
-// state with the log folded in, so the mirror opens on its own; anything else in the directory is
-// not the record and is removed before the snapshot lands.
+// from a run whose other seats are still writing, and under POSIX fcntl locking closing the copy's
+// descriptor drops the SHARED lock this process's connection holds on the live record. The
+// snapshot is a committed state with the log folded in, so the mirror opens on its own.
+//
+// THE OLD MIRROR STANDS UNTIL THE NEW ONE EXISTS: the snapshot is staged and synced beside it,
+// then everything else in the directory — the previous snapshot's log or shared memory, which the
+// next open would replay into the new database — is removed, then the staged file is renamed over
+// record.db and the directory synced. A failure before the rename leaves the last good mirror.
 func WriteMirror(run Run) (string, error) {
 	mirror, err := MirrorDir(run.Dir())
 	if err != nil {
@@ -76,22 +82,43 @@ func WriteMirror(run Run) (string, error) {
 	} else if err != nil {
 		return "", err
 	}
+	staged := dbName + ".partial"
+	if err := recordsql.SnapshotInto(src, filepath.Join(mirror, staged)); err != nil {
+		return "", err
+	}
 	entries, err := os.ReadDir(mirror)
 	if err != nil {
 		return "", err
 	}
 	for _, e := range entries {
-		if e.Name() == dbName {
+		if e.Name() == staged {
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(mirror, e.Name())); err != nil {
 			return "", err
 		}
 	}
-	if err := recordsql.SnapshotInto(src, filepath.Join(mirror, dbName)); err != nil {
+	if err := os.Rename(filepath.Join(mirror, staged), filepath.Join(mirror, dbName)); err != nil {
 		return "", err
 	}
-	return mirror, nil
+	return mirror, syncDir(mirror)
+}
+
+// syncDir makes the directory's entries durable — the rename that published the snapshot. Windows
+// has no directory handle to sync, and NTFS journals the rename itself.
+func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	if err := d.Sync(); err != nil {
+		_ = d.Close()
+		return fmt.Errorf("syncing the mirror directory %s: %w", dir, err)
+	}
+	return d.Close()
 }
 
 // PurgeStaleMirrors removes mirrors untouched for maxAgeDays and reports how many went.

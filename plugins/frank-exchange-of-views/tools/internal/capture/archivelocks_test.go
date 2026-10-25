@@ -16,8 +16,8 @@ import (
 
 // ARCHIVING READS THE RECORD'S BYTES WITHOUT TAKING THE PROCESS'S LOCKS WITH THEM.
 //
-// Capture keeps reading and writing the record after it archives it — the seat-turn ingest, the
-// audits. On Linux, os.ReadFile of record.db while this process's connection is open closes a
+// Capture keeps reading the record after it archives it — the seat-turn ingest, the audits. Under
+// POSIX fcntl locking, os.ReadFile of record.db while this process's connection is open closes a
 // descriptor on the file and with it every POSIX lock the process holds there; the connection
 // keeps answering and never re-takes the SHARED lock it believes it holds. So the act after the
 // archive is read through the record path and the kernel's table is asked whether that read is
@@ -59,7 +59,7 @@ func TestArchivingTheRecordLeavesTheNextReadHoldingItsLock(t *testing.T) {
 	if err := after.QueryRow(`SELECT COUNT(*) FROM ev`).Scan(&live); err != nil {
 		t.Fatal(err)
 	}
-	if n := recordtest.PosixLocksHeld(t, dbPath); n == 0 {
+	if n, measured := recordtest.PosixLocksHeld(t, dbPath); measured && n == 0 {
 		t.Errorf("a read through the record after archiving holds no POSIX lock on record.db — the archive " +
 			"closed a descriptor on the database beside this process's open connection")
 	}

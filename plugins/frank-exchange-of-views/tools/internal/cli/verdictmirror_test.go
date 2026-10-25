@@ -14,8 +14,8 @@ import (
 
 // THE VERDICT'S CHECKPOINT LEAVES THIS PROCESS'S HOLD ON THE RECORD WHERE IT WAS.
 //
-// The verb records the verdict through the cached connection and then mirrors the record. On
-// Linux a descriptor opened on record.db or its -shm and closed again — a file copy — drops every
+// The verb records the verdict through the cached connection and then mirrors the record. Under
+// POSIX fcntl locking a descriptor opened on record.db or its -shm and closed again — a file copy — drops every
 // POSIX lock the process holds on that file, and the connection carries on believing it still
 // holds them. Measured from the kernel's own table, because a lost lock changes no answer the
 // connection gives.
@@ -44,7 +44,7 @@ func TestTheVerdictCheckpointKeepsTheRecordLockedAndMirrorsOneConsistentDatabase
 
 	live := filepath.Join(runDir, "records", "record.db")
 	for _, f := range []string{live, live + "-shm"} {
-		if n := recordtest.PosixLocksHeld(t, f); n == 0 {
+		if n, measured := recordtest.PosixLocksHeld(t, f); measured && n == 0 {
 			t.Errorf("after the verdict, this process holds no POSIX lock on %s while its connection is still open — "+
 				"something opened and closed a descriptor on the live record beside it", filepath.Base(f))
 		}

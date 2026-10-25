@@ -1,10 +1,13 @@
 package recordsql
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 // A SEALED RECORD READS THE SAME WITH AND WITHOUT ITS WRITE-AHEAD LOG, and an unsealed one does
@@ -100,4 +103,46 @@ func countVia(t *testing.T, dsn string) int {
 		return -1
 	}
 	return n
+}
+
+// A LEASED CONNECTION IS REFUSED, NOT WAITED ON OR CLOSED UNDER. The pool's one connection, leased,
+// would leave the seal waiting forever; and database/sql closes an in-use connection only when it is
+// returned, so its descriptor would stay open across the byte read whose close then drops its locks.
+// The refusal leaves the handle cached and usable; once the lease ends the read goes through. The
+// call runs under a deadline, so a missing refusal fails here rather than at the suite's timeout.
+func TestSealedBytesRefusesWhileAConnectionIsLeased(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "record.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = Close(path) })
+	if _, err := db.Exec(`CREATE TABLE ev (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := SealedBytes(path); done <- err }()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "still in use") {
+			t.Fatalf("SealedBytes with a leased connection = %v, want a refusal naming the connection in use", err)
+		}
+	case <-time.After(20 * time.Second):
+		_ = conn.Close()
+		t.Fatal("SealedBytes with a leased connection did not return: it waited on the lease instead of refusing")
+	}
+	if again, err := Open(path); err != nil || again != db {
+		t.Fatalf("the refusal released the cached handle (reopen = %p, %v; was %p)", again, err, db)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := SealedBytes(path)
+	if err != nil || len(b) == 0 {
+		t.Fatalf("SealedBytes after the lease ended = %d bytes, %v", len(b), err)
+	}
 }

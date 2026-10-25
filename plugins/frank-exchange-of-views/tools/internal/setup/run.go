@@ -231,7 +231,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 	// Setup holds no record handle past this write: the seats open their own.
-	_ = recordsql.Close(filepath.Join(run.Dir(), "records", "record.db"))
+	_ = recordsql.Close(filepath.Join(run.Records(), "record.db"))
 
 	BuildSkeleton(run)
 	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
