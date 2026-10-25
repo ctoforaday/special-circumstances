@@ -687,11 +687,13 @@ jobs:
       # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
       # bytes a stackless dev box compiles; the real engine has its own step above.
       #
-      # -timeout=40m ON THE NIGHTLY, where the debate sweep runs: it outruns Go's default ten
-      # minutes per package, and the leg then fails on the clock with the sweep's own verdict
-      # unprinted. The release job's sweep step carries the same bound for the same reason; every
-      # other event keeps the default, where no package runs that long. Both arms are workflow literals, like the -short arms.
-      - run: go test ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+      # -timeout=100m ON THE NIGHTLY, where the debate sweep runs: TestFuzzDebate alone took
+      # 4271s (71 min) on a runner to itself (release-fuzz, run 40178244370), and a 40-minute
+      # bound killed it mid-sweep on main's nightly (run 40181045085), the leg failing on the clock
+      # with the sweep's own verdict unprinted. The release-fuzz job and the release job's sweep
+      # step carry the same bound for the same reason; every other event keeps Go's default ten
+      # minutes, where no package runs that long. Both arms are workflow literals, like the -short arms.
+      - run: go test ${{ github.event_name == 'schedule' && '-timeout=100m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
@@ -780,13 +782,12 @@ jobs:
     # NO BUILD CACHE: this job runs on pull requests only, and a pull request's cache lives on its
     # merge ref, where no other pull request can restore it. Sharing feov-record's key instead
     # would race it for the save (see that job's setup-go comment). The compile is a minute or two
-    # against a sweep of fifteen to thirty-five.
+    # against a sweep of about seventy.
     #
-    # timeout-minutes 115: the sweep package measured 7-34 min on the October 2026 nightlies (run
-    # 39932969235, 2044s, while sharing the runner with the rest of the module), and this job's
-    # first run, alone on its runner, finished 36 of 40 debates in 60 min (run 40174102731). The
-    # test's own -timeout=100m fires first and names the running test; this bound is for a
-    # runner that never reaches it.
+    # timeout-minutes 115: TestFuzzDebate alone measured 4271s (71 min), the package 4311s, on this
+    # job's runner (run 40178244370). The test's own -timeout=100m fires first, with ~28 minutes of
+    # headroom over that, and names the running test; this bound is for a runner that never
+    # reaches it.
     #
     # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
     # new run and the old one finishes and reports against its own commit.
@@ -852,7 +853,7 @@ jobs:
             exit 1
           }
           grep -E "^(--- |ok)" "$log" | tail -30
-          grep -q '^--- PASS: TestFuzzDebate' "$log" || {
+          grep -qE '^--- PASS: TestFuzzDebate \(' "$log" || {
             echo "::error::the sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
@@ -1818,10 +1819,11 @@ jobs:
       # way. Only a frank-exchange-of-views tag runs this; the other plugins' releases
       # have no fuzz sweep to hold.
       #
-      # -timeout=40m: a test timeout catches a HANG, and Go's default of ten minutes is the
-      # sweep's own length on a busy runner — forty debates of up to twelve chair sittings.
-      # A stuck debate is named by the sweep's own tripwire (no command finished for three
-      # minutes), long before this bound.
+      # -timeout=100m: a test timeout catches a HANG, and TestFuzzDebate alone — forty debates
+      # of up to twelve chair sittings — took 4271s (71 min) on a runner to itself (run
+      # 40178244370); a 40-minute bound killed it on main's nightly (run 40181045085). A stuck
+      # debate is named by the sweep's own tripwire (no command finished for three minutes),
+      # long before this bound.
       - name: The debate sweeps hold at the release boundary
         if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
         working-directory: ${{ steps.plugin.outputs.dir }}
@@ -1829,9 +1831,9 @@ jobs:
         env:
           FEOV_RELEASE_GATE: "1"
         run: |
-          out=$(go test -v -count=1 -timeout=40m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
+          out=$(go test -v -count=1 -timeout=100m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
           echo "$out" | grep -E "^(--- |ok)" | tail -30
-          grep -q '^--- PASS: TestFuzzDebate' <<<"$out" || {
+          grep -qE '^--- PASS: TestFuzzDebate \(' <<<"$out" || {
             echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
