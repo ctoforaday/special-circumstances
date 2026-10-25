@@ -220,6 +220,12 @@ func (r *runner) closedInARoundBefore(round int) []string {
 		if round > 0 && g.Closure == nil {
 			continue
 		}
+		// NOR ONE WHOSE CLOSE A LATER BENCH RULING OVERRULED: the lens closed it while its docket
+		// motion stood, the bench then ruled the motion, and the gap's closed epoch is the bench's —
+		// a carry restates the lens's closure, and its word no longer stands.
+		if round > 0 && g.BenchClosedLast {
+			continue
+		}
 		out = append(out, id)
 	}
 	return out

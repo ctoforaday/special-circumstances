@@ -338,25 +338,67 @@ func TestTwoMotionsRemandedInOneSittingAreOneRemand(t *testing.T) {
 	}
 }
 
-// THE REMAND ITEMS FOLLOW THE PLAN, NOT THE REMAND. A gap that is not material readies nobody, at
-// impasse or not, so a remand of one puts nothing on blue's or the minting lens's list: an item there
-// would be an exchange the dispatch never readies.
-func TestARemandedTrifleOffersNoExchange(t *testing.T) {
-	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "low")
-	st.exchangeOn("G1").exchangeOn("G1")
-	run := st.docketAndRemand("M1", "G1").register("red-chair").seed()
-	plan, err := PlanDispatch(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("setup: a trifle readies nobody; parties %+v, why %q", plan.Parties, plan.Why)
-	}
-	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}} {
-		if workMentions(t, run, seat.role, seat.id, remandDirection) {
-			t.Errorf("%s's work list offers the remand's exchange on a gap the plan readies nobody for", seat.id)
-		}
+// THE BENCH'S REMAND OUTRANKS MATERIALITY (gblock, 2026-10-24). A gap that is not material readies
+// nobody until the bench remands it; then its minting lens and blue are readied for the one more
+// exchange the remand grants, each work list carries the ruling's direction, the stage is owed and
+// the PASS is held — and once that exchange has had, the gap readies nobody again and holds nothing.
+// On universe-m33 the remand of a gap regraded below material was stored and never acted on, and the
+// run passed against the bench's holding.
+func TestARemandedTrifleIsOwedItsExchange(t *testing.T) {
+	for _, atImpasse := range []bool{true, false} {
+		t.Run(fmt.Sprintf("at impasse %v", atImpasse), func(t *testing.T) {
+			st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+				register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "low")
+			if atImpasse {
+				st.exchangeOn("G1").exchangeOn("G1")
+			}
+			run := st.docketAndRemand("M1", "G1").register("red-chair").seed()
+			plan, err := PlanDispatch(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") ||
+				len(plan.RemandOwed) != 1 || plan.RemandOwed[0].GapID != "G1" || plan.PassPermitted {
+				t.Fatalf("the remand of a trifle readies its minting lens and blue for its exchange, and holds the PASS: parties %+v, remand_owed %+v, pass_permitted %v, why %q",
+					plan.Parties, plan.RemandOwed, plan.PassPermitted, plan.Why)
+			}
+			for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}} {
+				if !workMentions(t, run, seat.role, seat.id, remandDirection) {
+					t.Errorf("%s's work list does not carry the remand's direction", seat.id)
+				}
+			}
+			if got := remandStageOn(t, run, "blue", "blue-respond", "G1"); got != "owed" {
+				t.Errorf("remand_stage = %q, want owed", got)
+			}
+			if err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate); err == nil || !strings.Contains(err.Error(), "G1") {
+				t.Errorf("the gate admits a PASS over the remand's owed exchange: %v", err)
+			}
+
+			// The remand's exchange, on a stage that holds none of the report's events: the lens is
+			// served the report at its head, 2, stated rather than read off this stage.
+			more := st.more()
+			lensAgent := fmt.Sprintf("%s-agent-%d", evLens, more.n+1)
+			more.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").
+				registerAs(evLens, lensAgent).served(evLens, 2).stop(lensAgent).
+				sitClosed("blue-respond").register("red-chair").seed()
+			after, err := PlanDispatch(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if slices.Contains(gapsOf(after, evLens), "G1") || slices.Contains(gapsOf(after, "blue-respond"), "G1") || len(after.RemandOwed) != 0 {
+				t.Errorf("after the remand's exchange the trifle readies nobody: parties %+v, remand_owed %+v, why %q", after.Parties, after.RemandOwed, after.Why)
+			}
+			bs, err := PassBlockers(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if slices.ContainsFunc(bs, func(b Blocker) bool { return b.Subject == "G1" }) {
+				t.Errorf("after the remand's exchange G1 still holds the PASS: %v", kindsOf(bs))
+			}
+			if workMentions(t, run, "blue", "blue-respond", remandDirection) {
+				t.Errorf("blue's work list still offers the remand's exchange once it has been had")
+			}
+		})
 	}
 }
 
