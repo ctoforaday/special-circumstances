@@ -482,104 +482,90 @@ func isBusy(err error) bool {
 	return errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY
 }
 
-// declared is this binary's own table/column set, built once per process from the schema applied
-// to a scratch in-memory database — the schema itself, not a second copy of it.
-var declared struct {
-	once   sync.Once
-	tables []string
-	cols   map[string][]string
-	views  map[string]string
-	err    error
+// Declared is this binary's own table, column and view set: what SQLite reports once the schema and
+// ViewsDDL are applied to an empty database — the schema itself, not a second copy of it.
+//
+// THE OPEN READS IT COMPILED IN (declared_gen.go), and devcmd/declaredgen writes that file from
+// DeriveDeclared. Deriving it at open applied ~171 statements and every view to a scratch in-memory
+// database in every process — measured at 19% of a seat act's CPU — to answer a question whose
+// answer is fixed when the binary is built. The comparison against the database being opened is
+// unchanged; only the declared side is read from the build. `declaredgen -check` fails a stale or
+// hand-edited copy, so the compiled-in set cannot disagree with the DDL it is derived from.
+type Declared struct {
+	Tables  []string            // sorted
+	Columns map[string][]string // table → sorted column names
+	Views   map[string]string   // view → the CREATE VIEW text SQLite stores for it
 }
 
-func declaredSchema() ([]string, map[string][]string, error) {
-	declared.once.Do(func() {
-		schema, err := Schema()
-		if err != nil {
-			declared.err = err
-			return
-		}
-		mem, err := sql.Open(driverName(), ":memory:")
-		if err != nil {
-			declared.err = err
-			return
-		}
-		defer mem.Close()
-		mem.SetMaxOpenConns(1) // one connection is one in-memory database
-		if _, err := mem.Exec(schema); err != nil {
-			declared.err = err
-			return
-		}
-		// THE VIEWS GO IN TOO, because they are half of what a reader names. A projection that is a
-		// query over a view fails with SQLite's "no such table: change" on a record written before
-		// that view existed — the same unnamed failure requireDeclaredSchema exists to replace for a
-		// column, in a record whose EVENTS are all present and readable.
-		if _, err := mem.Exec(ViewsDDL); err != nil {
-			declared.err = err
-			return
-		}
-		rows, err := mem.Query(`SELECT "name" FROM sqlite_master WHERE type = 'table' AND "name" NOT LIKE 'sqlite_%' ORDER BY "name"`)
-		if err != nil {
-			declared.err = err
-			return
-		}
-		var tables []string
-		for rows.Next() {
-			var n string
-			if err := rows.Scan(&n); err != nil {
-				rows.Close()
-				declared.err = err
-				return
-			}
-			tables = append(tables, n)
-		}
-		rows.Close()
-		cols := map[string][]string{}
-		for _, t := range tables {
-			have, err := columnsOf(mem, t)
-			if err != nil {
-				declared.err = err
-				return
-			}
-			for c := range have {
-				cols[t] = append(cols[t], c)
-			}
-			sort.Strings(cols[t])
-		}
-		// THE DEFINITION, NOT JUST THE NAME, and both sides are read from sqlite_master so the
-		// comparison is exact by construction: SQLite stores a CREATE VIEW statement verbatim, so two
-		// databases built from the same ViewsDDL hold byte-identical text, and no formatting rule has
-		// to be agreed between a parser here and the DDL there. The leading `--` comments are not part
-		// of the statement and do not appear on either side.
-		vrows, err := mem.Query(`SELECT "name", "sql" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
-		if err != nil {
-			declared.err = err
-			return
-		}
-		views := map[string]string{}
-		for vrows.Next() {
-			var n, q string
-			if err := vrows.Scan(&n, &q); err != nil {
-				vrows.Close()
-				declared.err = err
-				return
-			}
-			views[n] = q
-		}
-		vrows.Close()
-		declared.tables, declared.cols, declared.views = tables, cols, views
-	})
-	return declared.tables, declared.cols, declared.err
-}
-
-// declaredViews is every view this binary's ViewsDDL creates, by name, with the text SQLite stored
-// for it. It shares declaredSchema's once, so asking for it applies the same one-time in-memory
-// schema.
-func declaredViews() (map[string]string, error) {
-	if _, _, err := declaredSchema(); err != nil {
-		return nil, err
+// DeriveDeclared applies Schema and ViewsDDL to a scratch in-memory database and reads back its
+// tables, columns and views. devcmd/declaredgen is its caller; the open reads the generated result.
+func DeriveDeclared() (Declared, error) {
+	var d Declared
+	schema, err := Schema()
+	if err != nil {
+		return d, err
 	}
-	return declared.views, nil
+	mem, err := sql.Open(driverName(), ":memory:")
+	if err != nil {
+		return d, err
+	}
+	defer mem.Close()
+	mem.SetMaxOpenConns(1) // one connection is one in-memory database
+	if _, err := mem.Exec(schema); err != nil {
+		return d, err
+	}
+	// THE VIEWS GO IN TOO, because they are half of what a reader names. A projection that is a
+	// query over a view fails with SQLite's "no such table: change" on a record written before
+	// that view existed — the same unnamed failure requireDeclaredSchema exists to replace for a
+	// column, in a record whose EVENTS are all present and readable.
+	if _, err := mem.Exec(ViewsDDL); err != nil {
+		return d, err
+	}
+	rows, err := mem.Query(`SELECT "name" FROM sqlite_master WHERE type = 'table' AND "name" NOT LIKE 'sqlite_%' ORDER BY "name"`)
+	if err != nil {
+		return d, err
+	}
+	var tables []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			rows.Close()
+			return d, err
+		}
+		tables = append(tables, n)
+	}
+	rows.Close()
+	cols := map[string][]string{}
+	for _, t := range tables {
+		have, err := columnsOf(mem, t)
+		if err != nil {
+			return d, err
+		}
+		for c := range have {
+			cols[t] = append(cols[t], c)
+		}
+		sort.Strings(cols[t])
+	}
+	// THE DEFINITION, NOT JUST THE NAME, and both sides are read from sqlite_master so the
+	// comparison is exact by construction: SQLite stores a CREATE VIEW statement verbatim, so two
+	// databases built from the same ViewsDDL hold byte-identical text, and no formatting rule has
+	// to be agreed between a parser here and the DDL there. The leading `--` comments are not part
+	// of the statement and do not appear on either side.
+	vrows, err := mem.Query(`SELECT "name", "sql" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
+	if err != nil {
+		return d, err
+	}
+	views := map[string]string{}
+	for vrows.Next() {
+		var n, q string
+		if err := vrows.Scan(&n, &q); err != nil {
+			vrows.Close()
+			return d, err
+		}
+		views[n] = q
+	}
+	vrows.Close()
+	return Declared{Tables: tables, Columns: cols, Views: views}, nil
 }
 
 // requireDeclaredSchema refuses a database missing a table, a column or a VIEW this binary declares,
@@ -592,12 +578,8 @@ func declaredViews() (map[string]string, error) {
 // neither the cause nor the way out. That failure is worse than the column one, because a view is
 // DERIVED: every event the projection needs is present, and the only thing missing is the query.
 func requireDeclaredSchema(db *sql.DB) error {
-	tables, cols, err := declaredSchema()
-	if err != nil {
-		return fmt.Errorf("reading this binary's own schema: %w", err)
-	}
 	var lacks, absent []string
-	for _, t := range tables {
+	for _, t := range declared.Tables {
 		have, err := columnsOf(db, t)
 		if err != nil {
 			return err
@@ -607,7 +589,7 @@ func requireDeclaredSchema(db *sql.DB) error {
 			continue
 		}
 		var missing []string
-		for _, c := range cols[t] {
+		for _, c := range declared.Columns[t] {
 			if !have[c] {
 				missing = append(missing, fmt.Sprintf("%q", c))
 			}
@@ -619,12 +601,8 @@ func requireDeclaredSchema(db *sql.DB) error {
 	if len(absent) > 0 {
 		lacks = append(lacks, "this run's record has no "+strings.Join(absent, ", ")+" table")
 	}
-	views, err := declaredViews()
-	if err != nil {
-		return fmt.Errorf("reading this binary's own views: %w", err)
-	}
-	names := make([]string, 0, len(views))
-	for v := range views {
+	names := make([]string, 0, len(declared.Views))
+	for v := range declared.Views {
 		names = append(names, v)
 	}
 	sort.Strings(names) // a map range would reorder the refusal between two identical runs
@@ -637,7 +615,7 @@ func requireDeclaredSchema(db *sql.DB) error {
 		switch {
 		case have == "":
 			noView = append(noView, fmt.Sprintf("%q", v))
-		case have != views[v]:
+		case have != declared.Views[v]:
 			// A STALE DEFINITION IS THE HALF A NAME CHECK CANNOT SEE, and it is the quieter failure:
 			// the view is present, the query succeeds, and it answers by the OLD rule. Nothing is
 			// missing, so nothing raises — a view whose definition was FIXED goes on returning the

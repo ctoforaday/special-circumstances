@@ -1633,6 +1633,9 @@ jobs:
       - name: The engine script's seat block and envelope vocabulary match the record (a stale one dispatches a seat, or offers an envelope word, the record does not give)
         run: go run ./devcmd/enginegen -check
         working-directory: plugins/frank-exchange-of-views/tools
+      - name: The declared table, column and view set the open checks a record against matches the record's DDL (a stale one refuses a current record or admits a stale one)
+        run: go run ./devcmd/declaredgen -check
+        working-directory: plugins/frank-exchange-of-views/tools
       - name: Nothing in any Go module is unreachable from its binaries, its generators and its tests (every function the pinned deadcode leaves unreached is a failure; there is no allowlist)
         run: go run ./deadcode
         working-directory: scripts

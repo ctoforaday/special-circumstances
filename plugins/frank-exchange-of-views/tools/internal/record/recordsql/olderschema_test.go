@@ -209,12 +209,8 @@ func TestAMissingDeclaredViewIsNamedAsAnOlderRun(t *testing.T) {
 	// AND THE VIEW SET IS READ FROM THE DDL, not from a list kept beside it: every view ViewsDDL
 	// creates is checked, so adding one cannot silently go unwatched. A hand-kept list here would
 	// reproduce, one level up, the drift this check exists to catch.
-	views, err := declaredViews()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := len(views), strings.Count(ViewsDDL, "CREATE VIEW "); got != want {
-		t.Errorf("declaredViews reports %d view(s) and ViewsDDL creates %d — the check covers less than the DDL writes", got, want)
+	if got, want := len(declared.Views), strings.Count(ViewsDDL, "CREATE VIEW "); got != want {
+		t.Errorf("the compiled-in declared set holds %d view(s) and ViewsDDL creates %d — the check covers less than the DDL writes", got, want)
 	}
 }
 
