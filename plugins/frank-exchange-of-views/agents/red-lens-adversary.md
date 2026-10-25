@@ -146,7 +146,7 @@ Enumerated values:
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and you owe a gap about it, outside your mint budget, asking blue to retire it or cite a source a lens can read
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read
 
   --bridge
     summary             the source summarises what the claim states in detail, or the claim summarises the source: the same assertion, at a different length
