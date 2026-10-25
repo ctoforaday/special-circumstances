@@ -23,6 +23,27 @@ def count(c: sqlite3.Connection, table: str) -> int | None:
         return None
 
 
+def sitting_balance(c: sqlite3.Connection) -> tuple[list[str], list[str]]:
+    """The agents with an open sitting, and the closes that close no open sitting, in event order."""
+    try:
+        rows = list(c.execute(
+            'SELECT "agent_id", 1, "event_id" FROM "sitting_open"'
+            ' UNION ALL SELECT "agent_id", 0, "event_id" FROM "sitting_close"'
+            ' ORDER BY 3'))
+    except sqlite3.Error:
+        return [], []
+    sitting: dict[str, bool] = {}
+    extra: list[str] = []
+    for agent, is_open, event in rows:
+        if is_open:
+            sitting[agent] = True
+        elif sitting.get(agent):
+            sitting[agent] = False
+        else:
+            extra.append(f"{agent}@ev{event}")
+    return sorted(a for a, s in sitting.items() if s), extra
+
+
 def main() -> int:
     root = sys.argv[1] if len(sys.argv) > 1 else "."
     dbs = sorted(glob.glob(os.path.join(root, "research", "*", "records", "record.db")))
@@ -91,11 +112,17 @@ def main() -> int:
     # it also closes, so opens > closes means a seat was cut off mid-sitting rather than a seat
     # being slow — the record cannot tell you WHEN, but it can tell you the arithmetic does not
     # balance, and that never happens on a healthy finished run.
-    opened = count(c, "sitting_open") or 0
-    closed = count(c, "sitting_close") or 0
-    if opened > closed:
-        print(f"  !! {opened - closed} sitting(s) opened and never closed"
-              f" — a seat is either still sitting, or was KILLED mid-sitting")
+    #
+    # BOTH DIRECTIONS, PER AGENT. A sitting is one span with one close, so a close with no opening
+    # since the agent's previous close is as wrong as an opening with no close. Totals hide it: m34
+    # held 80 closes for 75 opens, and a global opens > closes check said nothing.
+    unclosed, extra = sitting_balance(c)
+    if unclosed:
+        print(f"  !! {len(unclosed)} sitting(s) opened and never closed"
+              f" — a seat is either still sitting, or was KILLED mid-sitting: {' '.join(unclosed)}")
+    if extra:
+        print(f"  !! {len(extra)} sitting close(s) with no open sitting to close"
+              f" — one sitting closed twice, or a close with no opening: {' '.join(extra)}")
     if not ended:
         print("  !! no run outcome — this run did NOT finish. If nothing is writing to"
               " records/record.db-wal, it was truncated, not slow.")
