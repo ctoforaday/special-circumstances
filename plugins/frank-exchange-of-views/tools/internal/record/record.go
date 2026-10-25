@@ -1362,6 +1362,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
 					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
 				}
+				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
+				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
+				// not reopen a gap. Off under Migrating: an archived remand is what the bench DID.
+				if !Migrating {
+					if err := requireRemandOfOpenGap(q, b.GetMotionId()); err != nil {
+						return err
+					}
+				}
 			} else if d.Docket.Direction != nil {
 				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))
 			} else if d.Docket.ReopensOn == nil && d.Docket.Final == nil {

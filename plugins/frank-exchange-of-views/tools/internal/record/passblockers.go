@@ -31,6 +31,7 @@ type BlockerKind string
 const (
 	BlockerStrandedGap   BlockerKind = "stranded_gap"
 	BlockerMaterialGap   BlockerKind = "material_gap"
+	BlockerRemandOwed    BlockerKind = "remand_owed"
 	BlockerContradiction BlockerKind = "contradiction"
 	BlockerReopened      BlockerKind = "reopened"
 	BlockerUnsoundProof  BlockerKind = "unsound_proof"
@@ -232,6 +233,22 @@ var blockerKinds = []blockerKind{
 		},
 		refusal: func(bs []Blocker) string {
 			return fmt.Sprintf("%d material gap(s) still OPEN: %s. PASS requires every material gap resolved, and a gap is closed only by the lens that minted it, with the lens's `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`. PASS waits for those closures; `--as FAIL` does not",
+				len(bs), strings.Join(subjects(bs), ", "))
+		},
+	},
+	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (gblock,
+	// 2026-10-24: the bench's remand outranks materiality). A material gap holds it as material_gap
+	// whatever its remand; this row is the one a gap below material holds once the bench has sent it
+	// back, so the plan that readies its minting lens and blue never reads as permitting a PASS over
+	// the exchange it readies them for (routeOf).
+	{
+		kind:  BlockerRemandOwed,
+		gloss: "a gap that is not material, remanded by the bench, whose one more exchange has not begun",
+		item: func(b Blocker) string {
+			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has begun; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
+		},
+		refusal: func(bs []Blocker) string {
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have begun that exchange on the ruling's direction; the dispatch readies them. PASS waits for it; `--as FAIL` does not",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
@@ -489,6 +506,9 @@ func PassBlockerGlosses() []string {
 type blockerGap struct {
 	id, mintedBy, supersededBy string
 	material                   bool
+	// latestRemandOwed is the gap's latest remand with no exchange begun since its ruling
+	// (latestRemandOwed).
+	latestRemandOwed bool
 }
 
 func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
@@ -501,15 +521,18 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 		if g.Stranded {
 			sup = g.SupersededBy
 		}
-		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material})
+		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material, latestRemandOwed: g.latestRemandOwed})
 	}
 	return out
 }
 
-func blockerGapsOfOpen(gaps []openGap) []blockerGap {
+// blockerGapsOfOpen is the plan's open gaps as the list reads them, with owed the gaps whose latest
+// remand's exchange is owed (remandsOwedOf) — nil where the reader asks only each gap's id and
+// minter, as the lens fold does (lensOwesOf, owedBlockersOf).
+func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 	out := make([]blockerGap, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material})
+		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material, latestRemandOwed: owed[g.id]})
 	}
 	return out
 }
@@ -529,6 +552,11 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	for _, g := range gaps {
 		if g.supersededBy == "" && g.material {
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
+		}
+	}
+	for _, g := range gaps {
+		if g.supersededBy == "" && !g.material && g.latestRemandOwed {
+			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
 	events := owedBlockersOf(evs, ids, win, gaps)
@@ -653,7 +681,7 @@ func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 }
 
 // passBlockerReadsAt is every answer the gate's list takes off the record: the stream, the fresh
-// material gaps and the open gaps.
+// material gaps, the open gaps and the bench's remands.
 func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	var r planReads
 	var err error
@@ -663,13 +691,17 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.fresh, err = freshMaterialOf(q); err != nil {
 		return r, err
 	}
-	r.gaps, err = openGaps(q)
+	if r.gaps, err = openGaps(q); err != nil {
+		return r, err
+	}
+	r.remands, err = remandRulingsOf(q)
 	return r, err
 }
 
 // passBlockersOfReads folds the gate's list from what passBlockerReadsAt read.
 func passBlockersOfReads(r planReads) []Blocker {
-	return passBlockersOf(r.evs, r.win.IDs(r.evs), r.win, blockerGapsOfOpen(r.gaps), r.fresh)
+	ids := r.win.IDs(r.evs)
+	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh)
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and

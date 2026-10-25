@@ -465,6 +465,12 @@ type runner struct {
 	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
 	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
 	rulerFilingErr string
+	// closedRemandsRefused counts the bench's remands of a closed gap the tool refused naming the
+	// close, trifleRemanded the remanded gaps that are not material whose exchange no plan has yet
+	// readied, and trifleRemandsRouted those a plan readied (remandroute_test.go). The sweep gates
+	// both counts at zero.
+	closedRemandsRefused, trifleRemandsRouted int
+	trifleRemanded                            map[string]bool
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -3683,6 +3689,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
 		r.tallyOwed(plan)
+		r.tallyTrifleRoutes(plan)
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
@@ -3801,6 +3808,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.admitFresh(id, args...)
 			}
 		}
+		r.escalateTrifle(seatID)
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
@@ -3884,14 +3892,26 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// a remand closes nothing — and its direction reaches blue and the lens from the record,
 		// through the plan's remand_owed.
 		res := []any{} // an array, never null — the schema refuses null
+		stillOpen := map[string]bool{}
+		for _, id := range r.openGaps() {
+			stillOpen[id] = true
+		}
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
 			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
 				"rationale": "fuzz: carried with a stated direction for " + id}
-			if r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
+			// A GAP CLOSED SINCE ITS DOCKETING IS NOT REMANDED: the bench reaches for the remand its
+			// scenario asks for, the tool refuses it naming the close, and the bench rules the motion
+			// with a disposition that closes, as for a lost dispute.
+			closed := !stillOpen[id]
+			if closed && r.scenarioOf(id) != dirDisputeLost {
+				r.remandOfClosedRefused(seatID, id)
 			}
-			if r.scenarioOf(id) == dirDisputeLost {
+			if !closed && r.scenarioOf(id) != dirDisputeLost {
+				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
+				r.remandRouted(id)
+			}
+			if closed || r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
 				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
@@ -3968,6 +3988,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.readOnly("show", seatID, "report", "--json", "--match", "§")
 		}
 		r.checkProofOffers(seatID)
+		r.closeDocketed(seatID)
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
@@ -4480,6 +4501,8 @@ type outcome struct {
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
+	// closedRemandsRefused and trifleRemandsRouted are runner's.
+	closedRemandsRefused, trifleRemandsRouted int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -5685,6 +5708,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.credits = r.credits
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
+	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
@@ -6427,6 +6451,7 @@ func TestFuzzDebate(t *testing.T) {
 	credits := 0                                            // open gaps credited with a raise the screen refused to mint
 	unclassifiedMinted, unclassifiedRefused := 0, 0         // catch-all mints landed; refused for want of a reason
 	rulerFilingsRefused := 0                                // filings refused the seat that rules their subject
+	closedRemandsRefused, trifleRemandsRouted := 0, 0       // remands of a closed gap refused; remands of a gap not material routed
 	applyMisses := map[string]int{}                         // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}                      // and why the estoppel drive declined, for the same reason
 
@@ -6440,7 +6465,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain)
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.closedRemandsRefused, o.trifleRemandsRouted, firstLine(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -6543,6 +6568,8 @@ func TestFuzzDebate(t *testing.T) {
 			unclassifiedMinted += o.unclassifiedMinted
 			unclassifiedRefused += o.unclassifiedRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
+			closedRemandsRefused += o.closedRemandsRefused
+			trifleRemandsRouted += o.trifleRemandsRouted
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -6786,6 +6813,16 @@ func TestFuzzDebate(t *testing.T) {
 		// unreached behind a green sweep.
 		if rulerFilingsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused ruler filings across %d runs — neither the chair filed a grade motion nor the bench a docket motion, so the refusal of a filing by its subject's ruler is unexercised (false green)", completed)
+		}
+		// THE REMAND GATES (gblock, 2026-10-24). A remand of a closed gap is refused naming the close,
+		// and a remand of an open gap that is not material is readied like any remand; the run oracles
+		// are silent where neither was driven.
+		t.Logf("remands: %d of a closed gap refused naming the close, %d of a gap not material readied for their exchange", closedRemandsRefused, trifleRemandsRouted)
+		if closedRemandsRefused == 0 {
+			t.Errorf("fuzz drove ZERO remands of a closed gap across %d runs — the refusal that names the close is unexercised (false green)", completed)
+		}
+		if trifleRemandsRouted == 0 {
+			t.Errorf("fuzz readied ZERO remands of a gap that is not material across %d runs — the route by which the bench's remand outranks materiality is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267
