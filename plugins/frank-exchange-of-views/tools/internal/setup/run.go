@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"io"
@@ -155,6 +156,14 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// live runs they bracket no sitting, count no call and inject no run for either. Every seat of
 	// both runs then acts unbracketed and uncapped. Two runs at once need two checkouts, each with
 	// its own marker.
+	//
+	// A DECIDED RUN THAT WAS NEVER CAPTURED REFUSES THIS ONE TOO (gblock, 2026-10-24: "Setup refuses
+	// B"), before the prune would take its row. Its outcome is recorded and nothing archived it:
+	// pruning its row would leave the one record of it in a run directory the container does not
+	// keep, and its assembly sitting — resumed — binds to the run through that row.
+	if code := refuseADecidedRun(cfg, stderr); code != 0 {
+		return code
+	}
 	pruned, perr := runlive.PruneRunLive(cfg.Cwd)
 	if perr != nil {
 		// The rows judged dead are still in the file, and a dead row the refusal below would read as
@@ -532,4 +541,43 @@ func homeDir() string {
 	}
 	h, _ := os.UserHomeDir()
 	return h
+}
+
+// refuseADecidedRun refuses setup while another run in the project has its outcome recorded and
+// was not captured, naming it and what closes it: capture when its assembly finished, a resume of
+// its assembly sitting when it did not (report.AssemblyWritten, which engine-stopped reads too).
+// It returns the exit code, 0 when no row is such a run.
+func refuseADecidedRun(cfg Config, stderr io.Writer) int {
+	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
+		if runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) || runlive.StateOf(cfg.Cwd, m, runlive.Caller{}) != runlive.RowDecided {
+			continue
+		}
+		fmt.Fprintln(stderr, "run-setup: ANOTHER RUN IN THIS PROJECT HAS ITS OUTCOME AND WAS NOT CAPTURED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  decided: %s (started %s)\n", m.RunDir, orUnknown(m.Started))
+		fmt.Fprintln(stderr, "  Its record is archived, and its documents folded, only by capture; its row is what binds its")
+		fmt.Fprintln(stderr, "  assembly sitting to it when the run is resumed.")
+		capture := fmt.Sprintf("feov-record capture %s <its transcript dir> --seat-id operator", m.RunDir)
+		run, rerr := record.OpenRun(runlive.Resolve(cfg.Cwd, m.RunDir))
+		written := false
+		if rerr == nil {
+			written, rerr = report.AssemblyWritten(run)
+		}
+		switch {
+		case rerr != nil:
+			fmt.Fprintf(stderr, "  whether its assembly finished could not be read (%v), so neither remedy is chosen for you:\n", rerr)
+			fmt.Fprintln(stderr, "    - resume it, and its assembly sitting assembles; then capture it with")
+			fmt.Fprintf(stderr, "        %s\n", capture)
+			fmt.Fprintln(stderr, "    - or capture it as it stands, with the same command")
+		case written:
+			fmt.Fprintln(stderr, "  Its assembly finished, and there is nothing to resume: capture it with")
+			fmt.Fprintf(stderr, "      %s\n", capture)
+		default:
+			fmt.Fprintln(stderr, "  Its assembly never finished. remedies:")
+			fmt.Fprintln(stderr, "    - resume it: the same workflow run resumes its assembly sitting, which assembles; then capture it with")
+			fmt.Fprintf(stderr, "        %s\n", capture)
+			fmt.Fprintln(stderr, "    - or capture it as it stands, with the same command — its documents are then never assembled")
+		}
+		return 2
+	}
+	return 0
 }

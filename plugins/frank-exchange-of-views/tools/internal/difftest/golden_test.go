@@ -145,6 +145,10 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
+			//
+			// The bench sits to assemble first: the record refuses `assemble` in any other sitting
+			// (record.RequireAssemblySitting), and the register is outside the transcript.
+			_ = runGo(bin, runDir, m, cmd{verb: "register", args: []string{"--run", runDir, "--seat-id", "judge", "--occasion", "assemble"}})
 			if inv := runGo(bin, runDir, m, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {

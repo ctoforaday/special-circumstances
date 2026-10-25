@@ -29,18 +29,19 @@ type Options struct {
 
 // Result is what one replay did, counted where the manifest needs counts.
 type Result struct {
-	In                map[string]int // old events per word, as read
-	Out               map[string]int // new events per word, as written
-	Refusals          []migration.Refusal
-	AcceptedLosses    map[string]string            // word -> the entry's stated reason
-	SourceHash        string                       // sha256 over the event stream AS READ — the logical record
-	IDs               map[string]string            // archived id or finding label -> the id the migrated record carries
-	Serialized        map[string]int               // archived instance seat -> events moved after instance 1 (serializeInstances)
-	StatedFills       []migration.StatedFill       // values supplied where the source predates the field
-	ClassTranslations []migration.ClassTranslation // the archived class slugs an authored row of gapclass.go carried, and onto what
-	GapAnchors        migration.GapPlacement       // what bringing the run's gaps onto anchors did (F-c)
-	ReportOrder       string                       // what became of the order of the report's text (order.go)
-	ProseRewrites     []migration.ProseRewrite     // every archived id rewritten inside a seat's wording, in order
+	In                 map[string]int // old events per word, as read
+	Out                map[string]int // new events per word, as written
+	Refusals           []migration.Refusal
+	AcceptedLosses     map[string]string             // word -> the entry's stated reason
+	SourceHash         string                        // sha256 over the event stream AS READ — the logical record
+	IDs                map[string]string             // archived id or finding label -> the id the migrated record carries
+	Serialized         map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
+	StatedFills        []migration.StatedFill        // values supplied where the source predates the field
+	ClassTranslations  []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
+	SupersededOutcomes []migration.SupersededOutcome // the source outcomes a later one replaced, not written (outcomes.go)
+	GapAnchors         migration.GapPlacement        // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder        string                        // what became of the order of the report's text (order.go)
+	ProseRewrites      []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 
 	base string // the report's base as the source wrote it
 }
@@ -172,6 +173,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			k = next
 		}
 	}
+	// AN OUTCOME THE SOURCE FOLLOWS WITH ANOTHER IS NOT WRITTEN (outcomes.go), and a corrected one is
+	// read as its chain's head, which is what its place writes.
+	superseded := supersededOutcomes(evs, reg, replaces, func(old OldEvent) OldEvent {
+		if _, corrected := corrects[old.Key]; corrected && old.Key != "" {
+			if _, head, ok := chainOf(old.Key); ok {
+				return head
+			}
+		}
+		return old
+	})
 	// THE ID TABLE IS FILLED BEFORE ANYTHING IS WRITTEN. A seat's prose names ids minted after it —
 	// a lane's inquiry argues against one a sibling lane proposed later in the stream — so the
 	// stream is translated once to learn every id it mints, and again, below, to write it. An id is
@@ -199,6 +210,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
 		if old.Word == correctionWord || replaces[old.Key] {
+			continue
+		}
+		if s, ok := superseded[old.ID]; ok {
+			res.SupersededOutcomes = append(res.SupersededOutcomes, s)
 			continue
 		}
 		// src is what this place writes: the act itself, or the head of the chain it begins.
@@ -412,6 +427,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	}
 	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
 	res.ClassTranslations = classTranslations(classMints)
+	if res.SupersededOutcomes == nil {
+		res.SupersededOutcomes = []migration.SupersededOutcome{}
+	}
 	return res, nil
 }
 
@@ -553,11 +571,11 @@ func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) 
 func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("this finding answers contradiction %q, which is not an events.id", ref)
+		return "", fmt.Errorf("this finding raises contradiction %q, which is not an events.id", ref)
 	}
 	to, landed := newID[n]
 	if !landed {
-		return "", fmt.Errorf("this finding answers contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
+		return "", fmt.Errorf("this finding raises contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
 	}
 	return strconv.FormatInt(to, 10), nil
 }

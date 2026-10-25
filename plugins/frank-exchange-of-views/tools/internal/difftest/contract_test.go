@@ -112,7 +112,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
 	// lens's later close and regrade rows are the originator's and refuse on the field under test.
 	stage("register", "--run", runDir, "--seat-id", "red-lens-evidence")
-	stage("mint", "--run", runDir, "--seat-id", "red-lens-evidence",
+	stage("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap")
 	// And a frozen report with an anchored sentence blue can edit, for the edit refusals below.
@@ -142,13 +142,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		name string
 		argv []string
 	}{
-		{"mint without acceptance check", []string{"mint", "--class", "spec_underspecification", "--problem", "p"}},
-		{"mint without class", []string{"mint", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with unknown class", []string{"mint", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with a near-miss class", []string{"mint", "--class", "report-voice", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"unclassified mint without a reason", []string{"mint", "--class", "unclassified", "--check-kind", "document", "--check", "x", "--problem", "p", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
-		{"mint with bad grade", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
-		{"mint with dangling supersedes", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
+		{"mint without acceptance check", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--problem", "p"}},
+		{"mint without class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with unknown class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with a near-miss class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "report-voice", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"unclassified mint without a reason", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "unclassified", "--check-kind", "document", "--check", "x", "--problem", "p", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
+		{"mint with bad grade", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
+		{"mint with dangling supersedes", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
 		{"close unknown gap", []string{"close", "--id", noSuchGap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
 		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without anchor", []string{"close", "--id", "GAP001"}},
@@ -196,17 +196,17 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// motion, and blue files it like any seat.
 		{"verification confidence outside the set", []string{"verify", "--as", "supports", "--confidence", "banana", "--reason", "r"}},
 		{"petition class outside the set", []string{"motion", "petition", "file", "--seat-id", "blue-respond", "--class", "banana", "--relief", "x", "--reason", "r"}},
-		{"invalid seat id", []string{"mint", "--seat-id", "not a seat id", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"invalid seat id", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "not a seat id", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
 		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
 		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "GAP001"}},
-		{"verb outside the bench role", []string{"mint", "--seat-id", "judge", "--class", "spec_underspecification"}},
+		{"verb outside the bench role", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "judge", "--class", "spec_underspecification"}},
 		// `merge frobnicate` refused the role word and never reached the verb it names.
 		{"unknown verb", []string{"frobnicate"}},
 		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
 		// role owns. `nonsuch mint` pinned the same refusal as the row above.
-		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "spec_underspecification"}},
+		{"unknown seat", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "purple-team", "--class", "spec_underspecification"}},
 
 		// AN ANCHOR NEEDS ONE PLACE: every placing verb refuses a quote that repeats, crosses a blank
 		// line, splits a word or ends in a heading, in the same words.

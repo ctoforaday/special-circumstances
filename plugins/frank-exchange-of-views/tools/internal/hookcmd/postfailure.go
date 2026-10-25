@@ -10,7 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // PostFailure is the PostToolUseFailure entry point: a tool call a SEAT made that failed is logged as
@@ -30,6 +29,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 		Error       string          `json:"error"`
 		IsInterrupt bool            `json:"is_interrupt"`
 		AgentID     string          `json:"agent_id"`
+		AgentType   string          `json:"agent_type"`
 		Cwd         string          `json:"cwd"`
 	}
 	b, err := io.ReadAll(stdin)
@@ -40,14 +40,12 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if in.IsInterrupt {
 		return nil
 	}
-	agent := in.AgentID
-	if agent == "" {
-		agent = seatenv.AgentID()
-	}
+	caller := callerOf(in.AgentID, in.AgentType)
+	agent := caller.ID
 	if agent == "" {
 		return nil
 	}
-	runDir := seatRunDir(in.Cwd, agent, rec)
+	runDir := seatRunDir(in.Cwd, caller, rec)
 	if runDir == "" {
 		return nil
 	}

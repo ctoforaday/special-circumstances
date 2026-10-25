@@ -2,6 +2,7 @@ package sittingwrite
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,10 +64,11 @@ func otherSeat(t *testing.T, runDir string) *sql.DB {
 	return db
 }
 
-// V8 (#1252): AN ENTRY IS WRITTEN ONLY ON A RUN THAT IS NOT OVER, ASKED AS IT LANDS. The bench records
-// the outcome at the moment the hook logs a seat's failed call; asked before the entry's write, the
-// entry lands after the outcome, on a record closed to seats.
-func TestAHookEntryIsNotWrittenAfterTheOutcome(t *testing.T) {
+// AN ENTRY IS WRITTEN AFTER THE OUTCOME TOO. A seat's call the hook saw denied or failed after the
+// run ended is friction the operator reads (record.requireOpenToSeats lets every log entry land),
+// including one whose outcome commits at the moment the hook logs it; and the harness's own facts
+// about a sitting are no seat's act, so they land as well.
+func TestAHookEntryIsWrittenAfterTheOutcome(t *testing.T) {
 	runDir := newRun(t)
 	registerAs(t, runDir, "agent-1", "red-lens-adversary")
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
@@ -74,13 +76,48 @@ func TestAHookEntryIsNotWrittenAfterTheOutcome(t *testing.T) {
 	if err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{outcome}, func() error {
 		return WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist")
 	}); err != nil {
-		t.Fatalf("an entry on a run whose outcome landed at that moment is written as nothing, not an error: %v", err)
+		t.Fatalf("an entry on a run whose outcome landed at that moment was refused: %v", err)
+	}
+	if err := WriteToolEntry(runDir, Refusal, "agent-1", "refused a `Read` the run does not serve"); err != nil {
+		t.Fatalf("an entry on a run holding an outcome was refused: %v", err)
 	}
 	evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(evs) != 0 {
-		t.Errorf("the entry was written on a record holding an outcome: %d log entr(ies)", len(evs))
+	if len(evs) != 2 {
+		t.Fatalf("want both entries under the seat on a record holding an outcome, got %d", len(evs))
+	}
+	for _, e := range evs {
+		if e.GetSeatId() != "red-lens-adversary" {
+			t.Errorf("an entry is attributed to %q, want the seat the agent is bound to", e.GetSeatId())
+		}
+	}
+	// The harness's own fact about the sitting lands too: it is no seat's act.
+	if err := WriteLimit(runDir, "agent-1", 1, 150); err != nil {
+		t.Fatalf("the harness's sitting limit after the outcome was refused: %v", err)
+	}
+	if limits, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_SITTING_LIMIT); err != nil || len(limits) != 1 {
+		t.Errorf("the harness's sitting limit after the outcome: %d event(s), err %v; want 1", len(limits), err)
+	}
+}
+
+// A CAPTURED RUN TAKES NO HOOK ENTRY, AND SAYS SO. Once capture has marked the run captured
+// (record.MarkCaptured, which capture calls at its close), the hook's entry is refused loudly — the
+// error names the captured run — and nothing is written; so is the harness's sitting limit.
+func TestAHookEntryIsRefusedOnceTheRunIsCaptured(t *testing.T) {
+	runDir := newRun(t)
+	registerAs(t, runDir, "agent-1", "red-lens-adversary")
+	if err := record.MarkCaptured(mustRun(t, runDir), "2026-10-24T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist"); !errors.Is(err, record.ErrRunCaptured) {
+		t.Errorf("a hook entry on a captured run = %v, want the captured run's refusal", err)
+	}
+	if err := WriteLimit(runDir, "agent-1", 1, 150); !errors.Is(err, record.ErrRunCaptured) {
+		t.Errorf("the harness's sitting limit on a captured run = %v, want the captured run's refusal", err)
+	}
+	if evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG); err != nil || len(evs) != 0 {
+		t.Errorf("the captured run took %d log entr(ies) (err %v)", len(evs), err)
 	}
 }
