@@ -429,11 +429,10 @@ func unknownCommandRefusal(root *cobra.Command, name string) string {
 // per-role while the concept ("show the board") carries no role, so dropping the prefix is the
 // natural slip rather than a careless one.
 //
-// IT INSPECTS os.Args[1] AND NOTHING ELSE. Scanning for the first non-flag token would misread
-// a flag's VALUE as a command name (`--model haiku ...` would nominate "haiku"), and matching on
-// cobra's error text would make this depend on the shape of a string another library owns —
-// which is the failure mode this repo keeps finding. Position 1 cannot be a flag value, because
-// nothing precedes it.
+// IT READS THE ARGV BY THE ROOT'S FLAGS, never cobra's error text, which would make this depend on
+// the shape of a string another library owns — the failure mode this repo keeps finding. A root
+// flag's value is skipped by what the parser knows of the flag; a verb's flag before the verb has
+// no known arity here, and is named in the refusal rather than guessed past (below).
 // seatID is passed rather than read from the environment: the tests drive cobra in-process with
 // an args slice that never reaches os.Args, so a check reading the env would refuse every call.
 func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string) error {
@@ -451,21 +450,38 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 
 	// THE COMMAND IS THE FIRST NON-FLAG WORD, not argv[1]. `--json mint …` put a flag there, so
 	// the pre-check saw one and stood aside, and cobra then complained about `--class` — a flag on
-	// a command it had not found. The root's own flags are a knowable set: two take a value, the
-	// rest are booleans.
-	name := ""
-	for i := 1; i < len(argv); i++ {
+	// a command it had not found. The root's own flags are read off the root, so a flag that takes a
+	// value has it skipped by what the parser knows of it.
+	//
+	// A FLAG THE ROOT DOES NOT DECLARE IS A VERB'S, typed before the verb, and its arity is unknown
+	// until a verb is found — so its next word is NOT skipped, and is read as the name. `before`
+	// keeps that flag, so the refusal below can say what happened: `--key adv-f-tldr finding` read
+	// "adv-f-tldr" as a command and was told no command of that name exists.
+	name, before := "", ""
+	for i := 1; i < len(argv) && name == ""; i++ {
 		a := argv[i]
-		switch {
-		case a == "--run" || a == "--seat-id":
-			i++ // and its value
-		case strings.HasPrefix(a, "-"):
-			// --json, --help, --version, and any --flag=value form: no separate value to skip.
-		default:
+		if !strings.HasPrefix(a, "-") {
 			name = a
+			continue
 		}
-		if name != "" {
-			break
+		flag, _, inline := strings.Cut(strings.TrimLeft(a, "-"), "=")
+		f := root.Flags().Lookup(flag)
+		if f == nil {
+			f = root.PersistentFlags().Lookup(flag)
+		}
+		if f == nil && !strings.HasPrefix(a, "--") && len(flag) == 1 {
+			f = root.Flags().ShorthandLookup(flag)
+		}
+		switch {
+		case f != nil:
+			before = ""
+			if !inline && f.NoOptDefVal == "" {
+				i++ // and its value
+			}
+		case inline:
+			before = "" // --flag=value: no separate value to read as the name
+		default:
+			before = flag
 		}
 	}
 	if name == "" {
@@ -479,6 +495,11 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	for _, c := range root.Commands() {
 		if c.Name() == name || c.HasAlias(name) {
 			return nil
+		}
+	}
+	if before != "" {
+		if takers := seat.TakersOf(root, before, nil); len(takers) > 0 {
+			return seat.RefuseFlagBeforeVerb(root, before, name, takers)
 		}
 	}
 	// A WRONG-SEAT ERROR KEEPS ITS CODE. `--json` consumers branch on the KIND of failure, and
