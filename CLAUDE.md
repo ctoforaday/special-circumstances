@@ -96,6 +96,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 
 - CI tests the merge with `main`: bring `main` in early. BEFORE merging a PR whose CI ran before another help- or golden-changing PR merged, YOU MUST rebase, regenerate goldens at `-count=1`, read each changed line and re-run CI — goldens conflict semantically, not textually (difftest's `manual` golden renders every help page).
 - Generated conflicts (`record.pb.go`, `record.proto.sha256`) resolve by re-running `go -C scripts run ./protogen`, never by hand.
+- A `declared_gen.go` conflict resolves by re-running `go -C plugins/frank-exchange-of-views/tools run ./devcmd/declaredgen`, never by hand.
 - The repository deletes a branch on merge. BEFORE pushing to a PR's branch, YOU MUST check `gh pr view <n> --json state`; "Create a pull request for" in push output is a HARD STOP — the PR merged and the push re-created its branch. Retarget a stacked child to `main` BEFORE merging its parent, or GitHub closes the child.
 
 ### Releases
