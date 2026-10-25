@@ -117,7 +117,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 	for _, p := range proofs {
 		label := p.Label
 		n := num[label]
-		b.WriteString(proofAnchor(label) + "\n\n")
+		b.WriteString(proofAnchorMark(label) + "\n\n")
 		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, storedScript(p))))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
@@ -127,7 +127,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 			fmt.Fprintf(&b, " — %s", p.Drift)
 		}
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", storedScript(p), shortSHA(p.SHA))
+		fmt.Fprintf(&b, "- **script**: %s (sha256 %s)\n", codeSpanOf(storedScript(p)), codeSpanOf(shortSHA(p.SHA)))
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
 		// RED'S INDEPENDENT AUDIT (#343), IN ITS TWO HALVES. The strongest audit the engine has is
 		// worth the reader knowing about, and its absence is worth knowing about too: a proof nobody
@@ -147,7 +147,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		default:
 			b.WriteString("- **re-run by red**: it DID NOT REPRODUCE — the stored script no longer produces the recorded output\n")
 			if r.Recorded != "" || r.Observed != "" {
-				fmt.Fprintf(&b, "  - recorded: `%s`\n  - on re-run: `%s`\n", oneLine(r.Recorded), oneLine(r.Observed))
+				fmt.Fprintf(&b, "  - recorded: %s\n  - on re-run: %s\n", codeSpanOf(oneLine(r.Recorded)), codeSpanOf(oneLine(r.Observed)))
 			}
 		}
 		var notes []string
@@ -178,9 +178,9 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		b.WriteString("\n")
 
 		script, output := readArtifact(run, p.SHA)
-		b.WriteString("```" + fenceLang(p.Script) + "\n" + strings.TrimRight(script, "\n") + "\n```\n\n")
+		b.WriteString(fenced(fenceLang(p.Script), strings.TrimRight(script, "\n")) + "\n")
 		b.WriteString("Output:\n\n")
-		b.WriteString("```\n" + strings.TrimRight(output, "\n") + "\n```\n\n")
+		b.WriteString(fenced("", strings.TrimRight(output, "\n")) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
@@ -191,6 +191,39 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 // of the run directory can open — the lead above says so.
 func storedScript(p record.Proof) string {
 	return filepath.ToSlash(proof.StoredScript(p.SHA, p.Script))
+}
+
+// fenced is content in a fenced code block no line of it can close or lengthen into prose: a fence of
+// backticks one longer than the longest run of them in the content, and never fewer than three. A
+// fence of three closed at an output's own "```" line, and the rest of the output shipped as prose.
+func fenced(lang, content string) string {
+	f := strings.Repeat("`", max(3, longestRun(content, '`')+1))
+	return f + lang + "\n" + content + "\n" + f + "\n"
+}
+
+// codeSpanOf is s as a code span that shows it exactly: delimited by backticks one longer than the
+// longest run of them in s, and padded with a space where s would otherwise touch a delimiter with a
+// backtick or lose an edge space to the span's stripping.
+func codeSpanOf(s string) string {
+	d := strings.Repeat("`", longestRun(s, '`')+1)
+	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") || len(s) > 1 && s[0] == ' ' && s[len(s)-1] == ' ' && strings.TrimSpace(s) != "" {
+		s = " " + s + " "
+	}
+	return d + s + d
+}
+
+// longestRun is the length of the longest run of c in s.
+func longestRun(s string, c byte) int {
+	most, n := 0, 0
+	for i := 0; i < len(s); i++ {
+		if s[i] != c {
+			n = 0
+			continue
+		}
+		n++
+		most = max(most, n)
+	}
+	return most
 }
 
 // oneLine keeps a captured output on a single markdown line.

@@ -54,10 +54,11 @@ type siteDoc struct {
 	Body                   template.HTML
 }
 
-// RenderSite builds the whole set into one HTML file. It takes the RAW document bodies (no
+// RenderSite builds the whole set into one HTML file. It takes the shipped document bodies (no
 // markdown link bar, no repeated H1) because the tab strip and the header say those things
 // better here.
-func RenderSite(title string, docs []Doc, fam record.Family) string {
+func RenderSite(title string, set Shipped, fam record.Family) string {
+	docs := set.docs
 	short := strings.TrimSpace(strings.TrimPrefix(title, "# "))
 
 	// TWO PASSES, and the reason is the join: pass one renders each document and records
@@ -71,7 +72,7 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	bodies := make([]rendered, len(docs))
 	slugs := map[string]int{}
 	for i, d := range docs {
-		bodies[i] = mdToHTML(d.Body, d.File, anchor, slugs, files)
+		bodies[i] = renderShipped(set.html[i], d.File, anchor, slugs, files)
 	}
 
 	page := sitePage{

@@ -295,19 +295,56 @@ func (s *sections) add(block string) bool {
 
 func (s *sections) String() string { return strings.Join(s.parts, "\n\n") }
 
-// render puts the document's own head on it: the run's short title, this document's name, the
-// link bar across the set, and a rule. Every file in the set opens identically, so a reader who
-// lands in the middle of one knows what run they are in and how to reach the rest.
-func render(d Doc, title string, set []Doc) string {
+// head is the document's own head: the run's short title, this document's name, the link bar
+// across the set, and a rule. Every file in the set opens identically, so a reader who lands in the
+// middle of one knows what run they are in and how to reach the rest.
+func head(d Doc, title string, set []Doc) string {
 	h1 := title
 	if d.Title != "" {
 		// The siblings drop the template's "research report" suffix rather than stack a second
 		// noun on it: "<topic> — research report — the docket" names two documents.
 		h1 = strings.TrimSuffix(title, " — research report") + " — " + d.Title
 	}
-	// What stays HTML is decided on the document as it ships (escapeRawHTML): the run's title and
-	// every unit the body joins, parsed whole.
-	return escapeRawHTML(h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n" + strings.TrimRight(d.Body, "\n") + "\n")
+	return h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n"
+}
+
+// composedText is the document as assembly composed it, its head on it and its proofs' anchors in
+// place, with the record's text as written: what a seat reads of the set (Layout).
+func composedText(d Doc, title string, set []Doc) string {
+	body, _ := resolveMarks(strings.TrimRight(d.Body, "\n") + "\n")
+	return head(d, title, set) + body
+}
+
+// Shipped is a report set as it ships: what becomes HTML decided once per document (ship), and that
+// one decision written by Write and rendered by RenderSite. It is made only by Ship, so neither tier
+// can be handed a text the decision was not taken on.
+type Shipped struct {
+	docs []Doc
+	md   []string  // each document's body as report.md and its siblings ship it
+	html []shipped // and as report.html renders it
+}
+
+// Ship takes the decision on each document of the set. The head Write puts on a document is shipped
+// on its own: a blank line and a rule close it, so nothing in it reaches the body.
+func Ship(docs []Doc) Shipped {
+	set := Shipped{docs: docs}
+	for _, d := range docs {
+		body := strings.TrimRight(d.Body, "\n") + "\n"
+		sh := ship(body)
+		set.md = append(set.md, string(sh.src))
+		if u := unmarked(body); u != body {
+			// The reading tier shows a marker byte as the replacement character; the durable
+			// tier ships the text as written.
+			sh = ship(u)
+		}
+		set.html = append(set.html, sh)
+	}
+	return set
+}
+
+// file is the i'th document as its .md ships: its head, shipped on its own, and its shipped body.
+func (s Shipped) file(i int, title string) string {
+	return escapeRawHTML(head(s.docs[i], title, s.docs)) + s.md[i]
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the
@@ -418,14 +455,14 @@ func supersededAsks(evs []*record.Event) string {
 // Write renders the set to disk and returns report.md's path. Files in the set that this run
 // produced no content for are REMOVED rather than left stale: a run re-assembled after its
 // motions were withdrawn must not keep yesterday's judgments.md next to today's report.
-func Write(run record.Run, title string, docs []Doc, index string) (string, error) {
+func Write(run record.Run, title string, set Shipped, index string) (string, error) {
 	want := map[string]bool{FileIndex: true}
-	for _, d := range docs {
+	for i, d := range set.docs {
 		want[d.File] = true
 		path := filepath.Join(run.Dir(), d.File)
 		// The link bar is applied HERE, over the set that actually exists, so it can never
 		// link a file nobody wrote.
-		if err := os.WriteFile(path, []byte(render(d, title, docs)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(set.file(i, title)), 0o644); err != nil {
 			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}

@@ -131,7 +131,7 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 			t.Errorf("report.md carries %q %d time(s), want once:\n%s", want, n, shipped)
 		}
 	}
-	html := report.RenderSite(report.Title(open), docs, record.Family{})
+	html := report.RenderSite(report.Title(open), report.Ship(docs), record.Family{})
 	for id, text := range map[string]string{"fn-scope": "Of the natural numbers.", "fn-1": "Division tables.", "fn-P1": "thirteen has no divisor below four"} {
 		li := `<li id="` + id + `">`
 		if n := strings.Count(html, li); n != 1 || !strings.Contains(html, li+text) {

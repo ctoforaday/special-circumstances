@@ -60,7 +60,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	title := Title(run)
 	rendered := map[string][]string{}
 	for _, d := range docs {
-		rendered[d.File] = strings.Split(render(d, title, docs), "\n")
+		rendered[d.File] = strings.Split(composedText(d, title, docs), "\n")
 	}
 	starts := make([]int, len(layout))
 	for i, s := range layout {

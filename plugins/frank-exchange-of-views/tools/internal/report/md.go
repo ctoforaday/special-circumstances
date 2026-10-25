@@ -13,9 +13,8 @@ package report
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into
 // a rendering. Nothing here can change what ships in a .md.
 //
-// HTML in the text: what stays HTML is decided once, on the parse of the whole document
-// (escapeRawHTML, rawhtml.go) — the tool's own shapes, and nothing a seat wrote. Every other tag is
-// shown as the characters typed.
+// HTML in the text: what stays HTML is decided once, on the whole document as it ships (ship,
+// rawhtml.go), and this renders the tree of that text: every HTML node in it is the tool's.
 
 import (
 	"fmt"
@@ -85,11 +84,21 @@ type rendered struct {
 // files is the document set: a link to one of them is a tab switch, written as one here, because
 // in a single page there is no sibling file to open.
 func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
-	// The marker bytes are control characters with no rendering; one in the text is shown as the
-	// replacement character, so no text can be read as a marker. NUL is too, as CommonMark has it.
-	md = strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(md)
-	md = escapeRawHTML(md)
-	r := &mdRender{src: []byte(md), file: file, anchor: anchor, seen: seen, files: files, link: true}
+	return renderShipped(ship(unmarked(md)), file, anchor, seen, files)
+}
+
+// unmarked is md with the marker bytes made the replacement character. The markers are control
+// characters with no rendering, so no text can be read as a marker; NUL is too, as CommonMark has it.
+func unmarked(md string) string {
+	if !strings.ContainsAny(md, string([]byte{refMarkByte, mentionMarkByte, 0})) {
+		return md
+	}
+	return strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(md)
+}
+
+// renderShipped is mdToHTML on a text already shipped, from the tree ship parsed it to.
+func renderShipped(sh shipped, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
+	r := &mdRender{src: sh.src, file: file, anchor: anchor, seen: seen, files: files, link: true, shipped: true}
 	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
 	// and left in the text as a marker that holds only its index (refMark); each definition is kept
 	// as a note. citations numbers and lists them from these once the document is rendered.
@@ -97,9 +106,8 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[st
 		r.refs = append(r.refs, label)
 		return refMark(len(r.refs) - 1)
 	}
-	doc := mdReader.Parser().Parse(text.NewReader(r.src))
 	var b strings.Builder
-	r.blocks(&b, doc)
+	r.blocks(&b, sh.tree)
 	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
 }
 
@@ -115,6 +123,9 @@ type mdRender struct {
 	// looseRefs reads a footnote reference in the text (noteRefsIn), where no definition is in
 	// reach for the parser to resolve it to: one line of a title.
 	looseRefs bool
+	// shipped is whether src is a shipped text, every HTML node of which is the tool's (ship). A
+	// title is not: of its HTML, only an anchor token renders as HTML.
+	shipped bool
 
 	refs     []string
 	notes    []footnote
@@ -137,9 +148,9 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		r.define(text, id)
 		fmt.Fprintf(b, "<h%d id=\"%s\">%s</h%d>\n", x.Level, id, r.inlineIn(x, id), x.Level)
 	case *ast.Paragraph:
-		if r.toolOnly(x) {
+		if r.shipped && isProofAnchor(x, r.src) {
 			// evidence.md's anchor per proof, which markdown reads as inline HTML because the line
-			// holds a closing tag after the opening one. Any other tag is shown as typed (inlines).
+			// holds a closing tag after the opening one.
 			b.WriteString(strings.TrimRight(r.lines(x), "\n") + "\n")
 			return
 		}
@@ -159,13 +170,9 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		}
 		b.WriteString("<pre><code" + cls + ">" + escape(strings.TrimSuffix(r.lines(x), "\n")) + "</code></pre>\n")
 	case *ast.HTMLBlock:
-		// A block of the tool's anchor tokens renders as what it is, a comment; any other block is
-		// shown as its text.
-		if toolHTML(x, r.src) {
-			b.WriteString(rawLines(x, r.src))
-			return
-		}
-		b.WriteString("<p>" + escape(rawLines(x, r.src)) + "</p>\n")
+		// A block of the tool's anchor tokens, the one HTML block a shipped text holds, renders as
+		// what it is, a comment.
+		b.WriteString(rawLines(x, r.src))
 	case *ast.Blockquote:
 		if p, ok := x.FirstChild().(*ast.Paragraph); ok && x.ChildCount() == 1 {
 			b.WriteString("<blockquote>" + r.inlineIn(p, "") + "</blockquote>\n")
@@ -257,16 +264,6 @@ func (r *mdRender) item(b *strings.Builder, n ast.Node, bullet bool) {
 	b.WriteString("</li>\n")
 }
 
-// toolOnly reports whether a paragraph holds nothing but HTML in the tool's own shapes.
-func (r *mdRender) toolOnly(p *ast.Paragraph) bool {
-	for c := p.FirstChild(); c != nil; c = c.NextSibling() {
-		if h, ok := c.(*ast.RawHTML); !ok || !toolHTML(h, r.src) {
-			return false
-		}
-	}
-	return p.HasChildren()
-}
-
 // noteBody renders a footnote definition's content: its one paragraph as a line, or its blocks.
 func (r *mdRender) noteBody(fn *east.Footnote) string {
 	if p, ok := fn.FirstChild().(*ast.Paragraph); ok && fn.ChildCount() == 1 {
@@ -346,10 +343,7 @@ func (r *mdRender) plain(n ast.Node) string {
 		case *ast.AutoLink:
 			b.Write(x.Label(r.src))
 		case *ast.RawHTML:
-			for i := 0; i < x.Segments.Len(); i++ {
-				seg := x.Segments.At(i)
-				b.Write(seg.Value(r.src))
-			}
+			b.WriteString(rawText(x, r.src))
 		case *east.FootnoteLink:
 			// The reference reads as written, which is what a heading's id has always been made of.
 			b.WriteString(noteOpen + r.footnoteLabel(x) + "]")
@@ -443,8 +437,9 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			r.inlines(b, x, false)
 			b.WriteString("</a>")
 		case *ast.RawHTML:
-			// An anchor token renders as the comment it is; any other tag is shown as typed.
-			if toolHTML(x, r.src) {
+			// An anchor token renders as the comment it is, and in a shipped text so does the tool's
+			// proof anchor; any other tag is shown as typed.
+			if r.shipped || tokenRun(rawText(x, r.src)) {
 				b.WriteString(rawText(x, r.src))
 			} else {
 				r.text(b, rawText(x, r.src), link)
@@ -709,7 +704,7 @@ func escape(s string) string {
 // inline renders one line's inline markdown outside a document — a title — where a footnote
 // reference has no list to number it against and renders as its label.
 func inline(s string) string {
-	s = strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(s)
+	s = unmarked(s)
 	r := &mdRender{src: []byte(s), seen: map[string]int{}, ref: supRef, looseRefs: true}
 	var b strings.Builder
 	doc := lineReader.Parse(text.NewReader(r.src))

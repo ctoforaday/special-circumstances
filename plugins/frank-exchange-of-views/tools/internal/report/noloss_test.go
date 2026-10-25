@@ -54,7 +54,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			shipped := render(docs[0], Title(run), docs)
+			shipped := Ship(docs).file(0, Title(run))
 			have := map[string]int{}
 			for _, ln := range strings.Split(shipped, "\n") {
 				have[strings.TrimSpace(ln)]++

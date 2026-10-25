@@ -65,7 +65,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
 	for _, want := range []string{
 		"## Proofs",                      // the section
-		"<a id=\"P-deadbeef\">",          // the anchor the footnote links to
+		proofAnchorMark("P-deadbeef"),    // where the anchor the footnote links to ships
 		"### P1 — trial division",        // a HEADING, not a second dangling reference (#590)
 		"console.log('divisors",          // THE SCRIPT — a computation's source IS its evidence
 		"divisors of 9: 3",               // and its output
