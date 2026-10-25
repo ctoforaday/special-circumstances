@@ -278,6 +278,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				add("gap " + id + what)
 			}
 		}
+		// A REMAND'S EXCHANGE HOLDS BLUE'S SITTING UNTIL BLUE ACTS ON THE GAP (remandItemsOf).
+		if seatID == blueRespondSeat {
+			s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, true)...)
+		}
 		// THERE IS NO PER-INQUIRY DUTY HERE, and the absence is a ruling rather than a dropped
 		// check. Presence is not a question: the inquiries reach the report on the worklist,
 		// generated from the record, so blue cannot cut them. Where blue's body genuinely failed
@@ -371,6 +375,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// nobody checked or re-running a proof nobody re-ran — come from availableOf and land on this same list carrying Blocks:false: available work, none of
 	// it owed.
 	case "lens":
+		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
+		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
+		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			// A PROOF IT JUDGED UNSOUND IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
 			// the list as not owed — blue's fix or retire clears it, or the lens's own sound judgement
@@ -427,15 +434,28 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// on a gap whose closings this sitting was not convened on, a petition filed while it sat — is
 		// not this sitting's to rule. It stays on the list, holding the outcome.
 		held := benchHeld(evs, ids, win)
+		// A REMAND PAST THE LIMIT IS REFUSED (requireRemandWithinLimit), and the motion's item says so
+		// before the bench rules, by the write's own predicate (remandPastLimit, WorkGapState.remandLimit).
+		limited := map[string]int64{}
+		for _, g := range gaps {
+			if g.Open && g.remandLimit > 0 {
+				limited[g.ID] = g.remandLimit
+			}
+		}
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
 				continue
 			}
+			limit := ""
+			if at, ok := limited[b.About]; ok && b.motionSubject == "docket" {
+				limit = fmt.Sprintf(" — a remand of %s is refused: you remanded it at impasse at event %d, and %s; rule a disposition that closes it (%s)",
+					b.About, at, RemandLimitRule, strings.Join(ClosingDispositions(), ", "))
+			}
 			if held[b.Subject] {
-				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands")
+				add("motion " + b.Subject + " (" + b.Detail + ") is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands" + limit)
 				continue
 			}
-			may("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands")
+			may("motion " + b.Subject + " (" + b.Detail + ") is unruled and the gavel is yours; it waits for the sitting convened for it — the run cannot end in a verdict while it stands" + limit)
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
