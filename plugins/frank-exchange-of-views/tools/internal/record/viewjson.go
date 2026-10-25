@@ -972,15 +972,15 @@ type WorkGapState struct {
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
-	remand                           remandStage
-	route                            gapRoute
-	unruledDocket                    bool
-	latestRemandOwed                 bool   // GapExchanges.latestRemandOwed, which the PASS gate's list reads
-	remandRuled                      int64  // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
+	remand           remandStage
+	route            gapRoute
+	unruledDocket    bool
+	latestRemandOwed bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
+	remandRuled      int64 // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
 	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
 	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
 	// item on a docket motion says so before it rules.
-	remandLimit int64
+	remandLimit                      int64
 	Fate                             string // the last closer's word; closed gaps only
 	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
