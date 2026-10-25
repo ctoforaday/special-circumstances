@@ -125,13 +125,13 @@ func TestEstoppelSurvivesTheAnchorOnItsOwnPrescription(t *testing.T) {
 	}
 	// The lens comes back and quotes the sentence AS THE REPORT NOW HOLDS IT.
 	anchored := "Six authoritative mathematical sources were consulted<!--fx:F-dbd94684-->:"
-	if id, _ := EstoppelConflict(fam, anchored); id == "" {
+	if est, _ := EstoppelConflict(fam, anchored); est.Gap == "" {
 		t.Errorf("estoppel did not fire on a quote of red's own applied prescription.\n"+
 			"prescribed: %q\nquoted    : %q\nThey differ only by the anchor the report carries, so the one rule that stops a lens\n"+
 			"relitigating its own words is blind from the moment the words land.", prescribed, anchored)
 	}
 	// NOT VACUOUS: an unrelated quote must still be free.
-	if id, _ := EstoppelConflict(fam, otherSentence); id != "" {
-		t.Errorf("estoppel fired on unrelated text (%q -> %s), so the assertion above would pass for the wrong reason", otherSentence, id)
+	if est, _ := EstoppelConflict(fam, otherSentence); est.Gap != "" {
+		t.Errorf("estoppel fired on unrelated text (%q -> %s), so the assertion above would pass for the wrong reason", otherSentence, est.Gap)
 	}
 }

@@ -173,19 +173,46 @@ func Replace(s string, repl func(token, id string) string) string {
 	return b.String()
 }
 
-// strippedToken is a token of a kind the assembly strips, whatever stands between its tag and its
-// close ON ITS LINE: a seat that copies a token into record prose may elide its id
-// ("<!--fx:…-->"), and the assembled report ships no such token either. A token is one line's;
-// an opener with no close on its line is text, and the strip takes none of the lines after it.
-var strippedToken = func() *regexp.Regexp {
-	var alt []string
-	for _, k := range kinds {
-		if k.assembly == Strip {
-			alt = append(alt, regexp.QuoteMeta(k.tag))
-		}
+// writtenAt is the token of an anchor kind's tag beginning at i AS WRITTEN — `<!--TAG:…-->` closed on
+// its line, whatever stands between the tag and the close — with its length, its kind and what it
+// holds. A real token holds its id; a seat that copies a token into record prose may elide the id
+// ("<!--fx:…-->"), and a message that shows the token's shape holds a placeholder ("<!--cite:C-…-->").
+// A token is one line's: an opener with no close on its line is text, and nothing after it is taken.
+//
+// It is read by its parts — the opener, a tag the kinds table holds, the close — rather than matched,
+// so the shape has one statement, the table's, beside tokenLenAt's stricter one for a real id.
+func writtenAt(s string, i int) (n int, k *kind, held string) {
+	if !strings.HasPrefix(s[i:], tokenOpen) {
+		return 0, nil, ""
 	}
-	return regexp.MustCompile(regexp.QuoteMeta(tokenOpen) + `(?:` + strings.Join(alt, "|") + `):[^>\n]*` + regexp.QuoteMeta(tokenClose))
-}()
+	body := s[i+len(tokenOpen):]
+	for j := range kinds {
+		tag := kinds[j].tag + ":"
+		if !strings.HasPrefix(body, tag) {
+			continue
+		}
+		line, _, _ := strings.Cut(body[len(tag):], "\n")
+		end := strings.Index(line, tokenClose)
+		if end < 0 {
+			return 0, nil, ""
+		}
+		return len(tokenOpen) + len(tag) + end + len(tokenClose), &kinds[j], line[:end]
+	}
+	return 0, nil, ""
+}
+
+// EachWritten visits every token of an anchor kind's tag in s as written (writtenAt), in order, with
+// what it holds: an id for a real token, or the text standing in the id's place.
+func EachWritten(s string, visit func(start, end int, held string)) {
+	for i := 0; i < len(s); {
+		if n, _, held := writtenAt(s, i); n > 0 {
+			visit(i, i+n, held)
+			i += n
+			continue
+		}
+		i++
+	}
+}
 
 // husk is no more than block-quote and list markers and sentence punctuation.
 var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
@@ -216,8 +243,29 @@ func Husk(s string) bool {
 	return husk.MatchString(s)
 }
 
-// StripAssembled removes every token of a kind the assembly strips.
-func StripAssembled(md string) string { return strippedToken.ReplaceAllString(md, "") }
+// StripAssembled removes every token of a kind the assembly strips, whatever it holds (writtenAt): the
+// assembled report ships no such token, an elided one included.
+func StripAssembled(md string) string {
+	var b strings.Builder
+	last := 0
+	for i := 0; i < len(md); {
+		n, k, _ := writtenAt(md, i)
+		if n == 0 {
+			i++
+			continue
+		}
+		if k.assembly == Strip {
+			b.WriteString(md[last:i])
+			last = i + n
+		}
+		i += n
+	}
+	if last == 0 {
+		return md
+	}
+	b.WriteString(md[last:])
+	return b.String()
+}
 
 // idAt is the id inside the token of length n beginning at i.
 func idAt(s string, i, n int) string {

@@ -95,6 +95,21 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 			}
 		}
 	})
+	// AND THE SHAPE THE REFUSAL TEACHES. `--anchor` refuses "fx:F-…" by showing each kind's token
+	// with a placeholder, and the #1565 entry stored "an anchor is a ``, ``, `` or `` token".
+	t.Run("a token shape the refusal teaches is in the entry, as what the token holds", func(t *testing.T) {
+		runDir := seatRun(t)
+		if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", "fx:F-0e004c80"); err == nil {
+			t.Fatal("show report --anchor with the token's tag on its id was accepted")
+		}
+		got := refusals(t, runDir)
+		if len(got) != 1 {
+			t.Fatalf("want one refusal entry, got %d: %q", len(got), got)
+		}
+		if !strings.Contains(got[0], "`C-…`, `F-…`, `P-…` or `G-…` token") || strings.Contains(got[0], "<!--") || strings.Contains(got[0], "``") {
+			t.Errorf("the entry lost the token shapes the refusal named, or carries a token: %s", got[0])
+		}
+	})
 	t.Run("a refusal the tool already logged is not logged twice", func(t *testing.T) {
 		runDir := seatRun(t)
 		cmd := NewRootFor("blue-respond")
