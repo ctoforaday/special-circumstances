@@ -1641,13 +1641,13 @@ func (r *runner) registerTwice(seatID, occ string) {
 // when the drive stopped reaching it.
 var lookedFirst atomic.Int64
 
-// lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it screens a
-// candidate with `near-match`, which records nothing and so registers no one, and then runs
-// `register` itself, which is admitted. A repeat is still refused. universe-m33's voice lens had
+// lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it reads the
+// board, which records nothing and so registers no one, and then runs `register` itself, which is
+// admitted. A repeat is still refused. universe-m33's voice lens had
 // its own register refused because the look had registered it.
 func (r *runner) lookThenRegister(seatID string) {
 	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
-	if _, ok := r.admitAs(agent, "near-match", "--seat-id", seatID, "--problem", "fuzz candidate screened before registering"); !ok {
+	if _, ok := r.admitAs(agent, "show", "board", "--seat-id", seatID); !ok {
 		return
 	}
 	if _, ok := r.admitAs(agent, registerArgs(seatID, "")...); !ok {
@@ -7002,7 +7002,7 @@ func TestFuzzDebate(t *testing.T) {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
 		}
 		if lookedFirst.Load() == 0 {
-			t.Error("no lens sitting opened with a look before its register: the drive that holds `near-match` to registering no one never completed")
+			t.Error("no lens sitting opened with a look before its register: the drive that holds a board read to registering no one never completed")
 		}
 		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
 		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.

@@ -971,7 +971,7 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 // A READ RECORDS NOTHING, SO IT CARRIES NO RECORD TYPE AND REGISTERS NO ONE. Only an act that
 // records registers a seat, as register's page says. A read that went through Begin registered
 // its seat as a side effect, and the seat's own register later in the sitting was then refused as
-// a repeat — universe-m33's voice lens met exactly that after a `near-match`.
+// a repeat — universe-m33's voice lens met exactly that after a read.
 func NewRead(name string, result Result, run Handler) *cobra.Command {
 	c := newVerb(name, name, readOutput(result))
 	c.RunE = readRunE(run)
