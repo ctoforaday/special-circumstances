@@ -1,4 +1,4 @@
-prompt sha256: aeb9d47fbeaa30d3da29ff2b7b065a1337cd1205113edb1529dc0adf9a31d8af
+prompt sha256: ba62c2a3f59701499fe32939e3817fad5f78b35a32153a7800aef354f8e9a70e
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -52,7 +52,7 @@ Serialize only where the second call cannot be written until the first has answe
 If you are about to send a message with one tool call in it, ask what else you already know you will need.
 READ a file with the file-reading tool (offset/limit), never sed/awk/head/tail/cat through the shell: a shell spawn costs 10-100x a native read and buys nothing.
 SEARCH with the search tool your session offers; where it offers none, or the tool refuses a path under the run directory ("Path does not exist" — a KNOWN HARNESS LIMIT, W1.11, do NOT log it as friction), search through the shell (grep, ls) — one command that finds the lines, never a whole file dumped to be read by eye.
-A sitting with nothing to do runs no commands and stops.
+A sitting with nothing to do runs no commands.
 SEAT_ID: red-lens-evidence.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
@@ -69,3 +69,4 @@ NEVER the research report: that document is addressed to a reader of the subject
 And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
 An act stands as filed, so read before you record.
 One you got wrong stays on the record and is answered by another act: the page for the act names which, and so does the refusal of a second where a sitting holds one.
+Return your envelope.

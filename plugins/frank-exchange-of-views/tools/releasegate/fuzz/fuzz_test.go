@@ -72,6 +72,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
@@ -1286,8 +1287,8 @@ type filedPetition struct {
 
 // maybePetition sometimes files a petition (W2c) ON THE RECORD — the only channel a petition has —
 // tracking {who,class,motion} so the petition sitting the chair's next plan convenes can rule on it.
-// Every party seat is eligible, the lenses included: a lens returns prose, and the record is how
-// its petition reaches the bench. The random path never returns a HALT ruling, so the run
+// Every party seat is eligible, the lenses included: a lens's envelope carries nothing, and the
+// record is how its petition reaches the bench. The random path never returns a HALT ruling, so the run
 // continues. It files nothing most of the time — a petition detours the run through a bench
 // sitting, so it stays occasional.
 func (r *runner) maybePetition(seatID string) {
@@ -4236,7 +4237,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A PROOF JUDGED UNSOUND AFTER answerUnsound RAN — a reopened proof re-run, one the owner was
 		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
 		r.answerUnsound(seatID)
-		// A LENS PETITIONS ON THE RECORD — its return is prose, so the record is its only channel.
+		// A LENS PETITIONS ON THE RECORD — its envelope carries nothing, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
 		// unruled and is refused (envelopeRefusedEarly).
 		if r.forceUnverified && r.petitionsFiledN() == 0 {
@@ -4244,7 +4245,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		} else {
 			r.maybePetition(seatID)
 		}
-		return map[string]any{"rulings": arr()}
+		// THE LENS'S ENVELOPE IS EMPTY (record.LensEnvelope); the frontier's and a lane's return
+		// is read by nobody.
+		return map[string]any{}
 	}
 }
 
@@ -4417,6 +4420,13 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 				schema = v.Export()
 			}
 		}
+		// A SEAT WHOSE WORK ARRIVES AS ITEMS IS DISPATCHED WITH A SCHEMA, or it ends its sitting with
+		// text and the record is never asked whether it refuses the envelope (record.EnvelopeRefusal,
+		// which the PreToolUse hook asks on the call that returns one). A sweep that puts to the record
+		// an envelope the engine never asks for reports green a gate no live sitting reaches.
+		if schema == nil && record.WorkArrivesAsItems(seatclass.RoleOfSeat(seatID), seatID) {
+			r.noteActErr(seatID + " was dispatched with no envelope schema, so its sitting ends with text and the record's refusal of its envelope is never asked")
+		}
 		// THE SEAT'S WORK LEAVES THE LOOP (#630 phase 3).
 		//
 		// This built the envelope INLINE and resolved an already-settled promise, so the
@@ -4436,10 +4446,10 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		p, resolve, reject := vm.NewPromise()
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
-			if env != nil {
-				r.envelopeEnds(seatID)
-			}
+			// ONLY A DISPATCH CARRYING A SCHEMA ENDS THROUGH THE ENVELOPE CALL, so only its envelope
+			// is put to the record — as the hook puts it in a live run.
 			if env != nil && schema != nil {
+				r.envelopeEnds(seatID)
 				if why := r.schemas.refusal(schema, env); why != "" {
 					r.noteSchemaRefusal(seatID, why)
 				}

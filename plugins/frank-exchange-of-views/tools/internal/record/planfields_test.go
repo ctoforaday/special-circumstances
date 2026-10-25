@@ -23,6 +23,7 @@ func TestEveryPlanFieldIsOneASchemaCanCarry(t *testing.T) {
 		}
 	}
 	walk(PlanFields(), "Plan.")
+	walk(LensEnvelopeFields(), "LensEnvelope.")
 }
 
 // THE WALK AND THE VERB READ ONE DECLARATION. The keys PlanFields lists are the keys
