@@ -569,6 +569,15 @@ type runner struct {
 	// when no plan readied the owner.
 	forceReopenedProof bool
 	reopenStage        string
+	// forceUnsoundProof drives one proof to a standing unsound judgement on unsoundProofSeed's run:
+	// blue proves the seeded sentence, the owner judges it unsound when its work list offers it, the
+	// owner's gap carries it, and the next plan readies the judge or blue. unsoundStage is the last
+	// step it reached, which the run's error names when no plan was readied for it.
+	forceUnsoundProof bool
+	unsoundStage      string
+	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
+	// and absentSpanDriven is whether it has fired.
+	forceAbsentSpan, absentSpanDriven bool
 	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering proof beside it, and the sweep had never passed the flag that says so.
@@ -1438,6 +1447,17 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	return plan
 }
 
+// planReadies is whether the current plan names seatID among its parties.
+func (r *runner) planReadies(seatID string) bool {
+	parties, _ := r.planThisSitting["parties"].([]any)
+	for _, p := range parties {
+		if m, _ := p.(map[string]any); m != nil && m["seat_id"] == seatID {
+			return true
+		}
+	}
+	return false
+}
+
 // engaged is the gap ids the current plan dispatched seatID on — the party's gap_ids, or none
 // when the plan does not name the seat (a fresh lens sitting, or a seat outside this epoch).
 func (r *runner) engaged(seatID string) []string {
@@ -2089,12 +2109,16 @@ func (r *runner) contradictionUnraised(id string) bool {
 }
 
 // forcedProofs is the anchors of the proofs on the record whose script is reopenedProofScript.
-func (r *runner) forcedProofs() []string {
+func (r *runner) forcedProofs() []string { return r.proofsOfScript(reopenedProofScript) }
+
+// proofsOfScript is the anchors of the proofs on the record whose script is script, read by its
+// sha256 on the record (EvidenceProofJSON.Sha256), never recovered from report text.
+func (r *runner) proofsOfScript(script string) []string {
 	b, ok := r.board()
 	if !ok {
 		return nil
 	}
-	sum := sha256.Sum256([]byte(reopenedProofScript))
+	sum := sha256.Sum256([]byte(script))
 	sha := hex.EncodeToString(sum[:])
 	var out []string
 	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Proofs {
@@ -2200,6 +2224,94 @@ func (r *runner) judgeToReopen(seatID string) {
 		}
 		r.reachedStage("judged")
 	}
+}
+
+// unsoundFed is whether a plan of this run has readied the judge or blue for every unsound proof it
+// held, which ends the forced unsound chain.
+func (r *runner) unsoundFed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.unsoundReadied > 0
+}
+
+func (r *runner) reachedUnsoundStage(s string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.unsoundStage = s
+}
+
+// proveToJudgeUnsound is blue's half of the forced unsound chain: while no proof of
+// unsoundProofScript stands, it proves the seeded sentence no edit rewrites, so the judgement the
+// owner records stands until blue's fix (fixUnsound).
+func (r *runner) proveToJudgeUnsound(seatID string) {
+	if !r.forceUnsoundProof || r.unsoundFed() || len(r.proofsOfScript(unsoundProofScript)) > 0 {
+		return
+	}
+	name := "fuzz-unsound-proof.js"
+	if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(unsoundProofScript), 0o644); err != nil {
+		r.reachedUnsoundStage("could not write the script: " + err.Error())
+		return
+	}
+	if _, err := r.exec("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence",
+		"--script", name, "--reason", "fuzz: the computation its owner judges unsound"); err != nil {
+		r.reachedUnsoundStage("prove refused: " + firstLine(err.Error()))
+		return
+	}
+	r.reachedUnsoundStage("proved")
+}
+
+// judgeUnsound is the owner's half of the forced unsound chain: in a sitting whose plan does not ready
+// blue-respond, it judges every forced proof its work list offers unsound. answerUnsound, after the
+// sitting's last judgement, mints the gap carrying it, and the next plan holds the blocker and
+// readies the judge or blue (tallyUnsound).
+//
+// ONLY WHERE BLUE IS NOT READIED, because blue's sitting fixes every unsound proof before its envelope
+// (fixUnsound): a judgement in an epoch blue-respond sits in is fixed before the next plan is read,
+// and no plan holds it. The first plan readies the lenses and not blue, and blue-synthesize's
+// sitting has proved the forced proof before it.
+func (r *runner) judgeUnsound(seatID string) {
+	if !r.forceUnsoundProof || seatID != r.proofOwner || r.unsoundFed() {
+		return
+	}
+	forced := r.proofsOfScript(unsoundProofScript)
+	if len(forced) == 0 {
+		return
+	}
+	if r.planReadies("blue-respond") {
+		r.reachedUnsoundStage("proved, and every owner sitting since was in a plan that readies blue-respond")
+		return
+	}
+	offered, err := proofItemsOn(r.run(), seatID)
+	if err != nil {
+		return
+	}
+	for _, a := range forced {
+		if !slices.Contains(offered, a) || !r.firstThisSitting(seatID, a) {
+			continue
+		}
+		if _, err := r.do("reproduce", seatID).set("--anchor", a).set("--as", "unsound").
+			set("--reason", "fuzz: the script does not establish the sentence it backs").result(); err != nil {
+			r.reachedUnsoundStage("reproduce refused: " + firstLine(err.Error()))
+			return
+		}
+		r.reachedUnsoundStage("judged unsound")
+	}
+}
+
+// citeAbsentSpan is the forced drive of absentSpanSeed's run: blue's first sitting cites words its
+// source does not hold, and the tool must refuse it (citeSpanRefused). It draws nothing from the
+// run's RNG and leaves the bogus-span rotation where it was, so the drawn cites rotate as before.
+func (r *runner) citeAbsentSpan(seatID string) {
+	r.mu.Lock()
+	due := r.forceAbsentSpan && !r.absentSpanDriven
+	r.absentSpanDriven = true
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	out, err := r.do("cite", seatID).set("--quote", "§ fuzz sentence").set("--url", sourceURL("/blue-shared")).
+		set("--title", sourceTitle).set("--source-span", "fuzz words the source does not hold").result()
+	r.citeSpanRefused(seatID, out, err)
 }
 
 func (r *runner) reopened() []record.ProofRef {
@@ -2512,20 +2624,26 @@ func (r *runner) tallyOwed(plan map[string]any) {
 
 // owedKinds is the kinds of debt a fold's "it owes" clause names, each once: the fold names each item
 // by its kind's words (record.lensOwesOf). An item no kind matches is "unnamed", so a reworded debt
-// shows up in the tally rather than vanishing from it.
+// shows up in the tally rather than vanishing from it. A blocker the lens owns is named by its kind
+// and subject (record.owedBlocker), so its rows are every kind of the blocker table
+// (record.BlockerKinds): a new kind is named without a row here.
 func owedKinds(clause string) map[string]bool {
+	words := []struct{ word, kind string }{
+		{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
+		{"the bench's remand of ", "remand"}, {"'s finding ", "finding"}, {"unjudged proof ", "unjudged proof"},
+	}
 	out := map[string]bool{}
 	for _, item := range strings.Split(clause, ", ") {
 		kind := "unnamed"
-		for _, k := range []struct{ word, kind string }{
-			{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
-			{"the bench's remand of ", "remand"}, {"'s finding ", "finding"},
-			{"unjudged proof ", "unjudged proof"}, {"reopened ", "reopened"}, {"contradiction ", "contradiction"},
-			{string(record.BlockerUnsoundProof) + " ", "unsound proof"}, {"open gap ", "open gap"},
-		} {
+		for _, k := range words {
 			if strings.Contains(item, k.word) {
 				kind = k.kind
 				break
+			}
+		}
+		for _, k := range record.BlockerKinds() {
+			if kind == "unnamed" && strings.HasPrefix(item, string(k)+" ") {
+				kind = string(k)
 			}
 		}
 		out[kind] = true
@@ -3459,6 +3577,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 	case "blue":
 		// Before any draw, so a run that is not forced draws exactly what it drew without it.
 		r.proveToReopen(seatID)
+		r.proveToJudgeUnsound(seatID)
+		r.citeAbsentSpan(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
 		// comply or contest, one decision per inquiry. A second writer recording fates at random
@@ -4121,8 +4241,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// THE PROOF OWNER JUDGES ONE PROOF IT IS OFFERED, ON A COIN — so a judged proof can be
 				// reopened by a later edit of its sentence, and so a run still ends with proofs it was
 				// offered and left, which hold it from retiring while they stand. A reopenedProofSeeds
-				// run judges its forced proof first, and draws nothing doing it.
+				// run judges its forced proof first, and draws nothing doing it; so does the
+				// unsoundProofSeed run, judging its forced proof unsound.
 				r.judgeToReopen(seatID)
+				r.judgeUnsound(seatID)
 				if seatID == r.proofOwner && r.coin(35) {
 					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
 						if a := pick(r.rng, offered); r.firstThisSitting(seatID, a) {
@@ -4903,6 +5025,34 @@ var reopenedProofSeeds = map[int64]string{4: "red-lens-evidence", 5: "red-lens-c
 // on the record (EvidenceProofJSON.Sha256), so the chain never recovers it from report text.
 const reopenedProofScript = "console.log('fuzz: the proof a later edit reopens');"
 
+// unsoundProofSeed is the seed whose run is FORCED to a standing unsound judgement that a plan
+// readies the judge or blue for (forceUnsoundProof). It is within the six seeds the race variant
+// runs, whose sweep gates the arm as well, and casts every lens, so its proofs fall to the
+// computation lens.
+//
+// Left to the draw it is a race the judgement almost always loses. A plan holds an unsound blocker
+// only if it still stands when the next chair sitting plans, and blue-respond's sitting fixes every
+// unsound proof before its envelope (fixUnsound) — so a judgement made in an epoch whose plan readies
+// blue is fixed before any plan reads it. Blue is readied in nearly every plan after the first, and
+// the first plan's lens sittings can judge only a proof that stood before them. MEASURED on main
+// b434cda0: one sweep minted 505 gaps carrying an unsound judgement and 2 plans held one; an
+// eight-run sweep logging the blockers at every sitting minted 34 such gaps, saw blue-respond sit
+// with up to 3 unsound proofs standing and the plan after it with none, and 1 of its 59 plans held
+// one.
+const unsoundProofSeed = 6
+
+// unsoundProofScript is the forced unsound proof's script; its sha256 identifies the proof on the
+// record (proofsOfScript).
+const unsoundProofScript = "console.log('fuzz: the proof its owner judges unsound');"
+
+// absentSpanSeed is the seed whose run is FORCED to cite a span its source does not hold
+// (forceAbsentSpan). Left to the draw, the absent span is the third arm of a rotation counted per
+// run (nextBogusSpan): blue's cite drive fires 55 times in 100 and types a bogus span 15 times in
+// 100 of those, and only every third bogus span of a run is the absent one. About eight blue sittings
+// in a hundred draw a bogus span, so a run of fifteen draws three about one time in eight, and a
+// sweep where no run does reads ZERO.
+const absentSpanSeed = 8
+
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
@@ -4961,6 +5111,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 		r.forceReopenedProof = true
 	}
+	r.forceUnsoundProof = seed == unsoundProofSeed
+	r.forceAbsentSpan = seed == absentSpanSeed
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
 	}
@@ -5722,6 +5874,19 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 		res.err = fmt.Sprintf("forced reopened proof: no plan readied %s for a reopened proof; the chain reached %s", r.proofOwner, stage)
 	}
+	if r.forceUnsoundProof && r.unsoundReadied == 0 && res.err == "" {
+		stage := r.unsoundStage
+		if stage == "" {
+			stage = "nothing: no blue sitting reached the prove"
+		}
+		res.err = fmt.Sprintf("forced unsound proof: no plan readied %s or blue for an unsound proof; the chain reached %s", r.proofOwner, stage)
+	}
+	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
+		res.err = "forced absent span: no cite of a span its source does not hold was refused"
+		if !r.absentSpanDriven {
+			res.err += "; no blue sitting reached the cite"
+		}
+	}
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
@@ -6455,6 +6620,7 @@ func TestFuzzDebate(t *testing.T) {
 	bridgesRefused, bridgesNamed := 0, 0                    // supports_with_bridge refused for no --bridge / recorded with one
 	ordersRefused := 0                                      // edits refused for a section out of the order the report ships in
 	spansRefused := 0                                       // cites refused for a source span the source's text does not hold
+	forcedSpansRefused := 0                                 // of them, absentSpanSeed's run's
 	copiesRead := map[string]map[string]int{}               // copy words each reading verb named
 	closingsFiled, closingsRefused := 0, 0                  // closings filed on a docketed gap, and envelopes refused while one stood
 	closingWaits := 0                                       // plans that kept the bench waiting on a closing
@@ -6470,6 +6636,7 @@ func TestFuzzDebate(t *testing.T) {
 	budgetRefused := 0                                      // mints refused a lens holding its whole mint budget open
 	ownAnswers := 0                                         // mints that answered the minting lens's own raise
 	unsoundReadied, unsoundPlans, unsoundAnswers := 0, 0, 0 // plans readying for an unsound proof, of those holding one; gaps carrying one
+	forcedUnsoundReadied := 0                               // of them, unsoundProofSeed's run's
 	unsoundRepeats, unsoundOverOpen := 0, 0                 // repeat unsound judgements refused; gaps minted over an open own gap about the proof
 	credits := 0                                            // open gaps credited with a raise the screen refused to mint
 	unclassifiedMinted, unclassifiedRefused := 0, 0         // catch-all mints landed; refused for want of a reason
@@ -6487,7 +6654,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain)
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -6549,6 +6716,9 @@ func TestFuzzDebate(t *testing.T) {
 			positionsWithheld += o.positionsWithheld
 			ordersRefused += o.ordersRefused
 			spansRefused += o.spansRefused
+			if o.seed == absentSpanSeed {
+				forcedSpansRefused += o.spansRefused
+			}
 			for verb, words := range o.copiesRead {
 				if copiesRead[verb] == nil {
 					copiesRead[verb] = map[string]int{}
@@ -6564,6 +6734,9 @@ func TestFuzzDebate(t *testing.T) {
 			bridgesNamed += o.bridgesNamed
 			reopenedReadied += o.reopenedReadied
 			unsoundReadied += o.unsoundReadied
+			if o.seed == unsoundProofSeed {
+				forcedUnsoundReadied += o.unsoundReadied
+			}
 			unsoundPlans += o.unsoundPlans
 			unsoundAnswers += o.unsoundAnswers
 			unsoundRepeats += o.unsoundRepeats
@@ -6625,7 +6798,8 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
 	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
-	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one); %d gap(s) minted carrying an unsound judgement", unsoundReadied, unsoundPlans, unsoundAnswers)
+	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", unsoundReadied, unsoundPlans, forcedUnsoundReadied, unsoundProofSeed, unsoundAnswers)
+	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", spansRefused, forcedSpansRefused, absentSpanSeed)
 	if completed > 0 && (unsoundReadied == 0 || unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound proof in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-proof blocker's readiness or its answering gap is unexercised (false green)", unsoundReadied, unsoundPlans, unsoundAnswers, completed)
 	}
