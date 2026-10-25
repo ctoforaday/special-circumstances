@@ -107,7 +107,7 @@ func newDashboard() *cobra.Command {
 					// redundant render and cannot lose an update.
 					seen = current
 				}
-				if ended, why := runHasEnded(dashboardProject, run); ended {
+				if over, why := watchIsOver(dashboardProject, run); over {
 					_ = generate()
 					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
 					return nil

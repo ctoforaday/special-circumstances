@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // THE ROSTER LIVES HERE, AT THE BOTTOM, BECAUSE TWO SIDES OF THE TREE NEED IT.
@@ -18,7 +19,8 @@ import (
 // nothing can produce while `judge` and `frontier` walked past it.
 //
 // This package already holds the seat vocabulary's other half (the tier class), imports nothing
-// but the areas the engine declares, and is imported by both sides. One list, one home.
+// but the areas the engine declares and the bench configuration the hooks bind (runlive), and is
+// imported by both sides. One list, one home.
 
 // Seat is what a seat id used to carry in its SPELLING, held as fields instead.
 //
@@ -67,12 +69,14 @@ const AgentTypePrefix = "frank-exchange-of-views:"
 var Seats = roster()
 
 func roster() map[string]Seat {
+	// The bench's configuration is the hooks' too: between a run's outcome and its capture they bind
+	// an agent dispatched under it (runlive.StateOf), and they link no roster.
 	m := map[string]Seat{
 		"red-chair":       {Role: "chair", Base: "red-chair", AgentType: AgentTypePrefix + "red-chair"},
 		"blue-respond":    {Role: "blue", Base: "blue-respond", AgentType: AgentTypePrefix + "blue-researcher"},
 		"blue-synthesize": {Role: "blue", Base: "blue-synthesize", AgentType: AgentTypePrefix + "blue-synthesizer"},
 		"frontier":        {Role: "blue", Base: "frontier", AgentType: AgentTypePrefix + "blue-researcher", CommonWord: true},
-		"judge":           {Role: "bench", Base: "judge", AgentType: AgentTypePrefix + "lead-judge", CommonWord: true},
+		"judge":           {Role: "bench", Base: "judge", AgentType: runlive.BenchAgentType, CommonWord: true},
 		OperatorRole:      {Role: OperatorRole, CommonWord: true},
 	}
 	for _, a := range flags.LensAreas {

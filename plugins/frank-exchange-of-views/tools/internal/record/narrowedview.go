@@ -18,7 +18,7 @@ import (
 // error: it renders as nothing, in the bytes the view uses for "none on the record". The debate
 // printed every epoch's verdict empty that way — the gates were never loaded (#1243) — and the
 // evidence view listed every contradiction as unanswered and no anchor as reopened, because neither
-// the findings that answer one nor the edits that reopen one were.
+// the findings that raise one nor the edits that reopen one were.
 //
 // Every declaration is registered in narrowedViews, and narrowedview_test renders each one from its
 // narrowed read and from the whole record and holds the two to the same bytes — so a family a

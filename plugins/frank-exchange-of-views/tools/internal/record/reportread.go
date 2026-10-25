@@ -31,10 +31,17 @@ const ServedPinNote = "Your pin moves when the tool serves you the whole report 
 
 // ServeReport is the report as the whole-report read serves it to a lens, and its head, with the
 // ReportRead that records the serving — one transaction, so the head recorded is the head of the
-// text returned. It writes nothing where the run has its outcome, or where the seat's current
+// text returned. It writes nothing where the run has its outcome or was captured, or where the seat's current
 // sitting already holds a read at this head; the text is served either way. A write the record
 // cannot take — a lock it could not get — is the caller's error, and nothing is served.
 func ServeReport(id Identity) (text string, head int64, err error) {
+	// A CAPTURED RUN IS SERVED AND RECORDS NOTHING, asked before the append, which a captured run
+	// refuses as the write it is (requireRunNotCaptured): the seat asked for a read.
+	if captured, err := RunCaptured(id.Run); err != nil {
+		return "", 0, err
+	} else if captured {
+		return ReportAtHead(id.Run)
+	}
 	body := &recordpb.ReportRead{}
 	_, err = Append(id, body, CheckOnReport(func(l *Landing) error {
 		if text, err = l.Report(); err != nil {

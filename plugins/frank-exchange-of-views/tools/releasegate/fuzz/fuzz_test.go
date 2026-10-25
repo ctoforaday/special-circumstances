@@ -5419,6 +5419,20 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// only when its own read succeeds reports a record it cannot read as a record with nothing
 	// wrong in it.
 	oracleRun := runtest.Open(t, runDir)
+	// THE DOCUMENTS ARE RE-ASSEMBLED FROM THE RECORD AT THE CLOSE, as capture does. The probes above
+	// read the run after its outcome, and a read the tool refuses then is logged — the record takes
+	// friction after the outcome (record.requireOpenToSeats) — so the bench's documents predate
+	// entries the documents that ship carry. The oracles judge those. Like capture, it re-assembles
+	// only a run the bench assembled: the bench's act is what makes a run's documents exist.
+	if written, werr := reportdoc.AssemblyWritten(oracleRun); werr != nil {
+		res.err = "documents: whether the bench assembled them could not be read: " + werr.Error()
+		return res
+	} else if written {
+		if _, aerr := reportdoc.Assemble(oracleRun); aerr != nil {
+			res.err = "documents: re-assembling the run at its close failed: " + aerr.Error()
+			return res
+		}
+	}
 	board, berr := record.FamilyOf(oracleRun)
 	if berr != nil {
 		res.err = "board: the oracles could not read the record: " + berr.Error()

@@ -139,7 +139,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 		// one holds the ORDERING (command before flag), which is a different property.
 		// `mint` is the lens seat's, and this caller is blue: the refusal names the seat that
 		// holds it, and it does so BEFORE complaining about --run.
-		{"real flags on a command that is not this seat's", []string{"feov-record", "mint", "--run", "/x", "board"}, `"mint" is not on your surface`},
+		{"real flags on a command that is not this seat's", []string{"feov-record", "mint", "--about-kind", "section", "--about", "Findings", "--run", "/x", "board"}, `"mint" is not on your surface`},
 		{"no flags at all", []string{"feov-record", "mint"}, `"mint" is not on your surface`},
 		{"a command that does exist is left to cobra", []string{"feov-record", "edit", "--nonsuch"}, ""},
 		{"a bare flag is left to cobra", []string{"feov-record", "--version"}, ""},
