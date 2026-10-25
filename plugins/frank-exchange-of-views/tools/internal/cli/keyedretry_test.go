@@ -97,14 +97,12 @@ func TestAKeyedRetryIsHeldToTheActItRepeats(t *testing.T) {
 			args: []string{"--key", "K2", "--quote", keyedStored, "--new", "The measured latency is capped.",
 				"--class", "spec_underspecification", "--problem", "the word is loose", "--fix", "tighten it",
 				"--check-kind", "document", "--check", "the word is exact", "--severity", "low", "--likelihood", "low",
-				"--impact", "low", "--complexity", "low", "--supersedes", "{G1}", "--distinct-from", "{G1},{G2}", "--found-by", "{F1}"},
+				"--impact", "low", "--complexity", "low", "--supersedes", "{G1}", "--found-by", "{F1}"},
 			differ: map[string][]string{
 				"--new":        {"--new", "The measured latency is limited."},
 				"--supersedes": {"--supersedes", "{G2}"},
 				"--found-by":   {"--found-by", "{F2}"},
 			},
-			// the screen's answer is not the gap: a retry reading a moved board is the same gap.
-			located: [][]string{{"--distinct-from", "{G2}"}},
 			names: map[string]string{"--new": `--new "The measured latency is capped."`, "--supersedes": "--supersedes {G1}",
 				"--found-by": "--found-by {F1}"}},
 		{verb: "mint", seat: lensSeat, typ: recordpb.EventType_EVENT_TYPE_MINT, idField: "gap_id",

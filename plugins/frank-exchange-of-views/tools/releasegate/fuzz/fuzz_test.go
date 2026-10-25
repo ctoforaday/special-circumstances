@@ -448,10 +448,6 @@ type runner struct {
 	// raised.
 	ownAnswers      int
 	answerBudgetErr string
-	// credits counts the credits that landed: a lens whose answering mint the duplicate screen
-	// refused credited the open gap the refusal named with its raising finding, and the contradiction
-	// then read answered. The sweep gates it at zero.
-	credits int
 	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
@@ -1645,13 +1641,13 @@ func (r *runner) registerTwice(seatID, occ string) {
 // when the drive stopped reaching it.
 var lookedFirst atomic.Int64
 
-// lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it screens a
-// candidate with `near-match`, which records nothing and so registers no one, and then runs
-// `register` itself, which is admitted. A repeat is still refused. universe-m33's voice lens had
+// lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it reads the
+// board, which records nothing and so registers no one, and then runs `register` itself, which is
+// admitted. A repeat is still refused. universe-m33's voice lens had
 // its own register refused because the look had registered it.
 func (r *runner) lookThenRegister(seatID string) {
 	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
-	if _, ok := r.admitAs(agent, "near-match", "--seat-id", seatID, "--problem", "fuzz candidate screened before registering"); !ok {
+	if _, ok := r.admitAs(agent, "show", "board", "--seat-id", seatID); !ok {
 		return
 	}
 	if _, ok := r.admitAs(agent, registerArgs(seatID, "")...); !ok {
@@ -1764,15 +1760,14 @@ const fuzzLensStock = 2
 // edit moves the head, the moved head readies the lenses, and a lens sitting may mint again — each
 // late mint buys the run another march to the docket. When those mints land is not a function of
 // the seed: the seats of an epoch run on their own goroutines and draw from one shared stream in
-// the order the scheduler runs them (lockedRand says why), and of two near-identical mints the
-// board refuses whichever lands second. MEASURED on one binary and one seed, 48 forced-UNVERIFIED
+// the order the scheduler runs them (lockedRand says why). MEASURED on one binary and one seed, 48 forced-UNVERIFIED
 // runs: 1 to 7 gaps landed at the first sitting and the run took 2 to 12 chair sittings. The
 // length follows the LAST mint: the seven whose mints all landed at the first sitting ended in 2
 // to 5, and the four that ended CEILING at the limit of twelve last minted at their sixth or
 // eighth. Load widens the spread; it does not cause it.
 //
 // PER-SEAT STREAMS WOULD NOT REMOVE IT. A stream per (seed, seat, sitting) fixes what each seat
-// draws, not what its draw meets: which duplicate the board refuses, which gaps openGaps lists,
+// draws, not what its draw meets: which gaps openGaps lists,
 // and whether a lens's stock has landed are the order the writes land in, and the seats contend
 // on one run directory on purpose. A forced run needs a BOUND, and the bound is structural.
 //
@@ -1997,54 +1992,6 @@ func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
 		return
 	}
 	r.mintFrom(seatID, env.Result.FindingID)
-}
-
-// creditShape is the crediting act as the duplicate screen's refusal names it; hitShape is one open
-// gap the refusal lists, read where the refusal matched several and names the act with <id>.
-var (
-	creditShape = regexp.MustCompile("`credit --id (G-[0-9a-f]{8}) --found-by ([^`]+)`")
-	hitShape    = regexp.MustCompile(`(G-[0-9a-f]{8}) \(open, minted by`)
-)
-
-// creditNamed is the gap the screen's refusal of an answering mint names for the credit of finding,
-// or "" where it names no credit of that finding: the first gap it lists when it matched several.
-func creditNamed(out, finding string) string {
-	if !strings.Contains(out, "`credit --id ") || !strings.Contains(out, "--found-by "+finding+"`") {
-		return ""
-	}
-	if m := creditShape.FindStringSubmatch(out); m != nil && m[2] == finding {
-		return m[1]
-	}
-	if m := hitShape.FindStringSubmatch(out); m != nil {
-		return m[1]
-	}
-	return ""
-}
-
-// credit answers the contradiction finding raised with the open gap gap, and fails the run unless the
-// contradiction then reads answered. A refusal is admissible only where the gap closed or the raise
-// was answered between the screen's refusal and the credit — the lenses sit concurrently.
-func (r *runner) credit(seatID, gap, finding string) {
-	out, err := r.exec("--json", "credit", "--seat-id", seatID, "--id", gap, "--found-by", finding)
-	if err != nil {
-		if !strings.Contains(out, gap+" is closed") && !strings.Contains(out, "is already answered") {
-			r.noteActErr("refused " + seatID + "'s credit of " + gap + " with its raising finding " + finding + ": " + firstLine(out))
-		}
-		return
-	}
-	b, ok := r.board()
-	if !ok {
-		return
-	}
-	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
-		if c.RaisedBy == finding {
-			r.noteActErr("contradiction " + c.ID + " stands unanswered after " + seatID + " credited " + gap + " with its raising finding " + finding)
-			return
-		}
-	}
-	r.mu.Lock()
-	r.credits++
-	r.mu.Unlock()
 }
 
 // contradictionAbout is the contradiction id a finding's anchor arguments name, "" for none.
@@ -2456,9 +2403,6 @@ func (r *runner) answerUnsound(seatID string) {
 			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--class", pick(r.rng, mintPoolClasses),
 			"--about-kind", "proof", "--about", b.Subject, "--reason", "fuzz: carrying an unsound judgement to blue"}
 		overOpen := r.ownOpenGapAbout(seatID, b.Subject)
-		if open := r.openGaps(); len(open) > 0 {
-			args = append(args, "--distinct-from", strings.Join(open, ","))
-		}
 		out, err := r.exec(args...)
 		if err != nil {
 			if strings.Contains(out, "its mint budget admits no more") {
@@ -2887,38 +2831,20 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 			args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 		}
 	}
-	// THE MINT SCREENS THE BOARD ITSELF, and every mint here shares one sentence and one problem, so
-	// after G1 the screen would refuse nearly all of them and starve every gap-dependent drive. The
-	// driver answers it as a seat does — it names the open gaps it read as distinct — and one mint in
-	// ten does not, which drives the refusal. A concurrent lens can mint between the board read and
-	// the mint, so a refusal is answered once more against the board as it now stands.
-	distinct := func(a []string) []string {
-		if open := r.openGaps(); len(open) > 0 {
-			return append(append([]string{}, a...), "--distinct-from", strings.Join(open, ","))
-		}
-		return a
-	}
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
-	// AN ANSWERING MINT GOES TO THE SCREEN AS IT IS whenever the board holds an open gap: the refusal
-	// it meets names the open gap and the credit that answers the raise with it (gblock, 2026-10-24),
-	// and half of those are answered by the credit, half as a different defect.
 	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
-	first := args
-	if !own && !r.coin(10) {
-		first = distinct(args)
-	}
 	// A GAP NO CLASS FITS SAYS WHY. Tried without --reason, the catch-all is refused by the record's
 	// own check, naming the duty; the refusal is counted only when it says so.
 	if unclassified && r.coin(50) {
 		var bare []string
-		for k := 0; k < len(first); k++ {
-			if first[k] == "--reason" {
+		for k := 0; k < len(args); k++ {
+			if args[k] == "--reason" {
 				k++
 				continue
 			}
-			bare = append(bare, first[k])
+			bare = append(bare, args[k])
 		}
 		if out, err := r.exec(bare...); err != nil && strings.Contains(out, "a gap no class fits says why") {
 			r.mu.Lock()
@@ -2928,30 +2854,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 			r.noteApplyMiss("an unclassified mint without --reason landed")
 		}
 	}
-	landedArgs := first
-	out, err := r.exec(first...)
-	if err != nil && strings.Contains(out, "already holds an open gap") {
-		if own {
-			// READ AGAIN AFTER THE REFUSAL: the raise's reader may mint from it concurrently, and a
-			// raise answered in between is a mint that answers nothing, refused as any duplicate is.
-			// An answer is never undone, so a raise still unanswered now was unanswered at the write.
-			gap := creditNamed(out, foundBy)
-			if gap == "" && r.ownUnansweredRaise(seatID, foundBy) {
-				r.noteActErr("the duplicate screen refused " + seatID + "'s mint answering its own raise " + foundBy + " without naming the credit: " + firstLine(out))
-			} else if gap != "" && r.coin(50) {
-				r.credit(seatID, gap, foundBy)
-				return ""
-			}
-		}
-		// AGAIN WHILE THE BOARD MOVES UNDER IT: every lens mints concurrently, and a gap minted between
-		// the board read and the write is one this mint has not named distinct.
-		for try := 0; try < 3; try++ {
-			landedArgs = distinct(args)
-			if out, err = r.exec(landedArgs...); err == nil || !strings.Contains(out, "already holds an open gap") {
-				break
-			}
-		}
-	}
+	out, err := r.exec(args...)
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
 			// READ AGAIN AFTER THE REFUSAL: a raise answered in between is a mint that counts, and
@@ -2980,7 +2883,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		return ""
 	}
 	if env.Result.GapID != "" && keyed && r.coin(30) {
-		r.retryKeyed(landedArgs, "--check", "acc, restated")
+		r.retryKeyed(args, "--check", "acc, restated")
 	}
 	if env.Result.GapID != "" {
 		landed = true
@@ -3571,9 +3474,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// carries its scenario, so a ruling has a relation to what was proposed and a
 		// consequence the oracle can check.
 		r.ruleOpenInquiries(seatID)
-		// `near-match` is NOT driven here any more: it is a lens verb now, the screen a lens runs
-		// BEFORE minting (roundless §III.B.3), so it sits beside the mint it precedes — see the
-		// fresh-mint loop in envelopeFor's chair branch.
 	case "blue":
 		// Before any draw, so a run that is not forced draws exactly what it drew without it.
 		r.proveToReopen(seatID)
@@ -4157,9 +4057,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if r.landedMints(seatID) >= fuzzLensStock || !r.findsFresh() {
 				break
 			}
-			r.maybe(40, func() {
-				r.readOnly("near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
-			})
 			r.mint(seatID) // refused past the budget, which the sweep counts as a driven refusal
 		}
 		if r.forceEstoppel {
@@ -4620,8 +4517,6 @@ type outcome struct {
 	budgetRefused int
 	// ownAnswers is the mints that answered the minting lens's own raise (runner.ownAnswers).
 	ownAnswers int
-	// credits is the open gaps credited with a raise the screen refused to mint (runner.credits).
-	credits int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
@@ -5894,7 +5789,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.ownAnswers = r.ownAnswers
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
-	res.credits = r.credits
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
@@ -6040,7 +5934,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
-	"closing", "position", "regrade", "mint", "close", "credit",
+	"closing", "position", "regrade", "mint", "close",
 	"cite", "verify", "finding", "inquiry", "reproduce", "log", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
@@ -6253,7 +6147,6 @@ var reportExemptions = map[string]string{
 	"cast":        "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
 	"dispatch":    "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
 	"plan":        "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
-	"credit":      "carries no prose: it adds its finding to an open gap's found_by, and the report renders that finding where it renders every gap's — the gap's surfaced-by lines",
 	"stale":       "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
@@ -6638,7 +6531,6 @@ func TestFuzzDebate(t *testing.T) {
 	unsoundReadied, unsoundPlans, unsoundAnswers := 0, 0, 0 // plans readying for an unsound proof, of those holding one; gaps carrying one
 	forcedUnsoundReadied := 0                               // of them, unsoundProofSeed's run's
 	unsoundRepeats, unsoundOverOpen := 0, 0                 // repeat unsound judgements refused; gaps minted over an open own gap about the proof
-	credits := 0                                            // open gaps credited with a raise the screen refused to mint
 	unclassifiedMinted, unclassifiedRefused := 0, 0         // catch-all mints landed; refused for want of a reason
 	rulerFilingsRefused := 0                                // filings refused the seat that rules their subject
 	applyMisses := map[string]int{}                         // and why it did not, by cause — a bare 0 above named none of them
@@ -6759,7 +6651,6 @@ func TestFuzzDebate(t *testing.T) {
 			repeatsRefused += o.repeatsRefused
 			budgetRefused += o.budgetRefused
 			ownAnswers += o.ownAnswers
-			credits += o.credits
 			unclassifiedMinted += o.unclassifiedMinted
 			unclassifiedRefused += o.unclassifiedRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
@@ -6985,13 +6876,6 @@ func TestFuzzDebate(t *testing.T) {
 		if ownAnswers == 0 {
 			t.Errorf("fuzz drove ZERO mints answering the minting lens's own raise across %d runs — the gap outside the budget is unexercised (false green)", completed)
 		}
-		// THE CREDIT GATE. An answering mint the duplicate screen refuses is answered by crediting the
-		// open gap the refusal names; a run fails on a refusal that names no credit, or a credit after
-		// which the contradiction still stands. Both oracles are silent where nothing was credited.
-		t.Logf("credits: %d open gap(s) credited with a raise the screen refused to mint", credits)
-		if credits == 0 {
-			t.Errorf("fuzz drove ZERO credits across %d runs — an answering mint the screen refuses is never answered with the open gap (false green)", completed)
-		}
 		// THE CATCH-ALL GATE. A gap no class fits is minted `unclassified` with a reason, and the
 		// record refuses one without. The `mint` verb gate is satisfied by every other class, so a
 		// catch-all that stopped landing — or a reason check that stopped refusing — would hide
@@ -7118,7 +7002,7 @@ func TestFuzzDebate(t *testing.T) {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
 		}
 		if lookedFirst.Load() == 0 {
-			t.Error("no lens sitting opened with a look before its register: the drive that holds `near-match` to registering no one never completed")
+			t.Error("no lens sitting opened with a look before its register: the drive that holds a board read to registering no one never completed")
 		}
 		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
 		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.

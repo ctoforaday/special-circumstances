@@ -27,7 +27,7 @@ func mintQuote(t *testing.T, runDir, key, quote string, extra ...string) (string
 	t.Helper()
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := runMint(t, runDir, append([]string{"--run", runDir, "--seat-id", lensSeat,
+	out, err := runMint(t, append([]string{"--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", quote}, extra...)...)

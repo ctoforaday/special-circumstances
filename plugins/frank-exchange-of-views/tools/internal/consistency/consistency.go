@@ -410,11 +410,8 @@ func Check(run record.Run) ([]string, error) {
 	}
 	// THE CLOSER ATTRIBUTION IS CHECKED ON THE BOARD, WHICH IS WHERE IT IS PUBLISHED.
 	//
-	// It was checked on `work.closed_index`, a reduced copy of the closed gaps the work list
-	// carried for near-match screening. The screen carries `closed_by` itself now, so the work list
-	// holds only OPEN work and this invariant follows the fact to the projection that still states
-	// it. The check is the same one: the view's fold and the raw walk must agree about whose
-	// closing event ended the gap.
+	// The work list holds only OPEN work, so this invariant reads the projection that states it.
+	// The view's fold and the raw walk must agree about whose closing event ended the gap.
 	for _, g := range bj.Closed {
 		raw := gt.gaps[g.ID]
 		if raw == nil || raw.open {

@@ -98,7 +98,7 @@ func runAt(t *testing.T, args ...string) (string, error) {
 // runMintAt is runMint for a mint that names another gap by handle.
 func runMintAt(t *testing.T, runDir string, args ...string) (string, error) {
 	t.Helper()
-	return runMint(t, runDir, byHandle(t, runDir, args)...)
+	return runMint(t, byHandle(t, runDir, args)...)
 }
 
 // handleText is prose with every handle word replaced by the id it names in this run: what a row

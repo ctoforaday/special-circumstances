@@ -29,8 +29,7 @@ import (
 // the script is on disk, and either it still says what blue recorded or it does not.
 //
 // IT RECORDS ITS VERDICT NOW (#343). It used to record nothing, on the reasoning that a read
-// leaves its result to the reader — which held for near-match and count-claims, and did not hold
-// here.
+// leaves its result to the reader — which held for count-claims, and did not hold here.
 //
 // The asymmetry was the tell: the citation pair records BOTH halves (blue cites, red verifies),
 // while the proof pair recorded only blue's. So the newest and strongest evidence axis was the

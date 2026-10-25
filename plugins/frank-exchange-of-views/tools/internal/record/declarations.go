@@ -42,14 +42,13 @@ type DeclarationJSON struct {
 	Gaps []DeclaredGapJSON `json:"gaps"`
 }
 
-// DeclaredGapJSON is one gap a declaration names, and the board's answer for it now. Its words are
-// the near-match screen's: `status` open | closed, and on a closed gap `closed_by` bench | red with
-// the `fate` that closed it.
+// DeclaredGapJSON is one gap a declaration names, and the board's answer for it now: `status` open |
+// closed, and on a closed gap `closed_by` bench | red with the `fate` that closed it.
 type DeclaredGapJSON struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
 	// Fate, ClosedBy and ClosedEpoch are a closed gap's, and absent on an open one because there is
-	// nothing to say — the same reading near-match's `closed_by` has.
+	// nothing to say — the same reading the board's `closed_by` has.
 	Fate        string `json:"fate,omitempty"`
 	ClosedBy    string `json:"closed_by,omitempty"`
 	ClosedEpoch int    `json:"closed_epoch,omitempty"`

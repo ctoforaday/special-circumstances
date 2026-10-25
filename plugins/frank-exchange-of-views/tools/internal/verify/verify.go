@@ -162,7 +162,7 @@ func foundByResolves(f record.Family) Check {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, l := range g.FoundBy() {
+		for _, l := range g.Mint.GetFoundBy() {
 			if !labels[l] {
 				bad = append(bad, fmt.Sprintf("%s→%s", id, l))
 			}
@@ -439,7 +439,7 @@ func Compute(f record.Family) Stats {
 		id := g.ID
 		_ = id
 		if g != nil && g.Mint != nil {
-			for _, l := range g.FoundBy() {
+			for _, l := range g.Mint.GetFoundBy() {
 				minted[l] = true
 			}
 		}

@@ -306,7 +306,6 @@ func TestAMintMeasuredOnTheReportRendersItBeforeTheLock(t *testing.T) {
 	}
 	*calls = 0
 	g2 := highMint("G2")
-	g2.DistinctFrom = []string{"G1"}
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, g2); err != nil {
 		t.Fatalf("the evidence mint: %v", err)
 	}
