@@ -164,32 +164,46 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 	}
 }
 
-// TelemetryAudit checks one telemetry line per red epoch. redEpochs comes from the debate view
-// (epochs with a red section), read in-process. Telemetry is now DERIVED from the record via the
-// shared view library (never a materialized file), so it cannot be "absent": the check is whether
-// the derived series covers every red epoch. SKIP when there were no red epochs.
-func TelemetryAudit(run record.Run, redEpochs int) Audit {
+// TelemetryAudit checks that the telemetry series derived from the record has a row for every red
+// epoch.
+//
+// EVERY EPOCH IS A RED EPOCH: the record numbers its epochs by the chair's sittings (events_w), so
+// the red epochs are 1..N, where N is the last epoch with work in it (WindowIndex.CurrentEpoch). The
+// count is read off that field, never off the chair's positions: a run that ends in PASS files no
+// position, and a count of positions reads 0 on a run of seven epochs — a zero indistinguishable
+// from a run where the chair never sat.
+//
+// famErr is FamilyOf's error. A record that cannot be read is NOT MEASURED, never 0 red epochs.
+func TelemetryAudit(run record.Run, fam record.Family, famErr error) Audit {
+	if famErr != nil {
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "NOT MEASURED — the record could not be read, so its red epochs are unknown (not a run with none): " + famErr.Error()}
+	}
+	redEpochs := fam.At.CurrentEpoch(fam.Events)
 	if redEpochs == 0 {
-		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red epoch(s)"}
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the record holds no epoch with work in it: the chair never sat"}
 	}
 	lines, err := view.Telemetry(run)
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
-	// A ROW WITHOUT AN EPOCH IS NOT COUNTED, and with the row typed that is now the only way to
-	// miss: the field is optional in the schema, so presence is the question, and a key that was
-	// never written can no longer masquerade as one that was absent.
-	epochs := map[int32]bool{}
+	// A ROW WITHOUT AN EPOCH IS NOT COUNTED: the field is optional in the schema, so presence is the
+	// question, and a key that was never written cannot masquerade as one that was absent.
+	covered := map[int32]bool{}
 	for _, j := range lines {
 		if j.Epoch != nil {
-			epochs[j.GetEpoch()] = true
+			covered[j.GetEpoch()] = true
 		}
 	}
-	v := "FAIL"
-	if len(epochs) >= redEpochs {
-		v = "PASS"
+	var missing []string
+	for r := 1; r <= redEpochs; r++ {
+		if !covered[int32(r)] {
+			missing = append(missing, strconv.Itoa(r))
+		}
 	}
-	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry epoch(s) vs %d red epoch(s) on the record", len(epochs), redEpochs)}
+	if len(missing) > 0 {
+		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry has no row for red epoch(s) %s of the %d on the record", strings.Join(missing, ", "), redEpochs)}
+	}
+	return Audit{Check: "telemetry", Verdict: "PASS", Detail: fmt.Sprintf("telemetry covers all %d red epoch(s) on the record", redEpochs)}
 }
 
 // AUDIT 2 IS GONE: "shard self-report vs files".
@@ -1904,22 +1918,14 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 	// The family off the record; a run whose record cannot be read audits with fam == nil,
 	// exactly as the nil board did.
 	var fam *record.Family
-	if f, ferr := record.FamilyOf(run); ferr == nil {
+	f, ferr := record.FamilyOf(run)
+	if ferr == nil {
 		fam = &f
-	}
-	redEpochs := 0
-	if fam != nil {
-		dj := record.DebateJSONOfFamily(*fam)
-		for _, r := range dj.Epochs {
-			if len(r.Red) > 0 {
-				redEpochs++
-			}
-		}
 	}
 
 	audits = []Audit{
 		LivenessAudit(run, now),
-		TelemetryAudit(run, redEpochs),
+		TelemetryAudit(run, f, ferr),
 		ContextUse(transcripts),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
