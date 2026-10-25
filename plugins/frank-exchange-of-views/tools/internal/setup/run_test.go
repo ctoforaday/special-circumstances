@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
@@ -352,19 +353,22 @@ func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	}
 }
 
-// ROWS THAT ARE NO LONGER LIVE ARE PRUNED, AND NAMED, AND DO NOT STOP THE RUN. A run whose outcome
-// is recorded and a run whose directory is gone are residue of runs nothing captured.
+// ROWS THAT ARE NO LONGER LIVE ARE PRUNED, AND NAMED, AND DO NOT STOP THE RUN. A run that was
+// captured and a run whose directory is gone are residue nothing else will remove.
 func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	ended := filepath.Join(cfg.Cwd, "research", "2026-08-01_ended")
+	ended := filepath.Join(cfg.Cwd, "research", "2026-08-01_captured")
 	if err := os.MkdirAll(ended, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(ended, runlive.OutcomeMark), []byte(`{"agentId":"a-bench"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(ended, runlive.CapturedMark), []byte("2026-08-01T10:00:00Z\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
-	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_ended", nil, at, "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_captured", nil, at, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", ""); err != nil {
@@ -376,8 +380,8 @@ func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 		t.Fatalf("exit %d, want 0 — rows that are not live must not stop a run:\n%s", code, errb.String())
 	}
 	for _, want := range []string{
-		"pruned the live-run marker's row for research/2026-08-01_ended",
-		"its outcome is recorded",
+		"pruned the live-run marker's row for research/2026-08-01_captured",
+		"it was captured",
 		"pruned the live-run marker's row for research/2026-07-01_deleted",
 		"its run directory is gone",
 	} {
@@ -387,6 +391,71 @@ func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
 	}
 	if rows := runlive.ReadRunLive(cfg.Cwd); len(rows) != 1 || !runlive.SameRun(cfg.Cwd, rows[0].RunDir, runDir) {
 		t.Errorf("the marker must hold the new run alone: %+v", rows)
+	}
+}
+
+// A DECIDED RUN NOTHING CAPTURED REFUSES THE NEXT ONE (gblock, 2026-10-24: "Setup refuses B"),
+// naming it and what closes it — capture when its assembly finished, a resume or a capture as it
+// stands when it did not — and its row stands. Once captured, its row is pruned and setup goes on.
+func TestSetupRefusesWhileADecidedRunIsNotCaptured(t *testing.T) {
+	for _, assembled := range []bool{false, true} {
+		t.Run(map[bool]string{false: "assembly unfinished", true: "assembly finished"}[assembled], func(t *testing.T) {
+			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+			const rel = "research/2026-08-01_decided"
+			decided := filepath.Join(cfg.Cwd, rel)
+			if err := os.MkdirAll(decided, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := runlive.WriteOutcomeMark(decided, "a-bench"); err != nil {
+				t.Fatal(err)
+			}
+			if assembled {
+				if err := os.WriteFile(filepath.Join(decided, report.FileRun), []byte("# run\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := runlive.WriteRunLiveMarker(cfg.Cwd, rel, nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", ""); err != nil {
+				t.Fatal(err)
+			}
+
+			var out, errb bytes.Buffer
+			if code := Run(cfg, &out, &errb); code != 2 {
+				t.Fatalf("exit %d, want 2 — a decided run nothing captured must refuse the next:\n%s%s", code, out.String(), errb.String())
+			}
+			wants := []string{"HAS ITS OUTCOME AND WAS NOT CAPTURED", rel, "2026-08-01T09:00:00.000Z", "feov-record capture " + rel}
+			if assembled {
+				wants = append(wants, "nothing to resume")
+			} else {
+				wants = append(wants, "never finished", "resume it", "capture it as it stands")
+			}
+			for _, want := range wants {
+				if !strings.Contains(errb.String(), want) {
+					t.Errorf("the refusal must carry %q:\n%s", want, errb.String())
+				}
+			}
+			if assembled && strings.Contains(errb.String(), "resume it") {
+				t.Errorf("a finished assembly is sent to resume:\n%s", errb.String())
+			}
+			if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+				t.Errorf("the refused run was built: %v", err)
+			}
+			if rows := runlive.ReadRunLive(cfg.Cwd); len(rows) != 1 || rows[0].RunDir != rel {
+				t.Errorf("the decided run's row did not stand: %+v", rows)
+			}
+
+			// CAPTURED, it is residue: pruned, named, and no refusal.
+			if err := os.WriteFile(filepath.Join(decided, runlive.CapturedMark), []byte("2026-08-01T10:00:00Z\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out.Reset()
+			errb.Reset()
+			if code := Run(cfg, &out, &errb); code != 0 {
+				t.Fatalf("exit %d once the decided run was captured, want 0:\n%s", code, errb.String())
+			}
+			if !strings.Contains(out.String(), "pruned the live-run marker's row for "+rel) {
+				t.Errorf("the captured run's row was not pruned and named:\n%s", out.String())
+			}
+		})
 	}
 }
 

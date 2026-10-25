@@ -16,7 +16,7 @@ func TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly(t *testing.T) {
 	registerLensOnce(t, runDir)
 	mintArgs := []string{"mint", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "report-voice", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"}
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--about-kind", "section", "--about", "Findings"}
 
 	_, err := run(t, mintArgs...)
 	if err == nil {
@@ -64,7 +64,7 @@ func TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly(t *testing.T) {
 func TestAnEmptyClassIsRefusedNamingTheCatchAll(t *testing.T) {
 	runDir := newRun(t)
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {

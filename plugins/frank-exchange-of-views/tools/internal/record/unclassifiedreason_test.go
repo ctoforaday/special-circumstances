@@ -35,7 +35,7 @@ func TestTheWriteAndTheDatabaseAgreeOnABlankReason(t *testing.T) {
 		if err := db.QueryRow(`SELECT `+expr+` FROM (SELECT 'unclassified' AS "class", ? AS "mint_reason")`, reason).Scan(&dbAccepts); err != nil {
 			t.Fatalf("evaluating the check on %q: %v", reason, err)
 		}
-		writeAccepts := requireUnclassifiedReason(&recordpb.Mint{Class: recordpb.GapClass_GAP_CLASS_UNCLASSIFIED.Enum(), MintReason: proto.String(reason)}) == nil
+		writeAccepts := requireUnclassifiedReason(&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Class: recordpb.GapClass_GAP_CLASS_UNCLASSIFIED.Enum(), MintReason: proto.String(reason)}) == nil
 		if dbAccepts != writeAccepts {
 			t.Errorf("reason %q: the database accepts %v, the write %v", reason, dbAccepts, writeAccepts)
 		}

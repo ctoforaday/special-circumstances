@@ -17,7 +17,7 @@ import (
 // goes through the same handle and fails the same way a busy database would.
 func TestAFailedOutcomeReadIsAnErrorNotAnAnswer(t *testing.T) {
 	run := corrRun(t)
-	judge := sit(t, run, "judge")
+	judge := sitToAssemble(t, run)
 	mustAppend(t, judge, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended")})
 
 	// The healthy answers first, so the assertions below are about the failure and not the fixture.

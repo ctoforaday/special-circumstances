@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -260,7 +261,33 @@ func registerEntry(old OldEvent) ([]proto.Message, error) {
 	if !ok {
 		return nil, fmt.Errorf("register translated to %T, not a Register", body)
 	}
+	// THE OCCASION A COLLAPSED BENCH ID STATED IS CARRIED ONTO ITS REGISTER. Before the bench was one
+	// seat its four sittings were four ids (remap.go): `assemble`, `judge-terminal` and
+	// `judge-petition-<petitioner>` each said which question its sitting answered, so their registers
+	// carry no occasion. The id becomes `judge`, and the occasion it stated is written on the
+	// register, where the record holds it now — the write takes an outcome only in a sitting
+	// registered for the assemble occasion, and every archived outcome was stamped under `assemble`.
+	if r.Occasion == nil {
+		if occ, ok := collapsedBenchOccasion(old.SeatID); ok {
+			r.Occasion = occ.Enum()
+		}
+	}
 	return []proto.Message{r}, nil
+}
+
+// collapsedBenchOccasion is the occasion an archived bench id stated by its name, for the ids
+// remap.go brings onto `judge`. The archived `judge` itself named none: its sittings answered
+// whichever question the engine asked, and nothing in its id says which.
+func collapsedBenchOccasion(seat string) (recordpb.Occasion, bool) {
+	switch {
+	case seat == "assemble":
+		return recordpb.Occasion_OCCASION_ASSEMBLE, true
+	case seat == "judge-terminal":
+		return recordpb.Occasion_OCCASION_TERMINAL, true
+	case strings.HasPrefix(seat, "judge-petition-"):
+		return recordpb.Occasion_OCCASION_PETITION, true
+	}
+	return recordpb.Occasion_OCCASION_UNSPECIFIED, false
 }
 
 // remandDirection carries a remand's research direction to the field that holds it. A source at

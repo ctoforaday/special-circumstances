@@ -26,7 +26,7 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "assemble"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
@@ -136,7 +136,7 @@ func TestTerminalVerdictSurfacesEachReadTheDerivationMakes(t *testing.T) {
 func TestTerminalVerdictAnswersOneSpellingFromEitherRead(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	recorded := mustRun(t, recordtest.TmpRun(t))
-	if _, _, err := RegisterSeat(Identity{Run: recorded, SeatID: "judge"}, "", "docket"); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: recorded, SeatID: "judge"}, "", "assemble"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: recorded, SeatID: "judge"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {

@@ -66,6 +66,41 @@ var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileI
 // measures one document of the deliverable and reports the others as clean.
 func Files() []string { return append([]string(nil), docOrder...) }
 
+// AssemblyWritten is whether the bench's assembly sitting assembled the run's documents: run.md,
+// the run document, is on disk. Capture re-assembles the set at the close only for a run where it
+// is, and `engine-stopped` sends a stopped run to capture only where it is — one fact, two
+// readers, so the two cannot disagree about whether a run reached assembly.
+//
+// WHAT run.md PROVES. The bench's `assemble` is the one writer of the set outside capture, and the
+// record refuses it in every sitting but one registered for the assemble occasion, on a run not yet
+// captured (record.RequireAssemblySitting), which is the one sitting the outcome may be stamped in
+// as well. So run.md on disk says an assembly sitting assembled the run. It does not say the
+// outcome came first — the prompt orders that, and the record holds the outcome's own event — nor
+// which assembly sitting: a resumed one assembles over the same files.
+//
+// IT IS A FILE BECAUSE THE RECORD HOLDS NO SUCH FACT. Assembly writes documents and no event, and
+// the assembly sitting's own close is no substitute: the sitting's span closes when its seat stops,
+// whether or not `assemble` ran or succeeded.
+//
+// IT IS THE WHOLE OF WHAT ASSEMBLY OWES. Assemble composes every document from the record before
+// it writes any, so run.md on disk means the record assembled; and capture re-assembles the set
+// from the record as it stands at the close, so a declaration, a certification or a log entry
+// recorded after it reaches the documents that ship all the same.
+//
+// A FILE THAT CANNOT BE READ IS THE ERROR, never false: an unreadable run directory is not a run
+// that never assembled, and a caller that folded the two would resume a finished run or capture
+// an unfinished one on a guess.
+func AssemblyWritten(run record.Run) (bool, error) {
+	switch _, err := os.Stat(filepath.Join(run.Dir(), FileRun)); {
+	case err == nil:
+		return true, nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
 // AssembleAll composes the run's whole report set from the record and blue's audited report.
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.

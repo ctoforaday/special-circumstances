@@ -299,7 +299,7 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and G1 is what the
 	// first mint of the round is assigned.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "risk_coverage_omission", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("lens mint: %v", err)

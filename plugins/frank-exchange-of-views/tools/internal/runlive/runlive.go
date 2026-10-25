@@ -57,7 +57,8 @@ type RunLive struct {
 }
 
 // OutcomeMark is the file `bench outcome` writes into the run directory once the run's outcome is
-// on the record. A row whose run holds it no longer counts as live.
+// on the record. A row whose run holds it is live only for the bench's assembly sitting
+// (StateOf).
 //
 // A FILE, BECAUSE THE READERS THAT NEED IT CANNOT OPEN THE RECORD. The hooks resolve a run on every
 // tool call a seat makes and link no SQLite driver (integration/surface/hookgraph_test.go); a stat
@@ -69,10 +70,43 @@ type RunLive struct {
 // run it is the two-live-runs fault, and `setup` refuses naming it — never the silent one.
 const OutcomeMark = ".outcome-recorded"
 
+// CapturedMark is the file `capture` writes into the run directory at its close: the run was CAPTURED.
+// It is the one source of that fact — the record refuses every write to a run that holds it
+// (record.RunCaptured), the liveness verdict reads CAPTURED from it (record.Assess), and no row whose run
+// holds it is live for anyone (StateOf). An outcome is a different fact: the bench has decided the
+// run, and its assembly sitting may still be at work.
+const CapturedMark = ".run-captured"
+
+// Captured reports whether the run in runDir was captured. An unreadable mark is still a mark: its
+// existence is the fact, and the error says it could not be asked.
+func Captured(runDir string) (bool, error) {
+	_, err := os.Stat(filepath.Join(runDir, CapturedMark))
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return false, nil
+	}
+	return false, err
+}
+
+// BenchAgentType is the agent configuration the engine dispatches the bench under, as the harness
+// attests it on a hook payload. The roster names the bench's configuration with it
+// (seatclass.Seats), so the configuration is written once.
+const BenchAgentType = "frank-exchange-of-views:lead-judge"
+
+// Caller is the agent a hook or verb asks on behalf of: the harness's handle for it and the
+// configuration it was dispatched under, both attested on the payload. The zero Caller is a reader
+// that is no seat — a pruner, a watcher, an operator.
+type Caller struct {
+	ID   string
+	Type string
+}
+
 // outcomeMark is the mark's content: the agent whose sitting recorded the outcome.
 //
 // THE RECORDING SEAT KEEPS ITS RUN UNTIL ITS SITTING ENDS. The assembly seat records the outcome
-// first and then assembles in the same sitting; if the mark ended the run for it too, its next tool
+// first and then assembles in the same sitting; if the mark closed the run to it too, its next tool
 // calls would carry no agent identity and its sitting would never close on the record. Agent ids
 // are unique per dispatch, so the exception expires with that one sitting.
 type outcomeMark struct {
@@ -95,9 +129,10 @@ func WriteOutcomeMark(runDir, agentID string) error {
 type RowState int
 
 const (
-	RowLive  RowState = iota // its directory exists and its outcome is not recorded
-	RowGone                  // its run directory is not there
-	RowEnded                 // its run's outcome is recorded (OutcomeMark)
+	RowLive     RowState = iota // its directory exists, it was not captured, and its outcome is not recorded — or the caller is its assembly sitting's
+	RowGone                     // its run directory is not there
+	RowDecided                  // its run's outcome is recorded (OutcomeMark), and the caller is no bench agent
+	RowCaptured                 // its run was captured (CapturedMark)
 )
 
 // Why names a row's state in the words a pruning report needs.
@@ -105,37 +140,62 @@ func (s RowState) Why() string {
 	switch s {
 	case RowGone:
 		return "its run directory is gone"
-	case RowEnded:
+	case RowDecided:
 		return "its outcome is recorded"
+	case RowCaptured:
+		return "it was captured"
 	}
 	return "it is live"
 }
 
 // StateOf is THE liveness predicate: every reader that asks which runs are live asks it here.
 //
-// agentID is the agent asking, "" for a reader that is no seat. It matters in one case only: the
-// agent that recorded the run's outcome still holds the run, so its own sitting can finish.
+// caller is the agent asking, the zero Caller for a reader that is no seat. It matters between the
+// outcome and the capture only, and there it decides:
+//
+//   - the agent that recorded the outcome still holds the run, so its own sitting can finish;
+//   - so does any agent dispatched under the bench's configuration (BenchAgentType). The one bench
+//     sitting the engine dispatches after the outcome is the assembly sitting, and a resume
+//     dispatches it again as a FRESH agent the mark does not name — which the record admits
+//     (record.requireOpenToSeats takes its assemble-occasion register, its declare, certify and
+//     assemble). Without this its hooks bind it to no run: no sitting span, no injected run or
+//     identity, and every act it makes fails to find the run it was dispatched into;
+//   - every other agent, and every reader that is no seat, sees no live run. That is what the
+//     outcome mark is for (#1255): a decided run's row resolving as THE run for every later session
+//     in the project, and making a live run beside it ambiguous. A stray agent of another
+//     configuration in the project is attributed to nothing, as before; the residue is a bench
+//     agent dispatched in the project for some other purpose in that window, whose acts the record
+//     refuses all the same unless it sits to assemble.
+//
+// A captured run (CapturedMark) is live for no one, the recording agent included. A mark that cannot
+// be asked about counts as captured, as the record's own refusal does (record.RunCaptured).
 //
 // A ROW WHOSE RECORD CANNOT BE OPENED STILL COUNTS AS LIVE, deliberately. Its directory is there
 // and something may be writing into it; alone, it resolves and the writers that open it fail
 // loudly, and beside another live run it is named in the two-live-runs fault. Calling it not live
 // would make the hooks skip a run on a read error, which is the silence this predicate replaces.
-func StateOf(projectDir string, m RunLiveMarker, agentID string) RowState {
+func StateOf(projectDir string, m RunLiveMarker, caller Caller) RowState {
 	dir := Resolve(projectDir, m.RunDir)
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return RowGone
+	}
+	if captured, err := Captured(dir); captured || err != nil {
+		return RowCaptured
 	}
 	b, err := readSharingDelete(filepath.Join(dir, OutcomeMark))
 	if errors.Is(err, fs.ErrNotExist) {
 		return RowLive
 	}
+	if caller.ID != "" && caller.Type == BenchAgentType {
+		return RowLive
+	}
 	// A mark that is there and cannot be read or parsed still says the outcome is recorded — its
 	// existence is the fact, and its content only grants the recording agent's exception.
 	var mark outcomeMark
-	if err == nil && json.Unmarshal(b, &mark) == nil && agentID != "" && mark.AgentID == agentID {
+	if err == nil && json.Unmarshal(b, &mark) == nil && caller.ID != "" && mark.AgentID == caller.ID {
 		return RowLive
 	}
-	return RowEnded
+	return RowDecided
 }
 
 // Resolve is a row's run directory as a path: a relative runDir is relative to the project the
@@ -163,8 +223,8 @@ type Pruned struct {
 	State RowState
 }
 
-// PruneRunLive removes every row that is live for no one — its directory gone, or its outcome
-// recorded — and returns what it removed, so the caller can say so. The file goes when no row is
+// PruneRunLive removes every row that is live for no one — its directory gone, its outcome
+// recorded, or its run captured — and returns what it removed, so the caller can say so. The file goes when no row is
 // left. A marker it cannot read is left alone: nothing in it can be judged. An error means the rows
 // it names as pruned are STILL in the file.
 func PruneRunLive(projectDir string) (_ []Pruned, err error) {
@@ -180,7 +240,7 @@ func PruneRunLive(projectDir string) (_ []Pruned, err error) {
 	var pruned []Pruned
 	kept := make([]RunLiveMarker, 0, len(runs))
 	for _, m := range runs {
-		if s := StateOf(projectDir, m, ""); s != RowLive {
+		if s := StateOf(projectDir, m, Caller{}); s != RowLive {
 			pruned = append(pruned, Pruned{Row: m, State: s})
 			continue
 		}

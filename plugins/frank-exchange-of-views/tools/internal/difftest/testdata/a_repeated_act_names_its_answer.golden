@@ -35,7 +35,7 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity high --likelihood high --impact high --problem the first gap
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity high --likelihood high --impact high --problem the first gap
 exit 0
 stdout:
 minted GAP001
@@ -175,7 +175,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, no
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"key":"blue-respond:manifest_row:#1:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via "},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `manifest-row` with --id --reason: blue-respond has already recorded a manifest_row on \"GAP001\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sit…","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_LOG"}
 {"key":"red-chair:position:#1","position":{"text":"the board is  going in"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_POSITION"}

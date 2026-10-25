@@ -82,7 +82,7 @@ func thisBinaryRun(t *testing.T) string {
 		}
 	}
 	mint := func(id string, class recordpb.GapClass, sev recordpb.Grade) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(id), Class: class.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: class.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: sev.Enum(),
 			Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}
 	}
@@ -266,7 +266,7 @@ func TestMigratedPassOverOnlyNonMaterialGapsCarriesNoAdmission(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := record.Append(record.Identity{Run: run, SeatID: lens}, &recordpb.Mint{GapId: proto.String("G-00000001"),
+	if _, err := record.Append(record.Identity{Run: run, SeatID: lens}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G-00000001"),
 		Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: recordpb.Grade_GRADE_LOW.Enum(),
 		Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum()}); err != nil {

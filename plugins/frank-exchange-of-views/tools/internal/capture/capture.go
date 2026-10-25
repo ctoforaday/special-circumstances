@@ -139,11 +139,14 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 		// detail carries the read error so the operator sees what could not be read.
 		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — the record could not be read: " + err.Error()}
 	}
-	l := record.Assess(run, now, verdict != "")
 	if verdict != "" {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
 			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
 	}
+	// THE RECORD'S ACTIVITY, NOT THE RUN'S DISPOSITION: this audit runs before capture writes the
+	// mark that ends the run, and again on a run captured before, and either way it asks whether the
+	// record stopped moving before anyone captured it.
+	l := record.AssessActivity(run, now)
 	switch l.State {
 	case record.StateStale:
 		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
@@ -1899,7 +1902,9 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// are ingested, is what makes that table the run's and not the moment's. The audits below then
 	// screen the documents that ship. A run that never reached assembly has no run.md and is not
 	// assembled here: the bench's act is what makes a run's documents exist.
-	if _, serr := os.Stat(filepath.Join(run.Dir(), reportdoc.FileRun)); serr == nil {
+	if written, werr := reportdoc.AssemblyWritten(run); werr != nil {
+		lines = append(lines, "documents: whether the bench assembled them could not be read — "+jsSlice(werr.Error(), 200)+"; they are not re-assembled")
+	} else if written {
 		if a, aerr := reportdoc.Assemble(run); aerr != nil {
 			lines = append(lines, "documents: re-assembly FAILED — "+jsSlice(aerr.Error(), 200)+"; they stand as the bench assembled them")
 		} else {
@@ -1998,6 +2003,14 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		if werr := os.WriteFile(auditPath, []byte(report), 0o644); werr != nil {
 			return nil, "", false, werr
 		}
+	}
+	// THE RUN WAS CAPTURED (runlive.CapturedMark), written after capture's last write to the record: from
+	// here the record takes nothing. A mark that could not be written is a failed capture, as an
+	// unclosed run-live row is, and the report says which.
+	if merr := record.MarkCaptured(run, now.UTC().Format(time.RFC3339)); merr != nil {
+		report = strings.TrimRight(report, "\n") + "\n- the run's capture could not be marked (" + merr.Error() + "): its record still takes writes\n"
+		_ = os.WriteFile(auditPath, []byte(report), 0o644)
+		exitFail = true
 	}
 	for _, a := range audits {
 		if a.Verdict == "FAIL" {

@@ -49,7 +49,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "mint", "--run", quiet, "--seat-id", lensSeat,
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", quiet, "--seat-id", lensSeat,
 		"--key", "g1", "--class", "spec_underspecification", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
