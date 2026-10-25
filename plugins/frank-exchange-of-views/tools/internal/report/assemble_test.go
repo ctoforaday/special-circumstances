@@ -97,9 +97,7 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "NOT a judged failure to verify") || !strings.Contains(g, "travels OUT of the run") {
 		t.Errorf("the CEILING gloss must name the re-audit debt and not read as a failure: %q", g)
 	}
-	// WHICH LIMIT IS THE RECORD'S. An epoch-limit stop on the #1565 smoke printed the gap-limit
-	// sentence — "every open material gap reached its limit … and remanded again" — over a gap with no
-	// exchange and nothing remanded. The gloss carries the derivation's reason for THIS ceiling and
+	// THE CAUSE IS THE RECORD'S: the gloss carries the derivation's reason for THIS ceiling and
 	// asserts no other cause.
 	epochLimit := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), VerdictBasis: proto.String(record.VerdictDerived),
 		VerdictWhy: proto.String("epoch limit 12 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted")}

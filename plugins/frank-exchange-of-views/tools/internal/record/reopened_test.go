@@ -393,12 +393,9 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 }
 
 // F5, F12: a CEILING over a standing reopened anchor names it, and nothing else on the board. With
-// none standing, each reason is the sentence it is without this rule.
+// none standing, the reason is the sentence it is without this rule.
 func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
-	const (
-		term   = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
-		limits = "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted"
-	)
+	const term = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
 	why := func(b *stage, maxEpochs string) string {
 		t.Helper()
 		run := b.seed()
@@ -428,16 +425,6 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
 	}
 
-	// Every material gap at its limit.
-	atLimit := func() *stage { return remandedAtImpasse(t).exchangeOn("G1").docketAndRemand("M2", "G1") }
-	coverage = base(why(atLimit().register("red-chair"), ""), limits)
-	// The lens has sat since the edit and left the anchor, so nobody is ready and the limit holds.
-	b := atLimit().cite("C-1").supports(evLens, "C-1").reopen("C-1")
-	b.sit(b.at(), evLens)
-	b.sit(b.at(), evLens)
-	if got := why(b.register("red-chair"), ""); got != limits+"; reopened and unchecked: C-1"+coverage {
-		t.Errorf("reason = %q, want the limit's reason naming C-1 and not the gap at its limit", got)
-	}
 }
 
 // F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting, the report is served to it

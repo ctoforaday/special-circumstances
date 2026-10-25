@@ -1375,9 +1375,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				}
 				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
 				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
-				// not reopen a gap. Off under Migrating: an archived remand is what the bench DID.
+				// not reopen a gap. A REMAND PAST THE LIMIT IS REFUSED (gblock, 2026-10-25): a second
+				// remand at impasse has no exchange to grant (requireRemandWithinLimit). Both off under
+				// Migrating: an archived remand is what the bench DID.
 				if !Migrating {
 					if err := requireRemandOfOpenGap(q, b.GetMotionId()); err != nil {
+						return err
+					}
+					if err := requireRemandWithinLimit(w, seatID, b.GetMotionId()); err != nil {
 						return err
 					}
 				}

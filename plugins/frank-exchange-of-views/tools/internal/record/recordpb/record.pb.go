@@ -8055,12 +8055,12 @@ const file_record_proto_rawDesc = "" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\xc1\x01\n" +
 	"\fVERDICT_PASS\x10\x01\x1a\xae\x01\x8a\xb5\x18\xa9\x01nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word\x12a\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\x98\x06\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\x8c\x05\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xaa\x03\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x90\x03\x8a\xb5\x18\x8b\x03the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — and the derivation's reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x9e\x02\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x84\x02\x8a\xb5\x18\xff\x01the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
 	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
@@ -8105,7 +8105,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xaf\x02\x8a\xb5\x18\xa1\x01a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xcd\x02\n" +
 	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xa7\x02\x8a\xb5\x18\x9d\x01an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x89\x03\n" +
 	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xe9\x02\x8a\xb5\x18\xcb\x01a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never namesص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18ois a source recorded against the claim that says something else, or is there no source behind the claim at all?\x12\x86\x01\n" +
-	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03*\x94\r\n" +
+	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03*\xd6\r\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -8113,8 +8113,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xd4\x03\n" +
-	"\x14DISPOSITION_REMANDED\x10\a\x1a\xb9\x03\x8a\xb5\x18\xb0\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x96\x04\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1a\xfb\x03\x8a\xb5\x18\xf2\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange is had once its minting lens or blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc6\b\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +

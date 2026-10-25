@@ -209,3 +209,110 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 		r.mu.Unlock()
 	}
 }
+
+// A REMAND'S ITEM HOLDS EACH SEAT IT READIES UNTIL THAT SEAT ACTS ON THE GAP (gblock, 2026-10-25).
+//
+// answerRemands is the act each owes before its envelope (record.EnvelopeRefusal refuses it while
+// the item blocks): blue a proof answering the gap — an act that moves nothing, so a gap the scenario
+// leaves unanswered still stalls, goes back to the bench and is closed there — and the minting lens a
+// regrade that keeps the grade. It acts on a gap only where the item blocks this seat's list, so a
+// seat that already acted, or whose sitting opened before the ruling, is held to nothing here.
+func (r *runner) answerRemands(seatID string) {
+	role := "lens"
+	if seatID == "blue-respond" {
+		role = "blue"
+	}
+	w, err := record.WorkOfSeat(r.run(), role, seatID)
+	if err != nil {
+		r.noteActErr(seatID + "'s work list could not be read for the remands it owes: " + err.Error())
+		return
+	}
+	for _, g := range w.Open {
+		if g.RemandStage != "owed" || g.DocketDirection == "" || !blocksOn(w.Sitting, g.ID, g.DocketDirection) {
+			continue
+		}
+		ok := false
+		if role == "blue" {
+			name := "fuzz-remand-" + g.ID + ".js"
+			if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
+				r.noteActErr("the remand's proof script could not be written: " + err.Error())
+				continue
+			}
+			_, ok = r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
+				"--reason", "fuzz: what the remand's direction found for "+g.ID)
+		} else {
+			_, ok = r.admitFresh(g.ID, "regrade", "--seat-id", seatID, "--id", g.ID,
+				"--reason", "fuzz: blue's answer re-audited against the remand's direction; the acceptance check still fails")
+		}
+		if !ok {
+			continue
+		}
+		if w2, err := record.WorkOfSeat(r.run(), role, seatID); err == nil && blocksOn(w2.Sitting, g.ID, g.DocketDirection) {
+			r.noteActErr(fmt.Sprintf("%s recorded an act on remanded gap %s and the remand's item still blocks its list", seatID, g.ID))
+			continue
+		}
+		r.mu.Lock()
+		if r.remandActs == nil {
+			r.remandActs = map[string]int{}
+		}
+		r.remandActs[role]++
+		r.mu.Unlock()
+	}
+}
+
+// blocksOn reports whether a blocking item on the list is the remand's on gapID: it names the gap
+// and carries the ruling's direction, which no other item does.
+func blocksOn(s record.SittingJSON, gapID, direction string) bool {
+	for _, it := range s.Open {
+		if it.Blocks && strings.Contains(it.What, "gap "+gapID) && strings.Contains(it.What, direction) {
+			return true
+		}
+	}
+	return false
+}
+
+// remandPastLimit reports whether the bench's work list says a remand of gapID is refused — the
+// gap's one remand at impasse is had — so the drive's bench reaches for the remand and is held to
+// the refusal, and rules a disposition that closes instead.
+func (r *runner) remandPastLimit(seatID, gapID string) bool {
+	w, err := record.WorkOfSeat(r.run(), "bench", seatID)
+	if err != nil {
+		r.noteActErr("the bench's work list could not be read before it ruled: " + err.Error())
+		return false
+	}
+	for _, it := range w.Sitting.Open {
+		if strings.Contains(it.What, "a remand of "+gapID+" is refused") {
+			return true
+		}
+	}
+	return false
+}
+
+// remandPastLimitRefused drives the bench's remand of every docket motion standing on gapID, a gap
+// its work list says is at its remand limit, and holds the tool to refusing each as a conflict that
+// names the motion, the gap, the limit and every disposition that closes the gap.
+func (r *runner) remandPastLimitRefused(seatID, gapID string) {
+	for _, motionID := range r.unruledDocketMotions(gapID) {
+		out, err := r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
+			"--as", "remanded", "--direction", "fuzz: a second remand at impasse",
+			"--principle", "correctness", "--tension", "cost", "--review-flag", "none: driven to be refused",
+			"--settled", settledByFuzzBench, "--reason", "fuzz: a remand past the limit", "--json")
+		env, ok := refusalEnvelopeIn(out)
+		named := ok && strings.Contains(env.Error, motionID) && strings.Contains(env.Error, gapID) && strings.Contains(env.Error, record.RemandLimitRule)
+		for _, d := range record.ClosingDispositions() {
+			named = named && strings.Contains(env.Error, d)
+		}
+		switch {
+		case err == nil:
+			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s, past its remand limit, was admitted: %s", motionID, gapID, firstLine(out)))
+		case !ok || env.Code != string(feov.Conflict):
+			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s, past its remand limit, was refused, and not as a conflict: %s", motionID, gapID, firstLine(out)))
+		case !named:
+			r.noteActErr(fmt.Sprintf("the bench's remand of motion %s on gap %s was refused without naming the limit and the dispositions that close the gap: %s", motionID, gapID, firstLine(env.Error)))
+		default:
+			r.mu.Lock()
+			r.pastLimitRemandsRefused++
+			r.mu.Unlock()
+		}
+	}
+}

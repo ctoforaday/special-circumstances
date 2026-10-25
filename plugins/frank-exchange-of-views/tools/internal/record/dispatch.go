@@ -107,10 +107,9 @@ type Plan struct {
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
 	// a PASS is refused until it has.
 	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
-	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
-	// open material gap is at impasse after the one more exchange its remand granted and the bench
-	// has remanded it again (remandStageOf), or the run's epoch limit is reached with parties still
-	// ready.
+	// Ceiling is the run at its limit: the run's epoch limit is reached with parties still ready
+	// (EpochLimitReached). A gap's own limit ends in a ruling that closes it — a second remand at
+	// impasse is refused (requireRemandWithinLimit) — so no open gap holds the run at a ceiling.
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
 	MaxEpochs int `json:"max_epochs" min:"0" desc:"the run's epoch limit, a term setup records; 0 when the run is held to none"`
@@ -336,7 +335,6 @@ func foldPlan(params Params, r planReads) Plan {
 	// Source 2 and 3: the open gaps, with their materiality, their exchanges and their docket.
 	gaps := r.gaps
 	exch := exchangesOf(evs, ids, win, params, WhileRunning, r.remands)
-	materialOpen, materialSettled := 0, 0
 	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
 	// debate readies a gap's two parties: its minting lens, and blue.
 	debate := func(g openGap) {
@@ -403,9 +401,6 @@ func foldPlan(params Params, r planReads) Plan {
 		if stranded && route != routeBench {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
 		}
-		if g.material || stranded {
-			materialOpen++
-		}
 		switch route {
 		case routeBench:
 			// A DOCKET MOTION IS THE ESCALATION ROUTE, and it readies the bench whether the gap is at
@@ -453,14 +448,15 @@ func foldPlan(params Params, r planReads) Plan {
 			} else {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — the exchange its remand granted moved it, so its limits count from the bench's ruling, and it is below them", g.id, x.Counted()))
 			}
-		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE, OR AT ITS LIMIT. A gap the
-		// bench has not remanded at impasse goes to the bench; one it remanded goes back to the debate
-		// for one exchange between its minting lens and blue, carrying the ruling's direction, and back
-		// to the bench if that exchange leaves it here; one remanded twice is at its limit.
+		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE. A gap the bench has not
+		// remanded at impasse goes to the bench; one it remanded goes back to the debate for one
+		// exchange between its minting lens and blue, carrying the ruling's direction, and back to the
+		// bench if that exchange leaves it here — to be closed, since a second remand is refused
+		// (requireRemandWithinLimit).
 		case routeDocket:
 			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()), impasseBasis(g.id))
 		case routeRedocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()), impasseBasis(g.id))
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again, to be closed", g.id, x.Counted()), impasseBasis(g.id))
 		// GRADE MOVEMENT PAST THE THRESHOLD IS DOCKETED AS IMPASSE IS, whatever the gap's materiality:
 		// a gap regraded below medium readies nobody, and that is the movement the bench rules on.
 		case routeGradeMovement:
@@ -476,9 +472,6 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, "+RemandDirectionPrefix+"%s",
 				g.id, x.Counted(), g.direction))
-		case routeAtLimit:
-			materialSettled++
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse and remanded again after the exchange its first remand granted — at its limit", g.id))
 		}
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
@@ -550,8 +543,6 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 	}
 	plan.PassPermitted = plan.Head > 0 && len(plan.Parties) == 0 && chairOnly
-	plan.Ceiling = len(plan.Parties) == 0 && materialOpen > 0 && materialSettled == materialOpen
-
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax. The chair sitting that opens the
 	// last epoch dispatches nobody: the parties the board readies stay undispatched and the run
 	// ends CEILING. A board that permits PASS there readied nobody, so it is not at the limit and
