@@ -841,9 +841,10 @@ type WorkGapJSON struct {
 	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
-	// minting lens and blue, is owed), "spent" (that exchange has begun), "at_limit" (the bench
-	// remanded it at impasse twice and is not asked again). "" when the bench has ruled no remand while
-	// the gap was at impasse — a remand of a docket filed before impasse spends nothing.
+	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
+	// impasse or not), "spent" (that exchange has begun), "at_limit" (the bench remanded it at
+	// impasse twice and is not asked again). "" when the bench has ruled no remand while the gap was
+	// at impasse — a remand of a material gap's docket filed before impasse spends nothing.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -974,6 +975,7 @@ type WorkGapState struct {
 	remand                           remandStage
 	route                            gapRoute
 	unruledDocket                    bool
+	latestRemandOwed                 bool   // GapExchanges.latestRemandOwed, which the PASS gate's list reads
 	Fate                             string // the last closer's word; closed gaps only
 	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
@@ -1128,6 +1130,12 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			x = &GapExchanges{GapID: g.ID}
 		}
 		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.latestRemandOwed = x.latestRemandOwed
+		// A REMAND OF A GAP THAT IS NOT MATERIAL IS OWED ITS EXCHANGE whether or not the bench ruled it
+		// at impasse (routeOf), so the stage says what the route does.
+		if g.route == routeRemandOwed {
+			g.remand = remandOwed
+		}
 	}
 	return out, nil
 }

@@ -308,7 +308,7 @@ func foldPlan(params Params, r planReads) Plan {
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps))))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil))))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
 	occasions := map[string][]string{}
@@ -375,7 +375,13 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		plan.Why = append(plan.Why, closingsAwaitedWhy(g.id, awaited))
 	}
-	moved := gradeMovementOf(evs, ids, win, openSet(blockerGapsOfOpen(gaps)))
+	owed := map[string]bool{}
+	for g, x := range exch {
+		if x.latestRemandOwed {
+			owed[g] = true
+		}
+	}
+	moved := gradeMovementOf(evs, ids, win, openSet(blockerGapsOfOpen(gaps, owed)))
 	movedBlocker := map[string]Blocker{}
 	for _, b := range moved.blockers() {
 		movedBlocker[b.Subject] = b
@@ -463,6 +469,11 @@ func foldPlan(params Params, r planReads) Plan {
 		case routeRemandOwed:
 			debate(g)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
+			if !g.material && !stranded {
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s), and remanded by the bench, whose remand outranks materiality — its minting lens and blue are ready for the one more exchange the remand grants, "+RemandDirectionPrefix+"%s",
+					g.id, notMaterialBecause(g.classMaterial, g.severity), g.direction))
+				continue
+			}
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, "+RemandDirectionPrefix+"%s",
 				g.id, x.Counted(), g.direction))
 		case routeAtLimit:
@@ -482,7 +493,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// A CITATION OR PROOF UNCHECKED SINCE ITS SENTENCE CHANGED NEEDS NO ARM HERE. Its owner owes the
 	// check, so it is not retired (lensOwesOf), and the edit that reopened the anchor moved the head
 	// past its last sitting: Source 1 readies it, once per head move, saying what it owes.
-	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps), fresh)
+	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh)
 	for _, b := range blockers {
 		switch {
 		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:

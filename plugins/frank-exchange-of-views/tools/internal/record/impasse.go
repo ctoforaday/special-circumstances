@@ -45,6 +45,10 @@ type GapExchanges struct {
 	// remandSittings is the place of each bench sitting the fold COUNTED as a remand: one that remanded
 	// the gap while it was at impasse, keyed on the latest remand ruling in that sitting.
 	remandSittings []int64
+	// latestRemandOwed is the latest remand the bench ruled on the gap, counted or not, with no
+	// exchange begun since its ruling (latestRemandOwed): what routes a remand of a gap that is not
+	// material (routeOf).
+	latestRemandOwed bool
 }
 
 // exchangeRound is one counted exchange: the places its red and blue sittings began and ended, and
@@ -126,7 +130,9 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
 	out := exchangeFold(evs, ids, win, when)
 	for g, x := range out {
-		x.remandSittings = countedRemands(x.rounds, remandSittingsOf(remands[g]), p)
+		ruled := remandSittingsOf(remands[g])
+		x.remandSittings = countedRemands(x.rounds, ruled, p)
+		x.latestRemandOwed = latestRemandOwed(x.rounds, ruled)
 		x.Impasse = impasseOf(x.rounds, x.remandSittings, p, math.MaxInt64)
 		x.Remand = remandStageOf(x)
 	}
