@@ -53,12 +53,13 @@ type RunLiveMarker struct {
 
 // RunLive is the marker FILE: the runs `setup` opened in this project and nothing has closed.
 //
-// A LIST, AND AT MOST ONE LIVE ROW PER LEAD SESSION. The rows are what was written; which of them
-// still counts is RowState's to say, because only `setup` writes a row and only `capture` removes
-// one, and capture is optional — a run killed or never captured leaves its row behind. The payload a
-// hook receives names no run, but it names its session, so a hook's run is the one live row its
-// session leads, or none. `setup` refuses a second live run for the same session (#1255): two rows
-// one session leads cannot be told apart.
+// A LIST, AND AT MOST ONE OF ITS ROWS IS LIVE. The rows are what was written; which of them still
+// counts is RowState's to say, because only `setup` writes a row and only `capture` removes one, and
+// capture is optional — a run killed or never captured leaves its row behind. The payload a hook
+// receives names no run, but it names its session, so a hook's run is the one live row its session
+// leads, or none. `setup` refuses a run while another is live in the project, whatever session leads
+// it (#1255): two rows one session leads cannot be told apart, and two runs led by different sessions
+// still share the project's run directories and memory.
 type RunLive struct {
 	Runs []RunLiveMarker `json:"runs"`
 }
@@ -452,8 +453,9 @@ func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now tim
 	replaced := false
 	for i := range runs {
 		if SameRun(projectDir, runs[i].RunDir, runDir) {
-			// A RE-SETUP IS ITS LEAD'S OWN. Another session re-running setup on a run that is still
-			// live would otherwise replace the lead silently — the take-over without its refusal.
+			// A RE-SETUP IS ITS LEAD SESSION'S OWN. Another session re-running setup on a run that is
+			// still live would otherwise replace the run's lead session silently — the take-over
+			// without its refusal.
 			if lead := runs[i].LeadSession; lead != leadSession && StateOf(projectDir, runs[i], Caller{}) == RowLive {
 				return "", &LedElsewhere{Lead: lead}
 			}
@@ -512,16 +514,19 @@ func marshalJSON(v any) ([]byte, error) {
 	return append(b, '\n'), nil
 }
 
-// TakeOver makes session `to` the lead of the run in runDir, in place of session `from`.
+// TakeOver makes session `to` lead the run in runDir, in place of session `from`.
 //
-// A RESUME MAY RUN IN A NEW SESSION — a lead that crashed or restarted — and its seats then carry
-// the new session's id, which the row does not name: every sitting of the resumed run would go
-// unbracketed. The take-over is how the new lead says so, and it is REFUSABLE: `from` must be the
-// session the row names, so a session cannot take a run from a lead it did not name — the
-// operator reads the lead off the refusal or the marker and states it. A take-over by the session
-// already leading is a no-op.
+// A RESUME MAY RUN IN A NEW SESSION — the run's lead session crashed or restarted — and its seats
+// then carry the new session's id, which the row does not name: every sitting of the resumed run
+// would go unbracketed. The take-over is how the new session says so, and it is REFUSABLE: `from`
+// must be the session the row names, so a session cannot take a run from a lead session it did not
+// name — the operator reads it off the refusal or the marker and states it. A row that names no lead
+// session is taken over from "" (FromSessionArg). A take-over by the session already leading is a
+// no-op.
 //
-// It refuses a run with no row, or whose row is no longer live: there is nothing to lead.
+// It refuses a run with no row, or whose row is no longer live: there is nothing to lead. It refuses
+// a session that already leads ANOTHER live row: two live rows one session leads are Ambiguous, and
+// the hooks would attribute neither run.
 func TakeOver(projectDir, runDir, from, to string) (prior string, err error) {
 	if strings.TrimSpace(to) == "" {
 		return "", errors.New("no session to take the run over: the caller's session id is unknown")
@@ -535,33 +540,54 @@ func TakeOver(projectDir, runDir, from, to string) (prior string, err error) {
 	if !readable {
 		return "", errors.New("the live-run marker in " + projectDir + " cannot be read")
 	}
+	target := -1
 	for i := range runs {
-		if !SameRun(projectDir, runs[i].RunDir, runDir) {
-			continue
+		if SameRun(projectDir, runs[i].RunDir, runDir) {
+			target = i
+			break
 		}
-		prior = runs[i].LeadSession
-		if s := StateOf(projectDir, runs[i], Caller{}); s != RowLive && s != RowDecided {
-			return prior, errors.New("its row is no longer live — " + s.Why())
-		}
-		if prior == to {
-			return prior, nil
-		}
-		if from != prior {
-			return prior, &LedElsewhere{Lead: prior}
-		}
-		runs[i].LeadSession = to
-		return prior, writeRunLive(projectDir, runs)
 	}
-	return "", errors.New("no live-run row for " + runDir + " in " + filepath.Join(projectDir, ".claude", "run-live.json"))
+	if target < 0 {
+		return "", errors.New("no live-run row for " + runDir + " in " + filepath.Join(projectDir, ".claude", "run-live.json"))
+	}
+	prior = runs[target].LeadSession
+	if s := StateOf(projectDir, runs[target], Caller{}); s != RowLive && s != RowDecided {
+		return prior, errors.New("its row is no longer live — " + s.Why())
+	}
+	if prior == to {
+		return prior, nil
+	}
+	if from != prior {
+		return prior, &LedElsewhere{Lead: prior}
+	}
+	for i := range runs {
+		if i != target && runs[i].LeadSession == to && StateOf(projectDir, runs[i], Caller{}) == RowLive {
+			return prior, &LeadsAnother{Run: runs[i].RunDir}
+		}
+	}
+	runs[target].LeadSession = to
+	return prior, writeRunLive(projectDir, runs)
 }
 
-// LedElsewhere is TakeOver's refusal: the row's lead is not the session the caller named.
+// LedElsewhere is TakeOver's refusal: the row's lead session is not the session the caller named.
 type LedElsewhere struct{ Lead string }
 
 func (e *LedElsewhere) Error() string {
-	lead := e.Lead
+	return "the run's lead session is " + FromSessionArg(e.Lead) + ", not the session named"
+}
+
+// LeadsAnother is TakeOver's refusal: the calling session already leads another live run here.
+type LeadsAnother struct{ Run string }
+
+func (e *LeadsAnother) Error() string {
+	return "the calling session already leads the live run " + e.Run + ", and a session leads one live run"
+}
+
+// FromSessionArg is a lead session as `take-over --from-session` takes it: the id, or "" — quoted,
+// so it survives the shell — for a row that names none.
+func FromSessionArg(lead string) string {
 	if lead == "" {
-		lead = "no session"
+		return `""`
 	}
-	return "the run is led by " + lead + ", not the session named"
+	return lead
 }

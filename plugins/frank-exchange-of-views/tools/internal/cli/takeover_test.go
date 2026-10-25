@@ -94,3 +94,76 @@ func TestTakeOverRebindsTheLeadOnlyFromTheSessionNamed(t *testing.T) {
 		t.Fatalf("the old lead's re-setup after the take-over: exit %d: %s", r.code, r.stderr)
 	}
 }
+
+// A SECOND SESSION'S RUN IN A LIVE PROJECT IS REFUSED, and the refusal leads with another checkout:
+// a take-over is never its first remedy, because taking over a running session's run moves that
+// session's seats off it. A session that leads a live run cannot take over another, and a row that
+// names no lead session is taken over with the --from-session the refusal prints.
+func TestASecondSessionsSetupLeadsWithAnotherCheckout(t *testing.T) {
+	bin := buildSetupBinary(t)
+	cwd := recordtest.TmpRun(t)
+	gitInit(t, cwd)
+	if err := os.WriteFile(filepath.Join(cwd, "real.md"), []byte("exists\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitCommit(t, cwd)
+	setupArgs := func(runDir string) []string {
+		return []string{"setup", runDir, "--topic", "t", "--model", "haiku", "--judgment-model", "haiku"}
+	}
+	first := filepath.Join(cwd, "research", "first")
+	if r := runAs(t, bin, cwd, cliTestLead, setupArgs(first)...); r.code != 0 {
+		t.Fatalf("setup: exit %d: %s", r.code, r.stderr)
+	}
+	firstRemedy := func(stderr string) string {
+		for _, l := range strings.Split(stderr, "\n") {
+			if strings.HasPrefix(l, "    - ") {
+				return l
+			}
+		}
+		return ""
+	}
+	const second = "session-second"
+	for _, runDir := range []string{filepath.Join(cwd, "research", "second"), first} {
+		r := runAs(t, bin, cwd, second, setupArgs(runDir)...)
+		if r.code != 2 {
+			t.Fatalf("a second session's setup of %s in a live project: exit %d, want 2: %s", runDir, r.code, r.stderr)
+		}
+		if fr := firstRemedy(r.stderr); !strings.Contains(fr, "another checkout") || strings.Contains(fr, "take-over") {
+			t.Errorf("the first remedy for %s must be another checkout, not a take-over: %q\n%s", runDir, fr, r.stderr)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(cwd, "research", "second")); !os.IsNotExist(err) {
+		t.Errorf("the refused run was built: %v", err)
+	}
+
+	// A session already leading a live run takes over no other.
+	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	b, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(cwd, "research", "other")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	two := strings.Replace(string(b), `"runs": [`, `"runs": [{"runDir": "research/other", "leadSession": ""},`, 1)
+	if two == string(b) {
+		t.Fatalf("the marker has no runs list to extend:\n%s", b)
+	}
+	if err := os.WriteFile(marker, []byte(two), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := runAs(t, bin, cwd, cliTestLead, "take-over", other, "--from-session", ""); r.code == 0 || !strings.Contains(r.stderr, "already leads the live run") {
+		t.Fatalf("a take-over by a session leading another live run: exit %d: %s%s", r.code, r.stdout, r.stderr)
+	}
+	// A row naming no lead session: the refusal names it as `--from-session ""`, and that form works.
+	if r := runAs(t, bin, cwd, second, "take-over", other, "--from-session", "unknown"); r.code == 0 || !strings.Contains(r.stderr, `--from-session ""`) {
+		t.Fatalf("a take-over naming a session the row does not: exit %d, want a refusal printing --from-session \"\": %s", r.code, r.stderr)
+	}
+	if r := runAs(t, bin, cwd, second, "take-over", other, "--from-session", ""); r.code != 0 {
+		t.Fatalf("the printed take-over: exit %d: %s%s", r.code, r.stdout, r.stderr)
+	}
+	if m, _ := runlive.RowOf(cwd, other); m.LeadSession != second {
+		t.Fatalf("the run's lead session after the take-over: %q, want %q", m.LeadSession, second)
+	}
+}

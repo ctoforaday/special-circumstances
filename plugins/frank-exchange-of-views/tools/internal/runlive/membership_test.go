@@ -134,3 +134,48 @@ func TestTheMarkerRefusesAnotherSessionsRewriteOfALiveRun(t *testing.T) {
 		t.Fatal("a row with no lead session was written")
 	}
 }
+
+// A SESSION LEADS ONE LIVE RUN. A take-over by a session already leading another live row would make
+// the two Ambiguous, and the hooks would attribute neither run; it is refused, and nothing moves.
+func TestTakeOverRefusesASessionThatLeadsAnotherLiveRun(t *testing.T) {
+	proj := t.TempDir()
+	mustMkdir(t, filepath.Join(proj, "research", "r"))
+	mustMkdir(t, filepath.Join(proj, "research", "s"))
+	mustMkdir(t, filepath.Join(proj, ".claude"))
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r","leadSession":"old-lead"},{"runDir":"research/s","leadSession":"busy"}]}`)
+	var another *LeadsAnother
+	if _, err := TakeOver(proj, "research/r", "old-lead", "busy"); !errors.As(err, &another) || another.Run != "research/s" {
+		t.Fatalf("a take-over by a session leading another live run: %v, want LeadsAnother{research/s}", err)
+	}
+	if m, _ := RowOf(proj, "research/r"); m.LeadSession != "old-lead" {
+		t.Fatalf("a refused take-over moved the run's lead session to %q", m.LeadSession)
+	}
+	if got := InferRunDir(proj, Caller{ID: "a", Session: "busy"}); got.Why != Resolved {
+		t.Fatalf("the busy session's own run after the refusal: %v", got.Why)
+	}
+}
+
+// A ROW THAT NAMES NO LEAD SESSION is taken over from "" — the form FromSessionArg prints — and from
+// nothing else.
+func TestTakeOverOfARowNamingNoLeadSession(t *testing.T) {
+	proj := t.TempDir()
+	mustMkdir(t, filepath.Join(proj, "research", "r"))
+	mustMkdir(t, filepath.Join(proj, ".claude"))
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r"}]}`)
+	var led *LedElsewhere
+	if _, err := TakeOver(proj, "research/r", "unknown", "new-lead"); !errors.As(err, &led) || led.Lead != "" {
+		t.Fatalf("a take-over naming a session the row does not: %v, want LedElsewhere{\"\"}", err)
+	}
+	if !strings.Contains(led.Error(), `""`) {
+		t.Errorf("the refusal must name the row's lead session as --from-session takes it: %s", led.Error())
+	}
+	if got := FromSessionArg(""); got != `""` {
+		t.Fatalf("FromSessionArg(\"\") = %s", got)
+	}
+	if prior, err := TakeOver(proj, "research/r", "", "new-lead"); err != nil || prior != "" {
+		t.Fatalf("TakeOver from \"\": %q, %v", prior, err)
+	}
+	if m, _ := RowOf(proj, "research/r"); m.LeadSession != "new-lead" {
+		t.Fatalf("the run's lead session after the take-over: %q", m.LeadSession)
+	}
+}

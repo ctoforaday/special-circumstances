@@ -320,7 +320,8 @@ func TestSetupReadsNoFeovMemory(t *testing.T) {
 //
 // The wrapper carries a seat's run into its own calls, but the hooks find a seat's run through this
 // project's marker, among the runs its session leads, and with two of those they bracket no sitting
-// and count no call for either.
+// and count no call for either. The live run here is the same session's; another session's is
+// TestSetupRefusesBesideAnotherSessionsLiveRun.
 // Setup used to open the second run with a notice; every seat of both runs then sat unrecorded.
 func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
@@ -337,11 +338,11 @@ func TestSetupRefusesASecondLiveRun(t *testing.T) {
 		t.Fatalf("exit %d, want 2 — a second live run must be refused:\n%s%s", code, out.String(), errb.String())
 	}
 	for _, want := range []string{
-		"THIS SESSION ALREADY LEADS A LIVE RUN",
+		"ANOTHER RUN IS LIVE IN THIS PROJECT",
 		"research/2026-08-01_running",                     // names the live run
 		"2026-08-01T09:00:00.000Z",                        // and when it started
 		"feov-record capture research/2026-08-01_running", // how to close it
-		"from another session",                            // or how to run beside it
+		"another checkout",                                // or how to run beside it
 	} {
 		if !strings.Contains(errb.String(), want) {
 			t.Errorf("the refusal must carry %q:\n%s", want, errb.String())

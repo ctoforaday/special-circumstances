@@ -63,9 +63,9 @@ type Config struct {
 	Now  time.Time
 }
 
-// Run reproduces the mjs main(): the four fail-fast gates (runDir→1; model tiers→2;
-// pin miss→2; --bin-dir preflight→2), then the run-dir build + mirrors + marker,
-// then the summary. Returns the process exit code; writes to the given streams.
+// Run reproduces the mjs main(): the fail-fast gates (runDir→1; model tiers, launching session,
+// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary preflight→2),
+// then the run-dir build + mirrors + marker, then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
 		cfg.Git = realGit(cfg.Cwd)
@@ -119,14 +119,18 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// ONE LIVE RUN PER LEAD SESSION (#1255). Rows that are no longer live are pruned and named
-	// first; another LIVE run this session leads refuses this one, before any run state exists.
+	// ONE LIVE RUN PER PROJECT (#1255), WHATEVER SESSION LEADS IT. Rows that are no longer live are
+	// pruned and named first; another LIVE run refuses this one, before any run state exists.
 	//
 	// The wrapper (#526) carries a seat's run into its own calls, but the HOOKS cannot use it: a
 	// hook's payload names no run, so they find one through this project's marker, among the rows its
 	// session leads — and with two of those live they bracket no sitting, count no call and inject no
-	// run for either. Every seat of both runs then acts unbracketed and uncapped. A live run another
-	// session leads is no ambiguity: its seats carry the other session's id.
+	// run for either. Every seat of both runs then acts unbracketed and uncapped.
+	//
+	// Two runs led by DIFFERENT sessions are told apart by the hooks, and are still refused: they share
+	// the project's other state. Two setups of one research/<date>_<slug> both pass this unlocked check
+	// and build into one directory, and capture read-modify-writes feov-memory/*-scorecard.md and law/
+	// with no lock. Two runs at once need two checkouts, each with its own marker and memory.
 	//
 	// A DECIDED RUN THAT WAS NEVER CAPTURED REFUSES THIS ONE TOO (gblock, 2026-10-24: "Setup refuses
 	// B"), before the prune would take its row. Its outcome is recorded and nothing archived it:
@@ -152,29 +156,31 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	lead := runlive.Caller{Session: cfg.Session}
 	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
-		if runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) {
-			// THIS run's row, led by another session, refuses a re-setup here: setup would
-			// otherwise move the lead silently, which is a take-over without its refusal.
-			if !lead.Leads(m) {
-				fmt.Fprintln(stderr, "run-setup: THIS RUN IS LED BY ANOTHER SESSION — refusing to set it up again:")
-				fmt.Fprintf(stderr, "  run: %s, led by session %s; this session is %s\n", m.RunDir, orUnknown(m.LeadSession), cfg.Session)
-				fmt.Fprintln(stderr, "  remedy: if this session is resuming the run its predecessor led, take it over, naming that lead:")
-				fmt.Fprintf(stderr, "        feov-record take-over %s --from-session %s\n", m.RunDir, orUnknown(m.LeadSession))
-				return 2
-			}
-			continue
+		same := runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir)
+		if same && lead.Leads(m) {
+			continue // a re-setup is its own lead session's
 		}
-		if !lead.Leads(m) {
-			continue
+		if same {
+			// THIS run's row, led by another session, refuses a re-setup here: setup would otherwise
+			// move the run's lead session silently, which is a take-over without its refusal. The usual
+			// caller is a second session launching a run of the same name, so the new checkout leads;
+			// the take-over is for a resume, and only once the run's lead session has ended.
+			fmt.Fprintln(stderr, "run-setup: THIS RUN IS LED BY ANOTHER SESSION — refusing to set it up again:")
+			fmt.Fprintf(stderr, "  run: %s, led by session %s; this session is %s\n", m.RunDir, orUnknown(m.LeadSession), cfg.Session)
+			fmt.Fprintln(stderr, "  remedies:")
+			fmt.Fprintln(stderr, "    - start the new run from another checkout (`git worktree add`), which is its own project")
+			fmt.Fprintln(stderr, "    - only if this session is RESUMING that run and its lead session has ended, take it over:")
+			fmt.Fprintf(stderr, "        feov-record take-over %s --from-session %s --seat-id operator\n", m.RunDir, runlive.FromSessionArg(m.LeadSession))
+			return 2
 		}
-		fmt.Fprintln(stderr, "run-setup: THIS SESSION ALREADY LEADS A LIVE RUN — refusing to create another:")
-		fmt.Fprintf(stderr, "  live: %s (started %s)\n", m.RunDir, orUnknown(m.Started))
-		fmt.Fprintln(stderr, "  The hooks find a seat's run among the live runs its session leads, and with two they bracket")
-		fmt.Fprintln(stderr, "  no sitting and count no call for either.")
+		fmt.Fprintln(stderr, "run-setup: ANOTHER RUN IS LIVE IN THIS PROJECT — refusing to create the run:")
+		fmt.Fprintf(stderr, "  live: %s (started %s), led by session %s\n", m.RunDir, orUnknown(m.Started), orUnknown(m.LeadSession))
+		fmt.Fprintln(stderr, "  A project holds one live run: its seats find the run through this project's live-run marker,")
+		fmt.Fprintln(stderr, "  and its capture writes this project's memory.")
 		fmt.Fprintln(stderr, "  remedies:")
-		fmt.Fprintf(stderr, "    - finish it: resume it to an outcome, or abandon it — then close it with\n")
+		fmt.Fprintln(stderr, "    - start this run from another checkout (`git worktree add`), which is its own project")
+		fmt.Fprintf(stderr, "    - or finish that run: resume it to an outcome, or abandon it — then close it with\n")
 		fmt.Fprintf(stderr, "        feov-record capture %s <its transcript dir> --seat-id operator\n", m.RunDir)
-		fmt.Fprintln(stderr, "    - or launch this one from another session")
 		return 2
 	}
 

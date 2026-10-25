@@ -239,21 +239,24 @@ env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u 
 `feov-record` call against an archived run.
 
 **A run's members are its lead session's agents.** `setup` records the session it runs in
-(`CLAUDE_CODE_SESSION_ID`) on the run's `.claude/run-live.json` row as the run's lead. While that row
-is live — the run's directory exists and its outcome is not yet recorded — the SubagentStart/Stop,
-PreToolUse and PostToolUseFailure hooks attribute a call to the run only when the payload's
-`session_id` is that lead; every subagent, the Workflow tool's seats included, carries its
-dispatching session's id. A dev session in the same checkout or a worktree nested under it is not
-attributed and gets no `FEOV_RUN`. Between the outcome and the capture the lead session's
+(`CLAUDE_CODE_SESSION_ID`) on the run's `.claude/run-live.json` row as the run's lead session. While
+that row is live — the run's directory exists and its outcome is not yet recorded — the
+SubagentStart/Stop, PreToolUse and PostToolUseFailure hooks attribute a call to the run only when the
+payload's `session_id` is the run's lead session; every subagent, the Workflow tool's seats included,
+carries its dispatching session's id. A dev session in the same checkout or a worktree nested under
+it is not attributed and gets no `FEOV_RUN`. Between the outcome and the capture the run's lead session's
 `lead-judge` subagents are still attributed (the bench's assembly sitting), and once capture has run
 nothing is. A payload with no `session_id`, or one of this plugin's agents dispatched by a session
 that leads no live run there, is attributed to nothing and recorded on the hooks' failure record
-(stage `run-membership`). A run resumed in a NEW session — a lead that crashed or restarted — is
-attributed only after that session runs `feov-record take-over <runDir> --from-session <the lead>`;
-the take-over names the lead it replaces, so no session takes a run by mistake. `setup` refuses a
-second live run for the same session, a re-setup of a run another session leads, and a run whose
-outcome is recorded and that was not captured; it prunes the rows of runs that were captured or
-whose directory is gone. Two sessions' runs can be live in one project.
+(stage `run-membership`). A run resumed in a NEW session, once the run's lead session has ended, is
+attributed only after the new session runs
+`feov-record take-over <runDir> --from-session <the run's lead session> --seat-id operator`; the
+take-over names the session it replaces and cannot see whether that session is still running, so it
+is for a resume only. `setup` refuses a second live run in one project, whatever session leads it —
+two runs share the project's run directories and the memory capture writes — a re-setup of a run
+another session leads, and a run whose outcome is recorded and that was not captured; it prunes the
+rows of runs that were captured or whose directory is gone. Run a second engine from its own
+checkout.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a

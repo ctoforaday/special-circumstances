@@ -84,7 +84,7 @@ dropped. AND ONLY THE RUN'S OWN SESSION'S SEAT: a run's members are the agents o
 leads it, and every subagent's payload carries its dispatching session's `session_id` — so an agent of
 another conversation, in a worktree nested under the run's checkout, finds the marker and is still
 attributed to nothing. A payload with no `session_id`, or one of this plugin's agents from a session
-that leads no live run there, goes on the hook record (stage `run-membership`). The bootstrap guard
+that leads no live run there, goes on the hook record (stage `run-membership`). That record is the user-wide failure record (`failures.json` under `$XDG_STATE_HOME/special-circumstances/frank-exchange-of-views/`, else `~/.local/state/…`), scoped to the marker's project, and the fault clears there when a later payload in that project is attributed to the run. The bootstrap guard
 mirrors every other hook here: a fresh plugin-cache version ships
 without binaries and an unguarded hook would crash-storm the window; the guard hands the missing
 binary to hooks/fetch-bin.sh, which says nothing on this event. THE PAYLOAD CANNOT NAME THE SEAT — it

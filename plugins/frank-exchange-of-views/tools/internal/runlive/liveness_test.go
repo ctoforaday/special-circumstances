@@ -133,7 +133,7 @@ func TestTwoLiveRunsAreAFaultThatNamesBoth(t *testing.T) {
 		t.Fatalf("two live runs: Why %v, Dir %q — want a fault that resolves nothing", got.Why, got.Dir)
 	}
 	detail := FaultDetail(got)
-	for _, want := range []string{filepath.Join(proj, "a"), filepath.Join(proj, "b"), "capture", "another session"} {
+	for _, want := range []string{filepath.Join(proj, "a"), filepath.Join(proj, "b"), "capture", "separate checkout"} {
 		if !strings.Contains(detail, want) {
 			t.Errorf("the fault must carry %q: %s", want, detail)
 		}

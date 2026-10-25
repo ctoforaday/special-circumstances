@@ -182,15 +182,19 @@ func FaultDetail(i Inferred) string {
 	case Ambiguous:
 		return "the live-run marker in " + i.MarkerDir + " names " + strconv.Itoa(len(i.Live)) + " live runs led by one session (" +
 			strings.Join(i.Live, ", ") + "), so no seat's run can be told apart and none is used — close all but one " +
-			"with `feov-record capture <runDir> <transcript dir> --seat-id operator`, and launch any other run from another session"
+			"with `feov-record capture <runDir> <transcript dir> --seat-id operator`, and launch any other run from a separate checkout"
 	case Sessionless:
 		return "a hook payload carried no session_id while the live-run marker in " + i.MarkerDir + " names a live run, " +
-			"so it was attributed to none — a run's members are told by the session that leads it"
+			"so it was attributed to none — a run's members are told by the run's lead session"
 	case SeatOfAnotherSession:
+		leads := make([]string, len(i.Leads))
+		for k, l := range i.Leads {
+			leads[k] = FromSessionArg(l)
+		}
 		return "an agent of this plugin, dispatched by session " + i.Session + ", acted in " + i.MarkerDir +
-			", whose live runs are led by " + strings.Join(i.Leads, ", ") + "; it was attributed to none. " +
-			"If that session is resuming a run its predecessor led, it takes the run over first: " +
-			"`feov-record take-over <runDir> --from-session <the lead named here>`"
+			", whose live runs' lead sessions are " + strings.Join(leads, ", ") + "; it was attributed to none. " +
+			"If that session is resuming a run whose lead session has ended, it takes the run over first: " +
+			"`feov-record take-over <runDir> --from-session <the run's lead session, named here> --seat-id operator`"
 	case Unlocatable:
 		return "there is nowhere to look for a live-run marker (no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory)"
 	}
