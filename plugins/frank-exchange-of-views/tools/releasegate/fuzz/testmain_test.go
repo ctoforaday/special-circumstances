@@ -1,6 +1,8 @@
 package fuzz
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -13,4 +15,14 @@ import (
 // TMPDIR, which is a tmpfs on the paths that matter. See testbuild.Main.
 // It also opens records, and TestMain is a package's ONE hook — so the orphaned-handle check
 // rides here rather than being dropped for the build sandbox (#666).
-func TestMain(m *testing.M) { testbuild.Main(m, recordtest.CheckOrphanedHandles) }
+// A local sweep queues on the box-wide sweep lock first (sweeplock_test.go), before testbuild
+// sandboxes HOME and before m.Run starts the -timeout alarm.
+func TestMain(m *testing.M) {
+	lock, err := holdSweepLockIfLocal()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "release fuzz:", err)
+		os.Exit(1)
+	}
+	heldSweepLock = lock
+	testbuild.Main(m, recordtest.CheckOrphanedHandles)
+}
