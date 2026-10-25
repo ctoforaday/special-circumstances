@@ -56,24 +56,29 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 }
 
 // The core rule: a finding located in text red prescribed and blue applied VERBATIM names
-// the gap that prescribed it.
+// the gap that prescribed it, the seat that minted that gap, and the text.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
-	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
+	mint := recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String("G1")})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{mint, edit(t, "G1", true)})
 
-	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
-	if id != "G1" {
-		t.Fatalf("EstoppelConflict = %q, want G1 — red re-raising its own prescribed text went undetected", id)
+	est, ok := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
+	if !ok || est.Gap != "G1" {
+		t.Fatalf("EstoppelConflict = %+v, want G1 — red re-raising its own prescribed text went undetected", est)
 	}
-	if got != prescribed {
-		t.Errorf("the conflict must return the prescribed text so the refusal can quote it, got %q", got)
+	if est.Text != prescribed {
+		t.Errorf("the conflict must return the prescribed text so the refusal can quote it, got %q", est.Text)
+	}
+	// THE AUTHOR IS THE RECORD'S, so a refusal to another lens can say whose words they were.
+	if est.PrescribedBy != "red-lens-logic" {
+		t.Errorf("the conflict names %q as the prescription's author, want the minting seat red-lens-logic", est.PrescribedBy)
 	}
 }
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
-	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "G1" {
-		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
+	if est, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); est.Gap != "G1" {
+		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", est.Gap)
 	}
 }
 
@@ -81,8 +86,8 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", false)})
-	if id, _ := EstoppelConflict(b, prescribed); id != "" {
-		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
+	if est, _ := EstoppelConflict(b, prescribed); est.Gap != "" {
+		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", est.Gap)
 	}
 }
 
@@ -90,8 +95,8 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
 	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
-	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
-		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
+	if est, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); est.Gap != "" {
+		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", est.Gap)
 	}
 }
 
@@ -99,9 +104,9 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
 	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true)})
-	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
+	if est, _ := EstoppelConflict(b, "7 is prime."); est.Gap != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
-			len("7 is prime."), id, minEstoppelOverlap)
+			len("7 is prime."), est.Gap, minEstoppelOverlap)
 	}
 }
 

@@ -86,7 +86,7 @@ func TestNoVerdictsGlossIsInReportMdAndEveryOnesIsInRunMd(t *testing.T) {
 			"**Outcome:** HALTED", "the bench ended this run"},
 		{"ceiling, derived", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 			VerdictBasis: proto.String(record.VerdictDerived), Prose: proto.String("every gap reached its limit")},
-			"**Outcome:** CEILING-TERMINATED (derived from the record)", "never audited by a red pass"},
+			"**Outcome:** CEILING-TERMINATED (derived from the record)", "travels OUT of the run"},
 		{"unverified, asserted", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended before a terminal state")},
 			"**Outcome:** UNVERIFIED (asserted by the bench)", "The record holds no terminal state"},
