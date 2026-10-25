@@ -374,6 +374,23 @@ writer's file from its own — and an overwritten file and a stale one look the 
   others do not, that is adjacent-seat-omission. If EVERY seat follows the same
   instruction correctly and they still destroy each other's output, it is this.
 
+### rule-text-parses-two-ways
+A surface states a rule whose clauses group two ways, and one grouping is a rule the
+checker does not apply. The checker is right and the text names it correctly; a condition
+that governs only some cases sits in a list beside them and reads as a case of its own.
+The seat acts on the reading the checker refuses, and the refusal prints the same text.
+- **Instance**: `fetchcache.SpanBoundary` listed "at a character that is not a lowercase
+  letter" beside "after . ! ? or …, a blank line or a markup tag", and m33's blue
+  synthesizer read it as a standalone place a span may start. `spanStartsAtBoundary`
+  applies it only after those three.
+- **Sweep question**: which other conditions in this text govern a subset of its cases,
+  and does the text bind each to the cases it governs? Does a worked example pin it to
+  the checker?
+- **Neighbour**: `misattributed-enforcement`: there the text credits the wrong checker.
+- **Distinguisher**: is the named checker the one that refuses? No →
+  misattributed-enforcement. Yes, and the text can be read as a rule it does not apply →
+  this.
+
 ## Minting a new class
 
 Same discipline as the gap class's membership rule: a new class needs a slug, a one-line
