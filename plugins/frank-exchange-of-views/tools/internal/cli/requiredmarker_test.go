@@ -89,7 +89,7 @@ func requiredProbes() map[string]requiredProbe {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
 	probes["lens near-match"] = requiredProbe{seat: lensSeat, args: fixed("near-match", "--problem", "p",
 		"--quote", "§1 first — a finding sits in sec 1 here.")}
-	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--key", "M-probe",
+	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}

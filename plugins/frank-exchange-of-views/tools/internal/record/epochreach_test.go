@@ -44,7 +44,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Finding{Id: proto.String("F-00000001"), Text: proto.String("first epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
-	app(chair, &recordpb.Mint{GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+	app(chair, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),

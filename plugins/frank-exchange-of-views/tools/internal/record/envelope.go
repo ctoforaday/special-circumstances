@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -13,6 +14,12 @@ import (
 // work list stands — every seat, by one rule (gblock's ruling, 2026-10-24) — naming each item
 // verbatim; "" when none stands. The PreToolUse hook denies the call that returns the envelope with
 // it, so the sitting cannot end until each is cleared.
+//
+// EVERY SEAT WHOSE WORK ARRIVES AS ITEMS RETURNS AN ENVELOPE, so the rule reaches each one: the
+// engine dispatches each with an envelope schema, and the harness ends a sitting dispatched with
+// one only through the call this refuses. A seat dispatched with none ends with text, and nothing
+// here is ever asked. The lens's envelope is LensEnvelope. The seats whose work never arrives as
+// items (WorkArrivesAsItems) can hold no item to refuse on.
 //
 // THE WORK LIST IS THE ONE SOURCE OF WHAT IS BLOCKING: this reads WorkOfSeat, the call `show work`
 // makes, and refuses on the items it marks blocking whose clearing is this seat's own act
@@ -76,3 +83,22 @@ func recordPresent(run Run) error {
 	}
 	return nil
 }
+
+// LensEnvelope is what a lens returns to end its sitting, and it holds nothing. What a lens's
+// sitting did — its findings, mints, regrades, closes, judgements, closings and petitions — is on
+// the record as events, which every reader reads there, and the engine threads nothing from a lens
+// to the seats after it. A field here would be a second account of the record or a value no reader
+// reads. The envelope exists so that the sitting ends through the call EnvelopeRefusal answers.
+//
+// THE ENGINE'S SCHEMA FOR IT IS GENERATED FROM THIS DECLARATION (LensEnvelopeFields), closed, so a
+// key it does not declare is refused by the harness and handed back to the lens.
+type LensEnvelope struct{}
+
+// LensEnvelopeFields is LensEnvelope's fields, as the walk the plan's schema is generated from
+// reads them.
+func LensEnvelopeFields() []PlanField { return fieldsOf(reflect.TypeFor[LensEnvelope]()) }
+
+// WorkArrivesAsItems reports whether a seat's work reaches it as items on its work list: every seat
+// but the blue seats no plan names — the frontier, a lane and the synthesizer — which are dispatched
+// to write the inquiries, a draft and the report, and owe nothing that is ever an item.
+func WorkArrivesAsItems(role, seatID string) bool { return role != "blue" || seatID == blueRespondSeat }

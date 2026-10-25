@@ -755,7 +755,7 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 			t.Errorf("a verified fix must show its checked replacement; missing %q:\n%s", want, s)
 		}
 	}
-	if p := fixProposal(&recordpb.Mint{FixBasis: proto.String("proposed")}); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
+	if p := fixProposal(&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), FixBasis: proto.String("proposed")}); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
 		t.Errorf("a prose-only demand must say nothing checked it against the report: %q", p)
 	}
 	if p := fixProposal(&recordpb.Mint{}); p != "" {
@@ -888,7 +888,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	board := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"F-f0000001", "F-f0000002"}}},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), FoundBy: []string{"F-f0000001", "F-f0000002"}}},
 		},
 		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted — omit")}),
@@ -942,7 +942,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			// the first answer and it was wrong: unmintedFindings skips anything a gap claimed,
 			// so a run where every finding was minted and every gap closed printed red's words
 			// nowhere at all. The fuzz found one.
-			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"F-f0000001", "F-0000dead"},
 			}},
@@ -981,7 +981,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	closedBoard := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"F-f0000001"},
 			}},
@@ -1165,7 +1165,7 @@ func renderedPrompt(t *testing.T, seat string) string {
 // `any` and prints `—` for anything but a string: a bare GapClass would print `class —`.
 func TestTheOpenGapRowNamesItsClassWord(t *testing.T) {
 	board := &boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{
-		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(),
+		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(),
 			Problem: proto.String("a universal claim a case contradicts")}},
 	}}
 	got := boardSection(board.fam())

@@ -61,7 +61,7 @@ type adversarialCase struct {
 
 func adversarialCases() []adversarialCase {
 	// The board every motion scenario argues over: one gap, minted by the lens.
-	mint := seatStep{"mint", "--seat-id", "red-lens-evidence",
+	mint := seatStep{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "red-lens-evidence",
 		"--key", "k1", "--class", "spec_underspecification", "--problem", "p",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",

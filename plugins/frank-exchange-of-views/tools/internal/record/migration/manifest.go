@@ -56,8 +56,11 @@ type Manifest struct {
 	// with the GapClass word it became and how many mints carried it. A slug that is a current word
 	// respelled (`report-voice`) has no row: the fold states it already. Empty is stated as [].
 	ClassTranslations []ClassTranslation `json:"class_translations"`
-	Accepted          map[string]string  `json:"accepted_losses,omitempty"`
-	IDs               map[string]string  `json:"ids,omitempty"` // archived id or finding label -> migrated id
+	// SupersededOutcomes is each source outcome a later outcome replaced, which the replay did not
+	// write (migrate/outcomes.go): the record holds one outcome, the latest. Empty is stated as [].
+	SupersededOutcomes []SupersededOutcome `json:"superseded_outcomes"`
+	Accepted           map[string]string   `json:"accepted_losses,omitempty"`
+	IDs                map[string]string   `json:"ids,omitempty"` // archived id or finding label -> migrated id
 	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
 	GapAnchors GapPlacement `json:"gap_anchors"`
@@ -111,6 +114,14 @@ type StatedFill struct {
 	Slug  string `json:"slug"`
 	Value string `json:"value"`
 	Why   string `json:"why"`
+}
+
+// SupersededOutcome is one source outcome the replay did not write, and the one that replaced it.
+type SupersededOutcome struct {
+	OldID        int64  `json:"old_id"`
+	Seat         string `json:"seat"`    // the source's seat id, as written
+	Verdict      string `json:"verdict"` // the dropped outcome's verdict, as the record spells it
+	SupersededBy int64  `json:"superseded_by"`
 }
 
 // ClassTranslation is one archived class slug an authored row carried onto a GapClass word.

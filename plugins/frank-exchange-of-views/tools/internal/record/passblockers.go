@@ -135,10 +135,15 @@ const contradictionReader = "a lens"
 // contradictionAnswerBudget is what the answering gap costs its minter (requireMintWithinBudget).
 const contradictionAnswerBudget = "The gap a lens mints from its own raising finding takes no mint of its budget: it is admitted at the cap"
 
+// contradictionGapSubject is the subject the answering gap owes, as every gap does
+// (requireMintSubject): the contradicted sentence while the report holds it, or its section once an
+// edit removed it. Without it the --found-by mint is refused, and the lens loses the turn.
+const contradictionGapSubject = "the mint names its subject as every gap does — `--quote` the claim's sentence while the report holds it, or `--about-kind section --about <its section>` once an edit has removed it"
+
 const contradictionCitationAnswer = "A contradiction raised by reading a citation is answered as well by a retire of that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it — the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing"
 
 // contradictionFact is a contradiction's name on every surface: the word and its id, which is the
-// `--about` value that answers it. A bare decimal would read as a count.
+// `--about` value a finding raises it by. A bare decimal would read as a count.
 func contradictionFact(b Blocker) string { return "contradiction " + b.Subject }
 
 // reopenedFact is the one sentence every wording of a reopened blocker states: which anchor, the
@@ -240,9 +245,9 @@ var blockerKinds = []blockerKind{
 		gloss: "a contradicting source no gap answers",
 		item: func(b Blocker) string {
 			if b.raisedBy != "" {
-				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`, or, where an open gap already holds its defect, credits that gap with it (`credit --id <the gap> --found-by %s`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, b.raisedBy, contradictionAnswerBudget, contradictionCitationAnswer)
+				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`, and %s, or, where an open gap already holds its defect, credits that gap with it (`credit --id <the gap> --found-by %s`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionGapSubject, b.raisedBy, contradictionAnswerBudget, contradictionCitationAnswer)
 			}
-			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`) or, where an open gap already holds its defect, by crediting that gap with the finding (`credit --id <the gap> --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionAnswerBudget, contradictionCitationAnswer)
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`; %s) or, where an open gap already holds its defect, by crediting that gap with the finding (`credit --id <the gap> --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionGapSubject, contradictionAnswerBudget, contradictionCitationAnswer)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -258,7 +263,7 @@ var blockerKinds = []blockerKind{
 				named = append(named, fmt.Sprintf("%s: %q (read by %s)", contradictionFact(b), b.Detail, b.Owner))
 			}
 			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and nothing has answered them:\n  %s\n"+
-				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis — only a finding naming it raises it; one whose `--quote` contains the claim raises nothing — and answers it with the gap it mints from that finding (the lens's `mint --found-by <the finding's id>`) or, where an open gap already holds its defect, with that gap credited with the finding (the lens's `credit --id <the gap> --found-by <the finding's id>`), so it enters the board with the lifecycle, the blue duty and the gate every other defect has. A finding alone answers nothing: a source the report misstates is a citation defect, material by its class. "+contradictionCitationAnswer+". "+
+				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis — only a finding naming it raises it; one whose `--quote` contains the claim raises nothing — and answers it with the gap it mints from that finding (the lens's `mint --found-by <the finding's id>`; "+contradictionGapSubject+") or, where an open gap already holds its defect, with that gap credited with the finding (the lens's `credit --id <the gap> --found-by <the finding's id>`), so it enters the board with the lifecycle, the blue duty and the gate every other defect has. A finding alone answers nothing: a source the report misstates is a citation defect, material by its class. "+contradictionCitationAnswer+". "+
 				"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},

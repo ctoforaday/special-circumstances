@@ -167,7 +167,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 // carries. TestNoSeatPromptGrowsPastItsCeiling asks exactly that question of new prompt text, and
 // it was right: the first draft of this put a refusal's mechanics in the prompt and pushed three
 // seats past their ceilings.
-const emptySittingClause = ' A sitting with nothing to do runs no commands and stops.'
+const emptySittingClause = ' A sitting with nothing to do runs no commands.'
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A
@@ -364,10 +364,15 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue
 // boolean of the plan is true — `blockers`, empty only when a PASS is permitted — and PLAN's
 // `if`/`else` refuses a relay that breaks it, naming the list.
 //
-// A word added to an enum, a lens area, or a field added to the plan is an edit to the record's
-// declaration and a regeneration; a region that is stale or edited by hand fails
+// THE ENVELOPE A LENS RETURNS is record.LensEnvelope (LENS_ENVELOPE), closed, and it declares no
+// field: what a lens's sitting did is on the record, and this script threads nothing from it. It is
+// dispatched so that a lens ends its sitting through the call the record refuses while a blocking
+// item on its own work list stands — the gate every other seat's envelope already passes.
+//
+// A word added to an enum, a lens area, or a field added to the plan or to a lens's envelope is an
+// edit to the record's declaration and a regeneration; a region that is stale or edited by hand fails
 // `enginegen -check`.
-// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums and record.Plan. DO NOT EDIT BY HAND.
+// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums, record.Plan and record.LensEnvelope. DO NOT EDIT BY HAND.
 const GRADE = { type: 'string', enum: ['trivial', 'low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized'] }
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
 const RULING_ON_PETITION = { type: 'string', enum: ['granted', 'denied'] }
@@ -430,6 +435,13 @@ const PLAN_ITEM_TYPES = {
   stale_areas: { seat_id: 'string', pin: 'integer' },
   blockers: { kind: 'string', subject: 'string', owner: 'string' },
 }
+const LENS_ENVELOPE = {
+  type: 'object',
+  required: [],
+  additionalProperties: false,
+  properties: {
+  },
+}
 // END GENERATED ENVELOPE VOCABULARY
 
 // §8 Q6 pinned mass mapping (run-4 report §2.5 item 1) — TOTAL over the GRADE enum.
@@ -457,8 +469,8 @@ const PLAN_ITEM_TYPES = {
 // DISPUTE_DIMENSION is in the generated vocabulary region.
 
 // W2c — the petition right (constitutional, record-routed): any party seat may petition the
-// bench, and the petition is a motion ON THE RECORD — the one channel every seat has, lenses and
-// lanes included, whose returns are prose. The chair's plan relays it: `dispatch next` readies the
+// bench, and the petition is a motion ON THE RECORD — the one channel every seat has, the lanes
+// included, whose returns are prose, and the lenses, whose envelope carries nothing. The chair's plan relays it: `dispatch next` readies the
 // bench with occasion `petition` for each petition no petition sitting has heard, and this script
 // convenes that sitting before any other party of the epoch sits. Petitions are never sanctioned
 // and do not pause the petitioner's duties. ALL petitions land on the judicial record regardless of
@@ -540,7 +552,8 @@ const declareClause = ''
 // reads, so a seat that supplies one is refused and told so, never answered by its being dropped:
 // the chair's open top level took plan fields copied beside its slot on 15 of 61 accepted first
 // returns (m23-m31). These envelopes are authored here, with nothing in Go declaring them, so the
-// closure is authored too; the simulator holds every dispatched schema to it.
+// closure is authored too — all but the lens's, LENS_ENVELOPE, generated closed from its
+// declaration; the simulator holds every dispatched schema to it.
 //
 // The synthesizer's sitting returns nothing the engine threads: what it froze, cited, proved and
 // re-voiced is on the record as events. Replaying synthesis sittings with and without each former
@@ -574,7 +587,7 @@ const BLUE_ENVELOPE = {
     manifest: { type: 'array', items: GAP_ID, description: 'the id of each gap you wrote a manifest row for this sitting — ids only' },
     // THE ENGAGED GAPS BLUE FOUND ALREADY CLOSED WHEN IT SAT (#868). The lenses sit before blue,
     // so a lens can close a gap blue was dispatched onto; blue then has nothing to repair and
-    // owes no row. This engine reads no record, and the lenses return prose, so blue's reading of
+    // owes no row. This engine reads no record, and a lens's envelope carries nothing, so blue's reading of
     // its work list (engaged.found_closed) is the only word of it that reaches here. It is trusted for ONE thing — which gaps
     // the in-run coverage log names — and for nothing that scores: capture recomputes the owed
     // set from the record's dispatch, close and register events (record.ManifestOwed).
@@ -1006,7 +1019,7 @@ const lensPrompt = (seatID, gaps, closings) => {
 YOU MINT YOUR OWN GAPS. What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, under its class, or the catch-all with the reason none does. A finding is your graded observation; a gap is your claim on the board. Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic. A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed. Hold your mints for defects a reader would pay to have fixed, not nitpicks — a trifle takes a mint while it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED. Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it. Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition. PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL: the required fix is prose — what must become true — and stays the channel for substantive work. A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE: what is left of a gap in something no seat can change, close as a defect owed elsewhere, and log.
 A PROOF YOUR WORK LIST OFFERS IS YOURS, AND YOU BELIEVE NO BYTES YOU DID NOT WATCH BEING PRODUCED: READ THE SCRIPT FIRST — the evidence layer, read at the computation's anchor, gives the script and the output blue recorded — and work out what it ACTUALLY COMPUTES, then RE-RUN IT ONCE — the stored script is what the re-run executes; a clean exit or '0 failing' is not an output — giving your judgement of the script and that reading in the same act: the re-run records your judgement as it runs, so a judgement given before the reading stands on the record as yours. A script that re-runs clean and establishes nothing is the dangerous case: it looks maximally credible. Another lens re-runs and judges any other proof; its sentence is content you audit.
-THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${emptySittingClause}${recordClause(seatID)}`
+THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours for its whole life: only you regrade it, only you close it — with the triple (who verified, with what, against what) — and a successor you mint names the gaps it supersedes, a closure that regressed says so, and the docket follows those chains. The chair carries archived closures and dispatches you when your gap needs acting on; the bench disposes of a docketed gap through its ruling.${rulingsClause('red')}${reliefFor('red')}${speedClause}${emptySittingClause}${recordClause(seatID)} Return your envelope.`
 }
 // THE CHAIR RUNS THE DEBATE. It mints nothing and closes nothing; the record says who sits and the
 // chair relays it; the verdict, the position on a PASS it withholds, the spot-check, the rulings on blue's motions and
@@ -1077,7 +1090,7 @@ while (!halted) {
   if (lenses.length) {
     log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${SEATS[p.seat_id].area}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
     await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids, closingsOwedBy(plan, p.seat_id)),
-      { ...dispatchAs(p.seat_id), label: labelFor(p.seat_id), phase: 'Red' })))
+      { ...dispatchAs(p.seat_id), label: labelFor(p.seat_id), phase: 'Red', schema: LENS_ENVELOPE })))
   }
   // BLUE SITS AGAIN ON A SUCCESSOR (gblock's ruling R2): a gap blue found closed whose successor the
   // record names engages blue's next sitting on it, and blue relays the ids. THE BOUND: one more
@@ -1215,7 +1228,7 @@ phase('Assemble')
 const assembleEnv = await agent(
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and remanded it — NOT a judged failure to verify') : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no gap reached its limit and no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? (lastPlan.epoch_limit_reached ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ', ended at the CEILING: every open material gap reached its limit, the bench ruled on each and remanded it — NOT a judged failure to verify') : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no gap reached its limit and no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it. A RESUMED ASSEMBLY SITTING — one sat again after an earlier one stamped the outcome and stopped before it assembled — finds that outcome already on the record, and the record refuses a second: the stamp is done, so go on to what follows.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 

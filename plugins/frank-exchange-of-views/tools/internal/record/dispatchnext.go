@@ -44,6 +44,10 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go).
+	if err := requireRunNotCaptured(run); err != nil {
+		return emptyPlan(), false, err
+	}
 	db, err := openRun(run)
 	if err != nil {
 		return emptyPlan(), false, err
