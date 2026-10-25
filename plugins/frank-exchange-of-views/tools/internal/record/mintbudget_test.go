@@ -26,7 +26,7 @@ func renders(md *string) func(string, bool, []ReportOp) (string, error) {
 }
 
 func budgetMint(id string, supersedes ...string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: supersedes}
 }
@@ -70,7 +70,7 @@ func TestEveryLensAreaHasAMintScale(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-evidence")
 	// The refusal names the SEAT, not an area cut off it: `banana` is not an area the engine has
 	// ever heard of, and quoting it as one read like a scale that had merely gone missing.
-	if err := requireMintWithinBudget(viewOf(t, id.Run), "red-lens-banana"); err == nil || !strings.Contains(err.Error(), `"red-lens-banana"`) {
+	if err := requireMintWithinBudget(viewOf(t, id.Run), "red-lens-banana", budgetMint("G-x")); err == nil || !strings.Contains(err.Error(), `"red-lens-banana"`) {
 		t.Errorf("a lens seat with no scale was not refused by name: %v", err)
 	}
 }
@@ -321,39 +321,14 @@ func TestTheBudgetCountsOnlyOpenGaps(t *testing.T) {
 	})
 }
 
-// Migration replays an archived lens's mints under its own seat id, and the budget judges what a
-// lens may do NEXT: an archived mint past today's budget is what the lens DID under the budget of
-// its day, so the replay does not count it. Live, the same seat is still bounded (#1214).
-//
-// Floor 1 with nothing on the record: the budget is max(1, ceil(0/per)) = 1 whatever the evidence
-// row of mintScales says, so the SECOND mint already needs the exemption — delete the gate and
-// this is red on G2. At three cites and a budget of ceil(3/2) = 2 it held only while that row
-// read `per 2`.
-func TestMigratingReplaySkipsTheMintBudget(t *testing.T) {
+// A seat id the engine never dispatches is refused a mint by name: it has no role and no area, so
+// there is no budget to size. Driven through Append, as every writer is: skipping the budget
+// function in the Mint arm turns this red.
+func TestAMintFromASeatOffTheRosterIsRefused(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-evidence")
-	Migrating = true
-	defer func() { Migrating = false }()
-	for _, g := range []string{"G1", "G2"} {
-		if _, err := Append(id, budgetMint(g)); err != nil {
-			t.Fatalf("migration re-judged an archived mint under today's budget: %s: %v", g, err)
-		}
-	}
-	Migrating = false
-	if _, err := Append(id, budgetMint("G3")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Fatalf("the live budget is not read after a migrated mint: %v", err)
-	}
-}
-
-// The exemption is the ARITHMETIC's, not the roster's: a seat id the engine never dispatches is
-// refused under Migrating as it is live, because a migrated record must be a record. Driven
-// through Append, as a replay is: skipping the budget function in the Mint arm turns this red.
-func TestMigratingKeepsTheRosterCheckOnTheMint(t *testing.T) {
-	id := budgetRun(t, 1, 0, 0, "red-lens-evidence")
-	Migrating = true
-	defer func() { Migrating = false }()
 	_, err := Append(Identity{Run: id.Run, SeatID: "red-lens-banana"}, budgetMint("G1"))
 	if err == nil || !strings.Contains(err.Error(), `"red-lens-banana" is not a lens seat on the engine's roster`) {
-		t.Errorf("migration admitted a mint from a seat off the roster: %v", err)
+		t.Errorf("a mint from a seat off the roster was admitted: %v", err)
 	}
 }
 

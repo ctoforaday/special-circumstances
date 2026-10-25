@@ -28,6 +28,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [friction](#friction) | lens, chair, blue, bench, operator |
 | [missing capability](#missing-capability) | lens, chair, blue, bench, operator |
 | [citation](#citation) | lens, chair, blue, bench, operator |
+| [source span](#source-span) | lens, blue |
 | [OCR-derived text](#ocr-derived-text) | lens, blue, operator |
 | [anchor](#anchor) | lens, chair, blue, bench, operator |
 | [proof](#proof) | lens, chair, blue, bench, operator |
@@ -42,7 +43,9 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [retire](#retire) | lens, chair, blue, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
+| [report read](#report-read) | lens, chair, operator |
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
+| [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 | [occasion](#occasion) | bench |
@@ -321,6 +324,12 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 
 - **reference** — references/*.md and the proto's references option keep the word
 
+## source span
+
+A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+
+**Delivered to:** lens, blue
+
 ## OCR-derived text
 
 OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
@@ -419,7 +428,7 @@ A blocker is one entry on the list the verdict gate refuses a PASS on, with the 
 
 ## contradiction
 
-A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
+A contradiction is a source red read that refutes, or is silent on, a claim of the report, raised by the finding that names its id (a reading of that claim after the raise opens a new contradiction with its own id), and held open until a gap answers it — the gap minted from that finding, or an open gap that finding's lens credits with it — or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it; the finding alone answers nothing, and a contradiction is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
 
 **Delivered to:** lens, chair
 
@@ -446,15 +455,25 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns, no gap owed about a proof it judged unsound — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
 
 **Delivered to:** lens, chair, operator
 
 ## stale area
 
-A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+A stale area is the area of a retired lens whose pin is behind the report head, which the chair reads and names in a spot-check before a PASS.
 
 **Delivered to:** chair, operator
+
+## report read
+
+A report read is the record's evidence that the tool served a lens the whole report at a head, written by the report's whole read and by no read at an anchor or a selection; it says the text was served, not that it was read, and the head of a lens's latest one in a sitting it sat through is its pin, which the lens is readied past.
+
+**Delivered to:** lens, chair, operator
+
+**Collisions:**
+
+- **pin (a dispatch's)** — a dispatch's pin is the head the chair engages a party at; a lens's pin is the head of its latest report read in a sitting it sat through, and the lens is ready while the report head is past it
 
 ## disposition
 
@@ -476,6 +495,16 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 - **fate** — an inquiry's state keeps the word
 - **carry** — `carry` is the chair's verb that restates an archived closure, and the plain English sense keeps the word; the bench REMANDS a gap and never carries one
+
+## grade movement
+
+Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.
+
+**Delivered to:** lens, chair, bench, operator
+
+**Collisions:**
+
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## grade motion
 

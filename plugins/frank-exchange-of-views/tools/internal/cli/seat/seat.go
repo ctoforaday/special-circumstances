@@ -30,6 +30,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -357,7 +358,9 @@ func BoundSeat(run record.Run) func() (string, error) {
 // seat the record binds this agent to, through RefusalSeat.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("", seatenv.AgentID()).Dir })
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string {
+		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}).Dir
+	})
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.
@@ -427,6 +430,19 @@ func roleOf(cmd *cobra.Command) string {
 // returns a nil Result to say nothing.
 type Result interface {
 	Human() string
+}
+
+// Relayed is a result whose machine form IS the object the seat relays, and nothing else: --json
+// prints Relay() alone, with no {verb, role, ok, result, standing} around it. A refusal keeps the
+// refusal envelope.
+//
+// A COPY, NOT A COMPOSITION. The chair's envelope IS `dispatch next`'s plan. While the verb printed
+// the plan as `result` inside the ok envelope, the chair lifted it out and renamed it, and about
+// one sitting in five (m26-m30, 7 of 34) nested it and was refused. Printing exactly the relayed
+// object makes "copy what the verb printed" and "return the envelope" one act.
+type Relayed interface {
+	Result
+	Relay() any
 }
 
 // Msg is the shared result for verbs that only CONFIRM — they carry no command-specific
@@ -750,7 +766,16 @@ func Require(c *cobra.Command, names ...string) *cobra.Command {
 // Begin runs a verb's preconditions and returns its seat context. It is a plain function
 // called at the TOP of the one RunE — NOT a PreRunE hook — so there is no lifecycle chaining
 // to reason about. It requires the run dir and seat id and holds the seat to its role.
-func Begin(cmd *cobra.Command) (Context, error) {
+func Begin(cmd *cobra.Command) (Context, error) { return begin(cmd, true) }
+
+// beginRead is Begin for a verb that records nothing (NewRead). It refuses everything Begin refuses
+// about WHO is asking and WHERE — a read answering from another seat's surface or another run's
+// record looks exactly like the right answer — and holds no agent to register-first: a seat looks
+// before it registers, and a read that registered it would spend the register its first record
+// makes, leaving its own `register` refused as a repeat.
+func beginRead(cmd *cobra.Command) (Context, error) { return begin(cmd, false) }
+
+func begin(cmd *cobra.Command, records bool) (Context, error) {
 	// ONE RESOLUTION, Of's, refused in Run's order: the run's disagreement first — before "--run
 	// is required" and before the seat-id checks, because a seat pointed at the wrong run must not
 	// get a message about anything else — then the run's existence, then the identity.
@@ -776,8 +801,13 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if s.SeatID == "" {
 		return s, feov.Errorf(feov.MissingField, "--seat-id is required (state it once at `register`; after that it is bound and read back for you)")
 	}
-	if err := requireBound(cmd, s); err != nil {
+	if err := requireOpenRecord(cmd, s); err != nil {
 		return s, err
+	}
+	if records {
+		if err := requireBound(cmd, s); err != nil {
+			return s, err
+		}
 	}
 	// THE ROLE CHECK IS GONE BECAUSE THERE IS NOTHING LEFT TO RECONCILE. It compared the role in
 	// the command PATH against the seat id, which was a real guard while a seat typed both: two
@@ -876,6 +906,9 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
 	// the human line and a consumer parsing the envelope are answering the same question and must not
 	// be told different things.
+	if r, ok := res.(Relayed); ok && jsonMode(cmd) {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(r.Relay())
+	}
 	standing := standingAfter(cmd)
 	if jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{
@@ -924,16 +957,28 @@ func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, 
 // differs by role — and register's and friction's were byte-identical at every call site but one,
 // where the difference was the word "seat" against "sitting". Four hand-kept copies of one
 // paragraph, which is the shape that goes stale in three places and nobody notices.
-func NewKeyed(name, key string, run Handler) *cobra.Command { return newVerb(name, key, "", run) }
+func NewKeyed(name, key string, run Handler) *cobra.Command {
+	c := newVerb(name, key, "")
+	annotate(c, recordsKey, name)
+	c.RunE = HandlerRunE(run)
+	return c
+}
 
 // NewRead is New for a verb that only reads: its page also states the --json success it emits,
 // generated from the verb's result type, because a seat that does not know the key names guesses
 // them — and a guessed key that misses reads as output that was never JSON.
+//
+// A READ RECORDS NOTHING, SO IT CARRIES NO RECORD TYPE AND REGISTERS NO ONE. Only an act that
+// records registers a seat, as register's page says. A read that went through Begin registered
+// its seat as a side effect, and the seat's own register later in the sitting was then refused as
+// a repeat — universe-m33's voice lens met exactly that after a `near-match`.
 func NewRead(name string, result Result, run Handler) *cobra.Command {
-	return newVerb(name, name, readOutput(result), run)
+	c := newVerb(name, name, readOutput(result))
+	c.RunE = readRunE(run)
+	return c
 }
 
-func newVerb(name, key, output string, run Handler) *cobra.Command {
+func newVerb(name, key, output string) *cobra.Command {
 	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
@@ -941,8 +986,6 @@ func newVerb(name, key, output string, run Handler) *cobra.Command {
 		Long:         d.menu + "\n\n" + d.detail + output + "\n" + LogFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
-		Annotations:  map[string]string{recordsKey: name},
-		RunE:         HandlerRunE(run),
 	}
 	// Render-on-mutation is GONE (2026-07-19). It re-rendered every projection from the full
 	// event log after every write — O(events) per mutation — to keep the markdown current
@@ -964,9 +1007,14 @@ func newVerb(name, key, output string, run Handler) *cobra.Command {
 // flag references) -> the work -> Emit. New wires it; a verb built as a raw cobra command — the
 // motion verbs, whose help is composed per subject — sets it as its RunE, so its preconditions and
 // its refusal's envelope are the same as every other verb's.
-func HandlerRunE(run Handler) func(*cobra.Command, []string) error {
+func HandlerRunE(run Handler) func(*cobra.Command, []string) error { return runE(Begin, run) }
+
+// readRunE is HandlerRunE for a verb that records nothing: beginRead in place of Begin.
+func readRunE(run Handler) func(*cobra.Command, []string) error { return runE(beginRead, run) }
+
+func runE(begin func(*cobra.Command) (Context, error), run Handler) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		s, err := Begin(cmd)
+		s, err := begin(cmd)
 		if err != nil {
 			return Emit(cmd, nil, err)
 		}
@@ -1001,6 +1049,7 @@ var ReasonIs = map[string]string{
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
+	"mint":         "your argument for the gap — why it is worth one, the case blue answers and a bench weighs; the report never prints it. Under unclassified it is REQUIRED: name the nearest class and what it does not cover. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"spot-check":   "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
 	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
@@ -1131,4 +1180,35 @@ func SplitGroups(root *cobra.Command) {
 	// "Additional Commands:" heading of its own, which reads as a third category of seat surface
 	// rather than as the plumbing it is.
 	root.SetHelpCommandGroupID(GroupVerbs)
+}
+
+// requireOpenRecord asks the record whether it takes this verb's act at all — the run was captured, the
+// record holds an outcome, or an outcome is stamped outside the assembly sitting
+// (record.RequireSeatMayWrite) — BEFORE the verb's own checks run, and before register-first: a verb
+// that refuses on a check of its own first tells a seat after the outcome what else is wrong with
+// an act the run no longer takes (`lens close` on a computation gap with no proof was told to wait
+// for blue's proof). A verb that writes no event type has nothing to ask; the write asks again
+// under its lock.
+//
+// A register states its occasion here, as its flag: the bench's register for the assemble occasion
+// is the one register an outcome leaves open, so a crashed assembly sitting can resume.
+func requireOpenRecord(cmd *cobra.Command, s Context) error {
+	if cmd == nil {
+		return nil
+	}
+	typ, ok := recordpb.EventTypeOf(RecordType(cmd))
+	if !ok {
+		return nil
+	}
+	var body proto.Message
+	if typ == recordpb.EventType_EVENT_TYPE_REGISTER {
+		reg := &recordpb.Register{}
+		if f := cmd.Flags().Lookup(flags.Occasion); f != nil {
+			if occ, known := record.OccasionOf(f.Value.String()); known {
+				reg.Occasion = occ.Enum()
+			}
+		}
+		body = reg
+	}
+	return record.RequireSeatMayWrite(s.handle(), s.SeatID, typ, body)
 }

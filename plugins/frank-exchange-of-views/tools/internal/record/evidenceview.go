@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -71,12 +73,16 @@ type EvidenceSourceJSON struct {
 	// no second span to render; `Verify.claim` is a different field and is still on a
 	// verification below.
 	Location string `json:"location"`
-	// Text is blue's argument for the citation — why this source backs that sentence — from
-	// `cite --reason`. Rendered always: "" is "blue offered no argument", which red reads when
-	// deciding what to verify. It is never printed in the report.
-	Text   string `json:"text"`
-	SeatID string `json:"seat_id"`
-	Epoch  int    `json:"epoch"`
+	// BlueReason is blue's argument for the citation — why this source backs that sentence — from
+	// `cite --reason`: BLUE'S WORDS ABOUT THE SOURCE, never the source's, and named so. A reason
+	// that paraphrases a definition reads like the definition, and a lens that took one for the
+	// source judged the sentence against blue's inverted paraphrase of it (universe-m30). Rendered on
+	// every blue cite: "" is "blue offered no argument", which red reads when deciding what to
+	// verify. Absent on a corroboration, whose reading is its check's. It is never printed in the
+	// report.
+	BlueReason *string `json:"blue_reason,omitempty"`
+	SeatID     string  `json:"seat_id"`
+	Epoch      int     `json:"epoch"`
 	// SourceTextOrigin is where the cited text came from — embedded, ocr, none or not_recorded —
 	// stamped by the tool. Empty on a corroboration, which red read itself.
 	SourceTextOrigin string `json:"source_text_origin,omitempty"`
@@ -91,10 +97,24 @@ type EvidenceSourceJSON struct {
 	// not_the_work, not_asked. A summary_only citation of an abstract and a leaf citation of the
 	// paper differ in what red has to check, and only this field says which one it holds.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
-	// OCRQuote and Pages are blue's span from an OCR reading and the PDF pages the tool found it
-	// on. A source with pages is checked against a page image, not against the reading;
-	// OCREngine and OCRTextSha name the reading the pages were found in.
-	OCRQuote   string  `json:"ocr_quote,omitempty"`
+	// CopySubstitution is WHOSE BYTES the citation read: `none` states they are the url's own,
+	// and every other word names the route by which a copy stood in for it — followed_link,
+	// recovered, fuller_copy, named_backend — with CopyURL naming where that copy was read.
+	// not_recorded is a citation from before the field; not_cached, on a corroboration, a source
+	// the run's cache held no copy of when red read it. Rendered on every source, because a lens
+	// verifying against the url would otherwise check bytes nobody cited, and the blank that meant
+	// "the url's own" would read the same as the blank that meant "nobody said".
+	CopySubstitution string `json:"copy_substitution,omitempty"`
+	CopyURL          string `json:"copy_url,omitempty"`
+	// SourceText is WHAT THE SOURCE SAYS where blue quoted it: the span the tool found once in the
+	// cached text, and the text around it, copied from the source when blue cited it. It is what a
+	// lens reads the sentence against; blue_reason beside it is blue's account. Absent where the
+	// tool holds no text for the source (source_text_origin says which), and on a citation recorded
+	// before spans were located.
+	SourceText *EvidenceSourceText `json:"source_text,omitempty"`
+	// Pages are the PDF pages of an OCR reading the tool found the span on. A source with pages is
+	// checked against a page image, not against the reading; OCREngine and OCRTextSha name the
+	// reading the pages were found in.
 	Pages      []int32 `json:"pages,omitempty"`
 	OCREngine  string  `json:"ocr_engine,omitempty"`
 	OCRTextSha string  `json:"ocr_text_sha,omitempty"`
@@ -108,6 +128,34 @@ type EvidenceSourceJSON struct {
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
 	// where to spend its next pass, and an absent key would leave that to be inferred.
 	Verified []EvidenceVerificationJSON `json:"verified"`
+}
+
+// EvidenceSourceText is the source's own text at a citation's span, as the tool found it.
+type EvidenceSourceText struct {
+	// Span is blue's span as typed; Matched is the same words as the source holds them (they
+	// differ only by fetchcache.SpanNormalisation: whitespace, line-end hyphens, and typographic
+	// quotes, dashes, ellipses, ligatures and soft hyphens). Before and After are the source's text
+	// either side, up to a bounded window.
+	Span    string `json:"span"`
+	Before  string `json:"before"`
+	Matched string `json:"matched"`
+	After   string `json:"after"`
+	// Start and End are byte offsets of Matched in the text whose sha256 is TextSha — the source's
+	// text, or for OCR text the page's reading.
+	Start   int32  `json:"start"`
+	End     int32  `json:"end"`
+	TextSha string `json:"text_sha"`
+}
+
+// sourceTextOf is a cite's located span as the evidence view shows it, or nil where it has none.
+func sourceTextOf(c *recordpb.Cite) *EvidenceSourceText {
+	if c.SpanStart == nil {
+		return nil
+	}
+	return &EvidenceSourceText{
+		Span: c.GetSourceSpan(), Before: c.GetSourceBefore(), Matched: c.GetSourceMatched(), After: c.GetSourceAfter(),
+		Start: c.GetSpanStart(), End: c.GetSpanEnd(), TextSha: c.GetSpanTextSha(),
+	}
 }
 
 // EvidenceProofJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
@@ -191,6 +239,9 @@ type EvidenceVerificationJSON struct {
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
 	Outcome string `json:"outcome"`
+	// Bridge is what a supports_with_bridge reading bridged — summary, secondary_citation or
+	// near_restatement — absent on every other outcome, and on a reading recorded before the field.
+	Bridge string `json:"bridge,omitempty"`
 	// Confidence is how sure red is of that outcome — orthogonal to it. `refutes` at low
 	// confidence is a call for more evidence; at high confidence it is a finding to act on.
 	Confidence string `json:"confidence"`
@@ -220,12 +271,19 @@ type EvidenceVerificationJSON struct {
 	// abstract confirms what the abstract says, not what the study shows, and a reader of this
 	// verdict needs to know which it is.
 	SourceCompleteness string `json:"source_completeness,omitempty"`
+	// CopySubstitution is WHOSE BYTES red's reading was made against — the copy the run's cache held
+	// for the source when red recorded it: `none` the url's own, a substitution kind with CopyURL
+	// where the copy was read, `not_cached` where the cache held none. A verdict on a recovered or
+	// fuller copy is a verdict on that copy.
+	CopySubstitution string `json:"copy_substitution,omitempty"`
+	CopyURL          string `json:"copy_url,omitempty"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
-// mean the report is carrying a citation it should not. A named predicate rather than a
-// string comparison at each call site: the assembly screen, the counts here and any future
-// reader must agree on what "found against" means, and they agree by calling this.
+// mean the report is carrying a citation it should not, when the reading stands. A named
+// predicate rather than a string comparison at each call site: every reader of one reading must
+// agree on what "found against" means, and they agree by calling this. Whether it STANDS is the
+// anchor ledger's (CitationsFoundAgainst), which counts.sources_refuted reads.
 func (v EvidenceVerificationJSON) Refuted() bool {
 	return v.Outcome == "refutes" || v.Outcome == "absent"
 }
@@ -247,8 +305,9 @@ type EvidenceJSON struct {
 	// only where it is (passBlockersOf).
 	Reopened []EvidenceReopenedJSON `json:"reopened"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
-	// not support the report, and nothing has answered it: no finding raised it, and the citation
-	// it was read against is neither retired nor backed (unansweredContradictions).
+	// not support the report, and nothing has answered it: no gap was minted from the finding that
+	// raised it, and the citation it was read against is neither retired nor backed
+	// (unansweredContradictions).
 	//
 	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the chair's PASS gate,
 	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
@@ -256,9 +315,10 @@ type EvidenceJSON struct {
 	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
 	// checked are the same absence.
 	//
-	// EACH CARRIES ITS ID, which is what answers it (`finding --about-kind contradiction --about
-	// <id>`) whether or not the report still holds the sentence. A claim alone could be answered
-	// only by quoting it, and once blue edited the sentence the quote was refused.
+	// EACH CARRIES ITS ID, and naming it is the only act that raises it (`finding --about-kind
+	// contradiction --about <id>`), whether or not the report still holds the sentence. A finding
+	// whose quote contains the claim raises nothing. A raised one carries the raising finding,
+	// which the gap that answers it credits in its found_by.
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
 		Sources int `json:"sources"`
@@ -269,22 +329,27 @@ type EvidenceJSON struct {
 		ProofsUnverified int `json:"proofs_unverified"`
 		// SourcesUnverified is its citation twin: cited, and nobody has checked it.
 		SourcesUnverified int `json:"sources_unverified"`
-		// SourcesRefuted counts the citations red found AGAINST — refuted or absent. It is the
-		// number the assembly screen acts on, and the one the old ledger could not produce.
+		// SourcesRefuted counts the citations red finds against NOW: a standing `refutes` or
+		// `absent` check of the sentence the report carries (CitationsFoundAgainst, the anchor
+		// ledger's fold). One count, one meaning: the assembly screen fails on the same set, so a
+		// refutation of a sentence an edit replaced and a re-check backed is not counted (gblock,
+		// 2026-10-19; m30's C-4f4b8cfa).
 		SourcesRefuted int `json:"sources_refuted"`
 		Verifications  int `json:"verifications"`
 	} `json:"counts"`
 }
 
-// EvidenceContradictionJSON is one contradiction nothing has answered. ID is its id — the
+// EvidenceContradictionJSON is one contradiction no gap answers. ID is its id — the
 // events.id of the reading that opened it, the value `--about` takes; Claim is the sentence the
-// reading was of; Reader is the seat whose reading last joined it, which owes the finding; Anchor
-// is the citation that reading checked, "" for a corroboration.
+// reading was of; Reader is the seat whose reading last joined it, which owes the finding and the
+// gap; Anchor is the citation that reading checked, "" for a corroboration; RaisedBy is the finding
+// that raised it, "" until one has — the id the answering gap's found_by credits.
 type EvidenceContradictionJSON struct {
-	ID     string `json:"id"`
-	Claim  string `json:"claim"`
-	Reader string `json:"reader"`
-	Anchor string `json:"anchor"`
+	ID       string `json:"id"`
+	Claim    string `json:"claim"`
+	Reader   string `json:"reader"`
+	Anchor   string `json:"anchor"`
+	RaisedBy string `json:"raised_by"`
 }
 
 // EvidenceReopenedJSON is one reopened citation or proof. Edit and LastCheck are events.id: the
@@ -304,7 +369,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	}
 	out.UnansweredContradictions = []EvidenceContradictionJSON{}
 	for _, c := range unansweredContradictions(evs, win) {
-		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor})
+		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor, RaisedBy: c.raisedBy})
 	}
 	out.Reopened = []EvidenceReopenedJSON{}
 	for _, r := range reopenedEvidence(evs, win) {
@@ -339,6 +404,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Anchor:     vf.GetAnchor(),
 			Label:      vf.GetLabel(),
 			Outcome:    recordpb.Word(vf.GetOutcome()),
+			Bridge:     recordpb.Word(vf.GetBridge()),
 			Confidence: recordpb.Word(vf.GetConfidence()),
 			Text:       vf.GetText(),
 			URL:        vf.GetUrl(),
@@ -353,6 +419,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			WorkStatus:       recordpb.Word(vf.GetWorkStatus()),
 
 			SourceCompleteness: recordpb.Word(vf.GetSourceCompleteness()),
+			CopySubstitution:   recordpb.Word(vf.GetCopySubstitution()),
+			CopyURL:            vf.GetCopyUrl(),
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS ON THE ANCHOR, and the empty string is deliberate. A verification indexed
@@ -365,8 +433,10 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		if vf.GetLabel() != "" && vf.GetClaim() != "" {
 			corroborations = append(corroborations, EvidenceSourceJSON{
 				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), AccessDate: vf.GetAccessDate(),
-				Location: vf.GetClaim(), Text: vf.GetText(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
+				Location: vf.GetClaim(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
 				CorroboratedBy: e.GetSeatId(),
+				// A corroboration's footnote rests on the copy red read, as a cite's rests on blue's.
+				CopySubstitution: v.CopySubstitution, CopyURL: v.CopyURL,
 				// ITS OWN CHECK COMES FIRST: a corroboration is red reading the source, so the source
 				// is not "unverified" — the lens is not sent to check its own reading again.
 				Verified: []EvidenceVerificationJSON{v},
@@ -416,7 +486,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Sha256:     bd.GetSha256(),
 				AccessDate: bd.GetAccessDate(),
 				Location:   bd.GetLocation(),
-				Text:       bd.GetText(),
+				BlueReason: proto.String(bd.GetText()),
 				SeatID:     e.GetSeatId(),
 				Epoch:      w.Epoch,
 				Verified:   checks,
@@ -424,7 +494,9 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				SourceTextOrigin:   recordpb.Word(bd.GetSourceTextOrigin()),
 				WorkStatus:         recordpb.Word(bd.GetWorkStatus()),
 				SourceCompleteness: recordpb.Word(bd.GetSourceCompleteness()),
-				OCRQuote:           bd.GetOcrQuote(),
+				CopySubstitution:   recordpb.Word(bd.GetCopySubstitution()),
+				CopyURL:            bd.GetCopyUrl(),
+				SourceText:         sourceTextOf(bd),
 				Pages:              bd.GetPages(),
 				OCREngine:          bd.GetOcrEngine(),
 				OCRTextSha:         bd.GetOcrTextSha(),
@@ -481,20 +553,14 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	for _, s := range out.Sources {
 		if len(s.Verified) == 0 {
 			out.Counts.SourcesUnverified++
-			continue
-		}
-		for _, v := range s.Verified {
-			if v.Refuted() {
-				out.Counts.SourcesRefuted++
-				break
-			}
 		}
 	}
+	out.Counts.SourcesRefuted = len(CitationsFoundAgainst(evs, win))
 	return out
 }
 
 // evidenceView is the evidence read from the record: the sources, proofs and their checks, the
-// findings that answer a contradicting check (unanswered_contradictions), and the edits that
+// findings that raise a contradicting check and the mints that answer it (unanswered_contradictions), and the edits that
 // reopen an anchor with the retires that take one out of the report (reopened).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
@@ -502,6 +568,8 @@ var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf)
 	recordpb.EventType_EVENT_TYPE_PROOF,
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_MINT,
+	recordpb.EventType_EVENT_TYPE_CREDIT,
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
 	recordpb.EventType_EVENT_TYPE_RETIRE)
 

@@ -26,7 +26,7 @@ func TestJSONByNameMarkMatchesWhatTheBareViewEmits(t *testing.T) {
 	// fixture where nothing was ever minted it emits nothing at all and the loop below logs it
 	// UNCHECKED. An unchecked view is the mark going untested in the one shape (JSONL) that the
 	// whole-document parse cannot reach — exactly the case this test exists to hold.
-	mintGap(t, runDir, "jsonbyname-mark", "read-surface")
+	mintGap(t, runDir, "jsonbyname-mark", "spec_underspecification")
 	marked := map[string]bool{}
 	for _, n := range seat.JSONByNameViews() {
 		marked[n] = true

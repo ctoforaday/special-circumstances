@@ -262,10 +262,7 @@ func seatFacingGo(t *testing.T) []string {
 	out = append(out, walk("plugins/frank-exchange-of-views/tools/internal/hookcmd")...)
 	for _, p := range walk("plugins/frank-exchange-of-views/tools/internal/record") {
 		s := filepath.ToSlash(p)
-		// recordtest is fixture support for tests — its generated class list holds slugs such as
-		// causal-narrative-fails-reproduction — and nothing in it reaches a seat.
 		if strings.Contains(s, "/record/migrate/") || strings.Contains(s, "/recordsql/") ||
-			strings.Contains(s, "/record/recordtest/") ||
 			strings.Contains(s, "/testdata/") || strings.HasSuffix(s, ".pb.go") {
 			continue
 		}

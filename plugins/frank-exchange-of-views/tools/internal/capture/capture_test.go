@@ -48,7 +48,7 @@ func recordWithEpochs(t *testing.T, n int) string {
 		// fixture used to name four; the other three were absent and nothing said so.
 		evs = append(evs, recordtest.At(t, seat, seat+":mint:G"+itoa(r), &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G" + itoa(r)),
-			Class:           proto.String("scope-creep"),
+			Class:           recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
 			Problem:         proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -195,9 +195,12 @@ func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
 	}
 }
 
-// AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison.
+// AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison. A citation leaves
+// the report by blue's retire, which takes its anchor out with the sentence.
 func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
+	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("a claim"),
+		Reason: proto.String("the source does not hold it"), Anchors: []string{"C-00000001"}}))
 	write(t, filepath.Join(dir, "report.md"), "A claim, now sourced elsewhere.[^1]\n\n[^1]: https://example.test/other\n")
 
 	got := AssemblyScreen(runtest.Open(t, dir))
@@ -206,9 +209,71 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	}
 	// The PASS must still SAY what it screened. "PASS" over an empty comparison is the shape
 	// this check spent two releases in.
-	if !strings.Contains(got.Detail, "1 found against") {
+	if !strings.Contains(got.Detail, "1 ever found against") {
 		t.Errorf("the PASS does not state what it compared: %s", got.Detail)
 	}
+}
+
+// A REFUTATION BLUE ANSWERED IS NOT A SOURCE RED REJECTS. m30: the adversary refuted C-4f4b8cfa
+// against an inverted sentence (event 401), blue rewrote the sentence (431), and the adversary and
+// the evidence lens each read the new one as supported (447, 450). The screen read "any refutation
+// ever recorded" and failed the run; the citation's standing is that it holds.
+func TestAssemblyScreenJudgesTheCitationsStandingNotItsHistory(t *testing.T) {
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-r1", screenCite("C-00000001", "https://example.test/fermat")),
+		recordtest.Event(t, "red-lens-adversary", &recordpb.Register{AgentId: proto.String("adversary-1")}),
+		recordtest.Event(t, "red-lens-adversary", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)),
+	)
+	write(t, filepath.Join(dir, "report.md"), "The liar.[^1]\n\n[^1]: https://example.test/fermat\n")
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "FAIL" {
+		t.Fatalf("a standing refutation of the sentence the report carries: want FAIL, got %s (%s)", got.Verdict, got.Detail)
+	}
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("the inverted sentence"), New: proto.String("the fixed sentence"),
+			Text: proto.String("the base is the liar"), Reopened: []string{"C-00000001"}}),
+		recordtest.Event(t, "red-lens-adversary", &recordpb.Register{AgentId: proto.String("adversary-2")}),
+		recordtest.Event(t, "red-lens-adversary", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)),
+	)
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" {
+		t.Errorf("a refutation answered by an edit and a fresh supporting check: want PASS, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// KEYED BY THE CITATION, NOT ITS URL. m30's C-3b8d7782 and C-f0ae536b cite the url C-4f4b8cfa does,
+// so a screen keyed by url fails on a sibling's footnote after the refuted citation itself is gone,
+// and names the wrong citation while the refuted one stands.
+func TestAssemblyScreenKeysByTheCitationNotItsURL(t *testing.T) {
+	const url = "https://example.test/shared"
+	dir := t.TempDir()
+	recordtest.Seed(t, dir,
+		recordtest.Event(t, "blue-r1", screenCite("C-00000001", url)),
+		recordtest.Event(t, "blue-r1", screenCite("C-00000002", url)),
+		recordtest.Event(t, "red-lens-evidence", screenVerify("C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)),
+		recordtest.Event(t, "red-lens-evidence", screenVerify("C-00000002", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)),
+	)
+	write(t, filepath.Join(dir, "report.md"), "One.[^1] Two.[^1]\n\n[^1]: "+url+"\n")
+	got := AssemblyScreen(runtest.Open(t, dir))
+	if got.Verdict != "FAIL" || !strings.Contains(got.Detail, "C-00000001") || strings.Contains(got.Detail, "C-00000002") {
+		t.Fatalf("want FAIL naming C-00000001 alone; got %s (%s)", got.Verdict, got.Detail)
+	}
+	recordtest.Seed(t, dir, recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: proto.String("one"),
+		Reason: proto.String("the source does not hold it"), Anchors: []string{"C-00000001"}}))
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" {
+		t.Errorf("the refuted citation retired, its sibling of the same url still cited: want PASS, got %s (%s)", got.Verdict, got.Detail)
+	}
+}
+
+// screenCite is a blue citation of url at label.
+func screenCite(label, url string) *recordpb.Cite {
+	return &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(),
+		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(label), Url: proto.String(url), Title: proto.String("A Source")}
+}
+
+// screenVerify is red's reading of the citation at anchor.
+func screenVerify(anchor string, outcome recordpb.SourceOutcome) *recordpb.Verify {
+	return &recordpb.Verify{Anchor: proto.String(anchor), Claim: proto.String("the sentence " + anchor + " backs"), Outcome: outcome.Enum(),
+		Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read it at the leaf")}
 }
 
 // A SUPPORTED CITATION IS NOT SCREENED OUT. `weak` is thin support, not contradiction, and
@@ -258,10 +323,9 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	return dir
 }
 
-// blueSittingRun seeds one blue-respond sitting for a dispatch on G1, with blue's acts after its
-// register. closedFirst puts the lens's close of G1 between the dispatch and that register; returned
-// ends the sitting with its agent's stop, and without it the record cannot close the sitting.
-func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Message) record.Run {
+// docketedRun seeds G1, minted by the logic lens and docketed by blue's motion M1, with each party's
+// acts after it: closers file their closings, and sitters sit through a sitting without one.
+func docketedRun(t *testing.T, closers, sitters []string) record.Run {
 	t.Helper()
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -269,85 +333,80 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
 	}
 	evs := []*record.Event{
+		at(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-logic", "red-chair", "blue-respond", "judge"}}),
 		at("red-chair", &recordpb.Register{}),
-		at("red-chair", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
 		at("red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
-			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
+		at("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 	}
-	if closedFirst {
-		evs = append(evs, at("red-lens-logic", &recordpb.Close{GapId: proto.String("G1"),
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}))
+	for _, seat := range closers {
+		evs = append(evs, at(seat, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case of " + seat)}))
 	}
-	evs = append(evs, at("blue-respond", &recordpb.Register{AgentId: proto.String("blue-agent")}))
-	for _, a := range acts {
-		evs = append(evs, at("blue-respond", a))
-	}
-	if returned {
-		evs = append(evs, at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent")}))
+	for _, seat := range sitters {
+		evs = append(evs, at(seat, &recordpb.Register{AgentId: proto.String(seat + "-agent")}),
+			at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(seat + "-agent")}))
 	}
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, evs...)
 	return runtest.Open(t, dir)
 }
 
-// Record-parity is per blue sitting: one that owed an answer carries a position, and one that found
-// its gap closed owes none.
-//
-// A POSITION IS THE WHOLE OF WHAT IT HOLDS A SITTING TO: a sitting that filed none is short, and the
-// audit names the position and nothing else.
+// RECORD-PARITY HOLDS WHAT IS OWED THE BENCH TO THE RECORD: the chair's position at a sitting that
+// withheld a PASS its plan permitted, and each party's closing on a docketing — the minting lens's
+// and blue-respond's. A party that sat since the docketing and filed none is short; one that never
+// sat after it had no sitting to file in, and is named, not failed.
 func TestRecordParityAudit(t *testing.T) {
-	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
+	seed := func(evs ...*record.Event) record.Run {
+		dir := t.TempDir()
+		recordtest.Seed(t, dir, evs...)
+		return runtest.Open(t, dir)
+	}
+	chairAct := func(key string, body proto.Message) *record.Event {
+		return recordtest.At(t, "red-chair", "red-chair:"+key, body)
+	}
+	permitted := []*record.Event{chairRegister(t, 1), chairAct("plan", storedPlan(true))}
+	if a := RecordParityAudit(seed(permitted...)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1, which withheld the PASS its plan permitted, filed no position") {
+		t.Errorf("a chair sitting that withheld a permitted PASS and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	}
+	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{Text: proto.String("why")}))...)); a.Verdict != "PASS" {
+		t.Errorf("the withheld PASS is argued: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}))...)); a.Verdict != "PASS" {
+		t.Errorf("the chair recorded the PASS and owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
+	// THE SMOKE'S SITTINGS 4–5: the chair sat with no PASS permitted and filed no position. Nothing
+	// was withheld, so nothing is owed.
+	if a := RecordParityAudit(seed(chairRegister(t, 1), chairAct("plan", storedPlan(false)))); a.Verdict != "PASS" || strings.Contains(a.Detail, "filed no position") {
+		t.Errorf("a chair sitting with no PASS permitted owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	}
 
-	a := RecordParityAudit(blueSittingRun(t, false, true, position))
-	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 owed an answer and each carries its position") {
-		t.Errorf("a sitting that answered with a position: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	both := []string{"red-lens-logic", "blue-respond"}
+	if a := RecordParityAudit(docketedRun(t, both, both)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 closing(s) owed on docketed gaps, each filed") {
+		t.Errorf("both parties filed: want PASS counting two closings, got %s (%s)", a.Verdict, a.Detail)
 	}
-	for name, acts := range map[string][]proto.Message{"a log and no position": {&recordpb.Log{Text: proto.String("the G1 edit"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}}, "nothing": nil} {
-		a = RecordParityAudit(blueSittingRun(t, false, true, acts...))
-		if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
-			t.Errorf("a sitting that owed G1 and filed %s: want a FAIL naming the position, got %s (%s)", name, a.Verdict, a.Detail)
-		}
+	a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, both))
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-logic's closing on G1 (docket motion M1) was not filed, and red-lens-logic sat since the docketing") {
+		t.Errorf("the lens sat since the docketing and filed none: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	for _, v := range []*Audit{&a, ptr(RecordParityAudit(blueSittingRun(t, false, true, position)))} {
-		if strings.Contains(strings.ToLower(v.Detail), "revision") {
-			t.Errorf("record-parity speaks of a revision, which no sitting owes: %s (%s)", v.Verdict, v.Detail)
-		}
+	if strings.Contains(a.Detail, "blue-respond's closing") {
+		t.Errorf("blue filed and is named short: %s", a.Detail)
 	}
-	// B7's epochs 3 and 4: the lens closed the gap before blue sat, and blue filed only a log.
-	if a := RecordParityAudit(blueSittingRun(t, true, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
-		t.Errorf("a sitting whose gap closed first owes nothing: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	if a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, nil)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "not reached: red-lens-logic's closing on G1") {
+		t.Errorf("the lens never sat after the docketing: want PASS naming it not reached, got %s (%s)", a.Verdict, a.Detail)
 	}
-	// A SITTING NOTHING ABOUT BLUE CLOSED: blue has neither registered again nor returned. Capture
-	// reads the finished run, so the end of the record closes it and it is held to what it filed.
-	a = RecordParityAudit(blueSittingRun(t, false, false))
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") || strings.Contains(a.Detail, "NOT MEASURED") {
-		t.Errorf("a sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-	if a := RecordParityAudit(blueSittingRun(t, false, false, position)); a.Verdict != "PASS" {
-		t.Errorf("a sitting the run ended in that carries its position: want PASS, got %s (%s)", a.Verdict, a.Detail)
-	}
-	// EVERY CHAIR SITTING OWES A POSITION, and this audit is the one place a chair sitting without
-	// one is reported: its work list holds no item for it.
-	dir := t.TempDir()
-	recordtest.Seed(t, dir, chairRegister(t, 1))
-	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1 filed no position") {
-		t.Errorf("a chair sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-	// A record no seat that owes a position sat on has nothing to hold to it.
-	dir = t.TempDir()
-	recordtest.Seed(t, dir, recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))
-	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "SKIP" {
-		t.Errorf("no chair sitting and no blue sitting for a dispatch: want SKIP, got %s (%s)", a.Verdict, a.Detail)
+	// A record with no chair sitting and no docketed gap has nothing to hold to it.
+	if a := RecordParityAudit(seed(recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))); a.Verdict != "SKIP" {
+		t.Errorf("no chair sitting and no docketed gap: want SKIP, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
 // CAPTURE CLOSES WHAT A LIVE READER CANNOT (#1002, ruling 1). One record, blue's last sitting with
 // no stop and no register after it: a reader while the run runs cannot tell it from a sitting in
 // flight and says NOT MEASURED; capture reads the finished run, where the end of the record closes
-// it, and holds it to the position it never filed. The shape is a headless seat, whose agent fires
+// it, and its manifest coverage is measured. The shape is a headless seat, whose agent fires
 // no stop, sitting twice, the second time — G4 still open — filing nothing.
 func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	n := 0
@@ -357,7 +416,7 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	}
 	mint := func(g string) *record.Event {
 		return at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(g), Problem: proto.String("p"),
-			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
+			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}
@@ -368,7 +427,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
 		at("blue-respond", launcher),
 		at("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
-		at("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired")}),
 		at("red-chair", &recordpb.Register{}), mint("G4"),
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(7), SeatId: proto.String("blue-respond"), GapIds: []string{"G4"}}),
 		at("blue-respond", launcher),
@@ -396,10 +454,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	after := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
 	if len(after) != 2 || after[0].Unresolved || after[1].Unresolved {
 		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
-	}
-	a := RecordParityAudit(run)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no position") {
-		t.Errorf("capture holds the last sitting to its missing position: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
@@ -892,7 +946,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
 		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runs":[{"runDir":"research/x"}]}`)
-		got := closeRunLiveMarker(cwd, "research/x")
+		got := closeMarker(t, cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
 		}
@@ -903,7 +957,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 	t.Run("absent is STATED, not silent", func(t *testing.T) {
 		cwd := t.TempDir()
-		got := closeRunLiveMarker(cwd, "research/x")
+		got := closeMarker(t, cwd, "research/x")
 		if got == "" {
 			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
 		}
@@ -1183,7 +1237,7 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	}
 	write(t, marker, `{"runs":[{"runDir":"research/live-one"},{"runDir":"research/the-one-being-captured"}]}`)
 
-	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
+	got := closeMarker(t, cwd, "research/the-one-being-captured")
 	if !strings.Contains(got, "1 other run") {
 		t.Errorf("capture did not say another run is still open: %q", got)
 	}
@@ -1198,14 +1252,14 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	// A relative/absolute spelling of the SAME run still closes it — the marker stores whatever
 	// it was given, so a string compare would refuse to close the run in progress.
 	write(t, marker, `{"runs":[{"runDir":"research/same"}]}`)
-	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
+	if got := closeMarker(t, cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
 		t.Errorf("the same run spelled absolutely was refused: %q", got)
 	}
 
 	// AND A FILE NAMING NOTHING IS NOT A CLEAN CLOSE. An unreadable marker looks exactly like
 	// this from here, and reporting "nothing to remove" would let it pass for an absent one.
 	write(t, marker, `{"runs":[]}`)
-	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
+	if got := closeMarker(t, cwd, "research/x"); !strings.Contains(got, "names NO open run") {
 		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
 	}
 }
@@ -1228,7 +1282,7 @@ func TestCapturePrunesRowsThatAreNotLive(t *testing.T) {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
 	write(t, marker, `{"runs":[{"runDir":"research/live"},{"runDir":"research/ended"},{"runDir":"research/gone"},{"runDir":"research/this"}]}`)
 
-	got := closeRunLiveMarker(cwd, "research/this")
+	got := closeMarker(t, cwd, "research/this")
 	for _, want := range []string{
 		"this run's entry removed", "1 other run still open",
 		"research/ended (its outcome is recorded)", "research/gone (its run directory is gone)",
@@ -1535,4 +1589,29 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }
 
-func ptr[T any](v T) *T { return &v }
+// closeMarker is closeRunLiveMarker where the close is expected to succeed.
+func closeMarker(t *testing.T, cwd, runDir string) string {
+	t.Helper()
+	line, err := closeRunLiveMarker(cwd, runDir)
+	if err != nil {
+		t.Fatalf("closing the marker: %v (line %q)", err, line)
+	}
+	return line
+}
+
+// A MARKER CAPTURE COULD NOT CLOSE IS A FAILED CAPTURE (#1552). The removal's error used to be
+// dropped, and the line read as a clean close while the run stayed live for every hook.
+func TestCaptureReportsAMarkerItCouldNotClose(t *testing.T) {
+	cwd := t.TempDir()
+	// A non-empty directory at the marker's path: no platform removes or replaces it.
+	if err := os.MkdirAll(filepath.Join(cwd, ".claude", "run-live.json", "occupant"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	line, err := closeRunLiveMarker(cwd, "research/x")
+	if err == nil {
+		t.Fatalf("a removal that failed returned no error: %q", line)
+	}
+	if !strings.Contains(line, "could NOT be removed") || !strings.Contains(line, "still counts as live") {
+		t.Errorf("the line must say the run is still live: %q", line)
+	}
+}

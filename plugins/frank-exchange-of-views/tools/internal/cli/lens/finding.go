@@ -66,30 +66,10 @@ func newFinding() *cobra.Command {
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a finding has one subject, "+
 				"and the gap it becomes would inherit the ambiguity")
 		}
-		// Crash-retry idempotency: a prior finding under this --key returns its
-		// id, no second event AND no second marker (BEFORE any write).
 		key := seat.Str(cmd, flags.Key)
 		area := record.AreaOf(s.SeatID)
-		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
-			return nil, err
-		} else if prior != "" {
-			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
-			// record migrate brought forward from an archive can hold a finding whose run crashed
-			// before its anchor. The retry finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, prior, key); err != nil {
-				return nil, err
-			}
-			return findingResult{ID: prior, Area: area, Idempotent: true}, nil
-		}
-		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
-		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
-		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
-		// finishes a pair the record holds half of.
-		findingID := record.NewID("finding")
-
 		body := &recordpb.Finding{
-			Id:         proto.String(findingID),
-			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
+			FindingKey: proto.String(key),
 			Location:   proto.String(location),
 			Text:       proto.String(text),
 			AboutKind:  about,
@@ -98,6 +78,28 @@ func newFinding() *cobra.Command {
 			Likelihood: seat.GradeOrNil(&likelihood),
 			Impact:     seat.GradeOrNil(&impact),
 		}
+		// Crash-retry idempotency: a prior finding under this --key returns its id, no second event
+		// AND no second marker (BEFORE any write) — when the retry states the finding the key names.
+		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
+			return nil, err
+		} else if prior != nil {
+			if err := seat.RepeatsKeyed(key, "finding", prior.GetId(), prior, body, findingAsserted...); err != nil {
+				return nil, err
+			}
+			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
+			// record migrate brought forward from an archive can hold a finding whose run crashed
+			// before its anchor. The retry finishes the pair at the location the finding stored.
+			if err := seat.PlaceOwed(s, prior.GetId(), key); err != nil {
+				return nil, err
+			}
+			return findingResult{ID: prior.GetId(), Area: area, Idempotent: true}, nil
+		}
+		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
+		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
+		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
+		// finishes a pair the record holds half of.
+		findingID := record.NewID("finding")
+		body.Id = proto.String(findingID)
 		// NO ANCHOR FOR AN ABSENCE, and that is the point rather than an omission: a finding about
 		// something NOT in the report has no location to mark, and placing one would put an anchor on
 		// the innocent prose this change exists to stop borrowing.
@@ -109,13 +111,27 @@ func newFinding() *cobra.Command {
 		// nothing is checked. Checking anyway is what forced a lens to borrow a live sentence as a
 		// handle: the only way past the check was to name text that exists, whatever the finding was
 		// actually about.
-		if err := seat.AppendPlaced(s, body, findingID, location, findingRefusal); err != nil {
+		//
+		// A FINDING ABOUT A GAP IS REFUSED WHILE THE GAP HAS MOVED SINCE THIS SITTING OPENED (gblock
+		// ruling B, 2026-10-19): lenses sit concurrently, and a dispute with a gap's grade, fix or
+		// standing written against the board the sitting opened with is a dispute with a gap that may
+		// already be closed, answered or regraded. The refusal shows what changed.
+		write := func(guards ...record.Guard) error {
+			_, err := seat.AppendPlaced(s, body, findingID, location, findingRefusal, guards...)
+			return err
+		}
+		if about != nil && *about == recordpb.AboutKind_ABOUT_KIND_GAP {
+			err = seat.AppendFresh(s, *aboutRefP, write)
+		} else {
+			err = write()
+		}
+		if err != nil {
 			return nil, err
 		}
 		return findingResult{ID: findingID, Area: area}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id. A repeat under the handle with another --quote, --reason, grade or --about-kind/--about is refused: a handle names one finding")
 	seat.Supplies(c, "id", "the tool mints it (record.NewID), at random — an id a seat chose would name a finding the record does not hold")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
@@ -125,10 +141,23 @@ func newFinding() *cobra.Command {
 	flags.Text(c, flags.Quote, flags.DescQuote+". The finding anchor is placed there")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
-		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a contradiction red recorded; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it, and answers it whether or not the report still holds the sentence")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a contradiction's id, which show evidence lists under unanswered_contradictions. It is CHECKED against the record")
+		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, a contradiction red recorded, or a proof; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it whether or not the report still holds the sentence, and the gap minted from the finding answers it, or an open gap that already holds its defect, credited with the finding. A finding about a proof answers no judgement of it: the gap about the proof carries an unsound one")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a proof's anchor. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// findingAsserted is what a finding states, and so what a retry under its key must state again:
+// its quote, its text, its grades and its subject. A retry that finishes an owed anchor finishes it
+// at the location it states, which is the one the finding stored.
+var findingAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
+	{Flag: flags.Reason, Field: "text"},
+	{Flag: flags.Severity, Field: "severity"},
+	{Flag: flags.Likelihood, Field: "likelihood"},
+	{Flag: flags.Impact, Field: "impact"},
+	{Flag: flags.AboutKind, Field: "about_kind"},
+	{Flag: flags.About, Field: "about_ref"},
 }
 
 func findingRefusal(err error) error { return placementRefusal("finding", err) }

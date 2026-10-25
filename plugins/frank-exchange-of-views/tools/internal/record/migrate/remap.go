@@ -14,7 +14,10 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // remap is the STATEFUL half of the translation (plans/roundless.md §III.A.5). The registry
@@ -42,16 +45,7 @@ type remap struct {
 	// word in a seat's prose that equals an archived id — "Q1 revenue", "the G2 summit" — is
 	// rewritten as a reference; nothing can tell the two apart, so each rewrite is kept where a
 	// reader can judge it (the manifest's per-field count, and the archive's golden list).
-	prose []ProseRewrite
-}
-
-// ProseRewrite is one archived id rewritten inside a seat's own wording: the field, the id as
-// archived, the id it became, and the text around it as the source wrote it.
-type ProseRewrite struct {
-	Field   string `json:"field"`
-	Old     string `json:"old"`
-	New     string `json:"new"`
-	Context string `json:"context"`
+	prose []migration.ProseRewrite
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -110,10 +104,9 @@ var (
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors`)
-	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
-		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
-		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text
+		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id Credit.gap_id Credit.found_by`)
+	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
+		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Cite.text
 		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
@@ -122,17 +115,18 @@ var (
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
-		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key
-		Cite.location Cite.ocr_engine Cite.ocr_quote Cite.ocr_text_sha Cite.sha256 Cite.title Cite.url
-		ClassNew.slug Close.anchor_seat Close.carried_from
-		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.class Mint.fix_basis Mint.fix_new
+		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key Cite.copy_url
+		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
+		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url
+		Close.anchor_seat Close.carried_from
+		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
 		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type
 		Register.hook_version Register.run_via Register.tool_version
 		Reproduce.observed_output Reproduce.proof_sha Reproduce.recorded_output Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
-		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.page_render_sha
+		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
 		"Verify.label": "citation", "Proof.proof_id": "proof", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}
@@ -163,8 +157,21 @@ func lensAreaOfNumber(n int) (string, bool) {
 	return "", false
 }
 
-// seat translates an archived seat id to its roundless form; an id already in that form passes.
+// seat translates an archived seat id to its roundless form; an id already in that form passes. A
+// translation that lands off the roster is refused: an archived spelling the patterns below miss
+// would otherwise pass through unchanged and be attributed to no party.
 func (r *remap) seat(old string) (string, error) {
+	s, err := roundlessSeat(old)
+	if err != nil {
+		return "", err
+	}
+	if s != record.HarnessSeat && seatclass.RoleOfSeat(s) == "" {
+		return "", fmt.Errorf("seat %q translates to %q, which is no seat on the roster — no archived spelling in remap.go's seat translation matches it", old, s)
+	}
+	return s, nil
+}
+
+func roundlessSeat(old string) (string, error) {
 	if m := numberedLens.FindStringSubmatch(old); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		area, ok := lensAreaOfNumber(n)
@@ -287,7 +294,7 @@ func (r *remap) respell(field, v string) string {
 			b.WriteString(v[last:loc[0]])
 			b.WriteString(r.ids[old])
 			last = loc[1]
-			r.prose = append(r.prose, ProseRewrite{Field: field, Old: old, New: r.ids[old],
+			r.prose = append(r.prose, migration.ProseRewrite{Field: field, Old: old, New: r.ids[old],
 				Context: around(v, loc[0], loc[1])})
 		}
 		b.WriteString(v[last:])

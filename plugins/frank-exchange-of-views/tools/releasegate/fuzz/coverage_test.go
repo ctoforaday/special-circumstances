@@ -177,8 +177,8 @@ func unreachedEnumValues() []string {
 // closedGapIDs returns the gaps a spot-check can legitimately sample.
 func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
 
-// closedInARoundBefore is the same list restricted to gaps closed BEFORE the given round, which
-// is what a CARRY needs. Round 0 means no restriction.
+// closedInARoundBefore is the same list restricted to gaps a lens's `close` closed BEFORE the given
+// round, which is what a CARRY needs. Round 0 means no restriction.
 //
 // A close keys on `gap_id` (keyFields puts it first), so a seat carrying a gap it closed in this
 // same sitting writes a duplicate key and is refused: "already recorded a close this sitting".
@@ -187,6 +187,20 @@ func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
 // including its own, and in a single-round run those are the only ones there are, so `merge
 // carry` ran twice across 60 runs and was refused both times. A verb whose every invocation is
 // refused reports as DRIVEN in the tally, which is how the carry's own bug stayed invisible.
+// closedEpoch is the epoch the board holds gap id closed in.
+func (r *runner) closedEpoch(id string) (int, bool) {
+	b, err := record.FamilyOf(r.run())
+	if err != nil {
+		return 0, false
+	}
+	for _, g := range b.Gaps {
+		if g != nil && g.ID == id && !g.Open {
+			return g.ClosedEpoch, true
+		}
+	}
+	return 0, false
+}
+
 func (r *runner) closedInARoundBefore(round int) []string {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
@@ -199,6 +213,11 @@ func (r *runner) closedInARoundBefore(round int) []string {
 			continue
 		}
 		if round > 0 && g.ClosedEpoch >= round {
+			continue
+		}
+		// A CARRY RESTATES A LENS'S `close`, and a gap the bench closed by ruling its docket motion
+		// holds none: the record refuses to carry it, so it is not offered.
+		if round > 0 && g.Closure == nil {
 			continue
 		}
 		out = append(out, id)

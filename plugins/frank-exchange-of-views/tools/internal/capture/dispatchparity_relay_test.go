@@ -45,7 +45,8 @@ func relayed(t *testing.T, p record.Plan) map[string]any {
 	if err := json.Unmarshal([]byte(p.Printed()), &plan); err != nil {
 		t.Fatal(err)
 	}
-	return map[string]any{"plan": plan}
+	plan["notes"] = "the chair's line to the operator, which is no field of the plan"
+	return plan
 }
 
 // storedRun is a record the verb dispatched on: the chair asks `dispatch next` at each of its
@@ -119,7 +120,7 @@ func TestARelayAlteredInAnyFieldDeparts(t *testing.T) {
 	for _, f := range record.PlanFields() {
 		t.Run(f.JSON, func(t *testing.T) {
 			r := relayed(t, plans[0])
-			plan := r["plan"].(map[string]any)
+			plan := r
 			switch f.Type {
 			case "integer":
 				plan[f.JSON] = json.Number("7")
@@ -149,12 +150,12 @@ func TestARelayAlteredInAnyFieldDeparts(t *testing.T) {
 func TestARelayCarryingAnUndeclaredKeyDepartsAndALenssEmptyOccasionsDoesNot(t *testing.T) {
 	run, plans := storedRun(t, 1, false)
 	r := relayed(t, plans[0])
-	r["plan"].(map[string]any)["nested"] = map[string]any{}
+	r["nested"] = map[string]any{}
 	if a := DispatchParityAudit(run, journalOf(t, r), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "does not read as a plan") {
 		t.Fatalf("an undeclared key = %s: %s", a.Verdict, a.Detail)
 	}
 	r = relayed(t, plans[0])
-	for _, p := range r["plan"].(map[string]any)["parties"].([]any) {
+	for _, p := range r["parties"].([]any) {
 		p.(map[string]any)["occasions"] = []any{}
 	}
 	if a := DispatchParityAudit(run, journalOf(t, r), true); a.Verdict != "PASS" {
@@ -242,11 +243,11 @@ func TestTheValveStopsOnTheKeyTheRecordRepeats(t *testing.T) {
 	}
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
-			e["plan"] = js[min(chair, len(js))-1]["plan"]
+			e.Relay(js[min(chair, len(js))-1])
 		}
 		return e
 	}

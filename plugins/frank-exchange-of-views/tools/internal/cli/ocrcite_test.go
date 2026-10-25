@@ -68,7 +68,7 @@ func ocrRun(t *testing.T, pages []string, fetchArgs ...string) (string, string) 
 	registerLensOnce(t, runDir)
 	body := scanPDFPages(len(pages))
 	withFetcher(t, &fakeFetcher{
-		resp:        map[string][]byte{ocrURL: body, "https://ex/page.html": []byte("<html>integrity levels</html>")},
+		resp:        map[string][]byte{ocrURL: body, "https://ex/page.html": []byte("<html>Integrity levels</html>")},
 		contentType: "application/pdf",
 	})
 	withExtractor(t, stubExtractor{out: scannedPDF(len(pages))})
@@ -105,7 +105,7 @@ var threePages = []string{
 
 func TestOCRCiteRecordsThePageItsSpanSitsOn(t *testing.T) {
 	runDir, sha := ocrRun(t, threePages)
-	if out, err := ocrCite(t, runDir, "--ocr-quote", "Annexes A through J"); err != nil {
+	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	c := firstCiteEvent(t, runDir)
@@ -119,18 +119,38 @@ func TestOCRCiteRecordsThePageItsSpanSitsOn(t *testing.T) {
 	if c.GetSourceTextOrigin() != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR {
 		t.Errorf("origin = %v, want ocr", c.GetSourceTextOrigin())
 	}
-	if c.GetOcrEngine() != rec.Engine || c.GetOcrTextSha() != rec.TextSha || c.GetOcrQuote() != "Annexes A through J" {
-		t.Errorf("pins = %q %q %q, want the reading's %q %q and the span", c.GetOcrEngine(), c.GetOcrTextSha(), c.GetOcrQuote(), rec.Engine, rec.TextSha)
+	if c.GetOcrEngine() != rec.Engine || c.GetOcrTextSha() != rec.TextSha || c.GetSourceSpan() != "Annexes A through J are informative" {
+		t.Errorf("pins = %q %q %q, want the reading's %q %q and the span", c.GetOcrEngine(), c.GetOcrTextSha(), c.GetSourceSpan(), rec.Engine, rec.TextSha)
+	}
+	// THE OFFSETS NAME THE PAGE'S READING, and the text around the span is that page's.
+	page := threePages[1]
+	if c.GetSpanTextSha() != rec.Pages[1].TextSha || page[c.GetSpanStart():c.GetSpanEnd()] != "Annexes A through J are informa-\ntive" ||
+		c.GetSourceBefore() != "The integrity levels are four.\n" || c.GetSourceAfter() != "." {
+		t.Errorf("span at [%d,%d) of %q, before %q, after %q; want page 2's reading", c.GetSpanStart(), c.GetSpanEnd(), c.GetSpanTextSha(), c.GetSourceBefore(), c.GetSourceAfter())
 	}
 }
 
-func TestOCRCiteRecordsEveryPageThatHoldsTheSpan(t *testing.T) {
-	runDir, _ := ocrRun(t, []string{"integrity levels", "nothing", "the integrity\nlevels"})
-	if out, err := ocrCite(t, runDir, "--ocr-quote", "integrity levels"); err != nil {
+// A WORD THE READING BROKE AT A LINE END is found typed whole, and the record keeps it as the
+// reading holds it.
+func TestOCRCiteFindsASpanAcrossALineEndHyphen(t *testing.T) {
+	runDir, _ := ocrRun(t, threePages)
+	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
-	if got := firstCiteEvent(t, runDir).GetPages(); len(got) != 2 || got[0] != 1 || got[1] != 3 {
-		t.Errorf("pages = %v, want [1 3]", got)
+	c := firstCiteEvent(t, runDir)
+	if got := c.GetPages(); len(got) != 1 || got[0] != 2 || c.GetSourceMatched() != "Annexes A through J are informa-\ntive" {
+		t.Errorf("pages %v, matched %q; want page 2 and the reading's own bytes", got, c.GetSourceMatched())
+	}
+}
+
+// A SPAN THE READING HOLDS TWICE IS REFUSED, so the text a lens reads around it is the place blue
+// quoted, and the refusal names the pages.
+func TestOCRCiteRefusesASpanTheReadingHoldsTwice(t *testing.T) {
+	runDir, _ := ocrRun(t, []string{"integrity levels", "nothing", "the integrity\nlevels"})
+	out, err := ocrCite(t, runDir, "--source-span", "integrity levels")
+	mustRefuse(t, err, out, "holds it 2 times (on pages 1, 3)", "found once")
+	if c := firstCiteEvent(t, runDir); c != nil {
+		t.Errorf("a refused cite left an event: %v", c)
 	}
 }
 
@@ -141,12 +161,11 @@ func TestOCRCiteRefusesASpanItCannotPlaceOnOnePage(t *testing.T) {
 		want       []string
 	}{
 		{"straddle", "follow the scope. The integrity levels", []string{"runs from page 1 onto page 2", "quote the part on one page"}},
-		{"hyphen", "are informative", []string{`found on page 2 only as "informa-"`, "quote it as the reading has it"}},
-		{"absent", "Annexes A through Q", []string{"not in the reading at", fetchcache.OCRTextPath(runtest.Open(t, runDir), sha)}},
+		{"absent", "Annexes A through Q", []string{"not in the text at", fetchcache.OCRTextPath(runtest.Open(t, runDir), sha)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := ocrCite(t, runDir, "--ocr-quote", tc.span)
+			out, err := ocrCite(t, runDir, "--source-span", tc.span)
 			mustRefuse(t, err, out, tc.want...)
 		})
 	}
@@ -158,9 +177,9 @@ func TestOCRCiteRefusesASpanItCannotPlaceOnOnePage(t *testing.T) {
 // A CITATION OF OCR TEXT NAMES ITS SPAN, because the page is what lets red check the pixels, and
 // a refused cite leaves nothing on the record.
 func TestOCRCiteRequiresTheSpan(t *testing.T) {
-	runDir, _ := ocrRun(t, threePages)
+	runDir, sha := ocrRun(t, threePages)
 	out, err := ocrCite(t, runDir)
-	mustRefuse(t, err, out, "a citation of OCR-derived text names the span", "--ocr-quote")
+	mustRefuse(t, err, out, "the tool holds this source's text", "--source-span", fetchcache.OCRTextPath(runtest.Open(t, runDir), sha))
 	if c := firstCiteEvent(t, runDir); c != nil {
 		t.Errorf("a refused cite left an event: %v", c)
 	}
@@ -169,14 +188,14 @@ func TestOCRCiteRequiresTheSpan(t *testing.T) {
 func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 	t.Run("embedded", func(t *testing.T) {
 		runDir, _ := ocrRun(t, threePages)
-		withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://ex/page.html": []byte("<html>integrity levels</html>")}, contentType: "text/html"})
+		withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://ex/page.html": []byte("<html>Integrity levels</html>")}, contentType: "text/html"})
 		withExtractor(t, stubExtractor{})
 		out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", ocrClaim,
-			"--url", "https://ex/page.html", "--title", "Page", "--ocr-quote", "integrity levels")
-		mustRefuse(t, err, out, "this source's text is not OCR-derived")
+			"--url", "https://ex/page.html", "--title", "Page")
+		mustRefuse(t, err, out, "the tool holds this source's text", "--source-span")
 
 		if out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", ocrClaim,
-			"--url", "https://ex/page.html", "--title", "Page"); err != nil {
+			"--url", "https://ex/page.html", "--title", "Page", "--source-span", "Integrity levels"); err != nil {
 			t.Fatalf("cite of HTML: %v\n%s", err, out)
 		}
 		if c := firstCiteEvent(t, runDir); c.GetSourceTextOrigin() != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED || len(c.GetPages()) != 0 {
@@ -185,15 +204,15 @@ func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 	})
 	t.Run("unread scan", func(t *testing.T) {
 		runDir, _ := ocrRun(t, threePages, "--ocr=false")
-		out, err := ocrCite(t, runDir, "--ocr-quote", "Annexes A through J")
-		mustRefuse(t, err, out, "has none", "`fetch --url "+ocrURL+"` reads a scan first")
+		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative")
+		mustRefuse(t, err, out, "the tool holds none for", "(none)", "`fetch --url "+ocrURL+"` to read a scan first")
 	})
 	t.Run("incomplete reading", func(t *testing.T) {
 		runDir, sha := ocrRun(t, threePages)
 		if err := os.Remove(fetchcache.PageTextPath(runtest.Open(t, runDir), sha, 3)); err != nil {
 			t.Fatal(err)
 		}
-		out, err := ocrCite(t, runDir, "--ocr-quote", "Annexes A through J")
+		out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative")
 		mustRefuse(t, err, out, "incomplete on disk", "`fetch --url "+ocrURL+"` re-derives it")
 	})
 }
@@ -201,7 +220,7 @@ func TestOCRCiteRefusesTheSpanWhereThereIsNoReading(t *testing.T) {
 // pagedCite records a cite of the p2 span and returns its label.
 func pagedCite(t *testing.T, runDir string) string {
 	t.Helper()
-	if out, err := ocrCite(t, runDir, "--ocr-quote", "Annexes A through J"); err != nil {
+	if out, err := ocrCite(t, runDir, "--source-span", "Annexes A through J are informative"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	return firstCiteEvent(t, runDir).GetLabel()
@@ -290,10 +309,10 @@ func TestVerifyUnreachableNeedsNoPage(t *testing.T) {
 
 func TestVerifyRefusesAPageOnACitationWithoutPages(t *testing.T) {
 	runDir, _ := ocrRun(t, threePages)
-	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://ex/page.html": []byte("<html>integrity levels</html>")}, contentType: "text/html"})
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://ex/page.html": []byte("<html>Integrity levels</html>")}, contentType: "text/html"})
 	withExtractor(t, stubExtractor{})
 	if out, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", ocrClaim,
-		"--url", "https://ex/page.html", "--title", "Page"); err != nil {
+		"--url", "https://ex/page.html", "--title", "Page", "--source-span", "Integrity levels"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	label := firstCiteEvent(t, runDir).GetLabel()

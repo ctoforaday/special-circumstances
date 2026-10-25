@@ -1,18 +1,33 @@
 package cli
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/migratecli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// THE MIGRATE VERB SAYS WHAT BECAME OF THE ORDER OF THE REPORT'S TEXT, to the operator: brought
+// runMigrate runs feov-migrate's command in-process — the operator's other binary, which this
+// package's tests drive over records they build with feov-record's verbs. A refusal returns an
+// error carrying the exit code and the stderr line the binary would print.
+func runMigrate(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	if code := migratecli.Main(args, &stdout, &stderr); code != 0 {
+		return stdout.String(), fmt.Errorf("feov-migrate exited %d: %s", code, stderr.String())
+	}
+	return stdout.String(), nil
+}
+
+// FEOV-MIGRATE SAYS WHAT BECAME OF THE ORDER OF THE REPORT'S TEXT, to the operator: brought
 // into the order it ships in, or kept as written because its acts do not replay over the
 // reordered text.
 func TestMigrateSaysWhatBecameOfTheReportsOrder(t *testing.T) {
@@ -38,7 +53,7 @@ func TestMigrateSaysWhatBecameOfTheReportsOrder(t *testing.T) {
 		"the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written": {
 			"The quotient is 13<!--proof:P-0000000c-->.\n\n## The Catechism", "The quotient is thirteen<!--proof:P-0000000c-->.\n\n## The Catechism"},
 	} {
-		out, err := run(t, "migrate", "--seat-id", "operator", "--from", source(edit), "--to", recordtest.TmpRun(t))
+		out, err := runMigrate(t, "--from", source(edit), "--to", recordtest.TmpRun(t))
 		if err != nil {
 			t.Fatalf("migrate: %v\n%s", err, out)
 		}

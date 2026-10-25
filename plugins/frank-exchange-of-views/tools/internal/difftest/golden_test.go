@@ -3,7 +3,6 @@ package difftest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // Golden tests are what SURVIVES the oracle.
@@ -49,7 +50,7 @@ func TestGolden(t *testing.T) {
 		t.Run(sc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			m := newMapper()
-			prepareRun(t, bin, runDir, m, sc.seed)
+			prepareRun(t, bin, runDir, m, sc.seed, sc.cast)
 
 			var transcript strings.Builder
 
@@ -144,6 +145,10 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
+			//
+			// The bench sits to assemble first: the record refuses `assemble` in any other sitting
+			// (record.RequireAssemblySitting), and the register is outside the transcript.
+			_ = runGo(bin, runDir, m, cmd{verb: "register", args: []string{"--run", runDir, "--seat-id", "judge", "--occasion", "assemble"}})
 			if inv := runGo(bin, runDir, m, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {
@@ -158,23 +163,17 @@ func TestGolden(t *testing.T) {
 }
 
 // prepareRun gives a run directory the state every scenario and every fuzz sequence starts
-// from: the class vocabulary staged, the seed files written, and the round-0 report ingested.
+// from: the seed files written and the round-0 report ingested.
 //
-// SHARED, because the determinism fuzz used to start from a bare directory. With no report and
-// no registry, every lens verb that anchors into the report and every mint that checks its class
-// could only ever refuse — so the fuzz could not have exercised an acceptance even once its
+// SHARED, because the determinism fuzz used to start from a bare directory. With no report, every
+// lens verb that anchors into the report could only ever refuse — so the fuzz could not have exercised an acceptance even once its
 // commands were spelled right.
-func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string) {
+func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[string]string, cast []string) {
 	t.Helper()
-	// EVERY SCENARIO DECLARES ITS CLASS VOCABULARY, as a real run does. These runs are
-	// built by hand, and used to be exempt from the class check by accident: no registry
-	// staged meant `--class` accepted any string, so every mint in every golden here
-	// passed a check that was not running. Staging it is what makes the golden a record
-	// of the shipped behaviour rather than of an unconfigured corner of it.
-	if err := record.StageForRun(runtest.Open(t, runDir), goldenClasses...); err != nil {
-		t.Fatalf("stage the class registry: %v", err)
-	}
 	seed(t, runDir, files)
+	if cast != nil {
+		seedCast(t, runDir, cast)
+	}
 	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
 	// unless its --quote quote is present. Ensure a report carrying the
 	// scenario quotes (a claim under ## S2 / ## S4) exists; a scenario may override.
@@ -187,9 +186,9 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
 	// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
 	// synthesize records the base and the file is deleted, exactly as the engine does after
-	// synthesis and before the rounds. Invisible setup, like the class-registry staging and
-	// the report seed above — the scenario's own commands are what the golden is about, but
-	// the BaseIngest and this register DO appear in the EVENTS section, as they must.
+	// synthesis and before the rounds. Invisible setup, like the report seed above — the
+	// scenario's own commands are what the golden is about, but the BaseIngest and this register
+	// DO appear in the EVENTS section, as they must.
 	for _, setup := range []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
 		{verb: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
@@ -199,6 +198,19 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 		}
 		m.observe(filepath.Join(runDir, "records"))
 	}
+}
+
+// seedCast writes the run's cast under the harness seat, the first event on the record, as setup
+// writes it before any seat sits.
+func seedCast(t *testing.T, runDir string, seats []string) {
+	t.Helper()
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:cast", &recordpb.Cast{SeatIds: seats}))
+}
+
+// castOf is the cast setup writes for a run auditing these lens areas with one blue lane.
+func castOf(areas ...string) []string {
+	seats, _ := record.CastFor(areas, 1)
+	return seats
 }
 
 func compareGolden(t *testing.T, name, got string) {
@@ -228,17 +240,6 @@ func compareGolden(t *testing.T, name, got string) {
 		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 go test ./internal/difftest and justify the diff in the commit.\n%s",
 			name, diff)
 	}
-}
-
-// goldenClasses is the vocabulary the scenarios mint under. It deliberately EXCLUDES the slugs
-// scenarios use to prove an unknown class is refused (`invented`, `invented-class`, `novel`,
-// `banana`) — those are the point of their scenarios, and adding them here would turn four
-// refusal goldens green while recording nothing.
-//
-// A scenario that stages its OWN registry still does: seed() runs after this and overwrites the
-// file, which is how the class_registry oracle keeps driving a hand-made registry.
-var goldenClasses = []string{
-	"scope-creep", "attestation-inflation", "citation-drift", "safety", "x", "a",
 }
 
 // transcriptArgs renders an invocation's arguments for the golden. An EMPTY argument is written

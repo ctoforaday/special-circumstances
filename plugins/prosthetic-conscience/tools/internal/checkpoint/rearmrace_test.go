@@ -2,9 +2,11 @@ package checkpoint
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -119,3 +121,62 @@ func TestAnAbandonedLockIsBrokenRatherThanWaitedOnForever(t *testing.T) {
 // timeNowMinus keeps the test's intent readable without importing time at the
 // top for one call.
 func timeNowMinus(d time.Duration) time.Time { return time.Now().Add(-d) }
+
+// A RELEASE THAT CANNOT READ ITS LOCK SAYS SO (#1553). It used to be dropped: the lock stayed,
+// every waiting hook timed out, and nothing named why.
+func TestAReleaseThatFailsIsReported(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rearmed.json")
+	lock, err := lockRearm(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The lock's path becomes something no read can open as a file, on any platform.
+	if err := os.Remove(lock.path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(lock.path, "occupant"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := lock.release(); err == nil {
+		t.Fatal("a release that could not read its lock reported success")
+	}
+}
+
+// A COMMITTED UPDATE WHOSE RELEASE FAILED SAYS BOTH HALVES: the event is recorded, and the lock is
+// left for the next hook to wait on. The hook reads the type to keep reporting the commit.
+func TestALockLeftErrorSaysTheEventIsRecorded(t *testing.T) {
+	var err error = &LockLeftError{Path: "rearmed.json", Err: os.ErrPermission}
+	var left *LockLeftError
+	if !errors.As(err, &left) || !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("LockLeftError must be matchable and unwrap its cause: %v", err)
+	}
+	for _, want := range []string{"IS recorded", "could not be released", "waits up to"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error must carry %q: %v", want, err)
+		}
+	}
+}
+
+// THE TIMEOUT NAMES THE HOLDER, THE LOCK'S AGE AND THE LAST OPEN ERROR (#1553): the next lock that
+// does not free has to say whose it was and whether it was being worked or left behind.
+func TestTheLockTimeoutNamesItsHolder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rearmed.json")
+	if err := os.WriteFile(path+".lock", []byte("4242-holder"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Stamped a second ahead, so the wait's deadline arrives before the lock ages into a
+	// stale-break and the timeout is what this test sees.
+	ahead := time.Now().Add(time.Second)
+	if err := os.Chtimes(path+".lock", ahead, ahead); err != nil {
+		t.Fatal(err)
+	}
+	_, err := lockRearm(path)
+	if err == nil {
+		t.Fatal("a fresh lock held by another hook was taken")
+	}
+	for _, want := range []string{`held by "4242-holder"`, "lock age", "last open error"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the timeout must carry %q: %v", want, err)
+		}
+	}
+}

@@ -84,7 +84,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h2>Log</h2>
 <p>2 log entries on the record · latest: <span class="muted">red-chair: needed a PDF extractor</span></p>
 <h2>Seats (run complete)</h2>
-<p class="muted">the bench recorded this run's outcome. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-chair #1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge #1</td><td class="muted">did not finish</td></tr></table>
+<p class="muted">the bench recorded this run's outcome, and the run was captured. 2 seat(s) never finished:</p><table><tr><td class="liveseat">red-chair #1</td><td class="muted">superseded — a later attempt completed</td></tr><tr><td class="liveseat">judge #1</td><td class="muted">did not finish</td></tr></table>
 <h2>Recent completions</h2>
 <table><tr><td class="nowrap">red-chair #1</td><td class="muted">verdict FAIL · 1 ruling</td></tr>
 <tr><td class="nowrap">frontier</td><td class="muted">verdict PASS</td></tr></table>

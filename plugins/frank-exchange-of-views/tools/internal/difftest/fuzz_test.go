@@ -211,7 +211,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	// must be released before cleanup removes the directory — or Windows cannot remove it.
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
-	prepareRun(t, bin, runDir, m, nil)
+	prepareRun(t, bin, runDir, m, nil, nil)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
 	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
 	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, manifest-row, both
@@ -219,9 +219,9 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	// right id, and a docket ruling only when a random filing did too. Over the fixed seed set
 	// several of them never did; the bench's ruling was 0 in 10 with the gap alone.
 	mintArgs := func(problem string) []string {
-		return []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep",
+		return []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification",
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
-			"--likelihood", "medium", "--impact", "medium", "--problem", problem}
+			"--likelihood", "medium", "--impact", "medium", "--problem", problem, "--about-kind", "section", "--about", "Findings"}
 	}
 	prologue := []cmd{
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
@@ -279,7 +279,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 var (
 	fuzzGrades = []string{"low", "low_medium", "medium", "medium_high", "high", "certain", "realized", "trivial",
 		"low", "medium", "high", "medium", "low-medium", "bogus"} // the last two are refused
-	fuzzClasses = []string{"scope-creep", "citation-drift", "scope-creep", "citation-drift", "propagation-incomplete"} // the last is not staged
+	fuzzClasses = []string{"spec_underspecification", "policy_without_mechanism", "spec_underspecification", "policy_without_mechanism", "propagation-incomplete"} // the last is not a GapClass word
 	// GAP001 and GAP002 are on the board from the prologue, and MOTION001 before the bench; the
 	// others name an id only once the sequence's own output has printed one, and until then reach
 	// the tool as the id of their kind that names nothing, refused for not existing.
@@ -340,7 +340,8 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
+				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
+				"--about-kind", "section", "--about", "Findings"}
 			// GAP001 is on the board from the prologue, so naming it distinct drives the field the mint's
 			// duplicate screen is answered with.
 			if rng.Intn(4) == 0 {
@@ -369,6 +370,8 @@ var fuzzArms = []fuzzArm{
 			}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--as", "repaired_with_regression") // no successor: the validation path
+			} else {
+				f = append(f, "--as", "repaired")
 			}
 			return f
 		}},
@@ -384,9 +387,13 @@ var fuzzArms = []fuzzArm{
 	// twice, both before any gap had closed.
 	{name: "chair carry", weight: 2, seats: []string{"red-chair"}, verb: []string{"carry"},
 		flags: func(rng *rand.Rand) []string {
-			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", "1"}
+			// The epoch is the closure's own, and the record refuses any other: the generator draws
+			// the epochs a closure in these sequences can hold.
+			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", pick(rng, []string{"0", "1"})}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--as", "repaired_with_regression")
+			} else {
+				f = append(f, "--as", "repaired")
 			}
 			return f
 		}},
@@ -424,29 +431,31 @@ var fuzzArms = []fuzzArm{
 
 // tourArms are the recording verbs the random sequences rarely land, each with the prerequisites
 // it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce;
-// blue's and the chair's position and closing; the bench's declare, certify, halt and outcome.
+// the chair's position; the parties' closing on the docketed GAP002 — its minting lens's and
+// blue-respond's; the bench's declare, certify, halt and outcome.
 // Every arm files its act and then files it AGAIN: where a sitting holds one of the act the repeat
 // is refused, and the refusal names the act that answers the first.
 //
 // KEPT OUT OF fuzzArms, so the random sequences are drawn exactly as they were measured. They run
 // as ONE extra sequence, the act tour, in which each arm is drawn once, in this order: the acts on
-// GAP001 before the closure that ends it, the outcome before the halt that would make it
-// derivable.
+// GAP001 before the closure that ends it, and the outcome LAST, after the halt it derives from and in
+// the assembly sitting it is recorded in — a record with an outcome refuses every seat act after it
+// (record.requireOpenToSeats).
 var tourArms = []fuzzArm{
 	tourArm("blue manifest-row", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	tourArm("blue cite", []string{"blue-respond"}, []string{"cite"},
 		func(t string) []string {
-			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--title", t}
+			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--source-span", "a source the fuzz cites at /corr", "--title", t}
 		}, nil),
 	tourArm("blue prove", []string{"blue-respond"}, []string{"prove"},
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
 		}, nil),
-	// blue-respond alone: a position is refused for a blue seat that owes none (record.SeatOwesPosition).
-	tourArm("blue position", []string{"blue-respond"}, []string{"position"}, reasonOnly, nil),
 	tourArm("chair position", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
-	tourArm("blue closing", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
-	tourArm("chair closing", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
+	// A CLOSING IS A PARTY'S, ON A DOCKETING: GAP002 is before the bench from the prologue, minted
+	// by the evidence lens.
+	tourArm("blue closing", []string{"blue-respond"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
+	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	tourArm("chair inquiry review", []string{"red-chair"}, []string{"inquiry", "review"}, reasonOnly, nil),
@@ -467,13 +476,17 @@ var tourArms = []fuzzArm{
 		func(t string) []string { return []string{"--anchor", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
 	tourArm("bench declare", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
 	tourArm("bench certify", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
-	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
-		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
 	tourArm("lens close", []string{"red-lens-evidence"}, []string{"close"},
 		func(t string) []string {
-			return []string{"--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
+			return []string{"--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
 		}, nil),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
+	// The outcome is the assembly sitting's: the bench registers for it first.
+	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
+		func(t string) []string { return []string{"--as", "HALTED", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{fuzzStep(name+" · setup", []string{"register"}, "judge", "--occasion", "assemble")}
+		}),
 }
 
 func reasonOnly(t string) []string { return []string{"--reason", t} }

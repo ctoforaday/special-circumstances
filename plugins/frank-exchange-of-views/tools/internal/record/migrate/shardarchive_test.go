@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -69,7 +70,7 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 
 // migrateArchive is the named tarball, migrated, as a record this test owns: the migration runs once
 // per process and each caller opens its own copy (see MigratedArchive).
-func migrateArchive(t *testing.T, name string) (*migrate.Manifest, record.Run) {
+func migrateArchive(t *testing.T, name string) (*migration.Manifest, record.Run) {
 	t.Helper()
 	res, toDir := migrate.MigratedArchive(t, name)
 	return res, runtest.Open(t, toDir)

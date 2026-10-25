@@ -3,7 +3,7 @@ package capture
 import (
 	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 )
 
 // migrationLine is the capture report's statement that this run's record is a TRANSLATION,
@@ -11,7 +11,7 @@ import (
 // share bytes with any other state, which is why an unreadable manifest returns its error
 // as the line rather than nothing.
 func migrationLine(runDir string) string {
-	m, err := migrate.ReadManifest(runDir)
+	m, err := migration.ReadManifest(runDir)
 	if err != nil {
 		return "migrated record: MANIFEST UNREADABLE — " + err.Error()
 	}
@@ -35,5 +35,5 @@ func migrationLine(runDir string) string {
 	}
 	return fmt.Sprintf("migrated record: replayed from %s by %s — %d event(s) in -> %d out, %d refusal(s), %d accepted loss(es), "+
 		"%s, %d per-turn measurement(s) brought over; inputs/%s",
-		m.SourcePath, m.ToolVersion, in, out, len(m.Refusals), len(m.Accepted), epoch, m.SeatTurns, migrate.ManifestName)
+		m.SourcePath, m.ToolVersion, in, out, len(m.Refusals), len(m.Accepted), epoch, m.SeatTurns, migration.ManifestName)
 }

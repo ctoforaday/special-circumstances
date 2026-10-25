@@ -15,7 +15,7 @@ import (
 // fraction.
 
 func gradedMint(gap string, sev, lik, imp recordpb.Grade) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("x"), Problem: proto.String("p"),
+	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(sev), Likelihood: recordtest.P(lik), Impact: recordtest.P(imp)}
 }
@@ -49,7 +49,7 @@ func setFraction(t *testing.T, run Run, f float64) {
 // the write path admits it.
 func TestARegradeBeforeAFailIsTheGradeTheGateReads(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).
+		register("red-chair").sit(2, evLens).
 		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
 		add("red-chair", failVerdict()).
 		add(evLens, repairClose("G1")).

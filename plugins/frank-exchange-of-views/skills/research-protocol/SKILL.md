@@ -42,7 +42,7 @@ There is no search index.
 **Full read for the report** — red reads blue's report whole, in
 context, every sitting THE REPORT HAS MOVED. A snippet NEVER substitutes: a decontextualized
 quote is how audits go blind. This clause outranks any token saving, and the exception is not
-one: where the report stands at the head red already read, the whole-document read it is owed
+one: where the report stands at the head the tool last served red whole, the whole-document read it is owed
 is the one already performed, and performing it again returns the same bytes to the same reader.
 The Read tool caps ~25k tokens — a full-document read over that cap is consecutive whole windows,
 which satisfies the full-re-read MUST without a confidence discount.
@@ -76,8 +76,8 @@ open questions, and move no line of blue's text.
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inquiries.md`
-(the inquiries and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
-retired and the asks a later certification superseded). Nothing is summarized away by the split — the union is the
+(the inquiries and the path each took), `evidence.md` (the computations, and each citation with every reading of it), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
+retired, the asks a later certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
 THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file

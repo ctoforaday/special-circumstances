@@ -84,7 +84,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "graph", path: "graph", role: "", code: "validation"},
 
 		// The record's validation, reached through a handler.
-		{kind: "record validation", seat: lens, args: []string{"close", "--id", "G-0000beef", "--reason", "x", "--verified-by", "y", "--verified-with", "z", "--verified-against", "a"},
+		{kind: "record validation", seat: lens, args: []string{"close", "--id", "G-0000beef", "--as", "repaired", "--reason", "x", "--verified-by", "y", "--verified-with", "z", "--verified-against", "a"},
 			verb: "close", path: "close", role: "lens", code: "error", logged: true},
 
 		{kind: "record validation", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
@@ -120,7 +120,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		// A FLAG GROUP has no row: no seat verb declares a group a call can violate (see
 		// TestAFlagGroupViolatedIsRefusedWithItsFlagsLines). mint without --problem is now a missing
 		// required flag.
-		{kind: "missing required flag", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "scope-creep", "--check-kind", "document",
+		{kind: "missing required flag", seat: lens, args: []string{"mint", "--about-kind", "section", "--about", "Findings", "--key", "M-probe", "--class", "spec_underspecification", "--check-kind", "document",
 			"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low", "--fix", "f", "--reason", "r"},
 			verb: "mint", path: "mint", role: "lens", code: "missing_field", short: true, logged: true},
 

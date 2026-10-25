@@ -25,7 +25,7 @@ import (
 // the read surface fails loudly.
 func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "shown-gap", "read-surface")
+	id := mintGap(t, runDir, "shown-gap", "spec_underspecification")
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
@@ -60,7 +60,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 // has to know the run's file layout to see its own state.
 func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 	runDir := seatRun(t)
-	mintGap(t, runDir, "role-views", "read-surface")
+	mintGap(t, runDir, "role-views", "spec_underspecification")
 
 	// merge's own view is the structured WORKLIST — its shrinking working set (OPEN gaps
 	// lean + a prose-free closed_index), the once-per-turn read it acts on. It is the
@@ -117,7 +117,7 @@ func TestUnknownViewIsRefusedWithTheListOfViews(t *testing.T) {
 // appended to the log would corrupt every metric derived from event counts.
 func TestShowRecordsNothing(t *testing.T) {
 	runDir := seatRun(t)
-	mintGap(t, runDir, "no-write-on-read", "read-surface")
+	mintGap(t, runDir, "no-write-on-read", "spec_underspecification")
 	before := len(events(t, runDir))
 
 	for i := 0; i < 3; i++ {
@@ -137,7 +137,7 @@ func TestShowRecordsNothing(t *testing.T) {
 // JSON form, so the flag every page lists is refused on none of them.
 func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	runDir := seatRun(t)
-	mintGap(t, runDir, "debate-json", "read-surface")
+	mintGap(t, runDir, "debate-json", "spec_underspecification")
 	if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "red's round narrative"); err != nil {
 		t.Fatalf("position: %v", err)

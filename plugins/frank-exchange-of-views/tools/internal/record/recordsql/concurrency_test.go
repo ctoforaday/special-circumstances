@@ -130,7 +130,7 @@ func writeAsChild(t *testing.T, path, seat string) {
 		//
 		// A plain Insert does not reproduce the hazard, because it never reads before it writes —
 		// its BEGIN goes straight to a write lock whether or not the transaction is deferred. The
-		// real write path (record.insertNumbered) counts a seat's existing events to number the new
+		// real write path (record.writeIn) counts a seat's existing events to number the new
 		// one, and it is that READ-then-UPGRADE that SQLite refuses to apply busy_timeout to. A
 		// test that skipped the count passed with the fix reverted, which is how this version came
 		// to exist.

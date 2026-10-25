@@ -49,8 +49,8 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "mint", "--run", quiet, "--seat-id", lensSeat,
-		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", quiet, "--seat-id", lensSeat,
+		"--key", "g1", "--class", "spec_underspecification", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--reason", "the figures cannot both hold"); err != nil {
@@ -59,8 +59,8 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	silent := read(t, quiet)
 
 	// The same run after blue records something substantive.
-	if _, err := run(t, "position", "--run", quiet, "--seat-id", "blue-respond",
-		"--reason", "I have read the board and am working the first gap"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", quiet, "--seat-id", "blue-respond",
+		"--question", "do the two figures share a source", "--hypothesis", "they would reconcile"); err != nil {
 		t.Fatal(err)
 	}
 	active := read(t, quiet)
@@ -72,7 +72,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 		t.Errorf("a blue that recorded nothing shows %d act(s); registering is arriving, not acting", silent.Acts)
 	}
 	if active.Acts == 0 || active.ActsThisEpoch == 0 {
-		t.Errorf("a blue that recorded a position shows acts=%d this_epoch=%d", active.Acts, active.ActsThisEpoch)
+		t.Errorf("a blue that proposed an inquiry shows acts=%d this_epoch=%d", active.Acts, active.ActsThisEpoch)
 	}
 	if !strings.Contains(silent.Reading, "NOTHING") {
 		t.Errorf("the silent reading does not say plainly that nothing was recorded: %q", silent.Reading)

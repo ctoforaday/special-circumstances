@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -13,21 +14,21 @@ import (
 )
 
 // quadraticArchive is the quadratic-formula run. The dark-side lens read C-4e4c92af's source
-// against its sentence and found it absent (event 570); blue's edit at 599 rewrote the sentence
-// before any finding quoted it.
+// against its sentence and found it absent (event 553 of the migrated record); blue's edit at 576 rewrote the sentence,
+// reopening the citation, before any finding quoted it.
 const quadraticArchive = "2026-09-02_quadratic-formula.tar.gz"
 
 // A CONTRADICTION WHOSE SENTENCE BLUE EDITED IS ANSWERED BY THE CITATION'S STANDING (#1378). On the
-// archive as it ended, contradiction 570 holds the PASS: the sentence it was of is gone, and no
+// archive as it ended, contradiction 553 holds the PASS: the sentence it was of is gone, and no
 // check has read the one that replaced it. A backing check of C-4e4c92af from a sitting opened
 // after the edit answers it, and so does a retire of the anchor.
 func TestQuadraticFormulasEditedContradictionIsAnsweredByItsCitation(t *testing.T) {
 	whole := archivedEvents(t, quadraticArchive)
-	const id, anchor = "570", "C-4e4c92af"
-	read := whole[569]
+	const id, anchor = "553", "C-4e4c92af"
+	read := whole[552]
 	v, ok := read.GetBody().(*recordpb.Event_Verify)
-	if !ok || v.Verify.GetAnchor() != anchor || !contradicts(v.Verify.GetOutcome()) || whole[598].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT {
-		t.Fatalf("the archive is not the quadratic-formula run this test reads: event 570 is a %s, 599 a %s", read.GetType(), whole[598].GetType())
+	if !ok || v.Verify.GetAnchor() != anchor || !contradicts(v.Verify.GetOutcome()) || !slices.Contains(whole[575].GetBlueEdit().GetReopened(), anchor) {
+		t.Fatalf("the archive is not the quadratic-formula run this test reads: event 553 is a %s, 576 a %s reopening %v", read.GetType(), whole[575].GetType(), whole[575].GetBlueEdit().GetReopened())
 	}
 	seed := func(extra ...proto.Message) Run {
 		dir := recordtest.RequireArchive(t, quadraticArchive)
@@ -54,7 +55,7 @@ func TestQuadraticFormulasEditedContradictionIsAnsweredByItsCitation(t *testing.
 	if !held(seed()) {
 		t.Fatalf("contradiction %s does not hold the PASS on the archive as it ended", id)
 	}
-	backs := &recordpb.Verify{Anchor: proto.String(anchor), Claim: proto.String("the sentence as edit 599 left it"),
+	backs := &recordpb.Verify{Anchor: proto.String(anchor), Claim: proto.String("the sentence as edit 576 left it"),
 		Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf")}
 	if held(seed(&recordpb.Register{}, backs)) {
 		t.Errorf("contradiction %s still holds the PASS after a backing check of %s from a sitting opened after the edit", id, anchor)

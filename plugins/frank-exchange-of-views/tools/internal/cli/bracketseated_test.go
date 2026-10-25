@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
@@ -36,18 +38,19 @@ func TestDiagnosticsReadsASeatSeatedByItsBracketAlone(t *testing.T) {
 }
 
 // THE CALL COUNT IS KEYED BY THE STORED SITTING, so the limit the hook hands the writer is one the
-// record holds. A second register under the agent its bracket seated joins that sitting rather
-// than opening one: the count stays the sitting's, and its limit lands.
+// record holds. A register under the agent its bracket seated joins that sitting rather than
+// opening one, a second is refused, and the count stays the sitting's.
 func TestASecondRegisterInABracketedSittingCountsInThatSitting(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.Var, runDir)
 	t.Setenv(seatenv.AgentVar, "agent_bracketed")
 	t.Setenv(seatenv.TypeVar, bracketedConfig)
 	bracketSeat(t, runDir, "agent_bracketed")
-	for i := 1; i <= 2; i++ {
-		if _, err := run(t, "register", "--seat-id", bracketedSeat); err != nil {
-			t.Fatalf("register %d: %v", i, err)
-		}
+	if _, err := run(t, "register", "--seat-id", bracketedSeat); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if _, err := run(t, "register", "--seat-id", bracketedSeat); err == nil || feov.CodeOf(err) != string(feov.Conflict) {
+		t.Fatalf("the second register in the sitting = %v; want it refused", err)
 	}
 	r, err := record.NewRun(runDir)
 	if err != nil {
@@ -62,7 +65,7 @@ func TestASecondRegisterInABracketedSittingCountsInThatSitting(t *testing.T) {
 		t.Fatal("register opened no count")
 	}
 	if sittings != 1 || h.Sitting != sittings {
-		t.Errorf("the count is for sitting %d and the seat has %d stored sitting(s), want both 1 — the bracket opened the sitting and both registers joined it", h.Sitting, sittings)
+		t.Errorf("the count is for sitting %d and the seat has %d stored sitting(s), want both 1 — the bracket opened the sitting and the register joined it", h.Sitting, sittings)
 	}
 	if err := sittingwrite.WriteLimit(runDir, "agent_bracketed", h.Sitting, 150); err != nil {
 		t.Errorf("the limit of the sitting the count was keyed to was refused: %v", err)

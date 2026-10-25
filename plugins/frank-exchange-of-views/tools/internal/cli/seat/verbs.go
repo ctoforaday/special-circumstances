@@ -37,8 +37,8 @@ import (
 //
 // The help lives in help/<key>.md. `register` means the same thing in every chair and is ONE
 // document; blue's page includes it and adds the repair, which only blue's surface carries.
-// `position` and `closing` genuinely differ — a RED section is not a BLUE one — and are keyed by
-// role.
+// `closing` genuinely differs by party — a RED CLOSING is the minting lens's, a BLUE CLOSING
+// blue-respond's — and is keyed by role. `position` is the chair's alone.
 
 // Register is the register every red seat and the bench mounts.
 func Register() *cobra.Command { return NewKeyed("register", "register", register) }
@@ -188,18 +188,12 @@ func Log() *cobra.Command {
 	return SaysRequired(c, flags.Reason)
 }
 
-func Position(key string) *cobra.Command {
+// Position is the chair's argument to the bench on what is about no one gap (record.PositionSittings
+// says when one is owed). Only the chair's surface mounts it, and the write path refuses it from any
+// other seat (record.PositionRefusal): a party argues a gap in its closing.
+func Position() *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
-	return SaysRequired(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
-		// WHOSE ACT IT IS, from the one predicate. The blue role is one surface, so a lane, the
-		// frontier and the synthesizer hold this verb; a position of theirs would be argument filed
-		// where only the bench and the chair read, by a seat nothing holds to filing it. The seats
-		// the refusal names are the predicate's, so it never points at one the write path refuses.
-		if !record.SeatOwesPosition(s.SeatID) {
-			return nil, feov.Errorf(feov.RoleViolation,
-				"a position is the act of %s — the seats that argue before the bench. A %s sitting files none: it argues in what it writes, and nothing is owed here",
-				record.PositionSeats(), s.SeatID)
-		}
+	return SaysRequired(Prose(NewKeyed("position", "position", func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -211,6 +205,9 @@ func Position(key string) *cobra.Command {
 	})), flags.Reason)
 }
 
+// Closing is a party's argument to the bench on one docketed gap: the gap's minting lens's, and
+// blue-respond's. The write path refuses it from any other seat, and on a gap no unruled docket
+// motion stands on (record.ClosingRefusal).
 func Closing(key string) *cobra.Command {
 	c := Prose(NewKeyed("closing", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
@@ -283,20 +280,21 @@ var views = []struct {
 	// that answer a question only the bench asks.
 	inquest bool
 }{
-	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`", "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("P-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.AssembledNote, "", false, record.ReportJSON{}, false},
+	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`", reportLong, "", false, record.ReportJSON{}, false},
 	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. Each gap's `minted_by` is the seat that minted it, the one seat that may close or regrade it; its `found_by` is the findings it was minted from. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. JSON by default; --format markdown gives the human-verification rendering. " + record.LocationStates + ". Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`", "", true, record.BoardJSON{}, false},
 	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`", "Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}, false},
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`", viewLong("work", "", ""), "*", true, record.WorkJSON{}, false},
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion` and `rule`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file` and `rule`", "", true, record.MotionsJSON{}, true},
-	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by blue's and the chair's `position` and `closing`, the chair's `spot-check`, and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, the chair's `spot-check`, and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
+	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade, and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade (`### RED KEEPS THE GRADE`; `red_keeps` in --json), and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
 	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`", "every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`", "", false, record.ChangesJSON{}, false},
-	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor — the id the lens's `reproduce --anchor` takes — with its script's sha256 and red's checks of it, and red's verified claims with their confidence.\n\n" +
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `source_text` is WHAT THE SOURCE SAYS where blue quoted it: blue's span, the same words as the source holds them (`matched`), and the source's own text `before` and `after` them, copied from the cached text when blue cited it — read the sentence against this. `blue_reason` is blue's account of why the source backs the sentence: blue's words, not the source's. A source the tool holds no text for (`source_text_origin` none) has no `source_text`. `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` holds the PDF page the tool found its span on: check the span against that page's image, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor — the id the lens's `reproduce --anchor` takes — with its script's sha256 and red's checks of it, and red's verified claims with their confidence.\n\n" +
+		"`copy_substitution` says whose bytes were read — on a source, the citation's; on a verification, the reading's: `none` — the url's own; otherwise a copy stood in for the url, and `copy_url` is where it was read — `followed_link`, the full text the url's page pointed to; `recovered`, a copy taken after the url refused; `fuller_copy`, another copy carrying more of the work; `named_backend`, a backend a fetch named. Read the copy, not the url, when you check what the citation read. `not_cached`, on a verification or a corroboration, is a source the run's fetch cache held no copy of when red recorded it, so which bytes it read is not known; `not_recorded` is an act from before the field.\n\n" +
 		"A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES. `rerun` is the SCRIPT's: `reproduced`, `differs`, `calls_the_tool` (the script calls this tool, which refuses every call made while a checker runs it, so nothing it printed is a result), or `not_rerun` — one script can back several proofs, and one re-run of it stands for every one of them. " +
 		"`soundness` is THIS ANCHOR's sentence: `sound`, `unsound`, `not_judged`, or `reopened` (an edit changed the sentence after it was judged). `verified` is true when the script reproduced AND this sentence is judged sound. " +
 		"A standing `unsound` from any lens reads `unsound` until that lens judges the sentence again or an edit reopens it; `checks` lists every judgement of the anchor, each marked `standing` or not. " +
-		"`counts.proofs_unverified` is how many proofs are not verified: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level.\n\n" +
-		"`unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding, and the citation `anchor` the reading checked (empty for a corroboration). " +
-		"A finding about it — `--about-kind contradiction --about <id>` — answers it whether or not the report still holds the sentence, and a finding whose quote contains the claim answers it too; a source read against the claim after the answer opens a new one. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.\n\nA `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a proof is the computation lens's, or the evidence lens's where the cast seats none. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
+		"`counts.proofs_unverified` is how many proofs are not verified: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level. `counts.sources_refuted` is how many citations red finds against NOW: a `refutes` or `absent` check of the sentence the report carries that still stands. A refutation of a sentence an edit has since replaced, or that a later check of the citation backs, or of a retired citation, is in the rows and not in the count.\n\n" +
+		"`unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding and its gap, and the citation `anchor` the reading checked (empty for a corroboration). " +
+		"Only a finding naming it — `--about-kind contradiction --about <id>` — raises it, whether or not the report still holds the sentence; a finding whose quote contains the claim raises nothing. `raised_by` names the raising finding, and a source read against the claim after it opens a new one. A gap whose `found_by` credits the raising finding answers it: the gap minted from that finding, or an open gap that already holds its defect, which the raising lens credits with it (the lens's `credit`); the finding alone does not. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.\n\nA `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a proof is the computation lens's, or the evidence lens's where the cast seats none. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
 	{"inquiries", "WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`", "the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question and its hypothesis, its current fate, and the reason and method recorded with that fate. The fate is the `status` key, one of " + strings.Join(record.Names(record.MustEnum("inquiry", "status").Values), ", ") + " — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` the epoch it was recorded in, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`", "", false, record.InquiriesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
@@ -317,15 +315,18 @@ var views = []struct {
 // `found_by`. `estopped` is listed because re-raising a ruled gap is relitigation, not diligence.
 var workPage = []scopedPara{
 	{text: "**WHERE YOUR DISPATCH HANDED YOU THIS LIST — it arrives under a preamble that says so — YOU ARE PROBABLY NOT MEANT TO RUN THIS: every act you record answers `may I stop` for you afterwards, so reach for it only when neither reached you, or when you want the items that do NOT block you. A seat of blue-researcher's configuration, which seats several seats, and a resumed dispatch are handed no list, and read it first.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left."},
-	{roles: []string{"chair"}, text: "ON THE CHAIR'S LIST a blocking item holds a PASS, and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one."},
+	{roles: []string{"lens", "blue", "bench"}, text: "A BLOCKING ITEM HOLDS YOUR SITTING: the call that returns your envelope is refused while any blocking item your own act clears stands, and the refusal names each — clear them, then return it again. An envelope the record cannot be read to check is refused as well, naming the read error. An item your sitting cannot clear is listed with `blocks: false` and says why — another seat clears it, or a later sitting does."},
+	{roles: []string{"chair"}, text: "ON THE CHAIR'S LIST a blocking item holds a PASS, not your sitting — your envelope is refused on none of them — and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one. An envelope the record cannot be read to check is refused, naming the read error."},
 	{text: "An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran (on its owning lens's list alone: the computation lens, or the evidence lens where the cast seats none), an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left."},
 	{roles: []string{"lens"}, text: "FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer."},
-	{roles: []string{"lens"}, text: "A LENS'S LIST STATES ITS MINT BUDGET, and it is the count a mint is refused on: `sitting.mint_budget` is the gaps you minted that are `open` now, your `budget` — the most you may hold open at once: the larger of the run's `floor` and `mints` for every `per` of the `units` your area is sized by, named in `unit` — and the mints `left` to you. A gap of yours that closes frees one. `measured: false` says the units cannot be read, and `budget` and `left` are then the floor's. An item states the same numbers; decide gap or finding from it. Absent on every other role's list."},
+	{roles: []string{"blue"}, text: "A GAP WHOSE LENS KEPT ITS GRADE after your last answer has an item carrying the lens's reason — what its own check still finds failing — until you answer the gap again."},
+	{roles: []string{"lens"}, text: "A LENS'S LIST STATES ITS MINT BUDGET, and it is the count a mint is refused on: `sitting.mint_budget` is the gaps you minted that are `open` now, your `budget` — the most you may hold open at once: the larger of the run's `floor` and `mints` for every `per` of the `units` your area is sized by, named in `unit` — and the mints `left` to you. A gap of yours that closes frees one. A gap minted from a finding of yours that raised a contradiction takes none: it is admitted at the cap, and `answering` counts those you hold open outside `open`. `measured: false` says the units cannot be read, and `budget` and `left` are then the floor's. An item states the same numbers; decide gap or finding from it. Absent on every other role's list."},
 	{text: "`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. " + record.LocationStates + "; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_direction`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse."},
 	{roles: []string{"lens"}, text: "AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE, and the gap says which: `regrades_owed` is each grade motion on the gap that was ACCEPTED and that no regrade has followed — the `motion_id`, the `dimension` it contested and the `proposed` grade the ruling accepted — on the minting lens's list, and empty on every other. The item in `sitting.open` that names the gap states the same motions."},
+	{roles: []string{"bench"}, text: "ON THE BENCH'S LIST an unruled motion whose gavel is yours blocks where this sitting is convened to rule it: at a docket sitting, every docket motion on a gap it is convened on — a gap can hold more than one; at a petition sitting, every petition filed before it opened; at the terminal and assembly sittings, every one. Any other waits for the sitting convened for it and is listed without blocking. Every one holds the run's outcome: the run cannot end in a verdict while it stands."},
 	{roles: []string{"bench", "chair"}, text: "THE LIST CLOSES WITH THE RUN'S LAW: whether setup staged a law corpus for this run, and where it is — the law you read before you rule. It never blocks."},
 	{roles: []string{"lens", "blue"}, text: "WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair."},
-	{roles: []string{"blue"}, text: "`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named — the latest dispatch naming blue, before blue registers for it as well as after — and `found_closed` is each of them its lens closed after that dispatch and before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. An empty `found_closed` says every engaged gap was open when blue sat."},
+	{roles: []string{"blue"}, text: "`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named — the latest dispatch naming blue, before blue registers for it as well as after — and `found_closed` is each of them its lens closed after that dispatch and before blue sat, with the seat that closed it, the `fate` that close gave, and its `successors` — each open gap the record names as carrying it forward (its close's `superseded_by`, or a mint naming it in `supersedes`), empty when none. A gap there owes no answer and no manifest row. `successors_owed` is the open successors no dispatch row of this epoch engages blue on yet — exactly the set `engage` names, empty once it is recorded — and blue sits on them a second time this epoch. An empty `found_closed` says every engaged gap was open when blue sat."},
 	{text: "`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. New evidence against one is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new."},
 	{text: "`declarations` ARE THIS RUN'S BENCH HOLDINGS, every one on the record, in the order the bench declared them: each `holding` as the bench recorded it, and the `epoch` it was declared in. A holding binds how you read the record. `gaps` is each gap the bench declared the holding about, with where the BOARD says that gap stands as this list is read — `status` is `open`, or `closed` with the `fate` that closed it, `closed_by` — `bench` or `red` — and `closed_epoch`. A gap the holding's text names and the bench did not declare it about is not among them. The tool places the status beside the prose, and the prose is the bench's and does not move when a gap does: WHERE A HOLDING AND ITS `gaps` DISAGREE ABOUT A GAP, `status` IS WHERE THE GAP STANDS. Every declaration is listed, because the record cannot say which one a later declaration replaces — a later one that does says so in its own text."},
 	{text: "Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`"},
@@ -338,8 +339,18 @@ type scopedPara struct {
 	text  string
 }
 
+// reportLong is the report's page for every seat.
+var reportLong = "THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `" + anchor.Token("F-…") + "`, `show evidence` resolves `" + anchor.Token("C-…") + "` and `" + anchor.Token("P-…") + "`, and `show board` resolves `" + anchor.Token("G-…") + "`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.\n\n--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.\n\n" + report.AssembledNote
+
+// reportPage is the report's page: every seat's, and the lens's paragraph on what its whole read
+// records (record.ServeReport).
+var reportPage = []scopedPara{
+	{text: reportLong},
+	{roles: []string{"lens"}, text: "A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector record that the whole report was served to you at its head — once per head in a sitting; evidence the text was served, not that it was read — and print it only once that is recorded: a read the record cannot take is refused, never served unrecorded. That head is your pin, the head you are readied past, once you have sat the sitting through; --anchor, --match, --quote and --assembled serve part of the report or none of its text and record nothing, so a sitting that ends without the whole report served to you at the head leaves you ready at it. Being a record, a whole read registers you for the sitting where you have not registered, so a `register` after it is refused as a repeat."},
+}
+
 // scopedPages are the projections whose page is scoped by role, by name.
-var scopedPages = map[string][]scopedPara{"work": workPage}
+var scopedPages = map[string][]scopedPara{"work": workPage, "report": reportPage}
 
 // viewLong is a projection's page for one role: the paragraphs of its scoped page that are that
 // role's, in order, or `long` where the projection has none. role "" is no seat's tree and gets
@@ -947,7 +958,29 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		var b []byte
 		var head int64
-		if asJSON {
+		// THE WHOLE REPORT SERVED TO A LENS IS RECORDED, and it is the lens's pin (record.ServeReport):
+		// both whole forms, bare and --json, and no read at an anchor or a selection, which serve part
+		// of it. The text is printed after the read is committed, so a read the record could not take
+		// is refused rather than served unrecorded.
+		serve := role == "lens" && Str(cmd, flags.Anchor) == "" && !cmd.Flags().Changed(flags.Window)
+		if serve {
+			sel, serr := SelectorOf(cmd)
+			if serr != nil {
+				return serr
+			}
+			serve = !sel.Active()
+		}
+		if serve {
+			s, err := Begin(cmd)
+			if err != nil {
+				return err
+			}
+			text, h, err := record.ServeReport(s.Identity())
+			if err != nil {
+				return err
+			}
+			b, head = []byte(text), h
+		} else if asJSON {
 			text, h, err := record.ReportAtHead(run)
 			if err != nil {
 				return err
@@ -1333,13 +1366,37 @@ func places(id, loc string, refuse func(error) error) func(*record.Landing) erro
 // (record.AppendPlaced): the placement is checked against the report the pair lands on and refused in
 // refuse's words, before any guards the verb passes. A quote is held to the report whether or not the
 // act places an anchor at it; an act that names no id places nothing, and one with no quote is checked
-// by its guards alone.
-func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) error {
+// by its guards alone. It returns the act's event as written, which carries the act's key.
+func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(error) error, guards ...record.Guard) (*record.Event, error) {
 	if strings.TrimSpace(loc) != "" {
 		guards = append([]record.Guard{Places(id, loc, refuse)}, guards...)
 	}
-	_, err := record.AppendPlaced(s.Identity(), act, id, loc, guards...)
-	return err
+	return record.AppendPlaced(s.Identity(), act, id, loc, guards...)
+}
+
+// StaleRule is how a page whose act names a gap teaches AppendFresh's refusal: one sentence set for
+// every such page, so the pages and the refusal they describe cannot drift apart.
+const StaleRule = "A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, answered by blue, or argued in another seat's finding after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you."
+
+func init() {
+	HelpValues["StaleRule"] = StaleRule
+	HelpValues["GradeMovementRule"] = record.GradeMovementRule
+}
+
+// AppendFresh records an act about gapID through write, handing it the guard that refuses the act
+// while another seat's act on the gap is newer than this seat's read point (record.Fresh). On that
+// refusal it records the Stale event that moves the read point past what the refusal shows, and
+// returns the refusal, so the same act recorded again once the seat has read the changes lands.
+func AppendFresh(s Context, gapID string, write func(guards ...record.Guard) error) error {
+	err := write(record.Fresh(s.SeatID, gapID))
+	var stale *record.StaleError
+	if !errors.As(err, &stale) {
+		return err
+	}
+	if _, aerr := record.Append(s.Identity(), &recordpb.Stale{GapId: proto.String(gapID), Through: proto.Int64(stale.Through())}); aerr != nil {
+		return aerr
+	}
+	return feov.Wrap(feov.Conflict, stale, "%s", stale.Error())
 }
 
 // PlaceOwed appends the Anchor a retried act owes — an act on the record without its anchor, which a
@@ -1349,7 +1406,7 @@ func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(erro
 // places, are asked of the record the Anchor lands on: an anchor placed in between is not placed twice.
 //
 // Its refusal is its own, never the verb's first-call wording: that wording teaches a seat to fix
-// --quote, and a retry places the stored location whatever --quote says.
+// --quote, and a retry is held to the --quote the act stored (RepeatsKeyed), so another one is a new act.
 func PlaceOwed(s Context, id, key string) error {
 	body := &recordpb.Anchor{Id: proto.String(id)}
 	_, err := record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error {
@@ -1370,7 +1427,7 @@ func PlaceOwed(s Context, id, key string) error {
 				repeats, anew = fmt.Sprintf("under --key %q", key), fmt.Sprintf(", under a --key other than %q", key)
 			}
 			return feov.Errorf(feov.Conflict, "the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
-				"A call %s repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. "+
+				"A call %s repeats that act, its --quote included, so it cannot move the anchor. "+
 				"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
 				anchor.Kind(id), loc, state, repeats, anew)
 		})(l)

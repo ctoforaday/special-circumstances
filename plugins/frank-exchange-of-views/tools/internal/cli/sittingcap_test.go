@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
 func header(t *testing.T, runDir, agent string) (sittingcap.Header, bool) {
@@ -29,7 +31,8 @@ func header(t *testing.T, runDir, agent string) (sittingcap.Header, bool) {
 
 // REGISTER OPENS THE SITTING'S CALL COUNT, numbered by the record's stored sitting. With no bracket
 // before it each register opens a sitting, so each opens the next count — which is what resets it
-// for a warm session's second sitting.
+// for a warm session's second sitting. The stop between the two sittings is what makes the second
+// register a new sitting rather than the first one asked again.
 func TestRegisterOpensEachSittingsCount(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.Var, runDir) // what the hook injects
@@ -40,6 +43,11 @@ func TestRegisterOpensEachSittingsCount(t *testing.T) {
 	}
 	prev := 0
 	for i := 1; i <= 2; i++ {
+		if i > 1 {
+			if err := sittingwrite.Write(sittingwrite.Sitting{RunDir: runDir, Phase: sittingwrite.Close, AgentID: "agent_warm", AgentType: "frank-exchange-of-views:red-lens-evidence"}, io.Discard); err != nil {
+				t.Fatalf("the stop ending sitting %d: %v", i-1, err)
+			}
+		}
 		if _, err := run(t, "register", "--seat-id", "red-lens-evidence"); err != nil {
 			t.Fatalf("register %d: %v", i, err)
 		}

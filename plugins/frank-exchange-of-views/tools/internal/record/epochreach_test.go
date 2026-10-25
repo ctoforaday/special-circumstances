@@ -44,7 +44,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Finding{Id: proto.String("F-00000001"), Text: proto.String("first epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
-	app(chair, &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
+	app(chair, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("R1-1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -60,7 +60,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	// epoch is stuck reports these rows with the same number as the ones above.
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Finding{Id: proto.String("F-00000002"), Text: proto.String("second epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
-	app(lens, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),
+	app(lens, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(), Url: proto.String("https://example.org"), Claim: proto.String("c"),
 		Label: proto.String("v-1"), Title: proto.String("t"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),

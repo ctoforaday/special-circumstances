@@ -43,11 +43,12 @@ func newClose() *cobra.Command {
 		p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
 		p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
 		p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
-		// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds:
-		// capture's attestation audit joins each to the closing seat's tool calls, and an id read
-		// back out of --verified-with's words would be a guess at what the seat meant.
+		// THE ANCHORS IT WAS VERIFIED WITH ARE A FIELD, each an id the write checks the record holds —
+		// a report anchor or an inquiry: capture's attestation audit joins each to the other tool
+		// calls of the closer's sitting, and an id read back out of --verified-with's words would be
+		// a guess at what the seat meant.
 		for _, a := range anchors.Value() {
-			v := flags.AnchorID()
+			v := flags.ClosureAnchorID()
 			if err := v.Set(a); err != nil {
 				return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.Anchor, err)
 			}
@@ -63,14 +64,12 @@ func newClose() *cobra.Command {
 		// correctly refused it as "no evidence shown". A full epoch, for something three
 		// lines of trial division settle while leaving an artifact red can re-run.
 		//
-		// The guard reads the board, like the estoppel guard above it. A run whose board
-		// cannot be read does not block the closure: refusing on infrastructure would
-		// strand an epoch, and the check is a demand, not a safety property.
-		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
-			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
-				return nil, feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
-					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
-			}
+		// AN UNREADABLE RECORD REFUSES THE CLOSURE (gblock, 2026-10-23). A closure admitted
+		// because the check could not be asked is a closure the tool vouched for on nothing.
+		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
+			func(id string) (bool, error) { return computationGapKind(run, id) },
+			func(id string) (bool, error) { return record.ProofAnswers(run, id) }); err != nil {
+			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
@@ -82,7 +81,7 @@ func newClose() *cobra.Command {
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
 	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
 	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in")
-	c.Flags().Var(&anchors, flags.Anchor, "the `ids` of the report's anchors you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("P-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token, or the token itself, of an act on this record. Capture's attestation audit holds each to your tool calls this sitting; a closure verified against no anchor names none")
+	c.Flags().Var(&anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("P-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
 	// unanchored one that spent the seat's turn before saying so.
@@ -111,6 +110,33 @@ func newClose() *cobra.Command {
 // closurePayload builds what a closure records before either verb adds its own evidence.
 
 // closeResult names the closed gap and the closure class it was retired under.
+
+// requireComputationAnswered refuses a closure of a computation gap no proof answers, and refuses
+// any closure whose gap's check kind, or proof join, could not be read.
+func requireComputationAnswered(gapID string, isComputation, proofAnswers func(string) (bool, error)) error {
+	kind, err := isComputation(gapID)
+	if err != nil {
+		return unreadableRefusal("the check kind "+gapID+" was minted with", err)
+	}
+	if !kind {
+		return nil
+	}
+	answered, err := proofAnswers(gapID)
+	if err != nil {
+		return unreadableRefusal("whether a proof answers "+gapID, err)
+	}
+	if !answered {
+		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+			gapID, gapID)
+	}
+	return nil
+}
+
+// unreadableRefusal is the refusal a guard returns when the record it asks cannot be read: the
+// act is not admitted on a check nobody could make, and the read error is named.
+func unreadableRefusal(what string, err error) error {
+	return feov.Wrap(feov.Internal, err, "the record could not be read to establish %s, so nothing is recorded — retry the call: %v", what, err)
+}
 
 // computationGapKind reports whether the named gap was minted as a computation check.
 func computationGapKind(run record.Run, gapID string) (bool, error) {

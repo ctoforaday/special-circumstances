@@ -7,7 +7,6 @@
 package view
 
 import (
-	"bytes"
 	"cmp"
 	"encoding/json"
 	"fmt"
@@ -83,8 +82,7 @@ func undefStr(s *string) string {
 //
 // The empty string is what recordpb.Word returns for the UNSPECIFIED zero, because the
 // pre-migration record held ABSENCE there. A projection must not print that blank: by_severity
-// KEYS on this word, so a bare "" would silently merge ungraded mints into whatever else keyed
-// empty. record.proto says the same thing from the schema's side, on Grade.GRADE_UNSPECIFIED.
+// names each tally's grade by this word, so a bare "" would be an entry no grade word names. record.proto says the same thing from the schema's side, on Grade.GRADE_UNSPECIFIED.
 func gradeText(g recordpb.Grade) string {
 	if w := recordpb.Word(g); w != "" {
 		return w
@@ -147,18 +145,15 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	// THE BOUNDARY IS WHERE JSON BELONGS — and the shape it emits is NOT protojson's.
 	//
 	// `inquest telemetry` is a live seat-facing surface, so these bytes are a contract with whoever
-	// reads them. protojson would have changed four things at once as a side effect of typing the
-	// producer: enum values would print as `GRADE_HIGH` where this wire has always said `high`,
-	// `by_severity` would become an array of {grade,count} objects where it has always been an
-	// object keyed by the grade word, unset fields would VANISH where this wire writes an explicit
-	// `null`, and an ungraded mint would key on `GRADE_UNSPECIFIED` instead of the `undefined`
-	// sentinel gradeText exists to produce. Changing an output contract is a decision; doing it as
-	// a side effect of an internal refactor is not one, so the wire is written out deliberately.
+	// reads them. protojson would print enum values as `GRADE_HIGH` where this wire says `high`,
+	// drop unset fields where this wire writes an explicit `null`, and key an ungraded mint on
+	// `GRADE_UNSPECIFIED` instead of the `undefined` sentinel gradeText exists to produce, so the
+	// wire is written out deliberately as the structs below.
 	//
-	// What the typing bought is upstream of here: the row is a typed message all the way from the
-	// record to this function, instead of a map that was serialized and re-parsed inside one
-	// process. This is the ONE place a shape is described twice, and it is pinned by the tests
-	// that assert each of the four properties above.
+	// Those structs carry no custom marshaller, so the tree the help reflects over them IS the
+	// bytes: an unmeasured scalar is `null`, a tally is a list of word-valued entries, and an
+	// empty tally is `[]`. TestTelemetryHelpTreeMatchesAnEmittedLine holds the help to an emitted
+	// line at every depth.
 	lines := make([]string, 0, len(rows))
 	for _, row := range rows {
 		enc, err := json.Marshal(telemetryWire(row))
@@ -274,7 +269,7 @@ func ledgerMD(in Input) []byte {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.GetFoundBy() {
+		for _, lbl := range g.FoundBy() {
 			credited[lbl] = true
 		}
 	}
@@ -309,7 +304,7 @@ func ledgerMD(in Input) []byte {
 			supersedes = " | supersedes " + strings.Join(s, " ")
 		}
 		foundBy := ""
-		for i, id := range g.Mint.GetFoundBy() {
+		for i, id := range g.FoundBy() {
 			// a credit naming no finding on the record stays visible, bare
 			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}
@@ -323,7 +318,10 @@ func ledgerMD(in Input) []byte {
 		// prints `undefined`, and a field written empty is a different fact.
 		var class, check *string
 		if m := g.Mint; m != nil {
-			class, check = m.Class, m.AcceptanceCheck
+			check = m.AcceptanceCheck
+			if m.Class != nil {
+				class = proto.String(recordpb.Word(m.GetClass()))
+			}
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
 			g.ID, truncate(g.Mint.GetProblem(), 100),
@@ -500,21 +498,39 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		// world" to "this document disagrees with itself". That phase change is the bench's
 		// stopping signal (#284): findings continuing is normal; findings turning into
 		// internal-consistency complaints means the rest is cheaper to shake out in
-		// execution than in review. Class is already a REQUIRED mint field validated
-		// against the registry, so this is an aggregation, never a new assertion.
-		byClass := map[string]int32{}
+		// execution than in review. Class is already a REQUIRED mint field from a closed
+		// enum, so this is an aggregation, never a new assertion.
+		// The tally runs in GapClass schema order, one entry per class minted this epoch.
+		classCount := map[recordpb.GapClass]int32{}
+		unclassified := 0
 		for _, g := range minted {
-			k := g.Mint.GetClass()
-			if k == "" {
+			c := g.Mint.GetClass()
+			if c == recordpb.GapClass_GAP_CLASS_UNSPECIFIED {
 				continue
 			}
-			byClass[k]++
+			classCount[c]++
+			if c == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+				unclassified++
+			}
+		}
+		classValues := recordpb.GapClass(0).Descriptor().Values()
+		byClass := make([]*recordpb.ClassTally, 0, len(classCount))
+		for i := 0; i < classValues.Len(); i++ {
+			c := recordpb.GapClass(classValues.Get(i).Number())
+			if n := classCount[c]; n > 0 {
+				byClass = append(byClass, &recordpb.ClassTally{Class: c.Enum(), Count: proto.Int32(n)})
+			}
 		}
 		// Repeat rate against the PREVIOUS epoch's classes: high means the run is
 		// circling the same kind of defect, which is signal 1 without reading the prose.
+		// `unclassified` is never a repeat: "no class fits" recurring is not one kind
+		// recurring, and counting it would raise the stopping signal on noise.
 		repeated := 0
 		for _, g := range minted {
-			if prevClasses[g.Mint.GetClass()] {
+			if g.Mint.GetClass() == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+				continue
+			}
+			if prevClasses[recordpb.Word(g.Mint.GetClass())] {
 				repeated++
 			}
 		}
@@ -522,9 +538,13 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		if len(minted) > 0 && r > 1 {
 			repeatRate = proto.Float64(round2(float64(repeated) / float64(len(minted))))
 		}
+		var unclassifiedRate *float64
+		if len(minted) > 0 {
+			unclassifiedRate = proto.Float64(round2(float64(unclassified) / float64(len(minted))))
+		}
 		nextPrevClasses := map[string]bool{}
 		for _, g := range minted {
-			if c := g.Mint.GetClass(); c != "" {
+			if c := recordpb.Word(g.Mint.GetClass()); c != "" {
 				nextPrevClasses[c] = true
 			}
 		}
@@ -555,10 +575,11 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			OpenCount:      proto.Int32(int32(len(openAtR))),
 			MaxSeverity:    maxSeverity,
 			NewMint: &recordpb.NewMint{
-				Count:           proto.Int32(int32(len(minted))),
-				BySeverity:      bySev,
-				ByClass:         byClass,
-				ClassRepeatRate: repeatRate,
+				Count:            proto.Int32(int32(len(minted))),
+				BySeverity:       bySev,
+				ByClass:          byClass,
+				ClassRepeatRate:  repeatRate,
+				UnclassifiedRate: unclassifiedRate,
 			},
 			Mass:         proto.Float64(massSum(openAtR)),
 			RealizedOpen: proto.Int32(int32(realizedOpen)),
@@ -601,6 +622,7 @@ func debateMD(in Input) []byte {
 	// (DebateJSONOf) builds the same map for the same reason.
 	docketGapOf := record.DocketGapByMotion(in.Events)
 	archive := record.ArchiveOf(in.Gaps)
+	kept := record.KeptGrades(in.Events, in.At)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
@@ -622,12 +644,26 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// blue-respond (BLUE) (record/closingowed.go). The write path admits no other
+		// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
+		var positions, redClosings, blueClosings []*record.Event
+		for _, l := range re {
+			switch {
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
+				positions = append(positions, l)
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && record.PartyOf(l) == "blue":
+				blueClosings = append(blueClosings, l)
+			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
+				redClosings = append(redClosings, l)
+			}
+		}
+		for _, l := range positions {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](l); ok {
 				parts = append(parts, "### RED\n"+p.GetText())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
+		for _, l := range redClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
@@ -639,12 +675,19 @@ func debateMD(in Input) []byte {
 				parts = append(parts, "### RED SPOT-CHECK\n"+sc.Describe())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if p, ok := recordpb.BodyAs[*recordpb.Position](l); ok {
-				parts = append(parts, "### BLUE\n"+p.GetText())
+		// A LENS THAT KEPT ITS GRADE said, after its re-audit, that its gap stands and what its check
+		// still finds failing — red's argument on that gap, which the bench reads with the closings.
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
+			if kept[l] {
+				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
 			}
 		}
-		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+		// THE REPORT SERVED TO A LENS is the lens's pin: the bench reads which lens was given the whole
+		// report at which head. The tool cannot see a read, so the line says served.
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
+			parts = append(parts, record.ServedLine(l.GetSeatId(), l.GetReportRead().GetHead()))
+		}
+		for _, l := range blueClosings {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l); ok {
 				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
@@ -729,7 +772,7 @@ func debateMD(in Input) []byte {
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := InquiryBody(in.Events, in.At)
+	body := InquiryBody(in.Events, in.At, false)
 	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -749,7 +792,13 @@ func inquiryMD(in Input) []byte {
 // what became of it, why, and what red said about it. That sequence is the evidence of choosing; a
 // flat list by final status records only the outcome — which is exactly what report.md carries,
 // and why the path has to ship somewhere.
-func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
+//
+// steps adds, under the path, each SUPERSEDED record with the reason and the method it gave: the
+// shipped document's form, whose blurb promises the path each inquiry took. The seat view prints
+// the path's statuses and the current fate's account, which is what a seat acts on; the reasonings
+// an inquiry went through before it (m28: Q-40ceefaa's five `underway` records before `deferred`)
+// are the human's record of how the fate was reached.
+func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string {
 	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
@@ -784,6 +833,9 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
+				if steps {
+					inquiry = append(inquiry, superseded(a)...)
+				}
 			}
 			if a.Ruling != "" {
 				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
@@ -806,6 +858,34 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			"is settled and never appears here._", "")
 	}
 	return strings.Join(inquiry, "\n") + "\n"
+}
+
+// superseded is an inquiry's records before its current fate, each with what it gave: its epoch,
+// status and seat, its reason, and its method when it states one. A reason or a method the record
+// before it already gave is said to be the same rather than printed again.
+func superseded(a *record.Inquiry) []string {
+	var out []string
+	prevReason, prevMethod := "", ""
+	for _, s := range a.Steps[:len(a.Steps)-1] {
+		line := fmt.Sprintf("    - e%d %s (%s)", s.Epoch, s.Status, s.SeatID)
+		switch {
+		case s.Reason == "":
+		case s.Reason == prevReason:
+			line += " — the same reason as the record before it"
+		default:
+			line += " — " + s.Reason
+		}
+		switch {
+		case s.Method == "":
+		case s.Method == prevMethod:
+			line += "; the same method"
+		default:
+			line += "; method: " + s.Method
+		}
+		prevReason, prevMethod = s.Reason, s.Method
+		out = append(out, line)
+	}
+	return out
 }
 
 // ---- the telemetry wire shape ----
@@ -839,10 +919,21 @@ type telemetryLineJSON struct {
 }
 
 type newMintJSON struct {
-	Count           *int32           `json:"count"`
-	BySeverity      severityObject   `json:"by_severity"`
-	ByClass         map[string]int32 `json:"by_class"`
-	ClassRepeatRate *float64         `json:"class_repeat_rate"`
+	Count            *int32              `json:"count"`
+	BySeverity       []severityTallyJSON `json:"by_severity"`
+	ByClass          []classTallyJSON    `json:"by_class"`
+	ClassRepeatRate  *float64            `json:"class_repeat_rate"`
+	UnclassifiedRate *float64            `json:"unclassified_rate"`
+}
+
+type severityTallyJSON struct {
+	Grade string `json:"grade"`
+	Count *int32 `json:"count"`
+}
+
+type classTallyJSON struct {
+	Class string `json:"class"`
+	Count *int32 `json:"count"`
 }
 
 type repairRegJSON struct {
@@ -854,30 +945,6 @@ type repairRegJSON struct {
 type edgeDeltasJSON struct {
 	DownMass *float64 `json:"down_mass"`
 	UpMass   *float64 `json:"up_mass"`
-}
-
-// severityObject writes the repeated tally as an OBJECT keyed by the grade word, in the producer's
-// order — which is why the schema made it `repeated` rather than a map: the order is owned by the
-// code that computed it rather than by an encoder's map iteration.
-type severityObject []*recordpb.SeverityTally
-
-func (so severityObject) MarshalJSON() ([]byte, error) {
-	var b bytes.Buffer
-	b.WriteByte('{')
-	for i, t := range so {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		k, err := json.Marshal(gradeText(t.GetGrade()))
-		if err != nil {
-			return nil, err
-		}
-		b.Write(k)
-		b.WriteByte(':')
-		b.WriteString(strconv.FormatInt(int64(t.GetCount()), 10))
-	}
-	b.WriteByte('}')
-	return b.Bytes(), nil
 }
 
 // telemetryWire maps the typed row onto that shape. gradeText, not recordpb.Word: an ungraded top
@@ -894,13 +961,21 @@ func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 		word := gradeText(t.GetMaxSeverity())
 		w.MaxSeverity = &word
 	}
-	if nm := t.GetNewMint(); nm != nil {
-		w.NewMint = newMintJSON{
-			Count:           nm.Count,
-			BySeverity:      nm.GetBySeverity(),
-			ByClass:         nm.GetByClass(),
-			ClassRepeatRate: nm.ClassRepeatRate,
-		}
+	// A tally is a list, and an empty one is `[]`: the slices are made, never left nil, so an
+	// epoch that minted nothing reports zero of each rather than the `null` of "not measured".
+	nm := t.GetNewMint()
+	w.NewMint = newMintJSON{
+		BySeverity: make([]severityTallyJSON, 0, len(nm.GetBySeverity())),
+		ByClass:    make([]classTallyJSON, 0, len(nm.GetByClass())),
+	}
+	if nm != nil {
+		w.NewMint.Count, w.NewMint.ClassRepeatRate, w.NewMint.UnclassifiedRate = nm.Count, nm.ClassRepeatRate, nm.UnclassifiedRate
+	}
+	for _, st := range nm.GetBySeverity() {
+		w.NewMint.BySeverity = append(w.NewMint.BySeverity, severityTallyJSON{Grade: gradeText(st.GetGrade()), Count: st.Count})
+	}
+	for _, ct := range nm.GetByClass() {
+		w.NewMint.ByClass = append(w.NewMint.ByClass, classTallyJSON{Class: recordpb.Word(ct.GetClass()), Count: ct.Count})
 	}
 	if rr := t.GetRepairRegression(); rr != nil {
 		w.RepairRegression = repairRegJSON{Closures: rr.Closures, LineageMints: rr.LineageMints, Ratio: rr.Ratio}

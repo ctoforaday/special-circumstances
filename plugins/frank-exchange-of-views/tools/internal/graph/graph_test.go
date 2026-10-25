@@ -119,12 +119,12 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 // else. Every case here is about CLOSURE state, so the mint carries no grades — an absent grade is
 // a real state and inventing one would make each fixture say more than the test means.
 func mint() *recordpb.Mint {
-	return &recordpb.Mint{Class: proto.String("c")}
+	return &recordpb.Mint{Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum()}
 }
 
 // recordedMint is a mint the record can hold: every field the write path requires, on gap id.
 func recordedMint(id string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(id), Class: proto.String("c"), Problem: proto.String("p"),
+	return &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("a"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 }
@@ -179,5 +179,17 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 	}
 	if got := lineClass(out, "g_NEVER_FILED"); got != "open" {
 		t.Errorf("a gap nobody docketed is an ordinary open gap, got %q:\n%s", got, out)
+	}
+}
+
+// THE GAP NODE NAMES ITS CLASS WORD. The label is formatted with %s, which takes any value: a bare
+// GapClass prints its constant name, so the site converts it to the word.
+func TestTheGapNodeNamesItsClassWord(t *testing.T) {
+	b := &boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{
+		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum()}},
+	}}
+	m := gapFlowMermaid(b.fam(t))
+	if !strings.Contains(m, "G1 · false_universal<br/>") || strings.Contains(m, "GAP_CLASS_") {
+		t.Errorf("the gap node must name its class as the word false_universal:\n%s", m)
 	}
 }

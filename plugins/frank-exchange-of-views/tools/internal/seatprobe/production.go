@@ -59,27 +59,26 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 		if !pass {
 			blockers = debatejs.HeldBy(parties)
 		}
-		return debatejs.Keyed(map[string]any{"head": 2, "parties": parties, "docket": dk, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": false,
+		return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": dk, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": false,
 			"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}, "blockers": blockers})
 	}
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
-			"synopsis": "seatprobe capture", "rulings": []any{},
-			"dispositions":       []any{},
-			"manifest":           ids,
-			"saturation_reached": false,
-			"open_gaps":          0,
+			"rulings":      []any{},
+			"dispositions": []any{},
+			"manifest":     ids,
+			"open_gaps":    0,
 		}
 		switch {
 		case seatclass.RoleOfSeat(seatID) == "chair":
 			if strings.Contains(label, "#1 ") || strings.HasSuffix(label, "#1") {
-				e["plan"] = plan(engaged, false, docket)
+				e.Relay(plan(engaged, false, docket))
 				if len(engaged) == 0 {
-					e["plan"] = plan([]any{}, true, []any{})
+					e.Relay(plan([]any{}, true, []any{}))
 					e["verdict"] = "PASS"
 				}
 			} else {
-				e["plan"] = plan([]any{}, true, []any{})
+				e.Relay(plan([]any{}, true, []any{}))
 				e["verdict"] = "PASS"
 			}
 		}

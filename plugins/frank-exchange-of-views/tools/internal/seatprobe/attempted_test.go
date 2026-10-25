@@ -94,7 +94,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 		seat    string
 		payload proto.Message
 	}{
-		{seat: "blue-respond", payload: &recordpb.Position{Text: proto.String("n")}},
+		{seat: "blue-respond", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
 
 	attempts := map[string]map[string]int{"blue-respond": {"show": 9}}

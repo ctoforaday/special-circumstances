@@ -15,7 +15,7 @@ func planWith(parties, blockers []any) map[string]any {
 	if len(blockers) == 0 {
 		blockers = HeldBy(parties)
 	}
-	return Keyed(map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": len(blockers) == 0, "ceiling": false,
+	return WithKey(map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": len(blockers) == 0, "ceiling": false,
 		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{"test"}, "stale_areas": []any{}, "blockers": blockers})
 }
 
@@ -32,17 +32,17 @@ func drivePlans(t *testing.T, plans []map[string]any, extra Envelope) ([]Dispatc
 	t.Helper()
 	chair := 0
 	backend := func(seatID, label, prompt string) Envelope {
-		e := Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		e := Envelope{"rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "open_gaps": 0}
 		for k, v := range extra {
 			e[k] = v
 		}
 		if seatID == "red-chair" {
 			chair++
 			if chair <= len(plans) {
-				e["plan"] = plans[chair-1]
+				e.Relay(plans[chair-1])
 			} else {
-				e["plan"] = planWith([]any{}, []any{})
+				e.Relay(planWith([]any{}, []any{}))
 			}
 		}
 		return e
@@ -132,10 +132,10 @@ func TestABenchPartyWithoutAnOccasionIsRefused(t *testing.T) {
 	chair := 0
 	_, _, err := CaptureRun(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
 		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: func(seatID, label, prompt string) Envelope {
-			e := Envelope{"saturation_reached": false, "rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
+			e := Envelope{"rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
 			if seatID == "red-chair" {
 				chair++
-				e["plan"] = planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition})
+				e.Relay(planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition}))
 			}
 			return e
 		}})

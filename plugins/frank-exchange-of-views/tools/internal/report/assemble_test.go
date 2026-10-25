@@ -222,7 +222,7 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 	if !strings.Contains(got, want) {
 		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
 	}
-	html := mdToHTML(got, FileReport, anchors{}, map[string]int{}, nil)
+	html := mdToHTML(got, FileReport, anchors{}, map[string]int{}, nil).html
 	if n := strings.Count(html, "<ul>"); n != 2 {
 		t.Errorf("the row opens %d lists on the site; one row is one item holding one nested list:\n%s", n, html)
 	}
@@ -473,11 +473,13 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 // WHICH HEADINGS THE REPORT'S TEXT MAY NOT CARRY IS A RULING, written out here so a row that
 // changes sides is seen. Refused: every heading composed into report.md, where the report's own
 // would stand beside the tool's, and each section of another document that is an account of the
-// run. Not refused: Proofs and Motions, composed into other documents under names a subject uses.
+// run — red's readings of the citations and blue's edits among them. Not refused: Proofs and
+// Motions, composed into other documents under names a subject uses.
 func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
-		"Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
-		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements"}
+		"Bibliography", "The board", "The debate", "Citations", "How this run was conducted", "The verdict's basis",
+		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements",
+		"Edits to the report"}
 	if got := RefusedHeadings(); !slices.Equal(got, refused) {
 		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
 	}
@@ -639,7 +641,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The chair's register opens epoch 1; everything below sits in it.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
-		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("gap A repaired")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
@@ -674,7 +676,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 	d := debateT(t, evs)
 	for _, want := range []string{
-		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE\ngap A repaired",
+		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE CLOSING — G1\ngap A repaired",
 		"G1: remanded",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second
@@ -744,7 +746,7 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 			t.Errorf("a verified fix must show its checked replacement; missing %q:\n%s", want, s)
 		}
 	}
-	if p := fixProposal(&recordpb.Mint{FixBasis: proto.String("proposed")}); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
+	if p := fixProposal(&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), FixBasis: proto.String("proposed")}); !strings.Contains(p, "**proposed**") || !strings.Contains(p, "nothing checked this demand") {
 		t.Errorf("a prose-only demand must say nothing checked it against the report: %q", p)
 	}
 	if p := fixProposal(&recordpb.Mint{}); p != "" {
@@ -877,7 +879,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	board := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"F-f0000001", "F-f0000002"}}},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), FoundBy: []string{"F-f0000001", "F-f0000002"}}},
 		},
 		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted — omit")}),
@@ -931,7 +933,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			// the first answer and it was wrong: unmintedFindings skips anything a gap claimed,
 			// so a run where every finding was minted and every gap closed printed red's words
 			// nowhere at all. The fuzz found one.
-			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"F-f0000001", "F-0000dead"},
 			}},
@@ -970,7 +972,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	closedBoard := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 				Problem: proto.String("the chair's restatement"),
 				FoundBy: []string{"F-f0000001"},
 			}},
@@ -1148,4 +1150,17 @@ func renderedPrompt(t *testing.T, seat string) string {
 		t.Fatalf("the rendered %s prompt: %v", seat, err)
 	}
 	return string(b)
+}
+
+// THE OPEN GAP'S ROW NAMES ITS CLASS WORD. The row passes the class through `grade`, which takes
+// `any` and prints `—` for anything but a string: a bare GapClass would print `class —`.
+func TestTheOpenGapRowNamesItsClassWord(t *testing.T) {
+	board := &boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{
+		"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(),
+			Problem: proto.String("a universal claim a case contradicts")}},
+	}}
+	got := boardSection(board.fam())
+	if !strings.Contains(got, "class false_universal") || strings.Contains(got, "class —") {
+		t.Errorf("the open gap's row must carry `class false_universal`:\n%s", got)
+	}
 }

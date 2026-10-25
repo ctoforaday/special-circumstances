@@ -2,9 +2,12 @@ package setup
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingcap"
 	"io"
@@ -153,7 +156,27 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// live runs they bracket no sitting, count no call and inject no run for either. Every seat of
 	// both runs then acts unbracketed and uncapped. Two runs at once need two checkouts, each with
 	// its own marker.
-	for _, p := range runlive.PruneRunLive(cfg.Cwd) {
+	//
+	// A DECIDED RUN THAT WAS NEVER CAPTURED REFUSES THIS ONE TOO (gblock, 2026-10-24: "Setup refuses
+	// B"), before the prune would take its row. Its outcome is recorded and nothing archived it:
+	// pruning its row would leave the one record of it in a run directory the container does not
+	// keep, and its assembly sitting — resumed — binds to the run through that row.
+	if code := refuseADecidedRun(cfg, stderr); code != 0 {
+		return code
+	}
+	pruned, perr := runlive.PruneRunLive(cfg.Cwd)
+	if perr != nil {
+		// The rows judged dead are still in the file, and a dead row the refusal below would read as
+		// another live run is exactly what a prune exists to clear.
+		fmt.Fprintln(stderr, "run-setup: COULD NOT PRUNE THE LIVE-RUN MARKER — refusing to create the run:")
+		for _, p := range pruned {
+			fmt.Fprintf(stderr, "  no longer live, still in the marker: %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
+		}
+		fmt.Fprintf(stderr, "  error: %v\n", perr)
+		fmt.Fprintln(stderr, "  remedy: make .claude/run-live.json writable (or remove those rows by hand), then re-run setup")
+		return 1
+	}
+	for _, p := range pruned {
 		fmt.Fprintf(stdout, "run-setup: pruned the live-run marker's row for %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
 	}
 	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
@@ -227,15 +250,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// THE CLASS REGISTRY IS VALIDATED BEFORE ANY RUN STATE: it is
-	// the caller's copy, it can be older than this binary, and a row without its material default
-	// would leave every gap of that class with no materiality to start from.
-	if err := ValidateClassRegistry(filepath.Join(cfg.Cwd, "feov-memory")); err != nil {
-		fmt.Fprintln(stderr, "run-setup: CLASS REGISTRY REFUSED — refusing to create the run:")
-		fmt.Fprintf(stderr, "  %v\n", err)
-		return 2
-	}
-
 	// RESOLVED ONCE, BEFORE ANYTHING IS WRITTEN. Everything below used to take the raw string
 	// and each site decided for itself whether to make it absolute — so a run was laid out with
 	// a mix of spellings, and the one absolute form was computed sixty lines later with a silent
@@ -275,10 +289,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	pinned := BuildPinned(run, head, cfg.Cites)
 
-	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
-	// anything at all (#299).
-	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
-
 	terms := record.DefaultParams
 	if cfg.K > 0 {
 		terms.K = cfg.K
@@ -303,7 +313,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
-		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views"),
+		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
 		Billing:         ReadBillingIdentity()}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
@@ -316,7 +326,15 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		p, _ := splitPin(c)
 		pinnedPaths = append(pinnedPaths, p)
 	}
-	marker := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	marker, merr := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	if merr != nil {
+		// The run directory exists but the run is NOT live: the hooks find a seat's run only through
+		// this marker, so a run launched now would bracket no sitting and count no call.
+		fmt.Fprintf(stderr, "run-setup: the run directory %s is built, but the live-run marker could not be written: %v\n", cfg.RunDir, merr)
+		fmt.Fprintln(stderr, "  The hooks cannot find this run until it is, so do not launch it.")
+		fmt.Fprintln(stderr, "  remedy: make .claude/ writable, then re-run setup with the same arguments — setup is idempotent for its own run")
+		return 1
+	}
 	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
 	// the marker does, and writing it second makes the ordering obvious to anyone reading for
 	// which of the two is derived from the other. Neither is — that is the point.
@@ -337,12 +355,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  pin validation: %s\n", pv.Skipped)
 	} else {
 		fmt.Fprintf(stdout, "  pin validation: %d cite(s) verified at their pins\n", pv.Checked)
-	}
-	// The registry decides whether `--class` means anything this run.
-	if registry.Written {
-		fmt.Fprintf(stdout, "  class registry: %d class(es) staged — `--class` is validated; the lens's `class new` extends it\n", registry.Files)
-	} else {
-		fmt.Fprintf(stdout, "  class registry: NOT STAGED — %s\n", registry.Reason)
 	}
 	if law.Written {
 		fmt.Fprintf(stdout, "  law: %d file(s) mirrored (statute > precedent > argument)\n", law.Files)
@@ -427,8 +439,9 @@ type runConfig struct {
 	// byte-identical on the record to one whose hooks were current.
 	//
 	// It says what was installed, never what RAN: a cache entry on disk does not prove the
-	// harness invoked it. The liveness half is #555's.
-	Hooks HookProvenance `json:"hooks"`
+	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
+	// run.md reads it back through hookprovenance.Read.
+	Hooks hookprovenance.Provenance `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
 	//
 	// A run directory is created by `setup` and does not outlive the schema that made it — but
@@ -516,4 +529,55 @@ func orUnknown(s string) string {
 		return "unknown"
 	}
 	return s
+}
+
+// homeDir is the home the plugin cache resolves against when neither CLAUDE_CODE_PLUGIN_CACHE_DIR nor
+// CLAUDE_CONFIG_DIR names it. It reads $HOME rather than os.UserHomeDir so the suite's own HOME
+// sandbox (testbuild) redirects it, which is what makes this testable at all — and what stops a test
+// reading the developer's real plugin cache and reporting a different answer on every machine.
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	h, _ := os.UserHomeDir()
+	return h
+}
+
+// refuseADecidedRun refuses setup while another run in the project has its outcome recorded and
+// was not captured, naming it and what closes it: capture when its assembly finished, a resume of
+// its assembly sitting when it did not (report.AssemblyWritten, which engine-stopped reads too).
+// It returns the exit code, 0 when no row is such a run.
+func refuseADecidedRun(cfg Config, stderr io.Writer) int {
+	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
+		if runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) || runlive.StateOf(cfg.Cwd, m, runlive.Caller{}) != runlive.RowDecided {
+			continue
+		}
+		fmt.Fprintln(stderr, "run-setup: ANOTHER RUN IN THIS PROJECT HAS ITS OUTCOME AND WAS NOT CAPTURED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  decided: %s (started %s)\n", m.RunDir, orUnknown(m.Started))
+		fmt.Fprintln(stderr, "  Its record is archived, and its documents folded, only by capture; its row is what binds its")
+		fmt.Fprintln(stderr, "  assembly sitting to it when the run is resumed.")
+		capture := fmt.Sprintf("feov-record capture %s <its transcript dir> --seat-id operator", m.RunDir)
+		run, rerr := record.OpenRun(runlive.Resolve(cfg.Cwd, m.RunDir))
+		written := false
+		if rerr == nil {
+			written, rerr = report.AssemblyWritten(run)
+		}
+		switch {
+		case rerr != nil:
+			fmt.Fprintf(stderr, "  whether its assembly finished could not be read (%v), so neither remedy is chosen for you:\n", rerr)
+			fmt.Fprintln(stderr, "    - resume it, and its assembly sitting assembles; then capture it with")
+			fmt.Fprintf(stderr, "        %s\n", capture)
+			fmt.Fprintln(stderr, "    - or capture it as it stands, with the same command")
+		case written:
+			fmt.Fprintln(stderr, "  Its assembly finished, and there is nothing to resume: capture it with")
+			fmt.Fprintf(stderr, "      %s\n", capture)
+		default:
+			fmt.Fprintln(stderr, "  Its assembly never finished. remedies:")
+			fmt.Fprintln(stderr, "    - resume it: the same workflow run resumes its assembly sitting, which assembles; then capture it with")
+			fmt.Fprintf(stderr, "        %s\n", capture)
+			fmt.Fprintln(stderr, "    - or capture it as it stands, with the same command — its documents are then never assembled")
+		}
+		return 2
+	}
+	return 0
 }

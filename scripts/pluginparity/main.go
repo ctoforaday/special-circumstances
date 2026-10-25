@@ -180,6 +180,10 @@ func main() {
 		fail("%s", p)
 	}
 
+	for _, p := range migrateConfinementProblems(filepath.Join(root, filepath.FromSlash(feovTools))) {
+		fail("%s", p)
+	}
+
 	if failed {
 		os.Exit(1)
 	}

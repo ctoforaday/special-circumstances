@@ -22,7 +22,7 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 	const ordinal = "91 is stated as the twenty-seventh semiprime and the second of the form 7·q; both ordinals are wrong."
 	mint := func(seat, gap, problem string, answer func(*recordpb.Mint)) (*recordpb.Mint, string) {
 		m := &recordpb.Mint{
-			GapId: proto.String(gap), Class: proto.String("c"),
+			GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:     proto.String(problem),
 			Location:    proto.String("91 is the twenty-seventh semiprime."),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
@@ -161,28 +161,19 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 			t.Fatal("the staged record still reads — the fixture proves nothing")
 		}
 		distinct := func(m *recordpb.Mint) { m.DistinctFrom = []string{"G1"} }
-		// Under Migrating a mint with a distinction still reads the board for the reference, so the
-		// read failure is its refusal too.
 		for _, tc := range []struct {
-			name      string
-			migrating bool
-			answer    func(*recordpb.Mint)
-		}{{"live, unanswered", false, nil}, {"live, --distinct-from", false, distinct}, {"migrating, --distinct-from", true, distinct}} {
-			Migrating = tc.migrating
+			name   string
+			answer func(*recordpb.Mint)
+		}{{"unanswered", nil}, {"--distinct-from", distinct}} {
 			m, seat := mint("red-lens-computation", "G2", ordinal, tc.answer)
 			err := appendAs(t, dir, seat, m)
-			Migrating = false
 			if err == nil {
 				t.Fatalf("%s: a mint was admitted over a board that could not be read", tc.name)
 			}
 			// The refusal is the MINT's, coded, and names the read as its cause — not the read's
-			// own sentence, bare. Live, the budget counts the lens's open gaps off the board before
-			// the screen reads it, so the first read to fail is the budget's; a replay skips the
-			// budget and the screen's is.
+			// own sentence, bare. The budget counts the lens's open gaps off the board before the
+			// screen reads it, so the first read to fail is the budget's.
 			want := "the board could not be read, so the gaps red-lens-computation holds open cannot be counted against its mint budget: "
-			if tc.migrating {
-				want = "the board could not be read, so the screen cannot run: "
-			}
 			if !strings.HasPrefix(err.Error(), want) {
 				t.Fatalf("%s: the refusal is not the mint's own, naming the read: %v", tc.name, err)
 			}

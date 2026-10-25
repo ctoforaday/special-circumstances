@@ -31,7 +31,12 @@ func newRegrade() *cobra.Command {
 			return nil, err
 		}
 		body.Basis = proto.String(basis)
-		if _, err := record.Append(s.Identity(), body); err != nil {
+		// A GRADE SET AGAINST A GAP THAT MOVED SINCE THIS SITTING OPENED grades what the gap was
+		// (gblock ruling B): the refusal shows what changed, and the same regrade lands once read.
+		if err := seat.AppendFresh(s, body.GetGapId(), func(guards ...record.Guard) error {
+			_, err := record.Append(s.Identity(), body, guards...)
+			return err
+		}); err != nil {
 			return nil, err
 		}
 		return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil

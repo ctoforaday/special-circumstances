@@ -3,12 +3,12 @@ package migrate_test
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A BENCH ROW WRITTEN BEFORE EPOCH 19 CONVENED THE BENCH FOR ITS DOCKET, and migrated it says so.
@@ -61,58 +61,71 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // written before the stored plan (epoch 31) migrates with none: migrate reconstructs none — today's
 // fold over the record's prefix is not what the binary that ran it printed — so the relay audit on
 // such a run reports that it compared nothing. An archive written at epoch 31 or later carries the
-// plans it stored, byte for byte, read off the source the way migrate reads it. The census reads every archive and fails on a plan the source did
-// not store, a stored plan lost or altered, or an archive set holding no dispatch row, because the
-// translation would then be tested by nothing.
+// plans it stored — byte for byte where the replay moved no event a plan names, and otherwise with
+// only those numbers and the key changed (TestAStoredPlanCrossesARenumbering). Which numbers moved
+// is read from the two databases: a source number whose event sits at that number on the migrated
+// record too is one the migrated plan keeps. The census reads every archive and fails on a plan the
+// source did not store, a stored plan lost, a word changed or a number that did not move changed,
+// or an archive set holding no dispatch row, because the translation would then be tested by
+// nothing. A plan stored after its chair sitting recorded a verdict carries that verdict migrated
+// (CarryPlanVerdict) — the one field added, never in the key — and the census counts them, failing
+// an archive set in which no plan carries one.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows, carried := 0, 0
+	rows, carried, identical, verdicts := 0, 0, 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d refusal(s); the first: %+v", name, len(res.Refusals), res.Refusals[0])
 		}
+		srcPlans, dstPlans, srcEvs, dstEvs, _ := planPairsOf(t, name)
+		if len(dstPlans) != len(srcPlans) {
+			t.Errorf("%s: migrated with %d stored plan(s), the source stored %d — a migrated record stores exactly the source's plans", name, len(dstPlans), len(srcPlans))
+			continue
+		}
+		for i := range srcPlans {
+			s, d := srcPlans[i].printed, dstPlans[i].printed
+			if !strings.Contains(s, `"verdict":`) {
+				for _, w := range []string{"PASS", "FAIL"} {
+					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
+						d = strings.TrimSuffix(d, v) + "}"
+						verdicts++
+					}
+				}
+			}
+			if s == d {
+				identical++
+				continue
+			}
+			if maskedPlan(s) != maskedPlan(d) {
+				t.Errorf("%s: stored plan %d migrated with more than its numbers and key changed:\nsource   %s\nmigrated %s", name, i, s, d)
+				continue
+			}
+			sn, dn := numeralsOf(s), numeralsOf(d)
+			kept := true
+			for k := range sn {
+				if sn[k].n == dn[k].n {
+					continue
+				}
+				kept = false
+				if !moved(sn[k].n, srcEvs, dstEvs) {
+					t.Errorf("%s: stored plan %d changed %d to %d, though source event %d is event %d on the migrated record too — byte for byte where nothing a plan names moved", name, i, sn[k].n, dn[k].n, sn[k].n, sn[k].n)
+				}
+			}
+			if kept {
+				t.Errorf("%s: stored plan %d changed its key and no number — byte for byte where nothing a plan names moved", name, i)
+			}
+		}
+		carried += len(srcPlans)
 		fam, err := record.FamilyOf(dst)
 		if err != nil {
 			t.Fatal(err)
 		}
-		stored, err := record.StoredPlans(fam.Events)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		// THE SOURCE'S OWN PLANS, read off its database by migrate's source reader: this binary
-		// opens only a record of its own epoch, and an archive older than 31 stores none.
-		var want []string
-		if res.SourceEpoch != nil && *res.SourceEpoch >= 31 {
-			src, err := migrate.OpenSQLite(filepath.Join(recordtest.ExtractArchive(t, name), "records"), t.TempDir())
-			if err != nil {
-				t.Fatalf("%s: the source does not open: %v", name, err)
-			}
-			evs, err := src.Events()
-			src.Close()
-			if err != nil {
-				t.Fatalf("%s: %v", name, err)
-			}
-			for _, old := range evs {
-				if old.Word == "plan" {
-					printed, _ := old.Fields["printed"].(string)
-					want = append(want, printed)
-				}
-			}
-		}
-		var got []string
-		for _, p := range stored {
-			got = append(got, p.Printed)
-		}
-		if !slices.Equal(got, want) {
-			t.Errorf("%s: migrated with %d stored plan(s), the source stored %d — a migrated record stores exactly the source's plans, byte for byte", name, len(got), len(want))
-		}
-		carried += len(want)
 		for _, e := range fam.Events {
 			if _, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
 				rows++
@@ -122,7 +135,13 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if rows == 0 {
 		t.Fatal("no archived run holds a dispatch row — the translation is exercised by nothing")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried", rows, carried)
+	if identical == 0 {
+		t.Fatal("no stored plan migrated byte for byte — nothing here holds a plan whose events kept their numbers")
+	}
+	if verdicts == 0 {
+		t.Fatal("no archived plan carries its sitting's verdict migrated — the verdict's translation is exercised by nothing")
+	}
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried", rows, carried, identical, verdicts)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.

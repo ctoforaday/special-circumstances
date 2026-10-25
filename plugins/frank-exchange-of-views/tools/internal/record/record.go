@@ -35,6 +35,7 @@ package record
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -135,11 +136,19 @@ type Identity struct {
 	SeatID string
 }
 
-// RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
-// SEQUENTIAL retries (measured: 8/50 in run 5, all crash re-runs), so register
-// ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
-// instance's shard stays inert. Two registers for one seatId are themselves an
-// event, visible to the join audit and the render anomaly footer.
+// RegisterSeat is every seat's FIRST record action, and it returns the dispatch number: the rank of
+// the sitting this register belongs to among its seat's sittings.
+//
+// ONCE PER SITTING. An agent id names one dispatch until its stop: a second register by the same
+// agent as the same seat, with no stop of that agent recorded since the first, is REFUSED and writes
+// nothing. Answering it with the stored registration made the tool the author of a fact the seat had
+// stated wrongly (gblock, 2026-10-23: the tool never answers for the seat). A warm session resumed
+// for a later sitting keeps its agent id, and the stop recorded between its sittings is what makes
+// its next register open the next sitting. Measured on universe-m31: every repeat was a seat whose
+// first act had already registered it (requireBound's autoRegister) calling `register` itself, so
+// register's page says which acts register a seat for it. A register with no agent id cannot be tied
+// to a dispatch, so each one opens a sitting as before.
+//
 // runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
@@ -206,6 +215,10 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 			"no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go), a register included.
+	if err := requireRunNotCaptured(run); err != nil {
+		return 0, "", err
+	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
 	db, err := openRun(run)
@@ -261,11 +274,40 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+	//
+	// THE REPEAT CHECK, THE WRITE AND THE COUNT ARE ONE TRANSACTION, which holds the write lock from
+	// its BEGIN: two registers by one agent racing each other resolve to one row and one answer.
+	WriteBegins()
+	tx, err := db.Begin()
+	if err != nil {
 		return 0, "", err
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
-		seatID).Scan(&dispatch); err != nil {
+	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
+	held, found, err := registeredSitting(tx, reg.GetAgentId(), seatID)
+	if err != nil {
+		return 0, "", err
+	}
+	sitting := held.sitting
+	if !found {
+		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+			return 0, "", err
+		}
+		// The row just written is the newest: the transaction holds the write lock.
+		if err := tx.QueryRow(`SELECT "sitting_id" FROM "events" WHERE "id" = (SELECT max("id") FROM "events")`).Scan(&sitting); err != nil {
+			return 0, "", err
+		}
+	}
+	// THE DISPATCH NUMBER IS THE SITTING'S RANK, NOT A COUNT OF REGISTERS. A sitting the bracket
+	// opened that the seat never registered in is still a dispatch of it, and a register that joined
+	// its bracket's sitting is not a second one — the same rows events_w ranks "sitting" from.
+	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ? AND "id" <= ?`,
+		seatID, sitting).Scan(&dispatch); err != nil {
+		return 0, "", err
+	}
+	if found {
+		return 0, "", repeatRegister(seatID, dispatch, held, occ)
+	}
+	if err := tx.Commit(); err != nil {
 		return 0, "", err
 	}
 	// THE TIER GATE FIRES AFTER THE WRITE, AND THAT ORDER IS THE POINT.
@@ -280,6 +322,77 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
 	return dispatch, dbName, nil
+}
+
+// heldRegister is the registration a sitting already holds for an agent: its sitting, the register's
+// event, the occasion it stated, and the seat's first record after it in that sitting (0 and "" where
+// none follows) — the act that made the register for the seat, where the seat did not run one.
+type heldRegister struct {
+	sitting, event int64
+	occasion       string
+	nextID         int64
+	nextKind       string
+}
+
+// registeredSitting is the registration this agent's earlier register as seatID holds, if it made
+// one and no stop of the agent (a sitting_close naming it) is on the record since. No agent id finds
+// nothing: such a register cannot be tied to a sitting.
+func registeredSitting(tx *sql.Tx, agentID, seatID string) (h heldRegister, found bool, err error) {
+	if agentID == "" {
+		return h, false, nil
+	}
+	err = tx.QueryRow(
+		`SELECT e."sitting_id", e."id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."agent_id" = ? AND e."seat_id" = ?
+		    AND NOT EXISTS (SELECT 1 FROM "sitting_close" c WHERE c."agent_id" = r."agent_id" AND c."event_id" > e."id")
+		  ORDER BY e."id" DESC LIMIT 1`,
+		agentID, seatID).Scan(&h.sitting, &h.event, &h.occasion)
+	if errors.Is(err, sql.ErrNoRows) {
+		return h, false, nil
+	}
+	if err != nil {
+		return h, false, fmt.Errorf("asking whether this agent already registered as %s: %w", seatID, err)
+	}
+	err = tx.QueryRow(`SELECT "id", "type" FROM "events" WHERE "seat_id" = ? AND "sitting_id" = ? AND "id" > ? ORDER BY "id" LIMIT 1`,
+		seatID, h.sitting, h.event).Scan(&h.nextID, &h.nextKind)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return h, false, fmt.Errorf("asking what %s recorded after its register: %w", seatID, err)
+	}
+	return h, true, nil
+}
+
+// repeatRegister is the refusal of a second register in one sitting: it names the registration the
+// record holds — the dispatch, the register's event, the occasion where the seat states one, and
+// the seat's first record after it, which is the act that registered the seat where it ran no
+// register itself — and records nothing. A repeat naming another occasion contradicts the stored
+// one, and says so.
+//
+// THE FIRST RECORD IS NAMED BECAUSE THE SEAT CANNOT SEE IT. Measured on the #1565 smoke: four lenses
+// whose whole read of the report registered them ran `register` next, were refused naming only the
+// dispatch, and each blamed the dispatch bracket.
+func repeatRegister(seatID string, dispatch int, h heldRegister, occ *recordpb.Occasion) error {
+	held := fmt.Sprintf("dispatch %d, register at event %d", dispatch, h.event)
+	if h.occasion != "" {
+		held += fmt.Sprintf(", occasion %q", h.occasion)
+	}
+	asked := ""
+	if occ != nil {
+		asked = recordpb.Word(*occ)
+	}
+	if asked != h.occasion {
+		return feov.Errorf(feov.Conflict,
+			"%s is already registered in this sitting (%s); a sitting is convened for one occasion, so a register naming %q is refused and records nothing",
+			seatID, held, asked)
+	}
+	first := ""
+	if h.nextID != 0 {
+		first = fmt.Sprintf(" — your %s at event %d is your first record after it", h.nextKind, h.nextID)
+	}
+	return feov.Errorf(feov.Conflict,
+		"%s is already registered in this sitting (%s), so this register is refused and records nothing: a register is once per sitting, "+
+			"and where this command takes nothing but your seat id, your first act that records makes it for you%s. "+
+			"Every act you record in this sitting is already attributed to %s",
+		seatID, held, first, seatID)
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.
@@ -348,6 +461,20 @@ var defines = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
 }
 
+// numbered is the types whose every write is a new act even where the body carries a label, so they
+// key on the per-seat ordinal. A stale refusal names its gap, and a seat refused twice on one gap in
+// one sitting — a change landed after the first refusal — is shown two different sets of changes:
+// keyed on the gap, the second would be refused as a retry of the first and the read point would
+// stop at the first.
+//
+// A credit names its gap too, and one gap may be credited with several raising findings — each its
+// own act. A retried credit lands as a second act, which the write path refuses: the contradiction
+// its finding raised is answered by then.
+var numbered = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_STALE:  true,
+	recordpb.EventType_EVENT_TYPE_CREDIT: true,
+}
+
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
 // no writer sets any more simply never matches, and the ordinal fallback then records a second
 // event where the first should have been updated in place. `reference` was on this list after the
@@ -375,7 +502,7 @@ func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMoti
 	// overlay the board fold applies, asked of the record (queries.go).
 	current, found, err := gradeAt(q, g.GetGapId(), col)
 	if err != nil {
-		return nil // a record that cannot be read does not block the filing; requireGap already ran
+		return fmt.Errorf("the record could not be read to tell whether this motion asks for a change, so nothing is filed — retry the call: %w", err)
 	}
 	if !found {
 		return nil // requireGap answered this already
@@ -413,7 +540,7 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	if singleton[typ] {
 		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
-	if v := keyLabel(body); v != "" {
+	if v := keyLabel(body); v != "" && !numbered[typ] {
 		if defines[typ] {
 			return seatID + ":" + slug + ":" + v, nil
 		}
@@ -617,6 +744,10 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go), asked before anything is opened.
+	if err := requireRunNotCaptured(run); err != nil {
+		return nil, err
+	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -627,7 +758,13 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 		return nil, err
 	}
 	files := filesOf(run)
-	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards); err != nil {
+	// THE RECORD'S OWN REFUSAL OF A SEAT ACT COMES BEFORE THE VERB'S GUARDS (outcomeclosed.go): an
+	// act after the outcome is told the run ended, not what a guard finds wrong with it. writeIn asks
+	// it again, which costs one query and keeps it first for the writers that hold no guards.
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
+		return ev, err
+	}
+	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
 		return ev, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
@@ -635,7 +772,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
-		return validate(writeView{q: tx, files: files, rendering: rendering}, seatID, typ, body)
+		w := writeView{q: tx, files: files, rendering: rendering}
+		if err := validate(w, seatID, typ, body); err != nil {
+			return err
+		}
+		return guardsAt(w, guards, true)
 	}); err != nil {
 		return ev, err
 	}
@@ -650,7 +791,11 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 // verb's code: they are tested from the verb's own package, through runtest.Overtaken.
 var WriteBegins = func() {}
 
-// insertNumbered stamps the envelope and writes the event in ONE transaction.
+// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
+// the once-per-sitting and answered-once duties, and the insert. Append's act and RegisterSeat each
+// hold a transaction of their own; `dispatch next` writes several acts through it in one transaction
+// (DispatchNext), and a migration's Batch every act of a replay, each inside a savepoint of the
+// batch's one transaction (batch.go).
 //
 // # The one read that is left, and why
 //
@@ -665,25 +810,14 @@ var WriteBegins = func() {}
 //
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	WriteBegins()
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err := writeIn(tx, ev, seatID, typ, body, check); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
-// the once-per-sitting and answered-once duties, and the insert. Append's act holds a transaction of
-// its own; `dispatch next` writes several acts through it in one transaction (DispatchNext), and a
-// migration's Batch every act of a replay, each inside a savepoint of the batch's one transaction
-// (batch.go).
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
+	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS, AND ITS OUTCOME IS THE ASSEMBLY SITTING'S
+	// (outcomeclosed.go), asked FIRST: an act after the outcome is told the run ended, not what else
+	// is wrong with it. appendAct asks it before its guards as well; this covers every other writer
+	// (RegisterSeat, DispatchNext, a migration's Batch).
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
+		return err
+	}
 	if check != nil {
 		if err := check(tx); err != nil {
 			return err
@@ -740,8 +874,8 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	return nil
 }
 
-// validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
-// and the requirements no schema can express. Error strings are matched verbatim — seats read
+// validate mirrors the oracle's append-time checks: anchors, lineage existence, the gap class's
+// enum check, and the requirements no schema can express. Error strings are matched verbatim — seats read
 // them, and the golden suite compares them.
 //
 // IT SWITCHES ON THE BODY, NOT ON A TYPE STRING. The type and the fields are one fact now, so an
@@ -784,10 +918,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	//
 	// WHICH IS WHY A MINT'S CLASS MATERIAL IS STAMPED FIRST. The field is required and the tool is
 	// its only writer, so the required-field walk would otherwise ask the seat for a value it may
-	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
-	// (an unknown class, an unstaged registry, a seat-supplied value).
+	// not supply; stamped here, every caller of validation gets the same stamp and the same refusal
+	// of a seat-supplied value.
 	if m, ok := body.(*recordpb.Mint); ok {
-		if err := stampClassMaterial(w, m); err != nil {
+		if err := stampClassMaterial(m); err != nil {
 			return err
 		}
 	}
@@ -820,23 +954,30 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetLocation() == "" {
 			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
 		}
-	case *recordpb.ClassNew:
-		return validateClassNew(w, b)
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
-		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
-		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
+		// exempts, with its reason, so this arm reads the same live and on replay: the screen's
+		// match and the report-voice refusal are off; the roster, the mint budget and the
 		// --distinct-from reference stay on.
-		if err := requireMintWithinBudget(w, seatID); err != nil {
+		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(q, b); err != nil {
+		if err := requireMintSubject(b); err != nil {
+			return err
+		}
+		if err := requireMintWithinBudget(w, seatID, b); err != nil {
+			return err
+		}
+		if err := requireNotAnOpenGap(q, seatID, b); err != nil {
 			return err
 		}
 		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
 		// carries the contradiction's id in its own anchor, where the gap's found_by reaches it.
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -882,9 +1023,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := refuseMintReportVoice(b); err != nil {
 			return err
 		}
-		if err := validateClass(w, b); err != nil {
-			return err
-		}
 		ids, err := allGapIDs(q)
 		if err != nil {
 			return err
@@ -920,11 +1058,21 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
+		if err := requireNotARepeatUnsound(q, seatID, b); err != nil {
+			return err
+		}
+	case *recordpb.Credit:
+		if err := requireCreditAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.Finding:
 		if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 			if err := requireOpenContradiction(q, b.GetAboutRef()); err != nil {
 				return err
 			}
+		}
+		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+			return err
 		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
@@ -961,7 +1109,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Close:
-		if err := requireAnchors(q, b.GetAnchors(), "--"+flags.Anchor); err != nil {
+		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
 			return err
 		}
 		if b.CarriedFrom == nil {
@@ -1007,6 +1155,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			if len(prior) == 0 {
 				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+			}
+			// THE EPOCH IS PART OF THE CLAIM. Any value passed once some closure existed, so a carry
+			// naming the wrong sitting was recorded as the seat's statement of where the closure
+			// came from.
+			if n, err := strconv.Atoi(b.GetCarriedFrom()); err != nil || !slices.Contains(prior, n) {
+				return feov.Errorf(feov.Validation, "--carried-from %q names no closure of gap %s: the record closed it in epoch %s. A carry restates one of those closures, by its epoch",
+					b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
 			}
 		}
 		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
@@ -1065,6 +1220,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
+		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
+			return err
+		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
@@ -1121,12 +1279,15 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 		}
 	case *recordpb.Position:
+		if err := PositionRefusal(seatID); err != nil {
+			return err
+		}
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
-		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
+		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
 		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
@@ -1189,6 +1350,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
+				return err
+			}
+			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
 			}
 		}
@@ -1308,6 +1472,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireDispatchOccasions(b); err != nil {
 			return err
 		}
+		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
+		// nothing else — a lane, the frontier and the synthesizer are dispatched by no row.
+		if seatclass.RoleOfSeat(seatID) == "blue" {
+			if err := requireEngage(q, seatID, b); err != nil {
+				return err
+			}
+		}
 	case *recordpb.Plan:
 		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
 			return err
@@ -1329,6 +1500,10 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireNoBlockers(w, b.GetVerdict(), blockers); err != nil {
+			return err
+		}
+	case *recordpb.ReportRead:
+		if err := requireReportReadAt(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.SpotCheck:
@@ -1436,12 +1611,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
-		//
-		// A migration replays an outcome already recorded, so it is not held to the bench's motions.
-		if !Migrating {
-			if err := requireBenchMotionsRuled(q); err != nil {
-				return err
-			}
+		if err := requireBenchMotionsRuled(q); err != nil {
+			return err
 		}
 	case *recordpb.Cite:
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
@@ -1453,11 +1624,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
 		}
 		if origin != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR &&
-			(b.OcrQuote != nil || len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
-			return fmt.Errorf("cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
+			(len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
+			return fmt.Errorf("cite carries pages or reading pins on a source whose text origin is %s — those place a span in the local engine's reading, and this source has none", recordpb.Word(origin))
 		}
-		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
-			return fmt.Errorf("cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
+		if len(b.GetPages()) > 0 && (b.GetSourceSpan() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
+			return fmt.Errorf("cite carries pages without the span and the reading (source_span, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
 		}
 		// WHAT THE LITERATURE SAYS ABOUT THE WORK IS ALSO THE TOOL'S TO STAMP, and for the same
 		// reason the origin above is: no flag teaches it, so an unstamped value is a write path
@@ -1471,6 +1642,40 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// the field unstamped renders exactly like a cite of the paper.
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
 			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+		}
+		// AND WHOSE BYTES WERE READ, for the same reason: an unstamped cite of a recovered copy
+		// renders exactly like a cite of the typed url. copy_url belongs to a substitution — on the
+		// url's own bytes it would name a second place nothing read — and a followed pointer or a
+		// fuller copy is always fetched from somewhere, so either without one is a write that lost it.
+		// A citation fetches what it records, so the cache always held its copy: not_cached is a
+		// reading's word and on a cite is a write that lost the entry.
+		if b.GetCopySubstitution() == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED {
+			return fmt.Errorf("cite carries copy_substitution not_cached — cite fetches the source it records, so the cache holds the copy it read, and the tool stamps that copy before it writes")
+		}
+		if err := copyProvenance("cite", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
+		}
+		// A SOURCE WITH TEXT IS CITED AT A SPAN THE TOOL FOUND IN IT, and a source without text at
+		// none. The span, its place and the text around it are one fact: a span without the source's
+		// own bytes around it is blue's word for what the source says, which is what this exists to
+		// stop a lens reading as the source's. A migrated cite predates the offsets and the text around its span, and carries neither.
+		located := b.SourceSpan != nil || b.SpanStart != nil || b.SpanEnd != nil || b.SpanTextSha != nil ||
+			b.SourceBefore != nil || b.SourceMatched != nil || b.SourceAfter != nil
+		switch origin {
+		case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+			if Migrating && b.SpanStart == nil {
+				break // an archived cite: its span, if any, was located before offsets were kept
+			}
+			if b.GetSourceSpan() == "" || b.GetSourceMatched() == "" || b.GetSpanTextSha() == "" || b.SpanStart == nil || b.GetSpanEnd() <= b.GetSpanStart() {
+				return fmt.Errorf("cite of a source with %s text carries no located span (source_span, span_start, span_end, span_text_sha, source_matched) — the tool finds the span in the cached text before it writes, and this write skipped that", recordpb.Word(origin))
+			}
+			if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR && len(b.GetPages()) != 1 {
+				return fmt.Errorf("cite of OCR text carries %d pages — a span found once sits on one page", len(b.GetPages()))
+			}
+		default:
+			if located {
+				return fmt.Errorf("cite carries a span on a source whose text origin is %s — the tool holds no text to have found it in", recordpb.Word(origin))
+			}
 		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the
@@ -1493,11 +1698,49 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			return fmt.Errorf("requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
 		}
+		// A BRIDGE IS NAMED OR IT IS NOT A BRIDGE. supports_with_bridge without its kind is refused
+		// live; under Migrating the absence is what an archive from before the field holds, and no
+		// kind can be read back out of its prose, so it is carried absent. A kind beside any other
+		// outcome is refused in both: it describes a bridge the reading did not make.
+		swb := b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
+		switch {
+		case swb && b.Bridge == nil && !Migrating:
+			return fmt.Errorf("supports_with_bridge requires --bridge summary|secondary_citation|near_restatement — WHAT you bridged. A reading whose gap is none of those three (a term on another object, a condition dropped, a relation reversed) bridged nothing: the source says something else, which is refutes or weak")
+		case swb && b.Bridge != nil && b.GetBridge() == recordpb.BridgeKind_BRIDGE_KIND_UNSPECIFIED:
+			return fmt.Errorf("--bridge takes summary|secondary_citation|near_restatement")
+		case !swb && b.Bridge != nil:
+			return fmt.Errorf("--bridge names what a supports_with_bridge reading bridged, and this reading is %s — drop --bridge, or record supports_with_bridge if that is what the source did", recordpb.Word(b.GetOutcome()))
+		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
+		// WHOSE BYTES THE READING WAS MADE AGAINST is the tool's to stamp, as on a cite.
+		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
+			return err
+		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// copyProvenance holds an act's copy pair to one shape. An unstamped kind renders exactly like the
+// url's own bytes. copy_url belongs to a substitution — beside the url's own bytes, or where the
+// record holds no copy, it would name a place nothing read — and a followed pointer or a fuller
+// copy is always fetched from somewhere, so either without one is a write that lost it.
+func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string) error {
+	switch kind {
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_UNSPECIFIED:
+		return fmt.Errorf("%s carries no copy_substitution — the tool stamps whose bytes were read (none, followed_link, recovered, fuller_copy, named_backend or not_cached) before it writes, and this write skipped that", act)
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED,
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED:
+		if copyURL != nil {
+			return fmt.Errorf("%s carries copy_url %q with copy_substitution %s — a copy url names where substituted bytes came from, and this act records none", act, *copyURL, recordpb.Word(kind))
+		}
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY:
+		if copyURL == nil || *copyURL == "" {
+			return fmt.Errorf("%s carries copy_substitution %s and no copy_url — that route always fetches its bytes from a url, and the tool records it before it writes", act, recordpb.Word(kind))
 		}
 	}
 	return nil
@@ -1564,4 +1807,110 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row
+// (the sitting reading oncePerSittingSQL's).
+const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON c."event_id" = e."id"
+     WHERE e."seat_id" = ?1 AND c."gap_id" = ?2
+       AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
+     ORDER BY e."id" LIMIT 1`
+
+// requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
+// filed in the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an
+// obligation nobody can discharge). The motion docketing the gap again owes each party a closing on
+// it, and that sitting holds one closing per gap, so the filer's sitting could not end
+// (EnvelopeRefusal). It is filed in a later sitting.
+func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var closing int64
+	found, err := queryRowAt(q, []any{&closing}, closingThisSittingSQL, seatID, gapID)
+	if err != nil || !found {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"%s already filed its closing on %s in this sitting (event %d), and a docket motion now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
+			"Nothing was recorded; file the docket motion in a later sitting",
+		seatID, gapID, closing, gapID)
+}
+
+// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
+// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
+// closing is an argument the bench reads when it rules a docketing, so one with nothing before the
+// bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
+// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
+func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
+	if gapID == "" {
+		return nil
+	}
+	var mintedBy string
+	var docketed int64
+	found, err := queryRowAt(q, []any{&mintedBy, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return err // an unknown gap is requireGap's refusal, not this one's
+	}
+	if !IsClosingParty(seatID, mintedBy) {
+		return feov.Errorf(feov.RoleViolation,
+			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
+				"An argument about no one gap is the chair's position",
+			mintedBy, gapID, blueRespondSeat, seatID)
+	}
+	if docketed == 0 {
+		return feov.Errorf(feov.Validation,
+			"%s is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. "+
+				"A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap",
+			gapID)
+	}
+	return nil
+}
+
+// reasonBlank is what Mint's (check) trims before it calls a reason empty — space, tab, LF, CR, its
+// `char(9, 10, 13)` — so the write and the database refuse the same reasons
+// (TestTheWriteAndTheDatabaseAgreeOnABlankReason).
+const reasonBlank = " \t\n\r"
+
+// requireMintSubject refuses a gap with no subject: a location that is empty or blank, with no
+// --about-kind/--about naming what the gap is about instead. A gap is one sentence of the report or
+// a section, inquiry or gap the record checks, and the board shows it there; a gap with neither is a
+// problem nothing locates, which no reader can find and no re-audit can return to.
+//
+// A BLANK QUOTE IS NO QUOTE: a location of whitespace places nothing and states nothing, so it is
+// refused whether or not an --about rides beside it — beside one it would be a second subject that
+// says nothing.
+func requireMintSubject(m *recordpb.Mint) error {
+	loc := m.GetLocation()
+	switch {
+	case loc != "" && strings.TrimSpace(loc) == "":
+		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
+	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
+		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+	}
+	return nil
+}
+
+// requireUnclassifiedReason refuses a catch-all mint that says nothing about why no class fits, in
+// the words of Mint's own (check) — the database refuses the row whatever writes it, and this names
+// the duty to the seat rather than leaving it a constraint's column name.
+func requireUnclassifiedReason(m *recordpb.Mint) error {
+	if m.GetClass() != recordpb.GapClass_GAP_CLASS_UNCLASSIFIED || strings.Trim(m.GetMintReason(), reasonBlank) != "" {
+		return nil
+	}
+	why := "a gap no class fits says why in --reason"
+	for _, c := range recordsql.MessageChecks(m.ProtoReflect().Descriptor()) {
+		if strings.Contains(c.GetExpr(), "'unclassified'") {
+			why = c.GetWhy()
+		}
+	}
+	return fmt.Errorf("--class unclassified requires --reason — %s", why)
+}
+
+// joinInts renders epochs as a refusal names them: "2", "2, 4".
+func joinInts(ns []int) string {
+	parts := make([]string, len(ns))
+	for i, n := range ns {
+		parts[i] = strconv.Itoa(n)
+	}
+	return strings.Join(parts, ", ")
 }

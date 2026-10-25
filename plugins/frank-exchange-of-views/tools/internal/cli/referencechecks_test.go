@@ -1,16 +1,12 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // EVERY FLAG THAT NAMES SOMETHING THE TOOL HAS IS CHECKED AGAINST IT.
@@ -22,7 +18,7 @@ import (
 // # What is checked
 //
 // Each reference flag is checked against what it names: the board, the findings, the citations,
-// the inquiries, the archive, the report, the class registry.
+// the inquiries, the archive, the report, the gap class's closed set.
 //
 // # Why a TABLE and a behavioural test, rather than a list of individual tests
 //
@@ -42,26 +38,22 @@ var referenceChecks = []struct {
 	against string // what the value is checked against, for the failure message
 	bogus   string // a well-SHAPED value that cannot exist
 	extra   []string
-	// needsRegistry stages a class registry first: the class check is advisory without one.
-	needsRegistry bool
 }{
 	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
+		extra: []string{"--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "F-0000f9f9",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	// NEEDS A REGISTRY STAGED. `validateClass` is ADVISORY when none is present, so this case
-	// silently passed over an unchecked class until the fixture seeded one — which is how the
-	// whole internal/cli suite had been running with class validation off.
-	{verb: []string{"mint"}, flag: "--class", against: "the class registry", bogus: "no-such-class-slug",
-		needsRegistry: true,
-		extra:         []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+	{verb: []string{"mint"}, flag: "--class", against: "the GapClass set", bogus: "no-such-class-slug",
+		extra: []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
 	{verb: []string{"mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+	{verb: []string{"credit"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--found-by", "F-0000f9f9"}},
 	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--severity", "high", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
@@ -108,60 +100,12 @@ var referenceChecks = []struct {
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
 	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--carried-from", "1", "--reason", "r"}},
+		extra: []string{"--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--carried-from", "1", "--reason", "r"}},
+		extra: []string{"--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	// A READ'S REFERENCE IS CHECKED TOO: the changes view scoped to a gap nobody minted answers
 	// with nothing, which reads as a gap nobody has answered.
 	{verb: []string{"show", "changes"}, flag: "--id", against: "the board", bogus: "G2"},
-}
-
-// stageClassRegistry writes a registry into the run's RESOLVED record directory.
-//
-// The class check is ADVISORY without one — `loadRegistry` returns nil and every slug is
-// accepted. The whole of internal/cli had been running that way, so a mint could name any class
-// and no test noticed. It goes to RecordsDir, not <run>/records, because the record may be
-// separated (FEOV_RECORD_ROOT) and writing to the run directory would stage it where nothing
-// reads.
-func stageClassRegistry(t *testing.T, runDir string) {
-	t.Helper()
-	recDir, err := record.RecordsDir(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(recDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := `{"classes":[{"slug":"scope-creep","material_default":"by_grade"},{"slug":"read-surface","material_default":"by_grade"},{"slug":"citation-drift","material_default":"by_grade"}]}`
-	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// A STAGED-BUT-BROKEN REGISTRY IS REFUSED, not waved through.
-//
-// `loadRegistry` returned nil on any read or parse failure, and nil means advisory — so a corrupt
-// registry accepted every class slug, silently, for the whole run. Absent stays advisory (a run
-// deliberately set up without one has nothing to validate against); present-and-unreadable does
-// not, because somebody staged it, which means somebody meant it to bind.
-func TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored(t *testing.T) {
-	runDir := seatRun(t)
-	recDir, err := record.RecordsDir(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(recDir, "class-registry.json"), []byte("{not json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, err = run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--class", "anything-at-all", "--check-kind", "document", "--check", "c",
-		"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p")
-	if err == nil {
-		t.Fatal("a mint was accepted against an unreadable class registry — every --class passes while it stays that way, and nothing says so")
-	}
-	if !strings.Contains(err.Error(), "unreadable") {
-		t.Errorf("the refusal must say the registry is the problem, or the seat re-reads its own --class: %v", err)
-	}
 }
 
 // AND THE TABLE CANNOT GO STALE, because the TREE says what must be in it.
@@ -227,12 +171,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 		name := strings.Join(c.verb, " ") + " " + c.flag
 		t.Run(name, func(t *testing.T) {
 			runDir := seatRun(t)
-			mintGap(t, runDir, "a seeded gap", "read-surface")
-			// AFTER the seed mint: staging it first would bind that mint's --neighbor too, and
-			// the case under test is the bogus value, not the fixture's own class lineage.
-			if c.needsRegistry {
-				stageClassRegistry(t, runDir)
-			}
+			mintGap(t, runDir, "a seeded gap", "policy_without_mechanism")
 
 			// A PATH NO SEAT HOLDS IS REFUSED FOR ITS IDENTITY, and that refusal satisfied "it was
 			// refused" — an `opinion` case outlived its verb and went on passing, measuring nothing.
@@ -262,7 +201,7 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 				t.Errorf("%s refused without naming %s — the seat that typed it is told about some other flag:\n\n%v", name, c.flag, err)
 			}
 			// The prose OUTSIDE backtick spans speaks about the verb the seat ran, so every flag it
-			// names is that verb's. A span may name another verb's flags (`class new --definition`);
+			// names is that verb's. A span may name another verb's flags (`verdict --as`);
 			// the harness reads spans against the seat's tree, in assertRefusalSpeaksToItsSeat.
 			verb := cmdAt(NewRootFor(holder), c.verb)
 			for _, m := range flagToken.FindAllStringSubmatch(backtickSpan.ReplaceAllString(err.Error(), ""), -1) {

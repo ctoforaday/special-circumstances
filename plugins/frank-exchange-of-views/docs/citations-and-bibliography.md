@@ -40,7 +40,15 @@ from a landing page to its full text, charges each host once. An overload status
 are refused by name. A doi resolves through Crossref's registered url rather than a `doi.org` hop.
 When an html page names its own full text (`citation_fulltext_html_url`, `citation_pdf_url`,
 Signposting `rel="item"`), fetch follows it, up to two hops, stopping at a page that names itself.
-That hop is recorded as `followed_to`, not as a substitute copy.
+That hop is recorded as a `followed_link` substitution with the url it reached, not as a recovery.
+
+**Whose bytes a citation read.** Every entry records the route by which its bytes are not the asked
+url's own — `followed_link`, `recovered` (the url refused and a rung answered), `fuller_copy` (a copy
+carrying more of the work replaced a page not known to be the body), `named_backend` (a fetch named
+the backend) — and the url each backend fetched them from. A citation carries both as
+`copy_substitution` and `copy_url`; `none` states the bytes are the url's own. A body the tool wrote
+itself ("no open copy exists") was read from no url and has no `copy_url`. `cite` prints both, read
+back from the stored citation, so blue learns of a substituted copy from the act that recorded it.
 
 **Classifying what arrived.** Every entry records what the bytes are, not only that they arrived:
 
@@ -101,11 +109,23 @@ do not trip it.
 
 ## 2. Cite — putting it on the record
 
-`blue cite --url --quote --title [--ocr-quote]` resolves the url through the same cache. It
+`blue cite --url --quote --title [--source-span]` resolves the url through the same cache. It
 records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at the quoted sentence.
 
-- A citation of OCR-derived text must name its span (`--ocr-quote`). The tool then records the pdf
-  pages the span sits on.
+- A citation of a source whose text the tool holds — extracted HTML or PDF text, raw text, or an
+  OCR reading — must name its span (`--source-span`), copied from that cached text. The tool finds
+  it there exactly once, after reading runs of whitespace (non-breaking and thin spaces included)
+  as one space, a line-end hyphen either joined or kept, and a typographic character as its
+  keyboard form — curly quotes as `'` and `"`, en and em dashes as `-`, `…` as `...`, the
+  ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, a soft hyphen as nothing — and refuses a span it cannot
+  find, or finds twice. The offsets and the stored text are the source's own bytes. It records the span's byte
+  offsets, the sha256 of the text they index, the source's own text up to 300 bytes either side
+  (`source_before`, `source_matched`, `source_after`), and for an OCR reading the pdf page.
+  `show evidence` shows that text as `source_text`, beside blue's `cite --reason` as
+  `blue_reason`, so a lens reads the sentence against the source and not against blue's account
+  of it.
+- A source the tool holds no text for (`source_text_origin` none) is cited without a span, and a
+  span given for one is refused. A migrated citation carries no offsets or surrounding text.
 - **The tool stamps the facts the seat cannot be asked to remember**, and a cite write missing one
   is refused:
   - `source_text_origin`: embedded, ocr or none.
@@ -134,8 +154,14 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 - **`supports` from an abstract is allowed, and says so.** Every verdict naming a url is stamped
   with the copy's `source_completeness`. A support read off an abstract confirms what the abstract
   says, not what the study shows, and the record carries which.
-- **A supporting corroboration becomes a footnote.** It carries an id and `work_status`, exactly
-  as a blue cite does. A refuting or weak one is a board matter, never a reference.
+- **Every verdict records the copy it was read against.** `copy_substitution` and `copy_url` are
+  stamped from the cache's entry for the source's url — the citation's for `verify`, the named one
+  for `corroborate` — on the same terms as a cite. A url the cache holds no copy of is
+  `not_cached`: red read it outside the tool, or the cache is gone. Both verbs print a copy that is
+  not the url's own, and `show evidence` carries it on each verification row.
+- **A supporting corroboration becomes a footnote.** It carries an id, `work_status` and its copy,
+  exactly as a blue cite does; its note and Bibliography line name a substituted copy. A refuting
+  or weak one is a board matter, never a reference.
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
 source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
@@ -157,6 +183,10 @@ cross a file boundary. Finding markers are stripped; citation markers are resolv
     Bibliography line.
   - `**[ABSTRACT ONLY]**`: a fact about the copy, so each note speaks for its own copy. The
     Bibliography line is marked only when *every* citation of the url rests on the abstract.
+  - **Where the text was read**, when not at the url: `(full text read at …)` for a followed pointer,
+    `**[READ FROM A RECOVERED COPY: …]**`, `**[READ FROM ANOTHER COPY: …]**` for a fuller copy or a
+    named backend, and `**[NO DOCUMENT READ]**` for a substitution read from no url. The
+    Bibliography line lists every distinct copy any citation of the url read.
   - `unverified`, `not_asked` and `not_checked` print nothing. They are the tool's uncertainty,
     carried on the record for red rather than spent on the reader.
 - An anchor with no source on the record is listed as `(unresolved citation …)`, never silently
@@ -216,8 +246,10 @@ from here.**
 - The title is whatever blue typed, and there is no verb to amend a wrong one (#551). Nor is there a
   path for private-repository or local-file sources (#551, #64).
 - Page locators are the pdf's page **index**, not the folio printed on the page.
-- An archive snapshot is a different artifact, what a url said on a date. Provenance travels on the
-  fetch record, and the footnote shows the url that was asked.
+- An archive snapshot is a different artifact, what a url said on a date. The footnote shows the url
+  that was asked and the snapshot it was read from. A citation migrated from before the field
+  carries `copy_substitution: not_recorded` and no copy url, and so does a migrated verification:
+  the fetch index that knew is not archived.
 - Citation ids are 4 random bytes. Collisions are negligible per run, but the uniqueness test
   fails by design about once in 8,600 CI runs (#1184).
 

@@ -115,9 +115,24 @@ func (s *anchorStanding) holds() bool {
 
 // reopened reports whether an edit changed this anchor's sentence after it was checked and no
 // check has stood since: the anchor is owed a check from a sitting opened after the edit. An
-// anchor nobody ever checked is not reopened: it is the work item that offers its first check.
+// anchor nobody checked before the edit is not reopened: it is the work item that offers its first
+// check. A check from a sitting opened after the edit that read nothing (`unreachable`) leaves it
+// that work item. It makes no reopening: the edit answered no check, and a blocker that arose at
+// another lens's unreachable verify, after the owner had sat at that head, readied nobody (the
+// owner is readied for a reopened anchor by the head the edit moved), so the run ended UNVERIFIED.
 func (s *anchorStanding) reopened() bool {
-	return s.edit != 0 && !s.retired && len(s.checks) > 0 && len(s.standing()) == 0
+	return s.edit != 0 && !s.retired && s.checkedBefore(s.edit) && len(s.standing()) == 0
+}
+
+// checkedBefore reports whether a check of this anchor may be of the sentence before edit: one from
+// a sitting opened no later than the edit, or from no sitting, which says nothing about when it read.
+func (s *anchorStanding) checkedBefore(edit int64) bool {
+	for _, c := range s.checks {
+		if c.sitting <= edit {
+			return true
+		}
+	}
+	return false
 }
 
 // lastCheck is the events.id of the anchor's latest check, 0 when none.
@@ -218,4 +233,29 @@ func verifyClears(o recordpb.SourceOutcome) bool {
 // not a contradiction.
 func verifyHolds(o recordpb.SourceOutcome) bool {
 	return verifyClears(o) && !contradicts(o)
+}
+
+// CitationsFoundAgainst is each citation red finds against NOW, in the order the record placed
+// them: a check of the sentence as the report carries it stands (anchorStanding.stands) and does
+// not hold — a standing `refutes` or `absent`. win supplies each event's events.id and sitting.
+//
+// IT IS THE STANDING, NOT THE HISTORY. A reading of a sentence an edit has since replaced is not a
+// finding against the sentence the report carries, and a retired anchor is no longer cited; both
+// are answered by the ledger, which is the one fold of a check's standing. The question is keyed by
+// the citation's anchor, never its url: two citations of one url back two sentences, and one of
+// them refuted says nothing of the other.
+func CitationsFoundAgainst(evs []*Event, win WindowIndex) []string {
+	var out []string
+	for _, s := range anchorChecksOf(evs, win).order {
+		if s.proof {
+			continue
+		}
+		for _, c := range s.standing() {
+			if !c.holds {
+				out = append(out, s.anchor)
+				break
+			}
+		}
+	}
+	return out
 }

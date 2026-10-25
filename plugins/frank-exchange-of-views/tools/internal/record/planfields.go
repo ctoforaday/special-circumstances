@@ -18,7 +18,7 @@ import (
 // WHAT A GO TYPE CANNOT SAY IS A TAG ON THE FIELD: `desc` is the sentence the schema hands the
 // relaying seat, `bench` the sentence for the same field of the bench's party, `min` an integer's
 // floor and `pattern` a string's, `emptyonlywith` names the boolean of the same struct that is
-// true whenever a list is empty, and `key:"-"` leaves a field out of the plan's key (keyed). A tag
+// true whenever a list is empty, and `key:"-"` leaves a field out of the plan's key (Plan.WithKey). A tag
 // absent leaves the schema looser, never wrong.
 type PlanField struct {
 	Name string // the Go field
@@ -40,8 +40,8 @@ type PlanField struct {
 	// EmptyOnlyWith is the JSON key of the boolean, in the same struct, that is true whenever this
 	// list is empty; "" where the field states no such rule.
 	EmptyOnlyWith string
-	// Unkeyed: the field says when the plan was asked, not what it decides, and the plan's key
-	// leaves it out (`key:"-"`).
+	// Unkeyed: the field says when the plan was asked, or what the sitting asking did, not what
+	// the plan decides, and the plan's key leaves it out (`key:"-"`).
 	Unkeyed bool
 	// Enum is the closed set of a string field whose Go type declares one.
 	Enum []string
@@ -54,6 +54,7 @@ type PlanField struct {
 
 // planEnums is the closed set of each named string type the plan carries.
 var planEnums = map[reflect.Type]func() []string{
+	reflect.TypeFor[PlanVerdict](): func() []string { return Names(SeatFilable(MustEnum("verdict", "verdict").Values)) },
 	reflect.TypeFor[BlockerKind](): func() []string {
 		ks := BlockerKinds()
 		out := make([]string, len(ks))

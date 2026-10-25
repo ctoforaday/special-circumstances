@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ const (
 func blueWorkStage(t *testing.T) Run {
 	t.Helper()
 	mint := func(id string, extra func(*recordpb.Mint)) *recordpb.Mint {
-		m := &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"), Problem: proto.String("p"),
+		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), FixBasis: proto.String("proposed")}
@@ -139,8 +140,8 @@ func TestBluesWorkListNamesTheEngagedGapsItFoundClosed(t *testing.T) {
 	if got := strings.Join(e.GapIDs, " "); got != quotedGap+" "+proseGap+" "+closedGap {
 		t.Errorf("engaged gap_ids = %q, want the dispatch's three", got)
 	}
-	want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired"}
-	if len(e.FoundClosed) != 1 || e.FoundClosed[0] != want {
+	want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired", Successors: []string{}}
+	if len(e.FoundClosed) != 1 || !reflect.DeepEqual(e.FoundClosed[0], want) {
 		t.Errorf("found_closed = %+v, want exactly %+v", e.FoundClosed, want)
 	}
 	// The same sitting, the same answer: what is not found closed is what the sitting owes on.
@@ -212,8 +213,8 @@ func TestBluesEngagedBlockNamesTheDispatchItHasNotYetRegisteredFor(t *testing.T)
 			if got := strings.Join(e.GapIDs, " "); got != closedGap+" "+laterGap {
 				t.Errorf("engaged gap_ids = %q, want the second dispatch's %q", got, closedGap+" "+laterGap)
 			}
-			want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired"}
-			if len(e.FoundClosed) != 1 || e.FoundClosed[0] != want {
+			want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired", Successors: []string{}}
+			if len(e.FoundClosed) != 1 || !reflect.DeepEqual(e.FoundClosed[0], want) {
 				t.Errorf("found_closed = %+v, want exactly %+v", e.FoundClosed, want)
 			}
 		})

@@ -128,7 +128,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 			mint := func(args ...string) string {
 				t.Helper()
 				out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
-					"--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+					"--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 					"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--complexity", "low"}, args...)...)
 				if err != nil {
@@ -145,7 +145,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 				}
 				f := lastBody(t, runDir, &recordpb.Finding{})
 				id = f.GetId()
-				gap = mint("--key", "credits", "--found-by", id)
+				gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
 			case "citation":
 				id = citeSentence(t, runDir, sentence, "https://water/1")
 			case "proof":
@@ -415,7 +415,7 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 	want := readReport(t, runDir)
 
 	dst := filepath.Join(recordtest.TmpRun(t), "migrated") // TmpRun releases the migrated record's handle
-	out, err := run(t, "migrate", "--seat-id", "operator", "--from", runDir, "--to", dst)
+	out, err := runMigrate(t, "--from", runDir, "--to", dst)
 	if err != nil {
 		t.Fatalf("migrating a roundless-era record: %v\n%s", err, out)
 	}
@@ -459,7 +459,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	if err == nil {
 		t.Fatal("a retire naming an anchor was recorded on a record with no table to hold it")
 	}
-	for _, want := range []string{"older binary", "retire_anchors", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"older binary", "retire_anchors", "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %s:\n%v", want, err)
 		}

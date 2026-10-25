@@ -71,6 +71,14 @@ var notFields = map[string]string{
 	"estopped_by": "the prescribing gap of an estoppel refusal, beside a count that reads only Log.type; the entry's text names the gap",
 	"rationale":   "the bench's own prose channel on the retired `opinion` body. The disposition is a docket motion's ruling now, and every subject's ruling carries its ruler's argument on MotionRule.opinion (flag `--reason`) — so the fact survives on a field that already held it for the other three subjects, rather than on a fifth name for one concept",
 
+	// A GAP'S CLASS IS A VALUE OF THE CLOSED GapClass SET, whose own definition, neighbour and
+	// distinguisher are the class's; a run neither coins one nor carries a coiner's words.
+	"class_new":     "a run coining a class, as a mint flag and as its own event; the class set is closed, and migrate drops both",
+	"slug":          "a coined class's name on the retired class_new event; Mint.class names a GapClass value",
+	"definition":    "a coined class's definition; each GapClass value's (means) is the definition",
+	"neighbor":      "a coined class's nearest class; each GapClass value's (neighbor) option names it",
+	"distinguisher": "a coined class's distinguisher; each GapClass value's (distinguisher) option carries it",
+
 	// NEVER A PAYLOAD KEY.
 	"script": "a FILENAME in the proof cache (proof.go:191,225), not a recorded field — the proof's script lives on disk and the record carries its sha256",
 	"exit":   "a field of proof.Result (proof.go:64), the in-process execution struct — never written to a shard",

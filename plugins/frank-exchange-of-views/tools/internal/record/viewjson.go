@@ -399,7 +399,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 	}
 
-	foundBy, err := listValuesByEvent(q, "mint_found_by")
+	foundBy, err := listValuesByEvent(q, "gap_found_by")
 	if err != nil {
 		return out, err
 	}
@@ -706,7 +706,7 @@ type GapBackingJSON struct {
 type CounterpartyJSON struct {
 	// Role is whose activity this describes: the party this seat is waiting on or disposing of.
 	Role string `json:"role"`
-	// Acts is how many substantive events that party has recorded in the whole run, and
+	// Acts is how many acts (recordsql.NotActs) that party has recorded in the whole run, and
 	// ActsThisEpoch how many in the epoch this seat is sitting in. Zero for both is "has not
 	// started"; zero this epoch with a positive total is "worked earlier, not yet here".
 	Acts          int `json:"acts"`
@@ -1024,7 +1024,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		r.absent = noRecord(q)
 		return r, err
 	}
-	if r.foundBy, err = listValuesByEvent(q, "mint_found_by"); err != nil {
+	if r.foundBy, err = listValuesByEvent(q, "gap_found_by"); err != nil {
 		return r, err
 	}
 	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
@@ -1112,7 +1112,13 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	if err != nil {
 		return nil, err
 	}
-	exch := exchangesOf(r.evs, r.win.IDs(r.evs), r.win, params, WhileRunning, r.remands)
+	ids := r.win.IDs(r.evs)
+	exch := exchangesOf(r.evs, ids, r.win, params, WhileRunning, r.remands)
+	open := map[string]bool{}
+	for _, g := range out {
+		open[g.ID] = g.Open
+	}
+	moved := gradeMovementOf(r.evs, ids, r.win, open)
 	for i := range out {
 		g := &out[i]
 		if !g.Open {
@@ -1122,7 +1128,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, x)
+		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
 	}
 	return out, nil
 }
@@ -1256,6 +1262,37 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	return workJSONOfGaps(gaps, 0, backingOf(r.evs), ""), nil
 }
 
+// unverifiableIn reads, from the report as it renders now, why a citation's sentence cannot be
+// verified — the report does not render, its anchor is not in it, or it stands bare — the checks
+// `verify` refuses on (cli/lens/verify.go citedSentence). The report renders on the first question,
+// and only then: most work lists ask none.
+func unverifiableIn(r workReads) unverifiableFunc {
+	var (
+		rendered  bool
+		report    string
+		renderErr error
+		bare      []string
+	)
+	return func(id string) string {
+		if !rendered {
+			rendered = true
+			report, renderErr = renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+			if renderErr == nil {
+				bare = claimcount.BareAnchorIDs(report)
+			}
+		}
+		switch {
+		case renderErr != nil:
+			return "the report does not render (" + renderErr.Error() + ")"
+		case !strings.Contains(report, anchor.Token(id)):
+			return "its anchor is not in the report"
+		case slices.Contains(bare, id):
+			return "its anchor stands bare: the sentence it backed was cut, and blue's retire of its claim is what removes it"
+		}
+		return ""
+	}
+}
+
 // workView reads the work list's answers on one snapshot of the record (workReadsAt); its callers
 // fold them after the transaction closes.
 func workView(run Run) (workReads, error) {
@@ -1283,12 +1320,8 @@ func counterpartyOf(evs []*Event, win WindowIndex, role string, epoch int) Count
 	}
 	c := CounterpartyJSON{Role: other}
 	for _, e := range evs {
-		if PartyOf(e) != other {
+		if PartyOf(e) != other || slices.Contains(recordsql.NotActs, e.GetType()) {
 			continue
-		}
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER:
-			continue // arriving is not acting
 		}
 		c.Acts++
 		r := win.Of(e).Epoch
@@ -1345,7 +1378,19 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	evs, win := r.evs, r.win
 	epoch := epochOfSeatOnBoard(evs, win, seatID)
 	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
-	w.Sitting = SittingOf(evs, win.IDs(evs), win, gaps, role, seatID)
+	reads := sittingReads{unverifiable: unverifiableIn(r)}
+	var budget *MintBudgetJSON
+	var budgetLine string
+	if role == "lens" {
+		budget, budgetLine = mintBudgetOf(run, seatID)
+		reads.mintsLeft = func() (int, bool) {
+			if budget == nil {
+				return 0, false
+			}
+			return budget.Left, true
+		}
+	}
+	w.Sitting = sittingOf(evs, win.IDs(evs), win, gaps, role, seatID, reads)
 	if role == "lens" {
 		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
 		// are the same reader's rows, joined to the gap they are about.
@@ -1365,10 +1410,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		//
 		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
 		// it follows the statement that the list is empty where SittingOf made one.
-		budget, line := mintBudgetOf(run, seatID)
 		w.Sitting.MintBudget = budget
-		if line != "" {
-			w.Sitting.Open = append(w.Sitting.Open, Item{What: line})
+		if budgetLine != "" {
+			w.Sitting.Open = append(w.Sitting.Open, Item{What: budgetLine})
 		}
 	}
 	if role == "bench" || role == "chair" {
@@ -1377,7 +1421,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run)})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
-	w.Engaged = engagedOf(evs, win, seatID)
+	w.Engaged = engagedOf(evs, win, gaps, seatID)
 	if w.Declarations, err = declarationsOf(evs, win, gaps); err != nil {
 		return WorkJSON{}, err
 	}
@@ -1480,6 +1524,11 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 				mintedBy[id] = append(mintedBy[id], m.GetGapId())
 			}
 		}
+		// A CREDIT ADDS THE FINDING TO AN OPEN GAP'S found_by, so the gap credits it as its mint's
+		// own list would.
+		if c, ok := recordpb.BodyAs[*recordpb.Credit](e); ok {
+			mintedBy[c.GetFoundBy()] = append(mintedBy[c.GetFoundBy()], c.GetGapId())
+		}
 	}
 	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
@@ -1527,7 +1576,8 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 // every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
 var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
 	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_MINT)
+	recordpb.EventType_EVENT_TYPE_MINT,
+	recordpb.EventType_EVENT_TYPE_CREDIT)
 
 // FindingsJSONBytes renders the findings view as indented JSON.
 func FindingsJSONBytes(run Run) ([]byte, error) { return findingsView.jsonBytes(run) }
@@ -1637,7 +1687,6 @@ type DebateEpochJSON struct {
 	// which is a different fact from a verdict of fail and must not read as one.
 	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
-	Blue         []string            `json:"blue"`
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
 	BlueClosings []DebateClosingJSON `json:"blue_closings"`
@@ -1645,6 +1694,32 @@ type DebateEpochJSON struct {
 	// what it names and what it found. A defect the chair finds in a stale area is stated there,
 	// with no verdict recorded.
 	SpotChecks []string `json:"spot_checks"`
+	// RedKeeps is each regrade a minting lens made this epoch that kept its gap's grade (KeptGrades):
+	// the lens saying, after its re-audit, that the gap stands and what its check still finds
+	// failing. The bench reads it with the closings.
+	RedKeeps []DebateKeepJSON `json:"red_keeps"`
+	// Served is each whole report the tool served a lens this epoch (ReportRead): the lens and the
+	// head, which is its pin once its sitting closes. Served, not read: the tool cannot see a read.
+	Served []DebateServedJSON `json:"served"`
+}
+
+// DebateServedJSON is one whole report served to a lens: the lens and the head it was served at.
+type DebateServedJSON struct {
+	SeatID string `json:"seat_id"`
+	Head   int64  `json:"head"`
+}
+
+// ServedLine is debate.md's line for a report served to a lens, word for word.
+func ServedLine(seatID string, head int64) string {
+	return fmt.Sprintf("### REPORT SERVED — %s\nthe whole report was served to %s at head %d", seatID, seatID, head)
+}
+
+// DebateKeepJSON is one regrade that kept the grade: the gap, the lens that minted it, and its
+// reason.
+type DebateKeepJSON struct {
+	GapID  string `json:"gap_id"`
+	SeatID string `json:"seat_id"`
+	Text   string `json:"text"`
 }
 
 type DebateClosingJSON struct {
@@ -1662,8 +1737,8 @@ type DebateOpinionJSON struct {
 }
 
 // DebateJSONOf groups the record's events by epoch exactly as render.go's debate loop does:
-// position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// spot-check→SpotChecks, a docket motion's ruling→Lead. The grouping is
+// position(red-chair)→Red, closing(a lens)→RedClosings, closing(blue)→BlueClosings,
+// spot-check→SpotChecks, a lens's regrade that keeps the grade→RedKeeps, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
@@ -1683,6 +1758,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 	sort.Ints(epochOrder)
 
 	docketGapOf := DocketGapByMotion(evs)
+	kept := KeptGrades(evs, win)
 
 	for _, r := range epochOrder {
 		re := byEpoch[r]
@@ -1695,8 +1771,8 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			}
 			return s
 		}
-		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}}
+		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Lead: []DebateOpinionJSON{},
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}, Served: []DebateServedJSON{}}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())
@@ -1704,12 +1780,26 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
-		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "chair") {
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+		// blue-respond (BLUE) (closingowed.go). The write path admits no other (PositionRefusal,
+		// ClosingRefusal), so each renders as the record holds it.
+		var positions, redClosings, blueClosings []*Event
+		for _, e := range re {
+			switch {
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
+				positions = append(positions, e)
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && PartyOf(e) == "blue":
+				blueClosings = append(blueClosings, e)
+			case e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
+				redClosings = append(redClosings, e)
+			}
+		}
+		for _, p := range positions {
 			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
 				rj.Red = append(rj.Red, pos.GetText())
 			}
 		}
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
+		for _, c := range redClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}
@@ -1719,12 +1809,15 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 				rj.SpotChecks = append(rj.SpotChecks, sc.Describe())
 			}
 		}
-		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
-			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
-				rj.Blue = append(rj.Blue, pos.GetText())
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
+			if kept[e] {
+				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
 		}
-		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REPORT_READ, "lens") {
+			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: e.GetReportRead().GetHead()})
+		}
+		for _, c := range blueClosings {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
 			}
@@ -1793,7 +1886,12 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_VERDICT,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
-	recordpb.EventType_EVENT_TYPE_CLOSE)
+	recordpb.EventType_EVENT_TYPE_CLOSE,
+	// A regrade that keeps the grade is judged against the gap's grades at its place: the mint's,
+	// overlaid by every earlier regrade (KeptGrades).
+	recordpb.EventType_EVENT_TYPE_MINT,
+	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_REPORT_READ)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }

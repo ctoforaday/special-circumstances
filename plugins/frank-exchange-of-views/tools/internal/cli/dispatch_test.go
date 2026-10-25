@@ -29,7 +29,7 @@ func stageEvents(t *testing.T, runDir string, more ...*record.Event) {
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
-		at("red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"), Problem: proto.String("p"),
+		at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 	}
@@ -63,7 +63,8 @@ func TestDispatchNextRecordsThePartiesItNames(t *testing.T) {
 	}
 }
 
-// At impasse the verb dockets the gap for the bench and names only the bench.
+// At impasse the verb dockets the gap and names its two parties, readied for their closings on it
+// with no gap engaged; the bench is convened once neither closing is awaited.
 func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	runDir := newRun(t)
 	n := 100
@@ -91,8 +92,9 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		t.Fatalf("dispatch next: %v\n%s", err, out)
 	}
 	plan := planOf(t, out)
-	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
-		t.Fatalf("plan = %+v, want G1 docketed and the bench alone engaged", plan)
+	if len(plan.Docket) != 1 || plan.Docket[0] != "G1" || len(plan.Parties) != 2 ||
+		plan.Parties[0].SeatID != "red-lens-evidence" || plan.Parties[1].SeatID != "blue-respond" || len(plan.Parties[0].GapIDs)+len(plan.Parties[1].GapIDs) != 0 {
+		t.Fatalf("plan = %+v, want G1 docketed and its parties readied for their closings, engaged on no gap", plan)
 	}
 	motions, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
 	if len(motions) != 1 {
@@ -110,12 +112,14 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	if !slices.Contains(plan.Blockers, filed) {
 		t.Errorf("blockers = %+v, want the docket motion the verb filed among them: %+v", plan.Blockers, filed)
 	}
-	if want := []record.ExchangeCount{{GapID: "G1", Count: 2, Unresolved: 2}}; !slices.Equal(plan.Exchanges, want) {
-		t.Errorf("exchanges = %+v, want %+v — the docketed gap's count, on the bench's party", plan.Exchanges, want)
+	// NO PARTY IS ENGAGED ON THE DOCKETED GAP: its parties sit for their closings, which are not
+	// exchanges on it, and the bench is not convened yet — so the plan counts no exchange for it.
+	if len(plan.Exchanges) != 0 {
+		t.Errorf("exchanges = %+v, want none — no party of this plan is engaged on a gap", plan.Exchanges)
 	}
 	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
-	// relays the plan it asks for last — the bench is still the only party, no second motion is
-	// filed, and no second dispatch row is written.
+	// relays the plan it asks for last — its parties are the same two, no second motion is filed,
+	// and no second dispatch row is written.
 	rows, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	out2, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
 	if err != nil {
@@ -124,7 +128,7 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	plan2 := planOf(t, out2)
 	motions, _, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
 	rows2, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
-	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 1 || len(rows2) != len(rows) {
+	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 2 || len(rows2) != len(rows) {
 		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
 	}
 	if !slices.Equal(plan2.Blockers, plan.Blockers) || !slices.Equal(plan2.Exchanges, plan.Exchanges) {
@@ -189,37 +193,24 @@ func TestDispatchNextRecordsOncePerSittingAndRefusesAnUnopenedOne(t *testing.T) 
 	}
 }
 
-// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6). A chair that asked for the prose and
-// never for the machine form held no plan object, composed one from the envelope's schema, and its
-// relay ended the run. The object under the prose form's `relay` line is the one `--json` answers
-// with as `result`, field for field — for a plan with parties and for the empty plan that ends a
-// run — so neither form leaves the chair a plan to build.
+// THE PROSE FORM CARRIES THE RELAY (m16, chair sitting 6), AND THE MACHINE FORM IS THE RELAY. A
+// chair that asked for the prose and never for the machine form held no plan object, composed one
+// from the envelope's schema, and its relay ended the run; a chair that lifted the plan out of an
+// ok envelope's `result` nested it under `plan` about one sitting in five (m26-m30). The line
+// under the prose form's `relay` and the whole of what `--json` prints are the same bytes — for a
+// plan with parties and for the empty plan that ends a run — so neither form leaves the chair a
+// plan to build or to unwrap.
 func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
-	relayOf := func(t *testing.T, prose string) any {
+	relayLine := func(t *testing.T, prose string) string {
 		t.Helper()
 		lines := strings.Split(prose, "\n")
 		for i, l := range lines {
 			if strings.HasPrefix(l, "relay — ") && i+1 < len(lines) {
-				var v any
-				if err := json.Unmarshal([]byte(lines[i+1]), &v); err != nil {
-					t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, lines[i+1])
-				}
-				return v
+				return lines[i+1]
 			}
 		}
 		t.Fatalf("the prose form prints no relay — the chair is left to compose the plan:\n%s", prose)
-		return nil
-	}
-	resultOf := func(t *testing.T, out string) any {
-		t.Helper()
-		var env struct {
-			OK     bool `json:"ok"`
-			Result any  `json:"result"`
-		}
-		if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-			t.Fatalf("the machine form is not an ok envelope with a result: %v\n%s", err, out)
-		}
-		return env.Result
+		return ""
 	}
 	check := func(t *testing.T, runDir string, wantParties int) {
 		t.Helper()
@@ -231,12 +222,15 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 		if err != nil {
 			t.Fatalf("dispatch next --json: %v\n%s", err, out)
 		}
-		relay, result := relayOf(t, prose), resultOf(t, out)
-		a, _ := json.Marshal(relay)
-		b, _ := json.Marshal(result)
-		if string(a) != string(b) {
-			t.Errorf("the prose form's relay is not the machine form's result:\n relay  %s\n result %s", a, b)
+		a, machine := relayLine(t, prose), strings.TrimSpace(out)
+		if a != machine {
+			t.Errorf("the prose form's relay is not what the machine form prints:\n relay   %s\n machine %s", a, machine)
 		}
+		var relay any
+		if err := json.Unmarshal([]byte(a), &relay); err != nil {
+			t.Fatalf("the line under `relay` is not one JSON object: %v\n%s", err, a)
+		}
+		_ = planOf(t, out)
 		parties, _ := relay.(map[string]any)["parties"].([]any)
 		if len(parties) != wantParties {
 			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
@@ -261,15 +255,19 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 	})
 }
 
-// planOf reads the verb's plan out of the seat envelope every JSON verb answers in.
+// planOf reads the plan `dispatch next --json` prints: the plan object alone, one line, carrying
+// no key record.Plan does not declare — an envelope around it (`result`, `ok`, `plan`) is the shape
+// the chair would have to unwrap, and is refused here.
 func planOf(t *testing.T, out string) record.Plan {
 	t.Helper()
-	var env struct {
-		OK     bool        `json:"ok"`
-		Result record.Plan `json:"result"`
+	if n := strings.Count(strings.TrimSpace(out), "\n"); n != 0 {
+		t.Fatalf("the machine form is %d lines, want the plan as one: %s", n+1, out)
 	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK {
-		t.Fatalf("the plan is not an ok envelope: %v\n%s", err, out)
+	dec := json.NewDecoder(strings.NewReader(out))
+	dec.DisallowUnknownFields()
+	var plan record.Plan
+	if err := dec.Decode(&plan); err != nil {
+		t.Fatalf("the machine form is not the plan alone: %v\n%s", err, out)
 	}
-	return env.Result
+	return plan
 }

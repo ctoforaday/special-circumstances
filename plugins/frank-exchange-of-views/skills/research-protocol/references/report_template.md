@@ -102,7 +102,10 @@
 
 # docket.md — the board
 
-## The board                             <!-- [RECORD] open gaps with grades + the closure index; then the lens findings
+## The board                             <!-- [RECORD] open gaps with grades, red's argument for each, its required fix and
+                                              acceptance check; the closure index, each closed gap with the same three and
+                                              the closing lens's attestation (what it found, who verified, with what,
+                                              against what) or the bench's ruling that closed it; then the lens findings
                                               credited by no gap's found_by — red's leaf audit the chair weighed and did
                                               not mint. A finding is addressed by COALESCENCE and nothing else since #327
                                               retired observe/dispose. Then red's spot-checks — the stale areas
@@ -124,22 +127,41 @@
 
 ## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
                                               its latest fate's reason and method, the PATH its status took epoch
-                                              by epoch, the seat that last recorded its fate and red's ruling; then the inquiries
-                                              still awaiting a decision. The same rendering a seat reads through the
-                                              tool. report.md carries only each inquiry's latest fate, method and
-                                              reason; this is where how it got there lives. Omitted when the run
+                                              by epoch with each earlier record's own reason and method, the seat
+                                              that last recorded its fate and red's ruling; then the inquiries
+                                              still awaiting a decision. The rendering a seat reads through the
+                                              tool, with the earlier records' reasons and methods added. report.md
+                                              carries only each inquiry's latest fate, method and reason; this is
+                                              where how it got there lives. Omitted when the run
                                               recorded no inquiry. -->
 
-# evidence.md — the computations
+## Inquiry reviews                       <!-- [RECORD] each of the chair's reads of the report against the inquiries, in
+                                              record order, with the epoch it was made in and its reason quoted whole:
+                                              the chair's account of where the body delivers each inquiry's research.
+                                              An attestation of the read, not a verdict on an inquiry — a shortfall is
+                                              a gap about the inquiry, on the board. Not in the view a seat reads.
+                                              Omitted when the chair recorded no review. -->
+
+# evidence.md — the computations and the citations
 
 ## Proofs                                <!-- [RECORD] every proof on the record, with its script, output, sha256 and red's
                                               independent re-run. Numbered RUN-WIDE, so P3 is the same computation in every
                                               document that cites it. A proof no document references is still shown, and
                                               said to be unreferenced. -->
 
+## Citations                             <!-- [RECORD] every source the report cites, red's corroborations among them, with
+                                              the sentence it backs and every reading of it: the seat and epoch, the
+                                              outcome, the confidence and what was read, and the sentence read against
+                                              when it is not the one the source now backs. A source no reading checked is
+                                              said to be unread. Then red's readings of sources the report does not cite. -->
+
 # run.md — how the machinery behaved
 
-## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
+## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration. Then the
+                                              build, hook and route to the run directory each seat registered with, in
+                                              one line when every registration agrees, with each one that differs named,
+                                              and setup's account of the installed hooks beside them -->
+
 
 ## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
 
@@ -158,3 +180,7 @@
 
 ## Superseded bench statements           <!-- [RECORD] the certifications the terminal one replaced. A bench that certifies
                                               twice has CHANGED its statement, not made two asks. -->
+
+## Edits to the report                   <!-- [RECORD] every edit blue recorded, in record order, grouped by the sitting that
+                                              made it: the gap it answers, blue's reason, and the span it replaced beside
+                                              the text that replaced it. Omitted when the record holds no edit. -->

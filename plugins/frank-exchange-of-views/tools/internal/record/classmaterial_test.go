@@ -1,9 +1,6 @@
 package record
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,16 +10,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// liveRegistryRun is a run whose registry stages these classes with these defaults, with a lens
-// registered to mint through the real write path — the path that stamps class_material.
-func liveRegistryRun(t *testing.T, defaults map[string]recordpb.ClassMaterial) (Run, Identity) {
+// liveRun is a run with a lens registered to mint through the real write path — the path that
+// stamps class_material from the class's material default.
+func liveRun(t *testing.T) (Run, Identity) {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	writeRunConfig(t, dir, `{"mintBudget":50}`)
 	run := mustRun(t, dir)
-	if err := StageForRunWithDefaults(run, defaults); err != nil {
-		t.Fatal(err)
-	}
 	lens := Identity{Run: run, SeatID: evLens}
 	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 		t.Fatal(err)
@@ -30,8 +24,8 @@ func liveRegistryRun(t *testing.T, defaults map[string]recordpb.ClassMaterial) (
 	return run, lens
 }
 
-func liveMint(id, class string, sev recordpb.Grade) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(id), Class: proto.String(class), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+func liveMint(id string, class recordpb.GapClass, sev recordpb.Grade) *recordpb.Mint {
+	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: class.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(sev),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 }
@@ -80,11 +74,11 @@ func appendOK(t *testing.T, id Identity, body proto.Message) {
 // A claim-class defect changes what a reader concludes whatever it is graded, so a LOW gap of an
 // `always` class is material.
 func TestMaterialAlwaysHoldsLowGrade(t *testing.T) {
-	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"claimy": recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS})
-	appendOK(t, lens, liveMint("G1", "claimy", recordpb.Grade_GRADE_LOW))
+	run, lens := liveRun(t)
+	appendOK(t, lens, liveMint("G1", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW))
 	g := familyGaps(t, run)["G1"]
 	if g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
-		t.Errorf("the mint was stamped %v, want the registry's always", g.Mint.GetClassMaterial())
+		t.Errorf("the mint was stamped %v, want false_universal's always", g.Mint.GetClassMaterial())
 	}
 	if !viewMaterial(t, run)["G1"] {
 		t.Error("a low gap of an always class must be material, and the gap view says it is not")
@@ -93,8 +87,8 @@ func TestMaterialAlwaysHoldsLowGrade(t *testing.T) {
 
 // A template-shape defect changes no conclusion, so even a HIGH gap of a `never` class is not.
 func TestMaterialNeverReleasesHighGrade(t *testing.T) {
-	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"shapey": recordpb.ClassMaterial_CLASS_MATERIAL_NEVER})
-	appendOK(t, lens, liveMint("G1", "shapey", recordpb.Grade_GRADE_HIGH))
+	run, lens := liveRun(t)
+	appendOK(t, lens, liveMint("G1", recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.Grade_GRADE_HIGH))
 	if viewMaterial(t, run)["G1"] {
 		t.Error("a high gap of a never class must not be material, and the gap view says it is")
 	}
@@ -103,21 +97,18 @@ func TestMaterialNeverReleasesHighGrade(t *testing.T) {
 // THE GAP VIEW STATES MATERIALITY, gap by gap, over every class default and the grades either side
 // of the by-grade floor — and on a regrade, because materiality reads the grade NOW.
 func TestTheGapViewStatesMaterialAcrossTheFloor(t *testing.T) {
-	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{
-		"a": recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS,
-		"n": recordpb.ClassMaterial_CLASS_MATERIAL_NEVER,
-		"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE,
-	})
+	run, lens := liveRun(t)
+	a, nv, g := recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.GapClass_GAP_CLASS_STRUCTURE_NONCOMPLIANCE, recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION
 	want := map[string]bool{}
 	n := 0
 	for _, c := range []struct {
-		class string
+		class recordpb.GapClass
 		sev   recordpb.Grade
 		want  bool
 	}{
-		{"a", recordpb.Grade_GRADE_TRIVIAL, true}, {"a", recordpb.Grade_GRADE_MEDIUM, true}, {"a", recordpb.Grade_GRADE_HIGH, true},
-		{"n", recordpb.Grade_GRADE_TRIVIAL, false}, {"n", recordpb.Grade_GRADE_MEDIUM, false}, {"n", recordpb.Grade_GRADE_CERTAIN, false},
-		{"g", recordpb.Grade_GRADE_LOW_MEDIUM, false}, {"g", recordpb.Grade_GRADE_MEDIUM, true}, {"g", recordpb.Grade_GRADE_HIGH, true},
+		{a, recordpb.Grade_GRADE_TRIVIAL, true}, {a, recordpb.Grade_GRADE_MEDIUM, true}, {a, recordpb.Grade_GRADE_HIGH, true},
+		{nv, recordpb.Grade_GRADE_TRIVIAL, false}, {nv, recordpb.Grade_GRADE_MEDIUM, false}, {nv, recordpb.Grade_GRADE_CERTAIN, false},
+		{g, recordpb.Grade_GRADE_LOW_MEDIUM, false}, {g, recordpb.Grade_GRADE_MEDIUM, true}, {g, recordpb.Grade_GRADE_HIGH, true},
 	} {
 		n++
 		id := "G" + string(rune('0'+n))
@@ -137,83 +128,18 @@ func TestTheGapViewStatesMaterialAcrossTheFloor(t *testing.T) {
 	}
 }
 
-// A hand-built run's registry is `by_grade` throughout, so every existing caller keeps the
-// materiality its grade alone gave it.
-func TestStageForRunWritesByGrade(t *testing.T) {
-	dir := recordtest.TmpRun(t)
-	run := mustRun(t, dir)
-	if err := StageForRun(run, "a", "b", "a"); err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(filepath.Join(run.Records(), "class-registry.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var reg struct {
-		Classes []struct {
-			Slug            string  `json:"slug"`
-			MaterialDefault *string `json:"material_default"`
-		} `json:"classes"`
-	}
-	if err := json.Unmarshal(b, &reg); err != nil {
-		t.Fatal(err)
-	}
-	if len(reg.Classes) != 2 {
-		t.Fatalf("staged %d rows, want a and b once each: %s", len(reg.Classes), b)
-	}
-	for _, c := range reg.Classes {
-		if c.MaterialDefault == nil || *c.MaterialDefault != "by_grade" {
-			t.Errorf("row %s: material_default %v, want by_grade", c.Slug, c.MaterialDefault)
-		}
-	}
-	lens := Identity{Run: run, SeatID: evLens}
-	if _, _, err := RegisterSeat(lens, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	appendOK(t, lens, liveMint("G1", "a", recordpb.Grade_GRADE_LOW))
-	if got := familyGaps(t, run)["G1"].Mint.GetClassMaterial(); got != recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE {
-		t.Errorf("a mint of a StageForRun class was stamped %v, want by_grade", got)
-	}
-}
-
-// A class the run coins carries its default on the record, and a mint of it is stamped from there.
-func TestClassNewCarriesMaterialDefault(t *testing.T) {
-	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
-	coin := func(slug string, md *recordpb.ClassMaterial) *recordpb.ClassNew {
-		return &recordpb.ClassNew{Slug: proto.String(slug), Definition: proto.String("d"), Neighbor: proto.String("g"),
-			Distinguisher: proto.String("x"), MaterialDefault: md}
-	}
-	if _, err := Append(lens, coin("undeclared", nil)); err == nil || !strings.Contains(err.Error(), "--material-default") {
-		t.Fatalf("a coining with no material default landed: %v", err)
-	}
-	appendOK(t, lens, coin("coined", recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()))
-	db, err := openRunForRead(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var word string
-	if err := db.QueryRow(`SELECT "material_default" FROM "class_new" WHERE "slug" = 'coined'`).Scan(&word); err != nil || word != "always" {
-		t.Fatalf("class_new.material_default = %q (%v), want always", word, err)
-	}
-	appendOK(t, lens, liveMint("G1", "coined", recordpb.Grade_GRADE_LOW))
-	g := familyGaps(t, run)["G1"]
-	if g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS || !g.Material {
-		t.Errorf("a mint of a coined always class: stamped %v, material %v", g.Mint.GetClassMaterial(), g.Material)
-	}
-}
-
 // NO SEAT SETS IT. A lens that could choose its gap's materiality could mint every gap harmless;
 // a migration's source is the record, so an archived value is kept as recorded.
 func TestMintRefusesPresetClassMaterial(t *testing.T) {
-	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
-	m := liveMint("G1", "g", recordpb.Grade_GRADE_HIGH)
+	run, lens := liveRun(t)
+	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
 	m.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_NEVER.Enum()
 	if _, err := Append(lens, m); err == nil || !strings.Contains(err.Error(), "stamped by the tool") {
 		t.Fatalf("a mint arriving with class_material set landed outside a migration: %v", err)
 	}
 	Migrating = true
 	defer func() { Migrating = false }()
-	m2 := liveMint("G2", "g", recordpb.Grade_GRADE_HIGH)
+	m2 := liveMint("G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_HIGH)
 	m2.ClassMaterial = recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()
 	appendOK(t, lens, m2)
 	if got := familyGaps(t, run)["G2"].Mint.GetClassMaterial(); got != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
@@ -223,8 +149,8 @@ func TestMintRefusesPresetClassMaterial(t *testing.T) {
 
 // The refusal a lens meets when it mints ungraded names what severity now decides.
 func TestSeverityRefusalWhyIsClassAware(t *testing.T) {
-	_, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
-	m := liveMint("G1", "g", recordpb.Grade_GRADE_LOW)
+	_, lens := liveRun(t)
+	m := liveMint("G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION, recordpb.Grade_GRADE_LOW)
 	m.Severity = nil
 	_, err := Append(lens, m)
 	if err == nil || !strings.Contains(err.Error(), "--severity") ||
@@ -233,55 +159,19 @@ func TestSeverityRefusalWhyIsClassAware(t *testing.T) {
 	}
 }
 
-// A CURRENT run's staged registry altered after setup is refused naming the file and the slug. It
-// says nothing about migrate: a current run has nothing to migrate, and the remedy is the row.
-func TestLoadRegistryRefusalNamesRegistryNotMigrate(t *testing.T) {
-	for _, c := range []struct{ name, body, names string }{
-		{"missing", `{"classes":[{"slug":"g"}]}`, "no material_default"},
-		{"unknown", `{"classes":[{"slug":"g","material_default":"sometimes"}]}`, `"sometimes"`},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"g": recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE})
-			p := filepath.Join(run.Records(), "class-registry.json")
-			if err := os.WriteFile(p, []byte(c.body), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			_, err := Append(lens, liveMint("G1", "g", recordpb.Grade_GRADE_LOW))
-			if err == nil {
-				t.Fatal("a mint against an altered registry landed")
-			}
-			for _, want := range []string{p, `"g"`, c.names, "changed since"} {
-				if !strings.Contains(err.Error(), want) {
-					t.Errorf("the refusal must name %q: %v", want, err)
-				}
-			}
-			if strings.Contains(err.Error(), "migrate") {
-				t.Errorf("a current run's registry refusal must not send the seat to migrate: %v", err)
-			}
-		})
-	}
-}
-
-// A PRE-CHANGE RUN — its database and its staged registry both written before the field — is
-// refused at the first write, naming what the database lacks and `migrate`.
-func TestPreChangeRegistryRefusedNamingMigrate(t *testing.T) {
+// A PRE-CHANGE RUN — its database written before the field — is refused at the first write, naming
+// what the database lacks and `migrate`.
+func TestPreChangeRunRefusedNamingMigrate(t *testing.T) {
 	dir := recordtest.ExtractArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
-	b, err := os.ReadFile(filepath.Join(dir, "records", "class-registry.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(b), "material_default") {
-		t.Fatal("fixture: the archived registry already carries material_default, so it is not a pre-change run")
-	}
 	run, err := NewRun(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = Append(Identity{Run: run, SeatID: evLens}, liveMint("G99", "false-universal", recordpb.Grade_GRADE_LOW))
+	_, err = Append(Identity{Run: run, SeatID: evLens}, liveMint("G99", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL, recordpb.Grade_GRADE_LOW))
 	if err == nil {
 		t.Fatal("a mint into a pre-change run landed")
 	}
-	for _, want := range []string{`"mint" table has no "class_material" column`, "migrate"} {
+	for _, want := range []string{`"mint" table has no "class_material" column`, "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q: %v", want, err)
 		}

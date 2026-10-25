@@ -37,8 +37,8 @@ func TestFindingByKeyIsIdempotent(t *testing.T) {
 	seat := "red-lens-evidence"
 
 	// No prior finding under this key.
-	if got, err := FindingByKey(mustRun(t, runDir), seat, "F1"); err != nil || got != "" {
-		t.Fatalf("empty run: got %q, %v; want \"\"", got, err)
+	if got, err := FindingByKey(mustRun(t, runDir), seat, "F1"); err != nil || got.GetId() != "" {
+		t.Fatalf("empty run: got %q, %v; want \"\"", got.GetId(), err)
 	}
 
 	// Record one under key F1 with id F-f0000001.
@@ -46,22 +46,22 @@ func TestFindingByKeyIsIdempotent(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seat}, f); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := FindingByKey(mustRun(t, runDir), seat, "F1"); got != "F-f0000001" {
-		t.Errorf("retry lookup = %q, want F-f0000001", got)
+	if got, _ := FindingByKey(mustRun(t, runDir), seat, "F1"); got.GetId() != "F-f0000001" {
+		t.Errorf("retry lookup = %q, want F-f0000001", got.GetId())
 	}
 	// A different key on the same seat, and the same key on a different seat, do not match.
-	if got, _ := FindingByKey(mustRun(t, runDir), seat, "F2"); got != "" {
-		t.Errorf("unrelated key matched: %q", got)
+	if got, _ := FindingByKey(mustRun(t, runDir), seat, "F2"); got.GetId() != "" {
+		t.Errorf("unrelated key matched: %q", got.GetId())
 	}
-	if got, _ := FindingByKey(mustRun(t, runDir), "red-lens-adversary", "F1"); got != "" {
-		t.Errorf("another seat's key matched: %q", got)
+	if got, _ := FindingByKey(mustRun(t, runDir), "red-lens-adversary", "F1"); got.GetId() != "" {
+		t.Errorf("another seat's key matched: %q", got.GetId())
 	}
 	// No key names no finding: a finding recorded without one is never the answer to a keyless retry.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seat}, &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("y")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := FindingByKey(mustRun(t, runDir), seat, ""); err != nil || got != "" {
-		t.Errorf("the empty key matched: (%q, %v)", got, err)
+	if got, err := FindingByKey(mustRun(t, runDir), seat, ""); err != nil || got.GetId() != "" {
+		t.Errorf("the empty key matched: (%q, %v)", got.GetId(), err)
 	}
 }
 

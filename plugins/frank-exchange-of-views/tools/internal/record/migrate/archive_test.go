@@ -14,6 +14,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -71,15 +73,20 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 		outTotal += n
 	}
 	// 813 in + 17 synthesized docket motions + the synthesized cast, LESS the 10 entries that
-	// asserted a clean sitting and the 10 revisions. Both types are retired — clean is derived from
-	// a bracketed sitting that filed nothing, and a sitting's change is its edits — so those rows
-	// carry forward as an absence, the two places in this arithmetic where an old event
-	// legitimately produces none. PLUS one Anchor for each of the 43 placed citations and 6
+	// asserted a clean sitting, the 10 revisions and the 4 coinings. The three types are retired —
+	// clean is derived from a bracketed sitting that filed nothing, a sitting's change is its edits,
+	// and a gap's class is a value of the closed set — so those rows carry forward as an absence,
+	// the three places in this arithmetic where an old event legitimately produces none — and the
+	// terminal judge's outcome, which the assembly sitting's later outcome superseded (outcomes.go):
+	// the record holds one outcome. PLUS one Anchor for each of the 43 placed citations and 6
 	// corroborations, whose markers the report read off the acts themselves, PLUS the one reproduce
-	// carried to a second proof on the script it re-ran (24 reproduces fan out to 25 anchors).
-	if outTotal != 861 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
+	// carried to a second proof on the script it re-ran (24 reproduces fan out to 25 anchors), LESS
+	// the 19 closings and the 10 positions the write refuses — every closing is the chair's or blue's
+	// on a gap no docket motion stood on, and every position but the chair's five is blue's or a
+	// lane's — written as none (epoch 38).
+	if outTotal != 827 || res.In["outcome"] != 2 || res.Out["outcome"] != 1 || res.In["closing"] != 19 || res.Out["closing"] != 0 || res.In["position"] != 15 || res.Out["position"] != 5 || res.In["class_new"] != 4 || res.Out["class_new"] != 0 || res.In["reproduce"] != 24 || res.Out["reproduce"] != 25 || res.In["revision"] != 10 || res.Out["revision"] != 0 ||
 		res.GapAnchors.Shapes["cite"] != 43 || res.GapAnchors.Shapes["verify"] != 6 {
-		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions + 49 anchors + 1 fanned reproduce = 861 out; got %d (%v), anchors added %v", outTotal, res.Out, res.GapAnchors.Shapes)
+		t.Fatalf("813 in + 17 docket motions + the cast - 10 retired clean entries - 10 revisions - 4 coinings - 1 superseded outcome + 49 anchors + 1 fanned reproduce - 19 closings - 10 positions = 827 out; got %d (%v), anchors added %v", outTotal, res.Out, res.GapAnchors.Shapes)
 	}
 	if res.Out["log"] != 35 || res.Out["motion"] != res.In["motion"]+17 || res.Out["motion_rule"] != res.In["motion_rule"]+17 {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)
@@ -96,6 +103,26 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 		t.Errorf("family holds %d events, want the %d migrated", len(fam.Events), outTotal)
 	}
 	assertRoundless(t, fam)
+	// No archived act recorded whose bytes it read: every cite and verification carries not_recorded,
+	// and none a copy url.
+	copies := map[string]int{}
+	for _, e := range fam.Events {
+		if c := e.GetCite(); c != nil {
+			if c.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED || c.CopyUrl != nil {
+				t.Errorf("a migrated cite carries copy %v %q", c.GetCopySubstitution(), c.GetCopyUrl())
+			}
+			copies["cite"]++
+		}
+		if v := e.GetVerify(); v != nil {
+			if v.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED || v.CopyUrl != nil {
+				t.Errorf("a migrated verification carries copy %v %q", v.GetCopySubstitution(), v.GetCopyUrl())
+			}
+			copies["verify"]++
+		}
+	}
+	if copies["cite"] == 0 || copies["verify"] == 0 {
+		t.Errorf("the archive's cites and verifications were not read: %v", copies)
+	}
 	gapIDs := 0
 	for _, id := range res.IDs {
 		if strings.HasPrefix(id, "G-") {
@@ -141,7 +168,7 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 
 // migratedID is the id a migration gives an archived id that kept no hex of its own: the kind's
 // letter, then the first eight hex of sha256(source hash ‖ archived id).
-func migratedID(res *migrate.Manifest, letter, archived string) string {
+func migratedID(res *migration.Manifest, letter, archived string) string {
 	sum := sha256.Sum256([]byte(res.SourceHash + archived))
 	return fmt.Sprintf("%s-%x", letter, sum[:4])
 }

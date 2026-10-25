@@ -90,7 +90,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
-	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label:      proto.String("C-00000001"),
 		Url:        proto.String("https://ex/coherence"),
 		Sha256:     proto.String("deadbeef"),
@@ -232,5 +232,46 @@ func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *test
 	}
 	if strings.Contains(got, "- The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
 		t.Errorf("the work is marked abstract-only though another citation's copy may have been the paper:\n%s", got)
+	}
+}
+
+// A CITATION WHOSE BYTES ARE NOT ITS URL'S OWN SAYS WHERE THEY WERE READ, in the note and in the
+// Bibliography, for the reason a retraction prints in both. The url is what a reader follows and
+// it is not what was read. The url's own bytes, and a citation from before the field, print nothing.
+func TestASubstitutedCopyIsNamedInBothTheNoteAndTheBibliography(t *testing.T) {
+	sources := []record.Source{
+		{Label: "C-00000001", URL: "https://ex/landing", Title: "Followed", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK, CopyURL: "https://ex/landing/full"},
+		{Label: "C-00000002", URL: "https://ex/refused", Title: "Recovered", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://web.archive.org/web/2019id_/https://ex/refused"},
+		{Label: "C-00000003", URL: "https://ex/abs", Title: "Fuller", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY, CopyURL: "https://repo.example/open.pdf"},
+		{Label: "C-00000004", URL: "https://ex/named", Title: "Named", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND, CopyURL: "https://arxiv.org/pdf/2101.00001"},
+		{Label: "C-00000005", URL: "https://ex/statement", Title: "Statement", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED},
+		{Label: "C-00000006", URL: "https://ex/own", Title: "Own", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE},
+		{Label: "C-00000007", URL: "https://ex/old", Title: "Old", AccessDate: "2026-08-03",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+	}
+	got := weaveCitations("1<!--cite:C-00000001-->. 2<!--cite:C-00000002-->. 3<!--cite:C-00000003-->. "+
+		"4<!--cite:C-00000004-->. 5<!--cite:C-00000005-->. 6<!--cite:C-00000006-->. 7<!--cite:C-00000007-->.", sources)
+	for _, want := range []string{
+		"[^1]: Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
+		"- Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
+		"[^2]: Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
+		"- Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
+		"[^3]: Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
+		"- Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
+		"[^4]: Named. https://ex/named (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://arxiv.org/pdf/2101.00001]**",
+		"[^5]: Statement. https://ex/statement (accessed 2026-08-03) **[NO DOCUMENT READ]**",
+		"[^6]: Own. https://ex/own (accessed 2026-08-03)\n",
+		"- Own. https://ex/own (accessed 2026-08-03)\n",
+		"[^7]: Old. https://ex/old (accessed 2026-08-03)\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
 	}
 }

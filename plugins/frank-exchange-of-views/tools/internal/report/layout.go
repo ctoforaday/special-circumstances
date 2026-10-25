@@ -159,7 +159,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
-		Path:    "Blue's and the chair's `position` and `closing`, the chair's `verdict` and `spot-check`, and the bench's rulings and `certify`.",
+		Path:    "The chair's `position`, `verdict` and `spot-check`, the lens's and blue's `closing` on a docketed gap, a lens's `regrade` that keeps a gap's grade, and the bench's rulings and `certify`.",
 		compose: func(a *assembly, _ Section) string { return debate(a.fam) }},
 	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the motions on the record, each with its ruling",
@@ -170,11 +170,15 @@ var layout = []Section{
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
+	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
+		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
+		Path: "Blue's `cite` records a citation, a lens's `verify` a reading of it, and a lens's `corroborate` a source of its own."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
 	// what answered each seat, measured from the seat's own trajectory (#589).
 	{File: FileRun, Heading: "How this run was conducted", Composer: Tool,
-		From:    "what answered each seat, measured from the seat's own trajectory",
-		Path:    noSeatPath + " A seat reads the run's configuration and never what replied to it, so no seat holds this fact.",
+		From: "what answered each seat, measured from the seat's own trajectory, and the build, hook and route to the run directory each seat registered with, beside the hooks setup found installed",
+		Path: "No seat writes it. A seat reads the run's configuration and never what replied to it, so no seat holds the model; " +
+			"the build, the hook and the route are what the engine observed at each seat's `register`, and the seat types none of them.",
 		compose: func(a *assembly, _ Section) string { return conduct(a.run, a.fam) }},
 	// THE ONLY PLACE ANY VERDICT'S GLOSS LIVES, for every outcome and for none: report.md carries
 	// the stamp and its basis as state, and every sentence explaining either is here.
@@ -200,6 +204,10 @@ var layout = []Section{
 		From:    "the bench's statements that a later one replaced",
 		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
 		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam.Events) }},
+	{File: FileChangelog, Heading: "Edits to the report", Composer: Tool,
+		From:    "the edits on the record, grouped by the sitting that made each: the gap it answers, blue's reason, and the span it replaced beside the text that replaced it",
+		Path:    "Blue's `edit`, which records the span it replaces, the new text and why.",
+		compose: func(a *assembly, _ Section) string { return editHistory(a.fam) }},
 }
 
 // The inquiry sections' From and Path are written from each row's own fate, so the sentence a seat
@@ -326,12 +334,13 @@ func headingKey(trimmed string) (string, bool) {
 	return normalizeHeading(strings.TrimPrefix(trimmed, "## ")), true
 }
 
-// noteRef is a footnote reference, as the weave writes one where a citation or proof anchor stood.
-var noteRef = regexp.MustCompile(`\[\^[^\]]+\]`)
-
-// normalizeHeading folds a heading to its comparison key.
+// normalizeHeading folds a heading to its comparison key. The note references are read as text
+// (noteRefsIn): a heading is read one line at a time, with no definition in reach to resolve them.
 func normalizeHeading(h string) string {
-	h = noteRef.ReplaceAllString(anchor.Replace(h, func(string, string) string { return "" }), "")
+	h = anchor.Replace(h, func(string, string) string { return "" })
+	for _, sp := range slices.Backward(noteRefsIn(h)) {
+		h = h[:sp[0]] + h[sp[1]:]
+	}
 	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
 	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
 }

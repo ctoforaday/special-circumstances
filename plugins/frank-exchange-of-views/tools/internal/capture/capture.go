@@ -6,7 +6,7 @@
 //
 // The record-backed audits (telemetry, record-parity) read the record IN-PROCESS, never by
 // spawning `chair show`. A seat's log entries are on the record and nowhere else, so no audit
-// here reconciles a second copy of them: the log is read with `show log`.
+// here reconciles a second copy of them: the log is read with `ops log`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
 // promote nothing, indistinguishably from a run with nothing to promote.
@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -138,11 +139,14 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 		// detail carries the read error so the operator sees what could not be read.
 		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — the record could not be read: " + err.Error()}
 	}
-	l := record.Assess(run, now, verdict != "")
 	if verdict != "" {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
 			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
 	}
+	// THE RECORD'S ACTIVITY, NOT THE RUN'S DISPOSITION: this audit runs before capture writes the
+	// mark that ends the run, and again on a run captured before, and either way it asks whether the
+	// record stopped moving before anyone captured it.
+	l := record.AssessActivity(run, now)
 	switch l.State {
 	case record.StateStale:
 		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
@@ -379,53 +383,52 @@ func AssemblyScreen(run record.Run) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
 
-	// THE WHOLE SET, not report.md. A refuted source cited in the debate transcript points the
-	// reader at rejected evidence exactly as one in the analysis does, and a screen that reads
-	// a seventh of the deliverable reports the other six as clean.
-	var assembled strings.Builder
+	// THE SCREEN NEEDS THE DELIVERABLE: before assembly there is nothing a reader is pointed at,
+	// and saying so beats a PASS that means "the file I was looking for was not there".
+	assembled := false
 	for _, name := range reportdoc.Files() {
-		body, rerr := os.ReadFile(filepath.Join(run.Dir(), name))
-		if rerr != nil {
-			continue
+		if body, rerr := os.ReadFile(filepath.Join(run.Dir(), name)); rerr == nil && len(body) > 0 {
+			assembled = true
+			break
 		}
-		assembled.Write(body)
 	}
-	if assembled.Len() == 0 {
-		// Before assembly there is nothing to screen, and saying so beats a PASS that means
-		// "the file I was looking for was not there".
+	if !assembled {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP",
 			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled document yet — the screen runs against the assembled artifact", ev.Counts.Sources)}
 	}
 
-	var carried []string
+	// EACH CITATION BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every anchor
+	// the report carries into a footnote, so a citation still cited is one the record has not
+	// retired — and the ledger that says so is the one that says whether a check of its sentence
+	// stands. A refutation of a sentence blue has since rewritten, and then checked again, is
+	// answered; one standing against the sentence the report carries is not. The url is no key:
+	// two citations of one url back two sentences, and a screen keyed by it failed the run whose
+	// refuted sentence had been fixed and re-verified (m30, C-4f4b8cfa).
+	urlOf := map[string]string{}
 	for _, s := range ev.Sources {
-		found := false
-		for _, v := range s.Verified {
-			if v.Refuted() {
-				found = true
-				break
-			}
-		}
-		if !found {
-			continue
-		}
-		// The assembled report has had its anchors woven into visible footnotes, so the c- id is
-		// screened against the PRE-assembly anchor AND the source's own url, which survives into
-		// the composed bibliography. Either surviving means the reader is still being pointed at
-		// a source red found against.
-		if s.URL != "" && strings.Contains(assembled.String(), s.URL) {
-			carried = append(carried, fmt.Sprintf("%s (%s)", s.Anchor, s.URL))
-		}
+		urlOf[s.Anchor] = s.URL
+	}
+	var carried []string
+	for _, a := range record.CitationsFoundAgainst(fam.Events, fam.At) {
+		carried = append(carried, fmt.Sprintf("%s (%s)", a, urlOf[a]))
 	}
 
 	if len(carried) > 0 {
 		return Audit{Check: "assembly-screen", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d source(s) red found AGAINST are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+			Detail: fmt.Sprintf("%d source(s) red finds AGAINST the sentence the report carries are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
+	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
+	// is the standing set, which a PASS here has just shown empty.
+	ever := 0
+	for _, s := range ev.Sources {
+		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.Refuted) {
+			ever++
+		}
+	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s), %d found against by red (refutes|absent), none still cited in the assembled report; %d cited source(s) nobody has checked",
-			ev.Counts.Sources, ev.Counts.SourcesRefuted, ev.Counts.SourcesUnverified)}
+		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) nobody has checked",
+			ev.Counts.Sources, ever, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----
@@ -537,25 +540,22 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		Detail: "no event shards outside a run directory"}
 }
 
-// RecordParityAudit holds the sittings that owe the record something to the record. A POSITION is
-// owed by the seats record.SeatOwesPosition names — every chair sitting, and every sitting
-// blue-respond took for a dispatch that engaged it on a gap still open when it sat — and the state
-// of each is record.PositionSittings', the reading blue's work list blocks on. The position is the
-// whole of what a sitting owes this audit.
+// RecordParityAudit holds what the record owes the bench to the record: the chair's POSITION at each
+// sitting that withheld a PASS its plan permitted (record.PositionSittings), and each party's CLOSING
+// on each docketing (record.ClosingDuties) — the gap's minting lens and blue-respond.
 //
-// THIS AUDIT IS THE READER THAT REPORTS A POSITION THAT WAS NOT FILED. The transcript prints the
-// positions that were, and gives a sitting that holds none no section.
+// THIS AUDIT IS THE READER THAT REPORTS AN ARGUMENT THAT WAS NOT FILED. The transcript prints the
+// positions and closings that were, and gives a sitting that holds none no section.
 //
-// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT A POSITION IS REPORTED. The chair's work list holds
-// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its
-// position is held by its prompt and by this audit.
+// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED. The chair's work list holds
+// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its position
+// is held by its prompt and by this audit. A party's closing is on its work list as well, as the PASS
+// gate's blocker, and this audit is the after-the-run reading of the same duty.
 //
-// A SITTING THAT FOUND EVERY GAP CLOSED OWES NONE. The lenses sit before blue, so a lens can
-// close a gap between the dispatch and blue's register, and blue then has nothing to answer.
-//
-// PER SITTING, NOT PER EPOCH. Blue sits only when the chair dispatches it, so an epoch count says
-// nothing about what blue owed: B7 had five chair sittings and three blue sittings, and red had
-// closed the gap before blue sat in two of them. "Blue epochs >= red epochs - 1" failed that run.
+// A CLOSING IS SHORT ONLY WHERE ITS PARTY SAT. A party that sat through a sitting opened after the
+// docketing, and before the ruling, and filed none is short. One that never sat in that window —
+// the run ended, or the terminal bench ruled first — had no sitting to file in, and is named, not
+// failed.
 //
 // THE SITTINGS ARE READ AFTER THE RUN (record.AfterTheRun). Capture reads a finished run, so no
 // sitting is still in flight and the end of the record closes every sitting nothing else closed: a
@@ -576,29 +576,35 @@ func RecordParityAudit(run record.Run) Audit {
 // and names it, and a FAIL names it too. Read after the run, no sitting is unresolved.
 func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.ReadWhen) Audit {
 	rows := record.PositionSittings(evs, win, when)
-	if len(rows) == 0 {
-		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no blue sitting for a dispatch on record"}
+	duties := record.ClosingDuties(evs, win)
+	if len(rows) == 0 && len(duties) == 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no docketed gap on record"}
 	}
-	chairs, blues, owed := 0, 0, 0
-	var short, unmeasured []string
+	owed, closings, notOwed := 0, 0, 0
+	var short, unmeasured, unreached []string
 	for _, p := range rows {
-		name := fmt.Sprintf("%s sitting %d ", p.Seat, p.Ordinal)
-		why := "the record cannot close it (" + p.Seat + " has not opened a sitting since and its agent's stop is not on the record)"
-		if s := p.Blue; s != nil {
-			blues++
-			if len(s.Open) > 0 {
-				owed++
-			}
-			name = fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, ", p.Ordinal, strings.Join(s.Open, ", "))
-			why = "the record cannot close it (no sitting of blue's has opened since and its agent's stop is not on the record)"
-		} else {
-			chairs++
-		}
+		name := fmt.Sprintf("red-chair sitting %d, which withheld the PASS its plan permitted, ", p.Ordinal)
 		switch p.State {
+		case record.PositionNotOwed:
+			continue
 		case record.PositionUnresolved:
-			unmeasured = append(unmeasured, fmt.Sprintf("%sshows no position so far — NOT MEASURED: %s", name, why))
+			unmeasured = append(unmeasured, name+"shows no position so far — NOT MEASURED: the record cannot close it (red-chair has not opened a sitting since and its agent's stop is not on the record)")
 		case record.PositionMissing:
 			short = append(short, name+"filed no position")
+		}
+		owed++
+	}
+	for _, d := range duties {
+		name := fmt.Sprintf("%s's closing on %s (docket motion %s)", d.Party, d.GapID, d.Motion)
+		switch d.State {
+		case record.ClosingNotOwed:
+			notOwed++
+		case record.ClosingFiled:
+			closings++
+		case record.ClosingMissing:
+			short = append(short, name+" was not filed, and "+d.Party+" sat since the docketing")
+		case record.ClosingAwaited:
+			unreached = append(unreached, name+": "+d.Party+" sat through no sitting between the docketing and the ruling or the run's end")
 		}
 	}
 	if len(short) > 0 {
@@ -607,9 +613,12 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 	if len(unmeasured) > 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: strings.Join(unmeasured, "; ")}
 	}
-	return Audit{Check: "record-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d chair sitting(s), each with its position; %d blue sitting(s) for a dispatch: %d owed an answer and each carries its position; %d found every gap it was engaged on closed first",
-			chairs, blues, owed, blues-owed)}
+	detail := fmt.Sprintf("%d chair sitting(s), %d of them owing a position for a PASS withheld, each with its position; %d closing(s) owed on docketed gaps, each filed; %d not owed (the gap closed after its docketing, or its minter is no cast lens)",
+		len(rows), owed, closings, notOwed)
+	if len(unreached) > 0 {
+		detail += "; not reached: " + strings.Join(unreached, "; ")
+	}
+	return Audit{Check: "record-parity", Verdict: "PASS", Detail: detail}
 }
 
 // ---- AUDIT 7: back-fill ----
@@ -748,14 +757,21 @@ func BackfillAudit(run record.Run) Audit {
 
 // ---- AUDIT 8: attestation integrity ----
 
-// Claim is one anchored closure (seat|tool|target) spot-checked against tool calls.
+// Claim is one anchored closure (seat|tool|target) spot-checked against the closer's own tool calls.
 type Claim struct {
 	ID, Seat, Tool, Target, Why string
-	// Anchors are the report anchors the closure names as verified with (Close.anchors).
+	// Anchors are the ids the closure names as verified with (Close.anchors).
 	Anchors []string
+	// Agent is the harness id of the agent whose sitting recorded the closure — the agent that opened
+	// the sitting the close event is stored in. "" when the close is in no sitting, or its opening
+	// names no agent.
+	Agent string
+	// Closes are the stamps of every close the closer's sitting recorded: each is a call the audit
+	// does not count, because naming an id in a close is the claim, not the read behind it.
+	Closes []time.Time
 }
 
-// AttestationAudit spot-checks anchored closures against actual tool-call inputs.
+// AttestationAudit holds each anchored closure to the acts of the sitting that made it.
 //
 // IT READS THE RECORD, not red/archive.md. The file was the source until the archive became a
 // rendered projection, and `setup` stopped creating it — so this audit had been reading "" and
@@ -766,10 +782,33 @@ type Claim struct {
 // and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
 // function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
 // Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
+//
+// THE CLOSER'S SITTING, AND NOT THE CLOSE. Each anchor must appear in a call of the closer's own
+// sitting — the transcript of the agent that opened the sitting the close is stored in — that READ
+// it (it came back in the call's result) or NAMED it (it is in the call's input), other than the
+// calls that recorded the sitting's closes. The audit searched every call of every transcript, and
+// the close itself carries every anchor it names, so no anchored closure could fail: m30's
+// G-968365ad named two proofs and reconciled on its own `close --anchor`. A close is located in its
+// sitting's transcript by its stamp, inside the window from the call to its result; a close no
+// call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
+	}
+	byID := map[int64]*record.Event{}
+	closesIn := map[int64][]time.Time{} // sitting → the stamps of the closes recorded in it
+	closeEvent := map[*recordpb.Close]*record.Event{}
+	for _, e := range fam.Events {
+		w := fam.At.Of(e)
+		byID[w.ID] = e
+		if c := e.GetClose(); c != nil {
+			closeEvent[c] = e
+			// An unreadable stamp is kept as the zero time, which sittingReads refuses to measure:
+			// dropped, its close would go uncounted and the close would reconcile itself again.
+			ts, _ := record.ParseStamp(e.GetTs())
+			closesIn[w.SittingID] = append(closesIn[w.SittingID], ts)
+		}
 	}
 	var claims []Claim
 	for _, g := range fam.Gaps {
@@ -782,47 +821,25 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			continue
 		}
 		seat, tool, target := g.Closure.GetAnchorSeat(), g.Closure.GetAnchorTool(), g.Closure.GetAnchorTarget()
-		if seat != "" && tool != "" && target != "" {
-			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target, Anchors: g.Closure.GetAnchors()})
+		if seat == "" || tool == "" || target == "" {
+			continue
 		}
+		c := Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target, Anchors: g.Closure.GetAnchors()}
+		if e := closeEvent[g.Closure]; e != nil {
+			sitting := fam.At.Of(e).SittingID
+			if opener := byID[sitting]; opener != nil {
+				c.Agent = recordpb.AgentOpening(opener)
+			}
+			c.Closes = closesIn[sitting]
+		}
+		claims = append(claims, c)
 	}
 	if len(claims) == 0 {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "no anchored closures (all carried, or anchors absent)"}
 	}
-	var calls []string // JSON.stringify(input) of every tool call
+	pathOf := map[string]string{}
 	for _, tr := range transcripts {
-		b, err := os.ReadFile(tr.Path)
-		if err != nil {
-			continue
-		}
-		for _, l := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(l) == "" {
-				continue
-			}
-			var j map[string]any
-			if json.Unmarshal([]byte(l), &j) != nil {
-				continue
-			}
-			m, _ := j["message"].(map[string]any)
-			if m == nil {
-				continue
-			}
-			content, ok := m["content"].([]any)
-			if !ok {
-				continue
-			}
-			for _, ci := range content {
-				c, ok := ci.(map[string]any)
-				if !ok || strOf(c["type"]) != "tool_use" {
-					continue
-				}
-				input := c["input"]
-				if input == nil {
-					input = map[string]any{}
-				}
-				calls = append(calls, jsStringify(input))
-			}
-		}
+		pathOf[tr.AgentID] = tr.Path
 	}
 	sampled := sampleClaims(claims, sampleFloor)
 	var unreconciled, unmeasured []Claim
@@ -835,10 +852,16 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			unmeasured = append(unmeasured, c)
 			continue
 		}
+		reads, why := sittingReads(c, pathOf)
+		if why != "" {
+			c.Why = why
+			unmeasured = append(unmeasured, c)
+			continue
+		}
 		missing := ""
 		for _, n := range needles {
 			found := false
-			for _, k := range calls {
+			for _, k := range reads {
 				if strings.Contains(k, n) {
 					found = true
 					break
@@ -851,9 +874,9 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 		}
 		if missing != "" {
 			if byID {
-				c.Why = "the closure cites " + missing + " but no tool call in any transcript carries it"
+				c.Why = "the closure cites " + missing + " but no call of the closer's sitting, other than its closes, read or named it"
 			} else {
-				c.Why = "no tool call in any transcript touches " + missing
+				c.Why = "no call of the closer's sitting, other than its closes, touches " + missing
 			}
 			unreconciled = append(unreconciled, c)
 		}
@@ -875,13 +898,122 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 		for i, u := range unreconciled {
 			ul[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
 		}
-		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
+		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the closer's sitting — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
 			len(unreconciled), len(sampled), strings.Join(ul, "\n"), note)
 		return Audit{Check: "attestation-integrity", Verdict: "FAIL", Detail: detail, Unreconciled: unreconciled}
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls%s",
+		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against the closer's own tool calls%s",
 			len(sampled)-len(unmeasured), len(claims), note)}
+}
+
+// sittingReads is the text of every call of c's sitting other than its closes — each call's input
+// and its result — or why the sitting cannot be read: no agent to name it, no transcript of it
+// readable here, or a close of the sitting no call's window holds.
+func sittingReads(c Claim, pathOf map[string]string) (reads []string, why string) {
+	if c.Agent == "" {
+		return nil, "the close is in no sitting whose opening names an agent, so no transcript is the closer's"
+	}
+	path, ok := pathOf[c.Agent]
+	if !ok {
+		return nil, "the closer's sitting (agent " + c.Agent + ") has no transcript readable here"
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "the closer's transcript (agent " + c.Agent + ") is not readable: " + err.Error()
+	}
+	calls := callsOf(string(b))
+	closing := make([]bool, len(calls))
+	for _, ts := range c.Closes {
+		if ts.IsZero() {
+			return nil, "a close the sitting recorded carries no readable stamp, so its closes cannot be told from its reads"
+		}
+		held := false
+		for i, k := range calls {
+			if k.holds(ts) {
+				closing[i], held = true, true
+			}
+		}
+		if !held {
+			return nil, fmt.Sprintf("a close the sitting recorded at %s is in no call of agent %s's transcript, so its closes cannot be told from its reads", ts.Format(time.RFC3339Nano), c.Agent)
+		}
+	}
+	for i, k := range calls {
+		if !closing[i] {
+			reads = append(reads, k.input, k.result)
+		}
+	}
+	return reads, ""
+}
+
+// toolCall is one tool call of a transcript: its input and its result as JSON text, and the window
+// from the line that made the call to the line that carried its result.
+type toolCall struct {
+	input, result string
+	// from is the stamp of the call's line; to is its result's, zero while no result line names
+	// the call — a call still running holds every later moment.
+	from, to time.Time
+}
+
+// holds reports whether ts falls inside the call's window.
+func (k toolCall) holds(ts time.Time) bool {
+	if k.from.IsZero() || ts.Before(k.from) {
+		return false
+	}
+	return k.to.IsZero() || !ts.After(k.to)
+}
+
+// callsOf reads a transcript's tool calls, in the order it made them, each joined to its result by
+// the result's tool_use_id. A line with no timestamp leaves its stamp zero: a call so stamped holds
+// no moment, and a result so stamped leaves its call's window open.
+func callsOf(transcript string) []toolCall {
+	var calls []toolCall
+	at := map[string]int{}
+	for _, l := range strings.Split(transcript, "\n") {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		var j map[string]any
+		if json.Unmarshal([]byte(l), &j) != nil {
+			continue
+		}
+		m, _ := j["message"].(map[string]any)
+		if m == nil {
+			continue
+		}
+		content, ok := m["content"].([]any)
+		if !ok {
+			continue
+		}
+		stamp, _ := time.Parse(time.RFC3339Nano, strOf(j["timestamp"]))
+		for _, ci := range content {
+			c, ok := ci.(map[string]any)
+			if !ok {
+				continue
+			}
+			switch strOf(c["type"]) {
+			case "tool_use":
+				// ONE CALL PER ID. The harness writes each request's payload into the transcript again
+				// (an `api-request-blob` line, with no timestamp), so a call and its result recur;
+				// the first line carrying the call is the one that made it.
+				id := strOf(c["id"])
+				if _, seen := at[id]; seen && id != "" {
+					continue
+				}
+				input := c["input"]
+				if input == nil {
+					input = map[string]any{}
+				}
+				at[id] = len(calls)
+				calls = append(calls, toolCall{input: jsStringify(input), from: stamp})
+			case "tool_result":
+				if i, ok := at[strOf(c["tool_use_id"])]; ok && calls[i].to.IsZero() {
+					calls[i].result, calls[i].to = jsStringify(c["content"]), stamp
+				}
+			}
+		}
+	}
+	return calls
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.
@@ -1093,7 +1225,10 @@ func orQ(s string) string {
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
-func closeRunLiveMarker(cwd, runDir string) string {
+//
+// An error means the marker still holds a row capture meant to take; the line says so and capture
+// exits failed.
+func closeRunLiveMarker(cwd, runDir string) (string, error) {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
 	// THIS RUN'S ROW, AND ONLY THIS RUN'S.
 	//
@@ -1113,18 +1248,28 @@ func closeRunLiveMarker(cwd, runDir string) string {
 	if _, err := os.Stat(marker); err != nil {
 		if os.IsNotExist(err) {
 			return "run-live marker: none at " + marker +
-				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
+				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there", nil
 		}
-		return "run-live marker: could not be read at " + marker + ": " + err.Error()
+		return "run-live marker: could not be read at " + marker + ": " + err.Error(), err
 	}
 	before := len(runlive.ReadRunLive(cwd))
-	found, remaining := runlive.RemoveRunLiveEntry(cwd, runDir)
+	found, remaining, err := runlive.RemoveRunLiveEntry(cwd, runDir)
+	if err != nil {
+		// THE RUN IS STILL LIVE, and saying "removed" here is the silence this function exists to end:
+		// every hook in the project keeps attributing to a run its capture closed.
+		return "run-live marker: this run's entry could NOT be removed from " + marker + ": " + err.Error() +
+			" — the run still counts as live; remove its row by hand or re-run capture", err
+	}
 	// AND EVERY OTHER ROW THAT IS NO LONGER LIVE — a run whose outcome is recorded or whose directory
 	// is gone — pruned AFTER this run's own row is taken, so this run is never reported as pruned
 	// rather than closed. Named, because a row removed in silence is a run nobody is told about.
-	pruned := runlive.PruneRunLive(cwd)
+	pruned, err := runlive.PruneRunLive(cwd)
+	if err != nil {
+		return closedLine(found, before, remaining, marker, runDir) + "; the rows no longer live could NOT be pruned (" +
+			err.Error() + ") and are still in the marker: " + prunedRuns(pruned), err
+	}
 	remaining -= len(pruned)
-	return closedLine(found, before, remaining, marker, runDir) + prunedLine(pruned)
+	return closedLine(found, before, remaining, marker, runDir) + prunedLine(pruned), nil
 }
 
 // prunedLine names the rows capture pruned besides its own, or nothing when there were none.
@@ -1132,11 +1277,16 @@ func prunedLine(pruned []runlive.Pruned) string {
 	if len(pruned) == 0 {
 		return ""
 	}
+	return "; pruned " + plural(len(pruned), "the row", "the rows") + " no longer live: " + prunedRuns(pruned)
+}
+
+// prunedRuns names each row and why it is no longer live.
+func prunedRuns(pruned []runlive.Pruned) string {
 	parts := make([]string, 0, len(pruned))
 	for _, p := range pruned {
 		parts = append(parts, p.Row.RunDir+" ("+p.State.Why()+")")
 	}
-	return "; pruned " + plural(len(pruned), "the row", "the rows") + " no longer live: " + strings.Join(parts, ", ")
+	return strings.Join(parts, ", ")
 }
 
 // closedLine says what happened to this run's own row.
@@ -1752,7 +1902,9 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// are ingested, is what makes that table the run's and not the moment's. The audits below then
 	// screen the documents that ship. A run that never reached assembly has no run.md and is not
 	// assembled here: the bench's act is what makes a run's documents exist.
-	if _, serr := os.Stat(filepath.Join(run.Dir(), reportdoc.FileRun)); serr == nil {
+	if written, werr := reportdoc.AssemblyWritten(run); werr != nil {
+		lines = append(lines, "documents: whether the bench assembled them could not be read — "+jsSlice(werr.Error(), 200)+"; they are not re-assembled")
+	} else if written {
 		if a, aerr := reportdoc.Assemble(run); aerr != nil {
 			lines = append(lines, "documents: re-assembly FAILED — "+jsSlice(aerr.Error(), 200)+"; they stand as the bench assembled them")
 		} else {
@@ -1817,21 +1969,8 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), famEvents(fam))
 	lines = append(lines, precedentLine(prec))
 
-	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
-	// reaches nothing outside the run directory is a run's coinage lost (#515).
-	cls := HarvestClasses(run, filepath.Join(cwd, "law"), famEvents(fam))
-	switch {
-	case cls.Written:
-		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
-	case cls.Count > 0:
-		lines = append(lines, fmt.Sprintf("class harvest: %d class(es), %s", cls.Count, cls.Reason))
-	case cls.Reason != "":
-		lines = append(lines, "class harvest: "+cls.Reason)
-	default:
-		lines = append(lines, "class harvest: no classes coined this run")
-	}
-
-	lines = append(lines, closeRunLiveMarker(cwd, run.Dir()))
+	markerLine, markerErr := closeRunLiveMarker(cwd, run.Dir())
+	lines = append(lines, markerLine)
 
 	var out []string
 	out = append(out,
@@ -1865,10 +2004,22 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 			return nil, "", false, werr
 		}
 	}
+	// THE RUN WAS CAPTURED (runlive.CapturedMark), written after capture's last write to the record: from
+	// here the record takes nothing. A mark that could not be written is a failed capture, as an
+	// unclosed run-live row is, and the report says which.
+	if merr := record.MarkCaptured(run, now.UTC().Format(time.RFC3339)); merr != nil {
+		report = strings.TrimRight(report, "\n") + "\n- the run's capture could not be marked (" + merr.Error() + "): its record still takes writes\n"
+		_ = os.WriteFile(auditPath, []byte(report), 0o644)
+		exitFail = true
+	}
 	for _, a := range audits {
 		if a.Verdict == "FAIL" {
 			exitFail = true
 		}
+	}
+	// A run capture could not close is a failed capture: the line above names why.
+	if markerErr != nil {
+		exitFail = true
 	}
 	return audits, report, exitFail, nil
 }
@@ -2066,113 +2217,6 @@ func reapOrphanMirrors(now time.Time) string {
 // mirrorOrphanDays is longer than any run, which is the only property it needs: a live run
 // refreshes its mirror every epoch, so what crosses this line stopped writing weeks ago.
 const mirrorOrphanDays = 30
-
-// ---- gap-class harvest ----
-
-// coinedClass is one class a seat minted this run, and where it was first used.
-type coinedClass struct {
-	slug, definition, neighbor, distinguisher string
-	seatID, firstGap                          string
-	// materialDefault is the default the run coined the class with, off the record: the value
-	// the adoption text tells a reviewer to carry into the registry row, or to overrule.
-	materialDefault string
-}
-
-// classesFromRecord reads the classes THE RECORD holds, for the same reason rulingsFromRecord
-// does: `class new` refuses a coinage missing its definition, neighbour or distinguisher
-// (validateClassNew), so what arrives here is well-formed by construction rather than by hope.
-//
-// FirstGap is the join a reviewer needs and the record already holds: a class exists to
-// discriminate, and the gap it was first minted against is the concrete case that motivated it.
-// Empty means coined and never used, which is itself worth seeing on the proposal.
-func classesFromRecord(evs []*record.Event) []coinedClass {
-	if evs == nil {
-		return nil
-	}
-	var out []coinedClass
-	for _, e := range evs {
-		cn := e.GetClassNew()
-		if cn == nil {
-			continue
-		}
-		c := coinedClass{
-			slug: cn.GetSlug(), definition: cn.GetDefinition(),
-			neighbor: cn.GetNeighbor(), distinguisher: cn.GetDistinguisher(),
-			seatID: e.GetSeatId(), materialDefault: recordpb.Word(cn.GetMaterialDefault()),
-		}
-		for _, m := range evs {
-			if mint := m.GetMint(); mint != nil && mint.GetClass() == c.slug {
-				c.firstGap = mint.GetGapId()
-				break
-			}
-		}
-		out = append(out, c)
-	}
-	return out
-}
-
-// HarvestClasses promotes every class a run coined into law/proposed, and NEVER into the registry.
-//
-// WHY PROPOSED AND NOT ADOPTED (#515). feov-memory/class-registry.json is what every `--class` is
-// validated against, and the whole value of that gate is that a mint is REFUSED rather than waved
-// through. A class nobody reviewed, validating a future mint, is the registry losing the only
-// thing it means. So this mirrors the precedent flow exactly: the harvest states what the run
-// coined, and adoption is a human act.
-//
-// WHY IT EXISTS AT ALL. Before this, a coined class lived in exactly two places — the run's event
-// record and the run's staged copy of the registry — both inside a gitignored run directory. It
-// reached run-archive/*.tar.gz and nothing read that back. Measured 2026-08-22: red coined
-// `silent-no-match-probe` mid-run, with a sharper distinguisher than anything already registered,
-// and the next run would have staged the same 38 classes and made red discover it again.
-//
-// ONE FILE PER CLASS PER RUN, keyed on both. Two runs coining the same slug with different
-// definitions then land as two files a reviewer sees side by side, rather than one silently
-// overwriting the other — the collision has an arbiter, and the arbiter is a person.
-func HarvestClasses(run record.Run, lawDir string, evs []*record.Event) HarvestResult {
-	slug := slugOf(run)
-	classes := classesFromRecord(evs)
-	if len(classes) == 0 {
-		return HarvestResult{Written: false, Count: 0}
-	}
-	if _, err := os.Stat(lawDir); err != nil {
-		return HarvestResult{Written: false, Count: len(classes), Reason: "no law/ dir at repo root"}
-	}
-	if err := os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755); err != nil {
-		return HarvestResult{Written: false, Count: len(classes), Reason: err.Error()}
-	}
-	var written []string
-	for _, c := range classes {
-		out := filepath.Join(lawDir, "proposed", "class-"+c.slug+"--"+slug+".md")
-		used := c.firstGap
-		if used == "" {
-			used = "(coined and not minted against this run — the class has no worked case yet)"
-		}
-		body := strings.Join([]string{
-			"# proposed gap class — `" + c.slug + "` [PROPOSED — not in the registry until adopted]",
-			"",
-			"Coined by `" + c.seatID + "` during `" + slug + "`. It is NOT staged into any later run:",
-			"an unreviewed class validating a future `--class` is the registry losing the only thing it",
-			"means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand,",
-			"with its `material_default`; this run coined it as `" + c.materialDefault + "`.",
-			"",
-			"- **definition**: " + c.definition,
-			"- **neighbour**: `" + c.neighbor + "`",
-			"- **distinguisher**: " + c.distinguisher,
-			"- **first used on**: " + used,
-			"",
-			"The three fields above are the seat's own words, refused at the write if any were missing",
-			"(`record.validateClassNew`), so this proposal is well-formed by construction. What a",
-			"reviewer decides is whether it DISCRIMINATES — whether the distinguisher actually separates",
-			"it from its neighbour on a case where both are arguable.",
-			"",
-		}, "\n")
-		if err := os.WriteFile(out, []byte(body), 0o644); err != nil {
-			return HarvestResult{Written: len(written) > 0, Count: len(classes), Reason: err.Error()}
-		}
-		written = append(written, out)
-	}
-	return HarvestResult{Written: true, Count: len(classes), Path: filepath.Join(lawDir, "proposed")}
-}
 
 // famEvents is the stream, or nil for a record that could not be read — the same nil the
 // harvests always treated as "no rulings this run".

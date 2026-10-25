@@ -19,18 +19,18 @@ func manualText(bin string, pages ...[]string) string {
 
 // THE HEADER ROUND-TRIPS, and a rule that is not followed by this tool's header is body text.
 func TestManualPagesRoundTripTheHeader(t *testing.T) {
-	text := manualText("feov-record", nil, []string{"finding"}, []string{"class", "new"})
+	text := manualText("feov-record", nil, []string{"finding"}, []string{"inquiry", "propose"})
 	pages := ManualPages(text, "feov-record")
 	var got []string
 	for _, p := range pages {
 		got = append(got, strings.Join(p.Path, " "))
 	}
-	if want := []string{"", "finding", "class new"}; !slices.Equal(got, want) {
+	if want := []string{"", "finding", "inquiry propose"}; !slices.Equal(got, want) {
 		t.Fatalf("pages = %q, want %q", got, want)
 	}
 	// A PAGE CLOSED BY THE NEXT RULE AND THE LAST PAGE are both exactly what was printed — the
 	// first is where a boundary could eat the newline, and did.
-	for i, want := range map[int]string{1: "help for [finding]\n\nFlags:\n  -h, --help\n", 2: "help for [class new]\n\nFlags:\n  -h, --help\n"} {
+	for i, want := range map[int]string{1: "help for [finding]\n\nFlags:\n  -h, --help\n", 2: "help for [inquiry propose]\n\nFlags:\n  -h, --help\n"} {
 		if pages[i].Body != want {
 			t.Errorf("page %d body = %q, want %q", i, pages[i].Body, want)
 		}
@@ -118,14 +118,14 @@ func TestALeanPageRestoresToTheHelpItCameFrom(t *testing.T) {
 			"judge it\n\nFlags:\n      --anchor string   which\n      --reason string   why\n" + global,
 		},
 		"the help flag last": {
-			[]string{"class", "new"},
-			"coin it\n\nUsage:\n  feov-record class new [flags]\n\nFlags:\n      --define string   what\n  -h, --help            help for new\n" + global,
-			"coin it\n\nFlags:\n      --define string   what\n" + global,
+			[]string{"inquiry", "propose"},
+			"propose it\n\nUsage:\n  feov-record inquiry propose [flags]\n\nFlags:\n      --anchor string   what\n  -h, --help            help for propose\n" + global,
+			"propose it\n\nFlags:\n      --anchor string   what\n" + global,
 		},
 		"no flag but help": {
-			[]string{"class", "list"},
-			"list them\n\nUsage:\n  feov-record class list [flags]\n\nFlags:\n  -h, --help   help for list\n" + global,
-			"list them\n" + global,
+			[]string{"show", "board"},
+			"read it\n\nUsage:\n  feov-record show board [flags]\n\nFlags:\n  -h, --help   help for board\n" + global,
+			"read it\n" + global,
 		},
 		"no flag but help, and nothing after it": {
 			[]string{"assemble"},
@@ -288,5 +288,37 @@ func TestAManualWithNoReadablePageIsCounted(t *testing.T) {
 	}
 	if s.FirstUses[0].Depth != DepthNone {
 		t.Errorf("depth = %q — an unread manual supplied no page", s.FirstUses[0].Depth)
+	}
+}
+
+// THE READER ACCEPTS WHAT THE WRITER PRINTS, AND NOTHING NEAR IT. A label or marker is read with
+// the writer's own format and accepted only where the writer prints the line back, so the two
+// cannot drift apart: a reworded label changes what both sides speak.
+func TestSharedLabelsAndMarkersAreReadWithTheWritersFormat(t *testing.T) {
+	for _, c := range []struct{ id, pages int }{{1, 2}, {7, 31}, {12, 140}} {
+		if id, closes, ok := sharedLabel(ManualSharedLabel(c.id, c.pages)); !ok || id != c.id || closes {
+			t.Errorf("ManualSharedLabel(%d, %d) read as (%d, closing=%v, %v)", c.id, c.pages, id, closes, ok)
+		}
+		if id, closes, ok := sharedLabel(ManualClosingLabel(c.id, c.pages)); !ok || id != c.id || !closes {
+			t.Errorf("ManualClosingLabel(%d, %d) read as (%d, closing=%v, %v)", c.id, c.pages, id, closes, ok)
+		}
+		lead := "      --reason string   "
+		if id, got, ok := markedBlock(ManualMarker(lead, c.id)); !ok || id != c.id || got != lead {
+			t.Errorf("ManualMarker(%q, %d) read as (%d, %q, %v)", lead, c.id, id, got, ok)
+		}
+	}
+	for _, l := range []string{
+		"§3 (the last block of 4 pages — some other words):",
+		"§03 (on 2 pages):",
+		"§3 (on 2 pages): and more",
+	} {
+		if _, _, ok := sharedLabel(l); ok {
+			t.Errorf("%q was read as a SHARED label; the writer prints no such line", l)
+		}
+	}
+	for _, l := range []string{"see → SHARED §03", "see → SHARED §+3", "see → SHARED §3 "} {
+		if _, _, ok := markedBlock(l); ok {
+			t.Errorf("%q was read as a marker; the writer prints no such line", l)
+		}
 	}
 }

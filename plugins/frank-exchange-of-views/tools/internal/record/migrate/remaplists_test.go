@@ -87,8 +87,8 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 	if motionArms != 9 {
 		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 9 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "34 46 59" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 34 46 59", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "37 40 63" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 37 40 63", got)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		r := newRemap("source")
 		for _, b := range []proto.Message{
 			&recordpb.Inquiry{InquiryId: proto.String("Q1")}, &recordpb.Inquiry{InquiryId: proto.String("Q2")},
-			&recordpb.Mint{GapId: proto.String("G2")},
+			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2")},
 		} {
 			r.apply(b, "")
 		}
@@ -191,7 +191,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			&recordpb.Proof{Script: proto.String("quartile Q1")},
 			&recordpb.Cite{Title: proto.String("G2 summit")},
 			&recordpb.Retire{SupersededBy: proto.String("Q2 earnings")},
-			&recordpb.Mint{MintKey: proto.String("G2")},
+			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), MintKey: proto.String("G2")},
 		}
 		for _, b := range kept {
 			was := proto.Clone(b)
@@ -209,7 +209,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		}
 		l := &recordpb.Log{Text: proto.String("closes G2, not G20 or G2x")}
 		d := &recordpb.Dispatch{GapIds: []string{"G2", "G9"}}
-		m := &recordpb.Mint{GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: []string{"G2"}}
+		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: []string{"G2"}}
 		mo := &recordpb.MotionRule{Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Principle: proto.String("G2 stands")}}}
 		p := &recordpb.Proof{ProofId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
 		for _, b := range []proto.Message{l, d, m, mo, p} {
@@ -240,7 +240,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		r.apply(f, "adversary-F2")
 		legacy := &recordpb.Finding{}
 		r.apply(legacy, "L5-F1")
-		credit := &recordpb.Mint{GapId: proto.String("G4"), FoundBy: []string{"adversary-F2", "L5-F1"}}
+		credit := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G4"), FoundBy: []string{"adversary-F2", "L5-F1"}}
 		r.apply(credit, "")
 		if f.GetId() != "F-7cdcd115" || credit.GetFoundBy()[0] != "F-7cdcd115" || credit.GetFoundBy()[1] != legacy.GetId() || !currentID.MatchString(legacy.GetId()) {
 			t.Errorf("finding %q, legacy %q, credited as %v", f.GetId(), legacy.GetId(), credit.GetFoundBy())

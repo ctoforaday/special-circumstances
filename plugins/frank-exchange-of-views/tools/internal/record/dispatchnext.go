@@ -24,12 +24,29 @@ import (
 // write lands before the plan is folded or after its rows are in.
 //
 // Each act is written through writeIn with the write path's validation, asked of this transaction.
-func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
+func DispatchNext(id Identity) (plan Plan, standing bool, err error) { return dispatchNext(id, nil) }
+
+// RecordVerdict is the verdict verb's whole act, in ONE write transaction: the chair's verdict, then
+// `dispatch next`'s act on the record it leaves. The plan carries the verdict its sitting recorded
+// (Plan.Verdict) and the chair's envelope is that plan, so the act that records the verdict prints
+// it. One transaction, because a verdict stored with no plan carrying it is a verdict the workflow
+// never reads: a plan the record refuses to fold or store refuses the verdict with it.
+func RecordVerdict(id Identity, v recordpb.Verdict) (plan Plan, standing bool, err error) {
+	return dispatchNext(id, &recordpb.Gate{Verdict: &v})
+}
+
+// dispatchNext is DispatchNext with first, when not nil, written ahead of everything else in the
+// transaction, through the same validation.
+func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, err error) {
 	run := id.Run
 	if !run.Valid() {
 		return emptyPlan(), false, feov.Errorf(feov.MissingField,
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
+	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go).
+	if err := requireRunNotCaptured(run); err != nil {
+		return emptyPlan(), false, err
 	}
 	db, err := openRun(run)
 	if err != nil {
@@ -42,6 +59,21 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		return emptyPlan(), false, err
 	}
 	defer tx.Rollback()
+	write := func(body proto.Message) error {
+		ev := &Event{}
+		typ, err := recordpb.SetBody(ev, body)
+		if err != nil {
+			return err
+		}
+		return writeIn(tx, ev, id.SeatID, typ, body, func(tx *sql.Tx) error {
+			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
+		})
+	}
+	if first != nil {
+		if err := write(first); err != nil {
+			return emptyPlan(), false, err
+		}
+	}
 
 	r, err := planReadsAt(tx)
 	if err != nil {
@@ -68,33 +100,27 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 	// the decision already on the record; writing it again doubles the rows every reader of "who was
 	// dispatched" counts. A plan that files a docket is never standing: the filing is new.
 	if len(plan.ToFile) == 0 && planStands(evs, win, plan.Printed()) {
+		if first != nil {
+			if err := tx.Commit(); err != nil {
+				return emptyPlan(), false, err
+			}
+		}
 		return plan, true, nil
 	}
 	// A PLAN THAT CHANGED ONLY IN WHAT HOLDS THE PASS — a motion filed or ruled since the chair
 	// asked — engages the parties its rows already engage: those rows stand, and only the plan is
 	// stored again.
 	rowsStand := dispatchStands(evs, win, plan)
-	write := func(body proto.Message) error {
-		ev := &Event{}
-		typ, err := recordpb.SetBody(ev, body)
-		if err != nil {
-			return err
-		}
-		return writeIn(tx, ev, id.SeatID, typ, body, func(tx *sql.Tx) error {
-			return validate(writeView{q: tx, files: files}, id.SeatID, typ, body)
-		})
-	}
-	// AT IMPASSE THE VERB FILES THE DOCKET MOTION ITSELF, the moment impasse is first computed, so
-	// "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap and
-	// the bench.
+	// AT IMPASSE, AND PAST THE GRADE-MOVEMENT THRESHOLD, THE VERB FILES THE DOCKET MOTION ITSELF, the
+	// moment either is first computed, so "docketed" and the condition are one fact and no seat's
+	// discretion sits between the gap and the bench.
 	for _, g := range plan.ToFile {
-		basis := fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", g)
 		if err := write(&recordpb.Motion{
 			MotionId: proto.String(NewID("motion")),
-			Basis:    proto.String(basis),
+			Basis:    proto.String(plan.basis[g]),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
 		}); err != nil {
-			return emptyPlan(), false, fmt.Errorf("docketing %s at impasse: %w", g, err)
+			return emptyPlan(), false, fmt.Errorf("docketing %s: %w", g, err)
 		}
 	}
 	wrote := len(plan.ToFile) > 0
@@ -131,7 +157,7 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return emptyPlan(), false, err
 		}
 		plan.Blockers, plan.Why = after.Blockers, after.Why
-		plan = keyed(plan)
+		plan = plan.WithKey()
 	}
 	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
 	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.

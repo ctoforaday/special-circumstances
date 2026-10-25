@@ -73,7 +73,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	// that mints.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, append([]string{"mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, append([]string{"mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"},
@@ -138,7 +138,7 @@ func readProjection(t *testing.T, runDir, name string) string {
 // render would silently lose every judicial closure.
 func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "bench-closes-this", "cross-seat-visibility")
+	id := mintGap(t, runDir, "bench-closes-this", "spec_underspecification")
 
 	// The bench rules the gap closed — a docket motion filed and ruled.
 	//
@@ -165,7 +165,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 // A dispute answered into the void is the same defect one channel over.
 func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "disputed-grade", "grade-dispute-visibility")
+	id := mintGap(t, runDir, "disputed-grade", "policy_without_mechanism")
 
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
@@ -198,7 +198,7 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.
 func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
-	id := mintGap(t, runDir, "anchored-closure", "anchor-visibility")
+	id := mintGap(t, runDir, "anchored-closure", "risk_coverage_omission")
 
 	const prose = "re-read the cited source; the digits match the arm the claim names"
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
@@ -231,7 +231,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	mintGap(t, runDir, "shared-record", "one-record")
+	mintGap(t, runDir, "shared-record", "doctrine_vs_implementation")
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--question", "considered rewriting the parser", "--as", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {
@@ -264,12 +264,20 @@ func registerChairOnce(t *testing.T, runDir string) {
 	registerSeatOnce(t, runDir, "red-chair")
 }
 
-// registerLensOnce seats `lensSeat` — ONCE, whatever path did it. A seat registers before it acts,
-// and a lens's mints are counted against its budget by seat id, so every mint helper here sits the
-// same lens rather than a fresh one per call.
+// registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and serves it the whole report
+// where one is ingested, as a lens's audit does. A seat registers before it acts, and a lens's mints
+// are counted against its budget by seat id, so every mint helper here sits the same lens rather than
+// a fresh one per call. The read is the lens's pin (record.ServeReport): a lens that sat and was never
+// served the report is still ready at the head, and every PASS these fixtures drive waits on it.
 func registerLensOnce(t *testing.T, runDir string) {
 	t.Helper()
 	registerSeatOnce(t, runDir, lensSeat)
+	if _, head, err := record.ReportAtHead(runtest.Open(t, runDir)); err != nil || head == 0 {
+		return
+	}
+	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatalf("serve %s the report: %v", lensSeat, err)
+	}
 }
 
 func registerSeatOnce(t *testing.T, runDir, seatID string) {
@@ -284,5 +292,13 @@ func registerSeatOnce(t *testing.T, runDir, seatID string) {
 	}
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatalf("register %s: %v", seatID, err)
+	}
+}
+
+// sitToAssemble opens the bench's assembly sitting, the one sitting whose outcome the write takes.
+func sitToAssemble(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
+		t.Fatalf("registering the bench's assembly sitting: %v", err)
 	}
 }

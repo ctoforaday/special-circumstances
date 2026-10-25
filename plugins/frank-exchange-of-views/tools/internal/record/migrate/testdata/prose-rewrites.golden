@@ -1982,9 +1982,6 @@
 2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	t there is no round 5 for merge to rule M2 first, so no verb on this seat's regist
 2026-08-23_research-loop-counterparts	Log.text	M2 -> M-7da1a8bc	lding instead (PERSUASIVE, addressed to M2 and R4-3 by id in its own text), and th
 2026-08-23_research-loop-counterparts	Log.text	R4-3 -> G-0a908b3c	nstead (PERSUASIVE, addressed to M2 and R4-3 by id in its own text), and the motion
-2026-08-23_research-loop-counterparts	Outcome.prose	R4-1 -> G-2bd25793	ed's verdict FAIL and three fresh gaps (R4-1/2/3); blue repaired all three the same
-2026-08-23_research-loop-counterparts	Outcome.prose	M2 -> M-7da1a8bc	emains unresolved on the record: motion M2 (R4-3 complexity, medium vs low) was fi
-2026-08-23_research-loop-counterparts	Outcome.prose	R4-3 -> G-0a908b3c	ns unresolved on the record: motion M2 (R4-3 complexity, medium vs low) was filed in
 2026-08-23_research-loop-counterparts	Certify.statement	M2 -> M-7da1a8bc	human should re-examine. First, motion M2 (R4-3 complexity: medium vs low). I fin
 2026-08-23_research-loop-counterparts	Certify.statement	R4-3 -> G-0a908b3c	n should re-examine. First, motion M2 (R4-3 complexity: medium vs low). I find blue
 2026-08-23_research-loop-counterparts	Certify.statement	R4-1 -> G-2bd25793	_fix was textual, matching its siblings R4-1/R4-2 which are graded low; red's medium
@@ -2513,7 +2510,6 @@
 2026-08-23_sleeper-service-plan	Log.text	p-58598369 -> P-58598369	the four un-rerun proofs (p-bcdb35eb / p-58598369 Kingman magnitudes, p-90619cee file cou
 2026-08-23_sleeper-service-plan	Log.text	p-90619cee -> P-90619cee	db35eb / p-58598369 Kingman magnitudes, p-90619cee file count, p-abd56845 build-state enum
 2026-08-23_sleeper-service-plan	Log.text	p-abd56845 -> P-abd56845	gman magnitudes, p-90619cee file count, p-abd56845 build-state enumeration) back cadence-m
-2026-08-23_sleeper-service-plan	ClassNew.distinguisher	R2-3 -> G-0f5ce8c3	mitigation-coverage-mismatch (R2-3) is a TEMPORAL gap -- a control that co
 2026-08-23_sleeper-service-plan	Mint.mint_reason	R1-1 -> G-3b0c7922	the Analysis lead paragraph this round: R1-1's three required insertions (blast-radi
 2026-08-23_sleeper-service-plan	Mint.mint_reason	R1-1 -> G-3b0c7922	nt verbatim, so this is not a reopen of R1-1 -- it closed correctly on its own accep
 2026-08-23_sleeper-service-plan	Mint.problem	c-be9420ce -> C-be9420ce	The model-collapse citations (c-be9420ce, c-bfd1f950) concern iterated MODEL TRA
@@ -3058,21 +3054,6 @@
 2026-08-23_sleeper-service-plan	Log.text	R4-2 -> G-d33cbccd	ed) on any of the three docketed items: R4-2 and R4-4 both had their required_fix al
 2026-08-23_sleeper-service-plan	Log.text	R4-4 -> G-6b9916cf	y of the three docketed items: R4-2 and R4-4 both had their required_fix already dis
 2026-08-23_sleeper-service-plan	Log.text	R1-7 -> G-07397e44	othing left for a next round to do, and R1-7 is not mine to carry — it is already
-2026-08-23_sleeper-service-plan	Outcome.prose	M3 -> M-49fa8df3	en grade motions this sitting resolves (M3 on R4-4, M4 on R4-2) and the stale dock
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-4 -> G-6b9916cf	de motions this sitting resolves (M3 on R4-4, M4 on R4-2) and the stale docket entry
-2026-08-23_sleeper-service-plan	Outcome.prose	M4 -> M-3bbdd647	ions this sitting resolves (M3 on R4-4, M4 on R4-2) and the stale docket entry on
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-2 -> G-d33cbccd	his sitting resolves (M3 on R4-4, M4 on R4-2) and the stale docket entry on R1-7 (M1
-2026-08-23_sleeper-service-plan	Outcome.prose	R1-7 -> G-07397e44	on R4-2) and the stale docket entry on R1-7 (M1) could only ever be disposed here.
-2026-08-23_sleeper-service-plan	Outcome.prose	M1 -> M-e6f7de83	-2) and the stale docket entry on R1-7 (M1) could only ever be disposed here. With
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-2 -> G-d33cbccd	could only ever be disposed here. With R4-2 and R4-4 ruled repaired this sitting, t
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-4 -> G-6b9916cf	ly ever be disposed here. With R4-2 and R4-4 ruled repaired this sitting, the board'
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	ng, the board's remaining open gaps are R4-1 (mitigation-coverage-mismatch, network-
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-5 -> G-4f937d98	ch, network-egress confidentiality) and R4-5 (cross-section-contradiction, the rho=1
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-1 -> G-c730ca6a	e for that value. Outstanding at close: R4-1 and R4-5 remain open and unadjudicated
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-5 -> G-4f937d98	t value. Outstanding at close: R4-1 and R4-5 remain open and unadjudicated by this s
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-2 -> G-d33cbccd	udicated by this sitting (see certify); R4-2 and R4-4 close repaired with their impa
-2026-08-23_sleeper-service-plan	Outcome.prose	R4-4 -> G-6b9916cf	by this sitting (see certify); R4-2 and R4-4 close repaired with their impact grades
-2026-08-23_sleeper-service-plan	Outcome.prose	R1-7 -> G-07397e44	the persistence gap named in friction; R1-7's stale docket entry is resolved by dec
 2026-08-23_sleeper-service-plan	Certify.statement	R4-1 -> G-c730ca6a	bench keeps no memory between runs: 1. R4-1 and R4-5 remain genuinely OPEN at this
 2026-08-23_sleeper-service-plan	Certify.statement	R4-5 -> G-4f937d98	ps no memory between runs: 1. R4-1 and R4-5 remain genuinely OPEN at this exit boun
 2026-08-23_sleeper-service-plan	Certify.statement	R4-4 -> G-6b9916cf	(which named three grade disputes only: R4-4, R4-2, R1-7). I did not rule them, and
@@ -4688,8 +4669,6 @@
 2026-09-02_quadratic-formula	Certify.statement	R2-8 -> G-5a1d57a9	enches, artifact_state defect_live): - R2-8 (unrecorded-report-edit): a report edit
 2026-09-02_quadratic-formula	Certify.statement	R3-4 -> G-057d5781	writable file bypassing the record). - R3-4 (misplaced-citation-anchor): a citation
 2026-09-02_quadratic-formula	Certify.statement	R1-6 -> G-d304bbb2	at; owed fix outside the debate. - The R1-6 persistence-proof silent inversion abov
-2026-09-02_quadratic-formula	Outcome.prose	R1-6 -> G-d304bbb2	The sole terminal-held item — blue's R1-6 grade dispute (impact medium -> low_med
-2026-09-02_quadratic-formula	Outcome.prose	M1 -> M-a05b55d0	e dispute (impact medium -> low_medium, M1) — is disposed this sitting: impact A
 2026-09-09_is-91-prime-a	Inquiry.question	Q1 -> Q-bc8f71a7	If trial division in Q1 turns up a factor, the natural next cla
 2026-09-09_is-91-prime-a	Inquiry.question	Q1 -> Q-bc8f71a7	The computation avenue (Q1-Q3) settles the arithmetic fact; this l
 2026-09-09_is-91-prime-a	Inquiry.question	Q3 -> Q-b8fe8226	The computation avenue (Q1-Q3) settles the arithmetic fact; this line

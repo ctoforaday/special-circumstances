@@ -35,7 +35,7 @@ func TestProjectionShapeMatchesEmittedKeys(t *testing.T) {
 	// A GAP, so the run has a round: `telemetry` is dense over rounds 1..current and emits
 	// nothing at all on a fixture where nothing was minted — an unchecked view, in the one shape
 	// (JSONL) a whole-document parse cannot reach.
-	mintGap(t, runDir, "projection-shape", "read-surface")
+	mintGap(t, runDir, "projection-shape", "spec_underspecification")
 
 	for _, view := range seat.ViewNames() {
 		// BOTH FORMS, BECAUSE THE JSON IS NOT ALWAYS THE BARE ONE. `debate` is markdown bare and
@@ -285,23 +285,16 @@ func contains(haystack []string, needle string) bool {
 
 // A READ VERB'S PAGE STATES THE JSON IT EMITS, and the keys are held to the ones that arrive — the
 // envelope's, and those of the result's first row (or of the result, for a verb that answers with one
-// object). m27's architecture lens asked `class list --json` for a `class` key, found none, and
-// logged that the verb printed the human table: the key is `slug`, and no page said so. near-match
-// and render-page record nothing either, and carried no tree until m28.
+// object). near-match and render-page record nothing, and carried no tree until m28.
 func TestEveryReadVerbDocumentsTheJSONItEmits(t *testing.T) {
 	cases := []struct {
 		verb []string
 		rows string // the result's list whose first row is checked; "" checks the result itself
 		call func(t *testing.T) (string, error)
 	}{
-		{[]string{"class", "list"}, "classes", func(t *testing.T) (string, error) {
-			runDir := seatRun(t)
-			registerLensOnce(t, runDir)
-			return run(t, "class", "list", "--run", runDir, "--seat-id", lensSeat, "--json")
-		}},
 		{[]string{"near-match"}, "matches", func(t *testing.T) (string, error) {
 			runDir := seatRun(t)
-			mintGap(t, runDir, "read-shape", "read-surface")
+			mintGap(t, runDir, "read-shape", "spec_underspecification")
 			return run(t, "near-match", "--run", runDir, "--seat-id", lensSeat, "--problem", "the defect", "--json")
 		}},
 		{[]string{"render-page"}, "", func(t *testing.T) (string, error) {

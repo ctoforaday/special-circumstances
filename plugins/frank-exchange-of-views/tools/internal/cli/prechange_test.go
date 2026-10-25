@@ -20,7 +20,7 @@ func TestPreChangeDatabaseRefusedAtOpen(t *testing.T) {
 	if err == nil {
 		t.Fatal("a pre-change database opened")
 	}
-	for _, want := range []string{`"mint" table has no "class_material" column`, "migrate"} {
+	for _, want := range []string{`"mint" table has no "class_material" column`, "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the open refusal must name %q: %v", want, err)
 		}
@@ -35,7 +35,7 @@ func TestPreChangeDatabaseRefusedAtOpen(t *testing.T) {
 	if err == nil {
 		t.Fatalf("dispatch next over a pre-change run succeeded:\n%s", out)
 	}
-	if !strings.Contains(msg, `"mint" table has no "class_material" column`) || !strings.Contains(msg, "migrate") {
+	if !strings.Contains(msg, `"mint" table has no "class_material" column`) || !strings.Contains(msg, "`feov-migrate --from <runDir> --to <freshDir>`") {
 		t.Errorf("dispatch next must print the open refusal:\n%s", msg)
 	}
 	if strings.Contains(msg, "no such column") {

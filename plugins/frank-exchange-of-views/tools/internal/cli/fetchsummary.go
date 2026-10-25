@@ -196,7 +196,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		HTTPStatus:     e.HTTPStatus,
 		RefusalClass:   e.RefusalClass,
 		RetrievedVia:   e.RetrievedVia,
-		FollowedTo:     e.FollowedTo,
+		FollowedTo:     followedTo(e),
 		Backend:        e.Backend,
 		// A LIVE FETCH THAT YIELDED A DOCUMENT HAS THE SOURCE'S TEXT. The entry's own flag speaks
 		// only for the recovery path, so it is the wrong answer for the common one.
@@ -364,8 +364,8 @@ func (s fetchSummary) render() string {
 	if s.FollowedTo != "" {
 		fmt.Fprintf(&b, "followed_to: %s\n"+
 			"  ^ THE PAGE YOU ASKED FOR NAMED ITS OWN FULL TEXT AND THIS FOLLOWED IT. Same work, from where the\n"+
-			"    publisher said to look — not a substitute copy. Cite the url you asked for; this records how the\n"+
-			"    text was reached.\n", s.FollowedTo)
+			"    publisher said to look — not a substitute copy. Cite the url you asked for; the citation records\n"+
+			"    this url as where its text was read.\n", s.FollowedTo)
 	}
 	if !s.TextRetrieved && s.RetrievedVia == "" && s.TextRetrievedReason != "" {
 		fmt.Fprintf(&b, "text_retrieved: false\n  ^ %s\n", s.TextRetrievedReason)
@@ -438,4 +438,12 @@ func liveTextRetrieved(e fetchcache.Entry) bool {
 	// AN ABSTRACT IS NOT THE SOURCE'S TEXT, however cleanly it rendered. Measured, 19 of 26 html
 	// pages this tool had called documents were abstracts, and every one of them read `true` here.
 	return !e.WithoutBody()
+}
+
+// followedTo is where the pointer walk ended, when that is the route the entry's bytes took.
+func followedTo(e fetchcache.Entry) string {
+	if e.Substitution == fetchcache.SubstitutionFollowedLink {
+		return e.CopyURL
+	}
+	return ""
 }

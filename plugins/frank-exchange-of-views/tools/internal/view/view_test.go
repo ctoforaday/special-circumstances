@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf16"
@@ -241,9 +242,9 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
-		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
+		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("G3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
 	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
@@ -271,7 +272,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	// the columns are NOT NULL — so a gap in that state cannot reach a projection. What is still
 	// worth asserting is that a class the seat DID give is rendered, and `cx` above covers the
 	// undefined arm with a field that is genuinely optional.
-	if !strings.Contains(ledger, "class overclaim") {
+	if !strings.Contains(ledger, "class spec_underspecification") {
 		t.Errorf("a gap's class must be rendered:\n%s", ledger)
 	}
 	if !strings.Contains(ledger, "G2 | repaired_with_regression | a closed problem | G3") {
@@ -294,7 +295,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p")}),
 		recordtest.At(t, seatID, seatID+":close:G1", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified at the leaf"), CarriedFrom: proto.String("1")}),
 	})
 	archive := md(t, runDir, "archive")
@@ -353,7 +354,7 @@ func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
 		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:1", &recordpb.Finding{Id: proto.String("F-7cdcd115"), Text: proto.String("the bound is loose")}),
 		recordtest.At(t, "red-lens-dark-side", "red-lens-dark-side:finding:1", &recordpb.Finding{Id: proto.String("F-0badf00d"), Text: proto.String("the misuse is unaddressed")}),
 		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody credited this")}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: proto.String("overclaim"),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			// The last credit names no finding on the record: it prints bare, never as nothing.
@@ -381,8 +382,8 @@ func TestTelemetryIsComputed(t *testing.T) {
 	r2 := "red-chair"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		recordtest.At(t, r1, r1+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, r1, r1+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW), GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, r1, r1+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, r1, r1+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
@@ -392,7 +393,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 		// this one is low x low (1), so the repair moved 5 points of mass down.
 		recordtest.At(t, r2, r2+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			GapId:           proto.String("G3"),
-			Class:           proto.String("overclaim"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p3"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -458,61 +459,167 @@ func TestTelemetryIsComputed(t *testing.T) {
 // readable without re-reading every gap's prose.
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()
-	mint := func(seat, id, class string) *record.Event {
-		return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
-			GapId:           proto.String(id),
-			Class:           proto.String(class),
-			Problem:         proto.String("p"),
-			AcceptanceCheck: proto.String("the check runs"),
-			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
-			Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
-		})
-	}
 	r1, r2 := "red-chair", "red-chair"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		mint(r1, "G1", "evidence-claim-not-documented"),
-		mint(r1, "G2", "evidence-claim-not-documented"),
-		mint(r1, "G3", "scope-closure-missing"),
+		classMint(t, r1, "G1", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, r1, "G2", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, r1, "G3", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
 	})
 	// Epoch 2: one class REPEATS from epoch 1, one is fresh. Repeat rate = 1/2.
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
-		mint(r2, "G4", "scope-closure-missing"),
-		mint(r2, "G5", "co-resident-rules-disagree"),
+		classMint(t, r2, "G4", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+		classMint(t, r2, "G5", recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION),
 	})
 
-	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("%d telemetry lines, want 2:\n%s", len(lines), raw)
-	}
-
-	decode := func(s string) map[string]any {
-		var m map[string]any
-		if err := json.Unmarshal([]byte(s), &m); err != nil {
-			t.Fatal(err)
-		}
-		return m["new_mint"].(map[string]any)
-	}
-
-	one := decode(lines[0])
-	byClass := one["by_class"].(map[string]any)
-	if byClass["evidence-claim-not-documented"] != float64(2) || byClass["scope-closure-missing"] != float64(1) {
-		t.Errorf("epoch 1 by_class = %v, want the two classes counted 2 and 1", byClass)
+	lines := telemetryLines(t, runDir, 2)
+	one := newMintOf(t, lines[0])
+	// Schema order: false_universal precedes spec_underspecification in GapClass, whatever the
+	// order they were minted in.
+	if got, want := classTally(t, one), []tally{{"false_universal", 1}, {"spec_underspecification", 2}}; !slices.Equal(got, want) {
+		t.Errorf("epoch 1 by_class = %v, want %v", got, want)
 	}
 	// Epoch 1 has no predecessor, so a repeat rate would be a fabricated number.
 	if one["class_repeat_rate"] != nil {
 		t.Errorf("epoch 1 class_repeat_rate = %v, want null — there is no prior epoch to repeat", one["class_repeat_rate"])
 	}
 
-	two := decode(lines[1])
+	two := newMintOf(t, lines[1])
 	if got := two["class_repeat_rate"]; got != 0.5 {
 		t.Errorf("epoch 2 class_repeat_rate = %v, want 0.5 (1 of 2 mints repeats an epoch-1 class)", got)
+	}
+}
+
+// classMint is a graded mint of one class; an `unclassified` one carries the reason its check
+// requires.
+func classMint(t *testing.T, seat, id string, class recordpb.GapClass) *record.Event {
+	t.Helper()
+	m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+		GapId:           proto.String(id),
+		Class:           class.Enum(),
+		Problem:         proto.String("p"),
+		AcceptanceCheck: proto.String("the check runs"),
+		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
+		Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
+	}
+	if class == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+		m.MintReason = proto.String("nearest is spec_underspecification; this is a defect of neither the spec nor its reader")
+	}
+	return recordtest.At(t, seat, seat+":mint:"+id, m)
+}
+
+// chairLogs is a chair act that changes nothing on the board: what an epoch holds when its sitting
+// opened and minted nothing.
+func chairLogs(t *testing.T, n int) *record.Event {
+	t.Helper()
+	return recordtest.At(t, "red-chair", fmt.Sprintf("red-chair:log:%d", n), &recordpb.Log{Text: proto.String("the board is unchanged"),
+		Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+}
+
+// telemetryLines is the run's telemetry, one line per epoch, or a fatal when there are not want.
+func telemetryLines(t *testing.T, runDir string, want int) []string {
+	t.Helper()
+	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != want {
+		t.Fatalf("%d telemetry lines, want %d:\n%s", len(lines), want, raw)
+	}
+	return lines
+}
+
+func newMintOf(t *testing.T, line string) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(line), &m); err != nil {
+		t.Fatal(err)
+	}
+	return m["new_mint"].(map[string]any)
+}
+
+type tally struct {
+	Class string
+	Count int
+}
+
+// classTally decodes new_mint.by_class as the list of {class,count} it is on the wire.
+func classTally(t *testing.T, newMint map[string]any) []tally {
+	t.Helper()
+	list, ok := newMint["by_class"].([]any)
+	if !ok {
+		t.Fatalf("by_class = %#v, want a list of {class,count}", newMint["by_class"])
+	}
+	out := make([]tally, 0, len(list))
+	for _, e := range list {
+		o, ok := e.(map[string]any)
+		if !ok || len(o) != 2 {
+			t.Fatalf("by_class entry = %#v, want {class,count}", e)
+		}
+		c, cok := o["class"].(string)
+		n, nok := o["count"].(float64)
+		if !cok || !nok {
+			t.Fatalf("by_class entry = %#v, want a class word and a count", e)
+		}
+		out = append(out, tally{c, int(n)})
+	}
+	return out
+}
+
+// An epoch that minted nothing measured no share of the catch-all: the rate is `null`, as the
+// repeat rate is, and the class tally is the empty list, never `null`.
+func TestUnclassifiedRateIsUnsetWhenNothingWasMinted(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{chairSits(t, 1), classMint(t, "red-chair", "G1", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED)})
+	writeShard(t, runDir, []*record.Event{chairSits(t, 2), chairLogs(t, 2)})
+	lines := telemetryLines(t, runDir, 2)
+	if got := newMintOf(t, lines[0])["unclassified_rate"]; got != float64(1) {
+		t.Errorf("epoch 1 unclassified_rate = %v, want 1 (its one mint is the catch-all)", got)
+	}
+	two := newMintOf(t, lines[1])
+	if v, present := two["unclassified_rate"]; !present || v != nil {
+		t.Errorf("epoch 2 unclassified_rate = %v (present %v), want null — nothing was minted", v, present)
+	}
+	if got := classTally(t, two); len(got) != 0 {
+		t.Errorf("epoch 2 by_class = %v, want []", got)
+	}
+}
+
+// The catch-all is counted in its own rate and in the repeat rate's denominator, never as a
+// repeat: "no class fits" recurring is not one kind of defect recurring.
+func TestUnclassifiedRateCountsOnlyTheCatchAll(t *testing.T) {
+	runDir := t.TempDir()
+	seat := "red-chair"
+	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 1),
+		classMint(t, seat, "G1", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED),
+		classMint(t, seat, "G2", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+	})
+	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 2),
+		classMint(t, seat, "G3", recordpb.GapClass_GAP_CLASS_UNCLASSIFIED),
+		classMint(t, seat, "G4", recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL),
+		classMint(t, seat, "G5", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+		classMint(t, seat, "G6", recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION),
+	})
+	lines := telemetryLines(t, runDir, 2)
+	if got := newMintOf(t, lines[0])["unclassified_rate"]; got != 0.5 {
+		t.Errorf("epoch 1 unclassified_rate = %v, want 0.5 (1 of 2 mints)", got)
+	}
+	two := newMintOf(t, lines[1])
+	if got := two["unclassified_rate"]; got != 0.25 {
+		t.Errorf("epoch 2 unclassified_rate = %v, want 0.25 (1 of 4 mints)", got)
+	}
+	// G4 repeats epoch 1's false_universal; G3's catch-all is in the denominator and is no repeat.
+	if got := two["class_repeat_rate"]; got != 0.25 {
+		t.Errorf("epoch 2 class_repeat_rate = %v, want 0.25 (1 of 4 mints repeats a class; unclassified never does)", got)
+	}
+	want := []tally{{"false_universal", 1}, {"spec_underspecification", 2}, {"unclassified", 1}}
+	if got := classTally(t, two); !slices.Equal(got, want) {
+		t.Errorf("epoch 2 by_class = %v, want %v", got, want)
 	}
 }
 
@@ -545,17 +652,18 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		// bench opinion below both reference it, and both are foreign keys onto the mint.
 		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String("G1"),
-			Class:           proto.String("overclaim"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("the claim outruns its evidence"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, merge, merge+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
+		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, blue, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
+		recordtest.At(t, blue, blue+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue says otherwise")}),
 		recordtest.At(t, blue, blue+":inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
 			Question:  proto.String("try the archive"),
@@ -609,7 +717,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	})
 
 	debate := md(t, runDir, "debate")
-	for _, want := range []string{"## Epoch 1", "### RED\nred says so", "### BLUE\nblue says otherwise",
+	for _, want := range []string{"## Epoch 1", "### RED\nred says so", "### BLUE CLOSING (epoch 1) — G1\nblue says otherwise",
 		"### RED CLOSING (epoch 1) — G1", "### LEAD", "repaired — principle: correctness first"} {
 		if !strings.Contains(debate, want) {
 			t.Errorf("debate is missing %q:\n%s", want, debate)
@@ -666,8 +774,8 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-chair"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	names := MarkdownViews()
 	first := map[string]string{}
@@ -684,5 +792,19 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 	// Prose entities reach the projection unescaped: a markdown file is not HTML.
 	if !strings.Contains(first["ledger"], "p <with> & entities") {
 		t.Errorf("prose was escaped in the ledger:\n%s", first["ledger"])
+	}
+}
+
+// THE LEDGER ROW NAMES ITS CLASS WORD, converted from the enum where the row is formatted.
+func TestTheLedgerRowNamesItsClassWord(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"),
+			Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(), AcceptanceCheck: proto.String("count the cases"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Problem: proto.String("a universal claim"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+	})
+	ledger := md(t, runDir, "ledger")
+	if !strings.Contains(ledger, "| class false_universal") || strings.Contains(ledger, "GAP_CLASS_") {
+		t.Errorf("the ledger row must carry `class false_universal`:\n%s", ledger)
 	}
 }

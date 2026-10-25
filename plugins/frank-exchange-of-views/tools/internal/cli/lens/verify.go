@@ -2,6 +2,7 @@ package lens
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strconv"
@@ -102,7 +103,11 @@ func newVerify() *cobra.Command {
 		if err := checkedPage(s, cmd, body); err != nil {
 			return nil, err
 		}
-		return writeVerify(s, cmd, body, adjudates)
+		source, err := citedURL(s, body.GetAnchor())
+		if err != nil {
+			return nil, err
+		}
+		return writeVerify(s, cmd, body, source, adjudates)
 	}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`. The sentence holding that token is the claim recorded")
@@ -110,7 +115,7 @@ func newVerify() *cobra.Command {
 	// A verification is keyed on the citation it names.
 	seat.KeysOn(c, "anchor")
 	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (citedSentence)")
-	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
+	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none and on a corroboration, which holds none")
 	verifyAxes(c)
 	return c
 }
@@ -143,6 +148,40 @@ func citedSentence(s seat.Context, id string) (string, error) {
 	return sentence, nil
 }
 
+// citedURL is the url of the citation id names — blue's cite or a labelled corroboration — which
+// is the source a verification of it reads.
+func citedURL(s seat.Context, id string) (string, error) {
+	run, err := s.Run()
+	if err != nil {
+		return "", err
+	}
+	sources, err := record.CitedSources(run)
+	if err != nil {
+		return "", err
+	}
+	for _, src := range sources {
+		if src.Label == id {
+			return src.URL, nil
+		}
+	}
+	return "", feov.Errorf(feov.Conflict, "citation %s names no source on the record, so there is no source to have read", id)
+}
+
+// copyRead is whose bytes a reading was made against: the entry the run's fetch cache resolves the
+// source's url to when the reading is written — the entry every read of that url through the tool
+// returns — with the url it was fetched from where those bytes are not the url's own. A cache
+// holding no copy is not_cached: red read the source outside the tool, or the cache that held it is
+// gone, and the tool does not say which bytes those were.
+func copyRead(e fetchcache.Entry, cached bool) (recordpb.CopySubstitution, *string) {
+	if !cached {
+		return recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED, nil
+	}
+	if e.Substitution != "" && e.CopyURL != "" {
+		return e.CopySubstitution(), proto.String(e.CopyURL)
+	}
+	return e.CopySubstitution(), nil
+}
+
 // checkedPage holds a verification of a citation with pages to the page image red checked.
 //
 // A CITATION WITH PAGES QUOTES OCR TEXT, which can misread, so reading the reading again proves
@@ -157,11 +196,20 @@ func checkedPage(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) erro
 		return err
 	}
 	cite, err := record.CiteByLabel(run, body.GetAnchor())
-	if err != nil || cite == nil {
+	if err != nil {
 		return err
 	}
-	pages := cite.GetPages()
 	given := seat.Given(cmd, flags.Page)
+	// A CORROBORATION HOLDS NO PAGES. Its quote is the report's sentence, never a span located in
+	// an OCR reading, so a page names no image the corroboration was read from — and admitted, the
+	// flag would be dropped with nothing recorded, which is the silent no-op `fetch --at` refuses.
+	if cite == nil {
+		if given {
+			return feov.Errorf(feov.Validation, "--page names a page image, and %s is a corroboration — its quote is the report's sentence, not a span located in an OCR reading, so there is no image to check", body.GetAnchor())
+		}
+		return nil
+	}
+	pages := cite.GetPages()
 	page, _ := cmd.Flags().GetInt(flags.Page)
 	if len(pages) == 0 {
 		if given {
@@ -228,11 +276,12 @@ func pageList(pages []int32) string {
 // those words too.
 func newCorroborate() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		url := seat.Str(cmd, flags.URL)
 		return writeVerify(s, cmd, &recordpb.Verify{
-			Url:   proto.String(seat.Str(cmd, flags.URL)),
+			Url:   proto.String(url),
 			Title: proto.String(seat.Str(cmd, flags.Title)),
 			Claim: proto.String(seat.Location(cmd)),
-		}, cites)
+		}, url, cites)
 	}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
@@ -253,13 +302,15 @@ func newCorroborate() *cobra.Command {
 // same three fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
+	enumhelp.Flag(c, flags.Bridge, record.MustEnum("verify", "bridge"), "WHAT a supports_with_bridge reading bridged — required with that outcome, refused with any other. A reading that needed a term moved to another object, a condition dropped or a relation reversed bridged nothing — record refutes or weak")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 
 // writeVerify records what both verbs agree on. The caller has already put the facts that
 // distinguish them into the payload: an anchor and the sentence it marks, or the source it read and
-// the claim it quoted.
+// the claim it quoted. source is the url the reading was made of: the citation's for `verify`, the
+// typed one for `corroborate`.
 // citing says whether this verb may turn a supporting read into a FOOTNOTE.
 //
 // `corroborate` may: red found the source, blue never cited it, and a human reader cares that
@@ -298,7 +349,7 @@ func backsTheClaim(o recordpb.SourceOutcome) bool {
 		o == recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK
 }
 
-func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayCite citing) (seat.Result, error) {
+func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, source string, mayCite citing) (seat.Result, error) {
 	run, err := s.Run()
 	if err != nil {
 		return nil, err
@@ -308,6 +359,14 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// same defect that made `lens close` write `successor = ''` and fail every closure once the
 	// reference existed. Here nothing refuses it, so it simply reached every reader as a fact.
 	body.AccessDate = seat.OptStr(cmd, flags.AccessDate)
+	// THE COPY THIS RUN HOLDS OF THE SOURCE, read once from the index and never fetched: a write verb
+	// reaching the network would turn an unreachable host into a refused reading. Every fact below
+	// about the copy — whether it can establish absence, what the literature says of the work, which
+	// part of the work it is, whose bytes it is — is read off this one entry.
+	held, _, cached, lerr := fetchcache.Lookup(run, source)
+	if lerr != nil {
+		return nil, unreadableRefusal("which copy of "+source+" this run holds", lerr)
+	}
 	// BOTH WORDS ARE REFUSED RATHER THAN ZEROED. `refutes` and `absent` are the negative half this
 	// axis was widened to carry, and the zero is UNSPECIFIED — a mistyped verdict recorded as the
 	// zero is a citation nobody graded, which reads exactly like one nobody checked.
@@ -322,12 +381,19 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// work at all, nothing was read that could say so. Read from the index, never fetched —
 		// the same rule the retraction stamp below keeps.
 		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT {
-			if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok && e.WithoutBody() {
+			if e := held; cached && e.WithoutBody() {
 				return nil, feov.Errorf(feov.Validation, "the copy of %s this run holds is %s — %s. "+
 					"Its silence is not the work's, so absent cannot be established from it; record what the copy does "+
-					"establish, or find a copy that carries the body", body.GetUrl(), e.Completeness, e.CompletenessReason)
+					"establish, or find a copy that carries the body", source, e.Completeness, e.CompletenessReason)
 			}
 		}
+	}
+	if w := seat.Str(cmd, flags.Bridge); w != "" {
+		k, ok := record.BridgeKindOf(w)
+		if !ok {
+			return nil, feov.Errorf(feov.Validation, "%q is not a bridge this record can carry: summary | secondary_citation | near_restatement", w)
+		}
+		body.Bridge = &k
 	}
 	if w := seat.Str(cmd, flags.Confidence); w != "" {
 		cf, ok := record.ConfidenceOf(w)
@@ -341,6 +407,13 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		return nil, err
 	}
 	body.Text = proto.String(text)
+
+	// WHOSE BYTES THE READING WAS MADE AGAINST. The seat names a source; the cache may hold the
+	// full text its page pointed to, a recovered copy, a fuller one or a named backend's answer, and
+	// a verdict on one of those is a verdict on that copy. Stamped before the retry check, which
+	// holds a retry to the write's rules.
+	kind, copyURL := copyRead(held, cached)
+	body.CopySubstitution, body.CopyUrl = kind.Enum(), copyURL
 
 	// THE FOOTNOTE, FOR A SOURCE THAT BACKS THE CLAIM. Minted and spliced BEFORE the append, in
 	// the order `blue cite` uses and for the same reason: the label forms the marker, so it must
@@ -361,8 +434,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// run cache already holds it; a source outside the cache stamps NOT_CHECKED, which is the
 		// honest answer and not a reassurance. A fetch here would make a write verb reach the
 		// network and turn an unreachable host into a refused corroboration.
-		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
-			body.WorkStatus = record.WorkStatusOf(e.Retraction()).Enum()
+		if cached {
+			body.WorkStatus = record.WorkStatusOf(held.Retraction()).Enum()
 		} else {
 			body.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED.Enum()
 		}
@@ -383,15 +456,32 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
 		// a second event — the duplication the url key used to prevent. Checked before the mint,
 		// as blue's cite checks its --key before the fetch.
-		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
+		if prior, err := record.ExistingCorroboration(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
-		} else if prior != "" {
-			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
-			// the retry, at the claim it stored.
-			if err := seat.PlaceOwed(s, prior, ""); err != nil {
+		} else if prior != nil {
+			// A RETRY IS THE SAME ACT, held to every rule the first write was and to the reading it
+			// repeats: a retry the write would refuse is refused, and one that reads the source
+			// differently is a second reading, which this seat records by verifying the citation.
+			// What comes back is the STORED row, never the request.
+			if err := record.WouldRefuse(run, s.SeatID, recordpb.EventType_EVENT_TYPE_VERIFY, body); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
+			if !sameReading(prior, body) {
+				return nil, feov.Errorf(feov.Conflict, "you corroborated %s on this claim already, as citation %s: %s. A corroboration is one per source and claim, and its retry repeats it; a different reading of the same source is a verification of that citation — `verify --anchor %s`",
+					body.GetUrl(), prior.GetLabel(), readingWords(prior), prior.GetLabel())
+			}
+			if was, now := statedOtherwise(prior, body); was != "" {
+				return nil, feov.Errorf(feov.Conflict, "you corroborated %s on this claim already, as citation %s, stated with %s; this repeat states %s. "+
+					"A corroboration is one per source and claim and its retry repeats it, so this one records nothing and is refused",
+					body.GetUrl(), prior.GetLabel(), was, now)
+			}
+			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
+			// the retry, at the claim it stored.
+			if err := seat.PlaceOwed(s, prior.GetLabel(), ""); err != nil {
+				return nil, err
+			}
+			return verifyResult{Label: prior.GetLabel(), Source: prior.GetTitle(), Outcome: recordpb.Word(prior.GetOutcome()), Bridge: bridgeWord(prior), Claim: prior.GetClaim(),
+				CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
@@ -403,8 +493,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// the seat. Read from the index, never fetched; a source outside the cache was never asked.
 	if body.GetUrl() != "" {
 		completeness := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_ASKED
-		if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok {
-			completeness = e.SourceCompleteness()
+		if cached {
+			completeness = held.SourceCompleteness()
 		}
 		body.SourceCompleteness = completeness.Enum()
 	}
@@ -413,26 +503,90 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// placement check, for every outcome, against the report the act and its Anchor land on; a
 	// refusal records nothing. Where the source backs the claim, the quote is where the citation's
 	// marker stands. Where the source contradicts the claim or is silent on it, the quote is the
-	// subject of a PASS blocker that a finding quoting that sentence answers
-	// (record.unansweredContradictions), and a finding's quote is held to the report by this same
-	// placement — so a quote the report does not hold would be a blocker no seat can clear. A
+	// claim of the contradiction the reading opens (record.contradictionsOf), and a claim the
+	// report does not hold is a reading of nothing. A
 	// verification places nothing and its claim needs no check: the tool read it from the report
 	// (citedSentence), so it is handed no quote to hold.
 	quote := body.GetClaim()
 	if mayCite != cites {
 		quote = ""
 	}
-	if err := seat.AppendPlaced(s, body, body.GetLabel(), quote, claimRefusal); err != nil {
+	ev, err := seat.AppendPlaced(s, body, body.GetLabel(), quote, claimRefusal)
+	if err != nil {
 		return nil, err
 	}
+	// THE CONTRADICTION IS THE RECORD'S, read back after the write: only a finding naming its id
+	// raises it, so the seat is told the id here rather than left to find it in its work list.
+	c, err := record.ContradictionOfReading(run, ev)
+	if err != nil {
+		return nil, err
+	}
+	stored, ok := recordpb.BodyAs[*recordpb.Verify](ev)
+	if !ok {
+		return nil, feov.Errorf(feov.Internal, "the reading was written as %T, not a verification", ev.GetBody())
+	}
 	return verifyResult{
-		Anchor:     body.GetAnchor(),
-		Label:      body.GetLabel(),
-		Source:     body.GetTitle(),
-		Outcome:    recordpb.Word(body.GetOutcome()),
-		Claim:      body.GetClaim(),
-		VoiceTells: tells,
+		Contradiction: contradictionOf(c),
+		Anchor:        body.GetAnchor(),
+		Label:         body.GetLabel(),
+		Source:        body.GetTitle(),
+		Outcome:       recordpb.Word(body.GetOutcome()),
+		Bridge:        bridgeWord(body),
+		Claim:         body.GetClaim(),
+		VoiceTells:    tells,
+
+		CopySubstitution: recordpb.Word(stored.GetCopySubstitution()),
+		CopyURL:          stored.GetCopyUrl(),
 	}, nil
+}
+
+// sameReading reports whether a corroboration retry reads the source as the stored one did: the
+// same outcome, bridge and confidence.
+func sameReading(stored, retry *recordpb.Verify) bool {
+	return stored.GetOutcome() == retry.GetOutcome() && bridgeWord(stored) == bridgeWord(retry) &&
+		stored.GetConfidence() == retry.GetConfidence()
+}
+
+// statedOtherwise is what a corroboration retry states besides its reading — the title, the date it
+// was read and its reason — where that differs from the stored corroboration, as the flags that
+// state it then and now; "" where every one repeats.
+func statedOtherwise(stored, retry *recordpb.Verify) (was, now string) {
+	var w, n []string
+	for _, f := range []struct{ flag, s, r string }{
+		{flags.Title, stored.GetTitle(), retry.GetTitle()},
+		{flags.AccessDate, stored.GetAccessDate(), retry.GetAccessDate()},
+		{flags.Reason, stored.GetText(), retry.GetText()},
+	} {
+		if f.s == f.r {
+			continue
+		}
+		w, n = append(w, statedAs(f.flag, f.s)), append(n, statedAs(f.flag, f.r))
+	}
+	return strings.Join(w, " "), strings.Join(n, " ")
+}
+
+func statedAs(flag, v string) string {
+	if v == "" {
+		return "no --" + flag
+	}
+	return fmt.Sprintf("--%s %q", flag, v)
+}
+
+// readingWords renders a stored reading for the refusal that names it.
+func readingWords(v *recordpb.Verify) string {
+	out := "--as " + recordpb.Word(v.GetOutcome())
+	if b := bridgeWord(v); b != "" {
+		out += " --bridge " + b
+	}
+	return out + " --confidence " + recordpb.Word(v.GetConfidence())
+}
+
+// bridgeWord is the bridge a reading names, "" where it names none.
+func bridgeWord(body *recordpb.Verify) string {
+	if body.Bridge == nil {
+		return ""
+	}
+	return recordpb.Word(body.GetBridge())
 }
 
 type verifyResult struct {
@@ -441,15 +595,51 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
+	// Bridge is what a supports_with_bridge reading bridged; absent on every other outcome.
+	Bridge string `json:"bridge,omitempty"`
 	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
-	// anchor, which a finding raising a contradiction quotes whole.
+	// anchor, which a contradiction the reading opens names as its claim.
 	Claim string `json:"claim"`
 	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
+	// Contradiction is the contradiction this reading opened or joined; absent on a reading that
+	// opened and joined none.
+	Contradiction *readingContradiction `json:"contradiction,omitempty"`
+	// CopySubstitution is whose bytes the reading was made against, as the record holds them, and
+	// CopyURL where that copy was read, when a copy stood in for the url.
+	CopySubstitution string `json:"copy_substitution"`
+	CopyURL          string `json:"copy_url,omitempty"`
+}
+
+// readingContradiction is record.ReadingContradiction as the verb prints it: the id as every
+// surface spells it, the `--about` value of the finding that raises it.
+type readingContradiction struct {
+	ID       string `json:"id"`
+	Opened   bool   `json:"opened"`
+	OpenedBy string `json:"opened_by"`
+}
+
+func contradictionOf(c *record.ReadingContradiction) *readingContradiction {
+	if c == nil {
+		return nil
+	}
+	return &readingContradiction{ID: strconv.FormatInt(c.ID, 10), Opened: c.Opened, OpenedBy: c.Opener}
+}
+
+// words is the sentence that names the contradiction, "" where there is none.
+func (c *readingContradiction) words() string {
+	switch {
+	case c == nil:
+		return ""
+	case c.Opened:
+		return ". This reading opened contradiction " + c.ID
+	default:
+		return ". This reading joined contradiction " + c.ID + " (opened by " + c.OpenedBy + ")"
+	}
 }
 
 func (r verifyResult) Human() string {
-	return r.human() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
+	return r.human() + seat.CopyWords(r.CopySubstitution, r.CopyURL) + r.Contradiction.words() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 }
 
 func (r verifyResult) human() string {
@@ -457,7 +647,7 @@ func (r verifyResult) human() string {
 	if r.Anchor == "" {
 		subject = "corroborating source " + r.Source
 	}
-	claim := `"` + r.Claim + `"` // unescaped: a finding copies it as printed
+	claim := `"` + r.Claim + `"` // unescaped: the sentence as the report holds it
 	switch r.Outcome {
 	case "refutes":
 		return subject + " REFUTES the claim " + claim + " — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
@@ -465,6 +655,8 @@ func (r verifyResult) human() string {
 		return subject + " does NOT contain the claim " + claim + " — recorded as absent (the source says nothing about it; it does not say otherwise)"
 	case "unreachable":
 		return subject + " could not be read — recorded as unreachable, with what you tried"
+	case "supports_with_bridge":
+		return subject + " verified: " + r.Outcome + " (bridged: " + r.Bridge + "), on the claim " + claim
 	default:
 		return subject + " verified: " + r.Outcome + ", on the claim " + claim
 	}

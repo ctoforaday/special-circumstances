@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -26,7 +28,7 @@ func mintQuote(t *testing.T, runDir, key, quote string, extra ...string) (string
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	out, err := runMint(t, runDir, append([]string{"--run", runDir, "--seat-id", lensSeat,
-		"--key", key, "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+		"--key", key, "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", quote}, extra...)...)
 	return gapID(out), err
@@ -352,9 +354,10 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 
 // A RETRY ANCHORS THE STORED LOCATION, for every act that places an anchor. An act on the record
 // without its Anchor — an archived run's crash between the two, brought forward by migrate — is named
-// by the consistency check and finished by a retry under its key at the location the act stored,
-// never at the retry's own --quote; where the report has since come to hold that location twice, the
-// retry refuses and appends nothing. A corroboration's key is its source and claim, so its retry quotes the claim.
+// by the consistency check and finished by a retry under its key that quotes the location the act
+// stored; a retry quoting other text is another act under the same key, and is refused appending
+// nothing; where the report has since come to hold that location twice, the retry refuses and
+// appends nothing. A corroboration's key is its source and claim, so its retry quotes the claim.
 func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 	const stored, other = "Costs rose sharply.", "Volume grew."
 	for _, c := range []struct {
@@ -363,29 +366,31 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 		retry          []string
 	}{
 		{"finding", "F-0badf00d", lensSeat, func(string) proto.Message {
-			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
-		}, []string{"finding", "--key", "K1", "--quote", other, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
+			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t"),
+				Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}
+		}, []string{"finding", "--key", "K1", "--quote", stored, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
 		{"gap", "G-0badf00d", lensSeat, func(string) proto.Message {
-			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
+			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 				Location: proto.String(stored), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 				Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 				Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
-		}, nil},
+		}, []string{"mint", "--key", "K1", "--quote", stored, "--class", "spec_underspecification", "--problem", "p", "--fix", "f",
+			"--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"}},
 		{"citation", "C-0badf00d", blueSeat, func(string) proto.Message {
 			return &recordpb.Cite{Label: proto.String("C-0badf00d"), CiteKey: proto.String("K1"), Location: proto.String(stored),
 				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
-		}, []string{"cite", "--key", "K1", "--quote", other, "--url", "https://example.org/s", "--title", "S"}},
+		}, []string{"cite", "--key", "K1", "--quote", stored, "--url", "https://example.org/s", "--title", "S"}},
 		{"proof", "P-0badf00d", blueSeat, func(runDir string) proto.Message {
 			sha, err := proof.ScriptSha(runDir, script(t, runDir, "p.js", "console.log(1)"))
 			if err != nil {
 				t.Fatal(err)
 			}
 			return &recordpb.Proof{ProofId: proto.String("P-0badf00d"), ProofKey: proto.String("K1"), ProofSha: proto.String(sha),
-				Location: proto.String(stored), Script: proto.String("p.js")}
-		}, []string{"prove", "--key", "K1", "--quote", other, "--script", "p.js", "--reason", "r"}},
+				Location: proto.String(stored), Script: proto.String("p.js"), Text: proto.String("r")}
+		}, []string{"prove", "--key", "K1", "--quote", stored, "--script", "p.js", "--reason", "r"}},
 		{"citation", "C-0badf00e", lensSeat, func(string) proto.Message {
-			return &recordpb.Verify{Label: proto.String("C-0badf00e"), Url: proto.String("https://example.org/r"), Claim: proto.String(stored),
+			return &recordpb.Verify{Label: proto.String("C-0badf00e"), Url: proto.String("https://example.org/r"), Title: proto.String("R"), Claim: proto.String(stored),
 				Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("r")}
 		}, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--quote", stored, "--as", "supports", "--confidence", "high", "--reason", "r"}},
 	} {
@@ -408,20 +413,26 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				if v, err := consistency.Check(runtest.Open(t, runDir)); err != nil || !slices.Contains(v, "anchor-record: "+c.kind+" "+id+" has no anchor event") {
 					t.Errorf("the consistency check does not name the half-appended %s %s: %v %v", c.kind, id, v, err)
 				}
-				var err error
-				if c.retry == nil {
-					_, err = mintQuote(t, runDir, "K1", other)
-				} else {
-					_, err = run(t, append([]string{c.retry[0], "--run", runDir, "--seat-id", c.seat}, c.retry[1:]...)...)
+				if keyed := c.kind != "citation" || c.seat == blueSeat; keyed {
+					elsewhere := slices.Clone(c.retry)
+					elsewhere[slices.Index(elsewhere, stored)] = other
+					_, err := run(t, append([]string{elsewhere[0], "--run", runDir, "--seat-id", c.seat}, elsewhere[1:]...)...)
+					if err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), fmt.Sprintf("--quote %q", stored)) {
+						t.Errorf("a retry quoting other text = %v; want a conflict naming the stored --quote", err)
+					}
+					if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before; n != 0 {
+						t.Errorf("the retry quoting other text appended %d anchor(s)", n)
+					}
 				}
+				_, err := run(t, append([]string{c.retry[0], "--run", runDir, "--seat-id", c.seat}, c.retry[1:]...)...)
 				got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before
 				if twice {
 					if err == nil || got != 0 {
 						t.Fatalf("with the stored location twice in the report the retry gave %v and appended %d anchor(s)", err, got)
 					}
 					// THE REFUSAL IS THE RETRY'S OWN. The verb's first-call wording teaches a seat to
-					// fix --quote, which a retry does not read.
-					for _, want := range []string{"is on the record without its anchor", "now holds it more than once", stored, "does not read --quote", "record a new act"} {
+					// fix --quote, which a retry repeats.
+					for _, want := range []string{"is on the record without its anchor", "now holds it more than once", stored, "its --quote included", "record a new act"} {
 						if !strings.Contains(err.Error(), want) {
 							t.Errorf("the retry's refusal lacks %q:\n%v", want, err)
 						}

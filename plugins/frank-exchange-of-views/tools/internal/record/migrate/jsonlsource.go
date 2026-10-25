@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 )
 
 // A shard is named events-<seat>-<nonce>.jsonl, and every line in it carries the seat and the
@@ -39,16 +41,6 @@ type jsonlLine struct {
 	Payload map[string]any `json:"payload"`
 }
 
-// DiscardedSitting is one superseded dispatch the era's own reader would have dropped, kept
-// VISIBLE: the seat, the sitting, how many events it held, and how many of its keys the
-// winning sitting never rewrote — the part that is genuine loss rather than a retry's echo.
-type DiscardedSitting struct {
-	Seat            string `json:"seat"`
-	Nonce           string `json:"nonce"`
-	Events          int    `json:"events"`
-	UnrewrittenKeys int    `json:"unrewritten_keys"`
-}
-
 // JSONLSource reads a shard-era record: one JSONL file per (seat, sitting).
 //
 // # The merge rule, reconstructed without its bug
@@ -65,8 +57,8 @@ type DiscardedSitting struct {
 // filename accident.
 type JSONLSource struct {
 	events    []OldEvent
-	files     []SourceFile
-	discarded []DiscardedSitting
+	files     []migration.SourceFile
+	discarded []migration.DiscardedSitting
 }
 
 // OpenJSONL reads every shard under recordsDir. The originals are opened read-only and never
@@ -86,7 +78,7 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 		if err != nil {
 			return nil, fmt.Errorf("shard %s: %w", e.Name(), err)
 		}
-		s.files = append(s.files, SourceFile{Name: e.Name(), SHA256: sum, Bytes: size})
+		s.files = append(s.files, migration.SourceFile{Name: e.Name(), SHA256: sum, Bytes: size})
 		st, err := sittingOf(e.Name(), lines)
 		if err != nil {
 			return nil, fmt.Errorf("shard %s: %w", e.Name(), err)
@@ -115,7 +107,7 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 			wonKeys[l.Key] = true
 		}
 		for _, lost := range group[:len(group)-1] {
-			d := DiscardedSitting{Seat: lost.seat, Nonce: lost.nonce, Events: len(lost.lines)}
+			d := migration.DiscardedSitting{Seat: lost.seat, Nonce: lost.nonce, Events: len(lost.lines)}
 			for _, l := range lost.lines {
 				if !wonKeys[l.Key] {
 					d.UnrewrittenKeys++
@@ -284,7 +276,7 @@ func setField(ev *OldEvent, k string, v any) {
 	ev.Fields[k] = v
 }
 
-func (s *JSONLSource) Events() ([]OldEvent, error)   { return s.events, nil }
-func (s *JSONLSource) Files() []SourceFile           { return s.files }
-func (s *JSONLSource) Discarded() []DiscardedSitting { return s.discarded }
-func (s *JSONLSource) Close() error                  { return nil }
+func (s *JSONLSource) Events() ([]OldEvent, error)             { return s.events, nil }
+func (s *JSONLSource) Files() []migration.SourceFile           { return s.files }
+func (s *JSONLSource) Discarded() []migration.DiscardedSitting { return s.discarded }
+func (s *JSONLSource) Close() error                            { return nil }

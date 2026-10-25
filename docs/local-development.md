@@ -1,8 +1,8 @@
 # Local development — running the engine against a checkout
 
 The gates tell you a change compiles and that its goldens moved. They do not tell you the research
-engine still runs. For that the plugins have to be **installed** — content copied into a versioned
-cache, hook binaries built there, seats dispatched as real subagents — and then driven the way a
+engine still runs. For that the plugins have to be **installed** — content copied into a plugin
+root, hook binaries built there, seats dispatched as real subagents — and then driven the way a
 user drives them.
 
 This is how to do that without inventing a harness.
@@ -43,9 +43,8 @@ on the box are unaffected. Use `--live` only when you want the change in *your* 
 remember it is shared state.
 
 Tearing one down is **two** paths, not one: `$WORKDIR` and `$WORKDIR.marketplace`. The staged
-manifest sits beside the universe rather than inside it because it holds a symlink into the
-checkout, and a lead exploring its own `WORKDIR` under `bypassPermissions` will find such a door and
-run the checkout's binaries through it. `build` prints both paths when it finishes.
+marketplace is a copy of the checkout's `plugins/` beside the universe, and it is the plugin root a
+universe session loads (below). `build` prints both paths when it finishes.
 
 ### The manifest has to be restaged, and the reason is not obvious
 
@@ -70,20 +69,35 @@ outside is a lead that receives `/frank-exchange-of-views:research <topic>` as o
 because the command does not exist in that session, and **answers the topic**: one turn, five
 cents, `DONE success`. `build` now asserts that the recorded path exists and is the one it staged.
 
-**After any `build`, prove the universe carries your change** rather than trusting the summary:
+**After any `build`, prove the universe carries your change** rather than trusting the summary —
+and prove it in the staged marketplace, because that is the tree a universe session runs:
 
 ```sh
-U=~/.claude/scratch/universe/plugins/cache/special-circumstances
-grep -c '<a phrase from your change>' $U/frank-exchange-of-views/*/skills/research-protocol/scripts/debate.js
+M=~/.claude/scratch/universe.marketplace/plugins
+grep -c '<a phrase from your change>' $M/frank-exchange-of-views/skills/research-protocol/scripts/debate.js
 ```
 
-### Binaries are built in the cache
+### A directory marketplace runs its plugins in place
 
-`${CLAUDE_PLUGIN_ROOT}` resolves to the versioned cache, never to a checkout, so the hook binaries
-must be built there — after install. A build in the checkout leaves the installed plugin with no
-binaries and hooks degrading to a single stderr line, which from inside a run looks exactly like
-hooks that were never configured. `scripts/bootstrap-plugins.sh` does the same thing for cloud
-environments and is the older, supported path; `universe.sh` follows its ordering.
+The universe's marketplace is a `directory` source, and Claude Code loads a directory source's
+plugins from that directory: `${CLAUDE_PLUGIN_ROOT}`, each skill's base directory, the agent
+definitions, `hooks.json` and `bin/` all resolve under `$WORKDIR.marketplace/plugins/<name>`. The
+stream's `init` event names it — every entry of `plugins[].path` is a staged-marketplace path.
+`claude plugin install` still copies each plugin into the versioned cache
+(`$WORKDIR/plugins/cache/…`) and names that copy in `installed_plugins.json`, but a session does not
+load from it: a run's stream and transcripts reference the cache nowhere.
+
+So a check that reads the cache proves what was installed, not what runs. Grep the staged
+marketplace for a prompt, skill or constitution change; for a binary, `cmp` the staged copy against
+the cache copy, or ask the staged one directly (`$M/frank-exchange-of-views/bin/feov-record --schema`).
+
+### Binaries are built in the cache and mirrored
+
+`build` compiles each plugin's binaries in the cache, where the install put its `tools/` — the
+ordering `scripts/bootstrap-plugins.sh` uses for cloud environments, which install from a git
+source and do run from the cache — and copies them into the staged marketplace's `bin/`. A build in
+the checkout leaves both roots with no binaries and hooks degrading to a single stderr line, which
+from inside a run looks exactly like hooks that were never configured.
 
 A cache build has no git context, so `feov-record --version` reports `unknown` where a release
 reports its sha. **Version-skew detection is inert in a universe run** — `tool_version` and
@@ -137,9 +151,8 @@ renders board-mass trend, live seats with a completion ETA, cost-so-far and the 
 
 ## The universe is a snapshot, so you can keep working
 
-`claude plugin install` COPIES content into the versioned cache — proven by inode, not assumed:
-the cache file and the checkout file are different inodes, and the symlink exists only in the
-staged marketplace, which is the install *source*.
+`build` COPIES the checkout's plugins into the staged marketplace (`cp -r`), and the install copies
+them again into the cache. Neither is a link back to the working tree.
 
 So once `build` has run you can keep editing, committing, rebasing and pushing the checkout while a
 run is in flight, and the running engine is unaffected. It is holding a frozen copy. Re-run `build`
@@ -148,19 +161,20 @@ when you want the new code, and the next `run` picks it up.
 It isolates the other way too: the run's source tree is `$WORKDIR/src`, so its `.claude/run-live.json`
 sits there and cannot claim the subagents of the session you are developing in.
 
-Hooks are universe-local, and completely so: `${CLAUDE_PLUGIN_ROOT}` resolves to *this* universe's
-cache, and the `hooks.json` there points at that cache's own `bin/`. Nothing reaches outside the
-`WORKDIR`.
+Hooks are universe-local: `${CLAUDE_PLUGIN_ROOT}` resolves to *this* universe's staged marketplace,
+and the `hooks.json` there points at that root's own `bin/`. Nothing reaches outside `$WORKDIR` and
+`$WORKDIR.marketplace`.
 
 **The exception is narrower than it first looks: `build` mutates the universe IN PLACE.** It
-reinstalls over the same version directory, and hooks spawn fresh from that directory on every tool
-call — so rebuilding under a live run swaps its binaries mid-sitting. Editing the checkout is
+re-stages the marketplace and reinstalls over the same version directory, and hooks spawn fresh
+from the plugin root on every tool call — so rebuilding under a live run swaps its binaries
+mid-sitting. Editing the checkout is
 always safe; reinstalling over a running engine is not. `universe.sh build` now REFUSES when a run
 is in flight in that `WORKDIR` rather than leaving it to this paragraph; use a second `WORKDIR` for
 a second universe.
 
-A rebuild does propagate — verified with a probe marker, installed and then changed and reinstalled,
-both edits landing in the cache. There is no stale-universe trap.
+A rebuild propagates: it re-copies the staged marketplace from the checkout and reinstalls the same
+edits into the cache. There is no stale-universe trap.
 
 ### Run the plugin commands from outside the checkout
 
@@ -204,7 +218,7 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   every gate. Check seat exit codes and output-token counts, not just that the run finished.
 - **`VERIFIED` does not mean every dimension was audited.** A cast narrowed with `--lens-area`
   seats fewer lenses, and the verdict now states which dimensions never sat. Read that line.
-- **A `report-voice` gap is `by_grade`,** so a voice defect that grades below material does not hold
+- **A `report_voice` gap is `by_grade`,** so a voice defect that grades below material does not hold
   the PASS gate: a run can ship VERIFIED with known voice defects open. That is a deliberate
   setting, not an accident — decide whether it is the one you want before reading the stamp as
   clean.
@@ -228,9 +242,12 @@ env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u 
 
 **A run-live marker claims every subagent in its project.** While `.claude/run-live.json` names a
 live run — one whose directory exists and whose outcome is not yet recorded — the SubagentStart/Stop
-hooks attribute every subagent in that project to it, a dev session's included. Run the engine from
+hooks attribute every subagent in that project to it, a dev session's included. Between the outcome
+and the capture they still attribute every `lead-judge` subagent, the bench's assembly sitting's
+configuration, and once capture has run they attribute nothing. Run the engine from
 its own source tree (a detached worktree), never from the worktree you develop in. `setup` refuses a
-second live run in one project, and prunes the rows of runs that are no longer live.
+second live run in one project, and a run whose outcome is recorded and that was not captured; it
+prunes the rows of runs that were captured or whose directory is gone.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a

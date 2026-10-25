@@ -123,6 +123,16 @@ func EventsOfTypes(db Querier, words ...string) ([]*recordpb.Event, []Window, er
 	return eventsWhere(db, true, ` WHERE e."type" IN (`+marks+`)`, args...)
 }
 
+// EventAt is the event stored at row id, with its body, and nil where no row has that id. It reads
+// no window: a read by one row prints no sitting.
+func EventAt(db Querier, id int64) (*recordpb.Event, error) {
+	evs, _, err := eventsWhere(db, false, ` WHERE e."id" = ?`, id)
+	if err != nil || len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], nil
+}
+
 // eventsWhere is the one read path. withWindows reads each row's Window beside it, off events_w
 // joined to the stored sitting_id and the `sittings` view's owner, in one statement; without it the
 // read is the events table alone. events_w ranks every sitting on the record, so a windowed read
@@ -224,9 +234,10 @@ func refuseUndeclaredTypes(db Querier) error {
 	return fmt.Errorf("this record holds event types the schema does not declare (%s), so a "+
 		"narrowed read of it cannot be trusted: the rows are there and SQL filters them out before "+
 		"anything looks at them, which returns an empty projection and exit 0 — the same bytes as a "+
-		"record that holds nothing. Read it with the binary that wrote it, or replay it through this "+
-		"one: `--seat-id operator migrate --from <runDir> --to <freshDir>` re-drives every event "+
-		"through the current write path and says what it translated",
+		"record that holds nothing. Read it with the binary that wrote it, or migrate it: "+
+		"`feov-migrate --from <runDir> --to <freshDir>` — the plugin's operator binary, installed in its bin/ "+
+		"beside feov-record — re-drives every event through the current write path into a fresh run "+
+		"and says what it translated",
 		strings.Join(undeclared, ", "))
 }
 
@@ -536,7 +547,8 @@ const newerRunAdvice = "this record was written by a NEWER binary than this one,
 
 const olderRunAdvice = "it was created by an older binary than this one, " +
 	"and a run's schema is fixed when its database is created (it is never altered in place). Migrate it: " +
-	"`--seat-id operator migrate --from <runDir> --to <freshDir>` replays every event through this binary's " +
+	"`feov-migrate --from <runDir> --to <freshDir>` — the plugin's operator binary, installed in its bin/ " +
+	"beside feov-record and writing this binary's epoch — replays every event through the current " +
 	"write path into a fresh run, leaves the source untouched, and writes what it translated to " +
 	"<freshDir>/inputs/migration.json; continue in <freshDir>"
 

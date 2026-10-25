@@ -62,6 +62,9 @@ const (
 	StageRefusalLog hookfailures.Stage = "refusal-log"
 	// StageFailureLog is the PostToolUseFailure hook's one job: a seat's failed call to the log.
 	StageFailureLog hookfailures.Stage = "failure-log"
+	// StageEnvelope is the check of a seat's envelope against the record (refuseEnvelope): a check
+	// that could not run refuses the envelope naming why, and says so here as well.
+	StageEnvelope hookfailures.Stage = "envelope-check"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -176,6 +179,12 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if denied {
 		return nil
 	}
+	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
+	// refuses it (refuseEnvelope). Nothing is injected into it, and it is no Bash call or Read.
+	if in.ToolName == envelopeTool {
+		refuseEnvelope(in, cwdOf(raw), stdout, rec)
+		return nil
+	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
 	// every other tool stops here, before the marker search a Read would otherwise pay for.
 	if !hookgate.Wants(in) {
@@ -221,14 +230,12 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
 // that is what opens the next sitting's count.
 func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
-	agentID := in.AgentID
-	if agentID == "" {
-		agentID = seatenv.AgentID()
-	}
+	caller := callerAgent(in)
+	agentID := caller.ID
 	if agentID == "" {
 		return false, nil
 	}
-	runDir := seatRunDir(cwd, agentID, rec)
+	runDir := seatRunDir(cwd, caller, rec)
 	d, counted, err := sittingcap.Count(runDir, agentID)
 	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
 		return false, err
@@ -249,8 +256,8 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 // seatRunDir is the run a seat's call belongs to: the marker its working directory finds, else the
 // run the engine put in the process environment. One resolution for every hook that attributes a
 // seat's call, so the turn limit and the failure log cannot disagree about which run it was in.
-func seatRunDir(cwd, agentID string, rec *hookfailures.Recorder) string {
-	inferred := runlive.InferRunDir(cwd, agentID)
+func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) string {
+	inferred := runlive.InferRunDir(cwd, caller)
 	noteInference(inferred, rec)
 	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var), os.Getenv(seatenv.VarWrapper)} {
 		if dir != "" {
@@ -261,12 +268,17 @@ func seatRunDir(cwd, agentID string, rec *hookfailures.Recorder) string {
 }
 
 // callerAgent is the agent a call is made by: the payload's, else the one a headless seat carries in
-// its environment — the same identity enforceLimit counts against.
-func callerAgent(in hookgate.Input) string {
-	if in.AgentID != "" {
-		return in.AgentID
+// its environment — the same identity enforceLimit counts against — with the configuration it was
+// dispatched under, which decides whether a decided run is still live for it (runlive.StateOf).
+func callerAgent(in hookgate.Input) runlive.Caller { return callerOf(in.AgentID, in.AgentType) }
+
+// callerOf is callerAgent for a payload this package decodes itself. The type comes from the same
+// place the id does: a payload's id with the environment's type would pair two agents.
+func callerOf(agentID, agentType string) runlive.Caller {
+	if agentID != "" {
+		return runlive.Caller{ID: agentID, Type: agentType}
 	}
-	return seatenv.AgentID()
+	return runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}
 }
 
 // noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
@@ -285,6 +297,51 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 		rec.OKIn(runlive.StageUnusable, i.MarkerDir)
 	}
 }
+
+// envelopeTool is the tool a Workflow seat returns its envelope with: the harness tells each seat to
+// call it exactly once to end its work, and to call it again when the call is refused.
+const envelopeTool = "StructuredOutput"
+
+// refuseEnvelope denies the call returning a seat's envelope when the record refuses it
+// (record.EnvelopeRefusal, asked through the writer): a seat's sitting cannot end while a blocking
+// item on its own work list stands. The writer logs the refusal.
+//
+// A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, naming the error (gblock's standing rule: an
+// unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
+// check having failed. A call from no seat — no agent, no run — is no seat's envelope, and passes.
+func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
+	caller := callerAgent(in)
+	agentID := caller.ID
+	if agentID == "" {
+		return
+	}
+	runDir := seatRunDir(cwd, caller, rec)
+	if runDir == "" {
+		return
+	}
+	refusal, err := envelopeRefusal(runDir, agentID)
+	if err != nil {
+		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
+		if refusal == "" {
+			refusal = envelopeReadRefusal(err)
+		}
+	} else {
+		rec.OK(StageEnvelope)
+	}
+	if refusal != "" {
+		emitPreDeny(stdout, refusal)
+	}
+}
+
+// envelopeReadRefusal is the refusal of an envelope whose check against the record could not run,
+// naming the error.
+func envelopeReadRefusal(err error) string {
+	return "your envelope is refused: it could not be checked against your work list — " + err.Error() +
+		". An envelope nothing checked is not admitted; return it again"
+}
+
+// envelopeRefusal is a variable for the reason recordLimit is.
+var envelopeRefusal = sittinghook.Envelope
 
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit

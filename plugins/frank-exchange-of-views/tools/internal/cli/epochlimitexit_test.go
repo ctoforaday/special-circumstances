@@ -32,21 +32,33 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	lens := func() *record.Event {
 		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")})
 	}
+	served := func() *record.Event {
+		return at("red-lens-evidence", &recordpb.ReportRead{Head: proto.Int64(2)})
+	}
 	evs := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
 		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
-		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}),
+		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served(),
 	}
 	if withGap {
-		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{GapId: proto.String(limitGap), Class: proto.String("x"), Problem: proto.String("p"),
+		evs = append(evs, at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(limitGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}
-	for range 2 { // it has sat at the head, so the head readies it for nothing further
-		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}))
+	for range 2 { // it has been served the report at the head, so the head readies it for nothing further
+		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served())
 	}
 	evs = append(evs, at("red-chair", &recordpb.Register{}))
 	recordtest.Seed(t, runDir, evs...)
+}
+
+// argue files both parties' closings on limitGap — blue's and its minting lens's — so the plan
+// convenes the bench for its docketing: no party's closing is then awaited.
+func argue(t *testing.T, runDir string) {
+	t.Helper()
+	for _, seat := range []string{"blue-respond", "red-lens-evidence"} {
+		asSeat(t, runDir, seat, "closing", "--id", limitGap, "--reason", "the case of "+seat)
+	}
 }
 
 // setEpochLimit writes the run's epoch limit where setup records it.
@@ -302,7 +314,9 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 				return docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
 			},
 			func(t *testing.T, runDir string) {
-				ruleDocket(t, runDir, docketFile(t, runDir, "blue-respond", limitGap, "filed with the bench already sitting"), "repaired")
+				// Filed by a seat that filed no closing on the gap this sitting: both parties did
+				// (argue), and a party's docket motion over its own closing is refused.
+				ruleDocket(t, runDir, docketFile(t, runDir, "red-chair", limitGap, "filed with the bench already sitting"), "repaired")
 			},
 			func(t *testing.T, runDir, motionID string) { ruleDocket(t, runDir, motionID, "repaired") }},
 		{"a petition the bench heard and left", false, "petition", filePetition, func(*testing.T, string) {}, denyPetition},
@@ -312,6 +326,9 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 			stageRetiredLens(t, runDir, tc.withGap)
 			setEpochLimit(t, runDir, 5)
 			motionID := tc.file(t, runDir)
+			if tc.withGap {
+				argue(t, runDir)
+			}
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 				t.Fatalf("the plan at epoch 4 of 5 = %+v, want the bench alone dispatched", plan)
 			}
@@ -354,6 +371,7 @@ func TestABenchRulingAtAnExitBeforeTheLastEpochIsNotTheEpochLimit(t *testing.T) 
 				setEpochLimit(t, runDir, tc.limit)
 			}
 			motionID := docketFile(t, runDir, "blue-respond", limitGap, "not converging, and the bench's to settle")
+			argue(t, runDir)
 			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.EpochLimitReached || len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
 				t.Fatalf("the plan at the chair's fourth sitting = %+v, want the bench dispatched on the docket", plan)
 			}

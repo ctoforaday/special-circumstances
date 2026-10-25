@@ -23,7 +23,7 @@ func TestAProofThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
-	prepareRun(t, bin, runDir, m, nil)
+	prepareRun(t, bin, runDir, m, nil, nil)
 	// THE SCRIPT STARTS THE BINARY WITHOUT A SHELL. A shell script spliced the binary's path into
 	// its text, and on Windows that path is `C:\\…\\feov-record.exe`: the shell read each backslash
 	// as an escape, the call never started, its error went to /dev/null with the refusal, and the

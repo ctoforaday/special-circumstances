@@ -32,8 +32,8 @@ func seedReferents(t *testing.T, runDir string) {
 	for i := 0; i < 2; i++ {
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
+		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
+			"--key", fmt.Sprintf("seed-%d", i), "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
@@ -55,8 +55,8 @@ func seedReferents(t *testing.T, runDir string) {
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "seed-archived", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
@@ -363,8 +363,8 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	seatID := lensSeat
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
-		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 	}{
 		{"bench", "halt", "judge", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
-		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
+		{"blue", "closing", "blue-respond", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
@@ -429,6 +429,9 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 				restore()
 			}
 			runDir := seeded
+			if tc.verb == "closing" {
+				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle") // a closing argues a docketing
+			}
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
 			if _, err := runAt(t, args...); err != nil {

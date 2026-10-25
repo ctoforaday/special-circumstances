@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"os"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"google.golang.org/protobuf/proto"
@@ -90,7 +91,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	}
 	dir := newRun(t)
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
-		GapId: proto.String("G-00000001"), Class: proto.String("c"),
+		GapId: proto.String("G-00000001"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem:     proto.String("the claim rests on one source"),
 		Location:    proto.String("A sentence " + cited + " and another " + unchecked),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
@@ -102,7 +103,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
-		GapId: proto.String("G-00000002"), Class: proto.String("c"), Problem: proto.String("about the first gap"),
+		GapId: proto.String("G-00000002"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("about the first gap"),
 		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G-00000001"),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -112,7 +113,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Verify{
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Anchor: proto.String("C-a1b2c3d4"), Claim: proto.String("the claim"),
 		Text:       proto.String("the source states it at the leaf"),
 		Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
@@ -184,7 +185,7 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 	}
 	mint := func(seat, gap string) {
 		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: seat}, &recordpb.Mint{
-			GapId: proto.String(gap), Class: proto.String("c"),
+			GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:     proto.String(problem[gap]),
 			Location:    proto.String("A sentence"),
 			RequiredFix: proto.String("qualify it"), AcceptanceCheck: proto.String("the sentence names the range"),
@@ -224,4 +225,38 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 			}
 		}
 	}
+}
+
+// newRun makes a run directory for this package's fixtures. A gap's class is a value of the closed
+// GapClass set, so a run needs no vocabulary staged before a lens mints.
+func newRun(t *testing.T) string {
+	t.Helper()
+	dir := recordtest.TmpRun(t)
+	if err := os.MkdirAll(mustRun(t, dir).Records(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// newRunWithLanes is newRun plus the cast setup writes for a run with this many lanes.
+//
+// A LANE IS A LANE BECAUSE THE CAST SAYS SO — its id carries no such fact, since how many lanes a
+// run seats is a run parameter and no compiled table can name them. So a fixture that registers a
+// lane writes the cast; one testing the NO-CAST case still gets a bare run from newRun.
+func newRunWithLanes(t *testing.T, lanes int) string {
+	t.Helper()
+	dir := newRun(t)
+	seats, laneSeats := CastFor(nil, lanes)
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
+		t.Fatalf("seed the cast: %v", err)
+	}
+	return dir
+}
+
+// castBody is a Cast naming these seats and these lanes. NOT `castWith`, which castcoverage_test
+// already uses for a whole RUN built around a cast — the same word for two things reads as
+// confirmation to anyone checking.
+func castBody(seats, lanes []string) *recordpb.Cast {
+	return &recordpb.Cast{SeatIds: seats, LaneSeatIds: lanes}
 }

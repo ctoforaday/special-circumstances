@@ -36,9 +36,9 @@ func TestLegacyShardsAreRefusedRatherThanReadAsEmpty(t *testing.T) {
 	if db != nil {
 		t.Fatalf("refusal must not also hand back a handle, got %v", db)
 	}
-	// "operator migrate" is the pointer clause (plans/replay-migration.md §III.6): the
+	// "`feov-migrate --from <runDir> --to <freshDir>`" is the pointer clause (plans/replay-migration.md §III.6): the
 	// refusal keeps refusing, and stops being a dead end.
-	for _, want := range []string{"FORMER record format", "CANNOT READ", "events-blue-synthesize-864c76fd.jsonl", "operator migrate"} {
+	for _, want := range []string{"FORMER record format", "CANNOT READ", "events-blue-synthesize-864c76fd.jsonl", "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal must name what it found and why; %q missing from:\n%s", want, err)
 		}
@@ -72,7 +72,7 @@ func TestUnrelatedFilesDoNotTripTheLegacyRefusal(t *testing.T) {
 	// events-bad.jsonl and events-x-nothex.jsonl are the names TestMergedEventsOnAnEmptyOrAbsentRun
 	// has pinned as non-shards since the JSONL era: no nonce, and a nonce that is not hex. They
 	// were never parsed as events then and must not be refused as events now.
-	for _, name := range []string{"class-registry.json", "notes.txt", ".active-blue", "events-bad.jsonl", "events-x-nothex.jsonl"} {
+	for _, name := range []string{"scratch.json", "notes.txt", ".active-blue", "events-bad.jsonl", "events-x-nothex.jsonl"} {
 		if err := os.WriteFile(filepath.Join(records, name), []byte("{}"), 0o644); err != nil {
 			t.Fatal(err)
 		}

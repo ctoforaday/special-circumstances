@@ -120,6 +120,16 @@ func requireProofAnchor(q recordsql.Querier, id, flag string) (sha string, err e
 	return s.String, nil
 }
 
+// requireAboutProof refuses an act about a proof that names no proof on the record: the anchor is
+// checked at the write, as every other reference here is, so a gap about a proof always reaches one.
+func requireAboutProof(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
+	if kind != recordpb.AboutKind_ABOUT_KIND_PROOF {
+		return nil
+	}
+	_, err := requireProofAnchor(q, ref, "--about")
+	return err
+}
+
 // ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
 // copy of the same refusal alike: blue's own act, in blue's words.
 const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
@@ -151,15 +161,29 @@ func requireGaps(q recordsql.Querier, ids []string, flag string) error {
 	return nil
 }
 
-// requireAnchors refuses a reference to an anchor the record holds no act for.
-func requireAnchors(q recordsql.Querier, ids []string, flag string) error {
+// requireClosureAnchors refuses a closure's anchor the record holds no act for, and the gap the
+// closure closes.
+//
+// WHAT A CLOSURE RESTS ON: an anchor of the report — a citation, a proof, a finding, another gap — or
+// an inquiry, whose fate is a record act a closure can rest on as surely as a citation's reading.
+// The gap being closed is none of these: a closure is verified WITH something other than the gap,
+// and naming the gap itself attests to nothing a reader could check.
+func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag string) error {
 	for _, id := range ids {
+		if id == gapID {
+			return fmt.Errorf("%s names %s, the gap this closes — an anchor is what you verified the closure WITH, and a gap is not evidence of its own repair. Name the citations, proofs, findings, other gaps or inquiries you checked, or none", flag, id)
+		}
 		found, err := HoldsAnchor(q, id)
 		if err != nil {
 			return err
 		}
 		if !found {
-			return fmt.Errorf("%s names %s, which no act on this record placed — it takes the id inside an anchor token in the report (%s); `show evidence`, `show findings` and `show board` resolve them", flag, id, anchor.Token("C-…"))
+			if found, err = recordHasAt(q, `SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1`, id); err != nil {
+				return err
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s names %s, which no act on this record placed — it takes the id inside an anchor token in the report (%s) or an inquiry's id; `show evidence`, `show findings`, `show board` and `show inquiries` resolve them", flag, id, anchor.Token("C-…"))
 		}
 	}
 	return nil

@@ -3,150 +3,59 @@ package migrate
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"hash"
-	"os"
-	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 )
 
-// ManifestName is where a migrated run says what it is. inputs/ because that is where a
-// run's provenance lives (run-config.json is the precedent), and a FIELD-bearing file
-// because other machinery acts on it — capture's "migrated from" row reads these fields,
-// never prose.
-const ManifestName = "migration.json"
-
-// Manifest records what a migration did, in fields a writer could have refused.
-type Manifest struct {
-	// SourcePath is where the old record was read from, as given.
-	SourcePath string `json:"source_path"`
-	// SourceHash is the LOGICAL hash: sha256 over the event stream as read. The per-file
-	// hashes below are byte hashes of what was on disk, labelled as such — the same record
-	// hashes differently across WAL checkpoint states, which is why both exist.
-	SourceHash  string       `json:"source_hash"`
-	SourceFiles []SourceFile `json:"source_files"`
-	ToolVersion string       `json:"tool_version"`
-	// EventSchema is the epoch the migrated record was WRITTEN at — this binary's. SourceEpoch is the
-	// one the source stated, absent when the source predates the field, which is the record a
-	// migration most exists for. The pair is what makes "the migration moved the epoch" a fact a
-	// reader can check instead of an intention: the destination's stored epoch is this field, and the
-	// distance travelled is only legible beside where it started.
-	EventSchema int  `json:"event_schema"`
-	SourceEpoch *int `json:"source_epoch,omitempty"`
-	// SeatTurns is how many per-turn measurements were carried across. Zero is a real answer — a run
-	// whose capture never went has none — and it is a stated zero rather than an absent field, because
-	// a dropped carry and an uncaptured run produce the same empty timing view downstream.
-	SeatTurns  int            `json:"seat_turns"`
-	MigratedAt string         `json:"migrated_at"`
-	In         map[string]int `json:"events_in"`
-	Out        map[string]int `json:"events_out"`
-	Refusals   []Refusal      `json:"refusals,omitempty"`
-	// StatedFills are the values the migration SUPPLIED where the source predates a field and no
-	// value can say "never recorded" in its own terms — an enum has no such word. Each names where
-	// it was written, the slug, the value and why, so the fill is on the record rather than posing
-	// as what the archive said.
-	StatedFills []StatedFill      `json:"stated_fills,omitempty"`
-	Accepted    map[string]string `json:"accepted_losses,omitempty"`
-	IDs         map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id
-	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
-	// gaps whose quote never placed (they read gone) and those placed by the fallback.
-	GapAnchors GapPlacement `json:"gap_anchors"`
-	// ReportOrder is what became of the order of the report's text (order.go): no_report, in_order,
-	// reordered, or as_written for a text out of order that reordering the base does not replay.
-	ReportOrder string `json:"report_order"`
-	// ProseRewrites counts, per field, the archived ids rewritten inside a seat's own wording. Such
-	// a rewrite cannot tell a reference from a subject word that spells the same — "Q1 revenue" —
-	// so the count is stated, and zero is stated too: an absent count and a migration that rewrote
-	// no prose would otherwise be the same bytes.
-	ProseRewrites map[string]int `json:"prose_rewrites"`
-	// Rewritten is each of those rewrites with the text around it, for a reader who judges them —
-	// the archive's golden list is read from it.
-	Rewritten  []ProseRewrite `json:"-"`
-	Serialized map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
-	// Unclassified names empty old tables no decomposition rule could place — noise, but
-	// noise on the record rather than in a log nobody keeps.
-	Unclassified []string `json:"unclassified_tables,omitempty"`
-	// Discarded names the shard-era sittings the era's own reader would have dropped
-	// (winner-per-seat), with the count of keys the winner never rewrote — the genuine loss.
-	Discarded []DiscardedSitting `json:"discarded_sittings,omitempty"`
-	// Warnings are what the publish could not guarantee — a directory whose sync failed. They arise
-	// after the manifest is written, so they are never part of it; the verb prints each.
-	Warnings []string `json:"-"`
-}
-
-// StatedFill is one value the migration supplied for a field its source predates.
-type StatedFill struct {
-	Where string `json:"where"` // "staged registry", or "class_new event <old id>"
-	Slug  string `json:"slug"`
-	Value string `json:"value"`
-	Why   string `json:"why"`
+// classTranslations is the counted slugs as rows, ordered by slug, never nil.
+func classTranslations(mints map[string]int) []migration.ClassTranslation {
+	out := []migration.ClassTranslation{}
+	for slug, n := range mints {
+		out = append(out, migration.ClassTranslation{From: slug, To: archivedGapClasses[slug], Mints: n})
+	}
+	slices.SortFunc(out, func(a, b migration.ClassTranslation) int { return strings.Compare(a.From, b.From) })
+	return out
 }
 
 // NewManifest assembles the manifest for one replay.
-func NewManifest(sourcePath string, files []SourceFile, unclassified []string, res *Result) *Manifest {
-	return &Manifest{
-		SourcePath:    sourcePath,
-		SourceHash:    res.SourceHash,
-		SourceFiles:   files,
-		ToolVersion:   buildid.Revision(),
-		EventSchema:   record.EventSchema,
-		MigratedAt:    record.Now().Format("2006-01-02T15:04:05Z"),
-		In:            res.In,
-		Out:           res.Out,
-		Refusals:      res.Refusals,
-		StatedFills:   res.StatedFills,
-		Accepted:      res.AcceptedLosses,
-		IDs:           res.IDs,
-		Serialized:    res.Serialized,
-		GapAnchors:    res.GapAnchors,
-		ReportOrder:   res.ReportOrder,
-		ProseRewrites: proseCounts(res.ProseRewrites),
-		Rewritten:     res.ProseRewrites,
-		Unclassified:  unclassified,
+func NewManifest(sourcePath string, files []migration.SourceFile, unclassified []string, res *Result) *migration.Manifest {
+	return &migration.Manifest{
+		SourcePath:         sourcePath,
+		SourceHash:         res.SourceHash,
+		SourceFiles:        files,
+		ToolVersion:        buildid.Revision(),
+		EventSchema:        record.EventSchema,
+		MigratedAt:         record.Now().Format("2006-01-02T15:04:05Z"),
+		In:                 res.In,
+		Out:                res.Out,
+		Refusals:           res.Refusals,
+		StatedFills:        res.StatedFills,
+		ClassTranslations:  res.ClassTranslations,
+		SupersededOutcomes: res.SupersededOutcomes,
+		Accepted:           res.AcceptedLosses,
+		IDs:                res.IDs,
+		Serialized:         res.Serialized,
+		GapAnchors:         res.GapAnchors,
+		ReportOrder:        res.ReportOrder,
+		ProseRewrites:      proseCounts(res.ProseRewrites),
+		Rewritten:          res.ProseRewrites,
+		Unclassified:       unclassified,
 	}
 }
 
 // proseCounts is the rewrites per field, never nil.
-func proseCounts(rw []ProseRewrite) map[string]int {
+func proseCounts(rw []migration.ProseRewrite) map[string]int {
 	out := map[string]int{}
 	for _, r := range rw {
 		out[r.Field]++
 	}
 	return out
-}
-
-// Write lands the manifest in the migrated run's inputs/.
-func (m *Manifest) Write(runDir string) error {
-	dir := filepath.Join(runDir, "inputs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	b, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, ManifestName), append(b, '\n'), 0o644)
-}
-
-// ReadManifest reports whether a run is a migration, and of what. The nil, nil return is
-// the honest common case — a native run — and it is DISTINGUISHABLE from an unreadable
-// manifest, which is an error: a run that says it is a migration and cannot say of what
-// must not read as native.
-func ReadManifest(runDir string) (*Manifest, error) {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", ManifestName))
-	if os.IsNotExist(err) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	var m Manifest
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, fmt.Errorf("%s is present and unreadable — a run that claims to be a migration and cannot say of what must not read as native: %w", ManifestName, err)
-	}
-	return &m, nil
 }
 
 // streamHasher folds the event stream into the logical source hash. The encoding is

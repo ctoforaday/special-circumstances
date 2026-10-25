@@ -18,7 +18,7 @@ import (
 
 func main() {
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call) or failure (a call failed)")
+	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed) or envelope (the record's refusal of the seat's envelope, printed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open and close)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
@@ -31,6 +31,8 @@ func main() {
 	switch sittingwrite.Phase(*phase) {
 	case sittingwrite.Limit:
 		err = sittingwrite.WriteLimit(*run, *agentID, *sitting, *limit)
+	case sittingwrite.Envelope:
+		err = sittingwrite.WriteEnvelopeRefusal(*run, *agentID, os.Stdout)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:

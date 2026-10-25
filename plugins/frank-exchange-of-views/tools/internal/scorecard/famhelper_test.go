@@ -19,7 +19,7 @@ func famSeededT(t *testing.T, evs []*record.Event) *record.Family {
 	t.Helper()
 	var mints []*record.Event
 	for _, g := range []string{"G1", "G2", "G3", "G4", "G5"} {
-		mints = append(mints, recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String(g), Class: proto.String("x"),
+		mints = append(mints, recordtest.Event(t, "red-lens-logic", &recordpb.Mint{GapId: proto.String(g), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}

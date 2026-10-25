@@ -256,7 +256,7 @@ func driveEverySite(t *testing.T, agentTypes []string, cfg debatejs.Config) ([]d
 func everySiteBackend(agentTypes []string) debatejs.Backend {
 	gap := anchor.ID("gap", [4]byte{3: 1})
 	plan := func(parties, docket, blockers []any, pass bool) map[string]any {
-		return debatejs.Keyed(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{},
+		return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{},
 			"pass_permitted": pass, "ceiling": false, "max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false,
 			"why": []any{"fragment dispatch"}, "stale_areas": []any{}, "blockers": blockers})
 	}
@@ -271,14 +271,14 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "docket"}})
 	chair := 0
 	return func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "fragment dispatch", "rulings": []any{}, "dispositions": []any{},
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{gap}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
 			if chair == 1 {
-				e["plan"] = plan(parties, []any{gap}, debatejs.HeldBy(parties), false)
+				e.Relay(plan(parties, []any{gap}, debatejs.HeldBy(parties), false))
 			} else {
-				e["plan"] = plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true)
+				e.Relay(plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true))
 				e["verdict"] = "PASS"
 			}
 		}

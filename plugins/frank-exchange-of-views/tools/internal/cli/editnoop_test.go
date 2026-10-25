@@ -78,10 +78,10 @@ func TestAWhitespaceOnlyEditIsRefusedAsChangingNothing(t *testing.T) {
 func TestMintRefusesAPrescriptionThatChangesNothing(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nIntro.\n\n(They stand "+strayPeriod+"\n")
-	mintGap(t, runDir, "G0", "overclaim")
+	mintGap(t, runDir, "G0", "spec_underspecification")
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
 	_, err := runMintAt(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G1", "--class", "overclaim", "--problem", "stray period",
+		"--key", "G1", "--class", "spec_underspecification", "--problem", "stray period",
 		"--fix", "drop it", "--check-kind", "document", "--check", "no stray period",
 		"--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "on their own.);", "--new", "on their own.)")
@@ -102,7 +102,7 @@ func TestMintRefusesAPrescriptionThatChangesNothing(t *testing.T) {
 func TestAcceptOnAPrescriptionThatChangesNothingSaysSo(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nIntro.\n\n(They stand "+strayPeriod+"\n")
-	mintGap(t, runDir, "G0", "overclaim")
+	mintGap(t, runDir, "G0", "spec_underspecification")
 	gap := mintWithProposal(t, runDir, "G1", strayPeriod, "on their own.)")
 	registerBlue(t, runDir)
 
@@ -123,7 +123,7 @@ func TestAcceptOnAPrescriptionThatChangesNothingSaysSo(t *testing.T) {
 func TestAcceptAppliesAPunctuationRepairOnTheLiteralSpan(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nIntro.\n\n(They stand "+strayPeriod+"\n")
-	mintGap(t, runDir, "G0", "overclaim")
+	mintGap(t, runDir, "G0", "spec_underspecification")
 	gap := mintWithProposal(t, runDir, "G1", strayPeriod, "on their own.)")
 	registerBlue(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,

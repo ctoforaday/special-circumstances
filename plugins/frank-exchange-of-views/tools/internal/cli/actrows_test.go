@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -28,20 +27,9 @@ type actRow struct {
 
 func actFixture(t *testing.T) string {
 	t.Helper()
-	runDir := newRun(t)
-	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
-		// The bench owes an OCCASION and no other seat may pass one — ask the same question the
-		// write path asks rather than keeping a list of which ids are the bench.
-		args := []string{"register", "--run", runDir, "--seat-id", id}
-		if record.SeatOwesOccasion(id) {
-			args = append(args, "--occasion", "docket")
-		}
-		if _, err := run(t, args...); err != nil {
-			t.Fatalf("register %s: %v", id, err)
-		}
-	}
-	seedBlueReport(t, runDir)
-	if g := mintGap(t, runDir, "corr-seed", "self-attestation"); g != onlyID(t, runDir, "G") {
+	runDir := castRun(t)
+	castSeats(t, runDir)
+	if g := mintGap(t, runDir, "corr-seed", "spec_underspecification"); g != onlyID(t, runDir, "G") {
 		t.Fatalf("the fixture mints %s and the run holds another gap — every row names the one gap as G1", g)
 	}
 	return runDir
@@ -96,10 +84,16 @@ func actRows() map[string]actRow {
 			return []string{"log", "--type", "defect", "--reason", text}
 		}}
 	}
+	// A CLOSING ARGUES A DOCKETING: the write path refuses one on a gap nothing is before the bench on.
 	closingRow := func(seatID string) actRow {
-		return actRow{seat: seatID, act: func(_ actVars, text string) []string {
-			return []string{"closing", "--id", "G1", "--reason", text}
-		}}
+		return actRow{seat: seatID,
+			setup: func(t *testing.T, runDir string) actVars {
+				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle")
+				return nil
+			},
+			act: func(_ actVars, text string) []string {
+				return []string{"closing", "--id", "G1", "--reason", text}
+			}}
 	}
 	return map[string]actRow{
 		"blue manifest-row": {seat: "blue-respond", act: func(_ actVars, text string) []string {
@@ -133,10 +127,9 @@ func actRows() map[string]actRow {
 		"lens log":       logRow(lensSeat),
 		"chair log":      logRow("red-chair"),
 		"bench log":      logRow("judge"),
-		"blue position":  {seat: "blue-respond", act: prose("position")},
 		"chair position": {seat: "red-chair", act: prose("position")},
 		"blue closing":   closingRow("blue-respond"),
-		"chair closing":  closingRow("red-chair"),
+		"lens closing":   closingRow(lensSeat),
 		"lens regrade": {seat: lensSeat, act: func(_ actVars, text string) []string {
 			return []string{"regrade", "--id", "G1", "--severity", "high", "--reason", text}
 		}},
@@ -148,7 +141,7 @@ func actRows() map[string]actRow {
 					t.Fatal(err)
 				}
 				must(t, runDir, "prove", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
-					"--script", s, "--reason", "the computation a lens re-runs", "--expect-error")
+					"--script", s, "--reason", "the computation a lens re-runs")
 				return actVars{"proof": lastBody(t, runDir, &recordpb.Proof{}).GetProofId()}
 			},
 			act: func(v actVars, text string) []string {
@@ -160,12 +153,12 @@ func actRows() map[string]actRow {
 		}},
 		"chair carry": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) actVars {
-				closeG1(t, runDir, "closed in the first sitting")
+				closeG1(t, runDir, "closed in the chair's second sitting (epoch 2)")
 				must(t, runDir, "register", "--seat-id", "red-chair")
 				return nil
 			},
 			act: func(_ actVars, text string) []string {
-				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", text}
+				return []string{"carry", "--id", "G1", "--carried-from", "2", "--as", "repaired", "--reason", text}
 			}},
 		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
 			return []string{"spot-check", "--reason", text}
@@ -174,9 +167,15 @@ func actRows() map[string]actRow {
 		"bench declare":        {seat: "judge", act: prose("declare")},
 		"bench certify":        {seat: "judge", act: prose("certify")},
 		"bench halt":           {seat: "judge", act: prose("halt")},
-		"bench outcome": {seat: "judge", act: func(_ actVars, text string) []string {
-			return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
-		}},
+		// The outcome is the assembly sitting's: the bench registers for it first.
+		"bench outcome": {seat: "judge",
+			setup: func(t *testing.T, runDir string) actVars {
+				must(t, runDir, "register", "--seat-id", "judge", "--occasion", "assemble")
+				return nil
+			},
+			act: func(_ actVars, text string) []string {
+				return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
+			}},
 		"motion grade rule": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) actVars { return actVars{"m": fileGradeMotion(t, runDir)} },
 			act: func(v actVars, text string) []string {

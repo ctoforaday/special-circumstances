@@ -262,15 +262,8 @@ func (b *board) seed() record.Run {
 func convergedBoard(t *testing.T) *board {
 	const lens = "red-lens-evidence"
 	dir := recordtest.TmpRun(t)
-	run, err := record.NewRun(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := record.StageForRun(run, "x"); err != nil {
-		t.Fatal(err)
-	}
 	mint := func(id string, g recordpb.Grade) *recordpb.Mint {
-		return &recordpb.Mint{GapId: proto.String(id), Class: proto.String("x"), Problem: proto.String("p"),
+		return &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Severity: g.Enum(), Likelihood: g.Enum(), Impact: g.Enum()}
 	}
@@ -284,6 +277,7 @@ func convergedBoard(t *testing.T) *board {
 		add(lens, &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}).
 		add(lens, mint("G2", recordpb.Grade_GRADE_LOW)).
-		register("red-chair").dispatch(2, lens).register(lens).dispatch(2, lens).register(lens).register("red-chair")
+		register("red-chair").dispatch(2, lens).register(lens).add(lens, &recordpb.ReportRead{Head: proto.Int64(2)}).
+		dispatch(2, lens).register(lens).add(lens, &recordpb.ReportRead{Head: proto.Int64(2)}).register("red-chair")
 	return b
 }

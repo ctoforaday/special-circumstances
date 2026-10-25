@@ -32,7 +32,7 @@ func mintComputation(t *testing.T, runDir, key string) {
 	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
 	registerLensOnce(t, runDir)  // and the lens mints
 	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-		"--key", key, "--class", "unverified-arithmetic",
+		"--key", key, "--class", "spec_underspecification", "--about-kind", "section", "--about", "Findings",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
@@ -110,7 +110,7 @@ func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
 func TestADocumentCheckStillClosesOnProse(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	mintGap(t, runDir, "G1", "overclaim")
+	mintGap(t, runDir, "G1", "risk_coverage_omission")
 
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
@@ -141,7 +141,7 @@ func TestCheckKindIsEnforcedAsAnEnum(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	_, err := runMintAt(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G1", "--class", "x",
+		"--key", "G1", "--class", "policy_without_mechanism",
 		"--problem", "p",
 		"--check-kind", "compute", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")

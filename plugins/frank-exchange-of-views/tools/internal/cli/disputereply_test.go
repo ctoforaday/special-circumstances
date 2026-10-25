@@ -31,7 +31,7 @@ import (
 func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
-	mintGap(t, runDir, "G1", "overclaim")
+	mintGap(t, runDir, "G1", "spec_underspecification")
 
 	for _, why := range []string{"the harm needs two failures", "and the second failure is gated upstream"} {
 		if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
@@ -61,7 +61,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
-	mintGap(t, runDir, "G1", "overclaim")
+	mintGap(t, runDir, "G1", "spec_underspecification")
 	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)

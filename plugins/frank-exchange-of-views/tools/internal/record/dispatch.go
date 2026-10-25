@@ -18,7 +18,7 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head has moved since its last sitting — or by a contradiction it read" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a proof it judged unsound; empty for blue readied to fix or retire a proof judged unsound; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
@@ -68,10 +68,10 @@ func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
 // The record stores it as printed (recordpb.Plan), and capture compares every relay with that.
 type Plan struct {
 	// Key is the plan's identity: two plans carry one key when they decide the same — every field
-	// but those tagged `key:"-"`, which say when the plan was asked (keyed). The engine's no-progress
+	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
-	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch and final_sitting"`
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
 	// Head is the events.id of the latest blue_edit or base_ingest — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -80,7 +80,7 @@ type Plan struct {
 	// for each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
 	// Asked again in the same sitting, the plan still names them — the chair relays the plan it asks
-	// for last, and blue owes closings on what this sitting docketed.
+	// for last, and the parties of what this sitting docketed owe their closings on it.
 	Docket []string `json:"docket" desc:"gaps the verb docketed for the bench at this sitting"`
 	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
 	// each with the research direction the remand states: their minting lens and blue are among
@@ -95,6 +95,9 @@ type Plan struct {
 	Exchanges []ExchangeCount `json:"exchanges" desc:"one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
+	// basis is each ToFile gap's ask, in the words the bench rules on: at impasse, or past the
+	// grade-movement threshold.
+	basis map[string]string
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its inquiry review, its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
@@ -134,6 +137,49 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
+	// Verdict is the verdict the chair recorded in the sitting that asked, absent while it has
+	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
+	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
+	// chair's restatement of it. It says what the asking sitting did, not what the board decides,
+	// so the key leaves it out — a FAIL recorded in one sitting and not the next is no movement on
+	// the board.
+	Verdict PlanVerdict `json:"verdict,omitempty" key:"-" desc:"the verdict the chair recorded in this sitting; absent while it has recorded none"`
+}
+
+// ChairVerdictAt is the verdict the chair recorded in its latest sitting on the record q reads: the
+// plan's `verdict` as `dispatch next` prints it there. migrate carries it onto a stored plan written
+// before the plan held the field.
+func ChairVerdictAt(q recordsql.Querier) (PlanVerdict, error) {
+	evs, win, err := eventsAt(q)
+	if err != nil {
+		return "", err
+	}
+	return chairVerdictOf(evs, win), nil
+}
+
+// PlanVerdict is a chair's recorded verdict as the plan prints it: the verdict verb's word.
+type PlanVerdict string
+
+// chairVerdictOf is the verdict the chair recorded in its latest sitting — the one asking for the
+// plan — and "" where it recorded none. A sitting holds one verdict.
+func chairVerdictOf(evs []*Event, win WindowIndex) PlanVerdict {
+	var v PlanVerdict
+	for _, e := range thisSitting(evs, win, chairSeat) {
+		if g, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
+			v = PlanVerdict(strings.ToUpper(recordpb.Word(g.GetVerdict())))
+		}
+	}
+	return v
+}
+
+// closingsAwaitedWhy is the plan's reason for a docketed gap whose parties' closings are awaited.
+func closingsAwaitedWhy(gapID string, awaited []string) string {
+	return fmt.Sprintf("%s: docketed — the closing of %s is owed on it, and each is readied to file it; the bench sits on the gap once no party's closing is awaited", gapID, strings.Join(awaited, " and "))
+}
+
+// impasseBasis is the ask of the docket motion filed on a gap at impasse.
+func impasseBasis(gapID string) string {
+	return fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", gapID)
 }
 
 type openGap struct {
@@ -192,7 +238,7 @@ func planFrom(r planReads, files runFiles) (Plan, error) {
 	if err != nil {
 		return emptyPlan(), err
 	}
-	plan := keyed(foldPlan(params, r))
+	plan := foldPlan(params, r).WithKey()
 	if err := relayable(plan); err != nil {
 		return emptyPlan(), err
 	}
@@ -252,15 +298,17 @@ func foldPlan(params Params, r planReads) Plan {
 	plan := emptyPlan()
 	plan.Head = r.head
 	evs, win, fresh := r.evs, r.win, r.fresh
+	plan.Verdict = chairVerdictOf(evs, win)
 
-	// Source 1: each cast lens that has never sat, or whose last sitting the head has moved past,
-	// until it retires owing nothing (retirement.go) — the same fold the PASS gate refuses from. A
-	// lens engaged that has opened no sitting since has not sat, so its pin has not moved and it
-	// stays ready.
+	// Source 1: each cast lens that has never sat, or whose pin — the head the whole report was last
+	// served to it at — is behind the head, until it retires owing nothing (retirement.go): the same
+	// fold the PASS gate refuses from. A lens whose sitting ended without the report served to it at
+	// the head has no new pin, so it stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
+	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps), eventBlockersOf(evs, ids, win)))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps))))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
 	occasions := map[string][]string{}
@@ -297,12 +345,40 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		engage(blueRespondSeat, "", g.id)
 	}
-	// toBench dockets a gap at impasse: the chair files the motion, and the bench is convened for it.
-	toBench := func(g openGap, why string) {
+	// THE PARTIES ARGUE BEFORE THE BENCH RULES (closingowed.go). Each party owes its closing on a
+	// docketing and is readied for it with no gap engaged — the closing is not an exchange on the gap,
+	// and its sitting counts none — while the bench is convened only once no party's closing is
+	// awaited. A party that sat since the docketing and filed none is missing: it is not readied again
+	// for it, and the bench rules on the record as it stands.
+	duties := map[string][]ClosingDuty{} // each gap's standing docketing's closings
+	for _, d := range standingClosingDuties(closingDutiesOf(evs, ids, win)) {
+		duties[d.GapID] = append(duties[d.GapID], d)
+	}
+	// toBench dockets a gap — at impasse, or for its grade movement: the chair files the motion on
+	// basis, and the gap's parties are readied for their closings. Nothing on the record answers a
+	// docketing not yet filed, so every party's closing is awaited and the bench is not convened.
+	toBench := func(g openGap, why, basis string) {
 		plan.Docket = append(plan.Docket, g.id)
 		plan.ToFile = append(plan.ToFile, g.id)
-		engage(benchSeat, occasionDocket, g.id)
+		if plan.basis == nil {
+			plan.basis = map[string]string{}
+		}
+		plan.basis[g.id] = basis
 		plan.Why = append(plan.Why, why)
+		var awaited []string
+		if lens, ok := closingPartiesOf(r.cast, g.mintedBy); ok {
+			awaited = append(awaited, lens)
+		}
+		awaited = append(awaited, blueRespondSeat)
+		for _, p := range awaited {
+			engage(p, "")
+		}
+		plan.Why = append(plan.Why, closingsAwaitedWhy(g.id, awaited))
+	}
+	moved := gradeMovementOf(evs, ids, win, openSet(blockerGapsOfOpen(gaps)))
+	movedBlocker := map[string]Blocker{}
+	for _, b := range moved.blockers() {
+		movedBlocker[b.Subject] = b
 	}
 	for _, g := range gaps {
 		// A STRANDED GAP IS READY WORK WHATEVER ITS CLASS OR GRADE. Superseding is a promise to
@@ -317,7 +393,7 @@ func foldPlan(params Params, r planReads) Plan {
 			x = &GapExchanges{GapID: g.id}
 		}
 		// THE ROUTE IS routeOf, the one predicate the work lists read too.
-		route := routeOf(g.material, stranded, g.unruledFiled > 0, x)
+		route := routeOf(g.material, stranded, g.unruledFiled > 0, moved.docketed(g.id), x)
 		if stranded && route != routeBench {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and superseded by %s — held as material until its minter closes it", g.id, g.supersededBy))
 		}
@@ -337,11 +413,31 @@ func foldPlan(params Params, r planReads) Plan {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: docket motion %s stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied; the run cannot end in a verdict while it stands", g.id, g.unruledMotion))
 				continue
 			}
-			engage(benchSeat, occasionDocket, g.id)
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
 			if docketedThisSitting(evs, ids, openings[chairSeat], g.unruledFiled) {
 				plan.Docket = append(plan.Docket, g.id)
 			}
+			var awaited, missing []string
+			for _, d := range duties[g.id] {
+				switch d.State {
+				case ClosingAwaited:
+					awaited = append(awaited, d.Party)
+				case ClosingMissing:
+					missing = append(missing, d.Party)
+				}
+			}
+			if len(awaited) > 0 {
+				for _, p := range awaited {
+					engage(p, "")
+				}
+				plan.Why = append(plan.Why, closingsAwaitedWhy(g.id, awaited))
+				continue
+			}
+			engage(benchSeat, occasionDocket, g.id)
+			why := fmt.Sprintf("%s: docketed and unruled — the bench is ready, no party's closing being awaited", g.id)
+			if len(missing) > 0 {
+				why += fmt.Sprintf("; %s sat since the docketing without filing a closing, and the bench rules on the record as it stands", strings.Join(missing, " and "))
+			}
+			plan.Why = append(plan.Why, why)
 		case routeNobody:
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
 		case routeDebate:
@@ -356,13 +452,18 @@ func foldPlan(params Params, r planReads) Plan {
 		// for one exchange between its minting lens and blue, carrying the ruling's direction, and back
 		// to the bench if that exchange leaves it here; one remanded twice is at its limit.
 		case routeDocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()))
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) — docketed for the bench", g.id, x.Counted()), impasseBasis(g.id))
 		case routeRedocket:
-			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()))
+			toBench(g, fmt.Sprintf("%s: at impasse (%s) after the exchange its remand granted — docketed for the bench again", g.id, x.Counted()), impasseBasis(g.id))
+		// GRADE MOVEMENT PAST THE THRESHOLD IS DOCKETED AS IMPASSE IS, whatever the gap's materiality:
+		// a gap regraded below medium readies nobody, and that is the movement the bench rules on.
+		case routeGradeMovement:
+			b := movedBlocker[g.id]
+			toBench(g, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
 		case routeRemandOwed:
 			debate(g)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, "+RemandDirectionPrefix+"%s",
 				g.id, x.Counted(), g.direction))
 		case routeAtLimit:
 			materialSettled++
@@ -371,10 +472,11 @@ func foldPlan(params Params, r planReads) Plan {
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
 	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
-	// a contradiction no finding raises — holds the PASS until its owner acts, and an owner nobody
+	// a contradiction no gap answers — holds the PASS until its owner acts, and an owner nobody
 	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
 	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
-	// arose and left it is not readied again, the reason says so, and the blocker still holds the
+	// arose and left it is not readied again — for a lens, sat through (satThrough), so a sitting
+	// stopped at the call limit or never closed readies it again, the reason says so, and the blocker still holds the
 	// PASS — the precedent benchSatFor set for the docket.
 	//
 	// A CITATION OR PROOF UNCHECKED SINCE ITS SENTENCE CHANGED NEEDS NO ARM HERE. Its owner owes the
@@ -390,12 +492,32 @@ func foldPlan(params Params, r planReads) Plan {
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
-			if _, sat := firstAfter(openings[b.Owner], b.since); sat {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
+			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
+				plan.Why = append(plan.Why, contradictionReadiness(b, true))
 				continue
 			}
 			engage(b.Owner, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
+			plan.Why = append(plan.Why, contradictionReadiness(b, false))
+		// A PROOF A LENS'S STANDING JUDGEMENT CALLS UNSOUND READIES TWO SEATS (gblock, 2026-10-24): the
+		// judging lens to mint its gap, until it has, and blue to fix or retire the proof — each once
+		// per cause, where blue's cause moves when the gap is minted, so blue sits with the gap's fix
+		// in hand.
+		case b.Kind == BlockerUnsoundProof:
+			if b.answeredBy == "" && seatclass.RoleOfSeat(b.Owner) == "lens" {
+				if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
+					plan.Why = append(plan.Why, unsoundReadiness(b, b.Owner, true))
+				} else {
+					engage(b.Owner, "")
+					plan.Why = append(plan.Why, unsoundReadiness(b, b.Owner, false))
+				}
+			}
+			cause := max(b.since, b.answeredAt)
+			if _, sat := firstAfter(ends.through[blueRespondSeat], cause); sat {
+				plan.Why = append(plan.Why, unsoundReadiness(b, blueRespondSeat, true))
+				continue
+			}
+			engage(blueRespondSeat, "")
+			plan.Why = append(plan.Why, unsoundReadiness(b, blueRespondSeat, false))
 		}
 	}
 	for _, s := range order {
@@ -404,7 +526,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
 	// the stale areas, its ruling on a grade or inquiry motion). A blocker another seat must clear —
-	// an unruled petition, a contradiction no lens has raised, a docket motion on a gap that has
+	// an unruled petition, a contradiction no gap answers, a docket motion on a gap that has
 	// since closed, a citation or proof unchecked since its sentence changed — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
 	// cannot clear (#1202).
@@ -551,6 +673,9 @@ type dispatchRow struct {
 	gaps    []string
 	// occasions is what a bench row convened the bench for; empty on every other seat's row.
 	occasions []recordpb.Occasion
+	// engage is a row blue-respond wrote (isEngageRow): its next sitting, in the epoch the chair's
+	// dispatch opened.
+	engage bool
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
@@ -576,7 +701,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions(), engage: isEngageRow(e)})
 		}
 	}
 	return ds, openings
@@ -595,7 +720,7 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // for a dispatch is the first sitting it opened after the dispatch row (dispatchLedger: the hook's
 // bracket, or a register no bracket preceded), and a seat that has not opened one
 // since has not sat. Every reader of the question asks it here — the lens's readiness fold
-// (lensStates) and its last sitting (lastSittingBefore), the bench's sitting for a docketing
+// (lensStates), the bench's sitting for a docketing
 // (benchSatFor), the exchange count (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.
 //
@@ -605,6 +730,98 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // bench never sat for would read as heard and never be readied again.
 func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(openings, d.at)
+}
+
+// satThrough IS THE ONE ANSWER TO "DID THIS LENS SIT THROUGH THAT SITTING", which is a different
+// question from sittingFor's. A sitting OPENS when the hook brackets it or the seat registers, and
+// that satisfies the dispatch: the seat sitting now is not owed its own sitting. Whether the seat
+// then did what it was dispatched for is decided at the sitting's END, and two ends say it did not:
+//
+//   - STOPPED AT THE CALL LIMIT: a sitting_limit names it — by the seat and the sitting number the
+//     hook's count was keyed by, which is the opening's stored sitting ordinal (sittingcap). The
+//     seat was refused every further call, so what it was dispatched for stopped where the limit
+//     fell, not where its judgement did.
+//   - NEVER CLOSED: its opening carries an agent, no sitting_close of that agent follows it, and the
+//     seat has opened a later sitting. The SubagentStop hook writes the close when the agent
+//     returns, so a sitting without one ended some other way.
+//
+// A SITTING STILL OPEN IS NOT ONE IT SAT THROUGH, AND NOT ONE IT FAILED. The seat's latest sitting
+// with no close may be in flight — a lens reading its own work list is in one — so it is reported
+// as not closed yet, never as failed. Neither counts as sat: a reader that needs the sitting over
+// (the pin, the retirement count, the lapse of a debt) waits for its close.
+//
+// AN OPENING WITH NO AGENT CLOSES BY ITS NEXT OPENING ALONE (sittingCloser): no stop can join it,
+// so the record can never hold more about it than that it opened, and it is sat through there.
+// A register outside any subagent — a headless seat, a run no hook reached — is that case.
+//
+// The readers of "has this lens sat" ask it here: the lens fold's pin (a report read counts only in a
+// sitting the lens sat through), never-sat and retirement
+// count (lensStates), its pin before its dispatch (lastReadBefore), the lapse of what it owes
+// (lensOwesOf) and the once-per-contradiction readiness (foldPlan). The plan, the work lists,
+// the PASS gate and retirement reach it through passBlockersOf, so they agree at every state.
+type satThrough struct {
+	through map[string][]int64 // seat -> the openings of the sittings it sat through, ascending
+	short   map[int64]string   // opening -> why the seat did not sit through that sitting
+}
+
+// satThroughOf reads the stream once for every fact that ends a sitting. seq and openings are
+// dispatchLedger's, so the places compare with the dispatches and the openings it read.
+func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64) satThrough {
+	agentOf := map[int64]string{} // an opening's place -> the agent it carries
+	ordinal := map[int64]int{}    // an opening's place -> its stored sitting ordinal for its seat
+	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
+	type limited struct {
+		seat    string
+		sitting int
+	}
+	limits := map[limited]bool{}
+	for i, e := range evs {
+		if _, opens := win.Opens(e); opens {
+			agentOf[seq[i]] = recordpb.AgentOpening(e)
+			ordinal[seq[i]] = win.Of(e).Sitting
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
+			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
+			limits[limited{b.GetSeatId(), int(b.GetSitting())}] = true
+		}
+	}
+	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
+	for seat, os := range openings {
+		for k, o := range os {
+			next, later := int64(0), k+1 < len(os)
+			if later {
+				next = os[k+1]
+			}
+			agent := agentOf[o]
+			stop, stopped := firstAfter(stops[agent], o)
+			switch {
+			case limits[limited{seat, ordinal[o]}]:
+				out.short[o] = shortCallLimit
+			case agent == "" || (stopped && (!later || stop < next)):
+				out.through[seat] = append(out.through[seat], o)
+			case later:
+				out.short[o] = shortNeverClosed
+			default:
+				out.short[o] = shortNotClosed
+			}
+		}
+	}
+	return out
+}
+
+// satThrough's reasons a sitting is not one its seat sat through.
+const (
+	shortCallLimit   = "was stopped at the per-sitting tool-call limit"
+	shortNeverClosed = "never closed — its agent's stop is not on the record"
+	shortNotClosed   = "has not closed yet"
+)
+
+// sat reports whether the seat sat through the sitting that opened at place o.
+func (s satThrough) sat(seat string, o int64) bool {
+	_, in := slices.BinarySearch(s.through[seat], o)
+	return in
 }
 
 // benchOccasionSittings is the bench's sittings, by the occasion each one's register states, in stream
@@ -662,8 +879,9 @@ func benchRowSitting(openings []int64, on map[recordpb.Occasion][]int64, d dispa
 
 // sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
 // it began. Every reader that bounds a seat's sitting asks it here — the exchange count
-// (exchangesOf) and blue's sittings (BlueSittings, behind PositionSittings, the manifest's owed set and
-// capture's record-parity audit) — so a change to what closes a sitting reaches all of them at once.
+// (exchangesOf), blue's sittings (BlueSittings, behind the manifest's owed set) and the chair's
+// (PositionSittings, behind capture's record-parity audit) — so a change to what closes a sitting
+// reaches all of them at once.
 //
 // ONLY FACTS ABOUT THIS SEAT CLOSE IT, AND THE EARLIER OF TWO DOES. A sitting ends at whichever
 // comes first after it began:
@@ -827,7 +1045,10 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 	sort.Slice(anyone, func(a, b int) bool { return anyone[a] < anyone[b] })
 	var groups []DispatchGroup
 	for i, d := range ds {
-		if i == 0 || openedBetween(anyone, ds[i-1].at, d.at) {
+		// AN ENGAGE ROW OPENS NO GROUP: blue writes it inside its sitting for the chair's dispatch,
+		// for its next sitting in the same epoch, so it joins the dispatch it follows — the bench that
+		// sits after blue is still that dispatch's party.
+		if i == 0 || (!d.engage && openedBetween(anyone, ds[i-1].at, d.at)) {
 			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}, PartyRows: map[string]PartyRow{}})
 		}
 		g := &groups[len(groups)-1]
@@ -860,6 +1081,12 @@ func openedBetween(openings []int64, a, b int64) bool {
 }
 
 // chairSeat is the seat whose sittings are the record's epochs.
+// RemandDirectionPrefix is what a plan's line for a remanded gap prints before the bench ruling's
+// direction. The direction is the bench's own words, printed as written and last on its line, so
+// everything after the prefix is seat prose: migrate carries that tail of an archived plan as
+// written, and compares its own copy of the prefix with this one.
+const RemandDirectionPrefix = "on the ruling's direction: "
+
 const chairSeat = "red-chair"
 
 // benchSeat is the bench's seat — the one that holds the gavel for the subjects the schema gives
@@ -1005,6 +1232,11 @@ func owedSitting(evs []*Event, win WindowIndex, seatID string) (dispatchRow, boo
 			continue
 		}
 		_, sat := benchRowSitting(openings[seatID], on, ds[i])
+		// AN ENGAGE ROW IS OWED BY THE SITTING AFTER THE ONE THAT WROTE IT: blue records it in the
+		// sitting it is in, so until a sitting of blue's opens after it, nothing is owed yet.
+		if ds[i].engage && !sat {
+			return ds[i], false
+		}
 		return ds[i], !sat
 	}
 	return dispatchRow{}, false
@@ -1024,6 +1256,31 @@ var (
 var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: recordpb.Occasion_OCCASION_PETITION,
 	recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:   recordpb.Occasion_OCCASION_DOCKET,
+}
+
+// contradictionReadiness is the plan's reason on a contradiction a lens read and nothing has
+// answered: ready to raise it, or not readied again because the lens has sat since it read it.
+func contradictionReadiness(b Blocker, satSince bool) string {
+	if satSince {
+		return fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b))
+	}
+	return fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it with a finding naming its id and answer it with the gap minted from that finding, which takes no mint of its budget, or with the open gap that already holds its defect, credited with that finding", b.Owner, b.Detail, contradictionFact(b))
+}
+
+// unsoundReadiness is the plan's reason for seat on an unsound-proof blocker: the judging lens, ready
+// to mint its gap, or blue, ready to fix or retire the proof — or, where it has sat since the cause,
+// that it is not readied again.
+func unsoundReadiness(b Blocker, seat string, satSince bool) string {
+	if seat == blueRespondSeat {
+		if satSince {
+			return fmt.Sprintf("%s has sat since proof %s was judged unsound and left it standing — readied once per cause, so not again", seat, b.Subject)
+		}
+		return fmt.Sprintf("%s: proof %s stands judged unsound by %s — ready, to fix the proof or retire it", seat, b.Subject, ownerOr(b, unsoundJudge))
+	}
+	if satSince {
+		return fmt.Sprintf("%s has sat since it judged proof %s unsound and minted no gap about it — readied once per judgement, so not again", seat, b.Subject)
+	}
+	return fmt.Sprintf("%s judged proof %s unsound and no gap of its carries that to blue — ready, to mint its gap about the proof, which takes no mint of its budget", seat, b.Subject)
 }
 
 // benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no

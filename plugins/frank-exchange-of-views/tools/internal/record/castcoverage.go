@@ -17,7 +17,7 @@ import (
 // nothing about it, and the stamp said VERIFIED — which a reader takes to mean red looked and found
 // nothing material, when for voice nobody looked at all.
 //
-// IT IS THE CLASS THIS SYSTEM ALREADY GRADES `always` MATERIAL. `verification-scope-blindspot` is
+// IT IS THE CLASS THIS SYSTEM ALREADY GRADES `always` MATERIAL. `verification_scope_blindspot` is
 // "less was checked than the report implies", and a lens roster that silently drops a dimension is
 // that defect committed by the run itself, one level above the report its lenses audit.
 //

@@ -25,7 +25,7 @@ browser. Each environment is configured separately.
 # Special Circumstances plugins. Never exits non-zero: a failing setup script
 # blocks the session from starting, and missing plugins are the lesser problem.
 M=special-circumstances
-C="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$M"
+C="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$M"
 
 claude plugin marketplace list --json 2>/dev/null | grep -q "\"$M\"" \
   || claude plugin marketplace add ctoforaday/special-circumstances \
@@ -145,7 +145,7 @@ CLAUDE_CODE_PLUGIN_CACHE_DIR="$tmp" bash ./scripts/bootstrap-plugins.sh
 
 | Path | Result |
 |---|---|
-| Cold, empty cache | exit 0, ~30s, every plugin's hook binaries built — one per directory under `plugins/*/tools/cmd/`, 20 at the time of writing — and `sc-doctor` verdict DEGRADED |
+| Cold, empty cache | exit 0, ~30s, every plugin's hook binaries built — one per directory under `plugins/*/tools/cmd/`, 21 at the time of writing — and `sc-doctor` verdict DEGRADED |
 | Unreachable marketplace | **exit 0**, warns, session startup unaffected |
 | Warm, already installed | exit 0, skips marketplace and plugin installs, rebuilds binaries |
 
@@ -173,7 +173,7 @@ versioned cache at install time, so `${CLAUDE_PLUGIN_ROOT}` resolves to that
 cache and never to a repository checkout. The binaries must land in the cache:
 
 ```bash
-root="$HOME/.claude/plugins/cache/special-circumstances/prosthetic-conscience/<version>"
+root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/special-circumstances/prosthetic-conscience/<version>"
 go build -C "$root/tools" -o "$root/bin/sc-doctor" ./cmd/sc-doctor
 ```
 

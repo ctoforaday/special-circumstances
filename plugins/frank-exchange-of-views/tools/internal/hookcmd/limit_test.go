@@ -41,7 +41,9 @@ func limitRun(t *testing.T, limit int) (cwd, runDir string, handoffs *[]limitHan
 	if err := os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"), []byte(cfg), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "")
+	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", ""); err != nil {
+		t.Fatal(err)
+	}
 
 	var got []limitHandoff
 	prev := recordLimit

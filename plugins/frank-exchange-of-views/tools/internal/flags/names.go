@@ -146,6 +146,10 @@ const (
 	// you", never "how good is the source".
 	Confidence = "confidence"
 
+	// Bridge is what a `supports_with_bridge` reading bridged: a summary, a secondary citation, or a
+	// near-restatement. Required with that outcome and refused with any other.
+	Bridge = "bridge"
+
 	// Grading. All four axes ARE their flag names, which is what lets a seat learn the
 	// pattern from any one of them.
 	Severity   = "severity"
@@ -155,19 +159,10 @@ const (
 	Proposed   = "proposed"
 	Dimension  = "dimension"
 
-	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's
-	// class slug from the growing registry, a petition's class from a fixed four. Same
-	// arrangement as --as — one word, a value space per verb.
-	//
-	// A mint that supplies --definition is COINING the slug; there is no separate boolean
-	// saying so, because a flag that means "I also passed three other flags" is those three
-	// flags read twice.
-	Class         = "class"
-	Definition    = "definition"
-	Neighbor      = "neighbor"
-	Distinguisher = "distinguisher"
-	// MaterialDefault is a coined class's materiality default: always, never, or by grade.
-	MaterialDefault = "material-default"
+	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's class
+	// from the GapClass set, a petition's from a fixed four. Same arrangement as --as — one word,
+	// a value space per verb.
+	Class = "class"
 
 	// Gap substance.
 	Problem = "problem"
@@ -181,12 +176,12 @@ const (
 	// triages by filtering on it instead of reading every entry to find out which it was.
 	Type = "type"
 
-	// OCRQuote is the span a citation of OCR-derived text quotes FROM THE READING — not --quote,
-	// which is the report's sentence. The tool finds the span's page in the reading and records
-	// it, so a seat never types a page. Page is the one page image red checked, on `verify`, and
-	// the one page `render-page` draws.
-	OCRQuote = "ocr-quote"
-	Page     = "page"
+	// SourceSpan is the span a citation quotes FROM THE SOURCE'S TEXT — not --quote, which is the
+	// report's sentence. The tool finds it once in the cached text and records where, the text
+	// around it, and for OCR-derived text its page, so a seat never types a page. Page is the one
+	// page image red checked, on `verify`, and the one page `render-page` draws.
+	SourceSpan = "source-span"
+	Page       = "page"
 
 	// Via names WHICH BACKEND to reach a source through. The strategies answer different
 	// questions — an archive says what a page said on a date, an open-access lookup says whether
@@ -303,13 +298,6 @@ const (
 	Watch = "watch"
 	Now   = "now"
 	Serve = "serve"
-
-	// The operator `migrate` command: replay an old record through this binary's write path.
-	// --from is the old run, --to the fresh sibling it writes, --accept-loss a registry-
-	// documented untranslatable word the operator accepts BY NAME (it lands in the manifest).
-	MigrateFrom = "from"
-	MigrateTo   = "to"
-	AcceptLoss  = "accept-loss"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -325,10 +313,10 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, Confidence, Occasion,
+		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
-		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
-		Problem, Fix, Check, CheckKind, Type, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
+		Class,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
@@ -336,7 +324,6 @@ func All() []string {
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,
-		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
 	}
 }
@@ -355,12 +342,12 @@ func All() []string {
 func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
-	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Neighbor: true, Anchor: true,
+	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
-	BinDir: true, RunID: true, ScriptPath: true, MigrateFrom: true, MigrateTo: true,
-	AcceptLoss: true, Card: true, Occasion: true,
+	BinDir: true, RunID: true, ScriptPath: true,
+	Card: true, Occasion: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.

@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -24,9 +25,15 @@ import (
 // The refusal names the flags and not the command: whichever verb the seat typed, the renderer
 // prints it.
 func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.AboutKind, *string, error) {
-	kind, ref = strings.TrimSpace(kind), strings.TrimSpace(ref)
 	if kind == "" && ref == "" {
 		return nil, nil, nil
+	}
+	// AS TYPED. A value with space around it — or of space alone — is refused rather than trimmed:
+	// trimming turned a blank pair into no anchor at all, recorded as an act about nothing.
+	for _, f := range []struct{ flag, v string }{{"--about-kind", kind}, {"--about", ref}} {
+		if f.v != strings.TrimSpace(f.v) {
+			return nil, nil, feov.Errorf(feov.Validation, "%s %q has space around it: pass the value exactly, or leave the flag off", f.flag, f.v)
+		}
 	}
 	// HALF AN ANCHOR IS NOT AN ANCHOR. Accepting a kind with no reference would record what sort of
 	// thing this is about without saying which one, and a reader cannot follow that anywhere.
@@ -58,6 +65,14 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 			return nil, nil, err
 		}
 		if err := requireGap(db, ref, "--about"); err != nil {
+			return nil, nil, err
+		}
+	case recordpb.AboutKind_ABOUT_KIND_PROOF:
+		db, err := openRunForRead(run)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, err := requireProofAnchor(db, ref, "--about"); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_CONTRADICTION:

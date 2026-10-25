@@ -1,5 +1,11 @@
 package recordsql
 
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // ViewsDDL is the fold, expressed once, where every reader can see it.
 //
 // # Why these are views and the tables are derived
@@ -34,7 +40,7 @@ package recordsql
 // rather than collapsing them into one word, because which act ended the gap is exactly the
 // distinction #342 was about — a reader should not have to know which verb produced a closure, but
 // it must still be able to ask, and it asks the act's body for its word.
-const ViewsDDL = `
+var ViewsDDL = `
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
 -- events.sitting_id is the opening event of the sitting a row belongs to, stamped at the write
@@ -219,11 +225,8 @@ SELECT
   --   acts = 0            an EMPTY sitting, which has no task complexity in it at all, so its
   --                       cost is pure overhead and needs no normalising
   --
-  -- BOOKKEEPING IS NOT AN ACT. register announces the seat, log is the channel a sitting closes,
-  -- sitting_open/sitting_close are the harness's own brackets, and plan is the record's copy of
-  -- what the chair's dispatch printed (its rows are the act) — counting any of them would make
-  -- every sitting look productive and the empty case unreachable, which is the plausible zero this
-  -- column exists to remove.
+  -- BOOKKEEPING IS NOT AN ACT: the types excluded are NotActs, the one list every count of acts
+  -- reads, so no two of them can count one sitting differently.
   --
   -- SCOPED TO THE SITTING, not the run: events_w carries the sitting ordinal and seat_of_agent
   -- carries this agent's, so the count is what THIS sitting recorded rather than what the seat
@@ -231,7 +234,7 @@ SELECT
   -- defect the work list had before duties were made per-sitting.
   (SELECT COUNT(*) FROM "events_w" ew
      WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
-       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','plan'))  AS "acts"
+       AND ew."type" NOT IN (` + notActsSQL() + `))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";
@@ -432,6 +435,22 @@ JOIN "motion_docket" md ON md."event_id" = mo."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
+-- THE FINDINGS A GAP IS FOUND BY: the ones its mint named, then each finding a lens CREDITED to it
+-- since (credit), in the order the credits landed. Keyed on the gap's mint event, the key its mint's
+-- own rows carry, so a reader of a gap's found_by reads this and gets both arms; reading
+-- "mint_found_by" alone drops every credit and prints a gap that answers a contradiction as one that
+-- answers nothing.
+CREATE VIEW "gap_found_by" AS
+SELECT f."event_id" AS "event_id", f."ord" AS "ord", f."value" AS "value"
+FROM "mint_found_by" f
+UNION ALL
+SELECT m."event_id",
+  (SELECT count(*) FROM "mint_found_by" x WHERE x."event_id" = m."event_id")
+    + (SELECT count(*) FROM "credit" p WHERE p."gap_id" = c."gap_id" AND p."event_id" < c."event_id"),
+  c."found_by"
+FROM "credit" c
+JOIN "mint" m ON m."gap_id" = c."gap_id";
+
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
 -- materiality rule, which convergence_at reads at every other point of the record.
@@ -531,7 +550,7 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  (SELECT count(*) FROM "gap_found_by"    f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
   -- silently reads a number a regrade may have moved, which is why the overlay is answered here
@@ -776,3 +795,35 @@ CREATE VIEW "report_op" AS
   SELECT e."id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra JOIN "events" e ON e."id" = ra."event_id";
 `
+
+// NotActs is every event type that is not an act of its seat's — the one definition of an act, read
+// by seat_metrics's `acts` (ViewsDDL), the work list's empty sitting (sittingRecordedNothing) and the
+// counterparty's count (counterpartyOf).
+//
+// THE BOOKKEEPING IS NOT AN ACT. A register is the seat announcing itself, a log is the channel a
+// sitting closes, sitting_open/sitting_close are the hooks' own, a stale refusal is the tool's record
+// of what it showed the seat, a report read is what the tool served it, and a plan is the record's
+// copy of what `dispatch next` printed (its rows are the act). Counting any of them would make every
+// sitting look busy and the empty case unreachable — the plausible zero both readers exist to remove.
+//
+// ONE LIST, BECAUSE TWO DRIFTED. The SQL spelled its own list and the Go its own; a report read and a
+// stale refusal reached the Go one only, so a lens sitting holding a register and a read was empty to
+// the work list and one act to cost.md, which printed "Empty sittings: 0 of 77" (#1565 smoke).
+var NotActs = []recordpb.EventType{
+	recordpb.EventType_EVENT_TYPE_REGISTER,
+	recordpb.EventType_EVENT_TYPE_LOG,
+	recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
+	recordpb.EventType_EVENT_TYPE_SITTING_CLOSE,
+	recordpb.EventType_EVENT_TYPE_STALE,
+	recordpb.EventType_EVENT_TYPE_REPORT_READ,
+	recordpb.EventType_EVENT_TYPE_PLAN,
+}
+
+// notActsSQL is NotActs as the quoted words of events.type, comma-separated.
+func notActsSQL() string {
+	words := make([]string, len(NotActs))
+	for i, t := range NotActs {
+		words[i] = "'" + recordpb.Word(t) + "'"
+	}
+	return strings.Join(words, ",")
+}

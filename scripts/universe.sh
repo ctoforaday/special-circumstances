@@ -30,15 +30,17 @@
 #   --live              install into ~/.claude instead. Use when you want the change in YOUR next
 #                       session. It is shared state: other sessions on this box see it.
 #
-# The plugin content is COPIED into a versioned cache at install time, and the binaries are built
-# there, after install — that ordering is bootstrap-plugins.sh's and is kept here.
+# THE STAGED MARKETPLACE IS THE PLUGIN ROOT A SESSION LOADS. It is a `directory` marketplace
+# source, and Claude Code runs a directory source's plugins IN PLACE: ${CLAUDE_PLUGIN_ROOT}, the
+# skills' base directory, the agent definitions, hooks.json and bin/ all resolve under
+# $WORKDIR.marketplace/plugins/<name>. `claude plugin install` still copies each plugin into the
+# versioned cache and names that copy in installed_plugins.json, but a session does not load it.
 #
-# BUT THE CACHE IS NOT THE ONLY PLUGIN ROOT. The staged marketplace is one too, and an empty bin/
-# in it is filled BY DESIGN: hooks.json execs hooks/fetch-bin.sh when a binary is missing, which
-# downloads that plugin's RELEASE and installs it there. A build that deleted those binaries had
-# them back, from the release, forty seconds later — and the run used them. So the build mirrors
-# what it compiled into the staging tree as well: every feov-record on disk is this checkout's,
-# and which one gets used stops being a question the result depends on.
+# The binaries are built in the cache, after install — bootstrap-plugins.sh's ordering — and then
+# mirrored into the staged marketplace. An empty bin/ there is filled BY DESIGN: hooks.json execs
+# hooks/fetch-bin.sh when a binary is missing, which downloads that plugin's RELEASE and installs
+# it there. With the mirror, every feov-record on disk is this checkout's, and which root a hook or
+# a lead reaches stops being a question the result depends on.
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
@@ -297,12 +299,8 @@ cmd_build() {
   # THE STAGING DIR LIVES BESIDE THE UNIVERSE AND OUTLIVES THE BUILD, and both halves of that are
   # load-bearing in opposite directions.
   #
-  # OUTSIDE, because it holds a `plugins` symlink into the checkout. It was $WORKDIR/marketplace,
-  # and a run's lead exploring its own WORKDIR with bypassPermissions found it and ran
-  # $WORKDIR/marketplace/plugins/frank-exchange-of-views/bin/feov-record: the CHECKOUT's binaries,
-  # whatever a previous build left there, instead of the cache this script just built. A universe
-  # containing a door back to the working tree is not isolated, and it fails silently — the run
-  # works, with the wrong binary.
+  # OUTSIDE, because a lead exploring its own WORKDIR with bypassPermissions runs whatever
+  # feov-record it finds there, and the staging tree is a plugin root with a bin/ of its own.
   #
   # OUTLIVES, because `extraKnownMarketplaces` in the universe's settings.json records this PATH,
   # and Claude re-reads it at every session start. Staged in `mktemp -d` and deleted on return, the
@@ -360,20 +358,29 @@ cmd_build() {
     ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
   done
 
-  # Binaries are built IN THE CACHE, because that is where ${CLAUDE_PLUGIN_ROOT} resolves. A build
-  # in the checkout would leave the installed plugin with no binaries and hooks degrading to a
-  # stderr line — which looks, from inside a run, exactly like hooks that are not configured.
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$MARKETPLACE_NAME"
+  # Binaries are built IN THE CACHE, where the install put each plugin's tools/, and mirrored into
+  # the staged marketplace below, which is where ${CLAUDE_PLUGIN_ROOT} resolves. A build in the
+  # checkout leaves both roots with no binaries and hooks degrading to a stderr line — which looks,
+  # from inside a run, exactly like hooks that are not configured.
+  #
+  # They are COMPILED FROM THE CHECKOUT's source and written into the cache, because Go stamps a
+  # binary with its commit only when it builds inside a git tree, and the cache is a copy with no
+  # .git: compiled there, every register's tool_version and hook_version read `unknown`, so run.md
+  # could not tell one build from another. The checkout is the commit the cache was installed from
+  # (the clean-tree check above).
+  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
   [ -d "$cache_root" ] || die "plugin cache not found at $cache_root"
 
   local first_tools
-  first_tools="$(find "$cache_root" -maxdepth 3 -type d -name tools -print -quit 2>/dev/null)"
+  first_tools="$(find "$REPO/plugins" -maxdepth 2 -type d -name tools -print -quit 2>/dev/null)"
   [ -n "$first_tools" ] && { log "warming the Go module cache"; go build -C "$first_tools" ./... >/dev/null 2>&1; }
 
   local built=0
   for plugin_dir in "$cache_root"/*/*/; do
-    local tools="$plugin_dir/tools"
-    [ -d "$tools/cmd" ] || continue
+    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
+    local tools="$REPO/plugins/$pname/tools"
+    [ -d "$plugin_dir/tools/cmd" ] || continue
+    [ -d "$tools/cmd" ] || die "the cache holds $pname's tools but the checkout has no $tools/cmd"
     mkdir -p "$plugin_dir/bin"
     for cmd_dir in "$tools"/cmd/*/; do
       local name; name="$(basename "$cmd_dir")"
@@ -386,10 +393,10 @@ cmd_build() {
   done
   log "built $built hook binaries into the cache"
 
-  # THE STAGING TREE GETS THE SAME BINARIES, because it is a plugin root too and the hooks will
-  # fill it from the RELEASE if it is empty (see the staging comment above). Copied from what was
-  # just built rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever
-  # one a hook or a curious lead reaches, it is this checkout's code.
+  # THE STAGING TREE GETS THE SAME BINARIES, because it is the root a session loads and the hooks
+  # fill it from the RELEASE if it is empty (see the header). Copied from what was just built
+  # rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever one a hook
+  # or a curious lead reaches, it is this checkout's code.
   local staged=0
   for plugin_dir in "$cache_root"/*/*/; do
     [ -d "$plugin_dir/bin" ] || continue
@@ -485,7 +492,7 @@ PY
 
 cmd_doctor() {
   universe_env; clear_seat_env
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$MARKETPLACE_NAME"
+  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
   log "cache: $cache_root"
   for plugin_dir in "$cache_root"/*/*/; do
     [ -d "$plugin_dir" ] || continue
@@ -517,26 +524,6 @@ cmd_run() {
   guard_no_live_run "run"
   local src="$WORKDIR/src"
   mkdir -p "$src"
-
-  # THE CLASS REGISTRY, because `setup` reads it from the CALLER's directory and the plugin does
-  # not ship one. `feov-memory/class-registry.json` is the vocabulary `mint --class` validates
-  # against: without it setup still creates the run, stages nothing, and refuses every mint for the
-  # whole run — so red can never put a gap on the board and the debate produces nothing. A real
-  # consumer installing this plugin hits exactly that; the universe only escapes it because this
-  # checkout has the file and the harness copies it in. #1134 moves the vocabulary into the binary,
-  # which is where an installable plugin keeps it, and then this staging goes away entirely.
-  #
-  # The whole directory, not one file: setup resolves several things from it, and half a memory
-  # directory is worse than none, because none refuses cleanly and half sends the lead looking for
-  # the other half. Copied, not symlinked: a run writes INTO this directory and the checkout is not
-  # a scratch pad.
-  if [ -d "$REPO/feov-memory" ]; then
-    mkdir -p "$src/feov-memory"
-    cp -r "$REPO/feov-memory/." "$src/feov-memory/" 2>/dev/null
-    log "staged feov-memory: class registry $([ -f "$src/feov-memory/class-registry.json" ] && echo present || echo MISSING)"
-  else
-    log "WARNING: no $REPO/feov-memory — nothing constrains --class, so every mint this run is REFUSED"
-  fi
 
   local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   local out="$WORKDIR/run-$stamp.log"

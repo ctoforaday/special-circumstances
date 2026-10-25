@@ -47,21 +47,8 @@ func newMint() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// Crash-retry idempotency: --key (the stable local label, e.g. the source
-		// lens finding) makes a retried mint return the EXISTING id.
-		prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key))
-		if err != nil {
-			return nil, err
-		}
-		if prior != "" {
-			// A mint on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry,
-			// at the location it stored.
-			if err := seat.PlaceOwed(s, prior, seat.Str(cmd, flags.Key)); err != nil {
-				return nil, err
-			}
-			return mintResult{GapID: prior, Idempotent: true}, nil
-		}
-		gapID := record.NewID("gap")
+		// The id is minted once the retry check has passed: a retry answers with the stored one.
+		var gapID string
 		// ONE FLAG, ONE FIELD. --problem states what is wrong and is the only thing that does;
 		// --reason is red's argument for the gap and is never read as the problem. The problem
 		// used to fall back to --reason when --problem was absent, so the same flag meant the
@@ -80,21 +67,21 @@ func newMint() *cobra.Command {
 		//
 		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
 		// answers and a bench weighs.
-		p := &recordpb.Mint{GapId: proto.String(gapID)}
+		p := &recordpb.Mint{}
 		if text != "" {
 			p.MintReason = proto.String(text)
 		}
 		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
-		// COINING A CLASS IS `lens class new`, a verb of its own. This one names a slug
-		// the registry already has; class_new records whether THIS run coined it, which
-		// the registry knows and a seat no longer has to assert. Asked of the record the mint lands
-		// on: another lens's coining of the slug commits in parallel, and the mint the write path
-		// admits over it is a mint of a class this run coined.
-		p.Class = proto.String(seat.Str(cmd, flags.Class))
-		guards := []record.Guard{record.Check(func(l *record.Landing) error {
-			p.ClassNew = proto.Bool(l.ClassCoinedInRun(p.GetClass()))
-			return nil
-		})}
+		// THE CLASS IS A WORD OF THE CLOSED GapClass SET; the flag's parser refused any other, so
+		// an empty word here is an absent flag, which the required-field walk names.
+		if w := seat.Str(cmd, flags.Class); w != "" {
+			gc, ok := record.GapClassOf(w)
+			if !ok {
+				return nil, feov.Errorf(feov.Validation, "%q is not a gap class — it says what KIND of defect this is", w)
+			}
+			p.Class = &gc
+		}
+		var guards []record.Guard
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -116,8 +103,9 @@ func newMint() *cobra.Command {
 			return nil, aerr
 		}
 		loc := seat.Location(cmd)
-		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
-		// is not changed here — but a gap that claims both is claiming two.
+		// ONE SUBJECT, and exactly one: a quote or an --about. A gap that claims both is claiming
+		// two; a gap with neither is a problem nothing locates, which the record refuses
+		// (record.requireMintSubject).
 		if strings.TrimSpace(loc) != "" && about != nil {
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
 		}
@@ -173,6 +161,30 @@ func newMint() *cobra.Command {
 		p.FoundBy = foundBy.Value()
 		p.DistinctFrom = distinctFrom.Value()
 
+		// Crash-retry idempotency: --key (the stable local label, e.g. the source lens finding) makes
+		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
+		// asked once the gap is built, so the retry is held to the same inputs the first call was.
+		if prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+			return nil, err
+		} else if prior != nil {
+			// --new is recorded by the fix's verification at the write; the retry states it as given.
+			retry := proto.Clone(p).(*recordpb.Mint)
+			if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
+				retry.FixNew = proto.String(fixNew)
+			}
+			if err := seat.RepeatsKeyed(seat.Str(cmd, flags.Key), "gap", prior.GetGapId(), prior, retry, mintAsserted...); err != nil {
+				return nil, err
+			}
+			// A mint on the record without its anchor — one migrate brought forward from an archive
+			// whose run crashed between the two — is finished by the retry, at the location it stored.
+			if err := seat.PlaceOwed(s, prior.GetGapId(), seat.Str(cmd, flags.Key)); err != nil {
+				return nil, err
+			}
+			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
+		}
+		gapID = record.NewID("gap")
+		p.GapId = proto.String(gapID)
+
 		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
 		//
 		// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
@@ -196,19 +208,11 @@ func newMint() *cobra.Command {
 		// against the lens's own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
 		guards = append(guards, record.Check(func(l *record.Landing) error {
-			fam, berr := l.Family()
-			if berr != nil {
-				return nil
-			}
-			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
-				!contains(supersedes.Value(), prior) {
-				return estopped{prior: prior, prescribed: prescribed}
-			}
-			return nil
+			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
 		}))
 
 		var est estopped
-		switch err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
+		switch _, err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
 		case errors.As(err, &est):
 			prior, prescribed := est.prior, est.prescribed
 			msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
@@ -253,16 +257,14 @@ func newMint() *cobra.Command {
 		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey)
-	// THE BACKTICKS ARE COBRA'S PLACEHOLDER SYNTAX, not emphasis — it takes the first backquoted
-	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
-	// as "lens class new": a phrase from the prose offered to a seat as the thing to type. The
-	// command is named without them, and the placeholder is the shape actually wanted.
-	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap")
+	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
+		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
+	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a proof whose sentence you judged unsound; use instead of --quote")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a proof's anchor. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
@@ -281,7 +283,7 @@ func newMint() *cobra.Command {
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
 	seat.Supplies(c, "gap_id", "the tool mints it (record.NewID), at random — an id a seat chose would name a gap the record does not hold")
-	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
+	seat.Supplies(c, "class_material", "stamped from the class's material default at the write path")
 	return c
 }
 
@@ -381,4 +383,48 @@ func contains(xs []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// mintAsserted is what a gap states, and so what a retry under its key must state again: everything
+// the seat says of the defect and where, and its argument for it. Not compared: --distinct-from,
+// which answers the duplicate screen against the board as the seat read it — a retry rebuilt after
+// a crash reads a board that has moved, and refusing it would send the seat to mint the same gap
+// again under another key.
+var mintAsserted = []seat.Asserted{
+	{Flag: flags.Quote, Field: "location"},
+	{Flag: flags.Reason, Field: "mint_reason"},
+	{Flag: flags.Class, Field: "class"},
+	{Flag: flags.Problem, Field: "problem"},
+	{Flag: flags.Fix, Field: "required_fix"},
+	{Flag: flags.New, Field: "fix_new"},
+	{Flag: flags.Check, Field: "acceptance_check"},
+	{Flag: flags.CheckKind, Field: "check_kind"},
+	{Flag: flags.Severity, Field: "severity"},
+	{Flag: flags.Likelihood, Field: "likelihood"},
+	{Flag: flags.Impact, Field: "impact"},
+	{Flag: flags.Complexity, Field: "complexity_cost"},
+	{Flag: flags.AboutKind, Field: "about_kind"},
+	{Flag: flags.About, Field: "about_ref"},
+	{Flag: flags.Supersedes, Field: "supersedes"},
+	{Flag: flags.FoundBy, Field: "found_by"},
+}
+
+// familyReader is the one read the estoppel guard makes of the record a mint lands on.
+type familyReader interface {
+	Family() (record.Family, error)
+}
+
+// requireNotEstopped refuses a mint whose location is text this lens prescribed and blue applied
+// verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
+// read to ask: a gap opened because the estoppel question could not be asked is one the tool
+// admitted on nothing.
+func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
+	fam, err := l.Family()
+	if err != nil {
+		return unreadableRefusal("whether this location is text you prescribed", err)
+	}
+	if prior, prescribed := record.EstoppelConflict(fam, quote); prior != "" && !contains(supersedes, prior) {
+		return estopped{prior: prior, prescribed: prescribed}
+	}
+	return nil
 }

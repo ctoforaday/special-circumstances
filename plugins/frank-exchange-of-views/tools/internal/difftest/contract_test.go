@@ -91,8 +91,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// The finding below anchors into blue/report.md (slice 1b) with --quote "somewhere",
 	// so the report must contain that quote or the finding is rejected as a mis-quote.
 	seed(t, runDir, map[string]string{
-		"records/class-registry.json": registry,
-		"blue/report.md":              "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:F-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
+		"blue/report.md": "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:F-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
 	})
 
 	// ONE MAPPER for the setup and every row: the rows name the gap the setup mints as GAP001, and
@@ -105,12 +104,16 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		}
 	}
 
+	// THE CAST FIRST, as setup writes it before any seat sits: the chair's verdict rows fold the
+	// dispatch plan, and a plan is folded only on a record holding a cast.
+	seedCast(t, runDir, castOf("evidence"))
+
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
 	// lens's later close and regrade rows are the originator's and refuse on the field under test.
 	stage("register", "--run", runDir, "--seat-id", "red-lens-evidence")
-	stage("mint", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
+	stage("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap")
 	// And a frozen report with an anchored sentence blue can edit, for the edit refusals below.
 	stage("register", "--run", runDir, "--seat-id", "blue-synthesize")
@@ -128,7 +131,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// and its Anchor leaves, brought forward by migrate — at a location the report does not hold, for
 	// the retry row below.
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:seeded:F-00000ded", &recordpb.Finding{
-		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t")}))
+		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t"),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum()}))
 
 	// THE IDS THAT NAME NOTHING: noSuchGap, and a motion id of the same kind. Neither is minted, so a
 	// row that prints one prints it as written and it takes no placeholder.
@@ -138,14 +142,14 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		name string
 		argv []string
 	}{
-		{"mint without acceptance check", []string{"mint", "--class", "scope-creep", "--problem", "p"}},
-		{"mint without class", []string{"mint", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with unknown class", []string{"mint", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"class-new missing definition", []string{"mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"class-new unknown neighbor", []string{"mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with bad grade", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
-		{"mint with dangling supersedes", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
-		{"close unknown gap", []string{"close", "--id", noSuchGap, "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
+		{"mint without acceptance check", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--problem", "p"}},
+		{"mint without class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with unknown class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with a near-miss class", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "report-voice", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"unclassified mint without a reason", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "unclassified", "--check-kind", "document", "--check", "x", "--problem", "p", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
+		{"mint with bad grade", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
+		{"mint with dangling supersedes", []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "p"}},
+		{"close unknown gap", []string{"close", "--id", noSuchGap, "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "checked"}},
 		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without anchor", []string{"close", "--id", "GAP001"}},
 		{"regression close without successor", []string{"close", "--id", "GAP001", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
@@ -192,31 +196,35 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// motion, and blue files it like any seat.
 		{"verification confidence outside the set", []string{"verify", "--as", "supports", "--confidence", "banana", "--reason", "r"}},
 		{"petition class outside the set", []string{"motion", "petition", "file", "--seat-id", "blue-respond", "--class", "banana", "--relief", "x", "--reason", "r"}},
-		{"invalid seat id", []string{"mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"invalid seat id", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "not a seat id", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--problem", "p"}},
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
 		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
 		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "GAP001"}},
-		{"verb outside the bench role", []string{"mint", "--seat-id", "judge", "--class", "scope-creep"}},
+		{"verb outside the bench role", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "judge", "--class", "spec_underspecification"}},
 		// `merge frobnicate` refused the role word and never reached the verb it names.
 		{"unknown verb", []string{"frobnicate"}},
 		// There are no role words left to be unknown; the nearest thing is a well-formed seat id no
 		// role owns. `nonsuch mint` pinned the same refusal as the row above.
-		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
+		{"unknown seat", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "purple-team", "--class", "spec_underspecification"}},
 
 		// AN ANCHOR NEEDS ONE PLACE: every placing verb refuses a quote that repeats, crosses a blank
 		// line, splits a word or ends in a heading, in the same words.
-		{"a mint quoting a sentence that repeats", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Costs rose."}},
-		{"a mint quoting across a blank line", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Plain one. Plain two."}},
-		{"a mint quoting inside a word", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "rices climbed"}},
-		{"a mint quoting a heading", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "H"}},
+		{"a mint quoting a sentence that repeats", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Costs rose."}},
+		{"a mint quoting across a blank line", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Plain one. Plain two."}},
+		{"a mint quoting inside a word", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "rices climbed"}},
+		{"a mint quoting a heading", []string{"mint", "--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "H"}},
 		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Costs rose.", "--reason", "r"}},
 
-		// A RETRY PLACES THE STORED LOCATION, so its refusal is about that location and never about
-		// the --quote the retry carries.
+		// A RETRY REPEATS THE STORED LOCATION, so its refusal is about that location; one quoting
+		// other text states another act under the key.
 		{"a retry whose stored location the report no longer holds", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "A sentence the report held.", "--reason", "t"}},
+		{"a retry quoting other text", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "somewhere", "--reason", "t"}},
+		{"a retry stating the act otherwise", []string{"finding", "--key", "F-owed", "--severity", "high", "--likelihood", "low", "--impact", "low",
+			"--quote", "A sentence the report held.", "--reason", "t"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.
@@ -245,15 +253,22 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a second spot-check in one sitting", []string{"spot-check", "--seat-id", "red-chair", "--reason", "again"}},
 		{"repeat target: the chair's verdict", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
 		{"a second verdict in one sitting", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
+		// A CLOSING IS A PARTY'S ARGUMENT ON A DOCKETING: refused before the gap is docketed, from
+		// the chair, which holds no such verb, and from a lens that did not mint the gap.
+		{"a closing on a gap nothing is before the bench on", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "early"}},
+		{"blue puts GAP001 before the bench, so its closing argues a docketing", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
+		{"the same filing, once blue has read the regrade it was shown", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the bench should decide"}},
+		{"the chair files a closing, party to no dispute", []string{"closing", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's case"}},
+		{"a lens that did not mint the gap files a closing on it", []string{"closing", "--seat-id", "red-lens-logic", "--id", "GAP001", "--reason", "another lens's case"}},
 		{"repeat target: blue's closing on GAP001", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered"}},
 		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
 		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},
 		{"a second manifest row for a gap in one sitting", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked it again"}},
-		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
+		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
 			"--verified-against", "t", "--reason", "verified at the leaf"}},
 		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
-		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "repaired", "--reason", "restating"}},
-		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "not_a_defect", "--reason", "restating otherwise"}},
+		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "repaired", "--reason", "restating"}},
+		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "0", "--as", "not_a_defect", "--reason", "restating otherwise"}},
 
 		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two findings on
 		// one sentence; the refusal prints what the record holds about each and the replacement's
@@ -263,7 +278,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"bunch target: a second finding on it", []string{"finding", "--key", "FB2", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Plain two.", "--reason", "the count two is not shown"}},
 		{"an edit carrying a run of anchors to the end of a longer replacement", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Plain two<!--fx:FINDING003--><!--fx:FINDING004-->.", "--new", "Plain it is. Two it is<!--fx:FINDING003--><!--fx:FINDING004-->.", "--reason", "r"}},
+			"--quote", "Plain two<!--fx:FINDING004--><!--fx:FINDING005-->.", "--new", "Plain it is. Two it is<!--fx:FINDING004--><!--fx:FINDING005-->.", "--reason", "r"}},
 	}
 
 	var b strings.Builder
@@ -305,7 +320,7 @@ func hasFlag(argv []string, flag string) bool {
 // names it.
 func defaultSeat(first string) string {
 	switch first {
-	case "mint", "close", "regrade", "near-match", "class", "finding", "verify", "corroborate", "reproduce":
+	case "mint", "close", "regrade", "near-match", "finding", "verify", "corroborate", "reproduce":
 		return "red-lens-evidence"
 	case "outcome", "certify", "declare", "halt":
 		return "judge"

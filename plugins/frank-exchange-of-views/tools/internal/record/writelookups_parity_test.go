@@ -42,10 +42,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// Mints: the key lookup returns the first match.
 	for _, gid := range []string{"G1", "G2"} {
-		if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		if _, err := Append(red, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(gid),
 			MintKey:         proto.String("k-" + gid),
-			Class:           proto.String("self-attestation"),
+			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -56,11 +56,11 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id != "G2" {
-		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
+	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id.GetGapId() != "G2" {
+		t.Errorf("ExistingMintByKey = (%q, %v)", id.GetGapId(), err)
 	}
-	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id != "" {
-		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id, err)
+	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id.GetGapId() != "" {
+		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id.GetGapId(), err)
 	}
 	if ids, err := allGapIDs(recordOf(t, run)); err != nil || len(ids) != 2 || !ids["G1"] || !ids["G2"] {
 		t.Errorf("allGapIDs = (%v, %v)", ids, err)
@@ -103,11 +103,11 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id != "F-0a0a0a0a" {
-		t.Errorf("FindingByKey = (%q, %v)", id, err)
+	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id.GetId() != "F-0a0a0a0a" {
+		t.Errorf("FindingByKey = (%q, %v)", id.GetId(), err)
 	}
-	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id != "" {
-		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id, err)
+	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id.GetId() != "" {
+		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id.GetId(), err)
 	}
 	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
 		t.Errorf("requireFindings on a recorded id = %v", err)
@@ -119,7 +119,4 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
 	}
 
-	if ClassCoinedInRun(run, "never-coined") {
-		t.Error("ClassCoinedInRun found a class nobody coined")
-	}
 }

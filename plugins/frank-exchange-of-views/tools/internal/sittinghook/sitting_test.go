@@ -163,6 +163,9 @@ func TestThePhaseStringsMatchTheWriters(t *testing.T) {
 	if phaseLimit != string(sittingwrite.Limit) {
 		t.Errorf("the hook sends phase %q and the writer parses %q — no sitting limit would reach the record", phaseLimit, sittingwrite.Limit)
 	}
+	if phaseEnvelope != string(sittingwrite.Envelope) {
+		t.Errorf("the hook sends phase %q and the writer parses %q — no envelope would be checked against the record", phaseEnvelope, sittingwrite.Envelope)
+	}
 }
 
 // liveRun builds a project whose run-live marker points at a run, so InferRunDir resolves it
@@ -174,7 +177,9 @@ func liveRun(t *testing.T) (cwd, runDir string) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "")
+	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", ""); err != nil {
+		t.Fatal(err)
+	}
 	return cwd, runDir
 }
 

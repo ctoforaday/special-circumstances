@@ -93,20 +93,31 @@ func textRuns(n ast.Node, src []byte) []string {
 // already turned every reference it could resolve into a link, so what remains in prose resolves
 // to nothing.
 func unresolvedRefs(run string) (labels []string) {
+	for _, sp := range noteRefsIn(run) {
+		labels = append(labels, run[sp[0]+len(noteOpen):sp[1]-1])
+	}
+	return labels
+}
+
+// noteRefsIn is the span of each `[^label]` s holds as text: not escaped, its label one or more
+// characters up to the first "]", with no "[" and no line break in it. It is how a reference reads
+// where no definition is in reach to resolve it — a run the parser left as prose, or one line read
+// alone.
+func noteRefsIn(s string) (spans [][2]int) {
 	for i := 0; ; {
-		j := strings.Index(run[i:], noteOpen)
+		j := strings.Index(s[i:], noteOpen)
 		if j < 0 {
-			return labels
+			return spans
 		}
 		at := i + j
 		i = at + len(noteOpen)
-		if NoteEscapedAt(run, at) {
+		if NoteEscapedAt(s, at) {
 			continue
 		}
-		end := strings.IndexAny(run[i:], "]\n[")
-		if end <= 0 || run[i+end] != ']' {
+		end := strings.IndexAny(s[i:], "]\n[")
+		if end <= 0 || s[i+end] != ']' {
 			continue
 		}
-		labels = append(labels, run[i:i+end])
+		spans = append(spans, [2]int{at, i + end + 1})
 	}
 }

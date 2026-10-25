@@ -40,6 +40,11 @@ func SoundnessOf(word string) (recordpb.Soundness, bool) {
 	return enumOf[recordpb.Soundness](recordpb.Soundness(0).Descriptor(), word)
 }
 
+// BridgeKindOf resolves what a supports_with_bridge reading bridged.
+func BridgeKindOf(word string) (recordpb.BridgeKind, bool) {
+	return enumOf[recordpb.BridgeKind](recordpb.BridgeKind(0).Descriptor(), word)
+}
+
 // SourceOutcomeOf resolves a citation verdict. Its negative half is load-bearing: `refutes` means
 // the source contradicts the claim and `absent` means it is simply not there, and collapsing either
 // into a weaker word is what the axis was widened to prevent.
@@ -77,8 +82,15 @@ func InquiryStatusOf(word string) (recordpb.InquiryStatus, bool) {
 // VerdictOf resolves red's epoch verdict. PASS is checked against the open board by exact match,
 // so any other spelling would skip the check entirely and record an unadjudicated pass — which is
 // why this refuses rather than returning the zero.
+//
+// THE WORD IS THE SURFACE'S, EXACTLY: the schema's word in capitals (loud), as the help renders it.
+// `pass`, `Pass` and ` PASS ` are refused rather than folded — the tool does not decide which word
+// a seat meant.
 func VerdictOf(word string) (recordpb.Verdict, bool) {
-	return enumOf[recordpb.Verdict](recordpb.Verdict(0).Descriptor(), strings.ToLower(strings.TrimSpace(word)))
+	if word != strings.ToUpper(word) {
+		return 0, false
+	}
+	return enumOf[recordpb.Verdict](recordpb.Verdict(0).Descriptor(), strings.ToLower(word))
 }
 
 // DispositionOf resolves HOW A GAP ENDED — one vocabulary for both closing verbs (#342), which
@@ -108,10 +120,9 @@ func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }
 
-// ClassMaterialOf resolves a class's materiality default — `always`, `never` or `by_grade` — as
-// the registry row and `class new --material-default` spell it.
-func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
-	return enumOf[recordpb.ClassMaterial](recordpb.ClassMaterial(0).Descriptor(), word)
+// GapClassOf resolves a gap class word, as `mint --class` spells it.
+func GapClassOf(word string) (recordpb.GapClass, bool) {
+	return enumOf[recordpb.GapClass](recordpb.GapClass(0).Descriptor(), word)
 }
 
 // SeatLogTypeEnum is the `log --type` set narrowed to what a seat may file, so the generated help

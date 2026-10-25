@@ -158,7 +158,7 @@ func main() {
 		// exists for, would then interview a seat about a sitting it did with another build.
 		// Measured within an hour of the dispatch-path fix: the interview harness still pointed
 		// at `feov-record8`, the seat ran the stale `feov-record` beside it, and only
-		// `show diagnostics` refusing ("21 shell calls and none of them invoke feov-record8")
+		// `ops diagnostics` refusing ("21 shell calls and none of them invoke feov-record8")
 		// stopped six questions being asked about it.
 		if err := promptNamesTheBinary(b.Name, d.Prompt, *bin); err != nil {
 			fail("%v", err)

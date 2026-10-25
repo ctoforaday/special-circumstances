@@ -100,7 +100,8 @@ func TestAnOwedAnchorIsPlacedOnTheReportItLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	id := record.NewID("finding")
 	recordtest.Seed(t, runDir, recordtest.At(t, lensSeat, lensSeat+":finding:"+id, &recordpb.Finding{
-		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced")}))
+		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced"),
+		Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}))
 	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
 		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,
@@ -205,7 +206,7 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	id := record.NewID("finding")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
 		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
-			"--key", "G1", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
+			"--key", "G1", "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--complexity", "low",
 			"--quote", raceSentence+".", "--new", "Costs rose modestly across the first quarter.")
@@ -221,34 +222,13 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	}
 }
 
-// A MINT RECORDS WHETHER THE RUN COINED ITS CLASS AS THE RECORD IT LANDS ON SAYS. Another lens coins the
-// slug at the moment this one mints with it; read before the mint's write, class_new says the run did
-// not coin a class the record it joins shows this run coined.
-func TestAMintsClassNewIsReadOffTheRecordItLandsOn(t *testing.T) {
-	runDir := raceRun(t)
-	coin := recordtest.At(t, "red-lens-logic", "race:class", &recordpb.ClassNew{Slug: proto.String("race-coined"),
-		Definition: proto.String("a defect of one shape"), Neighbor: proto.String("overclaim"), Distinguisher: proto.String("it is not an overclaim"),
-		MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()})
-	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{coin}, func() error {
-		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "race-coined",
-			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
-			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", raceSentence)
-		return err
-	})
-	if err != nil {
-		t.Fatalf("a mint naming a class coined at that moment: %v", err)
-	}
-	if m := lastBody(t, runDir, &recordpb.Mint{}); !m.GetClassNew() {
-		t.Error("the mint records class_new false over a record that shows the run coined its class")
-	}
-}
-
 // V2: THE OUTCOME'S VERDICT IS DERIVED FROM THE RECORD IT LANDS ON. The chair records a PASS at the
 // moment the bench records the outcome UNVERIFIED; derived before the PASS, the outcome asserts a
 // verdict the record it joins does not derive.
 func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	runDir := actFixture(t)
+	sitToAssemble(t, runDir)
 	pass := recordtest.At(t, "red-chair", "race:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{pass}, func() error {
 		_, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended")
@@ -262,10 +242,11 @@ func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	}
 }
 
-// V8: A SEAT'S REFUSAL IS LOGGED ONLY ON A RUN THAT IS NOT OVER, AS THE ENTRY LANDS. The bench records
-// the outcome at the moment a lens's refused call is logged; asked before the entry's write, the entry
-// lands after the outcome, on a record closed to seats.
-func TestARefusalIsNotLoggedAfterTheOutcome(t *testing.T) {
+// V8: A SEAT'S REFUSAL IS LOGGED ON A RUN THAT IS OVER, TOO. The bench records the outcome at the
+// moment a lens's refused call is logged; the entry lands on the record holding it, because a refusal
+// after the run's end is friction the operator reads (record.requireOpenToSeats lets every log entry
+// land).
+func TestARefusalIsLoggedAfterTheOutcome(t *testing.T) {
 	runDir := raceRun(t)
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
 		VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended")})
@@ -276,7 +257,7 @@ func TestARefusalIsNotLoggedAfterTheOutcome(t *testing.T) {
 	if err == nil {
 		t.Fatal("a finding with no --reason was recorded")
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 0 {
-		t.Errorf("the refusal was logged on a record holding an outcome: %d log entr(ies)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 1 {
+		t.Errorf("the refusal on a record holding an outcome: %d log entr(ies), want 1", n)
 	}
 }

@@ -22,7 +22,7 @@ import (
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
-	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.",
+	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
@@ -48,6 +48,15 @@ func docketRoute(actingRole string) string {
 		return "a seat that disagrees with it puts the gap before you in a docket motion"
 	}
 	return "a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that"
+}
+
+// fileStale is seat.StaleRule on the page of a subject whose filing names a gap, and "" on any other.
+func fileStale(subject string) string {
+	switch subj, _ := record.MotionSubjectEnum(subject); subj {
+	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+		return seat.StaleRule + "\n\n"
+	}
+	return ""
 }
 
 // finalSittingSays is what a filing of subject meets at the run's final sitting — the sitting whose
@@ -77,7 +86,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// had already chosen this one.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
-			fileSays(actingRole, subject) + "\n\n" +
+			fileSays(actingRole, subject) + "\n\n" + fileStale(subject) +
 			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.\n\n" +
 			finalSittingSays(subject),
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
@@ -148,7 +157,19 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
 			}
-			if _, err := record.Append(s.Identity(), body, record.HeardInTime(subj)); err != nil {
+			write := func(guards ...record.Guard) error {
+				_, err := record.Append(s.Identity(), body, append([]record.Guard{record.HeardInTime(subj)}, guards...)...)
+				return err
+			}
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+				// A MOTION ON A GAP THAT MOVED SINCE THIS SITTING OPENED argues with what the gap was
+				// (gblock ruling B): the refusal shows what changed, and the same filing lands once read.
+				err = seat.AppendFresh(s, seat.Str(cmd, flags.ID), write)
+			default:
+				err = write()
+			}
+			if err != nil {
 				return nil, err
 			}
 			return filed{ID: id, Subject: subject}, nil
@@ -242,6 +263,8 @@ func payloadKey(flag string) string {
 // lying about what it accepts, and the help IS the contract a seat reads.
 // ruleDetail is what a subject's ruling page says of that subject alone.
 var ruleDetail = map[string]string{
+	"docket": "\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
+		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it.",
 	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
 		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
 		"the record holds is refused. Rule on each inquiry blue " +
@@ -346,7 +369,13 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// what was passed: an empty `reopens_on` written as present would satisfy the
 				// "at least one" check while saying nothing, which is the shape --final exists
 				// to make sayable.
-				if r := seat.Str(cmd, flags.ReopensOn); r != "" {
+				if seat.Given(cmd, flags.ReopensOn) {
+					// GIVEN EMPTY IS NOT ABSENT: an empty --reopens-on read as no flag let --final
+					// stand alone over a value the seat typed.
+					r := seat.Str(cmd, flags.ReopensOn)
+					if strings.TrimSpace(r) == "" {
+						return nil, feov.Errorf(feov.Validation, "--reopens-on is empty: state the evidence or condition that would reopen the gap, or pass --final instead to say nothing would")
+					}
 					dr.ReopensOn = proto.String(r)
 				}
 				if fin, _ := cmd.Flags().GetBool(flags.Final); fin {

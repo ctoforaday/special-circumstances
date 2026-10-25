@@ -228,7 +228,7 @@ func TestARuleOnTheThicknessCapIsAKnownResidue(t *testing.T) {
 // Both lattices below are MEASURED, not invented — they are the repaired geometry of two real
 // pages, in the 300-DPI space, and they are the two structures every other test here cannot tell
 // apart. Without the bounding filter the figure publishes a seven-column table of a flow diagram,
-// which `cite --ocr-quote` would then quote.
+// which `cite --source-span` would then quote.
 func TestRepairedRulesMustBoundTheLattice(t *testing.T) {
 	// IEEE 1012 p0022, a V&V flow diagram: eight dashed horizontals stacked over y 675-2481, and
 	// six verticals whose tallest spans 971 px — 54% of the stack, because each bounds one box.

@@ -101,23 +101,23 @@ func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
 
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "s", "rulings": []any{}, "dispositions": []any{},
+		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "found_closed": []any{}, "saturation_reached": false, "open_gaps": 0}
 		switch {
 		case seatID == "red-chair":
 			chair++
 			switch chair {
 			case 1:
-				e["plan"] = planJSON(t, record.Plan{Head: 2, Docket: gaps,
+				e.Relay(planJSON(t, record.Plan{Head: 2, Docket: gaps,
 					Parties:  []record.Party{{SeatID: "judge", GapIDs: gaps, Occasions: []string{"docket"}}},
-					Blockers: []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}})
+					Blockers: []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}}))
 			case 2:
-				e["plan"] = planJSON(t, record.Plan{Head: 2,
+				e.Relay(planJSON(t, record.Plan{Head: 2,
 					Parties:    []record.Party{{SeatID: "blue-respond", GapIDs: gaps}},
 					RemandOwed: []record.RemandOwed{{GapID: owed, Direction: direction}},
-					Blockers:   []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}})
+					Blockers:   []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}}))
 			default:
-				e["plan"] = planJSON(t, record.Plan{Head: 2, PassPermitted: true})
+				e.Relay(planJSON(t, record.Plan{Head: 2, PassPermitted: true}))
 				e["verdict"] = "PASS"
 			}
 		case seatID == "judge" && debatejs.OccasionOf(prompt) == "docket":
@@ -222,9 +222,9 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 			keys[k] = true
 		}
 	}
-	// The plan is relayed under the chair's schema and a disposition under the bench's: a walk
-	// that reaches neither read no schema, and every key would then be "undeclared" or "absent".
-	if schemas == 0 || !keys["plan"] || !keys["parties"] || !keys["disposition"] {
+	// The plan is the chair's envelope and a disposition is under the bench's: a walk that reaches
+	// neither read no schema, and every key would then be "undeclared" or "absent".
+	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["disposition"] {
 		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the bench's disposition — this is measuring nothing", schemas, len(keys))
 	}
 	return keys
@@ -269,6 +269,9 @@ var journalFraming = map[string]string{
 	"content":          "a transcript message's content blocks",
 	"type":             "a transcript content block's kind",
 	"input":            "a tool-use block's input",
+	"id":               "a tool-use block's id, which its result names",
+	"tool_use_id":      "a tool-result block's call: the tool-use block's id",
+	"timestamp":        "a transcript row's stamp, which places a seat's close among its calls",
 	"assemble":         "the dashboard's seat-class counter, keyed by the class word",
 	"Integrity audits": "capture's fold of the run document, keyed by section heading",
 }
@@ -324,7 +327,7 @@ func TestEveryEnvelopeKeyAGoReaderIndexesIsDeclared(t *testing.T) {
 			return true
 		})
 	}
-	if files == 0 || len(read) == 0 || len(read["plan"]) == 0 {
+	if files == 0 || len(read) == 0 || len(read["parties"]) == 0 {
 		t.Fatalf("parsed %d file(s) of %v and found %d indexed key(s), without capture's read of the relayed plan — this is measuring nothing", files, envelopeReaders, len(read))
 	}
 	var undeclared []string

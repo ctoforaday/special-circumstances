@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -47,15 +48,15 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G1"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
 			FoundBy: []string{"F-00000001"}}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G2"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		// An open gap standing on the anchor, so the board renders its backing.
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G3"), Class: str("self-attestation"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p3"), RequiredFix: str("f"), AcceptanceCheck: str("a"), Location: str("claim A <!--cite:C-0a0a0a0a-->"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-0a0a0a0a"), Url: str("https://example.org"),
@@ -67,6 +68,10 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
+		// Claim B's contradiction (event 11), raised by its id and answered by crediting the open G2.
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000003"), Text: str("claim B is not in the source"),
+			AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: str("11")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Credit{GapId: str("G2"), FoundBy: str("F-00000003")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofId: str("P-00000001"), ProofSha: str("abc"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
@@ -103,6 +108,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
+		// The whole report served to a lens (debate).
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.ReportRead{Head: proto.Int64(1)}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),
@@ -188,8 +195,8 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 	}
 }
 
-// THE EVIDENCE VIEW READS THE ACTS ITS TWO LISTS ARE ABOUT, on the run path: a finding at the
-// contradicted claim answers it, and an edit that reopened a checked citation lists it. Without them
+// THE EVIDENCE VIEW READS THE ACTS ITS TWO LISTS ARE ABOUT, on the run path: a finding naming the
+// contradiction answers it, and an edit that reopened a checked citation lists it. Without them
 // every contradiction reads as unanswered and no anchor as moved — on every run.
 func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	dir := newRun(t)
@@ -201,7 +208,8 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A")}),
+		recordtest.Event(t, "red-lens-r1-logic", referenceFinding("F-00000001", "1")),
+		recordtest.Event(t, "red-lens-r1-logic", raisingGap("G-00000001", "F-00000001")),
 		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-00000001"), Url: str("https://example.org/c"), Sha256: str("abc"), Text: str("t"), Location: str("claim C")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Anchor: str("C-00000001"), Claim: str("claim C"), Text: str("it says so"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
@@ -217,10 +225,10 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0].Claim != "claim B" {
-		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it", ej.UnansweredContradictions)
+		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding naming it and a gap minted from that finding", ej.UnansweredContradictions)
 	}
-	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 6, LastCheck: 5}) {
-		t.Errorf("reopened = %+v, want C-00000001 at edit 6, last check 5 — a recorded edit reopened it after its check", ej.Reopened)
+	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 7, LastCheck: 6}) {
+		t.Errorf("reopened = %+v, want C-00000001 at edit 7, last check 6 — a recorded edit reopened it after its check", ej.Reopened)
 	}
 }
 
@@ -348,7 +356,7 @@ func gapsALensCloses(t *testing.T) (Run, []*Event) {
 	closes := make([]*recordpb.Event, 0, gaps)
 	for i := 1; i <= gaps; i++ {
 		id := fmt.Sprintf("G%d", i)
-		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str(id), Class: str("self-attestation"),
+		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}))
 		closes = append(closes, recordtest.Stamped(recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str(id),
@@ -423,7 +431,7 @@ func benchClosing(id string) *recordpb.MotionRule {
 func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	const gaps = 25
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens)
+		register("red-chair").sit(2, evLens)
 	for i := 1; i <= gaps; i++ {
 		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
 	}
@@ -565,7 +573,7 @@ func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T)
 func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(t *testing.T) {
 	const gaps = 25
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens)
+		register("red-chair").sit(2, evLens)
 	for i := 1; i <= gaps; i++ {
 		b.mint(evLens, fmt.Sprintf("G%d", i), "high")
 	}
@@ -594,11 +602,15 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 				}
 			}
 		}
+		// THE GAP VIEW ROUTES A DOCKETED GAP to the bench, or — while a party's closing is awaited —
+		// to its parties (closingowed.go); either way the route is the view's, and the listed motion
+		// the events'.
 		for i := 1; i <= gaps; i++ {
 			g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
-			if benched[g] != listed[m] {
-				t.Fatalf("the plan engages the bench on %s: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
-					g, benched[g], m, listed[m])
+			routed := benched[g] || slices.ContainsFunc(plan.Why, func(w string) bool { return strings.HasPrefix(w, g+": docketed — the closing of") })
+			if routed != listed[m] {
+				t.Fatalf("the plan routes docketed %s to the bench or its parties: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
+					g, routed, m, listed[m])
 			}
 		}
 	})

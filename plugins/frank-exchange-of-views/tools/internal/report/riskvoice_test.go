@@ -37,9 +37,9 @@ func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 	}
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
 		"# Whether the cache is coherent — research report\n\n## TL;DR\nThe cache is coherent.\n\n## Analysis\nReads never observe a torn value.\n")})
-	add(lens, &recordpb.Mint{
+	add(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 		GapId:           proto.String("G1"),
-		Class:           proto.String("correctness"),
+		Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 		Problem:         proto.String("Eviction races the reader. SECONDPROBLEM the interleaving is unmodelled."),
 		RequiredFix:     proto.String("Take the read lock in evict. SECONDFIX then model the interleaving."),
 		MintReason:      proto.String("MINTREASON the analysis asserts single-writer without showing it"),
@@ -66,7 +66,7 @@ func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 	if !strings.Contains(md, row) {
 		t.Errorf("the risk matrix row is not the problem's and the fix's first sentences with the grades:\nwant %s\n%s", row, md)
 	}
-	for _, leak := range []string{"SECONDPROBLEM", "SECONDFIX", "MINTREASON", "CHECKTEXT", "correctness", lens, "G1"} {
+	for _, leak := range []string{"SECONDPROBLEM", "SECONDFIX", "MINTREASON", "CHECKTEXT", "spec_underspecification", lens, "G1"} {
 		if strings.Contains(md, leak) {
 			t.Errorf("report.md carries %q from the mint; only the matrix row's two spans may reach the reader:\n%s", leak, md)
 		}

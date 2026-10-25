@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -44,7 +45,19 @@ func Entries() Registry {
 		// A REVISION TRANSLATES TO NO EVENT. It was a blue sitting's prose account of its change,
 		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
 		// text. The manifest counts each in events_in and none in events_out.
-		"revision": {Translate: revisionEntry},
+		"revision": {Translate: toNoEvent},
+		// A COINING TRANSLATES TO NO EVENT. A gap's class is a value of the closed GapClass set,
+		// whose own definition is the class's; that a run coined a slug, and the coiner's words, are
+		// not carried. Its mints carry the slug, which valueRenames maps onto the set.
+		"class_new": {Translate: toNoEvent},
+		// A MINT'S COINING COLUMNS ARE NOT CARRIED, for the same reason: the jsonl era's mint-carried
+		// trio and the sqlite era's class_new flag both arrive here.
+		"mint": mapped("mint", nil, drops{
+			"class_new":     mintCoiningDrop,
+			"definition":    mintCoiningDrop,
+			"neighbor":      mintCoiningDrop,
+			"distinguisher": mintCoiningDrop,
+		}, nil),
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
 		// written — the fan-out is the replay's, because it reads the proofs replayed before it
@@ -156,16 +169,23 @@ func frictionEntry(old OldEvent) ([]proto.Message, error) {
 // cite cannot say is where its text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
 // quote needs no page check; NOT_RECORDED says the question was never asked. Filled only where
 // absent, so a cite that carries an origin keeps it.
+//
+// A SOURCE BEFORE EPOCH 37 named an OCR citation's span `ocr_quote`; it is the citation's
+// source_span, carried word for word. What no archived cite holds is the span's offsets or the
+// source's text around it — the cache they were read from is not archived — so a migrated cite
+// carries a span only where an OCR quote stood, and never the text a lens reads beside it.
 func citeEntry(old OldEvent) ([]proto.Message, error) {
-	if _, ok := old.Fields["source_text_read"]; ok {
-		fields := map[string]any{}
-		for k, v := range old.Fields {
-			if k != "source_text_read" {
-				fields[k] = v
-			}
+	fields := map[string]any{}
+	for k, v := range old.Fields {
+		switch k {
+		case "source_text_read":
+		case "ocr_quote":
+			fields["source_span"] = v
+		default:
+			fields[k] = v
 		}
-		old.Fields = fields
 	}
+	old.Fields = fields
 	body, err := identityBody(old)
 	if err != nil {
 		return nil, err
@@ -188,6 +208,14 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 	// looked and could not tell; the field simply did not exist.
 	if c.SourceCompleteness == nil {
 		c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_RECORDED.Enum()
+	}
+	// NOR, BEFORE EPOCH 40, WHOSE BYTES THE CITATION READ. An archived cite may rest on a followed
+	// pointer, a recovered copy or a fuller one, and nothing it holds says which — the fetch index
+	// that knew is not archived. NONE would claim the typed url's own bytes; NOT_RECORDED says the
+	// question was not asked, and no copy_url is written: the residue is that a migrated cite names
+	// no copy.
+	if c.CopySubstitution == nil {
+		c.CopySubstitution = recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED.Enum()
 	}
 	return []proto.Message{c}, nil
 }
@@ -233,7 +261,33 @@ func registerEntry(old OldEvent) ([]proto.Message, error) {
 	if !ok {
 		return nil, fmt.Errorf("register translated to %T, not a Register", body)
 	}
+	// THE OCCASION A COLLAPSED BENCH ID STATED IS CARRIED ONTO ITS REGISTER. Before the bench was one
+	// seat its four sittings were four ids (remap.go): `assemble`, `judge-terminal` and
+	// `judge-petition-<petitioner>` each said which question its sitting answered, so their registers
+	// carry no occasion. The id becomes `judge`, and the occasion it stated is written on the
+	// register, where the record holds it now — the write takes an outcome only in a sitting
+	// registered for the assemble occasion, and every archived outcome was stamped under `assemble`.
+	if r.Occasion == nil {
+		if occ, ok := collapsedBenchOccasion(old.SeatID); ok {
+			r.Occasion = occ.Enum()
+		}
+	}
 	return []proto.Message{r}, nil
+}
+
+// collapsedBenchOccasion is the occasion an archived bench id stated by its name, for the ids
+// remap.go brings onto `judge`. The archived `judge` itself named none: its sittings answered
+// whichever question the engine asked, and nothing in its id says which.
+func collapsedBenchOccasion(seat string) (recordpb.Occasion, bool) {
+	switch {
+	case seat == "assemble":
+		return recordpb.Occasion_OCCASION_ASSEMBLE, true
+	case seat == "judge-terminal":
+		return recordpb.Occasion_OCCASION_TERMINAL, true
+	case strings.HasPrefix(seat, "judge-petition-"):
+		return recordpb.Occasion_OCCASION_PETITION, true
+	}
+	return recordpb.Occasion_OCCASION_UNSPECIFIED, false
 }
 
 // remandDirection carries a remand's research direction to the field that holds it. A source at
@@ -247,8 +301,11 @@ func remandDirection(r *recordpb.DocketRuling) {
 	r.Direction, r.ReopensOn = r.ReopensOn, nil
 }
 
-// revisionEntry translates a revision to no event, whatever its era's columns.
-func revisionEntry(OldEvent) ([]proto.Message, error) { return nil, nil }
+// toNoEvent translates an archived event to none, whatever its era's columns.
+func toNoEvent(OldEvent) ([]proto.Message, error) { return nil, nil }
+
+// mintCoiningDrop is why a mint's coining columns are not carried.
+const mintCoiningDrop = "a class is a value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the value's own definition is"
 
 // reproduceEntry: `reproduced`, a bool, becomes `rerun` — the act re-ran the script, and it
 // reproduced or it differed. A record written at epoch 28 or later states `rerun` and `anchor`

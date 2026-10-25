@@ -54,7 +54,7 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 		// Two of these rows were `mint` on the chair (it is the lens's) and `friction` on a lens (no
 		// such verb), and both read as the binding guard firing for three years' worth of runs.
 		{"red-chair", false, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
-		{"red-lens-evidence", false, []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
+		{"red-lens-evidence", false, []string{"mint", "--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 		{"blue-respond", false, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
 		{"judge", true, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},

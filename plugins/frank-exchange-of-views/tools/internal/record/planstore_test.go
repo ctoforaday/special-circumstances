@@ -126,7 +126,7 @@ func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
 		register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).dispatch(2, evLens).
-		register(evLens).register("red-chair").seed()
+		register(evLens).served(evLens, 2).register("red-chair").seed()
 	plan, _, err := DispatchNext(chair(run))
 	if err != nil || len(plan.Parties) != 0 {
 		t.Fatalf("fixture: %d parties, %v; want nobody ready", len(plan.Parties), err)
@@ -172,12 +172,12 @@ func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
 		{"the report unchanged since the last review", func(b *stage) *stage {
 			return b.ingest().add("blue-respond", inquiry).register("red-chair").
 				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).
-				dispatch(2, evLens).register(evLens)
+				dispatch(2, evLens).register(evLens).served(evLens, 2)
 		}, false},
 		{"the report changed after the last review", func(b *stage) *stage {
 			b.ingest().add("blue-respond", inquiry).register("red-chair").
 				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).ingest()
-			return b.dispatch(b.at(), evLens).register(evLens)
+			return b.sit(b.at(), evLens)
 		}, true},
 	}
 	acts := []struct {
@@ -269,7 +269,7 @@ func TestTheWriteRefusesAPlanNoPrintingWrites(t *testing.T) {
 		{"a key the plan does not declare", strings.Replace(good, `{"key"`, `{"extra":1,"key"`, 1), "not a plan"},
 		{"bytes its printing would not write", strings.Replace(good, `,"parties"`, `, "parties"`, 1), "not as the verb prints it"},
 		{"a key that is not the plan's", strings.Replace(good, plan.Key, "0000000000000000", 1), "key is"},
-		{"a plan its rules refuse", keyed(emptied).Printed(), "empty only when"},
+		{"a plan its rules refuse", emptied.WithKey().Printed(), "empty only when"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if _, err := Append(sit(t, run, "red-chair"), &recordpb.Plan{Printed: proto.String(c.printed)}); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -280,24 +280,24 @@ func TestTheWriteRefusesAPlanNoPrintingWrites(t *testing.T) {
 	mustAppend(t, sit(t, run, "red-chair"), &recordpb.Plan{Printed: proto.String(good)})
 }
 
-// THE KEY IS WHAT THE PLAN DECIDES: the same whatever epoch asks it, and moved by any other field —
-// a blocker of any kind and the reasons included.
-func TestThePlanKeyLeavesOutOnlyWhenThePlanWasAsked(t *testing.T) {
+// THE KEY IS WHAT THE PLAN DECIDES: the same whatever epoch asks it and whatever verdict the asking
+// sitting recorded, and moved by any other field — a blocker of any kind and the reasons included.
+func TestThePlanKeyLeavesOutOnlyWhatTheAskingSittingSays(t *testing.T) {
 	var unkeyed []string
 	for _, f := range PlanFields() {
 		if f.Unkeyed {
 			unkeyed = append(unkeyed, f.JSON)
 		}
 	}
-	if strings.Join(unkeyed, ",") != "epoch,final_sitting" {
-		t.Fatalf("the key leaves out %v, want epoch and final_sitting", unkeyed)
+	if strings.Join(unkeyed, ",") != "epoch,final_sitting,verdict" {
+		t.Fatalf("the key leaves out %v, want epoch, final_sitting and verdict", unkeyed)
 	}
-	base := keyed(Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
-		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}})
+	base := Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
+		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}}.WithKey()
 	later := base
-	later.Epoch, later.FinalSitting = 5, true
-	if keyed(later).Key != base.Key {
-		t.Errorf("the key moved with the epoch")
+	later.Epoch, later.FinalSitting, later.Verdict = 5, true, "FAIL"
+	if later.WithKey().Key != base.Key {
+		t.Errorf("the key moved with the epoch or the verdict")
 	}
 	for name, change := range map[string]func(*Plan){
 		"the head": func(p *Plan) { p.Head = 5 },
@@ -308,7 +308,7 @@ func TestThePlanKeyLeavesOutOnlyWhenThePlanWasAsked(t *testing.T) {
 	} {
 		p := base
 		change(&p)
-		if keyed(p).Key == base.Key {
+		if p.WithKey().Key == base.Key {
 			t.Errorf("the key did not move with %s", name)
 		}
 	}

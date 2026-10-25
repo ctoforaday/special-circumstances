@@ -57,7 +57,7 @@ func assertShortRefusal(t *testing.T, seatID, path string, args []string, opens 
 
 func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
 	said := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "", "--reason", "r"},
-		"--about-kind takes one of section|inquiry|gap|contradiction and was given nothing. ")
+		"--about-kind takes one of section|inquiry|gap|contradiction|proof and was given nothing. ")
 	// THE FLAG AND THE VALUE ONCE: the parser's wrapper names both in front of a sentence that does.
 	for _, twice := range []string{"invalid argument", `(got "")`, "nothing was passed, and"} {
 		if strings.Contains(said, twice) {
@@ -75,7 +75,7 @@ func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
 	}
 
 	near := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "Section", "--about", "x", "--reason", "r"},
-		`--about-kind takes one of section|inquiry|gap|contradiction, not "Section": it differs from "section" only in case. `)
+		`--about-kind takes one of section|inquiry|gap|contradiction|proof, not "Section": it differs from "section" only in case. `)
 	if strings.Contains(near, "invalid argument") {
 		t.Errorf("the near miss is refused under the parser's wrapper:\n%s", near)
 	}
@@ -112,8 +112,8 @@ func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
 }
 
 // NO SEAT VERB DECLARES A GROUP A CALL CAN VIOLATE NOW: mint's [problem reason] was the last, and
-// it went with the --reason-as-problem fallback; class new's and close's groups are each also
-// required flag by flag, which cobra refuses first. The refusal is held on a command built here,
+// it went with the --reason-as-problem fallback; close's groups are also required flag by flag,
+// which cobra refuses first. The refusal is held on a command built here,
 // so a group added to a verb later is answered the way this says.
 func TestAFlagGroupViolatedIsRefusedWithItsFlagsLines(t *testing.T) {
 	c := &cobra.Command{Use: "probe", RunE: func(*cobra.Command, []string) error { return nil }}

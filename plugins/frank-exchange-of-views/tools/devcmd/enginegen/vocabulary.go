@@ -7,17 +7,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 const (
-	vocabBegin = "// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums and record.Plan. DO NOT EDIT BY HAND."
+	vocabBegin = "// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums, record.Plan and record.LensEnvelope. DO NOT EDIT BY HAND."
 	vocabEnd   = "// END GENERATED ENVELOPE VOCABULARY"
 )
 
-// vocabulary is every closed set a seat's envelope offers and the shape of the plan the chair
-// relays, as Go holds them.
+// vocabulary is every closed set a seat's envelope offers, the shape of the plan the chair relays,
+// and the shape of the envelope a lens returns, as Go holds them.
 //
 // AN ENVELOPE WORD THE RECORD REFUSES IS A PATH THAT CANNOT WORK (#329): the petition-ruling
 // schema once offered `halt`, the record's enum did not hold it, and a judge following the schema
@@ -30,7 +31,6 @@ type vocabulary struct {
 	petitionRulings []string // a petition motion's ruling
 	reliefBinds     []string // a petition ruling's `binds`
 	dispositions    []string // a docket motion's ruling
-	verdicts        []string // the chair's verdict, in capitals
 	outcomes        []string // the run's outcome, in capitals
 
 	// benchSeat and lensOrBlue are the seats a plan's party can name (record.PartySeats), in the
@@ -42,6 +42,9 @@ type vocabulary struct {
 	// plan is record.Plan's relayed fields, and party the struct a party is.
 	plan  []record.PlanField
 	party reflect.Type
+
+	// lens is record.LensEnvelope's fields.
+	lens []record.PlanField
 }
 
 func vocabularyFromTheRecord() (vocabulary, error) {
@@ -54,11 +57,9 @@ func vocabularyFromTheRecord() (vocabulary, error) {
 		dispatchOccasions: record.DispatchOccasions(),
 		plan:              record.PlanFields(),
 		party:             reflect.TypeFor[record.Party](),
+		lens:              record.LensEnvelopeFields(),
 	}
 	var err error
-	if v.verdicts, err = eventEnum("verdict", "verdict"); err != nil {
-		return v, err
-	}
 	if v.outcomes, err = eventEnum("outcome", "verdict"); err != nil {
 		return v, err
 	}
@@ -97,20 +98,13 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 		{"RULING_ON_PETITION", "a petition's rulings", v.petitionRulings},
 		{"RELIEF_BINDS", "whom a petition's relief binds", v.reliefBinds},
 		{"DISPOSITION", "the docket's dispositions", v.dispositions},
-		{"VERDICT", "the chair's verdicts", v.verdicts},
 		{"RUN_OUTCOME", "the run's outcomes", v.outcomes},
 	}
 	for _, s := range sets {
 		if len(s.words) == 0 {
 			return nil, fmt.Errorf("the record holds no word for %s", s.what)
 		}
-		typ, enum := js("string"), words(s.words)
-		if s.name == "VERDICT" {
-			// NULL IS "RECORDED NONE", as the field's absence is: a chair sitting that records no
-			// verdict writes no verdict event, and its envelope says so with null or by omission.
-			typ, enum = "['string', 'null']", list(append(each(s.words, js), "null"))
-		}
-		fmt.Fprintf(&b, "const %s = %s\n", s.name, object(prop{"type", typ}, prop{"enum", enum}))
+		fmt.Fprintf(&b, "const %s = %s\n", s.name, object(prop{"type", js("string")}, prop{"enum", words(s.words)}))
 	}
 
 	if v.benchSeat == "" || len(v.lensOrBlue) == 0 {
@@ -120,8 +114,14 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 		return nil, fmt.Errorf("the record convenes the bench's party for no occasion")
 	}
 	fmt.Fprintf(&b, "const BENCH_PARTY_OCCASIONS = %s\n", words(v.dispatchOccasions))
+	// A GAP ID IS ANCHOR'S SHAPE, generated from its one matcher, so an envelope that relays gap ids
+	// refuses prose where an id belongs instead of the engine finding no row for it.
+	fmt.Fprintf(&b, "const GAP_ID = %s\n", object(prop{"type", js("string")}, prop{"pattern", text("^" + anchor.IDPattern("gap") + "$")}))
 
 	if err := v.renderPlan(&b); err != nil {
+		return nil, err
+	}
+	if err := v.renderEnvelope(&b, "LENS_ENVELOPE", "record.LensEnvelope", v.lens); err != nil {
 		return nil, err
 	}
 	if strings.Contains(b.String(), unwritable) {
@@ -133,7 +133,7 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 // renderPlan writes the two party shapes, the plan's schema, and the two type tables the
 // engine's own check of a relay walks.
 func (v vocabulary) renderPlan(b *strings.Builder) error {
-	if err := sound(v.plan); err != nil {
+	if err := sound("record.Plan", v.plan); err != nil {
 		return err
 	}
 	var party []record.PlanField
@@ -170,13 +170,9 @@ func (v vocabulary) renderPlan(b *strings.Builder) error {
 	if len(props) == 0 {
 		return fmt.Errorf("record.Plan relays no field")
 	}
-	rule, emptyOnlyWith, err := emptyOnlyWithOf(v.plan)
+	extra, emptyOnlyWith, err := emptyOnlyWithOf(v.plan)
 	if err != nil {
 		return err
-	}
-	var extra []prop
-	if rule != "" {
-		extra = append(extra, prop{"anyOf", rule})
 	}
 	b.WriteString(block("PLAN", required, props, extra...))
 	fmt.Fprintf(b, "const PLAN_FIELD_TYPES = %s\n", object(types...))
@@ -189,17 +185,34 @@ func (v vocabulary) renderPlan(b *strings.Builder) error {
 	return nil
 }
 
-// emptyOnlyWithOf is the plan's one EmptyOnlyWith rule as a schema clause — the list non-empty, or
-// the boolean true — and as the table the engine's own check walks. A rule naming no boolean of
+// renderEnvelope writes a seat's envelope schema, closed, from the fields its declaration holds: the
+// keys it may carry, and the ones it must. An envelope declaring no field is the empty object.
+func (v vocabulary) renderEnvelope(b *strings.Builder, name, of string, fs []record.PlanField) error {
+	if err := sound(of, fs); err != nil {
+		return err
+	}
+	var required, props []prop
+	for _, f := range fs {
+		props = append(props, prop{f.JSON, v.schemaOf(f, f.Desc)})
+		if !f.Optional {
+			required = append(required, prop{val: js(f.JSON)})
+		}
+	}
+	b.WriteString(block(name, required, props))
+	return nil
+}
+
+// emptyOnlyWithOf is the plan's one EmptyOnlyWith rule as a schema clause — unless the boolean is
+// true, the list is non-empty — and as the table the engine's own check walks. A rule naming no boolean of
 // the plan, or held by a nested field or by a second field, is refused: the clause is written for
 // one rule on the plan itself.
-func emptyOnlyWithOf(fs []record.PlanField) (string, []prop, error) {
+func emptyOnlyWithOf(fs []record.PlanField) ([]prop, []prop, error) {
 	var rules []prop
 	var list, flag string
 	for _, f := range fs {
 		for _, i := range f.Items {
 			if i.EmptyOnlyWith != "" {
-				return "", nil, fmt.Errorf("record.Plan's %s.%s states an emptyonlywith rule, and the schema states one only on the plan's own fields", f.JSON, i.JSON)
+				return nil, nil, fmt.Errorf("record.Plan's %s.%s states an emptyonlywith rule, and the schema states one only on the plan's own fields", f.JSON, i.JSON)
 			}
 		}
 		if f.EmptyOnlyWith == "" {
@@ -207,25 +220,38 @@ func emptyOnlyWithOf(fs []record.PlanField) (string, []prop, error) {
 		}
 		at := slices.IndexFunc(fs, func(g record.PlanField) bool { return g.JSON == f.EmptyOnlyWith })
 		if f.Type != "array" || f.Optional || at < 0 || fs[at].Type != "boolean" || fs[at].Optional {
-			return "", nil, fmt.Errorf("record.Plan's %s is empty only with %q, and the schema states that rule only for a required list and a required boolean of the plan", f.JSON, f.EmptyOnlyWith)
+			return nil, nil, fmt.Errorf("record.Plan's %s is empty only with %q, and the schema states that rule only for a required list and a required boolean of the plan", f.JSON, f.EmptyOnlyWith)
 		}
 		rules = append(rules, prop{f.JSON, js(f.EmptyOnlyWith)})
 		list, flag = f.JSON, f.EmptyOnlyWith
 	}
 	switch len(rules) {
 	case 0:
-		return "", nil, nil
+		return nil, nil, nil
 	case 1:
 	default:
-		return "", nil, fmt.Errorf("record.Plan states %d emptyonlywith rules, and the schema states one", len(rules))
+		return nil, nil, fmt.Errorf("record.Plan states %d emptyonlywith rules, and the schema states one", len(rules))
 	}
+	// IF/ELSE, NEVER anyOf: THE PLAN IS THE CHAIR'S WHOLE ENVELOPE, and the API refuses a tool whose
+	// input schema holds oneOf, allOf or anyOf at its top level — every chair sitting's request
+	// fails with a 400 before the chair is asked anything (measured 2026-10-23, replaying a chair
+	// against the closed flat envelope). A conditional is accepted there.
+	//
 	// EACH BRANCH'S PROPERTY STATES ITS TYPE beside the keyword that needs one. A branch's property is
 	// a new data location, so the plan's `type` does not reach it, and the harness's strict-types
 	// compile (ajv's strictTypes) warns at launch on a `minItems` with no `type: "array"`. The enum
 	// states its type for the same reading.
-	rule := "[" + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"type", js("boolean")}, prop{"enum", "[true]"})})}) +
-		", " + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"type", js("array")}, prop{"minItems", "1"})})}) + "]"
-	return rule, rules, nil
+	//
+	// THE REFUSAL NAMES THE LIST: a relay that breaks the rule fails `else`, whose one keyword is the
+	// list's `minItems` — never the boolean's [true], which reads a legal false as forbidden (every
+	// refused relay at m30 opened on it while the defect was the list, absent or emptied). The clause
+	// stays: the schema's refusal is one the chair retries in its sitting, and requirePlan's ends the
+	// run.
+	clause := []prop{
+		{"if", object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"type", js("boolean")}, prop{"enum", "[true]"})})})},
+		{"else", object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"type", js("array")}, prop{"minItems", "1"})})})},
+	}
+	return clause, rules, nil
 }
 
 // renderParties writes a party's two shapes from record.Party's fields.
@@ -276,16 +302,17 @@ func (v vocabulary) renderParties(b *strings.Builder, fields []record.PlanField)
 	return nil
 }
 
-// sound refuses a plan field no schema can carry, or whose key the engine could not read as one.
-func sound(fs []record.PlanField) error {
+// sound refuses a field of the declaration `of` that no schema can carry, or whose key the engine
+// could not read as one.
+func sound(of string, fs []record.PlanField) error {
 	for _, f := range fs {
 		if f.Defect != "" {
-			return fmt.Errorf("record.Plan's %s cannot be relayed under a schema: %s", f.JSON, f.Defect)
+			return fmt.Errorf("%s's %s cannot be carried under a schema: %s", of, f.JSON, f.Defect)
 		}
 		if !identifier.MatchString(f.JSON) {
-			return fmt.Errorf("record.Plan's key %q is not a word the engine can read as a key", f.JSON)
+			return fmt.Errorf("%s's key %q is not a word the engine can read as a key", of, f.JSON)
 		}
-		if err := sound(f.Items); err != nil {
+		if err := sound(of, f.Items); err != nil {
 			return err
 		}
 	}

@@ -162,7 +162,7 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-chair"}, `"mint" is not on your surface`},
+		{"a verb that is another seat's", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "red-chair"}, `"mint" is not on your surface`},
 		// There is no role level to name, so the old "a role with no verb" case is now a caller
 		// with no identity — the same shape of mistake at the level that still exists.
 		{"a command with no identity", []string{"mint"}, "--seat-id IS REQUIRED HERE"},
@@ -351,8 +351,8 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "contract-seed", "--class", "self-attestation",
+	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--key", "contract-seed", "--class", "spec_underspecification",
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",

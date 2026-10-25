@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // remandDirection is the research direction the bench's remand states.
@@ -23,11 +24,16 @@ func remandRuling(motion, direction string) *recordpb.MotionRule {
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}
 }
 
-// sitClosed is one complete sitting of seat: its register, and the stop the SubagentStop hook
-// records when its agent returns, so the exchange fold can close it without the seat sitting again.
+// sitClosed is one complete sitting of seat: its register, the whole report served to it where it is a
+// lens, and the stop the SubagentStop hook records when its agent returns, so the exchange fold can
+// close it without the seat sitting again.
 func (b *stage) sitClosed(seat string) *stage {
 	agent := fmt.Sprintf("%s-agent-%d", seat, b.n+1)
-	return b.registerAs(seat, agent).stop(agent)
+	b.registerAs(seat, agent)
+	if seatclass.RoleOfSeat(seat) == "lens" {
+		b.served(seat, b.head())
+	}
+	return b.stop(agent)
 }
 
 // exchangeOn is one exchange on gap: the chair engages the minting lens and blue, and each sits
@@ -40,17 +46,27 @@ func (b *stage) exchangeOn(gap string) *stage {
 // docketAndRemand is the chair's verb docketing gap at impasse as motion, and the bench sitting for
 // it and remanding it with remandDirection.
 func (b *stage) docketAndRemand(motion, gap string) *stage {
+	return b.docketAndRemandWith(motion, gap, remandDirection)
+}
+
+// docketAndRemandWith is docketAndRemand with the bench stating direction.
+func (b *stage) docketAndRemandWith(motion, gap, direction string) *stage {
 	return b.register("red-chair").docketMotion("red-chair", motion, gap).
-		dispatch(2, "judge", gap).register("judge").add("judge", remandRuling(motion, remandDirection))
+		dispatch(2, "judge", gap).register("judge").add("judge", remandRuling(motion, direction))
 }
 
 // remandedAtImpasse is G1 stalled to impasse under the default terms (k 2), docketed by the chair,
 // and remanded by the bench with a stated direction.
 func remandedAtImpasse(t *testing.T) *stage {
+	return remandedAtImpasseWith(t, remandDirection)
+}
+
+// remandedAtImpasseWith is remandedAtImpasse with the bench stating direction.
+func remandedAtImpasseWith(t *testing.T, direction string) *stage {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
 	st.exchangeOn("G1").exchangeOn("G1")
-	return st.docketAndRemand("M1", "G1")
+	return st.docketAndRemandWith("M1", "G1", direction)
 }
 
 // gapsOf is the gaps the plan engages seat on, and whether it readies the seat at all.
@@ -124,6 +140,37 @@ func TestARemandReadiesTheMinterAndBlueForOneMoreExchange(t *testing.T) {
 	}
 }
 
+// A REMAND LINE PRINTS THE BENCH'S DIRECTION LAST, AFTER RemandDirectionPrefix, AS WRITTEN. migrate
+// carries everything after the prefix in an archived plan's line as seat prose — neither translating
+// a number in it nor reading a quote in it — so the verb printing the direction anywhere but last,
+// or quoted, would hand migrate a tail that is not the bench's words. The direction holds an id
+// phrase and an unclosed quote, the two things the tail rule exists to leave alone.
+func TestARemandLineCarriesItsDirectionAsWritten(t *testing.T) {
+	const direction = `re-read pin 412 and the claim "head 412`
+	run := remandedAtImpasseWith(t, direction).register("red-chair").seed()
+	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, _ := storedOf(t, run)
+	if len(stored) != 1 || stored[0].Printed != plan.Printed() {
+		t.Fatalf("stored %d plan(s); want the one the verb printed", len(stored))
+	}
+	got := stored[0].Plan
+	var line string
+	for _, w := range got.Why {
+		if strings.HasPrefix(w, "G1: ") {
+			line = w
+		}
+	}
+	if !strings.HasSuffix(line, RemandDirectionPrefix+direction) || strings.Count(line, RemandDirectionPrefix) != 1 {
+		t.Errorf("the stored plan's line for G1 must end with the prefix and the direction as written, once; got %q", line)
+	}
+	if want := []RemandOwed{{GapID: "G1", Direction: direction}}; !slices.Equal(got.RemandOwed, want) {
+		t.Errorf("remand_owed = %+v, want %+v", got.RemandOwed, want)
+	}
+}
+
 // ONE EXCHANGE, NOT A LOOP. The minting lens and blue sit once on the remanded gap and nothing
 // moves: the gap is at impasse again, and the plan dockets it for the bench afresh rather than
 // readying the parties a second time. The work lists stop carrying the direction once its exchange
@@ -137,8 +184,13 @@ func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
 	if slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Errorf("the remand's one exchange is spent; G1 must not ready its parties again: parties %+v", plan.Parties)
 	}
-	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || !slices.Contains(gapsOf(plan, benchSeat), "G1") {
-		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again: to file %v, docket %v, parties %+v, why %q",
+	// DOCKETED AGAIN, AND ARGUED AGAIN: its parties are readied for their closings on the new
+	// docketing, engaged on no gap, and the bench sits once neither is awaited.
+	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
+		!slices.ContainsFunc(plan.Why, func(w string) bool {
+			return strings.HasPrefix(w, "G1: docketed — the closing of "+evLens+" and blue-respond")
+		}) {
+		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again, its parties readied for their closings: to file %v, docket %v, parties %+v, why %q",
 			plan.ToFile, plan.Docket, plan.Parties, plan.Why)
 	}
 	if plan.Ceiling {

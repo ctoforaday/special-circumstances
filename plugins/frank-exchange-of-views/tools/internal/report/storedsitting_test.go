@@ -67,7 +67,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		registersUnder(t, "blue-respond", "B1", "#1"), // blue sitting 1, epoch 2
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{Answers: proto.String("G1")}),
-		recordtest.At(t, "blue-respond", "blue-respond:position:#1", &recordpb.Position{Text: proto.String("G1 is answered")}),
+		recordtest.At(t, "blue-respond", "blue-respond:closing:#1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("G1 is answered")}),
 		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{Answers: proto.String("G1")}),
@@ -139,12 +139,12 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		unmarshal(t, must(t)(record.DebateJSONBytes(run)), &dj)
 		var at []int
 		for _, ep := range dj.Epochs {
-			if len(ep.Blue) > 0 {
+			if len(ep.BlueClosings) > 0 {
 				at = append(at, ep.Epoch)
 			}
 		}
 		if len(at) != 1 || at[0] != 2 {
-			t.Errorf("show debate puts blue's position in epoch(s) %v, want [2]", at)
+			t.Errorf("show debate puts blue's closing in epoch(s) %v, want [2]", at)
 		}
 		d := debate(fam)
 		contains("debate.md", d, "### Epoch 2")

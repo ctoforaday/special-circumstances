@@ -231,7 +231,7 @@ harness's own paraphrase.
 ## What it says
 
 **The help is read, and read first.** Every board read it; eight of nine read it as the seat's
-opening call, and `show diagnostics` records **zero** help rejections across all nine. Whatever else
+opening call, and `ops diagnostics` records **zero** help rejections across all nine. Whatever else
 is true, "seats do not read `--help`" — the finding this page was opened to investigate — is not.
 That is the scoped tree and the constitutional surface-discovery duty doing the job they were built
 for, measured for the first time against the prompt that actually carries the directive.
@@ -249,7 +249,7 @@ a real miss — the seat had the verb, had the situation, and did not go there:
 | role | unreached on every board of that role |
 |---|---|
 | blue | `cite`, `closing`, `inquiry propose`, `inquiry record`, `motion grade file`, `motion grade appeal`, `motion petition file` |
-| merge | `carry`, `class new`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
+| merge | `carry`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
 | lens | `corroborate`, `motion petition file` |
 | bench | `declare`, `halt` |
 
@@ -294,7 +294,7 @@ unprompted. That is `complete-the-concept` — the carrier fixed, the sibling le
 model — committed one commit after writing the gate for the other half. Its own "fails loudly at
 every seam" check passed all three, because a blocked seat writes several eloquent paragraphs about
 being blocked and non-empty output is not evidence that work happened. The seam check now reads
-`show diagnostics`: the seat must appear (it registered) and `helpBlocks` must be non-zero (the
+`ops diagnostics`: the seat must appear (it registered) and `helpBlocks` must be non-zero (the
 surface reached it). Both misses stop the run before a question is asked.
 
 ## Every claim, checked at the leaf

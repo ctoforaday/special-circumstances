@@ -18,7 +18,6 @@
 package sittingwrite
 
 import (
-	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"io"
@@ -56,12 +55,44 @@ const (
 	// WriteToolEntry as log entries the TOOL wrote: the harness saw them, and no verb did.
 	Refusal Phase = "refusal"
 	Failure Phase = "failure"
+	// Envelope is not a write of the span either: it is the seat's call that returns its envelope,
+	// asked whether the record refuses it (WriteEnvelopeRefusal). The refusal is printed for the
+	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry.
+	Envelope Phase = "envelope"
 )
+
+// WriteEnvelopeRefusal prints the record's refusal of the envelope the agent's seat is returning
+// (record.AgentEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
+// Nothing is printed or written when the record refuses nothing, and for an agent bound to no seat.
+// A record that cannot be read is the error, and the hook refuses the envelope naming it.
+//
+// THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
+// of the refusal and never the refusal itself: the hook denies on what reached it.
+func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
+	if agentID == "" {
+		return fmt.Errorf("sittingwrite: an envelope is asked about with no agent id")
+	}
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return err
+	}
+	refusal, _, err := record.AgentEnvelopeRefusal(run, agentID)
+	if err != nil || refusal == "" {
+		return err
+	}
+	if _, err := io.WriteString(out, refusal); err != nil {
+		return err
+	}
+	return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
+}
 
 // WriteToolEntry records what a hook saw happen to a seat's call — a denial or a failure — as the
 // tool's log entry of that phase's type, under the seat the agent is bound to (record.SeatOfAgent:
 // its latest register, or the bracket that named its seat). An agent bound to no seat is no seat,
-// and a run with an outcome is over; nothing is written for either.
+// and nothing is written for it. A run with an outcome takes the entry: a seat's call denied or
+// failed after the outcome is friction like any other (record.requireOpenToSeats lets every log
+// entry land). A run that was CAPTURED takes nothing, and the refusal is
+// returned (record.ErrRunCaptured).
 func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	typ, ok := map[Phase]recordpb.LogType{
 		Refusal: recordpb.LogType_LOG_TYPE_REFUSAL,
@@ -83,17 +114,11 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	}
 	// AN ERROR CAN NAME AN ANCHOR, and the entry names it by its id (anchortext.LogLine) — here, in
 	// the writer, so the hooks that hand these over link nothing more than they did.
-	//
-	// A RUN THAT IS OVER takes nothing: its record is closed to seats. Asked as the entry is written
-	// (record.UntilTheOutcome), so an outcome committed in between is seen.
 	_, err = record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.Log{
 		Text:   proto.String(anchortext.LogLine(text)),
 		Type:   typ.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
-	}, record.UntilTheOutcome)
-	if errors.Is(err, record.ErrWritesNothing) {
-		return nil
-	}
+	})
 	return err
 }
 

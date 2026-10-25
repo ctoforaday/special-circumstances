@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -145,6 +146,7 @@ const (
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
 	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
+	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
 )
 
 const (
@@ -169,7 +171,15 @@ func (d drive) gradeMotion(what, seatID, dimension string, admit bool) string {
 
 func (d drive) docketMotion(what, seatID string) {
 	d.t.Helper()
-	d.admitted(what, seatID, "motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide")
+	args := []string{"motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide"}
+	// A GAP THAT MOVED UNDER THE SEAT'S SITTING refuses the first filing and shows the move; the
+	// same filing then lands. The row is about what the write path admits, which is that second call.
+	if _, err := d.do(seatID, args...); err == nil {
+		return
+	} else if !errors.As(err, new(*record.StaleError)) {
+		d.t.Fatalf("%s: refused: %v", what, err)
+	}
+	d.admitted(what, seatID, args...)
 }
 
 // answerDrive is one row of the table, driven. helps names every help page that states the row, as
@@ -202,8 +212,6 @@ func answerDrives() []answerDrive {
 	return []answerDrive{
 		{name: "position, the chair", row: rowPosition, helps: []string{"chair position"},
 			drive: oncePerSitting(rowPosition, "red-chair", "position")},
-		{name: "position, blue-respond", row: rowPosition, helps: []string{"blue position"},
-			drive: oncePerSitting(rowPosition, "blue-respond", "position")},
 		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
 			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
@@ -222,13 +230,17 @@ func answerDrives() []answerDrive {
 			d.nextSitting("red-chair")
 			d.admitted("the next sitting's verdict, after a PASS", "red-chair", "verdict", "--as", "PASS")
 		}},
-		{name: "closing, the chair", row: rowClosing, helps: []string{"chair closing"}, drive: func(d drive) {
-			oncePerSitting(rowClosing, "red-chair", "closing", "--id", "G1")(d)
+		// A CLOSING ARGUES A DOCKETING, so each drive dockets G1 first; the gap closing under it leaves
+		// the docket motion standing, and a correction is still admitted.
+		{name: "closing, the lens", row: rowClosing, helps: []string{"lens closing"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
+			oncePerSitting(rowClosing, lensSeat, "closing", "--id", "G1")(d)
 			d.closeG1(lensSeat)
-			d.nextSitting("red-chair")
-			d.admitted("the next sitting's closing, the gap closed", "red-chair", "closing", "--id", "G1", "--reason", "the first was wrong")
+			d.nextSitting(lensSeat)
+			d.admitted("the next sitting's closing, the gap closed", lensSeat, "closing", "--id", "G1", "--reason", "the first was wrong")
 		}},
 		{name: "closing, blue", row: rowClosing, helps: []string{"blue closing"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
 			oncePerSitting(rowClosing, "blue-respond", "closing", "--id", "G1")(d)
 			d.closeG1(lensSeat)
 			d.nextSitting("blue-respond")
@@ -311,8 +323,13 @@ func answerDrives() []answerDrive {
 		{name: "close, the chair's carry", row: rowClose, helps: []string{"chair carry"}, drive: func(d drive) {
 			d.closeG1(lensSeat)
 			d.nextSitting("red-chair")
+			// actFixture's chair is in its second sitting (epoch 2) when the lens closes G1.
 			carry := func(as string) []string {
-				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", as, "--reason", "restating"}
+				return []string{"carry", "--id", "G1", "--carried-from", "2", "--as", as, "--reason", "restating"}
+			}
+			// THE EPOCH IS PART OF THE CLAIM: a carry naming a sitting the gap was not closed in is refused.
+			if r := d.refused("a carry naming another epoch", "red-chair", "carry", "--id", "G1", "--carried-from", "7", "--as", "repaired", "--reason", "restating"); !strings.Contains(r, "names no closure of gap") {
+				d.t.Fatalf("a carry naming another epoch was refused for another reason:\n%s", r)
 			}
 			d.admitted("the carry", "red-chair", carry("repaired")...)
 			d.endsWithRow(d.refused("a second carry in the sitting", "red-chair", carry("not_a_defect")...), rowClose)
@@ -373,6 +390,8 @@ func answerDrives() []answerDrive {
 			for _, seatID := range []string{"blue-respond", lensSeat} {
 				d.docketMotion("a new docket motion on the ruled gap, by "+seatID, seatID)
 			}
+			// The chair files again at its next sitting, which opens after the ruling it answers.
+			d.nextSitting("red-chair")
 			again := docketFile(d.t, d.run, "red-chair", "G1", "the ruling left G1 where it was")
 			d.admitted("the bench's ruling on the new motion", "judge", "motion", "docket", "rule", "--id", again, "--as", "remanded", "--principle", "thoroughness over speed",
 				"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "the gap again")
@@ -437,7 +456,16 @@ func answerDrives() []answerDrive {
 		{name: "declare", row: "a new declaration", helps: []string{"bench declare"}, drive: twice("judge", "declare")},
 		{name: "certify", row: "a new certification", helps: []string{"bench certify"}, drive: twice("judge", "certify")},
 		{name: "halt", row: "a new halt", helps: []string{"bench halt"}, drive: twice("judge", "halt")},
-		{name: "outcome", row: "a new outcome", helps: []string{"bench outcome"}, drive: twice("judge", "outcome", "--as", "UNVERIFIED")},
+		{name: "outcome", row: rowOutcome, helps: []string{"bench outcome"}, drive: func(d drive) {
+			// THE OUTCOME CLOSES THE RECORD TO SEAT ACTS (record.requireOpenToSeats): a second is refused,
+			// and the certification the row names is admitted after it.
+			d.admitted("the assembly sitting", "judge", "register", "--occasion", "assemble")
+			d.admitted("the outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "the first")
+			if r := d.refused("a second outcome", "judge", "outcome", "--as", "UNVERIFIED", "--reason", "this replaces my earlier one"); !strings.Contains(r, "the run has its outcome") {
+				d.t.Fatalf("a second outcome is refused, but not as the run's end: %s", r)
+			}
+			d.admitted("the certification that answers it", "judge", "certify", "--reason", "the stamp's reason was wrong, and this is what a human should re-examine")
+		}},
 	}
 }
 

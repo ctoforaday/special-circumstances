@@ -15,8 +15,8 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe error term is bounded by the second derivative.\n")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "V1", "--class", "overclaim", "--problem", "The bound in this report omits its derivation.",
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "V1", "--class", "spec_underspecification", "--problem", "The bound in this report omits its derivation.",
 		"--fix", "State the derivation the red team asked for.", "--check-kind", "document", "--check", "the derivation is stated",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
 	if err != nil {
@@ -31,8 +31,8 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 		}
 	}
 
-	clean, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "V2", "--class", "overclaim", "--problem", "The error term's constant is unsourced.",
+	clean, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "V2", "--class", "spec_underspecification", "--problem", "The error term's constant is unsourced.",
 		"--fix", "Cite the constant.", "--check-kind", "document", "--check", "the constant is cited",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
 	if err != nil {
@@ -57,7 +57,7 @@ func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 	)
 	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", url, "--title", title, "--access-date", "2026-09-01",
-		"--quote", corroborated, "--as", "supports_with_bridge", "--confidence", "medium",
+		"--quote", corroborated, "--as", "supports_with_bridge", "--bridge", "secondary_citation", "--confidence", "medium",
 		"--reason", reason); err != nil {
 		t.Fatalf("corroborate: %v", err)
 	}
@@ -155,7 +155,7 @@ func fixNewReport(t *testing.T) string {
 func mintWithNew(t *testing.T, runDir, key, fixNew string) (string, error) {
 	t.Helper()
 	return run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", key, "--class", "overclaim",
+		"--key", key, "--class", "spec_underspecification",
 		"--quote", "Five independent verification approaches agree.", "--problem", "The approaches share a definition, so they are not independent.",
 		"--fix", "Drop the independence claim.", "--check-kind", "document", "--check", "the section no longer claims independence",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",

@@ -1,16 +1,17 @@
 package migrate
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // Migrate is the whole act: copy the run's channels, replay its record through the current
@@ -24,15 +25,14 @@ import (
 // synced (publish), so an interrupted migration leaves toDir as it was. An existing empty toDir is
 // replaced by the built directory, not filled.
 //
-// The channel copy comes FIRST, and the archive taught why: validation consults the run's
-// own staged inputs — the gap-class registry lives beside the record (records/
-// class-registry.json), and a mint replayed into a run without it refuses, taking every
-// later reference to its gap down in a cascade. Everything except the database file set
-// copies verbatim; the record is the one thing replay rebuilds.
+// The channel copy comes FIRST: validation consults the run's own inputs (inputs/run-config.json,
+// the run's terms), and an act replayed into a run without them refuses, taking every later
+// reference to it down in a cascade. Everything except the database file set and an archived
+// class registry copies verbatim; the record is the one thing replay rebuilds.
 //
 // A refusal publishes the run and its manifest and returns the manifest with an error. A failure
 // before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
-func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error) {
+func Migrate(fromDir, toDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	to, err := destination(toDir)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		// The build stays where it is, so every text that reaches the operator keeps naming it.
 		m.Warnings = warnings
 		if len(m.Refusals) > 0 {
-			return m, errors.Join(err, refusedError(len(m.Refusals), filepath.Join(b.dir, "inputs", ManifestName)))
+			return m, errors.Join(err, refusedError(len(m.Refusals), filepath.Join(b.dir, "inputs", migration.ManifestName)))
 		}
 		return m, err
 	}
@@ -69,7 +69,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		m.Warnings = append(m.Warnings, b.atTo(w))
 	}
 	if len(m.Refusals) > 0 {
-		return m, refusedError(len(m.Refusals), filepath.Join(to, "inputs", ManifestName))
+		return m, refusedError(len(m.Refusals), filepath.Join(to, "inputs", migration.ManifestName))
 	}
 	return m, nil
 }
@@ -81,22 +81,16 @@ func refusedError(n int, manifest string) error {
 }
 
 // fill builds the migrated run in the build directory and writes its manifest there.
-func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, error) {
+func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Manifest, error) {
 	toDir := b.dir
 	if err := copyChannels(fromDir, toDir); err != nil {
-		return nil, err
-	}
-	// The staged registry is the one channel the replay VALIDATES against, so its translation
-	// lands before the first mint does.
-	registryFills, err := translateStagedRegistry(toDir)
-	if err != nil {
 		return nil, err
 	}
 	// The record's format picks the adapter: a database if one exists, else the era of
 	// per-sitting shards. Both refusable — a directory holding neither is not a run.
 	var src Source
 	var unclassified []string
-	var discarded []DiscardedSitting
+	var discarded []migration.DiscardedSitting
 	// The source's scratch copy lives INSIDE the build, and is removed before the publish. Inside,
 	// so that a killed migration leaves exactly one thing behind — the build directory the help
 	// tells the operator to delete — and not a copy of the source record somewhere else nobody is
@@ -156,6 +150,13 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 			carried += n
 		}
 	}
+	// A CAPTURED RUN STAYS CAPTURED, and its mark lands LAST. copyChannels leaves the mark behind
+	// because the build's record refuses every write once it holds one (record.RunCaptured), the
+	// replay's included; written after the record's last write, it says of the migrated run what it
+	// said of the source. The source's bytes, so the capture's time is the one it states.
+	if err := carryCapturedMark(fromDir, toDir); err != nil {
+		return nil, err
+	}
 	// The source is released before the publish, not at return: nothing of it may be open or on
 	// disk when the run is synced and moved.
 	if err := release(); err != nil {
@@ -167,27 +168,38 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	m.Discarded = discarded
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
-	m.StatedFills = append(registryFills, m.StatedFills...)
-	// The refusals describe the run that is, or would have been, published at --to, so their text
-	// names --to wherever it named the build — in the struct, so the manifest written here and the one
-	// Migrate returns say the same. A kept build's own manifest therefore names --to too.
-	for i := range m.Refusals {
-		m.Refusals[i].Err = b.atTo(m.Refusals[i].Err)
-	}
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
+// carryCapturedMark writes the source's capture mark into the build, when the source holds one.
+func carryCapturedMark(fromDir, toDir string) error {
+	from := filepath.Join(fromDir, runlive.CapturedMark)
+	if _, err := os.Stat(from); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("asking whether the source run was captured: %w", err)
+	}
+	if err := copyFile(from, filepath.Join(toDir, runlive.CapturedMark)); err != nil {
+		return fmt.Errorf("carrying the capture mark into the migrated run: %w", err)
+	}
+	return nil
+}
+
 // copyChannels copies the run directory verbatim, EXCEPT the record itself — the database
 // file set and the era's event shards. Replay rebuilds the record, and a stale copy beside
-// the fresh one would be two records claiming one run.
+// the fresh one would be two records claiming one run. The capture mark waits for the replay
+// (carryCapturedMark): beside the record before it, it refuses every event replay appends.
 func copyChannels(fromDir, toDir string) error {
-	skip := map[string]bool{}
+	skip := map[string]bool{filepath.Join(fromDir, runlive.CapturedMark): true}
 	for _, n := range dbSiblings {
 		skip[filepath.Join(fromDir, "records", n)] = true
 	}
+	// AN ARCHIVED RUN'S STAGED CLASS REGISTRY IS NOT A CHANNEL: a gap's class is a value of the
+	// closed GapClass set, and nothing reads the file.
+	skip[filepath.Join(fromDir, "records", "class-registry.json")] = true
 	return filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -216,62 +228,6 @@ func copyChannels(fromDir, toDir string) error {
 		}
 		return copyFile(path, dst)
 	})
-}
-
-// translateStagedRegistry gives every row of the copied registry that lacks `material_default`
-// the binary's shipped value for its slug, else `by_grade` as a stated fill. It supplies a value
-// ONLY where the row lacks the field: a row that carries one is kept as recorded, and a registry
-// every row of which already carries it is not rewritten at all.
-//
-// The source of the values is compiled in (record.ShippedMaterialDefaults), not read from the
-// operator's working tree, so one archive migrates the same way on every machine.
-func translateStagedRegistry(toDir string) ([]StatedFill, error) {
-	p := filepath.Join(toDir, "records", "class-registry.json")
-	b, err := os.ReadFile(p)
-	if os.IsNotExist(err) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(b, &top); err != nil {
-		return nil, fmt.Errorf("the staged class registry %s is unreadable: %w", p, err)
-	}
-	var rows []map[string]json.RawMessage
-	if raw, ok := top["classes"]; ok {
-		if err := json.Unmarshal(raw, &rows); err != nil {
-			return nil, fmt.Errorf("the staged class registry %s has an unreadable classes list: %w", p, err)
-		}
-	}
-	var fills []StatedFill
-	changed := false
-	for _, row := range rows {
-		if _, has := row["material_default"]; has {
-			continue
-		}
-		var slug string
-		_ = json.Unmarshal(row["slug"], &slug)
-		v, fill := shippedDefault(slug)
-		w, _ := json.Marshal(recordpb.Word(v))
-		row["material_default"] = w
-		changed = true
-		if fill {
-			fills = append(fills, StatedFill{Where: "staged registry", Slug: slug, Value: recordpb.Word(v), Why: byGradeFillWhy})
-		}
-	}
-	if !changed {
-		return nil, nil
-	}
-	raw, err := json.Marshal(rows)
-	if err != nil {
-		return nil, err
-	}
-	top["classes"] = raw
-	out, err := json.MarshalIndent(top, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return fills, os.WriteFile(p, append(out, '\n'), 0o644)
 }
 
 func copyFile(from, to string) error {

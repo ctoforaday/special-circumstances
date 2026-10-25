@@ -1,6 +1,9 @@
 package record
 
 import (
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -22,23 +25,22 @@ import (
 type writeView struct {
 	// q is the writing transaction. Every question validation asks of the record goes to it.
 	q recordsql.Querier
-	// files is the run's files the checks read: setup's terms and the staged class registry.
+	// files is the run's files the checks read: setup's terms.
 	files runFiles
 	// rendering is the write's report, rendered before the lock (landingReport); nil on a batch's
 	// write, which renders under its own transaction.
 	rendering *landingReport
 }
 
-// runFiles is the two files the write path reads besides the record: inputs/run-config.json (the
-// run's terms) and the class registry setup staged beside the record. Neither is a record a seat
-// writes, so neither can move under a write; they are read from the paths alone, with no Run.
+// runFiles is the file the write path reads besides the record: inputs/run-config.json (the run's
+// terms). It is not a record a seat writes, so it cannot move under a write; it is read from the
+// path alone, with no Run.
 type runFiles struct {
-	dir     string // the run directory, which holds inputs/run-config.json
-	records string // the records directory, which holds class-registry.json
+	dir string // the run directory, which holds inputs/run-config.json
 }
 
 // filesOf is run's files.
-func filesOf(run Run) runFiles { return runFiles{dir: run.Dir(), records: run.Records()} }
+func filesOf(run Run) runFiles { return runFiles{dir: run.Dir()} }
 
 // params is the run's terms (RunParams).
 func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
@@ -46,5 +48,24 @@ func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 // convergenceFraction is the run's convergence fraction (convergenceFractionIn).
 func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
 
-// registry is the staged class registry (loadRegistry).
-func (f runFiles) registry() (*classRegistry, error) { return loadRegistryIn(f.records) }
+// WouldRefuse is the write path's validation as Append runs it — inside a write transaction on
+// run's record, asked of that transaction — and rolled back: what the write would refuse, without
+// writing. A run that has recorded nothing is validated as no record, and no record is created.
+//
+// A verb asks it where it answers a retry from the record instead of writing: the retry is the
+// same act, so it is held to every rule the first write was, before the stored act is returned.
+func WouldRefuse(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return err
+	}
+	if db == nil {
+		return validate(writeView{q: db, files: filesOf(run)}, seatID, typ, body)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	return validate(writeView{q: tx, files: filesOf(run)}, seatID, typ, body)
+}

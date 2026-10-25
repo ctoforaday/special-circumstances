@@ -270,3 +270,80 @@ func TestAnOldCiteStatesItsCompletenessWasNotRecorded(t *testing.T) {
 		}
 	}
 }
+
+// AND A CITE FROM BEFORE EPOCH 40 SAYS NOBODY RECORDED WHOSE BYTES IT READ. `none` would claim the
+// typed url's own; the fetch index that knew whether a copy stood in is not archived. No copy url is
+// written — that is the residue. A cite that carries a substitution keeps it.
+func TestAnOldCiteStatesItsCopySubstitutionWasNotRecorded(t *testing.T) {
+	for _, tc := range []struct {
+		fields map[string]any
+		want   recordpb.CopySubstitution
+	}{
+		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+		{map[string]any{"label": "c-2", "url": "https://x", "copy_substitution": "recovered", "copy_url": "https://y"}, recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED},
+	} {
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, ok := bodies[0].(*recordpb.Cite)
+		if !ok || len(bodies) != 1 {
+			t.Fatalf("a cite translated to %d bodies, the first %T", len(bodies), bodies[0])
+		}
+		if c.GetCopySubstitution() != tc.want {
+			t.Errorf("%v: copy_substitution = %v, want %v", tc.fields, c.GetCopySubstitution(), tc.want)
+		}
+		if tc.want == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED && c.CopyUrl != nil {
+			t.Errorf("a pre-field cite was given a copy url it never recorded: %q", c.GetCopyUrl())
+		}
+	}
+}
+
+// A CITE FROM BEFORE EPOCH 37 named an OCR citation's span `ocr_quote`: it is the citation's
+// source_span, word for word, beside the reading it was found in. No archived cite holds the span's
+// offsets or the source's text around it — the cache is not archived — so none is invented.
+func TestAnOldOCRQuoteIsTheCitationsSourceSpan(t *testing.T) {
+	bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: map[string]any{
+		"label": "c-1", "url": "https://x", "source_text_origin": "ocr", "ocr_quote": "Annexes A through J",
+		"ocr_engine": "e", "ocr_text_sha": "t"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := bodies[0].(*recordpb.Cite)
+	if c.GetSourceSpan() != "Annexes A through J" || c.GetOcrEngine() != "e" || c.SpanStart != nil || c.SourceMatched != nil {
+		t.Errorf("translated cite: span %q, engine %q, offsets %v, matched %v", c.GetSourceSpan(), c.GetOcrEngine(), c.SpanStart, c.SourceMatched)
+	}
+}
+
+// AND A VERIFICATION FROM BEFORE EPOCH 41 SAYS NOBODY RECORDED WHICH COPY ITS READING WAS MADE
+// AGAINST. `none` would claim the url's own bytes and `not_cached` that the cache held no copy; the
+// fetch index that knew is not archived. No copy url is written — that is the residue. Both eras'
+// columns arrive here: the shard era's `reason` and `independent`, and the SQLite era's `text`.
+func TestAnOldVerificationStatesItsCopyWasNotRecorded(t *testing.T) {
+	for _, tc := range []struct {
+		fields map[string]any
+		want   recordpb.CopySubstitution
+	}{
+		{map[string]any{"claim": "c", "url": "https://x", "title": "X", "reason": "r", "independent": int64(1), "outcome": "supports", "confidence": "high"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+		{map[string]any{"claim": "c", "anchor": "C-1", "text": "r", "outcome": "refutes", "confidence": "low"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED},
+		{map[string]any{"claim": "c", "anchor": "C-1", "text": "r", "outcome": "supports", "confidence": "low", "copy_substitution": "fuller_copy", "copy_url": "https://y"},
+			recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY},
+	} {
+		bodies, err := migrate.Entries()["verify"].Translate(migrate.OldEvent{ID: 1, SeatID: "red-lens-evidence", TS: ts1, Word: "verify", Fields: tc.fields})
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, ok := bodies[0].(*recordpb.Verify)
+		if !ok || len(bodies) != 1 {
+			t.Fatalf("a verify translated to %d bodies, the first %T", len(bodies), bodies[0])
+		}
+		if v.GetCopySubstitution() != tc.want {
+			t.Errorf("%v: copy_substitution = %v, want %v", tc.fields, v.GetCopySubstitution(), tc.want)
+		}
+		if tc.want == recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_RECORDED && v.CopyUrl != nil {
+			t.Errorf("a pre-field verification was given a copy url it never recorded: %q", v.GetCopyUrl())
+		}
+	}
+}

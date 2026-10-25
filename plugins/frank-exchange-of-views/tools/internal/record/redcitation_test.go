@@ -12,7 +12,7 @@ import (
 
 // corroboration builds a supporting corroboration of one claim from one source.
 func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *recordpb.Verify {
-	v := &recordpb.Verify{
+	v := &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Url:        proto.String(url),
 		Title:      proto.String("a source red found"),
 		Claim:      proto.String(claim),
@@ -135,7 +135,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 // writing the finding here would mean inventing its severity, likelihood and impact — three
 // grades nobody chose, feeding the mass calculation that decides what a gap is worth.
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
+	runDir := newRun(t)
 	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
 	for _, id := range []Identity{lens, merge} {
@@ -159,10 +159,10 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
 	}
 
-	// A FINDING QUOTING THE SAME CLAIM CLEARS IT. Red grades its own finding; the tool only
+	// A FINDING NAMING THE CONTRADICTION RAISES IT. Red grades its own finding; the tool only
 	// reports that one is owed.
 	if _, err := Append(lens, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String(claim),
+		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
 		Text:       proto.String("the source says the opposite at page 9"),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -170,8 +170,16 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// RAISED IS NOT ANSWERED: the class default wins, so the finding alone leaves the PASS held.
+	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil || !strings.Contains(err.Error(), "raised by finding F-f0000001, no gap minted from it") {
+		t.Errorf("the contradiction was raised as a finding only, and the PASS is not held naming it: %v", err)
+	}
+	// THE GAP MINTED FROM THE RAISING FINDING ANSWERS IT.
+	if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
+		t.Fatal(err)
+	}
 	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
-		t.Errorf("the contradiction was raised as a finding and the PASS is still blocked: %v", err)
+		t.Errorf("the gap minted from the raising finding answered nothing: %v", err)
 	}
 
 	// AND A SUPPORTING CORROBORATION NEVER BLOCKS. It is a reference backing the claim; there is
@@ -184,27 +192,20 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}
 }
 
-// A FINDING ANSWERS THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE.
-//
-// The claim and the finding's quote are each placed in the report by anchortext, which reads a
-// whitespace run as one separator and drops trailing punctuation. A finding answers the claim
-// when it quotes all of it — in the matcher's reading, alone or inside a longer quote — and
-// answers nothing when it quotes part of it or another sentence.
-func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
+// NAME IT OR IT IS NOT RAISED (gblock, 2026-10-23). A finding whose quote contains the
+// contradicted claim — the same words, the sentence holding it, a part of it — raises nothing, and
+// the gap minted from it answers nothing: the tool does not infer what a finding is about from what
+// its quote contains. The finding naming the contradiction's id raises it, and the gap minted from
+// that finding answers it.
+func TestAQuoteRaisesNoContradiction(t *testing.T) {
 	const claim = "so the claim that a base-3 test accepts 91 rests on computation alone."
-	for _, tc := range []struct {
-		name, quote string
-		answers     bool
-	}{
-		{"the same words", claim, true},
-		{"without its full stop", strings.TrimSuffix(claim, "."), true},
-		{"wrapped over two lines", strings.Replace(claim, " rests ", "\n  rests ", 1), true},
-		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin.", true},
-		{"another sentence", "The sequence lists no such entry.", false},
-		{"part of the claim", "a base-3 test accepts 91", false},
+	for _, tc := range []struct{ name, quote string }{
+		{"the same words", claim},
+		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin."},
+		{"part of the claim", "a base-3 test accepts 91"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := recordtest.TmpRun(t)
+			runDir := newRun(t)
 			lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 			if _, _, err := RegisterSeat(lens, "", ""); err != nil {
 				t.Fatal(err)
@@ -212,24 +213,52 @@ func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
 			if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := Append(lens, &recordpb.Finding{
-				Id: proto.String("F-f0000001"), Location: proto.String(tc.quote),
-				Text:       proto.String("the source says the opposite"),
-				Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
-				Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
-				Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			}); err != nil {
+			graded := func(f *recordpb.Finding) *recordpb.Finding {
+				f.Text = proto.String("the source says the opposite")
+				f.Severity, f.Likelihood, f.Impact = recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_MEDIUM)
+				return f
+			}
+			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000001"), Location: proto.String(tc.quote)})); err != nil {
 				t.Fatal(err)
 			}
-			err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
-			if tc.answers && err != nil {
-				t.Errorf("a finding quoting %q left the contradiction of %q unanswered: %v", tc.quote, claim, err)
+			if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
+				t.Fatal(err)
 			}
-			if !tc.answers && err == nil {
-				t.Errorf("a finding quoting %q answered the contradiction of %q, which it does not quote", tc.quote, claim)
+			if c := onlyContradiction(t, runDir); c.RaisedBy != "" {
+				t.Errorf("a finding quoting %q raised the contradiction of %q (raised_by %s): a quote raises nothing", tc.quote, claim, c.RaisedBy)
+			}
+			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil {
+				t.Errorf("a finding quoting %q and the gap minted from it answered the contradiction of %q, which no finding named", tc.quote, claim)
+			}
+			id := onlyContradiction(t, runDir).ID
+			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000002"),
+				AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(id)})); err != nil {
+				t.Fatal(err)
+			}
+			answer := raisingGap("G-f0000002", "F-f0000002")
+			answer.DistinctFrom = []string{"G-f0000001"}
+			if _, err := Append(lens, answer); err != nil {
+				t.Fatal(err)
+			}
+			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
+				t.Errorf("the finding naming contradiction %s and the gap minted from it left it unanswered: %v", id, err)
 			}
 		})
 	}
+}
+
+// onlyContradiction is the run's one unanswered contradiction as `show evidence` lists it.
+func onlyContradiction(t *testing.T, runDir string) EvidenceContradictionJSON {
+	t.Helper()
+	b, err := FamilyOf(mustRun(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+	if len(cs) != 1 {
+		t.Fatalf("unanswered_contradictions = %+v, want exactly one", cs)
+	}
+	return cs[0]
 }
 
 // THE PROTECTED-ANCHOR SET IS ONE SET, and red's citations are in it.
@@ -280,7 +309,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 // too. The empty array is the point as much as the full one: without the field, "nothing
 // outstanding" and "nobody checked" are the same absence.
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
+	runDir := newRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
@@ -319,17 +348,26 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Errorf("a refuting reading carries a footnote label, so it spliced one after all: %+v", refuted)
 	}
 
-	// Raise it, and the array empties — an empty array, not a null.
+	// Raise it, and the row names the raising finding; answer it with the gap minted from that
+	// finding, and the array empties — an empty array, not a null.
 	if _, err := Append(id, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
+		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
+		Text:     proto.String("the source says otherwise"),
 		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
+	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 1 || got[0].RaisedBy != "F-f0000001" {
+		t.Errorf("unanswered_contradictions = %v after the finding was raised, want the row raised by F-f0000001", got)
+	}
+	if _, err := Append(id, raisingGap("G-f0000001", "F-f0000001")); err != nil {
+		t.Fatal(err)
+	}
+	b, _ = FamilyOf(mustRun(t, runDir))
 	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 0 {
-		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
+		t.Errorf("unanswered_contradictions = %v after the gap minted from the raising finding, want empty", got)
 	}
 }
 
@@ -349,7 +387,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// ExistingCorroborationLabel bails on EITHER half being empty, not only on both. A blank url
+	// ExistingCorroboration bails on EITHER half being empty, not only on both. A blank url
 	// or a blank claim cannot identify an act, so scanning for one would match on the other alone
 	// — returning some unrelated corroboration's label as "this one's retry".
 	for _, tc := range []struct{ name, url, claim string }{
@@ -357,16 +395,16 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		{"no claim", "https://example.org/s", ""},
 		{"neither", "", ""},
 	} {
-		got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-evidence", tc.url, tc.claim)
+		got, err := ExistingCorroboration(mustRun(t, runDir), "red-lens-evidence", tc.url, tc.claim)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
-		if got != "" {
-			t.Errorf("%s: returned %q — an incomplete pair identifies no act, so it must match nothing rather than match on the half it has", tc.name, got)
+		if got != nil {
+			t.Errorf("%s: returned %q — an incomplete pair identifies no act, so it must match nothing rather than match on the half it has", tc.name, got.GetLabel())
 		}
 	}
 	// And the complete pair DOES find it, or the guard above would pass by never matching at all.
-	if got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-evidence", "https://example.org/s", "the claim"); err != nil || got != label {
-		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
+	if got, err := ExistingCorroboration(mustRun(t, runDir), "red-lens-evidence", "https://example.org/s", "the claim"); err != nil || got.GetLabel() != label {
+		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got.GetLabel(), err, label)
 	}
 }

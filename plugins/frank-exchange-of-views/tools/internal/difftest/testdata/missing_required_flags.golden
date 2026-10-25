@@ -1,11 +1,11 @@
-$ mint --seat-id red-lens-evidence
+$ mint --about-kind section --about Findings --seat-id red-lens-evidence
 exit 2
 stderr:
 feov-record: mint: requires --check, --check-kind, --class, --impact, --likelihood, --problem, --severity
 
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
+      --class class-value                        REQUIRED — the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --problem string                           REQUIRED — what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints
@@ -13,7 +13,7 @@ feov-record: mint: requires --check, --check-kind, --class, --impact, --likeliho
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
-$ mint --run {RUN}
+$ mint --about-kind section --about Findings --run {RUN}
 exit 2
 stderr:
 feov-record: a command was named and the surface is scoped to whoever is asking.
@@ -56,12 +56,11 @@ Usage:
 
 Available Commands:
   carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing     your closing argument on one docketed gap, when the bench is about to rule on it
   dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  position    your argument to the bench on what is about no one gap — owed when you withhold a PASS the plan permits
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   spot-check  name the stale areas you read and any archived closure you re-verified — owed before a PASS
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 

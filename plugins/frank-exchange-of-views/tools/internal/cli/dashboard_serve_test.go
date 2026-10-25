@@ -180,18 +180,18 @@ func liveProjectAt(t *testing.T, proj, runDir string) string {
 // #270: the watchers must end on ANY signal. The row's only remover is `capture`, which is
 // optional — so a killed run used to leave the served dashboard holding a socket, and `--watch`
 // regenerating a dead run, forever.
-func TestRunHasEndedTakesEitherSignal(t *testing.T) {
+func TestTheWatchIsOverOnEitherSignal(t *testing.T) {
 	// A live run: its row present, no outcome on the record. Neither watcher may exit.
 	runDir := newRun(t)
 	proj, _ := liveProject(t, runDir)
-	if ended, why := runHasEnded(proj, runtest.Open(t, runDir)); ended {
+	if over, why := watchIsOver(proj, runtest.Open(t, runDir)); over {
 		t.Fatalf("a live run must not end the watch: %q", why)
 	}
 
 	// The clean end: capture removed the row.
-	ended, why := runHasEnded(t.TempDir(), runtest.Open(t, runDir))
-	if !ended || !strings.Contains(why, "row is gone") {
-		t.Errorf("an absent row is the clean end: ended=%v why=%q", ended, why)
+	over, why := watchIsOver(t.TempDir(), runtest.Open(t, runDir))
+	if !over || !strings.Contains(why, "row is gone") {
+		t.Errorf("an absent row is the clean end: over=%v why=%q", over, why)
 	}
 
 	// The row is no longer live — here, its outcome mark — whatever the record could be read to say.
@@ -200,8 +200,8 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(markedDir, runlive.OutcomeMark), []byte(`{"agentId":""}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if ended, why := runHasEnded(markedProj, runtest.Open(t, markedDir)); !ended || !strings.Contains(why, "outcome is recorded") {
-		t.Errorf("a row that is no longer live ends the watch: ended=%v why=%q", ended, why)
+	if over, why := watchIsOver(markedProj, runtest.Open(t, markedDir)); !over || !strings.Contains(why, "outcome is recorded") {
+		t.Errorf("a row that is no longer live ends the watch: over=%v why=%q", over, why)
 	}
 
 	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
@@ -211,11 +211,11 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			Prose:   proto.String("the run ended without the question being answered"),
 		}))
-	ended, why = runHasEnded(proj, runtest.Open(t, runDir))
-	if !ended {
-		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")
+	over, why = watchIsOver(proj, runtest.Open(t, runDir))
+	if !over {
+		t.Fatal("a run whose outcome is on the record leaves nothing to watch, whatever the filesystem says")
 	}
-	// And it says WHY, because "this run ended without being captured" is the part worth knowing.
+	// And it says WHY, because "this run was decided without being captured" is the part worth knowing.
 	for _, want := range []string{"UNVERIFIED", "capture has not run"} {
 		if !strings.Contains(why, want) {
 			t.Errorf("the reason must carry %q so the operator learns capture was skipped: %q", want, why)
@@ -245,7 +245,7 @@ func (l *lockedBuffer) String() string {
 // binary starts a goroutine of its own, and it does it twice over: the watcher that polls for the
 // run's end, and the connection goroutines that render the page from the same record. This serves
 // a live run on loopback, reads the page through the real socket while the watcher is polling —
-// so a render on a connection goroutine overlaps runHasEnded on the watcher's — then ends the run
+// so a render on a connection goroutine overlaps watchIsOver on the watcher's — then ends the run
 // and waits for the server to close itself.
 //
 // The directive is what puts this test in the race gate and holds it there: scripts/racescope
@@ -320,9 +320,18 @@ func TestTheServedDashboardAnswersWhileWatchedAndClosesWhenTheRunEnds(t *testing
 	// before the package variables are put back: it reads them on its own goroutine.
 	ended := false
 	t.Cleanup(func() {
-		if !ended {
-			_ = os.Remove(marker)
-			<-done
+		if ended {
+			return
+		}
+		// A removal that failed leaves the run live and the watcher running: waiting on it
+		// unbounded turned that failure into a job timeout naming no step.
+		if err := os.Remove(marker); err != nil && !os.IsNotExist(err) {
+			t.Errorf("ending the run in cleanup: %v", err)
+		}
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			t.Error("cleanup ended the run and the served dashboard is still listening")
 		}
 	})
 

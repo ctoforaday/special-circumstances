@@ -11,7 +11,7 @@ human reading afterward, never the channel. This diagram is kept current with th
 An act stands as filed, and a seat answers a wrong one with another act — which act is one table,
 `superseders` in `internal/record/supersede.go`, rendered on each recording verb's help page and on
 the refusal of a second act where a sitting holds one. Nothing is edited, and every view reads every
-act. A record from before epoch 27 may hold same-sitting corrections; `migrate` writes each chain as
+act. A record from before epoch 27 may hold same-sitting corrections; `feov-migrate` writes each chain as
 its last replacement, in the place the chain began, and writes nothing for its later links.
 
 ## Findings & citations onto the record (#62 pt1, #70/#71)
@@ -63,6 +63,9 @@ flowchart TB
 - **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
   `internal/view` (the markdown projections, rendered just-in-time on read) both derive from
   `BoardState`; neither parses the other's output, and neither materializes to disk.
+- **A regrade that keeps the grade is a lens's statement that its gap stands.** It moves nothing on
+  the board and counts as an exchange that moved nothing; its reason reaches blue's work list beside
+  the gap (until blue answers again) and debate.md as `### RED KEEPS THE GRADE`, which the bench reads.
 - **citations_checked** is the board's `counts.citations` (a tally of `cite` events), not a
   self-report (#70/#71 — the citation half of this same migration).
 

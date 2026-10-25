@@ -3,12 +3,12 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -31,7 +31,7 @@ type Source struct {
 	Title      string
 	AccessDate string
 	Location   string
-	// Pages are the PDF pages an OCR quote was found on, from blue's cite; a corroboration has
+	// Pages are the PDF pages an OCR span was found on, from blue's cite; a corroboration has
 	// none. Assembly prints them in the source's note, never in the Bibliography.
 	Pages []int32
 	// Corroborated marks a source red found itself (a supporting corroboration) rather than one
@@ -47,6 +47,12 @@ type Source struct {
 	// citation that rests on the abstract alone, because an abstract is quoted exactly like a
 	// study and nothing else in the document tells the reader which it was.
 	SourceCompleteness recordpb.SourceCompleteness
+	// CopySubstitution and CopyURL say whose bytes a citation read when they are not the url's
+	// own, and where they came from — blue's cite, or the reading a corroboration was made against.
+	// Assembly prints the copy beside the url, because the url is what a reader follows and it is
+	// not what was read.
+	CopySubstitution recordpb.CopySubstitution
+	CopyURL          string
 }
 
 // citedSource reads a citable source off an event body, if it is one.
@@ -81,10 +87,12 @@ func citedSource(body proto.Message) (Source, bool) {
 			WorkStatus: b.GetWorkStatus(),
 
 			SourceCompleteness: b.GetSourceCompleteness(),
+			CopySubstitution:   b.GetCopySubstitution(),
+			CopyURL:            b.GetCopyUrl(),
 		}, true
 	case *recordpb.Verify:
-		// No sha: red read the source itself rather than through the run cache, and the
-		// bibliography renders title + url + access date, never the hash. `location` is blue's
+		// No sha: the bibliography renders title + url + access date, never the hash, and the copy
+		// red's reading was made against is the copy pair below. `location` is blue's
 		// placement field; a corroboration's span is its `claim`.
 		return Source{
 			Label:        b.GetLabel(),
@@ -96,6 +104,8 @@ func citedSource(body proto.Message) (Source, bool) {
 			WorkStatus:   b.GetWorkStatus(),
 
 			SourceCompleteness: b.GetSourceCompleteness(),
+			CopySubstitution:   b.GetCopySubstitution(),
+			CopyURL:            b.GetCopyUrl(),
 		}, true
 	}
 	return Source{}, false
@@ -205,15 +215,15 @@ func citationLabelsOf(events []*Event) []string {
 	return out
 }
 
-// ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
-// same --key, so a crash-retried `blue cite` returns its existing anchor label instead of
-// minting a duplicate. Mirrors FindingByKey: the retry dedup is a short-circuit
+// ExistingCiteByKey returns the prior blue cite this seat recorded under the same --key, nil for
+// none, so a crash-retried `blue cite` returns its existing anchor label instead of minting a
+// duplicate — and the verb can hold the retry to the cite it claims to repeat. Mirrors FindingByKey: the retry dedup is a short-circuit
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
-func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
+func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 	if key == "" {
-		return "", nil
+		return nil, nil
 	}
 	// key is non-empty (guarded above), so a NULL cite_key can never match it — the same
 	// property the fold's absent-key zero value had, held by the comparison itself.
@@ -221,10 +231,10 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 	if _, err := queryRow(run, []any{&label},
 		`SELECT c."label" FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
 		  WHERE e."seat_id" = ? AND c."cite_key" = ? ORDER BY c."event_id" LIMIT 1`,
-		seatID, key); err != nil {
-		return "", err
+		seatID, key); err != nil || label.String == "" {
+		return nil, err
 	}
-	return label.String, nil
+	return CiteByLabel(run, label.String)
 }
 
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
@@ -255,21 +265,30 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
-// after the event landed re-runs the same key and gets the recorded sha back rather than
-// executing the script a second time and splicing a second anchor.
-func ExistingProofByKey(run Run, seatID, key string) (sha, id string, err error) {
+// ExistingProofByKey gives `blue prove` crash-retry idempotency: the proof this seat recorded under
+// key, or nil. A seat whose message died after the event landed re-runs the same key and is held to
+// the proof it repeats rather than executing the script a second time and splicing a second anchor.
+func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
 	if key == "" {
-		return "", "", nil
+		return nil, nil
 	}
-	// The schema carries the one fact once, on Proof.proof_sha; reproduce writes the same value
-	// and every joiner reads it back under this name.
-	var s, i sql.NullString
-	_, err = queryRow(run, []any{&s, &i},
-		`SELECT p."proof_sha", p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+	var id sql.NullString
+	if _, err := queryRow(run, []any{&id},
+		`SELECT p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
 		  WHERE e."seat_id" = ? AND p."proof_key" = ? ORDER BY p."event_id" LIMIT 1`,
-		seatID, key)
-	return s.String, i.String, err
+		seatID, key); err != nil || id.String == "" {
+		return nil, err
+	}
+	m, err := MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range m.Events {
+		if p := e.GetProof(); p != nil && p.GetProofId() == id.String {
+			return p, nil
+		}
+	}
+	return nil, nil
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input
@@ -381,9 +400,9 @@ func ProofAt(run Run, anchorID string) (Proof, error) {
 	return Proof{}, fmt.Errorf("--anchor names %s, which no proof on this record carries (%d proof(s)) — it takes the id inside a proof's token in the report; `show evidence` lists every proof by its anchor", anchorID, len(proofs))
 }
 
-// ExistingCorroborationLabel returns the label this seat already minted for the same source and
-// the same claim, so a crash-retried `lens corroborate` returns its anchor instead of splicing a
-// second one.
+// ExistingCorroboration returns the labelled corroboration this seat already recorded for the same
+// source and the same claim, nil for none, so a crash-retried `lens corroborate` returns its anchor
+// instead of splicing a second one — and the verb can hold the retry to the reading it repeats.
 //
 // IT REPLACES AN IDEMPOTENCY THE LABEL TOOK AWAY. A corroboration used to key on its `url`, so a
 // retry collided and was refused — the same mechanism that also capped one source at one claim
@@ -394,23 +413,33 @@ func ProofAt(run Run, anchorID string) (Proof, error) {
 // Keyed on (source, claim) rather than on a seat-supplied `--key` like blue's cite, because the
 // pair IS the act — corroborating one claim from one source twice is one corroboration, and a
 // retry should not need the seat to have anticipated it.
-func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, error) {
+func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify, error) {
 	if url == "" || claim == "" {
-		return "", nil
+		return nil, nil
 	}
 	var label string
 	if _, err := queryRow(run, []any{&label},
 		`SELECT v."label" FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
 		  WHERE e."seat_id" = ? AND v."url" = ? AND v."claim" = ? AND COALESCE(v."label", '') != ''
 		  ORDER BY v."event_id" LIMIT 1`,
-		seatID, url, claim); err != nil {
-		return "", err
+		seatID, url, claim); err != nil || label == "" {
+		return nil, err
 	}
-	return label, nil
+	m, err := MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range m.Events {
+		if v := e.GetVerify(); v != nil && v.GetLabel() == label {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("corroboration %s is in the record's verify table and in none of its events", label)
 }
 
 // contradictionsOf is every contradiction red recorded, in the order the record opened them, each
-// with the finding that answered it ("" while it is open). ids is evs's events.id, aligned with it.
+// with the finding that raised it and the gap that answered it ("" while each is unset). ids is
+// evs's events.id, aligned with it.
 //
 // THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
 // becomes a footnote and reaches the reader that way; `refutes` and `absent` are not references
@@ -429,24 +458,26 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 //     first reading of a claim with none open OPENS a contradiction, whose ID is that reading's
 //     events.id. A later reading of the same claim while it is open JOINS it: its seat becomes the
 //     owner, and `since` moves to it, so dispatch readies the new owner. The id does not change.
-//   - A FINDING ANSWERS the open contradiction it names, by reference (`--about-kind contradiction
-//     --about <id>`), or every open contradiction whose claim its quote contains. Either covers
-//     every reading joined so far, and the contradiction closes. A reading of the claim after the
-//     finding opens a NEW contradiction with its own id: the answer was to what had been read.
+//   - A FINDING RAISES the open contradiction it names by reference (`--about-kind contradiction
+//     --about <id>`), and nothing else: a finding whose quote contains the claim raises nothing.
+//     The raise covers every reading joined so far. A reading of the claim after the finding opens
+//     a NEW contradiction with its own id: the raise was of what had been read.
+//   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding, or
+//     an open gap the raising lens credits with it (credit) — the gap the board already holds for
+//     that defect, which the duplicate screen refuses to mint again (gblock, 2026-10-24).
+//     A source that contradicts or is silent on a claim is a citation defect, and citation classes
+//     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
+//     finding alone — which holds no gate and obliges nobody — does not discharge it. The gap's
+//     class then decides its materiality, as for every gap. A gap its RAISER mints this way takes
+//     no mint of that lens's budget (ownAnswersAt).
 //
-// THE REFERENCE IS THE ANSWER THAT SURVIVES AN EDIT. A quote must be the report's text at the
-// write, so once blue edits the contradicted sentence away no finding can quote it — the case that
-// held a PASS for the rest of a run whose report blue had FIXED (plans/v2/01). The id names the
-// reading, which an edit does not move.
+// NAME IT OR IT IS NOT RAISED (gblock, 2026-10-23). The id names the reading, which an edit does
+// not move, so the raise survives blue editing the sentence away. A quote is a placement in the
+// report, not an act about a reading: the tool does not infer which contradiction a finding is
+// about from what its quote happens to contain.
 //
-// QUOTING THE CLAIM IS THE MATCHER'S QUESTION, NOT STRING EQUALITY. Both quotes are placed in the
-// report by anchortext, which reads whitespace runs as one separator and drops trailing
-// punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
-// contradicted clause with the rest of its sentence is about that clause. A finding on PART of
-// the claim, or on another sentence, answers nothing: it does not quote what the source read.
-//
-// THE MATCH IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens found
-// and another raised, which is the collaboration the lens roles exist for.
+// THE REFERENCE IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens
+// found and another raised, which is the collaboration the lens roles exist for.
 //
 // A reading that names a citation carries its anchor, and the anchor's standing answers it too —
 // a retire, or a backing check after an edit (unansweredContradictions). That answer is the
@@ -455,8 +486,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 	var out []*contradiction
 	open := map[string]*contradiction{} // claim -> its open contradiction
-	answer := func(c *contradiction, by string) {
-		c.answeredBy = by
+	raise := func(c *contradiction, by, seat string) {
+		c.raisedBy, c.raiser = by, seat
 		delete(open, c.claim)
 	}
 	for i, e := range evs {
@@ -471,22 +502,27 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 				c.reader, c.since = e.GetSeatId(), ids[i]
 				continue
 			}
-			c := &contradiction{id: ids[i], claim: claim, reader: e.GetSeatId(), anchor: b.GetAnchor(), since: ids[i]}
+			c := &contradiction{id: ids[i], claim: claim, opener: e.GetSeatId(), reader: e.GetSeatId(), anchor: b.GetAnchor(), since: ids[i]}
 			open[claim] = c
 			out = append(out, c)
 		case *recordpb.Finding:
 			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
 				for _, c := range out {
-					if c.answeredBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
-						answer(c, b.GetId())
+					if c.raisedBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
+						raise(c, b.GetId(), e.GetSeatId())
 					}
 				}
 			}
-			if loc := strings.TrimSpace(b.GetLocation()); loc != "" {
-				for _, c := range out {
-					if start, _ := anchortext.LocateSpan(loc, c.claim); c.answeredBy == "" && start >= 0 {
-						answer(c, b.GetId())
-					}
+		case *recordpb.Mint:
+			for _, c := range out {
+				if c.raisedBy != "" && c.answeredBy == "" && slices.Contains(b.GetFoundBy(), c.raisedBy) {
+					c.answeredBy = b.GetGapId()
+				}
+			}
+		case *recordpb.Credit:
+			for _, c := range out {
+				if c.raisedBy != "" && c.answeredBy == "" && b.GetFoundBy() == c.raisedBy {
+					c.answeredBy, c.credited = b.GetGapId(), true
 				}
 			}
 		}
@@ -498,16 +534,59 @@ func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 	return res
 }
 
+// ReadingContradiction is the contradiction one recorded reading opened or joined: its id, whether
+// the reading opened it, and the seat whose reading opened it.
+type ReadingContradiction struct {
+	ID     int64
+	Opened bool
+	Opener string
+}
+
+// ContradictionOfReading is the contradiction reading — a verify event as its write returned it —
+// opened or joined, read from the record's fold (contradictionsOf) through that reading; nil where
+// the reading opened and joined none (it backs the claim, or could not read the source). The fold
+// stops at the reading so a later seat's reading of the same claim, which joins the contradiction
+// and moves its `since`, does not hide which contradiction this one landed in. The reading is found
+// by its key, which the record holds unique.
+func ContradictionOfReading(run Run, reading *Event) (*ReadingContradiction, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	var at int64
+	if found, err := queryRowAt(db, []any{&at}, `SELECT "id" FROM "events" WHERE "key" = ?`, reading.GetKey()); err != nil {
+		return nil, err
+	} else if !found {
+		return nil, fmt.Errorf("the reading keyed %q is not on the record, so which contradiction it opened or joined cannot be read", reading.GetKey())
+	}
+	evs, win, err := eventsOfAt(db, contradictionActs...)
+	if err != nil {
+		return nil, err
+	}
+	ids := win.IDs(evs)
+	n := 0
+	for n < len(ids) && ids[n] <= at {
+		n++
+	}
+	for _, c := range contradictionsOf(evs[:n], ids[:n]) {
+		if c.since == at {
+			return &ReadingContradiction{ID: c.id, Opened: c.id == at, Opener: c.opener}, nil
+		}
+	}
+	return nil, nil
+}
+
 // requireOpenContradiction refuses a finding's reference to a contradiction that is not open: a
-// ref that is not an id, one no reading opened, or one a finding already answered — that refusal
-// names the answering finding. It runs on replay as well: the reading is written before the
-// finding that answers it, so a translated reference resolves and a mistranslated one is loud.
+// ref that is not an id, one no reading opened, one a finding already raised — that refusal names
+// the raising finding and the mint that answers it — or one a gap already answered. It runs on
+// replay as well: the reading is written before the finding that raises it, so a translated
+// reference resolves and a mistranslated one is loud.
 func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	ref = strings.TrimSpace(ref)
 	if _, err := strconv.ParseInt(ref, 10, 64); err != nil {
 		return fmt.Errorf("--about %q is not a contradiction's id: it is the number `show evidence` lists as the `id` of each of its unanswered_contradictions", ref)
 	}
-	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING)
+	evs, win, err := eventsOfAt(q, contradictionActs...)
 	if err != nil {
 		return err
 	}
@@ -515,17 +594,20 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
 		switch {
 		case c.idWord() == ref && c.answeredBy != "":
-			return fmt.Errorf("contradiction %s is already answered, by finding %s: one finding answers a contradiction, and a source read against the claim after it opens a new one with its own id", ref, c.answeredBy)
+			return fmt.Errorf("contradiction %s is already answered, by gap %s, which credits finding %s: a source read against the claim after it opens a new one with its own id", ref, c.answeredBy, c.raisedBy)
+		case c.idWord() == ref && c.raisedBy != "":
+			return fmt.Errorf("contradiction %s is already raised, by finding %s: one finding raises a contradiction, and a gap crediting that finding answers it — the finding's lens mints that gap with `--found-by %s`, or credits the open gap that already holds its defect with `credit --id <the gap> --found-by %s`", ref, c.raisedBy, c.raisedBy, c.raisedBy)
 		case c.idWord() == ref:
 			return nil
-		case c.answeredBy == "":
+		case c.raisedBy == "":
 			open++
 		}
 	}
 	return fmt.Errorf("--about %s names no contradiction on this record (%d open) — a contradiction's id is the `id` `show evidence` lists under unanswered_contradictions", ref, open)
 }
 
-// unansweredContradictions is contradictionsOf less the ones answered: by a finding, or by the
+// unansweredContradictions is contradictionsOf less the ones answered: by a gap minted from the
+// finding that raised it, or by the
 // standing of the citation the reading checked (gblock, 2026-10-16). win supplies each event's
 // events.id and sitting.
 //
@@ -544,7 +626,8 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 // reworded sentence is reopened, owed a check, and only a check that backs it answers the
 // contradiction.
 //
-// A corroboration's reading checked no citation (its anchor is ""), so only a finding answers it.
+// A corroboration's reading checked no citation (its anchor is ""), so only the gap minted from
+// the finding that raised it answers it.
 func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 	ledger := anchorChecksOf(evs, win)
 	var out []contradiction
@@ -561,14 +644,28 @@ func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 }
 
 // contradiction is one contradiction red recorded: its id (the events.id of the reading that opened
-// it), the claim, the seat whose reading last joined it — the lens whose act raises it — and where
+// it), the claim, the seat whose reading opened it (opener), the seat whose reading last joined it — the lens whose act raises it — and where
 // that reading sits, which is when the lens came to owe it. anchor is the citation the opening
-// reading checked, "" for a corroboration; answeredBy is the id of the finding that answered it.
+// reading checked, "" for a corroboration; raisedBy is the id of the finding that raised it and
+// raiser the seat that recorded that finding; answeredBy is the id of the gap minted from that
+// finding or credited with it.
 type contradiction struct {
-	id                 int64
-	claim, reader      string
-	anchor, answeredBy string
-	since              int64
+	id                           int64
+	claim, opener, reader        string
+	anchor, raisedBy, answeredBy string
+	raiser                       string
+	since                        int64
+	// credited says the answering gap was credited with the raising finding rather than minted
+	// from it: the gap was on the board, and its mint already counted, before it answered.
+	credited bool
+}
+
+// contradictionActs is the event types contradictionsOf folds: the readings that open, the findings
+// that raise, and the mints and credits that answer. Every reader of the fold reads these, so a
+// type that answers cannot be read by one reader and missed by another.
+var contradictionActs = []recordpb.EventType{
+	recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING,
+	recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_CREDIT,
 }
 
 // idWord is the contradiction's id as every surface spells it: decimal, the `--about` value.

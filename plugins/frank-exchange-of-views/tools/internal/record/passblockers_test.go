@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -44,6 +45,11 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
+		{"proof judged unsound", BlockerUnsoundProof, true, true, func(b *stage) {
+			// judged in the lens's last sitting, at the head, with its gap minted, so nothing else holds.
+			b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
+				add(evLens, aboutProof("G-1", "P-1"))
+		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
 		{"stale area uncovered", BlockerStaleArea, true, true, func(b *stage) {
@@ -53,7 +59,19 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.dispatch(int64(b.n), evLens).register(evLens)
 			b.ingest()
 		}, true},
+		{"grade movement past the threshold", BlockerGradeMovement, true, true, func(b *stage) {
+			// high -> trivial is 2.5 mass, past the 2.0 the bench rules at; trivial is not material,
+			// so nothing else holds.
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high"))
+			b.regrade(outsideLens, "G1", "trivial")
+		}, false},
+		// THE CLOSING IS FILED: blue-respond's is the only one owed, the minter being no cast lens.
 		{"docket motion on an open gap", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.docketMotion("red-chair", "M1", "G1")
+			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
+		}, false},
+		{"a party's closing owed on a docketed gap", BlockerClosingOwed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.docketMotion("red-chair", "M1", "G1")
 		}, false},
@@ -75,6 +93,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		}, true},
 	}
+	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
+	// and the docket motion is an unruled motion until the bench rules it.
+	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerUnruledMotion}
 	covered := map[BlockerKind]bool{}
 	for _, r := range rows {
 		covered[r.kind] = true
@@ -93,7 +114,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			}
 			b.register("red-chair")
 			if c.lensSat {
-				b.dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+				b.sit(2, evLens).sit(2, evLens)
 			}
 			c.build(b)
 			openChairSitting(b)
@@ -105,7 +126,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, bl := range blockers {
-				if bl.Kind != c.kind {
+				if bl.Kind != c.kind && bl.Kind != beside[c.kind] {
 					t.Errorf("fixture: %s holds as well, want only %q", bl.Kind, c.kind)
 				}
 			}
@@ -131,6 +152,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				}
 				if every := kindOf(c.kind).every; (failErr != nil) != every {
 					t.Errorf("FAIL refused = %v (%v), want refused exactly when the kind holds every verdict (%v)", failErr != nil, failErr, every)
+				}
+				// THE REFUSAL IS A CONFLICT WITH THE BOARD, by its code: a caller reading the envelope
+				// tells a blocked verdict from a tool failure without reading the sentence.
+				for verdict, err := range map[string]error{"PASS": passErr, "FAIL": failErr} {
+					if err != nil && feov.CodeOf(err) != string(feov.Conflict) {
+						t.Errorf("the %s refusal is coded %q, want %q: %v", verdict, feov.CodeOf(err), feov.Conflict, err)
+					}
 				}
 			}
 
@@ -284,7 +312,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-				register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens)
+				register("red-chair").sit(2, evLens).sit(2, evLens)
 			c.build(b)
 			b.register("red-chair")
 			run := b.seed()
@@ -318,7 +346,7 @@ func convergedBoard(t *testing.T) *stage {
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens)
 	sev, _ := GradeOf("high")
-	st.add(evLens, &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("x"), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+	st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &sev,
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)})
 	st.add("red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
@@ -326,12 +354,12 @@ func convergedBoard(t *testing.T) *stage {
 		add(evLens, &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")})
 	low, _ := GradeOf("low")
-	st.add(evLens, &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("x"), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
+	st.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: &low,
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
 	// Two barren sittings at the head retire the lens, so no lens is ready and the board itself is
 	// all that holds PASS.
-	return st.register("red-chair").dispatch(2, evLens).register(evLens).dispatch(2, evLens).register(evLens).register("red-chair")
+	return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 }
 
 // A CONVERGED BOARD WITH ANOTHER SEAT'S BLOCKER ON IT ADMITS A FAIL (#1202). PASS was refused
@@ -394,7 +422,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			register("red-chair").register(evLens)
 	}
 	t.Run("an unruled petition refuses it, and its ruling clears it", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").seed()
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		judge := Identity{Run: run, SeatID: "judge"}
 		_, err := Append(judge, outcome())
 		if err == nil || !strings.Contains(err.Error(), "M1") || !strings.Contains(err.Error(), "M1 (petition, ruled by the bench seat)") {
@@ -414,7 +442,8 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		// The assembly sitting records the outcome, and is convened to rule every bench motion.
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
 			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
 		}
@@ -427,7 +456,8 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		run := b.register("judge").seed()
+		// The assembly sitting records the outcome, and is convened to rule every bench motion.
+		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
 		if err == nil {
 			t.Fatal("outcome admitted over the bench's unruled motions")
@@ -455,7 +485,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {
-		run := board(t).add("blue-respond", petitionMotion("M1")).register("judge").
+		run := board(t).add("blue-respond", petitionMotion("M1")).benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).
 			add("judge", &recordpb.Halt{Opinion: proto.String("consent gate")}).seed()
 		halted := &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_HALTED.Enum(), Prose: proto.String("halted")}
 		if _, err := Append(Identity{Run: run, SeatID: "judge"}, halted); err != nil {
@@ -472,7 +502,7 @@ func TestOnlyTheChairsListHoldsWhatAnotherSeatClears(t *testing.T) {
 		dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium")
 	b.add(evLens, contradictingVerify("the sky is green"))
 	b.docketMotion("red-chair", "M1", "G1")
-	b.register("blue-respond").register("judge")
+	b.register("blue-respond").benchRegister(recordpb.Occasion_OCCASION_TERMINAL)
 	run := b.seed()
 	for role, seat := range map[string]string{"lens": evLens, "blue": "blue-respond", "bench": "judge"} {
 		s := sittingOfRunT(t, run, role, seat)

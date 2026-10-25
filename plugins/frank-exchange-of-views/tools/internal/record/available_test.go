@@ -164,7 +164,7 @@ func gradeMotionRuled(t *testing.T, id string, ruling recordpb.GradeRuling) *Eve
 
 // A REGRADE ON THE LIST IS ONE THE WRITE PATH ADMITS, AND ONE OFF IT IS ONE THE WRITE PATH REFUSES.
 //
-// The oracle is record.Append as the seat calls it — validate and insertNumbered together — so the
+// The oracle is record.Append as the seat calls it — validate and writeIn together — so the
 // list and the write path are held to each other by the write itself, and a refusal added to either
 // turns a row red. Each row that lists nothing names the refusal it exists to pin, so no row passes
 // because its fixture never reached the state.

@@ -23,6 +23,7 @@ func TestEveryPlanFieldIsOneASchemaCanCarry(t *testing.T) {
 		}
 	}
 	walk(PlanFields(), "Plan.")
+	walk(LensEnvelopeFields(), "LensEnvelope.")
 }
 
 // THE WALK AND THE VERB READ ONE DECLARATION. The keys PlanFields lists are the keys
@@ -38,6 +39,7 @@ func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 		StaleAreas: []StaleArea{{SeatID: "red-lens-voice"}},
 		Blockers:   []PlanBlocker{{Kind: BlockerReopened}},
 		Why:        []string{"w"},
+		Verdict:    "PASS",
 	}
 	printed := func(p Plan) map[string]any {
 		b, err := json.Marshal(p)

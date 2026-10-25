@@ -13,7 +13,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -75,6 +74,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return tool(args...)
 	}
 	var gapIDs []string
+	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
+	closingsOf := map[string][]struct{ seat, text string }{}
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
 	}
@@ -86,7 +87,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
 	// after synthesis and before any sitting — so the base exists when the first render-reading verb
 	// (mint's --quote check, cite, prove) runs. Its register is the FIRST, which is what triggers the
-	// probe's record separation before StageForRun resolves the root below.
+	// probe's record separation.
 	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
 		return fmt.Errorf("register blue-synthesize: %w", err)
 	}
@@ -123,32 +124,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 	}
 
-	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
-	// for one. `run-setup` stages the registry on a production run; the probe does not go through
-	// setup, so it stages its own.
-	//
-	// AFTER THE REGISTERS, AND THAT ORDER IS LOAD-BEARING. The probe separates a run's records to a
-	// temp root so the seat cannot read the board off disk, and it does that by handing the record
-	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
-	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
-	// and creates <run.Dir()>/records; the first register subprocess then refuses to separate a run
-	// that already keeps events locally. Staged here, the marker exists and the registry lands
-	// where the tool will read it.
-	//
-	// MEASURED TWICE, both loudly. The advisory branch going strict stopped 8 of 9 boards on their
-	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
-	// refused to score either one ("this run is not a result"), which is the only reason both were
-	// five-minute diagnoses rather than runs reported with a thinner board.
-	// WITH THE SHIPPED MATERIAL DEFAULTS, because a board is a fixture for a real sitting: a gap of
-	// an `always` class holds the gate here exactly as it would in production.
-	defaults := make(map[string]recordpb.ClassMaterial, len(BoardClasses))
-	for _, s := range BoardClasses {
-		defaults[s] = record.ShippedMaterialDefaults[s]
-	}
-	if err := record.StageForRunWithDefaults(run, defaults); err != nil {
-		return fmt.Errorf("stage the class registry: %w", err)
-	}
-
 	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
 	// over the default areas so no lens spends more than its budget on a large board — and each
 	// gap is closed by the lens that minted it, because the originator closes.
@@ -180,21 +155,13 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if gapID == "" {
 			return fmt.Errorf("mint %s: the tool did not report a minted id in %q", g.Key, out)
 		}
-		staged[fmt.Sprintf("G%d", i+1)], gapIDs = gapID, append(gapIDs, gapID)
-		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis
-		// is "the two closings, the transcript, and the final state" and that both sides have
-		// already filed — so a bench board without them hands the seat a docket it cannot rule on
-		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
-		// naming the null closings, ruled on artifact state instead, and asked for a human check.
-		for _, c := range []struct{ seat, text string }{
-			{"red-chair", g.RedClosing}, {"blue-respond", g.BlueClosing},
-		} {
-			if c.text == "" {
-				continue
-			}
-			if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
-				"--id", gapID, "--reason", c.text); err != nil {
-				return fmt.Errorf("closing %s by %s: %w", gapID, c.seat, err)
+		ref := fmt.Sprintf("G%d", i+1)
+		staged[ref], gapIDs = gapID, append(gapIDs, gapID)
+		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
+		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
+		for _, c := range []struct{ seat, text string }{{minter, g.RedClosing}, {"blue-respond", g.BlueClosing}} {
+			if c.text != "" {
+				closingsOf[ref] = append(closingsOf[ref], c)
 			}
 		}
 		if !g.Closed {
@@ -264,6 +231,20 @@ func Build(run record.Run, b Board, exec Exec) error {
 			return fmt.Errorf("motion %d (%s): %w", i+1, m.Subject, err)
 		}
 		staged[fmt.Sprintf("M%d", i+1)] = minted("motion", out)
+		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM, filed while the docket motion stands. The
+		// bench's prompt states its ruling basis is the two parties' closings, the transcript and the
+		// final state — so a bench board without them hands the seat a docket it cannot rule on the
+		// way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction naming
+		// the null closings, ruled on artifact state instead, and asked for a human check.
+		if m.Subject == "docket" {
+			for _, c := range closingsOf[m.GapID] {
+				if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
+					"--id", m.GapID, "--reason", c.text); err != nil {
+					return fmt.Errorf("closing %s by %s: %w", m.GapID, c.seat, err)
+				}
+			}
+			delete(closingsOf, m.GapID)
+		}
 		if m.Ruled == "" {
 			continue
 		}
@@ -273,6 +254,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
 		}
+	}
+
+	for ref := range closingsOf {
+		return fmt.Errorf("the board carries closings on %s and no docket motion of its own puts it before the bench — a closing argues a docketing", ref)
 	}
 
 	for i, pr := range b.Proofs {
@@ -312,14 +297,14 @@ func Build(run record.Run, b Board, exec Exec) error {
 			args := []string{"cite", "--run", run.Dir(), "--seat-id", "blue-respond",
 				"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 				"--title", "the pinned source", "--url", src,
-				"--reason", "the source this claim rests on"}
+				"--source-span", pinnedSpan, "--reason", "the source this claim rests on"}
 			if pc, ok := pagedClaim(b, claim); ok {
 				scan := src + "scan.pdf"
 				if err := readScan(run, exec, scan); err != nil {
 					return fmt.Errorf("board %s: %w", b.Name, err)
 				}
-				args = append(args[:len(args)-6], "--title", "the pinned standard", "--url", scan,
-					"--ocr-quote", pc.Span, "--reason", "the standard this claim rests on")
+				args = append(args[:len(args)-8], "--title", "the pinned standard", "--url", scan,
+					"--source-span", pc.Span, "--reason", "the standard this claim rests on")
 			}
 			if _, err := exec(args...); err != nil {
 				return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)
@@ -332,6 +317,9 @@ func Build(run record.Run, b Board, exec Exec) error {
 // serveSource publishes the one document the cite steps fetch, on loopback, for as long as
 // the build runs. The fetch is real — the cache entry it leaves is what the built board's
 // later verbs read — and it reaches nothing outside this machine.
+// pinnedSpan is the words every board's cite of the pinned source quotes from its text.
+const pinnedSpan = "The sentence this claim rests on."
+
 func serveSource() (url string, stop func(), err error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -344,7 +332,7 @@ func serveSource() (url string, stop func(), err error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = io.WriteString(w, "the pinned source\n\nthe sentence this claim rests on\n")
+		_, _ = io.WriteString(w, "the pinned source\n\n"+pinnedSpan+"\n")
 	})}
 	go func() { _ = srv.Serve(ln) }()
 	return "http://" + ln.Addr().String() + "/", func() { _ = srv.Close() }, nil
@@ -413,16 +401,3 @@ func minted(kind, out string) string {
 
 // handle is a board's positional name for a gap or a motion it stages.
 var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
-
-// BoardClasses is the gap-class vocabulary the staged boards mint under.
-//
-// Every entry is a slug from the shipped registry (feov-memory/class-registry.json), not a
-// placeholder: a board is a fixture for a REAL sitting, and a seat that opens `class` should find
-// the taxonomy its gaps are actually filed under rather than a set invented for the harness.
-var BoardClasses = []string{
-	"citation-status-drift", "claim-contradicts-own-record", "cross-section-contradiction",
-	"derivation-status-overclaim", "doctrine-vs-implementation", "false-universal",
-	"figure-recount-fails", "incomplete-repair-propagation", "metric-conflation",
-	"risk-coverage-omission", "self-attestation", "unverified-composition",
-	"verification-scope-blindspot",
-}

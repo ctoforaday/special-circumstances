@@ -148,8 +148,8 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
-			retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
+			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -179,9 +179,18 @@ func bibliographyEntry(url string, sources []record.Source) string {
 	// abstract. One citation whose copy was the paper — or might have been — means the report's
 	// use of the work was not confined to its abstract.
 	abstractOnly := true
+	// WHERE THE TEXT WAS READ, when it was not read at this url: every distinct copy any citation of
+	// it read, in record order. The line names the url a reader follows; a copy that stood in for
+	// it is stated beside it rather than chosen between.
+	var copies []string
+	seenCopy := map[string]bool{}
 	for _, src := range sources {
 		if src.URL != url {
 			continue
+		}
+		if note := copyNote(src.CopySubstitution, src.CopyURL); note != "" && !seenCopy[note] {
+			seenCopy[note] = true
+			copies = append(copies, note)
 		}
 		date = earliest(date, src.AccessDate)
 		if src.WorkStatus == recordpb.WorkStatus_WORK_STATUS_RETRACTED {
@@ -194,7 +203,32 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s%s%s", citationTitle(pick), url, accessed(date), retractionNote(status), abstractNote(found && abstractOnly))
+	return fmt.Sprintf("%s. %s%s%s%s%s", citationTitle(pick), url, accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly))
+}
+
+// copyNote is what the reader is told when a citation's bytes are not its url's own: where the
+// text was read instead. In the note and in the Bibliography for the reason retractionNote gives.
+//
+// A followed pointer is the same work at the place its publisher named, so it is said plainly; a
+// recovered or another copy is a different artifact — a snapshot, a repository's copy, possibly
+// another version — and is marked. A substitution with no copy url read no document at all: its
+// bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
+// corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
+func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
+	switch kind {
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:
+		return fmt.Sprintf(" (full text read at %s)", copyURL)
+	case recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, recordpb.CopySubstitution_COPY_SUBSTITUTION_FULLER_COPY,
+		recordpb.CopySubstitution_COPY_SUBSTITUTION_NAMED_BACKEND:
+		if copyURL == "" {
+			return " **[NO DOCUMENT READ]**"
+		}
+		if kind == recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED {
+			return fmt.Sprintf(" **[READ FROM A RECOVERED COPY: %s]**", copyURL)
+		}
+		return fmt.Sprintf(" **[READ FROM ANOTHER COPY: %s]**", copyURL)
+	}
+	return ""
 }
 
 // abstractNote is what the reader is told about a citation that rests on the work's abstract
@@ -792,8 +826,8 @@ func withdrawnClaims(fam record.Family) string {
 // red actually observed at the leaf, and the two sitting together is what lets a reader see a
 // restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
-func provenance(m *recordpb.Mint, findings map[string]*record.Event) string {
-	fb := m.GetFoundBy()
+func provenance(g *record.Gap, findings map[string]*record.Event) string {
+	fb := g.FoundBy()
 	if len(fb) == 0 {
 		return ""
 	}
@@ -850,21 +884,23 @@ func boardSection(fam record.Family) string {
 			// what lets a reader see a restatement drift from its evidence. Unresolvable ids
 			// (a found_by naming no finding on the record) are kept as bare ids rather than
 			// silently dropped — an unresolvable citation is itself worth seeing.
-			foundBy := provenance(g.Mint, findings)
-			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
-			// helper's em-dash-when-empty arm, exactly as it did before.
+			foundBy := provenance(g, findings)
+			// `class` is a GapClass word, not a grade — it goes through `grade` only for that
+			// helper's em-dash-when-empty arm. `grade` takes `any` and asserts a string, so the
+			// enum is converted to its word HERE: passed bare it compiles and prints `—`.
 			// THE HARD BREAKS ARE LOAD-BEARING. Joined by bare newlines, these four facts —
 			// the location, the grades, the demanded fix and the check that would settle it —
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
-			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s",
+			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
 				g.ID, g.Mint.GetProblem(),
 				g.Mint.GetLocation(),
-				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(g.Mint.GetClass()),
+				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
 				regraded,
 				g.Mint.GetRequiredFix(),
 				fixProposal(g.Mint),
 				g.Mint.GetAcceptanceCheck(),
+				mintReason(g.Mint),
 				foundBy))
 		} else {
 			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH DISPOSITION
@@ -896,7 +932,7 @@ func boardSection(fam record.Family) string {
 			// claimed. A run where every finding was minted and every gap closed printed red's
 			// leaf-level words nowhere. The closure answers what happened; it does not restate
 			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), provenance(g.Mint, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), closureDetail(g), provenance(g, findings)))
 		}
 	}
 	var b strings.Builder
@@ -929,6 +965,58 @@ func boardSection(fam record.Family) string {
 		fmt.Fprintf(&b, "\n\n%s", cm)
 	}
 	return b.String()
+}
+
+// mintReason is the lens's argument for minting the gap, under the open gap's block, or "".
+func mintReason(m *recordpb.Mint) string {
+	if r := oneLine(m.GetMintReason()); r != "" {
+		return "  \nminted because: " + r
+	}
+	return ""
+}
+
+// closureDetail is HOW A CLOSED GAP CLOSED, under its line in the closure index: the lens's
+// argument for minting it, what it required and how it would check the repair, then the lens's
+// attestation at the close — what it found, who verified, with what and against what — and the
+// bench's ruling when a ruling closed it. The index line says THAT a gap closed; a reader auditing
+// the closure needs the demand and the check beside the attestation that they were met.
+func closureDetail(g *record.Gap) string {
+	var rows []string
+	add := func(label, text string) {
+		if t := oneLine(text); t != "" {
+			rows = append(rows, "\n  - "+label+": "+t)
+		}
+	}
+	add("minted because", g.Mint.GetMintReason())
+	add("required_fix", g.Mint.GetRequiredFix())
+	add("acceptance_check", g.Mint.GetAcceptanceCheck())
+	if c := g.Closure; c != nil {
+		att := oneLine(c.GetProse())
+		if att == "" {
+			att = "_(no attestation recorded)_"
+		}
+		var by []string
+		if v := c.GetAnchorSeat(); v != "" {
+			by = append(by, "verified by `"+v+"`")
+		}
+		if v := oneLine(c.GetAnchorTool()); v != "" {
+			by = append(by, "with "+v)
+		}
+		if v := oneLine(c.GetAnchorTarget()); v != "" {
+			by = append(by, "against "+v)
+		}
+		if v := c.GetCarriedFrom(); v != "" {
+			by = append(by, "carried from "+v)
+		}
+		if len(by) > 0 {
+			att += " — " + strings.Join(by, ", ")
+		}
+		rows = append(rows, "\n  - closed on: "+att)
+	}
+	if r := g.BenchClosure; r != nil {
+		rows = append(rows, fmt.Sprintf("\n  - closed by the bench's ruling: **%s** — its opinion is in %s", recordpb.Word(r.GetDisposition()), FileDebate))
+	}
+	return strings.Join(rows, "")
 }
 
 // correctnessManifest renders blue's self-audit receipts — one row per repaired gap, saying what
@@ -1102,7 +1190,7 @@ func unmintedFindings(fam record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.GetFoundBy() {
+		for _, lbl := range g.FoundBy() {
 			minted[lbl] = true
 		}
 	}
@@ -1176,6 +1264,7 @@ func debate(fam record.Family) string {
 	// it lives, and recovering it a second way is how two renderers come to disagree.
 	docketGapOf := record.DocketGapByMotion(fam.Events)
 	archive := record.ArchiveOf(fam.Gaps)
+	kept := record.KeptGrades(fam.Events, fam.At)
 
 	var parts []string
 	for _, r := range order {
@@ -1213,23 +1302,19 @@ func debate(fam record.Family) string {
 		// recordpb/required.go ("the closing argument for this gap").
 		for _, l := range re {
 			e := l
-			party := record.PartyOf(e)
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
+			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
+			// record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				switch party {
-				case "chair":
-					epoch = append(epoch, redHead+"\n"+p.GetText())
-				case "blue":
-					epoch = append(epoch, "### BLUE\n"+p.GetText())
-				}
+				epoch = append(epoch, redHead+"\n"+p.GetText())
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				switch party {
-				case "chair":
-					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
-				case "blue":
-					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+				side := "RED"
+				if record.PartyOf(e) == "blue" {
+					side = "BLUE"
 				}
+				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), c.GetText()))
 				continue
 			}
 			// THE SPOT-CHECK IS PART OF RED'S ARGUMENT: a defect the chair finds in a stale area is
@@ -1237,6 +1322,14 @@ func debate(fam record.Family) string {
 			// sitting looks for it.
 			if sc, ok := record.SpotCheckOf(e, fam.At, archive); ok {
 				epoch = append(epoch, "### RED SPOT-CHECK\n"+sc.Describe())
+			}
+			// A LENS THAT KEPT ITS GRADE: red's argument on that gap after its re-audit.
+			if kept[e] {
+				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+e.GetRegrade().GetBasis())
+			}
+			// THE REPORT SERVED TO A LENS: which lens was given the whole report at which head.
+			if rr, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
+				epoch = append(epoch, record.ServedLine(e.GetSeatId(), rr.GetHead()))
 			}
 		}
 

@@ -146,7 +146,7 @@ var modules = []struct{ dir, ciJob string }{
 //
 // Three modules race `./...`: their suites are seconds to two minutes under the detector.
 //
-// feov-record's scope is a deps: marker — the SHIPPED BINARY'S IMPORT GRAPH — and what is raced
+// feov-record's scope is a deps: marker — THE SHIPPED BINARIES' IMPORT GRAPH, every directory under cmd/ — and what is raced
 // inside it is derived, not listed: `scripts/racescope` races every test in that graph that
 // starts a goroutine, and fails when a goroutine start in a non-test file went unexecuted.
 // Every concurrency start and every test that makes one, on every pull request; not every test.
@@ -172,7 +172,7 @@ var modules = []struct{ dir, ciJob string }{
 // coverage remains the open decision this comment records.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
-	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
+	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/..."},
 	"plugins/gray-area/tools":               {"./..."},
 	// scripts WAS the one module with no -race leg, absent on purpose while it was
 	// straight-line tooling. It stopped being that: golden/interrupt.go guards signal state
@@ -244,8 +244,6 @@ var tools = []gate{
 		why: "every marketplace plugin is installed by both bootstrap paths"},
 	{id: "fixtureparity", kind: kindTool, dir: "scripts", args: []string{"run", "./fixtureparity"}, ciJob: "debate-sim",
 		why: "a file shape two modules must agree on drifted once and nothing failed"},
-	{id: "classgen", kind: kindTool, dir: "scripts", args: []string{"run", "./classgen", "-check"}, ciJob: "debate-sim",
-		why: "fixtures must stage the vocabulary the plugin actually ships"},
 	{id: "buildidgen", kind: kindTool, dir: "scripts", args: []string{"run", "./buildidgen", "-check"}, ciJob: "debate-sim",
 		why: "one authored buildid, copied into modules that cannot import it"},
 	{id: "fetchbingen", kind: kindTool, dir: "scripts", args: []string{"run", "./fetchbingen", "-check"}, ciJob: "debate-sim",
@@ -321,7 +319,7 @@ func gateSet() []gate {
 		// The whole graph under the detector, once a day, in a workflow of its own. Declared so
 		// the report says what the pull-request gate leaves to it.
 		gate{id: "feov-record:race-nightly", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
-			args:  []string{"test", "-race", noCache, raceTimeout, depsScopePrefix + "./cmd/feov-record"},
+			args:  []string{"test", "-race", noCache, raceTimeout, depsScopePrefix + "./cmd/..."},
 			ciJob: "race-nightly",
 			skip:  "the whole import graph under -race is 15-45 minutes on this box; " + nightlyRacePath + " runs it on a schedule and on dispatch",
 			why:   "a goroutine started through a function value, or by a library call racescope's table does not list, is raced here and nowhere else"},

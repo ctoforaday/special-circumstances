@@ -89,12 +89,13 @@ func requiredProbes() map[string]requiredProbe {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
 	probes["lens near-match"] = requiredProbe{seat: lensSeat, args: fixed("near-match", "--problem", "p",
 		"--quote", "§1 first — a finding sits in sec 1 here.")}
-	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--key", "M-probe",
-		"--class", "scope-creep", "--check-kind", "document", "--check", "c",
+	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
+		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
-	probes["lens class new"] = requiredProbe{seat: lensSeat, args: fixed("class", "new", "--class", "a-new-class",
-		"--definition", "d", "--neighbor", "scope-creep", "--distinguisher", "x", "--material-default", "by_grade")}
+	// credit runs clean only where the lens raised a contradiction and an open gap holds its defect,
+	// which the act fixture does not stage; the record's tests drive it whole (credit_test.go).
+	probes["lens credit"] = requiredProbe{seat: lensSeat, fullIsRefused: true, args: fixed("credit", "--id", "G1", "--found-by", "F-00000001")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
@@ -136,6 +137,9 @@ func requiredProbes() map[string]requiredProbe {
 	// occasion the bench alone is asked for.
 	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}
 	probes["blue register"] = requiredProbe{seat: "blue-respond", args: fixed("register")}
+	// engage runs clean only in a sitting that found an engaged gap closed with an open successor,
+	// which the act fixture does not stage; the record's tests drive it whole (successor_test.go).
+	probes["blue engage"] = requiredProbe{seat: "blue-respond", fullIsRefused: true, args: fixed("engage", "--ids", "G1")}
 	return probes
 }
 

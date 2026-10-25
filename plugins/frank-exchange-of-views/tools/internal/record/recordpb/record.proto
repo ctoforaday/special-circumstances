@@ -137,6 +137,21 @@ extend google.protobuf.EnumValueOptions {
   // contradiction is raised by a finding, and the gap is minted from that finding.
   optional bool gap_may_name = 50010;
 
+  // material_default IS WHERE A GAP OF THIS CLASS STARTS ITS MATERIALITY, and it is a facet for the
+  // reason every facet is: a GapClass value cannot be added without answering it. The mint's write
+  // stamps it onto `Mint.class_material` (record.stampClassMaterial reads it through
+  // recordpb.MaterialDefault), and the vocabulary table carries it as a column referencing
+  // `enum_class_material`, so the word is checked twice — by protoc here, by the database there.
+  optional ClassMaterial material_default = 50011;
+
+  // neighbor and distinguisher are the value NEAREST to a GapClass value and the question that
+  // tells the two apart. They are options, not facets: the catch-all has no neighbour, and nothing
+  // in the machinery switches on them. `mint --help` renders them (enumhelp), and
+  // recordpb/gapclass_test.go requires both on every value but `unclassified` and requires
+  // `neighbor` to be another value's word.
+  optional string neighbor = 50012;
+  optional string distinguisher = 50013;
+
   // 50007 held `correct`, a type's same-sitting correction tier. No act is corrected: a wrong one is
   // answered by a new act. The number is not reused.
 }
@@ -234,9 +249,8 @@ enum EventType {
   EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
-  EVENT_TYPE_CLASS_NEW = 7 [(means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
   EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
   EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
@@ -244,11 +258,12 @@ enum EventType {
   EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
   EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or an inquiry proposed"];
-  // 18 was EVENT_TYPE_MOTION_APPEAL, 28 EVENT_TYPE_REVISION and 39 EVENT_TYPE_CORRECTION: a ruling
-  // stands as made, a report's change is its edits, and a wrong act is answered by a new act.
+  // 7 was EVENT_TYPE_CLASS_NEW, 18 EVENT_TYPE_MOTION_APPEAL, 28 EVENT_TYPE_REVISION and 39
+  // EVENT_TYPE_CORRECTION: a gap's class is a value of the closed GapClass set, a ruling stands as
+  // made, a report's change is its edits, and a wrong act is answered by a new act.
   // Reserved: a stored event carries its type's number.
-  reserved 18, 28, 39;
-  reserved "EVENT_TYPE_MOTION_APPEAL", "EVENT_TYPE_REVISION", "EVENT_TYPE_CORRECTION";
+  reserved 7, 18, 28, 39;
+  reserved "EVENT_TYPE_CLASS_NEW", "EVENT_TYPE_MOTION_APPEAL", "EVENT_TYPE_REVISION", "EVENT_TYPE_CORRECTION";
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
   // 20 was EVENT_TYPE_OBSERVE, a type no verb wrote. Reserved for the reason 21 is.
   reserved 20;
@@ -259,7 +274,7 @@ enum EventType {
   reserved 21;
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
-  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into its sitting"];
+  EVENT_TYPE_POSITION = 23 [(means) = "the chair's argument to the bench on what is about no one gap"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
   EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
@@ -275,6 +290,9 @@ enum EventType {
   EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
   EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
+  EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
+  EVENT_TYPE_CREDIT = 42 [(means) = "a lens crediting an open gap with its own finding that raised a contradiction — the gap's found_by gains the finding, and the gap answers the contradiction as a gap minted from it would"];
+  EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -283,7 +301,7 @@ enum Grade {
   // UNSPECIFIED IS THE `undefined` SENTINEL, and it is load-bearing rather than a filler zero.
   // view.go renders an ungraded value as the literal nine-character word `undefined` — never
   // empty — because the projections group by it and a bare blank would silently merge with a
-  // real grade. by_severity keys an ungraded mint under exactly that word. Modelling it as the
+  // real grade. by_severity names an ungraded mint's tally by exactly that word. Modelling it as the
   // enum's zero keeps "not graded" a value the schema can carry rather than an absence a reader
   // has to infer.
   GRADE_UNSPECIFIED = 0 [(mass) = 0];
@@ -331,14 +349,115 @@ enum CheckKind {
 // ClassMaterial is where a gap's materiality starts: from its class. A claim, figure or citation
 // defect changes what a reader concludes whatever it is graded, so its class is `always`; a
 // template-shape defect changes no conclusion, so its class is `never`; every other class goes
-// by the gap's current severity, medium and above. The registry row carries the class's default,
-// a coined class carries the one its coiner chose, and the write path stamps it onto every Mint,
-// so every reader of "is this gap material" reads the same field.
+// by the gap's current severity, medium and above. The class's `material_default` carries it, and
+// the write path stamps it onto every Mint, so every reader of "is this gap material" reads the
+// same field.
 enum ClassMaterial {
   CLASS_MATERIAL_UNSPECIFIED = 0;
   CLASS_MATERIAL_ALWAYS = 1 [(means) = "every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on"];
   CLASS_MATERIAL_NEVER = 2 [(means) = "no gap of this class is material, whatever its grade — it stays on the board and never holds the gate"];
   CLASS_MATERIAL_BY_GRADE = 3 [(means) = "a gap of this class is material when its current severity is medium or above"];
+}
+
+// GapClass is THE KIND OF DEFECT A GAP IS, from a closed set the binary owns. Each value carries
+// its definition, its materiality (`material_default`, which the write stamps onto the mint as
+// `class_material`), the value nearest to it and the question that tells the two apart; `mint
+// --help` prints all four. MEMBERSHIP RULE: a value stays only if a definition and a distinguisher
+// from its nearest neighbour can be written, and synonyms merge. Adding a value is a release and an
+// epoch bump, and nothing in migrate, because no archive holds the new word. `unclassified` takes a
+// gap no value fits, and the mint's reason says why; the rate of those is how a release learns
+// which value is missing.
+enum GapClass {
+  GAP_CLASS_UNSPECIFIED = 0;
+  GAP_CLASS_CROSS_SECTION_CONTRADICTION = 1 [(means) = "two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "claim_contradicts_own_record",
+    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?"];
+  GAP_CLASS_CLAIM_CONTRADICTS_OWN_RECORD = 2 [(means) = "the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a proof's result — or a record entry contradicts what the report shows was done",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "cross_section_contradiction",
+    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?"];
+  GAP_CLASS_READER_CHANNEL_MISMATCH = 3 [(means) = "a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "claim_contradicts_own_record",
+    (distinguisher) = "do the two places disagree, or does one simply lack what the other holds?"];
+  GAP_CLASS_INCOMPLETE_REPAIR_PROPAGATION = 4 [(means) = "a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removed",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "cross_section_contradiction",
+    (distinguisher) = "does the disagreement exist because a repair reached only part of one defect's sites, or do two passages disagree with no repair behind them?"];
+  GAP_CLASS_MISSING_ROOT_INVARIANT = 5 [(means) = "one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticed",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "incomplete_repair_propagation",
+    (distinguisher) = "is the defect that no single source governs the copies, or that one repair missed some of them?"];
+  GAP_CLASS_REPORT_VOICE = 6 [(means) = "report prose speaks about the run that made it rather than the subject — process voice, a claim wearing the seat that produced it, the report's own draft history, or the machinery that checked it",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "claim_contradicts_own_record",
+    (distinguisher) = "does the fix correct a FACT the report gets wrong, or the AUDIENCE the sentence is written for, whether or not the fact is true?"];
+  GAP_CLASS_STRUCTURE_NONCOMPLIANCE = 7 [(means) = "the report's structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report's sections are its author's to name and order, and a heading the report does not have is not this",
+    (material_default) = CLASS_MATERIAL_NEVER, (neighbor) = "risk_coverage_omission",
+    (distinguisher) = "is it a risk the report does not grade, or material the report holds with no order a reader can follow it by, whatever its subject?"];
+  GAP_CLASS_FALSE_UNIVERSAL = 8 [(means) = "a claim stated universally — every, none, always, the only — that a case the evidence reaches, or one it never tested, contradicts",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "exhaustive_sweep_omits_case",
+    (distinguisher) = "is it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?"];
+  GAP_CLASS_EXHAUSTIVE_SWEEP_OMITS_CASE = 9 [(means) = "a list, survey, search or sweep the report presents as complete omits a member it should hold",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "false_universal",
+    (distinguisher) = "is it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?"];
+  GAP_CLASS_RISK_COVERAGE_OMISSION = 10 [(means) = "the report's account of risk leaves out a risk, or a combination of risks, that its own analysis or its subject makes live",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "exhaustive_sweep_omits_case",
+    (distinguisher) = "is the missing member a risk the case against owes a grade, or any other member of a list presented as complete?"];
+  GAP_CLASS_DERIVATION_STATUS_OVERCLAIM = 11 [(means) = "a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "verification_scope_blindspot",
+    (distinguisher) = "is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?"];
+  GAP_CLASS_VERIFICATION_SCOPE_BLINDSPOT = 12 [(means) = "a check, experiment or proof covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentence",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "derivation_status_overclaim",
+    (distinguisher) = "is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?"];
+  GAP_CLASS_SELF_ATTESTATION = 13 [(means) = "the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion out",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "derivation_status_overclaim",
+    (distinguisher) = "is the overstated claim about the report's own verification or research, or about the subject?"];
+  GAP_CLASS_UNVERIFIED_COMPOSITION = 14 [(means) = "a property of a whole is claimed because its parts were each checked, and the combination itself was never checked",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "derivation_status_overclaim",
+    (distinguisher) = "does the claim rest on combining separately checked parts whose combination nobody examined, or overstate how one claim was established?"];
+  GAP_CLASS_INVALID_INFERENCE = 15 [(means) = "a reason the report offers for a conclusion does not entail it — the step fails even where every stated fact is true, including a check that gives the same result on the case the conclusion must exclude",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "derivation_status_overclaim",
+    (distinguisher) = "is the reason irrelevant to the conclusion, or relevant and stated with more certainty than it earns?"];
+  GAP_CLASS_VOTE_LAUNDERING = 16 [(means) = "agreement among sources, programs or reviewers is counted as independent corroboration when they share an origin, so the count overstates the evidence",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "derivation_status_overclaim",
+    (distinguisher) = "is the overstatement in how many independent supports exist, or in how one claim was established?"];
+  GAP_CLASS_DOCTRINE_VS_IMPLEMENTATION = 17 [(means) = "what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "claim_contradicts_own_record",
+    (distinguisher) = "is the disagreement between a stated rule and the mechanism meant to carry it out, or between a report statement and the run's record of what happened?"];
+  GAP_CLASS_POLICY_WITHOUT_MECHANISM = 18 [(means) = "a rule, safeguard or guarantee is asserted with nothing that enforces it",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "partial_control_coverage",
+    (distinguisher) = "is there no enforcing mechanism at all, or one that covers only part of the surface?"];
+  GAP_CLASS_PARTIAL_CONTROL_COVERAGE = 19 [(means) = "a control credited with covering a surface works on part of it and leaves the rest — an axis, channel, verb or case — uncovered",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "self_defeating_mitigation",
+    (distinguisher) = "does the control work on part of the surface and miss the rest (coverage), or fail on its own terms even where it does apply?"];
+  GAP_CLASS_SELF_DEFEATING_MITIGATION = 20 [(means) = "a control credited with closing a gap cannot deliver that closure by its own operation — it fires after the decision it gates, acts on a variable that does not trigger the harm, erases the signal it was meant to distinguish, rests on an assumption the same document discredits, or is starved of its trigger by another control's short-circuit",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "policy_without_mechanism",
+    (distinguisher) = "policy_without_mechanism is a policy asserted with NO enforcing artifact; self_defeating_mitigation is an enforcer that exists and runs and still cannot produce the credited closure. Against partial_control_coverage: that control works on part of the surface and misses the rest (coverage); this one fails on its own terms even where it does apply"];
+  GAP_CLASS_UNHANDLED_DEGENERATE_CASE = 21 [(means) = "a procedure or design the report describes breaks or is undefined at an edge input — empty, zero, one, a boundary, a duplicate — that the report does not address",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "false_universal",
+    (distinguisher) = "is a mechanism failing at an edge input, or a claim stated too broadly?"];
+  GAP_CLASS_SPEC_UNDERSPECIFICATION = 22 [(means) = "a term, rule, procedure or recommendation the report relies on is not specified enough for a reader to apply or check it — undefined, defined only by what it is not, or left as an undecided either/or",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "unhandled_degenerate_case",
+    (distinguisher) = "is the specification missing or left open, or present and failing at an edge?"];
+  GAP_CLASS_FIGURE_RECOUNT_FAILS = 23 [(means) = "a figure, count or computed result the report states differs from what an independent recount, recomputation or re-run produces",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "metric_conflation",
+    (distinguisher) = "is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?"];
+  GAP_CLASS_METRIC_CONFLATION = 24 [(means) = "two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "figure_recount_fails",
+    (distinguisher) = "is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?"];
+  GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION = 25 [(means) = "a cited source does not say what the report attributes to it — the figure, statement or support is absent from or contradicted by its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "unsourced_claim",
+    (distinguisher) = "is a source recorded against the claim that says something else, or is there no source behind the claim at all?"];
+  GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION = 26 [(means) = "the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
+    (distinguisher) = "does the source state the result, under a condition the report drops, or not state it at all?"];
+  GAP_CLASS_LIVE_SOURCE_DRIFT = 27 [(means) = "a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was written",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "artifact_preservation",
+    (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
+  GAP_CLASS_ARTIFACT_PRESERVATION = 28 [(means) = "an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it is",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "live_source_drift",
+    (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
+  GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names",
+    (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "citation_figure_misattribution",
+    (distinguisher) = "is a source recorded against the claim that says something else, or is there no source behind the claim at all?"];
+  GAP_CLASS_UNCLASSIFIED = 30 [(means) = "no other value fits this gap. The mint's reason names the nearest value and what it does not cover",
+    (material_default) = CLASS_MATERIAL_BY_GRADE];
 }
 
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
@@ -390,6 +509,18 @@ enum SourceOutcome {
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise"];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
+}
+
+// BridgeKind is WHAT a `supports_with_bridge` reading bridged — the three things that outcome's own
+// meaning names. It is required with that outcome and refused with every other (validate), so a
+// reading whose defect is none of the three — a term put on the wrong object, a condition dropped —
+// has no home there and lands on `refutes` or `weak`, where the gate sees it. m30's evidence lens
+// recorded supports_with_bridge over a definition the source inverts, and said so only in prose.
+enum BridgeKind {
+  BRIDGE_KIND_UNSPECIFIED = 0;
+  BRIDGE_KIND_SUMMARY = 1 [(means) = "the source summarises what the claim states in detail, or the claim summarises the source: the same assertion, at a different length"];
+  BRIDGE_KIND_SECONDARY_CITATION = 2 [(means) = "the source reports the claim on another work's authority — it cites the work that makes it — so the support is second-hand"];
+  BRIDGE_KIND_NEAR_RESTATEMENT = 3 [(means) = "the source says the same thing in other words: every term names the same object it names in the claim, and nothing the claim asserts is added, dropped or reversed"];
 }
 
 // Confidence is how sure the auditor is OF THE DETERMINATION, whatever the determination was.
@@ -578,7 +709,6 @@ message Event {
     Motion motion = 27;
     MotionRule motion_rule = 28;
     Mint mint = 30;
-    ClassNew class_new = 31;
     Close close = 32;
     Closing closing = 33;
     Regrade regrade = 34;
@@ -602,19 +732,23 @@ message Event {
     Dispatch dispatch = 56;
     SittingLimit sitting_limit = 57;
     Plan plan = 59;
+    Stale stale = 60;
+    Credit credit = 61;
+    ReportRead report_read = 62;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 60 to 80;
+  // plan, 60 for the stale refusal, 61 for the credit, 62 for the report read, which is what the
+  // reserve is for — the block shrinks and nothing is renumbered.
+  reserved 63 to 80;
 
-  // 29 held `motion_appeal`, 38 `observe`, 46 `revision` and 58 `correction`, whose types are
-  // reserved above for the same reason: a stored event carries the bytes.
-  reserved 29, 38, 46, 58;
-  reserved "motion_appeal", "observe", "revision", "correction";
+  // These held the bodies whose types are reserved above, and are reserved for the same reason:
+  // a stored event carries the bytes.
+  reserved 29, 31, 38, 46, 58;
+  reserved "motion_appeal", "class_new", "observe", "revision", "correction";
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -648,18 +782,12 @@ message TelemetryLine {
   optional RepairRegression repair_regression = 8;
   optional EdgeDeltas edge_deltas = 9;
 
-  // 10 IS DELIBERATELY UNUSED, and this is a defect the schema surfaced rather than created.
-  //
-  // `accepted_deltas` is READ by internal/cost/cost.go:399 and internal/dashboard/render.go:364,
-  // both as []any, and is WRITTEN BY NOTHING. Its only occurrences outside those two readers are
-  // fixtures in dashboard/render_test.go — so the tests pass on supplied data while production
-  // sees nil on every run, and both surfaces render "no accepted deltas" where the truth is
-  // "never measured". The engine still carries the concept (debate.js:270,
-  // ACCEPTED_DELTA_DOCKET_THRESHOLD), so this is a lost producer, not dead weight.
-  //
-  // It is NOT modelled here. Encoding a field nobody writes would carry the plausible zero
-  // forward wearing a schema's authority. The two readers go in PR3 and the missing producer is
-  // filed separately — see plans/record-protobuf.md.
+  // 10 IS DELIBERATELY UNUSED. `accepted_deltas` was a telemetry key no writer produced, read as
+  // []any by the cost and dashboard surfaces, which rendered "no accepted deltas" where the truth
+  // was "never measured"; those readers are gone. The concept it named — grade changes reviewed in
+  // total — is the record's grade movement (record/grademovement.go): computed from the regrades
+  // and the docket rulings, never stored, and past its threshold a blocker the bench clears. A
+  // scorecard field would be a second, stored copy of a fact the record derives.
   reserved 10;
   reserved "accepted_deltas";
 }
@@ -672,13 +800,24 @@ message NewMint {
   // BY CONSTRUCTION and needs no faith in protojson/prototext map ordering.
   repeated SeverityTally by_severity = 2;
 
-  // by_class is a MAP because the gap-class registry is extended at runtime by `class-new` —
-  // genuinely open, so a repeated form would need an invented sort anyway.
-  map<string, int32> by_class = 3;
+  // by_class is REPEATED for the same reason: GapClass is a closed set, and the tally runs in its
+  // schema order, one entry per class minted this epoch.
+  repeated ClassTally by_class = 5;
+  reserved 3;
 
   // class_repeat_rate is absent when no gaps were minted this round — distinct from 0.0, which
-  // means minted-and-none-repeated.
+  // means minted-and-none-repeated. An `unclassified` mint is in its denominator and never a
+  // repeat: "no class fits" recurring is not one kind of defect recurring.
   optional double class_repeat_rate = 4;
+
+  // unclassified_rate is this epoch's `unclassified` mints over its mints; absent when nothing
+  // was minted, as class_repeat_rate is.
+  optional double unclassified_rate = 6;
+}
+
+message ClassTally {
+  optional GapClass class = 1;
+  optional int32 count = 2;
 }
 
 message SeverityTally {
@@ -701,6 +840,15 @@ message EdgeDeltas {
 
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
 message Mint {
+  // A GAP NO CLASS FITS SAYS WHY. `unclassified` is the catch-all, and its reason is the only
+  // place the nearest value and what it does not cover are written; the rate of these is how a
+  // release learns which value is missing. The database refuses the empty reason, so no write path
+  // goes around it. That the reason names the nearest value is prose nothing can refuse.
+  option (check) = {
+    expr: "\"class\" <> 'unclassified' OR coalesce(trim(\"mint_reason\", ' ' || char(9, 10, 13)), '') <> ''"
+    why: "a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing"
+  };
+
   // THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
   //
   // Every other gap_id in the schema now references this column, which is only possible because it
@@ -715,17 +863,14 @@ message Mint {
   }];
   optional string mint_key = 2;
 
-  // class names the defect's kind. class_new records that the seat coined it in this act, which
-  // is why the definition/neighbor/distinguisher trio travels alongside: a new class has to say
-  // what it is, what it is nearest to, and how it differs.
-  optional string class = 3 [(sql) = {
+  // class names the defect's kind, from the closed GapClass set. Its value's material_default is
+  // stamped onto class_material at the write.
+  optional GapClass class = 3 [(sql) = {
     required: true
-    why: "the slug — one the registry has, or one you coined first with `class new`. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
+    why: "the KIND of defect, from the closed set `mint --help` lists; `unclassified` when none fits, with --reason saying why. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
   }];
-  optional bool class_new = 4;
-  optional string definition = 5;
-  optional string neighbor = 6;
-  optional string distinguisher = 7;
+  reserved 4, 5, 6, 7;
+  reserved "class_new", "definition", "neighbor", "distinguisher";
 
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
@@ -739,9 +884,8 @@ message Mint {
   // subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
   // inherited it, so removing it on one verb and not the other left the concept half-landed.
   //
-  // An anchor is OPTIONAL on a gap and REQUIRED on a finding, which is the pre-existing difference
-  // between the two verbs and is not changed here; what is enforced is that a gap does not claim
-  // both, because a gap has one subject.
+  // A gap has ONE subject, as a finding does: a non-blank `location` or this pair, never both and
+  // never neither — the write refuses a gap with no subject (requireMintSubject).
   //
   // A gap takes every kind but `contradiction`: a contradiction is raised by a finding, and the
   // gap is minted from that finding (the write refuses it here).
@@ -821,26 +965,16 @@ message Mint {
   // (TestAGapCarriesRedsArgumentAndNotOnlyItsProblem) asserts it reaches the projection.
   optional string mint_reason = 22;
 
-  // WHERE THIS GAP'S MATERIALITY STARTS, stamped by the write path from the class — the staged
-  // registry's row, or the run's own `class new` — and never by a seat: a lens that could set it
-  // could make any gap it minted immaterial. Required, because an absent value would leave every
-  // reader of "is this gap material" to guess, and the guess would be the grade alone.
+  // WHERE THIS GAP'S MATERIALITY STARTS, stamped by the write path from the class's
+  // `material_default` and never by a seat: a lens that could set it could make any gap it minted
+  // immaterial. Required, because an absent value would leave every reader of "is this gap
+  // material" to guess, and the guess would be the grade alone. It is stored rather than joined
+  // from the class because it is the gate's materiality AT THE ACT: a migrated gap whose archived
+  // class moved to a value with another default keeps the stamp it was minted with.
   optional ClassMaterial class_material = 25 [(sql) = {
     required: true
-    why: "every reader of materiality — the dispatch, the PASS gate, the chair's work list — reads it; the tool stamps it from the class registry at the write"
+    why: "every reader of materiality — the dispatch, the PASS gate, the chair's work list — reads it; the tool stamps it from the class's material default at the write"
   }];
-}
-
-// ClassNew registers a coined gap class in the run's registry.
-message ClassNew {
-  optional string slug = 1;
-  optional string definition = 2;
-  optional string neighbor = 3;
-  optional string distinguisher = 4;
-  // The coined class's materiality default. The verb always writes it (`by_grade` unless the
-  // coiner says otherwise), so a class the run coined carries its default on the record, where
-  // the Mint stamp and the capture's adoption text read it.
-  optional ClassMaterial material_default = 5;
 }
 
 // Close ends a gap on verified repair.
@@ -913,11 +1047,11 @@ message Close {
     why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
   }, (feov.record.v1.prose) = true];
 
-  // anchors are the report's anchors the closure was verified with — each the id of an anchor the
-  // record holds, refused at the write otherwise. Capture's attestation audit joins each to the tool
-  // calls of the closing seat's trajectory: a closure naming an anchor it never read is the
-  // dishonesty that audit exists to find. Empty is "verified with no anchor", and the audit then
-  // reads anchor_target's prose.
+  // anchors are the ids the closure was verified with — each a report anchor or an inquiry the
+  // record holds, and never the gap being closed, refused at the write otherwise. Capture's
+  // attestation audit joins each to the other tool calls of the closer's sitting: a closure naming an
+  // anchor it never read is the dishonesty that audit exists to find. Empty is "verified with no
+  // anchor", and the audit then reads anchor_target's prose.
   repeated string anchors = 9;
 }
 
@@ -993,7 +1127,8 @@ enum AboutKind {
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
-  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
+  ABOUT_KIND_PROOF = 5 [(means) = "a proof, by its anchor, whose sentence was judged unsound", (gap_may_name) = true];
 }
 
 message Finding {
@@ -1086,6 +1221,27 @@ enum SourceCompleteness {
   SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// CopySubstitution is WHOSE BYTES A CITATION READ, stamped by the tool from what the fetch recorded;
+// a seat never types it. The seat types a url, and the cache can answer it with bytes from
+// somewhere else: the full text the url's page pointed to, a copy the recovery chain took when the
+// url refused, a fuller copy taken because the url's page was not the work's body, or a backend a
+// fetch named. Each is a legitimate answer and none is the url's own, and a citation that recorded
+// only the typed url claimed to have read it. copy_url beside it names where the bytes came from;
+// sha256 is already those bytes' hash.
+//
+// AN ENUM AND NOT AN EMPTY copy_url, for WorkStatus's reason: an empty field folds "the url's own
+// bytes" together with "nobody recorded whose", and only NONE rests on the fetch having said so.
+enum CopySubstitution {
+  COPY_SUBSTITUTION_UNSPECIFIED = 0;
+  COPY_SUBSTITUTION_NONE = 1 [(means) = "the cited bytes are the typed url's own: the url answered, and its answer is what was read"];
+  COPY_SUBSTITUTION_FOLLOWED_LINK = 2 [(means) = "the typed url's page named its own full text, and the tool followed that pointer: the cited bytes are the page at copy_url, the same work at the place its publisher named"];
+  COPY_SUBSTITUTION_RECOVERED = 3 [(means) = "the typed url refused this container, and the tool's recovery took the bytes from another source — an archive snapshot, an open-access copy, arXiv, or a bibliographic record — at copy_url. With no copy_url the bytes are the tool's own statement of what the recovery found, not a document"];
+  COPY_SUBSTITUTION_FULLER_COPY = 4 [(means) = "the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version"];
+  COPY_SUBSTITUTION_NAMED_BACKEND = 5 [(means) = "a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document"];
+  COPY_SUBSTITUTION_NOT_RECORDED = 6 [(means) = "this citation or reading predates the field; written only by migrate"];
+  COPY_SUBSTITUTION_NOT_CACHED = 7 [(means) = "a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records"];
+}
+
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
 // seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
 // disable that check for the row.
@@ -1105,16 +1261,32 @@ message Cite {
   // WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
   // validate refuses an unstamped origin instead.
   //
-  // ocr_quote is the seat's span, verbatim as typed; pages are the PDF page indexes the binary
-  // found it on, ascending and unique; ocr_engine and ocr_text_sha name WHICH reading located
-  // them, because run-archive keeps no cache and the event is the only thing that outlives it.
-  // A page is bound to that page's pixels, not to the engine: a later engine can stop finding
-  // the span, never move it.
+  // source_span is the seat's span, verbatim as typed — the source's words, which the tool found
+  // once in the cached text before it wrote. pages are the PDF page indexes of an OCR reading
+  // the span sits on; ocr_engine and ocr_text_sha name WHICH reading located them, because
+  // run-archive keeps no cache and the event is the only thing that outlives it. A page is bound
+  // to that page's pixels, not to the engine: a later engine can stop finding the span, never
+  // move it.
   optional SourceTextOrigin source_text_origin = 11 [(prose) = false];
-  optional string ocr_quote = 12 [(prose) = false];
+  optional string source_span = 12 [(prose) = false];
   repeated int32 pages = 13 [(prose) = false];
   optional string ocr_engine = 14 [(prose) = false];
   optional string ocr_text_sha = 15 [(prose) = false];
+
+  // WHERE THE SPAN WAS FOUND, AND WHAT THE SOURCE SAYS AROUND IT, stamped by the tool. span_start
+  // and span_end are byte offsets of the span in the text it was found in — the source's text for
+  // embedded text, the page's reading for OCR text — and span_text_sha is that text's sha256, so
+  // the offsets name bytes a re-check can open. source_before, source_matched and source_after are
+  // those bytes: up to a bounded window either side, and the span exactly as the source holds it.
+  // They are what a lens reads the cited sentence against, kept on the event because run-archive
+  // keeps no cache. Blue's own wording about the source is `text`, and no reader shows the two
+  // under one name.
+  optional int32 span_start = 18 [(prose) = false];
+  optional int32 span_end = 19 [(prose) = false];
+  optional string span_text_sha = 20 [(prose) = false];
+  optional string source_before = 21 [(prose) = false];
+  optional string source_matched = 22 [(prose) = false];
+  optional string source_after = 23 [(prose) = false];
 
   // WHAT THE LITERATURE SAYS ABOUT THE WORK, stamped from the fetch index the same way the origin
   // above is. Not `(sql).required`: no seat types it, so `validate` refuses an unstamped value
@@ -1123,6 +1295,12 @@ message Cite {
 
   // WHICH PART OF THE WORK THE CITED COPY IS, stamped from the fetch index like the two above.
   optional SourceCompleteness source_completeness = 17 [(prose) = false];
+
+  // WHOSE BYTES THE CITATION READ, stamped from the fetch index like the three above, and where
+  // they came from when they are not the typed url's own. copy_url is set exactly when the
+  // substitution is not NONE and the bytes were fetched from somewhere.
+  optional CopySubstitution copy_substitution = 24 [(prose) = false];
+  optional string copy_url = 25 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field. `source_text_read` was the seat's assertion of how much of the
@@ -1183,7 +1361,7 @@ message Verify {
   // `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
   optional string label = 11;
 
-  // THE PAGE IMAGE RED CHECKED, for a citation whose OCR quote carries pages. page is the one red
+  // THE PAGE IMAGE RED CHECKED, for a citation whose OCR span carries pages. page is the one red
   // names; page_render_sha is the sha256 of the image on disk when the verification was written,
   // and reading_render_sha the render the reading was made from. A mismatch between the two is
   // recorded, not refused: the image still shows the page, and two fields let any reader compare
@@ -1201,6 +1379,20 @@ message Verify {
   // WHICH PART OF THE WORK RED'S COPY IS. A verdict read off an abstract confirms what the abstract
   // says; this is what lets a reader of the record tell that from a verdict on the study.
   optional SourceCompleteness source_completeness = 16 [(prose) = false];
+
+  // WHAT A supports_with_bridge READING BRIDGED, typed --bridge. Set with that outcome and only with
+  // it; a live write of that outcome without it is refused (validate). Its readers: `show evidence`'s
+  // verification rows, which blue reads to find where its evidence is thinnest and every lens reads
+  // before adjudicating the same citation, and the verb's own output.
+  optional BridgeKind bridge = 17 [(sql) = { flag: "bridge" }];
+
+  // WHOSE BYTES RED'S READING WAS MADE AGAINST, stamped by the tool from the run's fetch cache as
+  // Cite's pair is: the entry the source's url resolves to when the reading is written — the
+  // citation's url for `verify`, the typed url for `corroborate`. A cache with no copy of it is
+  // not_cached. Their readers: `show evidence`'s verification rows and a labelled corroboration's
+  // source row, and a labelled corroboration's note and Bibliography line in the report.
+  optional CopySubstitution copy_substitution = 18 [(prose) = false];
+  optional string copy_url = 19 [(prose) = false];
 
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;
@@ -2094,7 +2286,7 @@ message Cast {
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
 // G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the report
-// head moved past its last sitting — and gap_ids is empty, which is "lineage none", not "unknown".
+// head moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
 message Dispatch {
   optional int64 pin = 1 [(sql) = {
     required: true
@@ -2131,6 +2323,72 @@ message Plan {
   optional string printed = 1 [(sql) = {
     required: true
     why: "the plan as the verb printed it, the original every relay of it is compared with; a plan event with nothing printed records a decision nobody can read"
+  }];
+}
+
+// Stale is the tool's refusal of a seat's act on a gap that changed since the seat's sitting opened
+// (gblock ruling B, 2026-10-19): the act asserts something about the gap — a finding about it, its
+// grade, a motion on it — and the seat's read of the gap is the one its sitting opened with, while
+// other seats sit concurrently. The refusal shows the seat each act on the gap since, and this event
+// is the record that it did.
+//
+// IT IS THE SEAT'S READ POINT FOR THE GAP, AND NOTHING ELSE. The seat's next act on the gap in the
+// same sitting is checked against what changed after `through`, so re-filing once the seat has read
+// what it was shown succeeds and needs no flag. The seat and the sitting are the envelope's.
+//
+// NOT A LOG ENTRY. The log is the operator's channel; the tool's own refusal entry is written there as
+// for every refusal. This is a fact the write path reads, so it is a field a writer can refuse.
+message Stale {
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
+  // THROUGH IS THE LAST ACT THE REFUSAL SHOWED, not this event's own id: an act on the gap recorded
+  // between the check and this write was never shown, and a read point at this event would pass it.
+  optional int64 through = 2 [(sql) = { references: "events.id" }];
+}
+
+// Credit is a lens naming an OPEN gap as the answer to a contradiction its own finding raised
+// (gblock, 2026-10-24): the gap's found_by gains the finding, and the contradiction fold
+// (contradictionsOf) reads the gap as answering it, exactly as it reads a gap minted from that
+// finding. The gap's class then decides materiality, as for every gap.
+//
+// IT EXISTS BECAUSE THE DUPLICATE SCREEN IS RIGHT. A lens that raised a contradiction owes the gap
+// that answers it; where the board already holds that defect as an open gap, the answering mint is
+// a duplicate and the screen refuses it. On universe-m32 that refusal fell seven times on three
+// raises whose defect G-f417112d already held, and six sittings ended owing the answer. The
+// credit answers with the gap that exists, and no second gap is minted.
+//
+// A CREDIT IS NOT A MINT: it takes no budget and moves no gap's ownership. The gap stays its
+// minting lens's to close or regrade.
+message Credit {
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    flag: "id"
+    why: "the credit names the open gap that answers the contradiction"
+  }];
+  // found_by is the RAISING FINDING — the one id a gap's found_by holds, so the credit adds it there.
+  optional string found_by = 2 [(sql) = {
+    required: true
+    references: "finding.id"
+    why: "the credit names the finding of yours that raised the contradiction, which the gap's found_by gains"
+  }];
+}
+
+// ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
+// report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
+//
+// IT IS EVIDENCE THE TEXT WAS SERVED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat
+// read what it was given; what it can say is that the whole text at this head reached the seat in
+// this sitting, which is what a read at an anchor or a selection cannot say.
+//
+// IT IS THE LENS'S PIN. A lens has audited the report at the head of its latest read in a sitting it
+// sat through (lensStates), so a lens whose sitting opened at a head and that was never served the
+// report there is still ready at it — the dispatch's own pin is the head the chair asked it to read,
+// and opening a sitting is not reading.
+message ReportRead {
+  optional int64 head = 1 [(sql) = {
+    required: true
+    references: "events.id"
+    why: "the events.id of the report head the text was served at — the latest blue_edit or base_ingest when the read's transaction ran"
   }];
 }
 
