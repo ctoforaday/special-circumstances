@@ -1024,6 +1024,22 @@ test('the lenses dispatched are the plan\'s, each under a configuration of its o
   assert.equal(labelsOf(world, 'red-lens-evidence').length, 0, 'an area the plan did not ready does not sit — the record decides, not the roster')
 })
 
+// EVERY LENS SITTING ENDS BY RETURNING AN ENVELOPE, so the record is asked whether it refuses it: the
+// PreToolUse gate on the call that returns one refuses it while a blocking item on the lens's own
+// work list stands. A lens dispatched with no schema ends with text and that gate never runs. The
+// envelope carries nothing — what the lens did is on the record — and it is closed.
+test('every lens is dispatched with the closed, empty lens envelope', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(LENS_AREAS.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
+  await world.run(script, { ...ARGS, lensAreas: LENS_AREAS })
+  const lenses = labelsOf(world, 'red-lens')
+  assert.equal(lenses.length, LENS_AREAS.length, 'the drive dispatches every lens')
+  for (const c of lenses) {
+    assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
+    assert.ok(schemaAccepts(c.opts.schema, {}), `${c.opts.label}: the empty envelope is refused`)
+    assert.ok(!schemaAccepts(c.opts.schema, { found: 'G-00000001' }), `${c.opts.label}: a key the envelope does not declare is accepted`)
+  }
+})
+
 test('the lens constitutions say a lens mints and the chair runs the debate', () => {
   const chair = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
   const lens = readFileSync(new URL('../../agents/red-lens-evidence.md', import.meta.url), 'utf8')
@@ -1264,12 +1280,12 @@ test('the chair envelope schema holds no oneOf, allOf or anyOf at its top level'
 // dropped. Driven through a run that reaches the petition bench, the docket, the terminal sitting
 // and assembly, so every schema the script dispatches is read as dispatched.
 test('every envelope schema the script dispatches is closed at its top level', async () => {
-  const chair = [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }) }),
+  const chair = [chairEnv({ plan: plan([petitionBench(), party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }) }),
     chairEnv({ plan: plan([], { blockers: [blocker('M-00000002', 'judge')] }) })]
   const world = makeWorld(makeResponder({ chair }))
   await world.run(script, ARGS)
   const schemas = new Map(world.calls.filter((c) => c.opts.schema).map((c) => [c.opts.label.replace(/ #\d+/, '').replace(/ · test$/, ''), c.opts.schema]))
-  assert.deepEqual([...schemas.keys()].sort(), ['blue-respond', 'blue-synthesize', 'judge', 'judge · assemble', 'judge · petition', 'judge · terminal', 'red-chair'], 'the drive reaches every envelope')
+  assert.deepEqual([...schemas.keys()].sort(), ['blue-respond', 'blue-synthesize', 'judge', 'judge · assemble', 'judge · petition', 'judge · terminal', 'red-chair', 'red-lens-evidence'], 'the drive reaches every envelope')
   for (const [label, schema] of schemas) assert.equal(schema.additionalProperties, false, `${label}'s envelope is open at its top level`)
 })
 

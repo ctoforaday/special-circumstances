@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	vocabBegin = "// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums and record.Plan. DO NOT EDIT BY HAND."
+	vocabBegin = "// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums, record.Plan and record.LensEnvelope. DO NOT EDIT BY HAND."
 	vocabEnd   = "// END GENERATED ENVELOPE VOCABULARY"
 )
 
-// vocabulary is every closed set a seat's envelope offers and the shape of the plan the chair
-// relays, as Go holds them.
+// vocabulary is every closed set a seat's envelope offers, the shape of the plan the chair relays,
+// and the shape of the envelope a lens returns, as Go holds them.
 //
 // AN ENVELOPE WORD THE RECORD REFUSES IS A PATH THAT CANNOT WORK (#329): the petition-ruling
 // schema once offered `halt`, the record's enum did not hold it, and a judge following the schema
@@ -42,6 +42,9 @@ type vocabulary struct {
 	// plan is record.Plan's relayed fields, and party the struct a party is.
 	plan  []record.PlanField
 	party reflect.Type
+
+	// lens is record.LensEnvelope's fields.
+	lens []record.PlanField
 }
 
 func vocabularyFromTheRecord() (vocabulary, error) {
@@ -54,6 +57,7 @@ func vocabularyFromTheRecord() (vocabulary, error) {
 		dispatchOccasions: record.DispatchOccasions(),
 		plan:              record.PlanFields(),
 		party:             reflect.TypeFor[record.Party](),
+		lens:              record.LensEnvelopeFields(),
 	}
 	var err error
 	if v.outcomes, err = eventEnum("outcome", "verdict"); err != nil {
@@ -117,6 +121,9 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 	if err := v.renderPlan(&b); err != nil {
 		return nil, err
 	}
+	if err := v.renderEnvelope(&b, "LENS_ENVELOPE", "record.LensEnvelope", v.lens); err != nil {
+		return nil, err
+	}
 	if strings.Contains(b.String(), unwritable) {
 		return nil, fmt.Errorf("a vocabulary word or a plan field's description holds a character a script string cannot carry")
 	}
@@ -126,7 +133,7 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 // renderPlan writes the two party shapes, the plan's schema, and the two type tables the
 // engine's own check of a relay walks.
 func (v vocabulary) renderPlan(b *strings.Builder) error {
-	if err := sound(v.plan); err != nil {
+	if err := sound("record.Plan", v.plan); err != nil {
 		return err
 	}
 	var party []record.PlanField
@@ -175,6 +182,23 @@ func (v vocabulary) renderPlan(b *strings.Builder) error {
 		fmt.Fprintf(b, "  %s: %s,\n", t.key, t.val)
 	}
 	b.WriteString("}\n")
+	return nil
+}
+
+// renderEnvelope writes a seat's envelope schema, closed, from the fields its declaration holds: the
+// keys it may carry, and the ones it must. An envelope declaring no field is the empty object.
+func (v vocabulary) renderEnvelope(b *strings.Builder, name, of string, fs []record.PlanField) error {
+	if err := sound(of, fs); err != nil {
+		return err
+	}
+	var required, props []prop
+	for _, f := range fs {
+		props = append(props, prop{f.JSON, v.schemaOf(f, f.Desc)})
+		if !f.Optional {
+			required = append(required, prop{val: js(f.JSON)})
+		}
+	}
+	b.WriteString(block(name, required, props))
 	return nil
 }
 
@@ -278,16 +302,17 @@ func (v vocabulary) renderParties(b *strings.Builder, fields []record.PlanField)
 	return nil
 }
 
-// sound refuses a plan field no schema can carry, or whose key the engine could not read as one.
-func sound(fs []record.PlanField) error {
+// sound refuses a field of the declaration `of` that no schema can carry, or whose key the engine
+// could not read as one.
+func sound(of string, fs []record.PlanField) error {
 	for _, f := range fs {
 		if f.Defect != "" {
-			return fmt.Errorf("record.Plan's %s cannot be relayed under a schema: %s", f.JSON, f.Defect)
+			return fmt.Errorf("%s's %s cannot be carried under a schema: %s", of, f.JSON, f.Defect)
 		}
 		if !identifier.MatchString(f.JSON) {
-			return fmt.Errorf("record.Plan's key %q is not a word the engine can read as a key", f.JSON)
+			return fmt.Errorf("%s's key %q is not a word the engine can read as a key", of, f.JSON)
 		}
-		if err := sound(f.Items); err != nil {
+		if err := sound(of, f.Items); err != nil {
 			return err
 		}
 	}
