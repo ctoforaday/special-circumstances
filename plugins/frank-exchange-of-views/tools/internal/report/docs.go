@@ -311,40 +311,36 @@ func head(d Doc, title string, set []Doc) string {
 // composedText is the document as assembly composed it, its head on it and its proofs' anchors in
 // place, with the record's text as written: what a seat reads of the set (Layout).
 func composedText(d Doc, title string, set []Doc) string {
-	body, _ := resolveMarks(strings.TrimRight(d.Body, "\n") + "\n")
-	return head(d, title, set) + body
+	return head(d, title, set) + resolveMarks(strings.TrimRight(d.Body, "\n")+"\n")
 }
 
-// Shipped is a report set as it ships: what becomes HTML decided once per document (ship), and that
-// one decision written by Write and rendered by RenderSite. It is made only by Ship, so neither tier
-// can be handed a text the decision was not taken on.
+// Shipped is a report set as it ships, each document read once per tier: its .md text, the escape
+// taken on the whole document (ship), and its parse, which report.html renders. It is made only by
+// Ship, so neither tier can be handed a text the decision was not taken on.
 type Shipped struct {
 	docs []Doc
-	md   []string  // each document's body as report.md and its siblings ship it
-	html []shipped // and as report.html renders it
+	md   []string // each document's body as report.md and its siblings ship it
+	html []parsed // and the tree report.html renders it from
 }
 
-// Ship takes the decision on each document of the set. The head Write puts on a document is shipped
-// on its own: a blank line and a rule close it, so nothing in it reaches the body.
+// Ship takes each tier's reading of each document of the set. The head Write puts on a document is
+// shipped on its own: a blank line and a rule close it, so nothing in it reaches the body.
 func Ship(docs []Doc) Shipped {
 	set := Shipped{docs: docs}
 	for _, d := range docs {
 		body := strings.TrimRight(d.Body, "\n") + "\n"
-		sh := ship(body)
-		set.md = append(set.md, string(sh.src))
-		if u := unmarked(body); u != body {
-			// The reading tier shows a marker byte as the replacement character; the durable
-			// tier ships the text as written.
-			sh = ship(u)
-		}
-		set.html = append(set.html, sh)
+		set.md = append(set.md, ship(body))
+		// The reading tier shows a marker byte as the replacement character; the durable tier ships
+		// the text as written.
+		src := []byte(unmarked(body))
+		set.html = append(set.html, parsed{src: src, tree: parsePage(src)})
 	}
 	return set
 }
 
 // file is the i'th document as its .md ships: its head, shipped on its own, and its shipped body.
 func (s Shipped) file(i int, title string) string {
-	return escapeRawHTML(head(s.docs[i], title, s.docs)) + s.md[i]
+	return ship(head(s.docs[i], title, s.docs)) + s.md[i]
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the
@@ -466,7 +462,7 @@ func Write(run record.Run, title string, set Shipped, index string) (string, err
 			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(escapeRawHTML(index)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(ship(index)), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", FileIndex, err)
 	}
 	for _, name := range docOrder {

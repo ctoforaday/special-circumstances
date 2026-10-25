@@ -22,6 +22,8 @@ import (
 	"html/template"
 	"strings"
 
+	"github.com/microcosm-cc/bluemonday"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -72,7 +74,7 @@ func RenderSite(title string, set Shipped, fam record.Family) string {
 	bodies := make([]rendered, len(docs))
 	slugs := map[string]int{}
 	for i, d := range docs {
-		bodies[i] = renderShipped(set.html[i], d.File, anchor, slugs, files)
+		bodies[i] = renderBody(set.html[i], d.File, anchor, slugs, files)
 	}
 
 	page := sitePage{
@@ -86,7 +88,7 @@ func RenderSite(title string, set Shipped, fam record.Family) string {
 		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(outcome), countBadges(fam)))
 	}
 	for i, d := range docs {
-		body := linkIDs(bodies[i], anchor, d.File)
+		body := bodyPolicy.Sanitize(linkIDs(bodies[i], anchor, d.File))
 		if d.File == FileRun {
 			// The trajectory opens the run document: "how did the board converge" is the
 			// first question behind the verdict, and it is a picture. Markdown cannot carry
@@ -123,6 +125,10 @@ func siteLink(target string, files map[string]bool) string {
 	file, frag, _ := strings.Cut(target, "#")
 	if !files[file] {
 		return `<a href="` + target + `">`
+	}
+	if frag == "" {
+		// The document's own element: an empty fragment is no URL, and a link with no href is no link.
+		frag = "doc-" + slugFile(file)
 	}
 	return fmt.Sprintf(`<a class="idref" data-doc="%s" href="#%s">`, escape(file), escape(frag))
 }
@@ -184,3 +190,29 @@ func countBadges(fam record.Family) string {
 // diagram's source text with a note, never to a broken page. The version is pinned so the
 // artifact renders the same way years later or not at all — never differently.
 const mermaidCDN = "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs"
+
+// renderBody is the renderer RenderSite runs each document through; a test swaps it for one that
+// writes what the renderer never does, to see the allowlist hold.
+var renderBody = renderDoc
+
+// linkSchemes are the schemes a link in a document may name; any other renders as a link to nothing
+// (safeURL), and bodyPolicy drops it all the same.
+var linkSchemes = []string{"http", "https", "mailto"}
+
+// bodyPolicy is every element and attribute the document renderer (md.go, citations, linkIDs,
+// siteLink) writes, and nothing else. The renderer passes no HTML of the text through, so on honest
+// output the policy changes nothing; it is the second wall, should the first ever let a tag through.
+// An element the renderer starts writing goes here in the same change, or the page loses it.
+var bodyPolicy = func() *bluemonday.Policy {
+	p := bluemonday.NewPolicy()
+	p.AllowElements("p", "br", "hr", "pre", "blockquote", "ul", "em", "strong", "del",
+		"table", "thead", "tbody", "tr", "th", "td")
+	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6", "li")
+	p.AllowAttrs("start", "class").OnElements("ol")
+	p.AllowAttrs("class").OnElements("code", "div", "sup", "section")
+	p.AllowAttrs("class", "data-nolink").OnElements("span")
+	p.AllowAttrs("href", "id", "class", "title", "data-doc", "aria-label").OnElements("a")
+	p.AllowURLSchemes(linkSchemes...)
+	p.AllowRelativeURLs(true)
+	return p
+}()

@@ -1,19 +1,19 @@
 package report
 
-// WHAT BECOMES HTML IS DECIDED ONCE, ON THE WHOLE SHIPPED DOCUMENT.
+// WHAT A MARKDOWN VIEWER MAY READ AS HTML IS DECIDED ONCE, ON THE WHOLE SHIPPED .md.
 //
 // A shipped document is composed from units — the report's text, and each section a seat's words
-// fill — and every reader of it parses it WHOLE: report.html's renderer, a markdown viewer, an
-// artifact pane. A unit checked alone is parsed alone, so its fence and HTML state is not the
-// state the reader meets: a fence one unit leaves open flips the next unit's code and prose, an
-// indented line one unit wrote as code is HTML inside the list the unit before it ended with, and
-// an unclosed `<!--` hides every section after it. Seats read untrusted web content, so a seat's
-// HTML reaching a page the human opens is a prompt-injection path into a browser.
+// fill — and a markdown viewer parses it WHOLE. A unit checked alone is parsed alone, so its fence
+// and HTML state is not the state the reader meets: a fence one unit leaves open flips the next
+// unit's code and prose, an indented line one unit wrote as code is HTML inside the list the unit
+// before it ended with, and an unclosed `<!--` hides every section after it. Seats read untrusted
+// web content, and a viewer that renders raw HTML from the .md is a page the human opens.
 //
-// So the decision is taken on the document as it ships (ship), once, and both tiers read its
-// result: Write writes the escaped text, and RenderSite renders the tree parsed from that same
-// text. The seat-facing views — `show report --assembled` (Layout), `show inquiries` — print the
-// record's text as written, because a seat quotes and edits it; only what ships is escaped.
+// This file governs the .md tier alone: Ship takes the decision on each document once, and Write
+// writes it. report.html never reads this text — it renders the composed text through a renderer
+// that passes no HTML through (md.go) and an allowlist after it (site.go). The seat-facing views —
+// `show report --assembled` (Layout), `show inquiries` — print the record's text as written,
+// because a seat quotes and edits it.
 //
 // THE ESCAPE IS NOT A JUDGEMENT OF WHAT A PARSER WOULD CALL HTML. Asking that of one parser makes
 // the shipped text safe only in readers that parse alike, and each escape can expose another
@@ -37,7 +37,6 @@ package report
 
 import (
 	"bytes"
-	"crypto/rand"
 	"slices"
 	"strings"
 
@@ -47,65 +46,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
-// proofAnchor is the anchor evidence.md ships above each proof: an explicit id, because a heading's
-// generated id is a function of its whole text and the footnotes in the other documents link here by
-// LABEL, which is stable.
-func proofAnchor(label string) string { return `<a id="` + label + `"></a>` }
-
-// anchorMark opens the line evidenceDoc writes where a proof's anchor goes. It is drawn for the
-// process, after every seat wrote, so no record text holds it: a mark is the tool's by construction.
-var anchorMark = "\x1eproof-anchor:" + rand.Text() + ":"
-
-// proofAnchorMark is what evidenceDoc writes, on a line of its own, for the proof labelled label.
-func proofAnchorMark(label string) string { return anchorMark + label }
-
-// resolveMarks returns md with each mark made the anchor it stands for, and the span of each anchor
-// that is the tool's: the first for its label.
-func resolveMarks(md string) (string, [][2]int) {
-	if !strings.Contains(md, anchorMark) {
-		return md, nil
-	}
-	var b strings.Builder
-	var spans [][2]int
-	seen := map[string]bool{}
-	for {
-		i := strings.Index(md, anchorMark)
-		if i < 0 {
-			b.WriteString(md)
-			return b.String(), spans
-		}
-		b.WriteString(md[:i])
-		md = md[i+len(anchorMark):]
-		end := strings.IndexByte(md, '\n')
-		if end < 0 {
-			end = len(md)
-		}
-		label := md[:end]
-		md = md[end:]
-		if !proofLabel(label) {
-			panic("report: a proof anchor mark with no proof label: " + label)
-		}
-		a := proofAnchor(label)
-		if !seen[label] {
-			seen[label] = true
-			spans = append(spans, [2]int{b.Len(), b.Len() + len(a)})
-		}
-		b.WriteString(a)
-	}
-}
-
-// parseMD is the one parse of a shipped text, in the dialect report.html renders (mdReader).
+// parseMD is a parse of a shipped .md, in the dialect a markdown viewer reads it in (mdReader).
 var parseMD = func(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
 
-// shipped is one text as it ships: its bytes, and the tree report.html renders them from.
-type shipped struct {
-	src  []byte
-	tree ast.Node
-}
-
-// ship takes the decision on md: the text both tiers ship, and its parse.
-func ship(md string) shipped {
-	md, tool := resolveMarks(md)
+// ship is md as its .md ships: the decision taken, in at most four parses.
+func ship(md string) string {
+	md, tool := resolveMarkSpans(md)
 	src := []byte(md)
 	first := parseMD(src)
 	out, at := escapeWalk(md, codeIn(first, src), tool, true)
@@ -114,22 +60,19 @@ func ship(md string) shipped {
 		tree = parseMD(out)
 	}
 	if onlyToolHTML(tree, out, at) {
-		return shipped{src: out, tree: tree}
+		return string(out)
 	}
 	for _, tokens := range []bool{true, false} {
 		out, at = escapeWalk(md, nil, tool, tokens)
-		if tree = parseMD(out); onlyToolHTML(tree, out, at) {
-			return shipped{src: out, tree: tree}
+		if onlyToolHTML(parseMD(out), out, at) {
+			return string(out)
 		}
 	}
 	panic("report: text with every `<` escaped but the proofs' anchors still parses to HTML the tool did not write")
 }
 
-// escapeRawHTML is md as it ships, for a text no tree is wanted of: the documents' head and the index.
-func escapeRawHTML(md string) string { return string(ship(md).src) }
-
-// codeIn is every stretch of src the tree reads as code, in order: a code block's lines and a code
-// span's content.
+// codeIn is every stretch of src the tree reads as code, in order: a fence's info string, a code
+// block's lines and a code span's content.
 func codeIn(tree ast.Node, src []byte) [][2]int {
 	var code [][2]int
 	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -138,6 +81,9 @@ func codeIn(tree ast.Node, src []byte) [][2]int {
 		}
 		switch x := n.(type) {
 		case *ast.FencedCodeBlock, *ast.CodeBlock:
+			if f, ok := x.(*ast.FencedCodeBlock); ok && f.Info != nil {
+				code = append(code, [2]int{f.Info.Segment.Start, f.Info.Segment.Stop})
+			}
 			for i := 0; i < x.Lines().Len(); i++ {
 				seg := x.Lines().At(i)
 				code = append(code, [2]int{seg.Start, seg.Stop})
@@ -393,22 +339,6 @@ func tokenRun(s string) bool { return s != "" && anchor.SkipRun(s, 0) == len(s) 
 // token it would spell.
 func proofLabel(label string) bool {
 	return anchor.Kind(label) == "proof" && tokenRun(anchor.Token(label))
-}
-
-// isProofAnchor reports whether p is a paragraph holding a proof's anchor and nothing else: in a
-// shipped tree (ship), the tool's.
-func isProofAnchor(p *ast.Paragraph, src []byte) bool {
-	if p.ChildCount() != 2 {
-		return false
-	}
-	open, okOpen := p.FirstChild().(*ast.RawHTML)
-	shut, okShut := p.LastChild().(*ast.RawHTML)
-	if !okOpen || !okShut {
-		return false
-	}
-	whole := rawText(open, src) + rawText(shut, src)
-	label := strings.TrimSuffix(strings.TrimPrefix(whole, `<a id="`), `"></a>`)
-	return proofLabel(label) && whole == proofAnchor(label)
 }
 
 // rawText is an inline HTML node's source.

@@ -326,7 +326,7 @@ var SubjectHeadingsNote = func() string {
 // A line opens a section when, outside a code fence, it starts with "## " once its surrounding
 // whitespace is trimmed. Two headings name the same section when they agree after their anchors
 // and the note references assembly weaves from them are taken out, case is folded, runs of
-// whitespace are single spaces and a trailing "(in full)" is dropped. A fence opens and closes on a line starting ``` or ~~~.
+// whitespace are single spaces and a trailing "(in full)" is dropped. What is in a fence is eachLine's reading.
 func headingKey(trimmed string) (string, bool) {
 	if !strings.HasPrefix(trimmed, "## ") {
 		return "", false
@@ -346,18 +346,37 @@ func normalizeHeading(h string) string {
 }
 
 // eachLine visits md's lines with each one's trimmed form and whether it is inside a code fence
-// or is one of the fence's own delimiters.
+// or is one of the fence's own delimiters. A fence closes as CommonMark closes one: on a line of
+// its own character, at least as long as the line that opened it, with nothing after the run — so
+// a fence of four backticks holds a line of three.
 func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
-	fence := false
+	var open string // the run that opened the fence the line is in, or "" outside one
 	for _, ln := range strings.Split(md, "\n") {
 		t := strings.TrimSpace(ln)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fence = !fence
-			visit(ln, t, true)
+		run := fenceRun(t)
+		switch {
+		case open == "" && run != "":
+			open = run
+		case open != "" && run != "" && run[0] == open[0] && len(run) >= len(open) && t == run:
+			open = ""
+		default:
+			visit(ln, t, open != "")
 			continue
 		}
-		visit(ln, t, fence)
+		visit(ln, t, true)
 	}
+}
+
+// fenceRun is the run of three or more backticks or tildes t opens with, or "".
+func fenceRun(t string) string {
+	if !strings.HasPrefix(t, "```") && !strings.HasPrefix(t, "~~~") {
+		return ""
+	}
+	n := 0
+	for n < len(t) && t[n] == t[0] {
+		n++
+	}
+	return t[:n]
 }
 
 // A claim is one place where text takes what is the tool's, or stands out of the order the text

@@ -143,3 +143,17 @@ func TestTheReportTemplateListsTheLayoutsSections(t *testing.T) {
 		}
 	}
 }
+
+// A FENCE OF FOUR HOLDS A LINE OF THREE, for every reader of the report's lines: read as a close,
+// the inner line made the code after it prose, and a "# " line in the code the report's title.
+func TestALongerFenceHoldsAShorterOne(t *testing.T) {
+	got := part("````\n```\n# Not a title\n## Not a section\n````\n# The title\n\nBody.\n")
+	if got.title != "# The title" {
+		t.Errorf("the title is %q, want the line after the fence", got.title)
+	}
+	var fenced []bool
+	eachLine("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout", func(_, _ string, f bool) { fenced = append(fenced, f) })
+	if want := []bool{true, true, true, true, true, false}; !slices.Equal(fenced, want) {
+		t.Errorf("fenced lines %v, want %v", fenced, want)
+	}
+}

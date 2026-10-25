@@ -13,11 +13,16 @@ package report
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into
 // a rendering. Nothing here can change what ships in a .md.
 //
-// HTML in the text: what stays HTML is decided once, on the whole document as it ships (ship,
-// rawhtml.go), and this renders the tree of that text: every HTML node in it is the tool's.
+// HTML IN THE TEXT IS TEXT. The renderer passes no HTML through: an inline tag, a comment, an HTML
+// block are each shown as typed, whoever wrote them. The one element the tool places in a document
+// that markdown cannot say — a proof's anchor — is a node only the tool can produce (proofanchor.go),
+// so a seat's copy of it is HTML in the text like any other. RenderSite then holds every body to an
+// allowlist of exactly what this file writes (bodyPolicy).
 
 import (
+	"bytes"
 	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -29,7 +34,6 @@ import (
 	"github.com/yuin/goldmark/extension"
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 
@@ -37,17 +41,29 @@ import (
 )
 
 var (
-	// mdReader is footnoteReader's dialect without the step that drops a definition nothing
-	// references: the References list keeps those (citations).
+	// mdReader is the dialect a markdown viewer reads a shipped .md in: footnoteReader's, without the
+	// step that drops a definition nothing references.
 	mdReader = goldmark.New(goldmark.WithExtensions(extension.GFM), goldmark.WithParserOptions(
 		parser.WithBlockParsers(util.Prioritized(extension.NewFootnoteBlockParser(), 999)),
 		parser.WithInlineParsers(util.Prioritized(extension.NewFootnoteParser(), 101)),
 	))
+	// pageReader is the dialect report.html reads a document in: mdReader's with no HTML grammar, so
+	// no node of the tree is HTML and a tag, a comment or an unclosed `<!--` is text in the paragraph
+	// it stands in — it cannot take the lines after it into an HTML block — and with the proof's
+	// anchor, the one node only the tool's mark produces. The References list keeps a definition
+	// nothing references (citations).
+	pageReader = goldmark.New(goldmark.WithParser(parser.NewParser(
+		parser.WithBlockParsers(append(withoutHTML(parser.DefaultBlockParsers()),
+			util.Prioritized(extension.NewFootnoteBlockParser(), 999), util.Prioritized(proofAnchorParser{}, 100))...),
+		parser.WithInlineParsers(append(withoutHTML(parser.DefaultInlineParsers()),
+			util.Prioritized(extension.NewFootnoteParser(), 101))...),
+		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+	)), goldmark.WithExtensions(extension.GFM))
 	// lineReader reads one line of inline markdown — a title — as a paragraph, whatever it opens
-	// with: a title that starts "1." is a title, not a list.
+	// with: a title that starts "1." is a title, not a list. It has pageReader's inline grammar.
 	lineReader = parser.NewParser(
 		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
-		parser.WithInlineParsers(append(parser.DefaultInlineParsers(),
+		parser.WithInlineParsers(append(withoutHTML(parser.DefaultInlineParsers()),
 			util.Prioritized(extension.NewLinkifyParser(), 999),
 			util.Prioritized(extension.NewStrikethroughParser(), 500))...),
 	)
@@ -57,6 +73,15 @@ var (
 	// mentioned, so the id shapes are read from the kinds table, never restated.
 	idToken = regexp.MustCompile(`\b(` + anchor.IDPattern("gap", "motion", "finding") + `|P\d+)\b`)
 )
+
+// withoutHTML is ps without CommonMark's HTML block and inline HTML parsers.
+func withoutHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
+	html := []reflect.Type{reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())}
+	return slices.DeleteFunc(ps, func(p util.PrioritizedValue) bool { return slices.Contains(html, reflect.TypeOf(p.Value)) })
+}
+
+// parsePage is report.html's one parse of a document (pageReader).
+var parsePage = func(src []byte) ast.Node { return pageReader.Parser().Parse(text.NewReader(src)) }
 
 // anchors is the map from a record id to the document and element that DEFINES it, filled as
 // each document renders and applied across the set afterwards.
@@ -72,8 +97,8 @@ type rendered struct {
 	mentions []mention
 }
 
-// mdToHTML renders one document. It records every anchor it defines into anchor, keyed by the
-// record id, valued as "<file>#<elementID>".
+// renderDoc renders one document from the tree Ship parsed it to. It records every anchor it
+// defines into anchor, keyed by the record id, valued as "<file>#<elementID>".
 //
 // seen counts the ids given out, ACROSS THE SET: the documents are tabs of one page, a fragment
 // resolves to the first element of that id on the page, and a hidden tab's element is no place
@@ -83,8 +108,24 @@ type rendered struct {
 //
 // files is the document set: a link to one of them is a tab switch, written as one here, because
 // in a single page there is no sibling file to open.
-func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
-	return renderShipped(ship(unmarked(md)), file, anchor, seen, files)
+func renderDoc(p parsed, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
+	r := &mdRender{src: p.src, file: file, anchor: anchor, seen: seen, files: files, link: true, anchored: map[string]bool{}}
+	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
+	// and left in the text as a marker that holds only its index (refMark); each definition is kept
+	// as a note. citations numbers and lists them from these once the document is rendered.
+	r.ref = func(label string) string {
+		r.refs = append(r.refs, label)
+		return refMark(len(r.refs) - 1)
+	}
+	var b strings.Builder
+	r.blocks(&b, p.tree)
+	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
+}
+
+// parsed is one document's text as report.html reads it, and the tree parsed from it.
+type parsed struct {
+	src  []byte
+	tree ast.Node
 }
 
 // unmarked is md with the marker bytes made the replacement character. The markers are control
@@ -94,21 +135,6 @@ func unmarked(md string) string {
 		return md
 	}
 	return strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(md)
-}
-
-// renderShipped is mdToHTML on a text already shipped, from the tree ship parsed it to.
-func renderShipped(sh shipped, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
-	r := &mdRender{src: sh.src, file: file, anchor: anchor, seen: seen, files: files, link: true, shipped: true}
-	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
-	// and left in the text as a marker that holds only its index (refMark); each definition is kept
-	// as a note. citations numbers and lists them from these once the document is rendered.
-	r.ref = func(label string) string {
-		r.refs = append(r.refs, label)
-		return refMark(len(r.refs) - 1)
-	}
-	var b strings.Builder
-	r.blocks(&b, sh.tree)
-	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
 }
 
 // mdRender is one document's rendering in progress.
@@ -123,9 +149,8 @@ type mdRender struct {
 	// looseRefs reads a footnote reference in the text (noteRefsIn), where no definition is in
 	// reach for the parser to resolve it to: one line of a title.
 	looseRefs bool
-	// shipped is whether src is a shipped text, every HTML node of which is the tool's (ship). A
-	// title is not: of its HTML, only an anchor token renders as HTML.
-	shipped bool
+	// anchored is the proofs whose anchor this document has placed: one element per label.
+	anchored map[string]bool
 
 	refs     []string
 	notes    []footnote
@@ -148,12 +173,6 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		r.define(text, id)
 		fmt.Fprintf(b, "<h%d id=\"%s\">%s</h%d>\n", x.Level, id, r.inlineIn(x, id), x.Level)
 	case *ast.Paragraph:
-		if r.shipped && isProofAnchor(x, r.src) {
-			// evidence.md's anchor per proof, which markdown reads as inline HTML because the line
-			// holds a closing tag after the opening one.
-			b.WriteString(strings.TrimRight(r.lines(x), "\n") + "\n")
-			return
-		}
 		b.WriteString("<p>" + r.inlineIn(x, "") + "</p>\n")
 	case *ast.TextBlock:
 		b.WriteString(r.inlineIn(x, "") + "\n")
@@ -169,10 +188,13 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 			}
 		}
 		b.WriteString("<pre><code" + cls + ">" + escape(strings.TrimSuffix(r.lines(x), "\n")) + "</code></pre>\n")
-	case *ast.HTMLBlock:
-		// A block of the tool's anchor tokens, the one HTML block a shipped text holds, renders as
-		// what it is, a comment.
-		b.WriteString(rawLines(x, r.src))
+	case *proofAnchorNode:
+		// A proof's anchor, which only evidenceDoc's mark produces: once per label, and nothing for
+		// a label that is no proof id.
+		if proofLabel(x.label) && !r.anchored[x.label] {
+			r.anchored[x.label] = true
+			b.WriteString(proofAnchor(x.label) + "\n")
+		}
 	case *ast.Blockquote:
 		if p, ok := x.FirstChild().(*ast.Paragraph); ok && x.ChildCount() == 1 {
 			b.WriteString("<blockquote>" + r.inlineIn(p, "") + "</blockquote>\n")
@@ -342,8 +364,6 @@ func (r *mdRender) plain(n ast.Node) string {
 			b.Write(x.Value)
 		case *ast.AutoLink:
 			b.Write(x.Label(r.src))
-		case *ast.RawHTML:
-			b.WriteString(rawText(x, r.src))
 		case *east.FootnoteLink:
 			// The reference reads as written, which is what a heading's id has always been made of.
 			b.WriteString(noteOpen + r.footnoteLabel(x) + "]")
@@ -436,14 +456,6 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			b.WriteString(`<a href="` + safeURL(x.Destination) + `">`)
 			r.inlines(b, x, false)
 			b.WriteString("</a>")
-		case *ast.RawHTML:
-			// An anchor token renders as the comment it is, and in a shipped text so does the tool's
-			// proof anchor; any other tag is shown as typed.
-			if r.shipped || tokenRun(rawText(x, r.src)) {
-				b.WriteString(rawText(x, r.src))
-			} else {
-				r.text(b, rawText(x, r.src), link)
-			}
 		case *east.FootnoteLink:
 			b.WriteString(r.ref(r.footnoteLabel(x)))
 		case *east.TaskCheckBox:
@@ -505,12 +517,14 @@ func textValue(v []byte) []byte {
 	return v
 }
 
-// safeURL is a destination for an href: escaped, and empty when it would run script.
+// safeURL is a destination for an href: percent-encoded as a URL and escaped as an attribute, and
+// empty unless it is relative or names a scheme bodyPolicy allows. A scheme is what precedes the first
+// ':' when no '/', '?' or '#' comes before it.
 func safeURL(u []byte) string {
-	if html.IsDangerousURL(u) {
+	if i := bytes.IndexAny(u, ":/?#"); i >= 0 && u[i] == ':' && !slices.Contains(linkSchemes, strings.ToLower(string(u[:i]))) {
 		return ""
 	}
-	return escape(string(u))
+	return escape(string(util.URLEscape(u, true)))
 }
 
 // supRef is a footnote reference outside a document's citation layer — a title, a note's scent —
@@ -536,7 +550,7 @@ type footnote struct {
 
 // refMarkByte brackets a reference marker and mentionMarkByte an id mention's (mention). Each is a
 // control character no composer writes; one in a document's text is shown as the replacement
-// character (mdToHTML), so no text can be read as a marker.
+// character (unmarked), so no text can be read as a marker.
 const (
 	refMarkByte     = '\x01'
 	mentionMarkByte = '\x02'
@@ -652,7 +666,7 @@ func citations(body string, refs []string, notes []footnote, seen map[string]int
 			// leave it alone. A label that links away reads as a reference to somewhere else.
 			// The number leads (the <ol> renders it); the slug trails as a muted tag, because
 			// it is the markdown tier's name for this entry and grep must find it here too.
-			` <span class="fnlabel" data-nolink>` + escape(l) + `</span>` +
+			` <span class="fnlabel" data-nolink="">` + escape(l) + `</span>` +
 			` <a class="fnback" href="#fnref-` + id(l) + `" aria-label="back to the citing text">&#8617;</a></li>`
 		items = append(items, li)
 	}

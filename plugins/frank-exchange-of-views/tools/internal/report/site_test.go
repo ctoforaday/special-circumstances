@@ -104,7 +104,7 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 		t.Errorf("a sibling link survived as a file path — it opens nothing in a single-file site:\n%s", html)
 	}
 	files := map[string]bool{FileEvidence: true}
-	got := mdToHTML("[P](evidence.md#P-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files).html
+	got := renderOne("[P](evidence.md#P-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files).html
 	if !strings.Contains(got, `<a class="idref" data-doc="evidence.md" href="#P-00000001"`) {
 		t.Errorf("a fragment link into a sibling document was not rewritten: %s", got)
 	}
@@ -117,10 +117,10 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 // read as a reference to somewhere else.
 func TestFootnoteLabelsAreNotIdLinked(t *testing.T) {
 	anchor := anchors{}
-	ev := mdToHTML("### P1 — the computation\n", FileEvidence, anchor, map[string]int{}, nil)
-	rep := mdToHTML("A claim[^P1].\n\n[^P1]: the computation.\n", FileReport, anchor, map[string]int{}, nil)
+	ev := renderOne("### P1 — the computation\n", FileEvidence, anchor, map[string]int{}, nil)
+	rep := renderOne("A claim[^P1].\n\n[^P1]: the computation.\n", FileReport, anchor, map[string]int{}, nil)
 	got := linkIDs(rep, anchor, FileReport)
-	if strings.Contains(got, `<span class="fnlabel" data-nolink><a`) {
+	if strings.Contains(got, `<span class="fnlabel" data-nolink=""><a`) {
 		t.Errorf("the footnote label was turned into a link to somewhere else:\n%s", got)
 	}
 	_ = ev
@@ -158,8 +158,8 @@ func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 	}
 	for doc, wants := range map[string][]string{
 		FileReport: {`<h2 id="fn-1">`, `id="fnref-1-2" href="#fn-1-2"`, `<li id="fn-1-2">The first source.`, `href="#fnref-1-2"`, `<li id="fn-P1">`, `<li id="fn-scope">`,
-			`<a class="cite" href="#fn-1-2" title="1 — The first source.">[1]</a>`, `<span class="fnlabel" data-nolink>1</span>`},
-		FileDebate: {`id="fnref-1-3" href="#fn-1-3"`, `<li id="fn-1-3">Another source.`, `href="#fnref-1-3"`, `id="fnref-P1-2" href="#fn-P1-2" title="P1 — The computation."`, `<li id="fn-P1-2">`, `<span class="fnlabel" data-nolink>P1</span>`},
+			`<a class="cite" href="#fn-1-2" title="1 — The first source.">[1]</a>`, `<span class="fnlabel" data-nolink="">1</span>`},
+		FileDebate: {`id="fnref-1-3" href="#fn-1-3"`, `<li id="fn-1-3">Another source.`, `href="#fnref-1-3"`, `id="fnref-P1-2" href="#fn-P1-2" title="P1 — The computation."`, `<li id="fn-P1-2">`, `<span class="fnlabel" data-nolink="">P1</span>`},
 		FileRun:    {`id="fnref-1-4" href="#fn-1-4"`, `<li id="fn-1-4">A third source.`},
 	} {
 		for _, a := range arts {
@@ -178,7 +178,7 @@ func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 // AN ID WITH A COUNT IS AN ID TOO: the second "A" is "a-2", and a heading that reads "A 2" is not
 // given that id again.
 func TestACountedIdIsNotGivenOutTwice(t *testing.T) {
-	html := mdToHTML("## A\n\n## A\n\n## A 2\n\n## A\n", FileReport, anchors{}, map[string]int{}, nil).html
+	html := renderOne("## A\n\n## A\n\n## A 2\n\n## A\n", FileReport, anchors{}, map[string]int{}, nil).html
 	for _, id := range []string{"a", "a-2", "a-2-2", "a-3"} {
 		if n := strings.Count(html, `<h2 id="`+id+`">`); n != 1 {
 			t.Errorf("%d heading(s) carry id %q, want one:\n%s", n, id, html)

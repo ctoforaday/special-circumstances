@@ -21,14 +21,17 @@ require (
 )
 
 require (
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/css v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jolestar/go-commons-pool/v2 v2.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/text v0.42.0 // indirect

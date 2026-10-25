@@ -107,41 +107,14 @@ func joinUnits(units []string) string {
 // and the elements the seats' units opened. Escaped, each shows as text, which these do not match.
 var seatMarkup = []string{"<script", "<iframe", "<div>", "<b>", `onmouseover="`}
 
-// report.html loads no image and links nothing to script: an image is shown as a link to it, and a
-// destination that would run script links nowhere. In the .md, an image or a link written as
-// markdown is markdown, and a viewer reads it as it always has; a raw <img> tag must not render.
-var (
-	pageMarkup = append([]string{"<img", `href="javascript`}, seatMarkup...)
-	mdMarkup   = append([]string{`<img src="https://evil.example/p.png">`}, seatMarkup...)
-)
-
-func TestReportHTMLCarriesNoSeatHTML(t *testing.T) {
-	for _, c := range seatHTMLCases {
-		t.Run(c.name, func(t *testing.T) {
-			page := RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: joinUnits(c.units)}}), record.Family{})
-			body := page[strings.Index(page, `<main`):]
-			body = body[:strings.Index(body, "</main>")]
-			for _, bad := range pageMarkup {
-				if strings.Contains(body, bad) {
-					t.Errorf("report.html carries %q from a seat's unit:\n%s", bad, body)
-				}
-			}
-			if !strings.Contains(body, c.after) {
-				t.Errorf("the section after the HTML is gone (want %q):\n%s", c.after, body)
-			}
-			if c.heading != "" && !strings.Contains(body, `id="`+c.heading+`"`) {
-				t.Errorf("the heading after the HTML is no longer a heading (want id %q):\n%s", c.heading, body)
-			}
-		})
-	}
-}
+// In the .md, an image or a link written as markdown is markdown, and a viewer reads it as it always
+// has; a raw <img> tag must not render.
+var mdMarkup = append([]string{`<img src="https://evil.example/p.png">`}, seatMarkup...)
 
 // commonmarkUnsafe renders markdown the way a viewer that renders raw HTML does: CommonMark with
 // GitHub's extensions and raw HTML passed through. It is goldmark, the parser ship reads code with,
 // so it checks the .md against THAT parser's reading of it and cannot find a place where another
-// viewer reads code differently. What makes the .md safe in other viewers is the escape itself:
-// every `<` outside code is escaped (TestEveryAngleOutsideCodeIsEscaped), so a viewer sees HTML only
-// where it reads as prose what goldmark reads as code.
+// viewer reads code differently.
 func commonmarkUnsafe(t *testing.T, md string) string {
 	t.Helper()
 	var b bytes.Buffer
@@ -151,9 +124,9 @@ func commonmarkUnsafe(t *testing.T, md string) string {
 	return b.String()
 }
 
-// THE MARKDOWN TIER TAKES THE SAME DECISION. A markdown viewer, an artifact pane, GitHub before
-// its sanitiser: each renders raw HTML from the .md, so the .md that ships carries no seat's HTML
-// either — every `<` outside code and the tool's own shapes is a character.
+// THE MARKDOWN TIER TAKES THE DECISION ON THE WHOLE DOCUMENT. A markdown viewer, an artifact pane,
+// GitHub before its sanitiser: each renders raw HTML from the .md, so the .md that ships carries no
+// seat's HTML — every `<` outside code and the tool's own shapes is a character.
 func TestShippedMarkdownCarriesNoSeatHTML(t *testing.T) {
 	for _, c := range seatHTMLCases {
 		t.Run(c.name, func(t *testing.T) {
@@ -172,25 +145,13 @@ func TestShippedMarkdownCarriesNoSeatHTML(t *testing.T) {
 	}
 }
 
-// THE TOOL'S OWN SHAPES STILL RENDER: evidence.md's anchor per proof, which six documents link by
+// THE .md KEEPS THE TOOL'S OWN SHAPES: evidence.md's anchor per proof, which six documents link by
 // label, and an anchor token, which renders as nothing. An HTML comment that is not exactly a token
-// is a seat's, and shows as typed.
-func TestTheToolsOwnHTMLStillRenders(t *testing.T) {
+// is a seat's, and is escaped.
+func TestTheMarkdownKeepsTheToolsOwnShapes(t *testing.T) {
 	md := "# R\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n\n" +
 		"<!--cite:C-00000001-->\n\nA claim<!--gap:G-0000abcd--> stands.\n\n<!-- a seat's comment -->\n"
-	page := RenderSite("# T", Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}), record.Family{})
-	for _, want := range []string{
-		`<a id="P-deadbeef"></a>`,
-		"<!--cite:C-00000001-->",
-		"A claim<!--gap:G-0000abcd--> stands.",
-		"&lt;!-- a seat&#39;s comment --&gt;",
-	} {
-		if !strings.Contains(page, want) {
-			t.Errorf("report.html lacks %q", want)
-		}
-	}
-	d := Doc{File: FileEvidence, Nav: "Evidence", Body: md}
-	got := Ship([]Doc{d}).file(0, "# T")
+	got := Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}).file(0, "# T")
 	for _, want := range []string{proofAnchor("P-deadbeef"), "<!--cite:C-00000001-->", "A claim<!--gap:G-0000abcd--> stands.", `\<!-- a seat's comment -->`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the shipped .md lacks %q:\n%s", want, got)
@@ -202,12 +163,12 @@ func TestTheToolsOwnHTMLStillRenders(t *testing.T) {
 // and an escape there would print. An autolink is markdown, not HTML, and stays a link.
 func TestEscapingLeavesCodeAndAutolinksAlone(t *testing.T) {
 	md := "Prose with `<b>code</b>` and <https://example.invalid/a> and <someone@example.invalid>.\n\n```\n<script>x()</script>\n```\n"
-	if got := escapeRawHTML(md); got != md {
+	if got := ship(md); got != md {
 		t.Errorf("code or an autolink was escaped:\n--- in\n%s\n--- out\n%s", md, got)
 	}
 	// And the escape is taken once: the shipped document escaped again is the same document.
-	once := escapeRawHTML(joinUnits(seatHTMLCases[1].units))
-	if twice := escapeRawHTML(once); twice != once {
+	once := ship(joinUnits(seatHTMLCases[1].units))
+	if twice := ship(once); twice != once {
 		t.Errorf("escaping an escaped document changed it:\n--- once\n%s\n--- twice\n%s", once, twice)
 	}
 }
@@ -262,13 +223,9 @@ func TestAssembledSetCarriesNoSeatHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := string(page)
-	body = body[strings.Index(body, `<main`):]
-	body = body[:strings.Index(body, "</main>")]
-	for _, bad := range pageMarkup {
-		if strings.Contains(body, bad) {
-			t.Errorf("report.html carries %q from the report's text:\n%s", bad, body)
-		}
+	body := mainOf(string(page))
+	if bad := outsideAllowlist(body); len(bad) > 0 {
+		t.Errorf("report.html carries markup the renderer does not write, from the report's text: %q\n%s", bad, body)
 	}
 	if !strings.Contains(body, `id="open-questions"`) {
 		t.Errorf("a section after the unclosed comment is no longer a section:\n%s", body)
@@ -285,20 +242,24 @@ func TestAssembledSetCarriesNoSeatHTML(t *testing.T) {
 	}
 }
 
-// countParses counts the parses ship makes while the test runs, and of them the ones of a text that
+// countParses counts the parses Ship makes, of either tier, while the test runs, and of them the ones of a text that
 // holds marker.
 func countParses(t *testing.T, marker string) (all, marked *int) {
 	t.Helper()
 	all, marked = new(int), new(int)
-	was := parseMD
-	parseMD = func(src []byte) ast.Node {
-		*all++
-		if marker != "" && bytes.Contains(src, []byte(marker)) {
-			*marked++
+	count := func(parse *func([]byte) ast.Node) {
+		was := *parse
+		*parse = func(src []byte) ast.Node {
+			*all++
+			if marker != "" && bytes.Contains(src, []byte(marker)) {
+				*marked++
+			}
+			return was(src)
 		}
-		return was(src)
+		t.Cleanup(func() { *parse = was })
 	}
-	t.Cleanup(func() { parseMD = was })
+	count(&parseMD)
+	count(&parsePage)
 	return all, marked
 }
 
@@ -309,7 +270,7 @@ func countParses(t *testing.T, marker string) (all, marked *int) {
 func TestEscapingIsLinear(t *testing.T) {
 	all, _ := countParses(t, "")
 	md := strings.Repeat("<script>\n", 5000)
-	got := string(ship(md).src)
+	got := ship(md)
 	if *all > 4 {
 		t.Errorf("shipping 5,000 lines that each open a block parsed the text %d times, want at most 4", *all)
 	}
@@ -318,18 +279,19 @@ func TestEscapingIsLinear(t *testing.T) {
 	}
 }
 
-// ONE DECISION PER DOCUMENT, READ BY BOTH TIERS. Ship parses each document's text at most twice on
-// the common path, and RenderSite and Write take its result: neither parses a body again.
+// EACH TIER READS EACH DOCUMENT ONCE, IN SHIP. Ship parses each document's text once for report.html
+// and at most twice for the .md on the common path — a marker byte in it costs no second shipping —
+// and RenderSite and Write take its result: neither parses a body again.
 func TestEachDocumentIsShippedOnce(t *testing.T) {
 	const body = "BODYTEXT"
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Body: "## A\n\n" + body + " one <b>x</b>.\n"},
-		{File: FileDebate, Nav: "Debate", Body: "## B\n\n" + body + " two.\n"},
+		{File: FileDebate, Nav: "Debate", Body: "## B\n\n" + body + " two \x01.\n"},
 	}
 	all, marked := countParses(t, body)
 	set := Ship(docs)
-	if *marked > 2*len(docs) {
-		t.Errorf("Ship parsed the bodies %d times, want at most %d", *marked, 2*len(docs))
+	if *marked > 3*len(docs) {
+		t.Errorf("Ship parsed the bodies %d times, want at most %d", *marked, 3*len(docs))
 	}
 	*all, *marked = 0, 0
 	RenderSite("# T", set, record.Family{})
@@ -405,43 +367,6 @@ func TestASeatsCopyOfAProofAnchorIsText(t *testing.T) {
 	}
 }
 
-// THE TOOL'S TOKENS ARE NEVER SHOWN AS TYPED, wherever they stand on a line. A token opening a line
-// opens an HTML block, which takes the rest of the line raw — where a backslash escapes nothing — so
-// the text after it moves to a line of its own, in the containers it stood in.
-func TestAnchorTokensAreNeverShownAsTyped(t *testing.T) {
-	for _, md := range []string{
-		"## A\n\n<!--cite:C-00000001--> The next sentence <b>x</b>.\n",
-		"## A\n\nA paragraph.\n<!--cite:C-00000001--> The next sentence <b>x</b>.\n",
-		"## A\n\n<!--cite:C-00000001--> <!--gap:G-0000abcd-->\n\nThe next sentence <b>x</b>.\n",
-		"## A\n\n- <!--cite:C-00000001--> The next sentence <b>x</b>.\n",
-		"## A\n\n> <!--cite:C-00000001--> The next sentence <b>x</b>.\n",
-		"## A\n\n[^1]: <!--cite:C-00000001--> The next sentence <b>x</b>.\n\nA claim[^1].\n",
-	} {
-		t.Run(md, func(t *testing.T) {
-			set := Ship([]Doc{{File: FileReport, Nav: "Report", Body: md}})
-			page := RenderSite("# T", set, record.Family{})
-			body := page[strings.Index(page, `<main`):]
-			body = body[:strings.Index(body, "</main>")]
-			shipped := set.file(0, "# T")
-			viewed := commonmarkUnsafe(t, shipped)
-			for tier, got := range map[string]string{"report.html": body, "the .md in a viewer": viewed} {
-				if strings.Contains(got, "&lt;!--") {
-					t.Errorf("%s shows a token as typed:\n%s", tier, got)
-				}
-				if strings.Contains(got, "<b>") {
-					t.Errorf("%s renders the text after a token as HTML:\n%s", tier, got)
-				}
-				if !strings.Contains(got, "The next sentence") {
-					t.Errorf("%s lost the text after the token:\n%s", tier, got)
-				}
-			}
-			if strings.Contains(shipped, `\<!--`) {
-				t.Errorf("the .md escapes a token:\n%s", shipped)
-			}
-		})
-	}
-}
-
 // EVERY `<` OUTSIDE CODE IS ESCAPED, whether or not a parser reads HTML there, so the .md holds no
 // HTML for any viewer to find — and where escaping turns code into prose (a comment escaped into a
 // paragraph takes the next line, or a backtick, with it), the parse of the escaped text says so and
@@ -455,7 +380,7 @@ func TestEveryAngleOutsideCodeIsEscaped(t *testing.T) {
 		{"<!--\nfoo\n-->\n    <b>x</b>\n", `\<b>x`},
 	} {
 		t.Run(c.md, func(t *testing.T) {
-			got := string(ship(c.md).src)
+			got := ship(c.md)
 			if !strings.Contains(got, c.want) {
 				t.Errorf("shipped:\n%s\nwant it to hold %q", got, c.want)
 			}
@@ -481,7 +406,14 @@ func TestAProofsCodeShipsByteForByte(t *testing.T) {
 	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "s.py",
 		Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Recorded: recorded, Observed: "a ` b"}}}
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
-	md := Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}}).file(0, "# T")
+	set := Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}})
+	blocks := codeBlocks(t, mainOf(RenderSite("# T", set, record.Family{})))
+	for _, want := range []string{script, output} {
+		if !slices.Contains(blocks, want) {
+			t.Errorf("report.html does not show %q as one code block: %q", want, blocks)
+		}
+	}
+	md := set.file(0, "# T")
 	viewed := commonmarkUnsafe(t, md)
 	for _, want := range []string{script, output} {
 		if !strings.Contains(md, want) {
