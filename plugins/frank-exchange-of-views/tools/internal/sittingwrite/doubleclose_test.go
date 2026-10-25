@@ -2,6 +2,7 @@ package sittingwrite
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -56,7 +57,8 @@ func TestAStopThatDisagreesWithTheCloseIsRefused(t *testing.T) {
 		}
 	}
 	err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "AG", AgentType: lens, TranscriptPath: second}, nil)
-	if err == nil || !strings.Contains(err.Error(), first) || !strings.Contains(err.Error(), second) {
+	// Quoted as the refusal quotes them: a Windows path's backslashes are escaped there.
+	if err == nil || !strings.Contains(err.Error(), strconv.Quote(first)) || !strings.Contains(err.Error(), strconv.Quote(second)) {
 		t.Fatalf("a disagreeing second stop = %v, want a refusal naming %s and %s", err, first, second)
 	}
 	if _, c := countByType(t, run); c != 1 {
