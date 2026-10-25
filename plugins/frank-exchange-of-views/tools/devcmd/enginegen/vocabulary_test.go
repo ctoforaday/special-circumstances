@@ -42,7 +42,8 @@ func sampleVocabulary() vocabulary {
 // The region states each set as the record holds it, a party's two shapes, and the plan as its
 // declaration reads: every key, what is required, each field's type, floor, pattern, set and
 // sentence, and the two type tables — where an optional field is in the schema and in neither
-// table. Every object is closed, and a list declared empty only with a boolean is held to it.
+// table. Every object is closed, and a list declared empty only with a boolean is held to it. A
+// lens envelope declaring no field is the closed empty object.
 func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 	got, err := renderVocabulary(sampleVocabulary())
 	if err != nil {
@@ -96,6 +97,13 @@ const PLAN_ITEM_TYPES = {
   parties: { seat_id: 'string', gap_ids: 'array' },
   debts: { kind: 'string', why: 'string' },
 }
+const LENS_ENVELOPE = {
+  type: 'object',
+  required: [],
+  additionalProperties: false,
+  properties: {
+  },
+}
 `
 	if string(got) != want {
 		t.Errorf("the region renders as:\n%s\nwant:\n%s", got, want)
@@ -115,14 +123,17 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 		{"a plan with no parties", func(v *vocabulary) { v.plan = v.plan[:1] }, "no list of parties"},
 		{"a party with no occasions", func(v *vocabulary) { v.plan[1].Items = v.plan[1].Items[:2] }, "no field Occasions"},
 		{"a party whose occasions are required", func(v *vocabulary) { v.plan[1].Items[2].Optional = false }, "not an optional list of words"},
-		{"a field no schema can carry", func(v *vocabulary) { v.plan[3].Defect = "its Go type map[string]int has no JSON type here" }, "ceiling cannot be relayed under a schema"},
-		{"a nested field no schema can carry", func(v *vocabulary) { v.plan[2].Items[0].Defect = "no set" }, "kind cannot be relayed under a schema"},
+		{"a field no schema can carry", func(v *vocabulary) { v.plan[3].Defect = "its Go type map[string]int has no JSON type here" }, "ceiling cannot be carried under a schema"},
+		{"a nested field no schema can carry", func(v *vocabulary) { v.plan[2].Items[0].Defect = "no set" }, "kind cannot be carried under a schema"},
 		{"a key that is no word", func(v *vocabulary) { v.plan[0].JSON = "report-head" }, `"report-head" is not a word`},
 		{"a word a script string cannot carry", func(v *vocabulary) { v.grades = []string{"lo'w"} }, "cannot carry"},
 		{"a sentence holding both quotes", func(v *vocabulary) { v.plan[0].Desc = `the report's "head"` }, "cannot carry"},
 		{"an emptyonlywith naming no boolean of the plan", func(v *vocabulary) { v.plan[2].EmptyOnlyWith = "head" }, `debts is empty only with "head"`},
 		{"an emptyonlywith on a field that is no list", func(v *vocabulary) { v.plan[2].EmptyOnlyWith = ""; v.plan[0].EmptyOnlyWith = "ceiling" }, `head is empty only with "ceiling"`},
 		{"an emptyonlywith on a nested field", func(v *vocabulary) { v.plan[2].Items[2].EmptyOnlyWith = "ceiling" }, "debts.note states an emptyonlywith rule"},
+		{"a lens envelope field no schema can carry", func(v *vocabulary) {
+			v.lens = []record.PlanField{{Name: "Seen", JSON: "seen", Defect: "its Go type chan int has no JSON type here"}}
+		}, "record.LensEnvelope's seen cannot be carried under a schema"},
 		{"two emptyonlywith rules", func(v *vocabulary) { v.plan[4].EmptyOnlyWith = "ceiling"; v.plan[4].Optional = false }, "2 emptyonlywith rules"},
 	}
 	for _, c := range cases {
