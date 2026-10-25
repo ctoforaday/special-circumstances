@@ -15,8 +15,8 @@ import (
 // TMPDIR, which is a tmpfs on the paths that matter. See testbuild.Main.
 // It also opens records, and TestMain is a package's ONE hook — so the orphaned-handle check
 // rides here rather than being dropped for the build sandbox (#666).
-// A local sweep queues on the box-wide sweep lock first (sweeplock_test.go), before testbuild
-// sandboxes HOME and before m.Run starts the -timeout alarm.
+// A local sweep takes the machine-wide sweep lock first (sweeplock_test.go), before testbuild
+// sandboxes HOME, and refuses — exit 1, naming the holder — while another sweep holds it.
 func TestMain(m *testing.M) {
 	lock, err := holdSweepLockIfLocal()
 	if err != nil {
