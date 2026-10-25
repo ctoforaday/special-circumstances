@@ -44,15 +44,15 @@ import (
 type Inference int
 
 const (
-	NoMarker    Inference = iota // no marker between here and the root: not in a run
-	Resolved                     // exactly one live run
-	NoRunOpen                    // a marker, naming no live run (StateOf)
-	Ambiguous                    // more than one live run: no seat's run can be told — a fault
-	Unreadable                   // a marker that cannot be read or parsed — a fault
-	Unlocatable                  // no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory — a fault
-	OtherSession                 // live runs, none led by the caller's session: not this caller's run
-	Sessionless                  // live runs, and a caller with no session id: nothing can be attributed — a membership fault
-	SeatOfAnotherSession         // live runs, none led by the caller's session, and the caller is one of this plugin's agents — a membership fault
+	NoMarker             Inference = iota // no marker between here and the root: not in a run
+	Resolved                              // exactly one live run
+	NoRunOpen                             // a marker, naming no live run (StateOf)
+	Ambiguous                             // more than one live run: no seat's run can be told — a fault
+	Unreadable                            // a marker that cannot be read or parsed — a fault
+	Unlocatable                           // no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory — a fault
+	OtherSession                          // live runs, none led by the caller's session: not this caller's run
+	Sessionless                           // live runs, and a caller with no session id: nothing can be attributed — a membership fault
+	SeatOfAnotherSession                  // live runs, none led by the caller's session, and the caller is one of this plugin's agents — a membership fault
 )
 
 // SeatTypePrefix is the agent configuration prefix of every seat this plugin dispatches, as the
