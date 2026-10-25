@@ -170,3 +170,59 @@ func TestBySpellingIsExactAndCaseSensitive(t *testing.T) {
 		t.Error("BySpelling accepted a different case — the gates downstream compare literally")
 	}
 }
+
+// EVERY ENUM'S EVERY VALUE ROUND-TRIPS through its spelling, against the definition the lookup table
+// must agree with: the first non-zero value in declaration order whose spelling is the word. The
+// zero value is never typed, so its spelling resolves to nothing (or to a later value that shares
+// it), and a word no value spells resolves to nothing.
+func TestEverySpellingRoundTripsThroughBySpelling(t *testing.T) {
+	var enums []protoreflect.EnumDescriptor
+	var walk func(ms protoreflect.MessageDescriptors)
+	walk = func(ms protoreflect.MessageDescriptors) {
+		for i := 0; i < ms.Len(); i++ {
+			m := ms.Get(i)
+			for j := 0; j < m.Enums().Len(); j++ {
+				enums = append(enums, m.Enums().Get(j))
+			}
+			walk(m.Messages())
+		}
+	}
+	for i := 0; i < File_record_proto.Enums().Len(); i++ {
+		enums = append(enums, File_record_proto.Enums().Get(i))
+	}
+	walk(File_record_proto.Messages())
+	if len(enums) < 10 {
+		t.Fatalf("walked %d enums from record.proto — the walk found too few to be the whole file", len(enums))
+	}
+	reference := func(e protoreflect.EnumDescriptor, word string) protoreflect.EnumValueDescriptor {
+		for i := 0; i < e.Values().Len(); i++ {
+			v := e.Values().Get(i)
+			if v.Number() != 0 && Spelling(v) == word {
+				return v
+			}
+		}
+		return nil
+	}
+	values := 0
+	for _, e := range enums {
+		for i := 0; i < e.Values().Len(); i++ {
+			v := e.Values().Get(i)
+			word := Spelling(v)
+			got, ok := BySpelling(e, word)
+			want := reference(e, word)
+			if ok != (want != nil) || (ok && got != want) {
+				t.Errorf("BySpelling(%s, %q) = %v,%v — want %v", e.FullName(), word, got, ok, want)
+			}
+			if v.Number() != 0 {
+				values++
+				if !ok || got.Number() != v.Number() {
+					t.Errorf("%s does not round-trip through its spelling %q: got %v,%v", v.FullName(), word, got, ok)
+				}
+			}
+		}
+		if _, ok := BySpelling(e, "no value spells this"); ok {
+			t.Errorf("BySpelling(%s) resolved a word no value spells", e.FullName())
+		}
+	}
+	t.Logf("%d enums, %d non-zero values round-tripped", len(enums), values)
+}
