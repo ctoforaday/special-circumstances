@@ -1578,9 +1578,12 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.chairRegisters++
 	}
 	r.mu.Unlock()
-	if r.coin(25) {
+	switch {
+	case r.coin(25):
 		r.registerTwice(seatID, occ)
-	} else {
+	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
+		r.lookThenRegister(seatID)
+	default:
 		r.admit(registerArgs(seatID, occ)...)
 	}
 	close(done)
@@ -1616,6 +1619,26 @@ func (r *runner) registerTwice(seatID, occ string) {
 			r.noteActErr(fmt.Sprintf("%s registered under one agent id holds %d registers; a repeat writes none", seatID, n))
 		}
 	}
+}
+
+// lookedFirst counts the lens sittings lookThenRegister drove to the end, so the sweep can say
+// when the drive stopped reaching it.
+var lookedFirst atomic.Int64
+
+// lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it screens a
+// candidate with `near-match`, which records nothing and so registers no one, and then runs
+// `register` itself, which is admitted. A repeat is still refused. universe-m33's voice lens had
+// its own register refused because the look had registered it.
+func (r *runner) lookThenRegister(seatID string) {
+	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
+	if _, ok := r.admitAs(agent, "near-match", "--seat-id", seatID, "--problem", "fuzz candidate screened before registering"); !ok {
+		return
+	}
+	if _, ok := r.admitAs(agent, registerArgs(seatID, "")...); !ok {
+		return
+	}
+	r.refuseAs(agent, feov.Conflict, registerArgs(seatID, "")...)
+	lookedFirst.Add(1)
 }
 
 // register is the ONCE-PER-RUN register a helper makes for a seat it needs on the record before
@@ -6919,6 +6942,9 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
+		}
+		if lookedFirst.Load() == 0 {
+			t.Error("no lens sitting opened with a look before its register: the drive that holds `near-match` to registering no one never completed")
 		}
 		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
 		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.
