@@ -154,7 +154,7 @@ func reopenedFact(b Blocker) string {
 }
 
 // reopenedOwed is the other sentence every wording of a reopened blocker states: whose the check
-// is. Its owner owes it (reopenedOwnerOf) — dispatch readies that seat and its work list blocks on
+// is. Its owner owes it (anchorOwnerOf) — dispatch readies that seat and its work list blocks on
 // the anchor — and it is not the only seat whose check clears: the fold reads no seat.
 func reopenedOwed(b Blocker) string {
 	return ownerOr(b, reopenedOwner) + " owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
@@ -272,7 +272,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the anchor's
-	// (reopenedOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
+	// (anchorOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
 	// proof's the lens that owns proofs. The owner owes the check, so it is not retired, and the
 	// edit that reopened the anchor moved the head past its last sitting: dispatch readies it.
 	//
@@ -577,7 +577,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	// anchor either way.
 	cast := castOfEvents(evs)
 	for _, r := range reopenedEvidence(evs, win) {
-		if owner := reopenedOwnerOf(cast, r); owner != "" {
+		if owner := anchorOwnerOf(cast, r.proof); owner != "" {
 			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: owner, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 		}
 	}

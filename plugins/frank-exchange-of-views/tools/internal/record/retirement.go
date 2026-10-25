@@ -29,7 +29,8 @@ import (
 // answered by blue, and nobody was readied to close it; a computation lens that only judges proofs
 // retired, and every proof recorded after shipped "not judged". What a lens owes is each item its
 // work list names as its own to clear that is still undone (lensOwesOf) — on a gap it minted, what is
-// new since it last sat; a blocker whose owner it is; a proof it owns that nobody has judged — and
+// new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
+// a proof it owns that nobody has judged — and
 // while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
 // sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits and
 // the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
@@ -140,7 +141,8 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
 //   - A blocker on the stream whose owner it is (events is eventBlockersOf): a contradiction it read,
 //     an anchor reopened since its check, a proof it judged unsound that no gap of its carries yet.
-//   - For the lens that owns proofs (proofOwnerOf), each proof nobody has judged.
+//   - For the lens that owns the anchor (anchorOwnerOf), each citation nobody has verified and each
+//     proof nobody has judged.
 //
 // The work list keeps offering an item after the lens has sat on it; only the debt ends there.
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
@@ -170,7 +172,13 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 			out[b.Owner] = append(out[b.Owner], owedBlocker(b))
 		}
 	}
-	if owner := proofOwnerOf(castOfEvents(evs)); owner != "" {
+	cast := castOfEvents(evs)
+	if owner := anchorOwnerOf(cast, false); owner != "" {
+		for _, key := range citedClaimsWithoutVerify(evs) {
+			out[owner] = append(out[owner], "unverified citation "+key)
+		}
+	}
+	if owner := anchorOwnerOf(cast, true); owner != "" {
 		for _, o := range proofChecksOwed(evs, win) {
 			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
 		}
