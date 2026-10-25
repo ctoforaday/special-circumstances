@@ -2273,6 +2273,10 @@ func (r *runner) judgeUnsound(seatID string) {
 	if !r.forceUnsoundProof || seatID != r.proofOwner || r.unsoundFed() {
 		return
 	}
+	forced := r.proofsOfScript(unsoundProofScript)
+	if len(forced) == 0 {
+		return
+	}
 	if r.planReadies("blue-respond") {
 		r.reachedUnsoundStage("proved, and every owner sitting since was in a plan that readies blue-respond")
 		return
@@ -2281,7 +2285,7 @@ func (r *runner) judgeUnsound(seatID string) {
 	if err != nil {
 		return
 	}
-	for _, a := range r.proofsOfScript(unsoundProofScript) {
+	for _, a := range forced {
 		if !slices.Contains(offered, a) || !r.firstThisSitting(seatID, a) {
 			continue
 		}
