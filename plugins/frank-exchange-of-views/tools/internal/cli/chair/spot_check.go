@@ -38,7 +38,7 @@ func newSpotCheck() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return spotCheckResult{Sampled: ids.Value()}, nil
+		return spotCheckResult{Areas: areas.Value(), Sampled: ids.Value()}, nil
 	})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
@@ -55,12 +55,22 @@ func newSpotCheck() *cobra.Command {
 }
 
 type spotCheckResult struct {
+	Areas   []string `json:"areas"`
 	Sampled []string `json:"sampled"`
 }
 
+// Human states the act the chair recorded and nothing about the board. A spot-check names what the
+// chair chose to name, so a call naming no closure says the chair named none — the archive may hold
+// closures it did not re-read, and the board, not this line, says how many.
 func (r spotCheckResult) Human() string {
-	if len(r.Sampled) == 0 {
-		return "spot-check: nothing to sample, recorded with its reason"
+	var named []string
+	if len(r.Areas) > 0 {
+		named = append(named, "read stale area(s) "+strings.Join(r.Areas, ", "))
 	}
-	return "spot-checked " + strings.Join(r.Sampled, ", ")
+	if len(r.Sampled) > 0 {
+		named = append(named, "re-verified "+strings.Join(r.Sampled, ", "))
+	} else {
+		named = append(named, "named no archived closure")
+	}
+	return "spot-check recorded with its reason: " + strings.Join(named, "; ")
 }
