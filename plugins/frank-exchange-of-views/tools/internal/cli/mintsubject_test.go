@@ -17,7 +17,7 @@ func TestAMintWithNoSubjectIsRefused(t *testing.T) {
 	registerLensOnce(t, runDir)
 	mint := func(key string, subject ...string) error {
 		t.Helper()
-		_, err := runMint(t, runDir, append([]string{"--run", runDir, "--seat-id", lensSeat, "--key", key,
+		_, err := runMint(t, append([]string{"--run", runDir, "--seat-id", lensSeat, "--key", key,
 			"--class", "spec_underspecification", "--problem", "the defect " + key, "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium"}, subject...)...)

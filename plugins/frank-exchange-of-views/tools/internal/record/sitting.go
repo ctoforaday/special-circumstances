@@ -330,7 +330,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		gapItem := map[string]Blocker{}
 		for _, b := range blockers {
-			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap {
+			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap || b.Kind == BlockerRemandOwed {
 				gapItem[b.Subject] = b
 			}
 		}
@@ -347,7 +347,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				notMaterialBecause(g.ClassMaterial, grade) + ") — it does not hold PASS; your PASS lists it by class with why it changes no reader decision"})
 		}
 		for _, b := range blockers {
-			if b.Kind != BlockerStrandedGap && b.Kind != BlockerMaterialGap {
+			if b.Kind != BlockerStrandedGap && b.Kind != BlockerMaterialGap && b.Kind != BlockerRemandOwed {
 				hold(b)
 			}
 		}

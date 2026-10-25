@@ -378,10 +378,6 @@ func recordedPrescription(t *testing.T, body, runDir, quote, fix string) string 
 	gap := record.NewID("gap")
 	m.GapId, m.MintKey, m.FixNew, m.FixBasis = proto.String(gap), proto.String("RECORDED"), proto.String(fix), proto.String("verified")
 	m.ClassMaterial = nil // stamped by the write path
-	m.DistinctFrom = nil
-	for _, g := range boardOf(t, runDir).Open {
-		m.DistinctFrom = append(m.DistinctFrom, g.ID)
-	}
 	if _, err := record.AppendPlaced(record.Identity{Run: runtest.Open(t, runDir), SeatID: lensSeat}, m, gap, quote); err != nil {
 		t.Fatalf("recording the prescription: %v", err)
 	}

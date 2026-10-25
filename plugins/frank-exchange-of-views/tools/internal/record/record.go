@@ -466,13 +466,8 @@ var defines = map[recordpb.EventType]bool{
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
 // stop at the first.
-//
-// A credit names its gap too, and one gap may be credited with several raising findings — each its
-// own act. A retried credit lands as a second act, which the write path refuses: the contradiction
-// its finding raised is answered by then.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE:  true,
-	recordpb.EventType_EVENT_TYPE_CREDIT: true,
+	recordpb.EventType_EVENT_TYPE_STALE: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -956,9 +951,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
-		// exempts, with its reason, so this arm reads the same live and on replay: the screen's
-		// match and the report-voice refusal are off; the roster, the mint budget and the
-		// --distinct-from reference stay on.
+		// exempts, with its reason, so this arm reads the same live and on replay: the
+		// report-voice refusal is off; the roster and the mint budget stay on.
 		if err := requireUnclassifiedReason(b); err != nil {
 			return err
 		}
@@ -966,9 +960,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
-			return err
-		}
-		if err := requireNotAnOpenGap(q, seatID, b); err != nil {
 			return err
 		}
 		// A CONTRADICTION IS RAISED BY A FINDING, and the gap is minted from that finding — which
@@ -1059,10 +1050,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if err := requireNotARepeatUnsound(q, seatID, b); err != nil {
-			return err
-		}
-	case *recordpb.Credit:
-		if err := requireCreditAnswers(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.Finding:
@@ -1385,6 +1372,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
 					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+				}
+				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
+				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
+				// not reopen a gap. Off under Migrating: an archived remand is what the bench DID.
+				if !Migrating {
+					if err := requireRemandOfOpenGap(q, b.GetMotionId()); err != nil {
+						return err
+					}
 				}
 			} else if d.Docket.Direction != nil {
 				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))

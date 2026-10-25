@@ -130,7 +130,7 @@ exit 2
 feov-record: outcome: --as takes one of VERIFIED|CEILING|HALTED|UNVERIFIED, not "ceiling": it differs from "CEILING" only in case. The report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
     VERIFIED    red passed the board and the bench agrees the question was answered
-    CEILING     every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
+    CEILING     the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — and the derivation's reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run
     HALTED      the bench ended the run on a safety, ethics, consent or integrity boundary
     UNVERIFIED  the run ended without the question being answered, and no ceiling or halt explains it
 
@@ -290,13 +290,11 @@ Available Commands:
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
   closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
   corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
-  credit      answer a contradiction your finding raised with the open gap that already holds its defect
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
@@ -544,7 +542,7 @@ feov-record: position: red-chair has already recorded a position this sitting, a
 
 ── repeat target: the chair's spot-check
 exit 0
-spot-check: nothing to sample, recorded with its reason
+spot-check recorded with its reason: named no archived closure
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 6 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:

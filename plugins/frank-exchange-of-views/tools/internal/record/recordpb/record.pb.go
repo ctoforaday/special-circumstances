@@ -89,7 +89,6 @@ const (
 	EventType_EVENT_TYPE_SITTING_LIMIT  EventType = 38
 	EventType_EVENT_TYPE_PLAN           EventType = 40
 	EventType_EVENT_TYPE_STALE          EventType = 41
-	EventType_EVENT_TYPE_CREDIT         EventType = 42
 	EventType_EVENT_TYPE_REPORT_READ    EventType = 43
 )
 
@@ -131,7 +130,6 @@ var (
 		38: "EVENT_TYPE_SITTING_LIMIT",
 		40: "EVENT_TYPE_PLAN",
 		41: "EVENT_TYPE_STALE",
-		42: "EVENT_TYPE_CREDIT",
 		43: "EVENT_TYPE_REPORT_READ",
 	}
 	EventType_value = map[string]int32{
@@ -170,7 +168,6 @@ var (
 		"EVENT_TYPE_SITTING_LIMIT":  38,
 		"EVENT_TYPE_PLAN":           40,
 		"EVENT_TYPE_STALE":          41,
-		"EVENT_TYPE_CREDIT":         42,
 		"EVENT_TYPE_REPORT_READ":    43,
 	}
 )
@@ -2308,7 +2305,6 @@ type Event struct {
 	//	*Event_SittingLimit
 	//	*Event_Plan
 	//	*Event_Stale
-	//	*Event_Credit
 	//	*Event_ReportRead
 	Body          isEvent_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
@@ -2686,15 +2682,6 @@ func (x *Event) GetStale() *Stale {
 	return nil
 }
 
-func (x *Event) GetCredit() *Credit {
-	if x != nil {
-		if x, ok := x.Body.(*Event_Credit); ok {
-			return x.Credit
-		}
-	}
-	return nil
-}
-
 func (x *Event) GetReportRead() *ReportRead {
 	if x != nil {
 		if x, ok := x.Body.(*Event_ReportRead); ok {
@@ -2844,10 +2831,6 @@ type Event_Stale struct {
 	Stale *Stale `protobuf:"bytes,60,opt,name=stale,proto3,oneof"`
 }
 
-type Event_Credit struct {
-	Credit *Credit `protobuf:"bytes,61,opt,name=credit,proto3,oneof"`
-}
-
 type Event_ReportRead struct {
 	ReportRead *ReportRead `protobuf:"bytes,62,opt,name=report_read,json=reportRead,proto3,oneof"`
 }
@@ -2919,8 +2902,6 @@ func (*Event_SittingLimit) isEvent_Body() {}
 func (*Event_Plan) isEvent_Body() {}
 
 func (*Event_Stale) isEvent_Body() {}
-
-func (*Event_Credit) isEvent_Body() {}
 
 func (*Event_ReportRead) isEvent_Body() {}
 
@@ -3405,11 +3386,6 @@ type Mint struct {
 	// key would read as "lineage unknown" where the truth is "lineage none".
 	Supersedes []string `protobuf:"bytes,20,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
 	FoundBy    []string `protobuf:"bytes,21,rep,name=found_by,json=foundBy,proto3" json:"found_by,omitempty"`
-	// distinct_from names each open gap the mint's duplicate screen matched and the minting seat
-	// judged a DIFFERENT defect — its claim, on the record, that it read the gap and this is not it.
-	// Two lenses sitting in parallel minted one semiprime-ordinal defect ten seconds apart on
-	// universe-m13 (G7, G8), and the second saw the first 22 seconds later and moved on.
-	DistinctFrom []string `protobuf:"bytes,26,rep,name=distinct_from,json=distinctFrom,proto3" json:"distinct_from,omitempty"`
 	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
 	//
 	// `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
@@ -3585,13 +3561,6 @@ func (x *Mint) GetSupersedes() []string {
 func (x *Mint) GetFoundBy() []string {
 	if x != nil {
 		return x.FoundBy
-	}
-	return nil
-}
-
-func (x *Mint) GetDistinctFrom() []string {
-	if x != nil {
-		return x.DistinctFrom
 	}
 	return nil
 }
@@ -6749,72 +6718,6 @@ func (x *Stale) GetThrough() int64 {
 	return 0
 }
 
-// Credit is a lens naming an OPEN gap as the answer to a contradiction its own finding raised
-// (gblock, 2026-10-24): the gap's found_by gains the finding, and the contradiction fold
-// (contradictionsOf) reads the gap as answering it, exactly as it reads a gap minted from that
-// finding. The gap's class then decides materiality, as for every gap.
-//
-// IT EXISTS BECAUSE THE DUPLICATE SCREEN IS RIGHT. A lens that raised a contradiction owes the gap
-// that answers it; where the board already holds that defect as an open gap, the answering mint is
-// a duplicate and the screen refuses it. On universe-m32 that refusal fell seven times on three
-// raises whose defect G-f417112d already held, and six sittings ended owing the answer. The
-// credit answers with the gap that exists, and no second gap is minted.
-//
-// A CREDIT IS NOT A MINT: it takes no budget and moves no gap's ownership. The gap stays its
-// minting lens's to close or regrade.
-type Credit struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	GapId *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	// found_by is the RAISING FINDING — the one id a gap's found_by holds, so the credit adds it there.
-	FoundBy       *string `protobuf:"bytes,2,opt,name=found_by,json=foundBy,proto3,oneof" json:"found_by,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Credit) Reset() {
-	*x = Credit{}
-	mi := &file_record_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Credit) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Credit) ProtoMessage() {}
-
-func (x *Credit) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Credit.ProtoReflect.Descriptor instead.
-func (*Credit) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *Credit) GetGapId() string {
-	if x != nil && x.GapId != nil {
-		return *x.GapId
-	}
-	return ""
-}
-
-func (x *Credit) GetFoundBy() string {
-	if x != nil && x.FoundBy != nil {
-		return *x.FoundBy
-	}
-	return ""
-}
-
 // ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
 // report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
 //
@@ -6835,7 +6738,7 @@ type ReportRead struct {
 
 func (x *ReportRead) Reset() {
 	*x = ReportRead{}
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6847,7 +6750,7 @@ func (x *ReportRead) String() string {
 func (*ReportRead) ProtoMessage() {}
 
 func (x *ReportRead) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6860,7 +6763,7 @@ func (x *ReportRead) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportRead.ProtoReflect.Descriptor instead.
 func (*ReportRead) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{43}
+	return file_record_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ReportRead) GetHead() int64 {
@@ -6901,7 +6804,7 @@ type Gate struct {
 
 func (x *Gate) Reset() {
 	*x = Gate{}
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6913,7 +6816,7 @@ func (x *Gate) String() string {
 func (*Gate) ProtoMessage() {}
 
 func (x *Gate) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6926,7 +6829,7 @@ func (x *Gate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gate.ProtoReflect.Descriptor instead.
 func (*Gate) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{44}
+	return file_record_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Gate) GetVerdict() Verdict {
@@ -6971,7 +6874,7 @@ type Outcome struct {
 
 func (x *Outcome) Reset() {
 	*x = Outcome{}
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6983,7 +6886,7 @@ func (x *Outcome) String() string {
 func (*Outcome) ProtoMessage() {}
 
 func (x *Outcome) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6996,7 +6899,7 @@ func (x *Outcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Outcome.ProtoReflect.Descriptor instead.
 func (*Outcome) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{45}
+	return file_record_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Outcome) GetVerdict() RunOutcome {
@@ -7036,7 +6939,7 @@ type Position struct {
 
 func (x *Position) Reset() {
 	*x = Position{}
-	mi := &file_record_proto_msgTypes[46]
+	mi := &file_record_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7048,7 +6951,7 @@ func (x *Position) String() string {
 func (*Position) ProtoMessage() {}
 
 func (x *Position) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[46]
+	mi := &file_record_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7061,7 +6964,7 @@ func (x *Position) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Position.ProtoReflect.Descriptor instead.
 func (*Position) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{46}
+	return file_record_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *Position) GetText() string {
@@ -7082,7 +6985,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_record_proto_msgTypes[47]
+	mi := &file_record_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7094,7 +6997,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[47]
+	mi := &file_record_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7107,7 +7010,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{47}
+	return file_record_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *Halt) GetOpinion() string {
@@ -7128,7 +7031,7 @@ type Certify struct {
 
 func (x *Certify) Reset() {
 	*x = Certify{}
-	mi := &file_record_proto_msgTypes[48]
+	mi := &file_record_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7140,7 +7043,7 @@ func (x *Certify) String() string {
 func (*Certify) ProtoMessage() {}
 
 func (x *Certify) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[48]
+	mi := &file_record_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7153,7 +7056,7 @@ func (x *Certify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Certify.ProtoReflect.Descriptor instead.
 func (*Certify) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{48}
+	return file_record_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *Certify) GetStatement() string {
@@ -7176,7 +7079,7 @@ type Declare struct {
 
 func (x *Declare) Reset() {
 	*x = Declare{}
-	mi := &file_record_proto_msgTypes[49]
+	mi := &file_record_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7188,7 +7091,7 @@ func (x *Declare) String() string {
 func (*Declare) ProtoMessage() {}
 
 func (x *Declare) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[49]
+	mi := &file_record_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7201,7 +7104,7 @@ func (x *Declare) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Declare.ProtoReflect.Descriptor instead.
 func (*Declare) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{49}
+	return file_record_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Declare) GetHolding() string {
@@ -7469,7 +7372,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xe8\x11\n" +
+	"\a_unique\"\xbc\x11\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x122\n" +
@@ -7511,8 +7414,7 @@ const file_record_proto_rawDesc = "" +
 	"\bdispatch\x188 \x01(\v2\x18.feov.record.v1.DispatchH\x00R\bdispatch\x12C\n" +
 	"\rsitting_limit\x189 \x01(\v2\x1c.feov.record.v1.SittingLimitH\x00R\fsittingLimit\x12*\n" +
 	"\x04plan\x18; \x01(\v2\x14.feov.record.v1.PlanH\x00R\x04plan\x12-\n" +
-	"\x05stale\x18< \x01(\v2\x15.feov.record.v1.StaleH\x00R\x05stale\x120\n" +
-	"\x06credit\x18= \x01(\v2\x16.feov.record.v1.CreditH\x00R\x06credit\x12=\n" +
+	"\x05stale\x18< \x01(\v2\x15.feov.record.v1.StaleH\x00R\x05stale\x12=\n" +
 	"\vreport_read\x18> \x01(\v2\x1a.feov.record.v1.ReportReadH\x00R\n" +
 	"reportReadB\x06\n" +
 	"\x04bodyB\x05\n" +
@@ -7521,7 +7423,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_seat_idB\a\n" +
 	"\x05_typeB\x06\n" +
 	"\x04_keyJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
-	"J\x04\b?\x10QJ\x04\b\x1d\x10\x1eJ\x04\b\x1f\x10 J\x04\b&\x10'J\x04\b.\x10/J\x04\b:\x10;J\x04\b$\x10%R\x05roundR\x04roleR\x0eschema_versionR\rmotion_appealR\tclass_newR\aobserveR\brevisionR\n" +
+	"J\x04\b?\x10QJ\x04\b\x1d\x10\x1eJ\x04\b\x1f\x10 J\x04\b&\x10'J\x04\b.\x10/J\x04\b:\x10;J\x04\b=\x10>J\x04\b$\x10%R\x05roundR\x04roleR\x0eschema_versionR\rmotion_appealR\tclass_newR\aobserveR\brevisionR\n" +
 	"correctionR\aopinion\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
 	"\x05epoch\x18\x01 \x01(\x05H\x00R\x05epoch\x88\x01\x01\x12,\n" +
@@ -7580,7 +7482,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xe1\x17\n" +
+	"\b_up_mass\"\xc2\x17\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xb4\x02\n" +
@@ -7608,8 +7510,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"supersedes\x18\x14 \x03(\tR\n" +
 	"supersedes\x12\x19\n" +
-	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12#\n" +
-	"\rdistinct_from\x18\x1a \x03(\tR\fdistinctFrom\x12$\n" +
+	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12$\n" +
 	"\vmint_reason\x18\x16 \x01(\tH\x10R\n" +
 	"mintReason\x88\x01\x01\x12\xf8\x01\n" +
 	"\x0eclass_material\x18\x19 \x01(\x0e2\x1d.feov.record.v1.ClassMaterialB\xac\x01\x82\xb5\x18\xa7\x01\b\x01\x1a\xa2\x01every reader of materiality — the dispatch, the PASS gate, the chair's work list — reads it; the tool stamps it from the class's material default at the writeH\x11R\rclassMaterial\x88\x01\x01:\x81\x02\x92\xb5\x18\xfc\x01\n" +
@@ -7635,7 +7536,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_impactB\x12\n" +
 	"\x10_complexity_costB\x0e\n" +
 	"\f_mint_reasonB\x11\n" +
-	"\x0f_class_materialJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\v\x10\fR\tclass_newR\n" +
+	"\x0f_class_materialJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\v\x10\fJ\x04\b\x1a\x10\x1bR\tclass_newR\n" +
 	"definitionR\bneighborR\rdistinguisherR\afix_old\"\xb3\t\n" +
 	"\x05Close\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xd4\x01\n" +
@@ -8064,13 +7965,7 @@ const file_record_proto_rawDesc = "" +
 	"\athrough\x18\x02 \x01(\x03B\x0f\x82\xb5\x18\v\"\tevents.idH\x01R\athrough\x88\x01\x01B\t\n" +
 	"\a_gap_idB\n" +
 	"\n" +
-	"\b_through\"\xad\x02\n" +
-	"\x06Credit\x12q\n" +
-	"\x06gap_id\x18\x01 \x01(\tBU\x82\xb5\x18Q\b\x01\x12\x02id\x1a<the credit names the open gap that answers the contradiction\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x97\x01\n" +
-	"\bfound_by\x18\x02 \x01(\tBw\x82\xb5\x18s\b\x01\x1acthe credit names the finding of yours that raised the contradiction, which the gap's found_by gains\"\n" +
-	"finding.idH\x01R\afoundBy\x88\x01\x01B\t\n" +
-	"\a_gap_idB\v\n" +
-	"\t_found_by\"\xc5\x01\n" +
+	"\b_through\"\xc5\x01\n" +
 	"\n" +
 	"ReportRead\x12\xad\x01\n" +
 	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or base_ingest when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
@@ -8107,7 +8002,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\x8e%\n" +
+	"\b_holding*\xb9#\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8144,9 +8039,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xcd\x01\n" +
 	"\x18EVENT_TYPE_SITTING_LIMIT\x10&\x1a\xae\x01\x8a\xb5\x18\xa9\x01a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit\x12\xa5\x01\n" +
 	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\x12\xd8\x01\n" +
-	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xd8\x01\n" +
-	"\x11EVENT_TYPE_CREDIT\x10*\x1a\xc0\x01\x8a\xb5\x18\xbb\x01a lens crediting an open gap with its own finding that raised a contradiction — the gap's found_by gains the finding, and the gap answers the contradiction as a gap minted from it would\x12\xca\x01\n" +
-	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
+	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xca\x01\n" +
+	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b*\x10*\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
 	"\x05Grade\x12\"\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
 	"\rGRADE_TRIVIAL\x10\x01\x1aB\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xe0?\x12#\n" +
@@ -8161,12 +8055,12 @@ const file_record_proto_rawDesc = "" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\xc1\x01\n" +
 	"\fVERDICT_PASS\x10\x01\x1a\xae\x01\x8a\xb5\x18\xa9\x01nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word\x12a\n" +
-	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\xf4\x04\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aO\x8a\xb5\x18Kthe board, as it stands, still stops you — refused over a converged board*\x98\x06\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
 	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x86\x02\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\xec\x01\x8a\xb5\x18\xe7\x01every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so\x12f\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\xaa\x03\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x90\x03\x8a\xb5\x18\x8b\x03the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, or every open material gap at its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — and the derivation's reason names which; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
 	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
@@ -8279,13 +8173,13 @@ const file_record_proto_rawDesc = "" +
 	"\x1aINQUIRY_RULING_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x17INQUIRY_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12K\n" +
 	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12|\n" +
-	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\x97\t\n" +
+	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xee\b\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xae\x02\n" +
 	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x95\x02\x8a\xb5\x18\x8c\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
-	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\xb3\x03\n" +
-	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\x94\x03\x8a\xb5\x18\x8b\x03a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it, or an open gap its lens credits with it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12W\n" +
+	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\x8a\x03\n" +
+	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xeb\x02\x8a\xb5\x18\xe2\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12W\n" +
 	"\x10ABOUT_KIND_PROOF\x10\x05\x1aA\x8a\xb5\x189a proof, by its anchor, whose sentence was judged unsoundе\x18\x01*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
@@ -8380,7 +8274,7 @@ func file_record_proto_rawDescGZIP() []byte {
 }
 
 var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 29)
-var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
+var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_record_proto_goTypes = []any{
 	(EventType)(0),                        // 0: feov.record.v1.EventType
 	(Grade)(0),                            // 1: feov.record.v1.Grade
@@ -8453,27 +8347,26 @@ var file_record_proto_goTypes = []any{
 	(*Dispatch)(nil),                      // 68: feov.record.v1.Dispatch
 	(*Plan)(nil),                          // 69: feov.record.v1.Plan
 	(*Stale)(nil),                         // 70: feov.record.v1.Stale
-	(*Credit)(nil),                        // 71: feov.record.v1.Credit
-	(*ReportRead)(nil),                    // 72: feov.record.v1.ReportRead
-	(*Gate)(nil),                          // 73: feov.record.v1.Gate
-	(*Outcome)(nil),                       // 74: feov.record.v1.Outcome
-	(*Position)(nil),                      // 75: feov.record.v1.Position
-	(*Halt)(nil),                          // 76: feov.record.v1.Halt
-	(*Certify)(nil),                       // 77: feov.record.v1.Certify
-	(*Declare)(nil),                       // 78: feov.record.v1.Declare
-	(*descriptorpb.FieldOptions)(nil),     // 79: google.protobuf.FieldOptions
-	(*descriptorpb.EnumValueOptions)(nil), // 80: google.protobuf.EnumValueOptions
-	(*descriptorpb.MessageOptions)(nil),   // 81: google.protobuf.MessageOptions
+	(*ReportRead)(nil),                    // 71: feov.record.v1.ReportRead
+	(*Gate)(nil),                          // 72: feov.record.v1.Gate
+	(*Outcome)(nil),                       // 73: feov.record.v1.Outcome
+	(*Position)(nil),                      // 74: feov.record.v1.Position
+	(*Halt)(nil),                          // 75: feov.record.v1.Halt
+	(*Certify)(nil),                       // 76: feov.record.v1.Certify
+	(*Declare)(nil),                       // 77: feov.record.v1.Declare
+	(*descriptorpb.FieldOptions)(nil),     // 78: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 79: google.protobuf.EnumValueOptions
+	(*descriptorpb.MessageOptions)(nil),   // 80: google.protobuf.MessageOptions
 }
 var file_record_proto_depIdxs = []int32{
 	0,   // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
 	63,  // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	73,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
-	74,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
-	75,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
-	76,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
-	77,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
-	78,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
+	72,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
+	73,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
+	74,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
+	75,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
+	76,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
+	77,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
 	56,  // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
 	62,  // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
 	38,  // 10: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
@@ -8501,86 +8394,85 @@ var file_record_proto_depIdxs = []int32{
 	66,  // 32: feov.record.v1.Event.sitting_limit:type_name -> feov.record.v1.SittingLimit
 	69,  // 33: feov.record.v1.Event.plan:type_name -> feov.record.v1.Plan
 	70,  // 34: feov.record.v1.Event.stale:type_name -> feov.record.v1.Stale
-	71,  // 35: feov.record.v1.Event.credit:type_name -> feov.record.v1.Credit
-	72,  // 36: feov.record.v1.Event.report_read:type_name -> feov.record.v1.ReportRead
-	1,   // 37: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
-	33,  // 38: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
-	36,  // 39: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
-	37,  // 40: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
-	35,  // 41: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	34,  // 42: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.ClassTally
-	6,   // 43: feov.record.v1.ClassTally.class:type_name -> feov.record.v1.GapClass
-	1,   // 44: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
-	6,   // 45: feov.record.v1.Mint.class:type_name -> feov.record.v1.GapClass
-	18,  // 46: feov.record.v1.Mint.about_kind:type_name -> feov.record.v1.AboutKind
-	4,   // 47: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
-	1,   // 48: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
-	1,   // 49: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 50: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
-	1,   // 51: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	5,   // 52: feov.record.v1.Mint.class_material:type_name -> feov.record.v1.ClassMaterial
-	7,   // 53: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
-	1,   // 54: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	1,   // 55: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 56: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	1,   // 57: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	1,   // 58: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	1,   // 59: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 60: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	18,  // 61: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
-	19,  // 62: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
-	20,  // 63: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
-	21,  // 64: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	22,  // 65: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	8,   // 66: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	10,  // 67: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	20,  // 68: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
-	21,  // 69: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	9,   // 70: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
-	22,  // 71: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	11,  // 72: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	12,  // 73: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	13,  // 74: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	24,  // 75: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	23,  // 76: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	57,  // 77: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	58,  // 78: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 79: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	59,  // 80: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	25,  // 81: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 82: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	26,  // 83: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 84: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	15,  // 85: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	16,  // 86: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	17,  // 87: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	60,  // 88: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	27,  // 89: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	28,  // 90: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	28,  // 91: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	2,   // 92: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 93: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	79,  // 94: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	79,  // 95: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	80,  // 96: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	80,  // 97: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	80,  // 98: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	80,  // 99: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	80,  // 100: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	80,  // 101: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	80,  // 102: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	80,  // 103: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	80,  // 104: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	80,  // 105: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	81,  // 106: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	30,  // 107: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 108: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	29,  // 109: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	110, // [110:110] is the sub-list for method output_type
-	110, // [110:110] is the sub-list for method input_type
-	107, // [107:110] is the sub-list for extension type_name
-	94,  // [94:107] is the sub-list for extension extendee
-	0,   // [0:94] is the sub-list for field type_name
+	71,  // 35: feov.record.v1.Event.report_read:type_name -> feov.record.v1.ReportRead
+	1,   // 36: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
+	33,  // 37: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
+	36,  // 38: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
+	37,  // 39: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
+	35,  // 40: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
+	34,  // 41: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.ClassTally
+	6,   // 42: feov.record.v1.ClassTally.class:type_name -> feov.record.v1.GapClass
+	1,   // 43: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
+	6,   // 44: feov.record.v1.Mint.class:type_name -> feov.record.v1.GapClass
+	18,  // 45: feov.record.v1.Mint.about_kind:type_name -> feov.record.v1.AboutKind
+	4,   // 46: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
+	1,   // 47: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
+	1,   // 48: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 49: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
+	1,   // 50: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
+	5,   // 51: feov.record.v1.Mint.class_material:type_name -> feov.record.v1.ClassMaterial
+	7,   // 52: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
+	1,   // 53: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	1,   // 54: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 55: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	1,   // 56: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	1,   // 57: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	1,   // 58: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 59: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	18,  // 60: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
+	19,  // 61: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
+	20,  // 62: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
+	21,  // 63: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	22,  // 64: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	8,   // 65: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	10,  // 66: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	20,  // 67: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
+	21,  // 68: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	9,   // 69: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
+	22,  // 70: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	11,  // 71: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	12,  // 72: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	13,  // 73: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	24,  // 74: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	23,  // 75: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	57,  // 76: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	58,  // 77: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	61,  // 78: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	59,  // 79: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	25,  // 80: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 81: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	26,  // 82: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 83: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	15,  // 84: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	16,  // 85: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	17,  // 86: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	60,  // 87: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	27,  // 88: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	28,  // 89: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	28,  // 90: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	2,   // 91: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 92: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	78,  // 93: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	78,  // 94: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	79,  // 95: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	79,  // 96: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	79,  // 97: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	79,  // 98: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	79,  // 99: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	79,  // 100: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	79,  // 101: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	79,  // 102: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	79,  // 103: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	79,  // 104: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	80,  // 105: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	30,  // 106: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 107: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	29,  // 108: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	109, // [109:109] is the sub-list for method output_type
+	109, // [109:109] is the sub-list for method input_type
+	106, // [106:109] is the sub-list for extension type_name
+	93,  // [93:106] is the sub-list for extension extendee
+	0,   // [0:93] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -8625,7 +8517,6 @@ func file_record_proto_init() {
 		(*Event_SittingLimit)(nil),
 		(*Event_Plan)(nil),
 		(*Event_Stale)(nil),
-		(*Event_Credit)(nil),
 		(*Event_ReportRead)(nil),
 	}
 	file_record_proto_msgTypes[3].OneofWrappers = []any{}
@@ -8683,14 +8574,13 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[46].OneofWrappers = []any{}
 	file_record_proto_msgTypes[47].OneofWrappers = []any{}
 	file_record_proto_msgTypes[48].OneofWrappers = []any{}
-	file_record_proto_msgTypes[49].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      29,
-			NumMessages:   50,
+			NumMessages:   49,
 			NumExtensions: 13,
 			NumServices:   0,
 		},

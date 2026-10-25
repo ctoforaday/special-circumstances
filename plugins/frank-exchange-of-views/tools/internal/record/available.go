@@ -633,6 +633,8 @@ func remandedGapForChair(g WorkGapState) string {
 		return head + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
 	case routeDocket:
 		return head + g.ID + " is open, the BENCH REMANDED it before it reached impasse, and it is at impasse now — the dispatch dockets it for the bench"
+	case routeNobody:
+		return head + g.ID + " is open, the BENCH REMANDED it, and it is not material: the exchange its remand granted has begun, and the dispatch readies nobody for it"
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	}

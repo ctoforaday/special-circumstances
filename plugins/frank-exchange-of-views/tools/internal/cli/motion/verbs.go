@@ -264,7 +264,9 @@ func payloadKey(flag string) string {
 // ruleDetail is what a subject's ruling page says of that subject alone.
 var ruleDetail = map[string]string{
 	"docket": "\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
-		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it.",
+		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
+		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has begun. " +
+		"A gap can close while its docket motion stands — its lens closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
 	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
 		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
 		"the record holds is refused. Rule on each inquiry blue " +

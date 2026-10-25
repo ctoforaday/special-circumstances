@@ -274,7 +274,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, handleText(t, runDir, "spot-checked G2")) {
+		if !strings.Contains(out, handleText(t, runDir, "re-verified G2")) {
 			t.Errorf("stdout = %q", out)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
@@ -284,6 +284,22 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		}
 		if ev.GetReason() != "it still holds" {
 			t.Errorf("reason = %q — what the sample found lands in the one prose channel", ev.GetReason())
+		}
+	})
+
+	// A spot-check naming no closure while the archive holds one says the chair named none. It
+	// printed "nothing to sample", which a seat reads as a fact about the board — false here, where
+	// G2 is closed and was there to re-read.
+	t.Run("without ids over a closed gap", func(t *testing.T) {
+		runDir := newRun(t)
+		seedReferents(t, runDir)
+		out, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
+			"--reason", "no closure re-read this sitting")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "nothing to sample") || !strings.Contains(out, "named no archived closure") {
+			t.Errorf("stdout = %q — the archive holds G2, so the line must say the chair named no closure, never that there was nothing to sample", out)
 		}
 	})
 

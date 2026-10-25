@@ -419,7 +419,7 @@ func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	out, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", "spec_underspecification", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
@@ -513,7 +513,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
 	}
-	for _, want := range []string{"estoppel", prior, "--supersedes"} {
+	for _, want := range []string{"estoppel", prior, "--supersedes", "your fix for " + prior} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
@@ -524,6 +524,31 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	// A guard that silently blocks is invisible.
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
 		t.Error("the estoppel rejection wrote no log entry — the block is unmeasurable, which is how a dead guard survives")
+	}
+}
+
+// THE REFUSAL NAMES WHOSE FIX IT WAS. The guard refuses any lens's mint against an applied
+// prescription — red is the party bound — and it told every lens the words were "text YOU
+// prescribed": the evidence lens on the #1565 smoke was handed the logic lens's fix as its own.
+func TestEstoppelNamesTheLensWhoseFixItWas(t *testing.T) {
+	runDir := newRun(t)
+	prior := seedProposalApplied(t, runDir)
+	const other = "red-lens-logic"
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+		"--key", "G2", "--class", "spec_underspecification", "--quote", prescribedText,
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+	if err == nil {
+		t.Fatal("a lens opened a fresh gap against another lens's applied prescription")
+	}
+	if want := lensSeat + "'s fix for " + prior; !strings.Contains(err.Error(), want) {
+		t.Errorf("the refusal does not name the lens whose fix it was (%q): %v", want, err)
+	}
+	if strings.Contains(err.Error(), "your fix") || strings.Contains(strings.ToLower(err.Error()), "you prescribed") {
+		t.Errorf("the refusal tells %s that %s's words were its own: %v", other, lensSeat, err)
 	}
 }
 

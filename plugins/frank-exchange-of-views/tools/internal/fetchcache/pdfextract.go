@@ -66,7 +66,7 @@ type PDFExtractor struct{}
 // it reads the module file itself.
 const (
 	extractorModule          = "github.com/klippa-app/go-pdfium"
-	extractorFallbackVersion = "v1.21.0"
+	extractorFallbackVersion = "v1.21.4"
 )
 
 func extractorIdentity() string {

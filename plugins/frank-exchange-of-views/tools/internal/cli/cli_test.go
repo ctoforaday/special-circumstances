@@ -1711,8 +1711,8 @@ func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an empty archive must be recordable: %v", err)
 	}
-	if !strings.Contains(out, "nothing to sample") {
-		t.Errorf("output %q should say the discharge was empty", out)
+	if !strings.Contains(out, "named no archived closure") {
+		t.Errorf("output %q should say the spot-check named no closure", out)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 	keys := setFields(ev)

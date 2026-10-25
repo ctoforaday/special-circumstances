@@ -18,8 +18,7 @@ import (
 // HELP SAYS REQUIRED EXACTLY WHERE OMITTING THE FLAG IS REFUSED — IN BOTH DIRECTIONS.
 //
 // helpcontract_test.go holds one direction: a flag the help calls REQUIRED must be refused when
-// omitted. Nothing held the other, and the m13/m14 transcripts paid for it: `near-match` without
-// --problem twice, `position` without --reason, `motion docket rule` without --reason — each a
+// omitted. Nothing held the other, and the m13/m14 transcripts paid for it: `position` without --reason, `motion docket rule` without --reason — each a
 // flag the tool refuses without and the help listed as if optional, one wasted call per lesson.
 // Twenty-two flags rendered that way at 7b05e7cd, because required-ness is written by five
 // mechanisms (the schema's `(sql).required`, seat.ProseRequired, cobra's MarkFlagRequired, a
@@ -87,15 +86,10 @@ func requiredProbes() map[string]requiredProbe {
 	probes["lens finding"] = requiredProbe{seat: lensSeat, args: fixed("finding", "--key", "F1",
 		"--quote", "§1 first — a finding sits in sec 1 here.",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
-	probes["lens near-match"] = requiredProbe{seat: lensSeat, args: fixed("near-match", "--problem", "p",
-		"--quote", "§1 first — a finding sits in sec 1 here.")}
 	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
-	// credit runs clean only where the lens raised a contradiction and an open gap holds its defect,
-	// which the act fixture does not stage; the record's tests drive it whole (credit_test.go).
-	probes["lens credit"] = requiredProbe{seat: lensSeat, fullIsRefused: true, args: fixed("credit", "--id", "G1", "--found-by", "F-00000001")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
@@ -367,7 +361,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				}
 				switch {
 				case err != nil && !marked:
-					t.Errorf("`%s` is REFUSED without --%s and its help does not say so.\n\nusage: %s\nrefusal: %v\n\nA seat reads the flag as optional, omits it, and loses the call — measured twice on near-match --problem in one run.", verb, f.Name, f.Usage, err)
+					t.Errorf("`%s` is REFUSED without --%s and its help does not say so.\n\nusage: %s\nrefusal: %v\n\nA seat reads the flag as optional, omits it, and loses the call — measured on position --reason and motion docket rule --reason.", verb, f.Name, f.Usage, err)
 				case err == nil && marked:
 					t.Errorf("`%s --%s` says REQUIRED and the verb ran clean without it.\n\nusage: %s", verb, f.Name, f.Usage)
 				case err != nil && !refusalNames(err, f.Name):

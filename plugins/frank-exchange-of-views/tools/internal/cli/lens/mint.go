@@ -28,13 +28,11 @@ import (
 // four different "R5-1"s in one round of run 3, and the collision class dies here
 // rather than being policed downstream.
 //
-// The duplicate screen runs AT THE WRITE because another lens may mint while this one works, so a
-// `near-match` read earlier cannot answer for the board as the mint finds it. A soft tell in the
-// printed text ("this run", "epoch 3") is flagged and not refused because a subject can use those
-// words too. What to do where a matched gap IS this defect is on the page (help/mint.md), once.
+// A soft tell in the printed text ("this run", "epoch 3") is flagged and not refused because a
+// subject can use those words too.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	var supersedes, foundBy, distinctFrom flags.CSV
+	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -159,7 +157,6 @@ func newMint() *cobra.Command {
 		p.ComplexityCost = seat.GradeOrNil(&cx)
 		p.Supersedes = supersedes.Value()
 		p.FoundBy = foundBy.Value()
-		p.DistinctFrom = distinctFrom.Value()
 
 		// Crash-retry idempotency: --key (the stable local label, e.g. the source lens finding) makes
 		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
@@ -203,9 +200,9 @@ func newMint() *cobra.Command {
 		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
 		// rejection — the tool records the block, never the seat's memory of it.
 		//
-		// ASKED OF THE RECORD THE MINT LANDS ON: blue's `edit --accept` of this lens's prescription
-		// commits in parallel, and a mint checked against the record before it opens a fresh gap
-		// against the lens's own words. The refusal is decided under the write lock; the log entry
+		// ASKED OF THE RECORD THE MINT LANDS ON: blue's `edit --accept` of a prescription commits in
+		// parallel, and a mint checked against the record before it opens a fresh gap against red's
+		// own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
 		guards = append(guards, record.Check(func(l *record.Landing) error {
 			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
@@ -214,9 +211,16 @@ func newMint() *cobra.Command {
 		var est estopped
 		switch _, err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
 		case errors.As(err, &est):
-			prior, prescribed := est.prior, est.prescribed
-			msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
-				prior, prior, prior, prescribed)
+			prior := est.Gap
+			// WHOSE FIX IT WAS IS READ OFF THE RECORD, because the guard refuses a mint against ANY red
+			// seat's applied prescription: told "text YOU prescribed", the evidence lens on the #1565
+			// smoke was handed the logic lens's words as its own.
+			author := est.PrescribedBy + "'s"
+			if est.PrescribedBy == s.SeatID {
+				author = "your"
+			}
+			msg := fmt.Sprintf("estoppel — this gap's location is text red prescribed and blue applied verbatim: %s fix for %s. A prescription blue applied binds every red seat, whichever lens wrote it, so it is not a fresh gap: raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit). Prescribed text: %q",
+				author, prior, prior, prior, est.Text)
 			// The KIND is a field, not something a reader infers from the wording. The
 			// prose above is aimed at a seat and must stay editable; the count an
 			// operator reads must not move when it is edited (#283).
@@ -276,7 +280,6 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
-	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -335,11 +338,11 @@ func mintPlacementRefusal(err error) error {
 	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", r)
 }
 
-// estopped is the estoppel guard's refusal: the gap prior prescribed text the mint's quote names, and
-// blue applied it verbatim. The verb words it and logs it once the write has rolled back.
-type estopped struct{ prior, prescribed string }
+// estopped is the estoppel guard's refusal: the prescription the mint's quote names, which blue
+// applied verbatim. The verb words it and logs it once the write has rolled back.
+type estopped struct{ record.Estoppel }
 
-func (e estopped) Error() string { return "estoppel against " + e.prior }
+func (e estopped) Error() string { return "estoppel against " + e.Gap }
 
 // verifiedFix marks p's fix verified where --quote and --new are a pair blue's accept applies to report
 // with the gap's anchor placed — judged by the accept's own planner (blue.PlanAccept), so a fix
@@ -386,10 +389,7 @@ func contains(xs []string, want string) bool {
 }
 
 // mintAsserted is what a gap states, and so what a retry under its key must state again: everything
-// the seat says of the defect and where, and its argument for it. Not compared: --distinct-from,
-// which answers the duplicate screen against the board as the seat read it — a retry rebuilt after
-// a crash reads a board that has moved, and refusing it would send the seat to mint the same gap
-// again under another key.
+// the seat says of the defect and where, and its argument for it.
 var mintAsserted = []seat.Asserted{
 	{Flag: flags.Quote, Field: "location"},
 	{Flag: flags.Reason, Field: "mint_reason"},
@@ -414,17 +414,17 @@ type familyReader interface {
 	Family() (record.Family, error)
 }
 
-// requireNotEstopped refuses a mint whose location is text this lens prescribed and blue applied
+// requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
 // verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
 // read to ask: a gap opened because the estoppel question could not be asked is one the tool
 // admitted on nothing.
 func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
 	fam, err := l.Family()
 	if err != nil {
-		return unreadableRefusal("whether this location is text you prescribed", err)
+		return unreadableRefusal("whether this location is text red prescribed", err)
 	}
-	if prior, prescribed := record.EstoppelConflict(fam, quote); prior != "" && !contains(supersedes, prior) {
-		return estopped{prior: prior, prescribed: prescribed}
+	if est, ok := record.EstoppelConflict(fam, quote); ok && !contains(supersedes, est.Gap) {
+		return estopped{est}
 	}
 	return nil
 }

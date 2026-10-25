@@ -483,7 +483,12 @@ func verdictGloss(o *recordpb.Outcome) string {
 	var lead string
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		lead = "**CEILING-TERMINATED** — every open material gap reached its limit under the run's terms — at impasse after the one more exchange the bench's remand granted, and remanded again — and nobody was left to dispatch. This is NOT a judged failure to verify and must not be read as one: gaps remain open at impasse, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		// THE MEANING IS THE ENUM'S, AND WHICH LIMIT IS THE DERIVATION'S. A ceiling is the epoch limit
+		// or every open material gap at its limit; this sentence used to assert the second for both,
+		// and the #1565 run's epoch-limit stop printed "every open material gap reached its limit …
+		// remanded again" over a gap with no exchange and nothing remanded. The record's own reason for
+		// THIS ceiling (verdictWhy, below) is the one cause the gloss states.
+		lead = "**CEILING-TERMINATED** — " + meaningOf(o.GetVerdict()) + "."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
@@ -494,6 +499,17 @@ func verdictGloss(o *recordpb.Outcome) string {
 	// exactly that, because a ceiling termination IS derived (the board at its limits) and is
 	// the most common way a run ends.
 	return strings.TrimSpace(lead + basisNote(o.GetVerdictBasis()) + verdictWhy(o))
+}
+
+// meaningOf is a verdict's meaning as the schema states it — the sentence `bench outcome --as` lists
+// beside the word. A value with no meaning is the schema's defect, and EnumValueDoc refuses to build
+// such a schema, so the miss is not reachable from a record this binary reads.
+func meaningOf(v recordpb.RunOutcome) string {
+	means, err := recordpb.EnumValueDoc(v.Descriptor().Values().ByNumber(v.Number()))
+	if err != nil {
+		panic(err)
+	}
+	return means
 }
 
 // verdictWhy carries the DERIVATION'S OWN REASONING and the bench's account of the sitting.
@@ -741,11 +757,13 @@ func inquiries(a *assembly, s Section) string {
 		// decision, not a conversion, so nothing is invented here.
 		rows = append(rows, row)
 	}
-	body := "_(none on the record)_"
-	if len(rows) > 0 {
-		body = strings.Join(rows, "\n")
+	// AN EMPTY SECTION KEEPS ITS HEADING AND SAYS WHAT THE ABSENCE MEANS FOR THE SUBJECT, in the
+	// section's own sentence: that no approach was set aside is a fact about the research, where a
+	// placeholder about the record is the machinery speaking in the report.
+	if len(rows) == 0 {
+		return s.none
 	}
-	return body
+	return strings.Join(rows, "\n")
 }
 
 // endSentence ends prose with a full stop unless it already ends a sentence.
@@ -827,7 +845,7 @@ func withdrawnClaims(fam record.Family) string {
 // restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
 func provenance(g *record.Gap, findings map[string]*record.Event) string {
-	fb := g.FoundBy()
+	fb := g.Mint.GetFoundBy()
 	if len(fb) == 0 {
 		return ""
 	}
@@ -1190,7 +1208,7 @@ func unmintedFindings(fam record.Family) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.FoundBy() {
+		for _, lbl := range g.Mint.GetFoundBy() {
 			minted[lbl] = true
 		}
 	}

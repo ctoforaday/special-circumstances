@@ -18,7 +18,7 @@ import (
 //
 // ONE PAGE, NEVER THE DOCUMENT. The operator's `ocr pages` renders everything; a lens needs the
 // page a citation's quote sits on, and a neighbour for context at most. It is READ-ONLY on the
-// record, as near-match is: the verification that follows records which image was checked. The
+// record: the verification that follows records which image was checked. The
 // image goes beside the cache, outside the reading's directory, which a render or a re-read
 // clears.
 func newRenderPage() *cobra.Command {
