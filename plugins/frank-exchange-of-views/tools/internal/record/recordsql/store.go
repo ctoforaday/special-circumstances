@@ -486,9 +486,9 @@ func isBusy(err error) bool {
 // ViewsDDL are applied to an empty database — the schema itself, not a second copy of it.
 //
 // THE OPEN READS IT COMPILED IN (declared_gen.go), and devcmd/declaredgen writes that file from
-// DeriveDeclared. Deriving it at open applied ~171 statements and every view to a scratch in-memory
-// database in every process — measured at 19% of a seat act's CPU — to answer a question whose
-// answer is fixed when the binary is built. The comparison against the database being opened is
+// DeriveDeclared. Deriving it at open costs ~171 statements and every view applied to a scratch
+// in-memory database in every process — 19% of a seat act's CPU, measured 2026-10-25 — to answer a
+// question whose answer is fixed when the binary is built. The comparison against the database being opened is
 // unchanged; only the declared side is read from the build. `declaredgen -check` fails a stale or
 // hand-edited copy, so the compiled-in set cannot disagree with the DDL it is derived from.
 type Declared struct {
