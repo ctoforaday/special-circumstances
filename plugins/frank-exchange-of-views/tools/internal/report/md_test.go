@@ -216,15 +216,15 @@ func TestAnAnchorTagAloneIsHTMLAndInProseIsText(t *testing.T) {
 // the HTML this file had just written, so anything in that shape was read as the tool's own: a raw
 // HTML line carrying a reference's markup was numbered as a citation, and a note's entry was
 // whatever matched an entry's tag. They are rendered from the references and definitions the
-// document holds; text in their shape is text.
+// document holds; text in their shape is text, and a seat's HTML line in their shape is shown as typed.
 func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T) {
 	raw := `<p>as rendered: <sup class="fnref"><a href="#fn-zz">zz</a></sup> and <li id="fn-yy">an entry</li></p>`
 	md := "A claim[^b] in prose.\n\n" + raw + "\n\n| col |\n|---|\n| a cell[^a] |\n\n" +
 		"- an item[^b]\n\n> a quote[^c]\n\nA control \x01 character.\n\n" +
 		"[^a]: The a source, which cites[^c].\n[^b]: The b source.\n[^c]: The c source.\n[^d]: Uncited.\n"
 	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
-	if !strings.Contains(got, raw) {
-		t.Errorf("a raw HTML line in the shape of the tool's markup was rewritten:\n%s", got)
+	if !strings.Contains(got, "<p>"+escape(raw)+"</p>") {
+		t.Errorf("a raw HTML line in the shape of the tool's markup was not shown as typed:\n%s", got)
 	}
 	for _, want := range []string{
 		`<a class="cite" id="fnref-b" href="#fn-b" title="b — The b source.">[1]</a>`,

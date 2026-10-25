@@ -117,9 +117,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 	for _, p := range proofs {
 		label := p.Label
 		n := num[label]
-		// An explicit anchor, because a heading's generated id is a function of its whole text
-		// and the footnotes in six other files link here by LABEL, which is stable.
-		fmt.Fprintf(&b, "<a id=\"%s\"></a>\n\n", label)
+		b.WriteString(proofAnchor(label) + "\n\n")
 		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, storedScript(p))))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")

@@ -305,7 +305,9 @@ func render(d Doc, title string, set []Doc) string {
 		// noun on it: "<topic> — research report — the docket" names two documents.
 		h1 = strings.TrimSuffix(title, " — research report") + " — " + d.Title
 	}
-	return h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n" + strings.TrimRight(d.Body, "\n") + "\n"
+	// What stays HTML is decided on the document as it ships (escapeRawHTML): the run's title and
+	// every unit the body joins, parsed whole.
+	return escapeRawHTML(h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n" + strings.TrimRight(d.Body, "\n") + "\n")
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the
@@ -427,7 +429,7 @@ func Write(run record.Run, title string, docs []Doc, index string) (string, erro
 			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(index), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(escapeRawHTML(index)), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", FileIndex, err)
 	}
 	for _, name := range docOrder {

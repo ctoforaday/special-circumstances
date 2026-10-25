@@ -13,8 +13,9 @@ package report
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into
 // a rendering. Nothing here can change what ships in a .md.
 //
-// HTML in the text: a block of it (a composer's explicit anchor) passes through as written; HTML
-// inside a line of prose is shown as the characters typed, because the prose is a seat's.
+// HTML in the text: what stays HTML is decided once, on the parse of the whole document
+// (escapeRawHTML, rawhtml.go) — the tool's own shapes, and nothing a seat wrote. Every other tag is
+// shown as the characters typed.
 
 import (
 	"fmt"
@@ -87,6 +88,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[st
 	// The marker bytes are control characters with no rendering; one in the text is shown as the
 	// replacement character, so no text can be read as a marker. NUL is too, as CommonMark has it.
 	md = strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(md)
+	md = escapeRawHTML(md)
 	r := &mdRender{src: []byte(md), file: file, anchor: anchor, seen: seen, files: files, link: true}
 	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
 	// and left in the text as a marker that holds only its index (refMark); each definition is kept
@@ -135,10 +137,9 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		r.define(text, id)
 		fmt.Fprintf(b, "<h%d id=\"%s\">%s</h%d>\n", x.Level, id, r.inlineIn(x, id), x.Level)
 	case *ast.Paragraph:
-		if htmlOnly(x) {
-			// HTML alone on its lines is HTML the writer meant: evidence.md's anchor per proof is
-			// one, and markdown reads it as inline HTML because the line holds a closing tag after
-			// the opening one. HTML that shares a line with prose is shown as typed (inlines).
+		if r.toolOnly(x) {
+			// evidence.md's anchor per proof, which markdown reads as inline HTML because the line
+			// holds a closing tag after the opening one. Any other tag is shown as typed (inlines).
 			b.WriteString(strings.TrimRight(r.lines(x), "\n") + "\n")
 			return
 		}
@@ -158,11 +159,13 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		}
 		b.WriteString("<pre><code" + cls + ">" + escape(strings.TrimSuffix(r.lines(x), "\n")) + "</code></pre>\n")
 	case *ast.HTMLBlock:
-		// HTML the composer wrote on purpose — passed through, never escaped.
-		b.WriteString(r.lines(x))
-		if x.HasClosure() {
-			b.WriteString(string(x.ClosureLine.Value(r.src)))
+		// A block of the tool's anchor tokens renders as what it is, a comment; any other block is
+		// shown as its text.
+		if toolHTML(x, r.src) {
+			b.WriteString(rawLines(x, r.src))
+			return
 		}
+		b.WriteString("<p>" + escape(rawLines(x, r.src)) + "</p>\n")
 	case *ast.Blockquote:
 		if p, ok := x.FirstChild().(*ast.Paragraph); ok && x.ChildCount() == 1 {
 			b.WriteString("<blockquote>" + r.inlineIn(p, "") + "</blockquote>\n")
@@ -254,10 +257,10 @@ func (r *mdRender) item(b *strings.Builder, n ast.Node, bullet bool) {
 	b.WriteString("</li>\n")
 }
 
-// htmlOnly reports whether a paragraph holds nothing but inline HTML.
-func htmlOnly(p *ast.Paragraph) bool {
+// toolOnly reports whether a paragraph holds nothing but HTML in the tool's own shapes.
+func (r *mdRender) toolOnly(p *ast.Paragraph) bool {
 	for c := p.FirstChild(); c != nil; c = c.NextSibling() {
-		if _, ok := c.(*ast.RawHTML); !ok {
+		if h, ok := c.(*ast.RawHTML); !ok || !toolHTML(h, r.src) {
 			return false
 		}
 	}
@@ -440,12 +443,12 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			r.inlines(b, x, false)
 			b.WriteString("</a>")
 		case *ast.RawHTML:
-			var raw strings.Builder
-			for i := 0; i < x.Segments.Len(); i++ {
-				seg := x.Segments.At(i)
-				raw.Write(seg.Value(r.src))
+			// An anchor token renders as the comment it is; any other tag is shown as typed.
+			if toolHTML(x, r.src) {
+				b.WriteString(rawText(x, r.src))
+			} else {
+				r.text(b, rawText(x, r.src), link)
 			}
-			r.text(b, raw.String(), link)
 		case *east.FootnoteLink:
 			b.WriteString(r.ref(r.footnoteLabel(x)))
 		case *east.TaskCheckBox:
