@@ -63,7 +63,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			// question rather than keeping a list of which ids are the bench.
 			occasion := ""
 			if record.SeatOwesOccasion(seatID) {
-				occasion = "docket"
+				occasion = "assemble"
 			}
 			if _, _, err := record.RegisterSeat(id, "", occasion); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -388,7 +388,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 			// question rather than keeping a list of which ids are the bench.
 			occasion := ""
 			if record.SeatOwesOccasion(seatID) {
-				occasion = "docket"
+				occasion = "assemble"
 			}
 			if _, _, err := record.RegisterSeat(id, "", occasion); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)

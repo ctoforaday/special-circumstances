@@ -53,7 +53,7 @@ func seatLog(text string) *recordpb.Log {
 }
 
 func corrMint(id string) *recordpb.Mint {
-	return &recordpb.Mint{GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p " + id), AcceptanceCheck: proto.String("c"),
+	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p " + id), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 }
@@ -68,4 +68,15 @@ func mustRefuse(t *testing.T, err error, wants ...string) {
 			t.Errorf("the refusal does not say %q:\n%v", w, err)
 		}
 	}
+}
+
+// sitToAssemble opens the bench's assembly sitting — the one sitting whose outcome the write takes
+// (requireAssemblySitting).
+func sitToAssemble(t *testing.T, run Run) Identity {
+	t.Helper()
+	id := Identity{Run: run, SeatID: benchSeat}
+	if _, _, err := RegisterSeat(id, "", recordpb.Word(recordpb.Occasion_OCCASION_ASSEMBLE)); err != nil {
+		t.Fatal(err)
+	}
+	return id
 }

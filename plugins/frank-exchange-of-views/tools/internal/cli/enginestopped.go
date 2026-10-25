@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // newEngineStopped is the operator's record of the engine's own stop: the error it threw, written
@@ -28,7 +29,7 @@ import (
 //
 // # Why it is a log entry and not an outcome
 //
-// An outcome closes the record to every seat, and a run the engine stopped is one an operator can
+// An outcome closes the record to seat acts, and a run the engine stopped is one an operator can
 // still resume. Without an entry, its record reads exactly as a run cut off mid-sitting does: the
 // last sitting, then nothing.
 //
@@ -53,9 +54,18 @@ func newEngineStopped() *cobra.Command {
 			"Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the " +
 			"only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one " +
 			"that was cut off.\n\n" +
-			"IT RECORDS NO OUTCOME. An outcome closes the record to every seat; this leaves it open, so the same workflow run " +
-			"resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting " +
-			"recorded before the stop (finished).\n\n" +
+			"IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run " +
+			"resumes against it.\n\n" +
+			"The answer says which of three states the run is in:\n" +
+			"  - no outcome: the run is open to its seats, and the same workflow run resumes against it;\n" +
+			"  - the outcome, and no assembled documents: the assembly sitting stamped the outcome and stopped before " +
+			"the bench's `assemble` wrote the run's documents, so the assembly is unfinished and the same workflow run resumes it — " +
+			"the bench sits again to assemble;\n" +
+			"  - the outcome, and the assembled documents: the assembly finished and there is nothing to resume — capture it.\n" +
+			"The documents are what says the assembly finished: the bench's `assemble` writes them and no event, and only in the " +
+			"sitting registered for the assemble occasion. The assembly sitting's stop says nothing of it, since the sitting " +
+			"stops whether or not the assembly ran. Capture re-assembles the documents from " +
+			"the record at the close. A run directory that cannot be read is said so, and is never read as finished.\n\n" +
 			"`ops log` reads the entry back, beside what the seats filed.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -82,19 +92,42 @@ func newEngineStopped() *cobra.Command {
 			}
 			// THE RECORD SAYS WHETHER THERE IS ANYTHING TO RESUME, so the lead relays it rather than
 			// inferring it from the error's wording.
-			state := "the record holds NO outcome: the run is open to its seats, and the same workflow run resumes against it"
-			switch v, err := record.RecordedOutcome(run); {
-			case err != nil:
-				state = "whether the record holds an outcome could not be read: " + err.Error()
-			case v != "":
-				// The seat's spelling, as every other operator surface shows it.
-				state = "the record holds the outcome " + strings.ToUpper(v) + ", recorded before the stop: the run is finished, and there is nothing to resume"
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "the engine's stop is on the record — %s\n", state)
+			fmt.Fprintf(cmd.OutOrStdout(), "the engine's stop is on the record — %s\n", stoppedState(run))
 			return nil
 		},
 	}
 	flags.RegisterPayload(c)
 	c.Flags().Lookup(flags.Reason).Usage = "the error the engine stopped on, verbatim"
 	return c
+}
+
+// stoppedState is what a stopped run leaves to do, read from the record and the assembly's
+// documents.
+//
+// THE OUTCOME IS NOT THE END OF THE RUN. The assembly sitting stamps it first and then assembles
+// (debate.js, the assembly prompt), so an engine stop after the outcome is an assembly sitting that
+// returned nothing — and whether it assembled before it stopped is what decides resume or capture.
+// The record cannot say: the bench's `assemble` writes documents and no event, and the sitting's span
+// closes whether or not it assembled. So the documents are read, by the same fact capture reads
+// (report.AssemblyWritten), and a directory that cannot be read is said so rather than read as
+// either answer.
+func stoppedState(run record.Run) string {
+	v, err := record.RecordedOutcome(run)
+	switch {
+	case err != nil:
+		return "whether the record holds an outcome could not be read: " + err.Error()
+	case v == "":
+		return "the record holds NO outcome: the run is open to its seats, and the same workflow run resumes against it"
+	}
+	// The seat's spelling, as every other operator surface shows it.
+	held := "the record holds the outcome " + strings.ToUpper(v) + ", stamped by the assembly sitting"
+	switch written, err := report.AssemblyWritten(run); {
+	case err != nil:
+		return held + ", and whether it assembled the run's documents could not be read: " + err.Error() +
+			" — the assembly is NOT shown finished, and the run is neither resumed nor captured on a guess"
+	case !written:
+		return held + ", and the run's documents were never assembled: the assembly sitting stopped before it finished, " +
+			"and the same workflow run resumes it — the bench sits again to assemble"
+	}
+	return held + ", and the run's documents are assembled: the assembly finished and there is nothing to resume — capture it"
 }

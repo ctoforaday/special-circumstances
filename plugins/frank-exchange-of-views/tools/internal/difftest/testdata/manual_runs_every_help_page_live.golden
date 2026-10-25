@@ -104,7 +104,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  assemble    assemble the run's documents for the human reader, from the record, in the sitting you registered for the assemble occasion and no other — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
@@ -125,7 +125,7 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 ========
 $ feov-record assemble --help
-assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+assemble the run's documents for the human reader, from the record, in the sitting you registered for the assemble occasion and no other — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
 ========
 $ feov-record certify --help
 what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
@@ -333,13 +333,19 @@ stamp how the run ENDED, as a fact — a different question from red's PASS or F
 
 The verdict is derived from the record — a halt, the chair's PASS, or the dispatch plan's ceiling (every open material gap at its limit and ruled, or the run's epoch limit reached) — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state.
 
+It is recorded in the assembly sitting — the one you registered for the assemble occasion — as that sitting's first act, and it is refused in every other: a docket, petition or terminal sitting rules what is yours and leaves the outcome to the assembly.
+
 It is refused while a motion whose gavel is the bench's stands unruled, unless the run halted: the refusal names each one. You hold that gavel — rule each, then record the outcome.
+
+Once it is recorded the record is closed to seat acts: any seat's later act is refused, and the refusal lands in the log as the tool's entry. State a declaration or a certification you hold after the stamp, and then assemble. An assembly sitting resumed after the stamp registers for the assemble occasion again, and its declaration, certification and assembly land as the first one's would.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
-IF WHAT YOU RECORDED WAS WRONG, say so in a new outcome.
+IF WHAT YOU RECORDED WAS WRONG, say so in a certification: the outcome stands once it is recorded,
+and after it the record takes no seat act but your register for the assemble occasion, your
+declaration, your certification, the assembly and a log entry.
 
 Flags:
       --as as-value     REQUIRED — the run's terminal verdict
@@ -1346,7 +1352,13 @@ engine-stopped --reason "<the error>" writes the error the engine stopped on to 
 
 Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one that was cut off.
 
-IT RECORDS NO OUTCOME. An outcome closes the record to every seat; this leaves it open, so the same workflow run resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting recorded before the stop (finished).
+IT RECORDS NO OUTCOME. An outcome closes the record to seat acts; this leaves it open, so the same workflow run resumes against it.
+
+The answer says which of three states the run is in:
+  - no outcome: the run is open to its seats, and the same workflow run resumes against it;
+  - the outcome, and no assembled documents: the assembly sitting stamped the outcome and stopped before the bench's `assemble` wrote the run's documents, so the assembly is unfinished and the same workflow run resumes it — the bench sits again to assemble;
+  - the outcome, and the assembled documents: the assembly finished and there is nothing to resume — capture it.
+The documents are what says the assembly finished: the bench's `assemble` writes them and no event, and only in the sitting registered for the assemble occasion. The assembly sitting's stop says nothing of it, since the sitting stops whether or not the assembly ran. Capture re-assembles the documents from the record at the close. A run directory that cannot be read is said so, and is never read as finished.
 
 `ops log` reads the entry back, beside what the seats filed.
 

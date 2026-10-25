@@ -167,9 +167,15 @@ func actRows() map[string]actRow {
 		"bench declare":        {seat: "judge", act: prose("declare")},
 		"bench certify":        {seat: "judge", act: prose("certify")},
 		"bench halt":           {seat: "judge", act: prose("halt")},
-		"bench outcome": {seat: "judge", act: func(_ actVars, text string) []string {
-			return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
-		}},
+		// The outcome is the assembly sitting's: the bench registers for it first.
+		"bench outcome": {seat: "judge",
+			setup: func(t *testing.T, runDir string) actVars {
+				must(t, runDir, "register", "--seat-id", "judge", "--occasion", "assemble")
+				return nil
+			},
+			act: func(_ actVars, text string) []string {
+				return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
+			}},
 		"motion grade rule": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) actVars { return actVars{"m": fileGradeMotion(t, runDir)} },
 			act: func(v actVars, text string) []string {

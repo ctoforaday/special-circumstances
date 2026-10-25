@@ -22,7 +22,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	mint := func(id string, kind recordpb.CheckKind, extra func(*recordpb.Mint)) {
 		t.Helper()
-		m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(id),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p"),
@@ -171,6 +171,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if v, err := RecordedOutcome(run); err != nil || v != "" {
 		t.Errorf("RecordedOutcome before any outcome = (%q, %v), want the honest empty", v, err)
 	}
+	sitToAssemble(t, run)
 	if _, err := Append(judge, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED),
 		Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
