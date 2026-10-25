@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // Migrate is the whole act: copy the run's channels, replay its record through the current
@@ -148,6 +150,13 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 			carried += n
 		}
 	}
+	// A CAPTURED RUN STAYS CAPTURED, and its mark lands LAST. copyChannels leaves the mark behind
+	// because the build's record refuses every write once it holds one (record.RunCaptured), the
+	// replay's included; written after the record's last write, it says of the migrated run what it
+	// said of the source. The source's bytes, so the capture's time is the one it states.
+	if err := carryCapturedMark(fromDir, toDir); err != nil {
+		return nil, err
+	}
 	// The source is released before the publish, not at return: nothing of it may be open or on
 	// disk when the run is synced and moved.
 	if err := release(); err != nil {
@@ -165,11 +174,26 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	return m, nil
 }
 
+// carryCapturedMark writes the source's capture mark into the build, when the source holds one.
+func carryCapturedMark(fromDir, toDir string) error {
+	from := filepath.Join(fromDir, runlive.CapturedMark)
+	if _, err := os.Stat(from); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("asking whether the source run was captured: %w", err)
+	}
+	if err := copyFile(from, filepath.Join(toDir, runlive.CapturedMark)); err != nil {
+		return fmt.Errorf("carrying the capture mark into the migrated run: %w", err)
+	}
+	return nil
+}
+
 // copyChannels copies the run directory verbatim, EXCEPT the record itself — the database
 // file set and the era's event shards. Replay rebuilds the record, and a stale copy beside
-// the fresh one would be two records claiming one run.
+// the fresh one would be two records claiming one run. The capture mark waits for the replay
+// (carryCapturedMark): beside the record before it, it refuses every event replay appends.
 func copyChannels(fromDir, toDir string) error {
-	skip := map[string]bool{}
+	skip := map[string]bool{filepath.Join(fromDir, runlive.CapturedMark): true}
 	for _, n := range dbSiblings {
 		skip[filepath.Join(fromDir, "records", n)] = true
 	}

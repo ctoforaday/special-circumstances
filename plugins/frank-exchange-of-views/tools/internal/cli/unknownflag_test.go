@@ -15,7 +15,7 @@ import (
 func TestAnUnknownFlagNamesTheFlagTheSeatMeant(t *testing.T) {
 	runDir := seatRun(t)
 
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-evidence", "--complexity_cost", "high")
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence", "--complexity_cost", "high")
 	if err == nil {
 		t.Fatal("mint --complexity_cost was accepted; it is not a flag")
 	}
@@ -41,7 +41,7 @@ func TestAnUnknownFlagNamesTheFlagTheSeatMeant(t *testing.T) {
 func TestAnUnknownFlagWithNoTranslationIsNotGivenOne(t *testing.T) {
 	runDir := seatRun(t)
 
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-evidence", "--not_a_real_field", "x")
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence", "--not_a_real_field", "x")
 	if err == nil {
 		t.Fatal("an invented flag was accepted")
 	}

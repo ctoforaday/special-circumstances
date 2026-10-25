@@ -375,7 +375,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text.\n")
 	registerLensOnce(t, runDir)
-	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "risk_coverage_omission", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {

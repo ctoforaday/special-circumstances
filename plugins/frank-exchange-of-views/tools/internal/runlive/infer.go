@@ -75,9 +75,9 @@ type Inferred struct {
 // the subagent sitting hooks — and the stage names one fact about one file.
 const StageUnusable hookfailures.Stage = "run-dir-unusable"
 
-// agentID is the agent asking ("" for none) — StateOf's one exception, the agent that recorded its
-// run's outcome, is answered through it.
-func InferRunDir(start, agentID string) Inferred {
+// caller is the agent asking (the zero Caller for none) — StateOf's exceptions between a run's
+// outcome and its capture, the bench's assembly sitting, are answered through it.
+func InferRunDir(start string, caller Caller) Inferred {
 	dir := start
 	if dir == "" {
 		if p := os.Getenv("CLAUDE_PROJECT_DIR"); p != "" {
@@ -106,12 +106,12 @@ func InferRunDir(start, agentID string) Inferred {
 			if !readable {
 				return Inferred{Why: Unreadable, MarkerDir: dir}
 			}
-			// ONLY LIVE ROWS COUNT. A row whose run ended or whose directory is gone is residue of a
-			// run nothing captured; letting it resolve attributed every later session in this project
+			// ONLY LIVE ROWS COUNT. A row whose outcome is recorded or whose directory is gone is
+			// residue of a run nothing captured; letting it resolve attributed every later session in this project
 			// to a dead run, and letting it count made a live run beside it ambiguous.
 			var live []string
 			for _, m := range runs {
-				if StateOf(dir, m, agentID) == RowLive {
+				if StateOf(dir, m, caller) == RowLive {
 					live = append(live, Resolve(dir, m.RunDir))
 				}
 			}

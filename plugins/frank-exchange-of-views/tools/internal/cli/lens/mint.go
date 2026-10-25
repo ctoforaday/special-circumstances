@@ -101,8 +101,9 @@ func newMint() *cobra.Command {
 			return nil, aerr
 		}
 		loc := seat.Location(cmd)
-		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
-		// is not changed here — but a gap that claims both is claiming two.
+		// ONE SUBJECT, and exactly one: a quote or an --about. A gap that claims both is claiming
+		// two; a gap with neither is a problem nothing locates, which the record refuses
+		// (record.requireMintSubject).
 		if strings.TrimSpace(loc) != "" && about != nil {
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
 		}
@@ -257,6 +258,7 @@ func newMint() *cobra.Command {
 	enumhelp.Flag(c, flags.Class, record.MustEnum("mint", "class"),
 		"the KIND of defect, from the values below; its material default is recorded with the gap. unclassified only when none fits, and then --reason names the nearest value and what it does not cover")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
+	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a proof whose sentence you judged unsound; use instead of --quote")
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a proof's anchor. It is CHECKED against the record")

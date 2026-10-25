@@ -228,6 +228,7 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	runDir := actFixture(t)
+	sitToAssemble(t, runDir)
 	pass := recordtest.At(t, "red-chair", "race:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{pass}, func() error {
 		_, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended")
@@ -241,10 +242,11 @@ func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	}
 }
 
-// V8: A SEAT'S REFUSAL IS LOGGED ONLY ON A RUN THAT IS NOT OVER, AS THE ENTRY LANDS. The bench records
-// the outcome at the moment a lens's refused call is logged; asked before the entry's write, the entry
-// lands after the outcome, on a record closed to seats.
-func TestARefusalIsNotLoggedAfterTheOutcome(t *testing.T) {
+// V8: A SEAT'S REFUSAL IS LOGGED ON A RUN THAT IS OVER, TOO. The bench records the outcome at the
+// moment a lens's refused call is logged; the entry lands on the record holding it, because a refusal
+// after the run's end is friction the operator reads (record.requireOpenToSeats lets every log entry
+// land).
+func TestARefusalIsLoggedAfterTheOutcome(t *testing.T) {
 	runDir := raceRun(t)
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
 		VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended")})
@@ -255,7 +257,7 @@ func TestARefusalIsNotLoggedAfterTheOutcome(t *testing.T) {
 	if err == nil {
 		t.Fatal("a finding with no --reason was recorded")
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 0 {
-		t.Errorf("the refusal was logged on a record holding an outcome: %d log entr(ies)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 1 {
+		t.Errorf("the refusal on a record holding an outcome: %d log entr(ies), want 1", n)
 	}
 }

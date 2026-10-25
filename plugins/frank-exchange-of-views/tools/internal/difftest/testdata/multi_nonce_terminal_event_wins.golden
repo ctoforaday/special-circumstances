@@ -25,7 +25,7 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
 stdout:
 minted GAP001
@@ -48,7 +48,7 @@ TWO CONSEQUENCES:
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high
 exit 0
 stdout:
 minted GAP002
@@ -80,9 +80,9 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, no
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":2,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 {"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_DISPATCH"}

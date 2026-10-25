@@ -26,7 +26,7 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic"}]}`)
 
-	if got := InferRunDir(proj, "").Dir; got != run {
+	if got := InferRunDir(proj, Caller{}).Dir; got != run {
 		t.Fatalf("InferRunDir(%q) = %q, want %q", proj, got, run)
 	}
 }
@@ -41,7 +41,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 
 	deep := filepath.Join(proj, "plugins", "x", "y")
 	mustMkdir(t, deep)
-	if got := InferRunDir(deep, "").Dir; got != run {
+	if got := InferRunDir(deep, Caller{}).Dir; got != run {
 		t.Fatalf("from %q got %q, want %q", deep, got, run)
 	}
 }
@@ -58,7 +58,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 			proj := t.TempDir()
 			mustMkdir(t, filepath.Join(proj, ".claude"))
 			writeMarker(t, proj, tc.body)
-			if got := InferRunDir(proj, "").Dir; got != "" {
+			if got := InferRunDir(proj, Caller{}).Dir; got != "" {
 				t.Fatalf("got %q, want empty", got)
 			}
 		})
@@ -66,7 +66,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 }
 
 func TestInferRunDirIsEmptyWithNoMarkerAnywhere(t *testing.T) {
-	if got := InferRunDir(t.TempDir(), "").Dir; got != "" {
+	if got := InferRunDir(t.TempDir(), Caller{}).Dir; got != "" {
 		t.Fatalf("got %q, want empty when no run is live", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
 	elsewhere := t.TempDir()
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
-	if got := InferRunDir(proj, "").Dir; got != elsewhere {
+	if got := InferRunDir(proj, Caller{}).Dir; got != elsewhere {
 		t.Fatalf("got %q, want %q", got, elsewhere)
 	}
 }
@@ -130,7 +130,7 @@ func TestInferRunDirSaysWhy(t *testing.T) {
 				mustMkdir(t, filepath.Join(proj, ".claude"))
 				writeMarker(t, proj, *tc.marker)
 			}
-			got := InferRunDir(proj, "")
+			got := InferRunDir(proj, Caller{})
 			if got.Why != tc.why {
 				t.Fatalf("Why = %v, want %v", got.Why, tc.why)
 			}
@@ -165,7 +165,7 @@ func TestNowhereToStartIsAFault(t *testing.T) {
 	if _, err := os.Getwd(); err == nil {
 		t.Skip("Getwd still succeeds with its directory removed on this platform — the premise never took")
 	}
-	got := InferRunDir("", "")
+	got := InferRunDir("", Caller{})
 	if got.Why != Unlocatable || !got.Why.Fault() {
 		t.Fatalf("Why = %v, fault %v; want Unlocatable, a fault", got.Why, got.Why.Fault())
 	}

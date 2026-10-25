@@ -230,14 +230,12 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
 // that is what opens the next sitting's count.
 func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
-	agentID := in.AgentID
-	if agentID == "" {
-		agentID = seatenv.AgentID()
-	}
+	caller := callerAgent(in)
+	agentID := caller.ID
 	if agentID == "" {
 		return false, nil
 	}
-	runDir := seatRunDir(cwd, agentID, rec)
+	runDir := seatRunDir(cwd, caller, rec)
 	d, counted, err := sittingcap.Count(runDir, agentID)
 	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
 		return false, err
@@ -258,8 +256,8 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 // seatRunDir is the run a seat's call belongs to: the marker its working directory finds, else the
 // run the engine put in the process environment. One resolution for every hook that attributes a
 // seat's call, so the turn limit and the failure log cannot disagree about which run it was in.
-func seatRunDir(cwd, agentID string, rec *hookfailures.Recorder) string {
-	inferred := runlive.InferRunDir(cwd, agentID)
+func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) string {
+	inferred := runlive.InferRunDir(cwd, caller)
 	noteInference(inferred, rec)
 	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var), os.Getenv(seatenv.VarWrapper)} {
 		if dir != "" {
@@ -270,12 +268,17 @@ func seatRunDir(cwd, agentID string, rec *hookfailures.Recorder) string {
 }
 
 // callerAgent is the agent a call is made by: the payload's, else the one a headless seat carries in
-// its environment — the same identity enforceLimit counts against.
-func callerAgent(in hookgate.Input) string {
-	if in.AgentID != "" {
-		return in.AgentID
+// its environment — the same identity enforceLimit counts against — with the configuration it was
+// dispatched under, which decides whether a decided run is still live for it (runlive.StateOf).
+func callerAgent(in hookgate.Input) runlive.Caller { return callerOf(in.AgentID, in.AgentType) }
+
+// callerOf is callerAgent for a payload this package decodes itself. The type comes from the same
+// place the id does: a payload's id with the environment's type would pair two agents.
+func callerOf(agentID, agentType string) runlive.Caller {
+	if agentID != "" {
+		return runlive.Caller{ID: agentID, Type: agentType}
 	}
-	return seatenv.AgentID()
+	return runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}
 }
 
 // noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
@@ -307,11 +310,12 @@ const envelopeTool = "StructuredOutput"
 // unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
 // check having failed. A call from no seat — no agent, no run — is no seat's envelope, and passes.
 func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
-	agentID := callerAgent(in)
+	caller := callerAgent(in)
+	agentID := caller.ID
 	if agentID == "" {
 		return
 	}
-	runDir := seatRunDir(cwd, agentID, rec)
+	runDir := seatRunDir(cwd, caller, rec)
 	if runDir == "" {
 		return
 	}

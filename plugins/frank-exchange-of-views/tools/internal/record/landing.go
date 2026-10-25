@@ -115,18 +115,3 @@ func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
 
 // UnplacedLocation is record.UnplacedLocation asked of the landing record.
 func (l *Landing) UnplacedLocation(id string) (string, error) { return unplacedLocationAt(l.w.q, id) }
-
-// UntilTheOutcome is the guard of a write the run's end closes — a log entry the tool writes for a
-// seat: on a record that holds an outcome it writes nothing (ErrWritesNothing). Asked under the write
-// lock, because the bench's outcome can commit between a check made before it and the entry, which
-// then lands after the documents the run assembled.
-var UntilTheOutcome = Check(func(l *Landing) error {
-	v, err := l.Outcome()
-	if err != nil {
-		return err
-	}
-	if v != "" {
-		return ErrWritesNothing
-	}
-	return nil
-})

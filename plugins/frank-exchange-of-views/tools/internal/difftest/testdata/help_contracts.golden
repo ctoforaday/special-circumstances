@@ -211,7 +211,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  assemble    assemble the run's documents for the human reader, from the record, in the sitting you registered for the assemble occasion and no other — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm

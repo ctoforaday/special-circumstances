@@ -72,7 +72,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	// that mints.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
@@ -274,5 +274,13 @@ func registerSeatOnce(t *testing.T, runDir, seatID string) {
 	}
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatalf("register %s: %v", seatID, err)
+	}
+}
+
+// sitToAssemble opens the bench's assembly sitting, the one sitting whose outcome the write takes.
+func sitToAssemble(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
+		t.Fatalf("registering the bench's assembly sitting: %v", err)
 	}
 }

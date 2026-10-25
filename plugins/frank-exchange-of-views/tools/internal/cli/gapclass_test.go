@@ -15,7 +15,7 @@ func mintClass(t *testing.T, runDir, key, class, severity, reason string) (strin
 	registerLensOnce(t, runDir)
 	args := []string{"--run", runDir, "--seat-id", lensSeat, "--key", key, "--class", class,
 		"--problem", "the defect " + key, "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
-		"--severity", severity, "--likelihood", severity, "--impact", severity}
+		"--severity", severity, "--likelihood", severity, "--impact", severity, "--about-kind", "section", "--about", "Findings"}
 	if reason != "" {
 		args = append(args, "--reason", reason)
 	}

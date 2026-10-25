@@ -48,11 +48,11 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
 			FoundBy: []string{"F-00000001"}}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		// An open gap standing on the anchor, so the board renders its backing.
@@ -352,7 +352,7 @@ func gapsALensCloses(t *testing.T) (Run, []*Event) {
 	closes := make([]*recordpb.Event, 0, gaps)
 	for i := 1; i <= gaps; i++ {
 		id := fmt.Sprintf("G%d", i)
-		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		seed = append(seed, recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}))
 		closes = append(closes, recordtest.Stamped(recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str(id),

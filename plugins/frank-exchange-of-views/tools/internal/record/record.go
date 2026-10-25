@@ -215,6 +215,10 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 			"no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go), a register included.
+	if err := requireRunNotCaptured(run); err != nil {
+		return 0, "", err
+	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
 	db, err := openRun(run)
@@ -735,6 +739,10 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
+	// A CAPTURED RUN TAKES NOTHING (captured.go), asked before anything is opened.
+	if err := requireRunNotCaptured(run); err != nil {
+		return nil, err
+	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -745,6 +753,12 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 		return nil, err
 	}
 	files := filesOf(run)
+	// THE RECORD'S OWN REFUSAL OF A SEAT ACT COMES BEFORE THE VERB'S GUARDS (outcomeclosed.go): an
+	// act after the outcome is told the run ended, not what a guard finds wrong with it. writeIn asks
+	// it again, which costs one query and keeps it first for the writers that hold no guards.
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
+		return ev, err
+	}
 	if err := guardsAt(writeView{q: tx, files: files, rendering: rendering}, guards, false); err != nil {
 		return ev, err
 	}
@@ -792,6 +806,13 @@ var WriteBegins = func() {}
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
+	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS, AND ITS OUTCOME IS THE ASSEMBLY SITTING'S
+	// (outcomeclosed.go), asked FIRST: an act after the outcome is told the run ended, not what else
+	// is wrong with it. appendAct asks it before its guards as well; this covers every other writer
+	// (RegisterSeat, DispatchNext, a migration's Batch).
+	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
+		return err
+	}
 	if check != nil {
 		if err := check(tx); err != nil {
 			return err
@@ -933,6 +954,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// exempts, with its reason, so this arm reads the same live and on replay: the
 		// report-voice refusal is off; the roster and the mint budget stay on.
 		if err := requireUnclassifiedReason(b); err != nil {
+			return err
+		}
+		if err := requireMintSubject(b); err != nil {
 			return err
 		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
@@ -1833,6 +1857,25 @@ func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
 // `char(9, 10, 13)` — so the write and the database refuse the same reasons
 // (TestTheWriteAndTheDatabaseAgreeOnABlankReason).
 const reasonBlank = " \t\n\r"
+
+// requireMintSubject refuses a gap with no subject: a location that is empty or blank, with no
+// --about-kind/--about naming what the gap is about instead. A gap is one sentence of the report or
+// a section, inquiry or gap the record checks, and the board shows it there; a gap with neither is a
+// problem nothing locates, which no reader can find and no re-audit can return to.
+//
+// A BLANK QUOTE IS NO QUOTE: a location of whitespace places nothing and states nothing, so it is
+// refused whether or not an --about rides beside it — beside one it would be a second subject that
+// says nothing.
+func requireMintSubject(m *recordpb.Mint) error {
+	loc := m.GetLocation()
+	switch {
+	case loc != "" && strings.TrimSpace(loc) == "":
+		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
+	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
+		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, or a gap already on the board")
+	}
+	return nil
+}
 
 // requireUnclassifiedReason refuses a catch-all mint that says nothing about why no class fits, in
 // the words of Mint's own (check) — the database refuses the row whatever writes it, and this names

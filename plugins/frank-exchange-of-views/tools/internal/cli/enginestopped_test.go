@@ -73,17 +73,50 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 		}
 	})
 
-	t.Run("on a record that holds an outcome the answer names it, and says there is nothing to resume", func(t *testing.T) {
+	// THE OUTCOME IS THE ASSEMBLY SITTING'S FIRST ACT, NOT ITS LAST. A stop after it is an assembly
+	// sitting that returned nothing, and the answer turns on whether it assembled before it stopped.
+	stamped := func(t *testing.T) string {
+		t.Helper()
 		runDir := seatRun(t)
+		sitToAssemble(t, runDir)
 		if _, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended before a terminal state"); err != nil {
 			t.Fatalf("recording an outcome: %v", err)
 		}
+		return runDir
+	}
+
+	t.Run("an outcome with no assembled documents is an unfinished assembly, and the answer says to resume it", func(t *testing.T) {
+		runDir := stamped(t)
 		out := logStop(t, runDir, stop)
-		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "nothing to resume") {
-			t.Errorf("the answer does not say the run is finished: %s", out)
+		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "never assembled") || !strings.Contains(out, "resumes it") {
+			t.Errorf("the answer does not send an unfinished assembly to resume: %s", out)
+		}
+		if strings.Contains(out, "nothing to resume") || strings.Contains(out, "capture it") {
+			t.Errorf("the answer calls an unassembled run finished: %s", out)
 		}
 		if len(stops(t, runDir)) != 1 {
 			t.Errorf("the stop was not written to a record that holds an outcome")
+		}
+		// What the resume dispatches: the bench, sitting again to assemble.
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "assemble"); err != nil {
+			t.Errorf("the resumed assembly sitting cannot register: %v", err)
+		}
+		if _, err := run(t, "assemble", "--run", runDir, "--seat-id", "judge"); err != nil {
+			t.Errorf("the resumed assembly sitting cannot assemble: %v", err)
+		}
+	})
+
+	t.Run("an outcome with the assembled documents is a finished run, and the answer says to capture it", func(t *testing.T) {
+		runDir := stamped(t)
+		if _, err := run(t, "assemble", "--run", runDir, "--seat-id", "judge"); err != nil {
+			t.Fatalf("assembling: %v", err)
+		}
+		out := logStop(t, runDir, stop)
+		if !strings.Contains(out, "holds the outcome UNVERIFIED") || !strings.Contains(out, "nothing to resume") || !strings.Contains(out, "capture it") {
+			t.Errorf("the answer does not send a finished assembly to capture: %s", out)
+		}
+		if strings.Contains(out, "resumes") {
+			t.Errorf("the answer sends a finished run to resume: %s", out)
 		}
 	})
 

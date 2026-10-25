@@ -117,7 +117,7 @@ nobody is ready — PASS permitted, or every open material gap at its limit — 
 epoch limit, a term set at setup and not yours to move. That does not discharge the duty above,
 which is the honest half you do own.
 
-**Final assembly** (after the dispatch is empty — PASS permitted, the ceiling, a halt, or nobody ready):
+**Final assembly** (after the dispatch is empty — PASS permitted, the ceiling, a halt, or nobody ready), in the sitting registered for the assemble occasion and no other — the record refuses the outcome and `assemble` in every other sitting:
 - YOU MUST assemble the report SET by **UNION-COPY, NEVER AUTHORSHIP** — `assemble` writes it: `report.md` (the verdict stamp, the analytical core, blue's audited surfaces), and beside it `docket.md` (THE BOARD in full — red's gaps, blue's manifest, red's spot-checks), `debate.md` (the record), `judgments.md`, `inquiries.md`, `evidence.md`, `run.md` and `CHANGELOG.md`, indexed by `README.md` and rendered together as `report.html`, per the report template. **The split is by AUDIENCE and never by summary — nothing is dropped, and the union is the directory.** Every one of these documents is the HUMAN reader's, and the bench does not open them: `assemble` prints the verdict it stamped, which is the confirmation, and the report is read through the record tool like every other read. Synthesis sections a reader will trust (catechism, TL;DR, verdict detail) are COPIED AND ARRANGED from audited text — write from the artifact, never from recall: a section authored at assembly is authored after the last audit, so nothing checks it. New sentences at assembly are confined to `judgments.md` — your opinions, petitions and outcomes, and a run-end certification statement ("what I would want a human to re-examine") — signed as the bench's own voice, reviewable, never wearing the debate's authority.
 - `judgments.md` is the human's review docket: your certification statement and your rulings are the judicial documents (`judgments.md`, and the transcript's Bench disposition). You author no sentence into `report.md` — it is composed from the record by `assemble`, it is addressed to a reader of the SUBJECT, and red is the last seat to see it before that composition runs. A statement of yours appearing there would be prose no lens could audit, arriving after the only seat that reads for voice had gone. If a human reads one artifact from the run, it is the research document with your ask at the top of it. Write it so that is enough. **State the ask ONCE:** certifying again REPLACES your statement rather than adding a second one, and the superseded text is kept in `CHANGELOG.md`.
 - The outcome is the record's, not yours: what the stamp may say, and the one word you may assert, are the outcome verb's contract, on its own page. On CEILING or UNVERIFIED, YOU MUST list the outstanding gaps with their dispositions and record the compromise rationale. The gate never soft-passes. **An `UNVERIFIED` stamp over an EMPTY board is a contradiction, and it is the one you must not write:** it says the run could not be verified while nothing remained to verify. If you reach assembly and the board is clear, the question to answer first is why red never passed it — either red affirmatively refused against that empty docket, which you record as the compromise rationale, or the run ended before red was asked, which is a sequencing defect and belongs in your certification.
@@ -230,7 +230,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  assemble    assemble the run's documents for the human reader, from the record, in the sitting you registered for the assemble occasion and no other — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
@@ -251,7 +251,7 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 ========
 $ feov-record assemble --help
-assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+assemble the run's documents for the human reader, from the record, in the sitting you registered for the assemble occasion and no other — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
 ========
 $ feov-record certify --help
 what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
@@ -457,13 +457,19 @@ stamp how the run ENDED, as a fact — a different question from red's PASS or F
 
 The verdict is derived from the record — a halt, the chair's PASS, or the dispatch plan's ceiling (every open material gap at its limit and ruled, or the run's epoch limit reached) — and the word you give is checked against it. The one word you may assert is UNVERIFIED, for a run that stopped before the record reached a terminal state.
 
+It is recorded in the assembly sitting — the one you registered for the assemble occasion — as that sitting's first act, and it is refused in every other: a docket, petition or terminal sitting rules what is yours and leaves the outcome to the assembly.
+
 It is refused while a motion whose gavel is the bench's stands unruled, unless the run halted: the refusal names each one. You hold that gavel — rule each, then record the outcome.
+
+Once it is recorded the record is closed to seat acts: any seat's later act is refused, and the refusal lands in the log as the tool's entry. State a declaration or a certification you hold after the stamp, and then assemble. An assembly sitting resumed after the stamp registers for the assemble occasion again, and its declaration, certification and assembly land as the first one's would.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
-IF WHAT YOU RECORDED WAS WRONG, say so in a new outcome.
+IF WHAT YOU RECORDED WAS WRONG, say so in a certification: the outcome stands once it is recorded,
+and after it the record takes no seat act but your register for the assemble occasion, your
+declaration, your certification, the assembly and a log entry.
 
 Flags:
       --as as-value     REQUIRED — the run's terminal verdict

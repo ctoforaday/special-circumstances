@@ -411,7 +411,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
 		// ASSESSED AT THE INJECTED CLOCK, not time.Now(), so a test can put the record in the
 		// past and watch this flip.
-		Live:      record.Assess(run, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
+		Live:      record.Assess(run, time.UnixMilli(int64(nowMs)).UTC()),
 		Generated: nowISO(nowMs),
 	}
 }

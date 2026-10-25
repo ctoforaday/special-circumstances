@@ -88,7 +88,7 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
 		"the gap comes before you again only in a docket motion another seat files"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
-	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {act: "a new outcome", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {whole: "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"},
 	{typ: recordpb.EventType_EVENT_TYPE_POSITION}:                              {act: "a new position", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_PROOF}:                                 {act: "a new proof", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_REGRADE}:                               {act: "a new regrade", own: true, while: "while the gap is open"},

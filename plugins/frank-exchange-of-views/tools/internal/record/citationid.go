@@ -438,7 +438,8 @@ func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify
 }
 
 // contradictionsOf is every contradiction red recorded, in the order the record opened them, each
-// with the finding that answered it ("" while it is open). ids is evs's events.id, aligned with it.
+// with the finding that raised it and the gap that answered it ("" while each is unset). ids is
+// evs's events.id, aligned with it.
 //
 // THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
 // becomes a footnote and reaches the reader that way; `refutes` and `absent` are not references
@@ -568,9 +569,10 @@ func ContradictionOfReading(run Run, reading *Event) (*ReadingContradiction, err
 }
 
 // requireOpenContradiction refuses a finding's reference to a contradiction that is not open: a
-// ref that is not an id, one no reading opened, or one a finding already answered — that refusal
-// names the answering finding. It runs on replay as well: the reading is written before the
-// finding that answers it, so a translated reference resolves and a mistranslated one is loud.
+// ref that is not an id, one no reading opened, one a finding already raised — that refusal names
+// the raising finding and the mint that answers it — or one a gap already answered. It runs on
+// replay as well: the reading is written before the finding that raises it, so a translated
+// reference resolves and a mistranslated one is loud.
 func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	ref = strings.TrimSpace(ref)
 	if _, err := strconv.ParseInt(ref, 10, 64); err != nil {
@@ -616,7 +618,8 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 // reworded sentence is reopened, owed a check, and only a check that backs it answers the
 // contradiction.
 //
-// A corroboration's reading checked no citation (its anchor is ""), so only a finding answers it.
+// A corroboration's reading checked no citation (its anchor is ""), so only the gap minted from
+// the finding that raised it answers it.
 func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
 	ledger := anchorChecksOf(evs, win)
 	var out []contradiction

@@ -15,7 +15,7 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe error term is bounded by the second derivative.\n")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "V1", "--class", "spec_underspecification", "--problem", "The bound in this report omits its derivation.",
 		"--fix", "State the derivation the red team asked for.", "--check-kind", "document", "--check", "the derivation is stated",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
@@ -31,7 +31,7 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 		}
 	}
 
-	clean, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	clean, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "V2", "--class", "spec_underspecification", "--problem", "The error term's constant is unsourced.",
 		"--fix", "Cite the constant.", "--check-kind", "document", "--check", "the constant is cited",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
