@@ -794,9 +794,11 @@ A LENS'S WHOLE READ IS ON THE RECORD. The bare form and --json with no selector 
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 
-OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path,ships,own_in_report,authored_headings:[string],text}]}
+OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path,ships,own_in_report,authored_headings:[string],text,no_text}]}
 
 `heading` IS SPELLED TWO WAYS. In --assembled --json it is the section's bare name — `Research areas`, no `#` marks. In the --json `lines` it is the heading line as the report writes it — `## Research areas`.
+
+EVERY SECTION CARRIES `text`, a string: a section that does not ship carries `""` and `no_text`, which says why it has none.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

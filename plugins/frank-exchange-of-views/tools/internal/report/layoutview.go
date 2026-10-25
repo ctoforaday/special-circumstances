@@ -32,9 +32,17 @@ type LayoutSection struct {
 	OwnInReport bool `json:"own_in_report,omitempty"`
 	// AuthoredHeadings is the headings of the report's own sections, on the row that is the body.
 	AuthoredHeadings []string `json:"authored_headings,omitempty"`
-	// Text is the section as it ships: anchors resolved, notes numbered.
-	Text string `json:"text,omitempty"`
+	// Text is the section as it ships: anchors resolved, notes numbered. It is always a string, ""
+	// on a row that does not ship, so a search over every row's text is a search, not a type error.
+	Text string `json:"text"`
+	// NoText is why a row carries no text: set exactly on a row that does not ship. An empty `text`
+	// alone reads as a section that ships empty, or as data the view failed to read.
+	NoText string `json:"no_text,omitempty"`
 }
+
+// NotInTheSet is a row's `no_text` when the set assembled from the record as it stands does not
+// carry the section.
+const NotInTheSet = "not in the set as the record stands: assembly composed nothing for this section from the record, so no text of it ships"
 
 // LayoutJSON is `show report --assembled --json`.
 type LayoutJSON struct {
@@ -84,7 +92,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	}
 	var out LayoutJSON
 	for i, s := range layout {
-		row := LayoutSection{File: s.File, Heading: s.Heading, Line: strings.TrimSpace(s.Line), Composer: s.Composer, From: s.From, Path: s.Path, OwnInReport: s.SubjectHeading}
+		row := LayoutSection{File: s.File, Heading: s.Heading, Line: strings.TrimSpace(s.Line), Composer: s.Composer, From: s.From, Path: s.Path, OwnInReport: s.SubjectHeading, NoText: NotInTheSet}
 		if start := starts[i]; start >= 0 {
 			lines := rendered[s.File]
 			end := len(lines)
@@ -96,7 +104,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 			if s.Line != "" {
 				end = start + 1
 			}
-			row.Ships = true
+			row.Ships, row.NoText = true, ""
 			row.Text = strings.TrimSpace(strings.Join(lines[start:end], "\n"))
 			if s.embeds {
 				eachLine(strings.Join(lines[start:end], "\n"), func(_, t string, fenced bool) {
