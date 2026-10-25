@@ -270,8 +270,6 @@ const (
 	ConvergenceFraction = "convergence-fraction"
 	MaxSittingCalls     = "max-sitting-calls"
 	MaxEpochs           = "max-epochs"
-	LensArea            = "lens-area"
-	LensAreaReason      = "lens-area-reason"
 	BinDir              = "bin-dir"
 	RunID               = "run-id"
 	ScriptPath          = "script-path"
@@ -320,7 +318,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}
@@ -343,7 +341,7 @@ var closedForm = map[string]bool{
 	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
-	Model: true, JudgmentModel: true, Cite: true, Lanes: true, LensArea: true, LensAreaReason: true,
+	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true,
 	Card: true, Occasion: true,
 }

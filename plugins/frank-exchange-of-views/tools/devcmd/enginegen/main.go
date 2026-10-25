@@ -2,8 +2,8 @@
 //
 // debate.js is authored source with TWO generated regions, each between its own pair of marker
 // lines. The SEATS region is identity: the script dispatches every seat, so it needs each seat's
-// role, tier class, agent configuration and lens area, the lens areas, the bench's occasions and
-// the mass mapping's stamp. The ENVELOPE VOCABULARY region is what a seat's envelope may say: each
+// role, tier class, agent configuration and lens area, the bench's occasions and the mass mapping's
+// stamp; every lens area the record declares must have exactly one lens seat. The ENVELOPE VOCABULARY region is what a seat's envelope may say: each
 // closed set an envelope schema offers, and the schema of the plan the chair relays, with the
 // type tables the script's own check of a relay walks. Go owns every one of those, and `-check`
 // fails when a committed region is not what the record renders — stale after an edit to the
@@ -201,7 +201,6 @@ func render(s source) ([]byte, error) {
 	for a, id := range lensOf {
 		return nil, fmt.Errorf("the roster seats %s for the area %s, which the record does not declare", id, a)
 	}
-	fmt.Fprintf(&b, "const RED_AREAS = [%s]\n", strings.Join(each(s.areas, js), ", "))
 
 	if len(s.occasions) == 0 {
 		return nil, fmt.Errorf("the record's Occasion enum holds no word")

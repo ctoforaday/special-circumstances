@@ -290,7 +290,7 @@ var blockerKinds = []blockerKind{
 	},
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the anchor's
 	// (anchorOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
-	// proof's the lens that owns proofs. The owner owes the check, so it is not retired, and the
+	// proof's the computation lens. The owner owes the check, so it is not retired, and the
 	// edit that reopened the anchor moved the head past its last sitting: dispatch readies it.
 	//
 	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check from a sitting opened
@@ -600,19 +600,13 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	for _, c := range unansweredContradictions(evs, win) {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy, raiser: c.raiser})
 	}
-	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE CAST SEATS ITS OWNER. A blocker whose owner
-	// cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence` lists the
-	// anchor either way.
-	cast := castOfEvents(evs)
 	for _, r := range reopenedEvidence(evs, win) {
-		if owner := anchorOwnerOf(cast, r.proof); owner != "" {
-			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: owner, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
-		}
+		out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: anchorOwnerOf(r.proof), Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 	}
 	for _, u := range unsoundProofsOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerUnsoundProof, Subject: u.anchor, Owner: u.judge, Detail: u.sha, since: u.since, answeredBy: u.answeredBy, answeredAt: u.answeredAt})
 	}
-	if cast != nil && reportHeadOf(evs, ids) == 0 {
+	if castOfEvents(evs) != nil && reportHeadOf(evs, ids) == 0 {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)

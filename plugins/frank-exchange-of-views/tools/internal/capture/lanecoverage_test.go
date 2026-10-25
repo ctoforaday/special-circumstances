@@ -26,7 +26,7 @@ func laneRun(t *testing.T, lanes string, registered ...int) string {
 	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"lanes":`+strconv.Quote(lanes)+`}`)
 	castN, _ := strconv.Atoi(lanes)
-	seats, laneSeats := record.CastFor(nil, castN)
+	seats, laneSeats := record.CastFor(castN)
 	evs := []*recordpb.Event{recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})}
 	for _, n := range registered {
@@ -88,7 +88,7 @@ func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
 func TestLaneCoverageFailsOnALaneTheConfigNeverAskedFor(t *testing.T) {
 	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"lanes":"2"}`)
-	seats, laneSeats := record.CastFor(nil, 3)
+	seats, laneSeats := record.CastFor(3)
 	evs := []*recordpb.Event{recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})}
 	for _, n := range []int{1, 2, 3} {

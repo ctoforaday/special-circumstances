@@ -135,7 +135,7 @@ The learning plugin, designed to improve the suite while you sleep: a `/self-imp
 
 ## Anatomy of a research run
 
-Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--lens-areas a,b,c] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
+Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
 
 1. **Blue builds.** Parallel lanes research the topic, one method each; blue synthesizes them additively into the report, carrying a frontier of hypotheses and preserving the lane drafts.
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.

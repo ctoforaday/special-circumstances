@@ -31,8 +31,8 @@ var m19Reopened = []reopened{
 	{anchor: "P-cd9f4c5a", proof: true, sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 370, lastCheck: 331},
 }
 
-// m19Owner is who owes each reopened anchor's check in m19's cast, which seats every lens: the
-// evidence lens a citation's, the computation lens the proof's (reopenedOwnerOf).
+// m19Owner is who owes each reopened anchor's check: the evidence lens a citation's, the computation
+// lens the proof's (anchorOwnerOf).
 func m19Owner(r reopened) string {
 	if r.proof {
 		return computationSeat

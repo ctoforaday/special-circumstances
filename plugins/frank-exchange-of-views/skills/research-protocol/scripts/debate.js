@@ -53,7 +53,7 @@ export const meta = {
 // object destructures to undefined and every agent gets literal 'undefined' paths —
 // the exact harness defect red graded high/high/low in run 1. Parse, then guard.
 const a = typeof args === 'string' ? JSON.parse(args) : args
-const { topic, runDir, lanes = 3, lensAreas = null, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, transcriptDir = null } = a
+const { topic, runDir, lanes = 3, model = null, judgmentModel = null, laneFloorOverride = null, binDir = null, transcriptDir = null } = a
 if (args && Object.prototype.hasOwnProperty.call(args, 'maxRounds')) {
   throw new Error(`debate: refusing dispatch — maxRounds is not a term of this engine any more (plans/roundless.md). A run ends on the record, not on a count:
 the chair's \`dispatch next\` says who sits, and the run ends when nobody is ready — PASS permitted, or every open material
@@ -94,9 +94,8 @@ const TIER = { bulk: { model }, judgment: { model: judgmentModel } }
 
 // WHO SITS, AND UNDER WHAT, IS THE RECORD'S ROSTER. The block below is written from it and this
 // script authors none of it: each seat's role, tier class, agent configuration and lens area
-// (seatclass.Seats, seatclass.Lane), the lens areas in the order the cast declares them
-// (flags.LensAreas), the bench's occasions (the record's Occasion enum) and the mass mapping's
-// stamp (record.MassMappingVersion). Adding a lens area is an edit to flags.LensAreas, its agent
+// (seatclass.Seats, seatclass.Lane), the bench's occasions (the record's Occasion enum) and the
+// mass mapping's stamp (record.MassMappingVersion). Adding a lens area is an edit to flags.LensAreas, its agent
 // configuration, and a regeneration; a block that is stale or edited by hand fails
 // `enginegen -check`.
 //
@@ -119,7 +118,6 @@ const SEATS = {
   'red-lens-voice': { role: 'lens', tier: 'bulk', agentType: 'frank-exchange-of-views:red-lens-voice', area: 'voice' },
 }
 const LANE = { prefix: 'blue-lane-', role: 'blue', tier: 'bulk', agentType: 'frank-exchange-of-views:blue-researcher' }
-const RED_AREAS = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
 const OCCASION = { docket: 'docket', petition: 'petition', terminal: 'terminal', assemble: 'assemble' }
 const MASS_MAPPING_VERSION = 'v2'
 // END GENERATED SEATS
@@ -743,31 +741,9 @@ const TERMINAL_ENVELOPE = {
 //
 // THE LENS TEXT IS NOT HERE. Each area's standing instructions are its agent configuration —
 // `agents/red-lens-<area>.md` — which is where a prompt belongs and where it can be reviewed as
-// one. What the ENGINE needs is in the generated block: the areas (RED_AREAS), and each lens
-// seat's row (SEATS), which carries the area it audits and the configuration that seats it. The
-// generator refuses an area with no lens seat and a lens seat for an undeclared area.
-
-// The areas a run dispatches. EVERY AREA SITS BY DEFAULT; the first sitting is seven lens sittings
-// in one wave. The Workflow tool's concurrency defaults to min(16, CPUs-2) — two on a four-core box,
-// which #753 measured as four waves — and CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS raises it;
-// scripts/universe.sh sets 16 for every run it launches. A lens that finds nothing sits once per report head and, owing
-// nothing, retires at its third such sitting (the record's lens fold); while it owes — something new on a gap it minted since it
-// last sat, a contradiction it read, a check it owns — it sits once per head move instead, so seating an area costs three
-// sittings plus one per head move it owes through. An operator narrows the cast only with a
-// reason. record.DefaultCastAreas says the same, and the cast setup writes is read from it.
-const DEFAULT_AREAS = RED_AREAS.slice()
-
-// AREA SELECTION IS VALIDATED AT THE DOOR, because a typo'd area name is a lens that silently
-// does not sit — a run missing an entire kind of audit, reading exactly like a run that asked for
-// fewer. The refusal names what was asked for and what exists.
-const selectedAreas = (Array.isArray(lensAreas) && lensAreas.length ? lensAreas : DEFAULT_AREAS).map(String)
-{
-  const unknown = selectedAreas.filter((k) => !RED_AREAS.includes(k))
-  if (unknown.length) {
-    throw new Error(`debate: unknown lens area(s) ${JSON.stringify(unknown)} — the areas are ${JSON.stringify(RED_AREAS)}`)
-  }
-}
-
+// one. What the ENGINE needs is in the generated block: each lens seat's row (SEATS), which carries
+// the area it audits and the configuration that seats it. The generator refuses an area with no
+// lens seat and a lens seat for an undeclared area.
 
 // Engineered lane diversity (retrospective §3 row 6): distinct METHOD/SOURCE-CLASS lenses,
 // not persona text and not headcount. Run 2 measured breadth-phase convergence directly.

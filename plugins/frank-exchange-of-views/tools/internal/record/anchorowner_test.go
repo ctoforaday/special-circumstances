@@ -8,9 +8,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// ONE LENS OWNS A PROOF NOBODY JUDGED (anchorOwnerOf): the computation lens where the cast seats it,
-// else the evidence lens, else nobody. Its work list is the only one offering the proof; the proof
-// stays on the record for every lens, `not_judged`, whoever owns it.
+// ONE LENS OWNS A PROOF NOBODY JUDGED (anchorOwnerOf): the computation lens. Its work list is the
+// only one offering the proof; the proof stays on the record for every lens, `not_judged`.
 func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 	for _, c := range []struct {
 		name  string
@@ -18,8 +17,6 @@ func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 		owner string
 	}{
 		{"computation cast", []string{compLens, evLens, outsideLens}, compLens},
-		{"no computation lens", []string{evLens, outsideLens}, evLens},
-		{"neither lens", []string{outsideLens}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			seats := append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")
@@ -34,7 +31,7 @@ func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 					t.Errorf("%s's work list offers the unjudged proof = %v, want %v", lens, listed, want)
 				}
 			}
-			// The proof is on the record whoever owns it: `show evidence` lists it, not judged.
+			// The proof is on the record for every lens: `show evidence` lists it, not judged.
 			raw, err := EvidenceJSONBytes(run)
 			if err != nil {
 				t.Fatal(err)
@@ -47,10 +44,9 @@ func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 	}
 }
 
-// ONE LENS OWNS A CITATION NOBODY VERIFIED (anchorOwnerOf, gblock 2026-10-25): the evidence lens, and
-// nobody where the cast seats none. Its work list is the only one offering the citation, and the
-// citation keeps it from retiring (lensOwesOf); in a cast with no evidence lens nobody is offered it
-// or owes it, and it holds no PASS — `show evidence` lists it with no verification, for every lens.
+// ONE LENS OWNS A CITATION NOBODY VERIFIED (anchorOwnerOf, gblock 2026-10-25): the evidence lens. Its
+// work list is the only one offering the citation, and the citation keeps it from retiring
+// (lensOwesOf); `show evidence` lists it with no verification, for every lens.
 func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 	for _, c := range []struct {
 		name  string
@@ -58,7 +54,6 @@ func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 		owner string
 	}{
 		{"evidence cast", []string{compLens, evLens, outsideLens}, evLens},
-		{"no evidence lens", []string{compLens, outsideLens}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			seats := append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")
@@ -95,9 +90,9 @@ func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 	}
 }
 
-// ONE DEFINITION OF WHO OWES AN ANCHOR'S CHECK. For each cast and each anchor kind, the lens a
-// never-checked anchor's work-list item goes to, the lens it keeps from retiring, and the owner of
-// the blocker a reopened one raises are one seat — or nobody, all three at once.
+// ONE DEFINITION OF WHO OWES AN ANCHOR'S CHECK. For each anchor kind, the lens a never-checked
+// anchor's work-list item goes to, the lens it keeps from retiring, and the owner of the blocker a
+// reopened one raises are one seat.
 func TestOneOwnerPerAnchorKind(t *testing.T) {
 	for _, c := range []struct {
 		name                 string
@@ -105,15 +100,12 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 		citation, proofOwner string
 	}{
 		{"every lens", []string{compLens, evLens, outsideLens}, evLens, compLens},
-		{"no computation lens", []string{evLens, outsideLens}, evLens, evLens},
-		{"no evidence lens", []string{compLens, outsideLens}, "", compLens},
-		{"neither lens", []string{outsideLens}, "", ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := anchorOwnerOf(c.cast, false); got != c.citation {
+			if got := anchorOwnerOf(false); got != c.citation {
 				t.Errorf("anchorOwnerOf(citation) = %q, want %q", got, c.citation)
 			}
-			if got := anchorOwnerOf(c.cast, true); got != c.proofOwner {
+			if got := anchorOwnerOf(true); got != c.proofOwner {
 				t.Errorf("anchorOwnerOf(proof) = %q, want %q", got, c.proofOwner)
 			}
 			seats := append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")
@@ -158,5 +150,5 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 	}
 }
 
-// compLens is the computation lens: the owner of every unjudged proof where the cast seats it.
+// compLens is the computation lens: the owner of every unjudged proof.
 const compLens = "red-lens-computation"

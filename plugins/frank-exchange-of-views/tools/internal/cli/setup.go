@@ -30,8 +30,6 @@ func newSetup() *cobra.Command {
 		maxSittingCalls             int
 		maxEpochs                   int
 		convergenceFraction         float64
-		lensAreas                   []string
-		lensAreaReason              string
 		binDir                      string
 		runID, scriptPath           string
 		cites                       []string
@@ -65,8 +63,6 @@ func newSetup() *cobra.Command {
 				MaxSittingCalls:     maxSittingCalls,
 				MaxEpochs:           maxEpochs,
 				MaxEpochsSet:        cmd.Flags().Changed(flags.MaxEpochs),
-				LensAreas:           lensAreas,
-				LensAreaReason:      lensAreaReason,
 				BinDir:              binDir,
 				RunID:               runID,
 				ScriptPath:          scriptPath,
@@ -90,12 +86,6 @@ func newSetup() *cobra.Command {
 	f.IntVar(&kMax, flags.KMax, 0, "total exchanges on one gap before it is at impasse regardless of movement (default 6; a smoke run passes 2)")
 	f.IntVar(&mintBudget, flags.MintBudget, 0, "the FLOOR of the gaps one lens may hold open at once — a gap that closes frees a mint, and a gap that answers a contradiction its own lens raised takes none; each lens's budget is the larger of this and its area's rate over what the area audits, read off the record at each mint — "+record.MintScaleSummary()+" (default "+strconv.Itoa(record.DefaultParams.MintBudget)+"; a smoke run passes 3)")
 	f.IntVar(&maxSittingCalls, flags.MaxSittingCalls, 0, "the tool calls one seat may make in one sitting; past it the hook refuses every call but a register, and the record says which seat and sitting stopped (default "+strconv.Itoa(sittingcap.DefaultMaxCalls)+"; recorded in run-config.json)")
-	f.StringArrayVar(&lensAreas, flags.LensArea, nil, "a red lens area this run dispatches (repeatable; default every area — narrow it only with a reason, which --lens-area-reason then requires) — the cast is written from these")
-	// THE REASON IS REQUIRED WHEN THE CAST NARROWS, and that is enforced in setup.Run rather than
-	// here: a flag cannot see how many areas its sibling collected. A dropped area is an audit
-	// dimension nobody performs, and the terminal verdict says so — but only the operator knows
-	// whether the topic needed it.
-	f.StringVar(&lensAreaReason, flags.LensAreaReason, "", "why this run seats fewer than every lens area — REQUIRED with a narrowing --lens-area, refused as empty; recorded in run-config.json so an archived run states what the narrowing was for")
 	f.Float64Var(&convergenceFraction, flags.ConvergenceFraction, 0, "fraction of the run's peak board mass below which a FAIL over a board with nothing material is refused (default 0.25)")
 	f.IntVar(&maxEpochs, flags.MaxEpochs, 0, fmt.Sprintf("the chair sittings the run gets, 1 or more; the sitting that opens the last epoch dispatches nobody, and a run with parties still ready there ends CEILING (default %d; recorded in run-config.json)", record.DefaultParams.MaxEpochs))
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")

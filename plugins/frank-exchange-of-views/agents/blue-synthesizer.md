@@ -87,9 +87,9 @@ already failed your own standard.
   read what each one marks on the record before you place it. The record lists each anchor
   whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
   stands, its referent moved, so its check is stale rather than refuted. Its owning lens owes
-  the new check and is readied for it — the evidence lens for a citation; for a proof the
-  computation lens, or the evidence lens where the cast seats none. A check by any lens from a
-  sitting opened after the edit clears it, and a PASS waits until one does.
+  the new check and is readied for it — the evidence lens for a citation, the computation lens
+  for a proof. A check by any lens from a sitting opened after the edit clears it, and a PASS
+  waits until one does.
 - **A PROOF A LENS JUDGED UNSOUND HOLDS THE PASS, AND IT IS YOURS TO FIX OR RETIRE.** While a
   lens's judgement that a proof does not establish its sentence stands, no PASS can be recorded,
   and you are readied for it. Fix it — an edit that makes the sentence say what the script shows,
@@ -728,7 +728,7 @@ A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES. `rerun` is the SCRIPT's: `r
 
 `unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding and its gap, and the citation `anchor` the reading checked (empty for a corroboration). Only a finding naming it — `--about-kind contradiction --about <id>` — raises it, whether or not the report still holds the sentence; a finding whose quote contains the claim raises nothing. `raised_by` names the raising finding, and a source read against the claim after it opens a new one. The gap minted from the raising finding, crediting it as the finding that surfaced it, answers it; the finding alone does not. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.
 
-A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a proof is the computation lens's, or the evidence lens's where the cast seats none. A PASS waits while a row stands.
+A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a proof is the computation lens's. A PASS waits while a row stands.
 
 TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.
 
@@ -798,7 +798,7 @@ $ feov-record show work --help
 
 A BLOCKING ITEM HOLDS YOUR SITTING: the call that returns your envelope is refused while any blocking item your own act clears stands, and the refusal names each — clear them, then return it again. An envelope the record cannot be read to check is refused as well, naming the read error. An item your sitting cannot clear is listed with `blocks: false` and says why — another seat clears it, or a later sitting does.
 
-An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified or a proof nobody re-ran (each on its owning lens's list alone: a citation on the evidence lens's; a proof on the computation lens's, or the evidence lens's where the cast seats none), a source blue never cited, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified or a proof nobody re-ran (each on its owning lens's list alone: a citation on the evidence lens's; a proof on the computation lens's), a source blue never cited, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
 A GAP WHOSE LENS KEPT ITS GRADE after your last answer has an item carrying the lens's reason — what its own check still finds failing — until you answer the gap again.
 

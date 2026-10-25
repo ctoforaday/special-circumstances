@@ -114,9 +114,8 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 	}
 }
 
-// THE DEBT IS THE OWNER'S ALONE. A proof nobody judged is the computation lens's where the cast seats
-// it, so the evidence lens beside it owes nothing for it and retires; with no computation lens, the
-// evidence lens owns it and does not.
+// THE DEBT IS THE OWNER'S ALONE. A proof nobody judged is the computation lens's, so the evidence
+// lens beside it owes nothing for it and retires.
 func TestAnUnjudgedProofKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
 	for _, c := range []struct {
 		name  string
@@ -124,7 +123,6 @@ func TestAnUnjudgedProofKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
 		owner string
 	}{
 		{"computation cast", []string{compLens, evLens}, compLens},
-		{"no computation lens", []string{evLens}, evLens},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingest().register("red-chair").proof("P-1", "s1")
@@ -141,9 +139,9 @@ func TestAnUnjudgedProofKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
 	}
 }
 
-// A REOPENED PROOF IS ITS OWNER'S, A REOPENED CITATION THE EVIDENCE LENS'S (reopenedOwnerOf): the
-// blocker names that owner, the plan readies it and no other lens for the anchor, and its work list —
-// opened after the edit — blocks on it.
+// A REOPENED PROOF IS THE COMPUTATION LENS'S, A REOPENED CITATION THE EVIDENCE LENS'S
+// (anchorOwnerOf): the blocker names that owner, the plan readies it and no other lens for the
+// anchor, and its work list — opened after the edit — blocks on it.
 func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 	proof := func(b *stage) {
 		b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
@@ -157,7 +155,6 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 		owner  string
 	}{
 		{"a proof, computation cast", []string{compLens, evLens}, proof, "P-1", compLens},
-		{"a proof, no computation lens", []string{evLens}, proof, "P-1", evLens},
 		{"a citation, computation cast", []string{compLens, evLens}, citation, "C-1", evLens},
 	} {
 		t.Run(c.name, func(t *testing.T) {

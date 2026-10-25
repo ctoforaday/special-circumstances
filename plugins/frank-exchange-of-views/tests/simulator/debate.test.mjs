@@ -607,13 +607,6 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
 
 // ── bookends and prompt clauses carried forward ─────────────────────────────────────────────
 
-test('an unknown lens area is refused before any seat is dispatched', async () => {
-  const world = makeWorld(makeResponder({ chair: [passChair()] }))
-  await assert.rejects(() => world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversarial'] }),
-    (e) => /unknown lens area/.test(e.message) && /adversarial/.test(e.message) && /architecture/.test(e.message))
-  assert.equal(world.calls.length, 0)
-})
-
 test('lane floor: lanes below 3 refuses dispatch unless an override reason is given', async () => {
   await assert.rejects(makeWorld(makeResponder()).run(script, { ...ARGS, lanes: 1 }), /below the floor of 3/)
   const world2 = makeWorld(makeResponder({ chair: [passChair()] }))
@@ -1018,7 +1011,7 @@ test('both tiers are required and every dispatch carries one of them; binDir is 
 
 test('the lenses dispatched are the plan\'s, each under a configuration of its own', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-adversary'), party('red-lens-architecture')]) }), passChair()] }))
-  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversary', 'architecture'] })
+  await world.run(script, ARGS)
   assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label), ['red-lens-adversary #1 · test', 'red-lens-architecture #1 · test'])
   assert.equal(new Set(labelsOf(world, 'red-lens').map((c) => c.opts.agentType)).size, 2, 'two lenses, two configurations')
   assert.equal(labelsOf(world, 'red-lens-evidence').length, 0, 'an area the plan did not ready does not sit — the record decides, not the roster')
@@ -1030,7 +1023,7 @@ test('the lenses dispatched are the plan\'s, each under a configuration of its o
 // envelope carries nothing — what the lens did is on the record — and it is closed.
 test('every lens is dispatched with the closed, empty lens envelope', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(LENS_AREAS.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
-  await world.run(script, { ...ARGS, lensAreas: LENS_AREAS })
+  await world.run(script, ARGS)
   const lenses = labelsOf(world, 'red-lens')
   assert.equal(lenses.length, LENS_AREAS.length, 'the drive dispatches every lens')
   for (const c of lenses) {
@@ -1088,13 +1081,11 @@ test('a relayed plan missing a required field, or carrying the wrong type, abort
   assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
 })
 
-// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits every one, and a plan
-// naming each dispatches one lens sitting per area, one agent configuration per area.
-test('the default cast is every lens area', async () => {
+// A plan naming every area dispatches one lens sitting per area, one agent configuration per area.
+test('every lens area sits under a configuration of its own', async () => {
   const areas = LENS_AREAS
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(areas.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
-  const { lensAreas, ...noAreas } = ARGS
-  await world.run(script, noAreas)
+  await world.run(script, ARGS)
   assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label).sort(), areas.map((a) => `red-lens-${a} #1 · test`).sort(), 'one lens sitting per area')
   assert.equal(new Set(labelsOf(world, 'red-lens').map((c) => c.opts.agentType)).size, areas.length, 'one configuration per area')
 })

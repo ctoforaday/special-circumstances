@@ -64,7 +64,7 @@ func TestACastNamingALaneItDoesNotSeatIsRefused(t *testing.T) {
 		}
 	}
 	// The honest case still lands: a lane the cast seats.
-	seats, lanes := CastFor(nil, 2)
+	seats, lanes := CastFor(2)
 	if _, err := Append(Identity{Run: mustRun(t, newRun(t)), SeatID: HarnessSeat},
 		castBody(seats, lanes)); err != nil {
 		t.Errorf("a cast naming its own lanes was refused: %v", err)
@@ -246,7 +246,7 @@ func newRun(t *testing.T) string {
 func newRunWithLanes(t *testing.T, lanes int) string {
 	t.Helper()
 	dir := newRun(t)
-	seats, laneSeats := CastFor(nil, lanes)
+	seats, laneSeats := CastFor(lanes)
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: HarnessSeat},
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats}); err != nil {
 		t.Fatalf("seed the cast: %v", err)

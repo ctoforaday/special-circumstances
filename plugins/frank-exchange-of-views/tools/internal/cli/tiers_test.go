@@ -116,7 +116,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 // tier-bound.
 func castWithOneLane(t *testing.T) *recordpb.Event {
 	t.Helper()
-	seats, laneSeats := record.CastFor(nil, 1)
+	seats, laneSeats := record.CastFor(1)
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }

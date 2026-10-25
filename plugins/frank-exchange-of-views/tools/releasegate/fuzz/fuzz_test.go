@@ -315,13 +315,6 @@ type runner struct {
 	// which is what makes it safe to read from the concurrent seats above.
 	runHandle record.Run
 	rng       *lockedRand
-	// lensAreas is the areas this run casts, nil for every area; proofOwner is the lens that owns
-	// every proof in that cast — the computation lens, or the evidence lens where the cast seats no
-	// computation lens; citationOwner the lens that owns every citation — the evidence lens, "" where
-	// the cast seats none. All three are set before any seat sits and never written again.
-	lensAreas     []string
-	proofOwner    string
-	citationOwner string
 	// anchorOfferErr is the first lens sitting whose work list offered a citation or proof it does
 	// not own.
 	anchorOfferErr string
@@ -566,7 +559,7 @@ type runner struct {
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
 	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
 	forceVerified bool
-	// forceReopenedProof drives one proof through judgement and reopening on a reopenedProofSeeds
+	// forceReopenedProof drives one proof through judgement and reopening on a reopenedProofSeed
 	// run: blue proves the sentence the edit drive rewrites, the owner judges the proof when its
 	// work list offers it, blue rewrites the sentence, and the next plan readies the owner for the
 	// reopened proof. Each step reads the record, never a count of sittings, so the chain holds on
@@ -929,7 +922,7 @@ func (r *runner) dischargeOwed(seatID string) {
 		}
 		return
 	}
-	if seatID != "red-lens-evidence" && seatID != r.proofOwner {
+	if seatID != "red-lens-evidence" && seatID != proofOwner {
 		return
 	}
 	// AN ANCHOR THE DRIVE ALREADY TOUCHED THIS SITTING IS TRIED AGAIN, its refusal not expected either
@@ -938,7 +931,7 @@ func (r *runner) dischargeOwed(seatID string) {
 	// second act a refused repeat, and the item cleared or not this sitting's to clear. The envelope
 	// check after the drive is what says the item is gone.
 	for _, it := range r.reopened() {
-		if !(it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence") {
+		if !(it.Sha != "" && seatID == proofOwner || it.Sha == "" && seatID == "red-lens-evidence") {
 			continue
 		}
 		var a *cmd
@@ -1719,7 +1712,7 @@ func (r *runner) register(role, seatID string) {
 // with the budget text, which noteExec tallies, until one of its gaps closes.
 var fuzzLensSeats = func() []string {
 	var out []string
-	seats, _ := record.CastFor(nil, 1)
+	seats, _ := record.CastFor(1)
 	for _, s := range seats {
 		if strings.HasPrefix(s, "red-lens-") {
 			out = append(out, s)
@@ -1728,20 +1721,12 @@ var fuzzLensSeats = func() []string {
 	return out
 }()
 
-// castAreasFor is the lens areas a seed's run casts: every area (nil), except every fifth seed, which
-// casts every area but computation. No forced seed is one of them.
-func castAreasFor(seed int64) []string {
-	if seed%5 != 4 {
-		return nil
-	}
-	var out []string
-	for _, a := range record.LensAreas {
-		if a != "computation" {
-			out = append(out, a)
-		}
-	}
-	return out
-}
+// proofOwner is the lens that owns every proof, and citationOwner the lens that owns every citation
+// (anchorOwnerOf).
+const (
+	proofOwner    = "red-lens-computation"
+	citationOwner = "red-lens-evidence"
+)
 
 // minterOf is the seat that may close or regrade gapID: the lens whose mint created it. Every gap
 // this driver puts on the board goes through r.mint, which records the minter, so a miss here is
@@ -1921,7 +1906,7 @@ func (r *runner) someCitation() string {
 // On a coin the owner takes a citation its work list offers; otherwise any source on the record,
 // a corroboration's footnote among them, so a reading of a substituted copy stays driven.
 func (r *runner) citationToVerify(seatID string) string {
-	if seatID != r.citationOwner {
+	if seatID != citationOwner {
 		return ""
 	}
 	if offered, err := anchorItemsOn(r.run(), seatID, "citation"); err == nil && len(offered) > 0 && r.coin(50) {
@@ -2104,7 +2089,7 @@ func (r *runner) proofsOfScript(script string) []string {
 func (r *runner) reopenReadied() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.proofReopenedReadied[r.proofOwner] > 0
+	return r.proofReopenedReadied[proofOwner] > 0
 }
 
 func (r *runner) reachedStage(s string) {
@@ -2135,7 +2120,7 @@ func (r *runner) proveToReopen(seatID string) {
 		r.reachedStage("proved")
 		return
 	}
-	offered, err := anchorItemsOn(r.run(), r.proofOwner, "proof")
+	offered, err := anchorItemsOn(r.run(), proofOwner, "proof")
 	if err != nil {
 		return
 	}
@@ -2173,7 +2158,7 @@ func (r *runner) proveToReopen(seatID string) {
 // judgeToReopen is the owner's half of the forced chain: it judges every forced proof its work list
 // offers.
 func (r *runner) judgeToReopen(seatID string) {
-	if !r.forceReopenedProof || seatID != r.proofOwner || r.reopenReadied() {
+	if !r.forceReopenedProof || seatID != proofOwner || r.reopenReadied() {
 		return
 	}
 	offered, err := anchorItemsOn(r.run(), seatID, "proof")
@@ -2240,7 +2225,7 @@ func (r *runner) proveToJudgeUnsound(seatID string) {
 // and no plan holds it. The first plan readies the lenses and not blue, and blue-synthesize's
 // sitting has proved the forced proof before it.
 func (r *runner) judgeUnsound(seatID string) {
-	if !r.forceUnsoundProof || seatID != r.proofOwner || r.unsoundFed() {
+	if !r.forceUnsoundProof || seatID != proofOwner || r.unsoundFed() {
 		return
 	}
 	forced := r.proofsOfScript(unsoundProofScript)
@@ -2558,8 +2543,8 @@ func (r *runner) tallyOwed(plan map[string]any) {
 			continue
 		}
 		owner := fmt.Sprint(m["owner"])
-		if owner != r.proofOwner && r.reopenedOwnerErr == "" {
-			r.reopenedOwnerErr = fmt.Sprintf("reopened proof %v is owned by %s, and the proofs are %s's", m["subject"], owner, r.proofOwner)
+		if owner != proofOwner && r.reopenedOwnerErr == "" {
+			r.reopenedOwnerErr = fmt.Sprintf("reopened proof %v is owned by %s, and the proofs are %s's", m["subject"], owner, proofOwner)
 		}
 		if party[owner] {
 			if r.proofReopenedReadied == nil {
@@ -2642,12 +2627,12 @@ func anchorItemsOn(run record.Run, seatID, kind string) ([]string, error) {
 	return out, nil
 }
 
-// ownerOf is the lens that owns this kind of anchor in this run.
+// ownerOf is the lens that owns this kind of anchor.
 func (r *runner) ownerOf(kind string) string {
 	if kind == "proof" {
-		return r.proofOwner
+		return proofOwner
 	}
-	return r.citationOwner
+	return citationOwner
 }
 
 // checkAnchorOffers records, once, a lens sitting whose work list offers a citation or proof it does
@@ -4180,10 +4165,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.answerUnsound(seatID)
 				// ITS CLOSING ON EACH GAP OF ITS OWN THAT IS DOCKETED: the lens is one of the gap's two parties.
 				r.fileClosings(seatID)
-				if seatID == "red-lens-evidence" || seatID == r.proofOwner {
+				if seatID == "red-lens-evidence" || seatID == proofOwner {
 					var owed []record.ProofRef
 					for _, it := range r.reopened() {
-						if it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence" {
+						if it.Sha != "" && seatID == proofOwner || it.Sha == "" && seatID == "red-lens-evidence" {
 							owed = append(owed, it)
 						}
 					}
@@ -4209,12 +4194,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// THE PROOF OWNER JUDGES ONE PROOF IT IS OFFERED, ON A COIN — so a judged proof can be
 				// reopened by a later edit of its sentence, and so a run still ends with proofs it was
-				// offered and left, which hold it from retiring while they stand. A reopenedProofSeeds
+				// offered and left, which hold it from retiring while they stand. A reopenedProofSeed
 				// run judges its forced proof first, and draws nothing doing it; so does the
 				// unsoundProofSeed run, judging its forced proof unsound.
 				r.judgeToReopen(seatID)
 				r.judgeUnsound(seatID)
-				if seatID == r.proofOwner && r.coin(35) {
+				if seatID == proofOwner && r.coin(35) {
 					if offered, err := anchorItemsOn(r.run(), seatID, "proof"); err == nil && len(offered) > 0 {
 						if a := pick(r.rng, offered); r.firstThisSitting(seatID, a) {
 							r.do("reproduce", seatID).set("--anchor", a).set("--as", r.judgement()).
@@ -4578,11 +4563,9 @@ type outcome struct {
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// ownerOffered is the proofs nobody judged that the run ended with, each offered on its owner's
-	// work list and on no other lens's (anchorOffersAgree); fallback is whether that owner was the
-	// evidence lens, the cast seating no computation lens. citationsOffered is the same count of the
+	// work list and on no other lens's (anchorOffersAgree). citationsOffered is the same count of the
 	// citations nobody verified, each offered to the evidence lens alone.
 	ownerOffered     int
-	fallback         bool
 	citationsOffered int
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
@@ -4780,8 +4763,6 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 			// #111: both tiers are REQUIRED — nil refuses dispatch. Both haiku so the tier oracle
 			// expects every dispatched seat to carry exactly "haiku".
 			"model": "haiku", "judgmentModel": "haiku",
-			// The areas the cast seats, as setup and the engine are both handed them; null is every area.
-			"lensAreas": r.lensAreas,
 		})
 		if _, err := vm.RunString(preamble); err != nil {
 			settledErr = "preamble: " + err.Error()
@@ -4977,21 +4958,17 @@ const limitSeed = 7
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
 
-// reopenedProofSeeds are the seeds whose runs are FORCED through a reopened proof, one per cast
-// class, each with the owner its cast gives the proofs (anchorOwnerOf): seed 4 casts no computation
-// lens (castAreasFor), so its proofs fall to the evidence lens, and seed 5 casts every lens. The
-// sweep gates a plan readying each owner for a reopened proof, and runOne refuses a seed whose
-// cast names a different owner than this table, so the two cannot drift apart.
+// reopenedProofSeed is the seed whose run is FORCED through a reopened proof; the sweep gates a plan
+// readying the proof owner for one.
 //
 // Left to the draw it is a chain of coins: blue proves the sentence the edit drive rewrites (35%,
 // then 25%), the owner judges an offered proof (35%, picking one of several), blue rewrites that
-// sentence (45%), and a plan follows. Only one run in five casts no computation lens, so the
-// evidence owner rests on eight runs, and mostly on one of them. MEASURED on main 61107ba4 across
-// five interleaved sweeps, the evidence owner was readied for a reopened proof 9, 0, 5, 6 and 11
-// times — red once — and seed 9 alone carried it in four. A branch that drew one or two fewer
-// numbers per cite read 0, 0, 1, 0, 1, red three times; the same branch drawing those numbers and
-// discarding them read 5, 9, 2, 2, 5. The path was intact throughout; the draw moved.
-var reopenedProofSeeds = map[int64]string{4: "red-lens-evidence", 5: "red-lens-computation"}
+// sentence (45%), and a plan follows. MEASURED on main 61107ba4 across five interleaved sweeps, an
+// owner resting on eight runs was readied for a reopened proof 9, 0, 5, 6 and 11 times — red once —
+// and seed 9 alone carried it in four. A branch that drew one or two fewer numbers per cite read
+// 0, 0, 1, 0, 1, red three times; the same branch drawing those numbers and discarding them read 5,
+// 9, 2, 2, 5. The path was intact throughout; the draw moved.
+const reopenedProofSeed = 5
 
 // reopenedProofScript is the forced proof's script. Its sha256 is what identifies the forced proof
 // on the record (EvidenceProofJSON.Sha256), so the chain never recovers it from report text.
@@ -5060,32 +5037,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// THREE LANES, because the run dispatches three (args.lanes above): a cast of one lane refused
 	// blue-lane-2 and blue-lane-3 at register on every run — 80 refusals across 40 — and every act
 	// of two of the three lanes ran unregistered behind a green sweep.
-	//
-	// EVERY FIFTH RUN CASTS NO COMPUTATION LENS, so the proofs fall to the evidence lens and the
-	// sweep drives the fallback of the one rule that routes them (anchorOwnerOf) end to end.
-	areas := castAreasFor(seed)
-	fuzzCast, fuzzLanes := record.CastFor(areas, 3)
+	fuzzCast, fuzzLanes := record.CastFor(3)
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: fuzzCast, LaneSeatIds: fuzzLanes}); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
-	r.lensAreas = areas
-	r.proofOwner = "red-lens-evidence"
-	if slices.Contains(fuzzCast, "red-lens-computation") {
-		r.proofOwner = "red-lens-computation"
-	}
-	if slices.Contains(fuzzCast, "red-lens-evidence") {
-		r.citationOwner = "red-lens-evidence"
-	}
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
-	if owner, ok := reopenedProofSeeds[seed]; ok {
-		if owner != r.proofOwner {
-			return outcome{seed: seed, runDir: runDir, err: fmt.Sprintf("reopenedProofSeeds gives seed %d the proof owner %s, and its cast gives the proofs to %s", seed, owner, r.proofOwner)}
-		}
-		r.forceReopenedProof = true
-	}
+	r.forceReopenedProof = seed == reopenedProofSeed
 	r.forceUnsoundProof = seed == unsoundProofSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	if seed == limitSeed {
@@ -5820,7 +5780,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if msg, proofs, citations := r.anchorOffersAgree(oracleRun); msg != "" && res.err == "" {
 		res.err = msg
 	} else {
-		res.ownerOffered, res.fallback, res.citationsOffered = proofs, r.proofOwner == "red-lens-evidence", citations
+		res.ownerOffered, res.citationsOffered = proofs, citations
 	}
 	r.mu.Lock()
 	if r.anchorOfferErr != "" && res.err == "" {
@@ -5842,19 +5802,19 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.reopenedOwnerErr != "" && res.err == "" {
 		res.err = r.reopenedOwnerErr
 	}
-	if r.forceReopenedProof && r.proofReopenedReadied[r.proofOwner] == 0 && res.err == "" {
+	if r.forceReopenedProof && r.proofReopenedReadied[proofOwner] == 0 && res.err == "" {
 		stage := r.reopenStage
 		if stage == "" {
 			stage = "nothing: no blue sitting reached the prove"
 		}
-		res.err = fmt.Sprintf("forced reopened proof: no plan readied %s for a reopened proof; the chain reached %s", r.proofOwner, stage)
+		res.err = fmt.Sprintf("forced reopened proof: no plan readied %s for a reopened proof; the chain reached %s", proofOwner, stage)
 	}
 	if r.forceUnsoundProof && r.unsoundReadied == 0 && res.err == "" {
 		stage := r.unsoundStage
 		if stage == "" {
 			stage = "nothing: no blue sitting reached the prove"
 		}
-		res.err = fmt.Sprintf("forced unsound proof: no plan readied %s or blue for an unsound proof; the chain reached %s", r.proofOwner, stage)
+		res.err = fmt.Sprintf("forced unsound proof: no plan readied %s or blue for an unsound proof; the chain reached %s", proofOwner, stage)
 	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"
@@ -6109,7 +6069,7 @@ func TestFuzzHaltPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := newRunner(bin, runDir, newLockedRand(1))
-	haltCast, haltLanes := record.CastFor(nil, 3)
+	haltCast, haltLanes := record.CastFor(3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: haltCast, LaneSeatIds: haltLanes}); err != nil {
 		t.Fatalf("write the cast: %v", err)
 	}
@@ -6605,7 +6565,7 @@ func TestFuzzDebate(t *testing.T) {
 	proofReopenedReadied := map[string]int{}                // reopened proofs whose owner a plan readied, by owner
 	owedKeptBy := map[string]int{}                          // those folds, by each kind of debt they held
 	owedKept, proofOwedKept := 0, 0                         // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
-	ownerOfferedRuns, fallbackOfferedRuns := 0, 0           // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
+	ownerOfferedRuns := 0                                   // runs ending with an unjudged proof offered to its owner alone
 	citationOfferedRuns := 0                                // runs ending with an unverified citation offered to the evidence lens alone
 	repeatsRefused := 0                                     // second acts refused in a sitting that holds one, naming the answering act
 	budgetRefused := 0                                      // mints refused a lens holding its whole mint budget open
@@ -6730,9 +6690,6 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			if o.ownerOffered > 0 {
 				ownerOfferedRuns++
-				if o.fallback {
-					fallbackOfferedRuns++
-				}
 			}
 			repeatsRefused += o.repeatsRefused
 			budgetRefused += o.budgetRefused
@@ -6776,7 +6733,7 @@ func TestFuzzDebate(t *testing.T) {
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
-	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
+	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone", ownerOfferedRuns)
 	t.Logf("citation owner: %d run(s) ended with an unverified citation offered to the evidence lens alone", citationOfferedRuns)
 	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", unsoundReadied, unsoundPlans, forcedUnsoundReadied, unsoundProofSeed, unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", spansRefused, forcedSpansRefused, absentSpanSeed)
@@ -6870,11 +6827,10 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		// THE REOPENED GATE. A citation or proof whose sentence changed after its check is owed by
 		// its owner, which is then not retired, and the edit moved the head: the plan readies it. A
-		// reopened proof is the computation lens's where the cast seats it and the evidence lens's
-		// where it does not, so a sweep that readied either owner for one zero times leaves that arm
-		// of anchorOwnerOf unexercised.
-		if reopenedReadied == 0 || proofReopenedReadied["red-lens-computation"] == 0 || proofReopenedReadied["red-lens-evidence"] == 0 {
-			t.Errorf("fuzz readied the owner of every reopened blocker in %d plan(s) (of %d holding one), and the owner of a reopened proof %v times by owner, across %d runs — a reopened proof's routing to the computation lens, or its fallback to the evidence lens, is unexercised (false green)", reopenedReadied, reopenedPlans, proofReopenedReadied, completed)
+		// sweep that readied the computation lens for a reopened proof zero times leaves the proof
+		// arm of anchorOwnerOf unexercised.
+		if reopenedReadied == 0 || proofReopenedReadied[proofOwner] == 0 {
+			t.Errorf("fuzz readied the owner of every reopened blocker in %d plan(s) (of %d holding one), and the owner of a reopened proof %v times by owner, across %d runs — a reopened proof's routing to the computation lens is unexercised (false green)", reopenedReadied, reopenedPlans, proofReopenedReadied, completed)
 		}
 		// THE DEBT GATE. A lens that owes is not retired; a sweep where no fold kept a lens with three
 		// barren sittings from retiring — or none for an unjudged proof — leaves the rule unexercised.
@@ -6883,13 +6839,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		// THE ANCHOR-OWNER GATE. anchorOffersAgree reads every lens's list at each run's end; a run that
 		// ended with no unverified citation or no unjudged proof asks it nothing of that kind, so a
-		// sweep where none did — or, for proofs, where no computation-less cast did — leaves the
-		// routing, or its fallback, unexercised.
+		// sweep where none did leaves the routing unexercised.
 		if citationOfferedRuns == 0 {
 			t.Errorf("fuzz ended no run with an unverified citation offered to the evidence lens, across %d runs — the citation routing is unexercised (false green)", completed)
 		}
-		if ownerOfferedRuns == 0 || fallbackOfferedRuns == 0 {
-			t.Errorf("fuzz ended %d run(s) with an unjudged proof offered to its owner, %d of them in a cast with no computation lens, across %d runs — the proof routing or its fallback is unexercised (false green)", ownerOfferedRuns, fallbackOfferedRuns, completed)
+		if ownerOfferedRuns == 0 {
+			t.Errorf("fuzz ended no run with an unjudged proof offered to its owner, across %d runs — the proof routing is unexercised (false green)", completed)
 		}
 		// THE CLOSING GATE. The `closing` verb gate above is satisfied by any one act, so a plan that
 		// stopped holding the bench for an awaited closing, or a drive that stopped leaving one unfiled,
@@ -7453,7 +7408,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		if at == "" {
 			continue // blue has not answered it yet; red has nothing to re-run
 		}
-		if seatID != r.proofOwner {
+		if seatID != proofOwner {
 			if standing[at] {
 				r.reproduced.add(id)
 			}
@@ -7861,7 +7816,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
 	// and the run reached UNVERIFIED without one seat dispatched — through the refusal, not the path.
-	unverifiedCast, unverifiedLanes := record.CastFor(nil, 3)
+	unverifiedCast, unverifiedLanes := record.CastFor(3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: unverifiedCast, LaneSeatIds: unverifiedLanes}); err != nil {
 		t.Fatalf("write the cast: %v", err)
 	}
