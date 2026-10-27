@@ -1930,11 +1930,18 @@ func (r *runner) someCitation() string {
 	if !ok {
 		return ""
 	}
-	sources := record.EvidenceJSONOf(b.Events, b.At).Sources
-	if len(sources) == 0 {
+	// A RETIRED CITATION IS NOT IN THE REPORT, and verify refuses it by design (it holds no sentence
+	// to read the source against); the reading drive expects its verify admitted, so it skips those.
+	var live []string
+	for _, src := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+		if _, _, _, retired, err := record.AnchorRetiredAt(r.run(), src.Anchor); err == nil && !retired {
+			live = append(live, src.Anchor)
+		}
+	}
+	if len(live) == 0 {
 		return ""
 	}
-	return sources[r.rng.Intn(len(sources))].Anchor
+	return live[r.rng.Intn(len(live))]
 }
 
 // citationToVerify is the citation seatID's reading drive verifies, or "" where it verifies none: the
@@ -1951,8 +1958,6 @@ func (r *runner) citationToVerify(seatID string) string {
 	return r.someCitation()
 }
 
-// reopened returns every citation and proof the record holds as reopened and unchecked — each
-// anchor, and for a proof its script's sha256, which marks it a proof.
 // answerContradictions raises a finding, by its id, for every contradiction this lens owes: the
 // rows of show evidence's unanswered_contradictions whose reader it is.
 func (r *runner) answerContradictions(seatID string) {
@@ -4274,10 +4279,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
-				// A REOPENED CITATION OR PROOF IS CHECKED AGAIN, ONE OF THEM ON A COIN — so the sweep
-				// holds both ends: an anchor a later sitting clears, and one a lens sat for and left,
-				// which holds the PASS and ends the run naming it. A citation is verified at its
-				// anchor — read, or found `unreachable`, which clears nothing; a proof is re-run by
+				// AN UNCHECKED CITATION OR PROOF IS CHECKED, EVERY ONE THE OWNER'S SITTING OWES: its
+				// item blocks the owner's envelope. A citation is verified at its anchor — read, or
+				// found `unreachable`, which leaves it on a failed check whose gap answerFailed
+				// mints; a proof is judged, sound or unsound, and re-run by
 				// the sha256 its row carries. The anchor's owner alone drives it, as the seat whose
 				// work list holds the item — the evidence lens a citation, the run's proof owner a
 				// proof: seven lenses each re-running a proof per sitting put the longest runs at
@@ -4299,11 +4304,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							owed = append(owed, it)
 						}
 					}
+					// EVERY ONE, because each is owed: an unchecked anchor's item blocks its owner's
+					// envelope, so an item this sitting leaves refuses it. What is drawn is the result.
 					results := []string{"supports", "unreachable"}
 					if r.forceVerified {
 						results = results[:1]
-					} else if len(owed) > 0 {
-						owed = owed[r.rng.Intn(len(owed)):][:r.rng.Intn(2)]
 					}
 					for _, it := range owed {
 						if !r.firstThisSitting(seatID, it.Anchor) {
@@ -5777,10 +5782,19 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
 	// `asserted` retire means either the fake regressed to phantom retirements or the
 	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
-	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
+	// scorecard's additive-integrity detector, so it must not pass unnoticed here either. A
+	// citation retired from a sentence that stays (claim_kept) removes no claim, so it carries no
+	// removal basis, and one that names a basis says a claim left that did not.
 	{
 		for _, e := range board.Events {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
+			if ok && r.GetClaimKept() {
+				if r.GetRemovalBasis() != "" {
+					res.err = "a citation retired from a sentence that stays recorded removal_basis=" + r.GetRemovalBasis() + " — its claim did not leave the report"
+					return res
+				}
+				continue
+			}
 			if ok && r.GetRemovalBasis() != record.RemovalVerified {
 				res.err = "a retire recorded removal_basis=" + r.GetRemovalBasis() +
 					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
