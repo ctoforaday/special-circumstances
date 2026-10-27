@@ -267,6 +267,108 @@ func SealedSize(path string) (int64, error) {
 	return st.Size(), nil
 }
 
+// A RECORD FILE IS NEVER OPENED BESIDE ITS OWN CONNECTION. Under POSIX fcntl locking — Linux,
+// macOS and the BSDs alike — closing ANY descriptor to a file drops EVERY POSIX lock the process
+// holds on it: the advisory locks SQLite's unix VFS places are per process and per inode, not per
+// descriptor. An idle WAL connection holds a SHARED
+// lock on the database and the dead-man-switch lock on its -shm, both visible in Linux's /proc/locks; one
+// os.Open/Close of record.db by the same process releases them while the connection still
+// believes it holds them, and SQLite does not re-take a lock it believes it has. Another seat can
+// then judge itself the last connection and recover or truncate a log this process is using.
+// SQLite defers closing its OWN descriptors while a lock is held on the inode; a Go descriptor
+// gets no such care, which is why the two acts below exist instead of a file copy.
+
+// SnapshotInto writes a consistent copy of the record at path to dst, through the record's own
+// connection: `VACUUM INTO` reads inside one read transaction, so the copy is one committed state
+// with the write-ahead log folded in — ONE file, never a torn set of database, log and
+// shared-memory scratch copied at three different moments.
+//
+// dst is a STAGING path: anything already there is removed first, and the copy is synced to disk
+// before this returns, so the caller's rename publishes bytes that are on the device rather than in
+// the page cache. Moving it into place is the caller's, because what else must go before it does is
+// the caller's to know.
+func SnapshotInto(path, dst string) error {
+	db, err := Open(path)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(dst); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if _, err := db.Exec(`VACUUM INTO ?`, dst); err != nil {
+		_ = os.Remove(dst)
+		return fmt.Errorf("snapshotting %s: %w", path, err)
+	}
+	f, err := os.OpenFile(dst, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("syncing the snapshot %s: %w", dst, err)
+	}
+	return f.Close()
+}
+
+// SealedBytes seals the record at path and returns the database file's bytes, read while NO
+// connection to it is open in this process.
+//
+// THE BYTES ARE THE RECORD EXACTLY, which is why this releases the connection rather than taking
+// a SQLite copy: an archive is the raw record migrate hashes and replays, and VACUUM rewrites
+// every page and may renumber the rowids of a table without an INTEGER PRIMARY KEY. The cache
+// lock is held across the read, so nothing in this process opens the record mid-read; the next
+// Open takes a fresh connection and its locks.
+func SealedBytes(path string) ([]byte, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+	// A LEASED CONNECTION IS REFUSED, twice. The pool holds ONE connection, so a lease taken here —
+	// an open row set, a transaction, a db.Conn — leaves Seal waiting for it forever; and database/sql
+	// closes an in-use connection only when it is returned, so one leased between the seal and the
+	// release below would keep its descriptor and locks across the byte read and lose them to it.
+	// Refused while the handle is still cached, so nothing changes.
+	openMu.Lock()
+	db, ok := openCache[abs]
+	openMu.Unlock()
+	if ok {
+		if err := refuseLeased(path, db); err != nil {
+			return nil, err
+		}
+	}
+	if err := Seal(path); err != nil {
+		return nil, err
+	}
+	openMu.Lock()
+	defer openMu.Unlock()
+	if db, ok := openCache[abs]; ok {
+		if err := refuseLeased(path, db); err != nil {
+			return nil, err
+		}
+		delete(openCache, abs)
+		if err := db.Close(); err != nil {
+			return nil, err
+		}
+	}
+	n, err := SealedSize(path)
+	if err != nil {
+		return nil, err
+	}
+	if n != 0 {
+		return nil, fmt.Errorf("%s: %d bytes remain in the write-ahead log after sealing. A database read "+
+			"without its log is a shorter, complete-looking run", path, n)
+	}
+	return os.ReadFile(path)
+}
+
+func refuseLeased(path string, db *sql.DB) error {
+	if inUse := db.Stats().InUse; inUse != 0 {
+		return fmt.Errorf("%s: %d connection(s) to the record are still in use in this process (an open "+
+			"row set, transaction or leased connection), so the record cannot be released for a byte-exact read", path, inUse)
+	}
+	return nil
+}
+
 // CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.
 func CloseAll() error {
 	openMu.Lock()

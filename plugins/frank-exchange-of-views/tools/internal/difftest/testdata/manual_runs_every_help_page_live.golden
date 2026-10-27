@@ -1231,7 +1231,7 @@ Flags:
 $ manual --seat-id operator
 exit 0
 stdout:
-feov-record manual — the operator surface, seat operator: 16 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); what every page would say the same way is said once, before SHARED; a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+feov-record manual — the operator surface, seat operator: 17 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); what every page would say the same way is said once, before SHARED; a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -1249,6 +1249,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
+  - A run's lead session is the Claude Code session its live-run row names — the one that ran setup, or took the run over since — and the hooks attribute an agent to the run only when its payload's session_id is that session.
   - The operator is the person running the research, and the seat id their own commands run under.
   - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed no log entry — and none of it is debate material.
   - Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
@@ -1277,7 +1278,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here. A page carries a marker ending `→ SHARED §n` exactly where the block was: alone on its line the marker stands for the whole block, and at the end of a flag's line it stands for the rest of that flag's description. A block labelled the last block of its pages is not marked on them:
-§1 (the last block of 15 pages — every page below that carries no marker for it):
+§1 (the last block of 16 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -1320,6 +1321,7 @@ Available Commands:
   ops            ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)
   scorecard      print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS; no seat surface carries a scorecard view
   setup          build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
+  take-over      make the calling session a live run's lead session, in place of the session named (operator; writes the live-run marker)
   verify         cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
@@ -1363,6 +1365,8 @@ The answer says which of three states the run is in:
   - the outcome, and no assembled documents: the assembly sitting stamped the outcome and stopped before the bench's `assemble` wrote the run's documents, so the assembly is unfinished and the same workflow run resumes it — the bench sits again to assemble;
   - the outcome, and the assembled documents: the assembly finished and there is nothing to resume — capture it.
 The documents are what says the assembly finished: the bench's `assemble` writes them and no event, and only in the sitting registered for the assemble occasion. The assembly sitting's stop says nothing of it, since the sitting stops whether or not the assembly ran. Capture re-assembles the documents from the record at the close. A run directory that cannot be read is said so, and is never read as finished.
+
+A resume from a new session, once the run's lead session has ended, first runs `take-over`: the hooks attribute a seat only to the run its session leads.
 
 `ops log` reads the entry back, beside what the seats filed.
 
@@ -1482,7 +1486,11 @@ Flags:
       --card string   which card: red|blue|bench (omit to print all three)
 ========
 $ feov-record setup --help
-setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
+setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult — its row names the session setup runs in (CLAUDE_CODE_SESSION_ID) as the run's lead session, and the hooks attribute only that session's agents to the run — and preflights the record binary.
+
+A project holds ONE live run, whatever session leads it: a second run starts from another checkout, which is its own project. A run resumed in a new session, once the run's lead session has ended, is taken over with `take-over` rather than set up again.
+
+The fail-fast gates — a runDir, both model tiers, a launching session (CLAUDE_CODE_SESSION_ID), an epoch limit of 1 or more, no other live run and no decided run left uncaptured in the project, valid cites, and a matching record binary — run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1505,6 +1513,21 @@ Flags:
       --run-id string                the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed
       --script-path string           the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id
       --topic string                 the run's research topic (goes in every stub header)
+========
+$ feov-record take-over --help
+take-over <runDir> --from-session <id> makes the session running it lead the run in <runDir>, in place of the session named.
+
+The hooks attribute an agent to a run only when its hook payload's session_id is the run's lead session, so the seats of a run resumed in a NEW session — its lead session crashed or was restarted — are attributed to nothing until that session takes the run over. Run it before the resume, from the Bash tool of the session that resumes, in the project the run was set up in.
+
+PRECONDITION: the run's lead session is no longer running. The tool cannot see whether it is; a take-over from a session that is still running moves that session's seats off the run, and its sittings go unbracketed. A new run is not a take-over: start it from another checkout, which is its own project.
+
+--from-session is the run's lead session now; the refusal names it when it is not the one given, and so does the run's row in .claude/run-live.json. A row that names no lead session is taken over with --from-session "". A session that already leads the run is told so, and nothing changes; a session that leads another live run in the project is refused, since the hooks attribute neither of two live runs one session leads.
+
+Usage:
+  feov-record take-over <runDir> --from-session <the run's lead session> [flags]
+
+Flags:
+      --from-session string   the run's lead session now — its row in .claude/run-live.json names it; "" for a row that names none
 ========
 $ feov-record verify --help
 verify replays <run>'s event record and asserts the invariants that must hold if it is sound — gaps disposed, refs resolve, a PASS closed every material gap, seats registered first — then prints the authoritative counts. It writes nothing. A violated invariant exits non-zero.

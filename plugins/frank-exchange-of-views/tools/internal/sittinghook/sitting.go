@@ -141,6 +141,10 @@ type sittingInput struct {
 	AgentID   string `json:"agent_id"`
 	AgentType string `json:"agent_type"`
 	Cwd       string `json:"cwd"`
+	// SessionID is the dispatching session's id, which decides whether the agent is a member of the
+	// live run at all (runlive.InferRunDir): a run's members are the agents its lead session
+	// dispatched.
+	SessionID string `json:"session_id"`
 	// AgentTranscriptPath is the finished seat's own transcript, resolved by the harness. It
 	// arrives on SubagentStop and is empty on SubagentStart, which is correct: a seat that has
 	// just been dispatched has produced no turns to read.
@@ -211,7 +215,8 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	if in.AgentID == "" || in.AgentType == "" {
 		return nil
 	}
-	inferred := runlive.InferRunDir(in.Cwd, runlive.Caller{ID: in.AgentID, Type: in.AgentType})
+	inferred := runlive.InferRunDir(in.Cwd, runlive.Caller{ID: in.AgentID, Type: in.AgentType, Session: in.SessionID})
+	runlive.NoteMembership(inferred, rec, "its sitting is not on the record")
 	if inferred.Why.Fault() {
 		// A marker that cannot be used is not "no run": it is a run whose seats' sittings are all
 		// being dropped — and with two live runs, both runs' sittings. Only the fault shapes are

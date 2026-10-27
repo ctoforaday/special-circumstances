@@ -1653,16 +1653,24 @@ func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
-		[]byte(`{"runs":[{"runDir":"research/live-run"}]}`), 0o644); err != nil {
+		[]byte(`{"runs":[{"runDir":"research/live-run","leadSession":"session-cli-test"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
+	t.Setenv(seatenv.SessionVar, cliTestLead)
 
 	// No --run. The precondition must pass, so any error is about the verb's own
 	// flags rather than the missing run directory.
 	_, err := run(t, "register", "--seat-id", "red-lens-evidence")
 	if err != nil && strings.Contains(err.Error(), "--run <runDir> is required") {
 		t.Fatalf("run dir was not inferred: %v", err)
+	}
+
+	// ONLY FOR THE RUN'S OWN SESSION. A verb in another session's Bash — a dev session in a
+	// worktree nested under this checkout — infers nothing, so it cannot write into the run.
+	t.Setenv(seatenv.SessionVar, "a-dev-session")
+	if _, err := run(t, "register", "--seat-id", "red-lens-evidence"); err == nil || !strings.Contains(err.Error(), "--run <runDir> is required") {
+		t.Fatalf("another session's verb inferred the run: %v", err)
 	}
 }
 
@@ -1678,12 +1686,13 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 		}
 	}
 	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
-		[]byte(`{"runs":[{"runDir":"research/marker-run"}]}`), 0o644); err != nil {
+		[]byte(`{"runs":[{"runDir":"research/marker-run","leadSession":"session-cli-test"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
+	t.Setenv(seatenv.SessionVar, cliTestLead)
 
-	if got := runlive.InferRunDir(proj, runlive.Caller{}).Dir; got != marker {
+	if got := runlive.InferRunDir(proj, runlive.Caller{Session: cliTestLead}).Dir; got != marker {
 		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
 	}
 	// With the flag present the marker must not be consulted at all.

@@ -274,6 +274,10 @@ const (
 	RunID               = "run-id"
 	ScriptPath          = "script-path"
 
+	// The operator `take-over` command: the session that leads a live run, named so a run is never
+	// taken from a lead the caller did not name.
+	FromSession = "from-session"
+
 	// The operator `ocr` command: rasterise a document with no text layer so a seat can read
 	// it (#644). --sha names a document ALREADY in the run cache, which is why there is no
 	// --url here: ocr never fetches, it operates on what fetch already stored.
@@ -318,7 +322,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final, Direction,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
 		Sha, DPI, Force, OCR,
 	}
@@ -342,7 +346,7 @@ var closedForm = map[string]bool{
 	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
-	BinDir: true, RunID: true, ScriptPath: true,
+	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
 	Card: true, Occasion: true,
 }
 

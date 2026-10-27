@@ -270,15 +270,20 @@ func seatRunDir(cwd string, caller runlive.Caller, rec *hookfailures.Recorder) s
 // callerAgent is the agent a call is made by: the payload's, else the one a headless seat carries in
 // its environment — the same identity enforceLimit counts against — with the configuration it was
 // dispatched under, which decides whether a decided run is still live for it (runlive.StateOf).
-func callerAgent(in hookgate.Input) runlive.Caller { return callerOf(in.AgentID, in.AgentType) }
+func callerAgent(in hookgate.Input) runlive.Caller {
+	return callerOf(in.AgentID, in.AgentType, in.SessionID)
+}
 
 // callerOf is callerAgent for a payload this package decodes itself. The type comes from the same
 // place the id does: a payload's id with the environment's type would pair two agents.
-func callerOf(agentID, agentType string) runlive.Caller {
+//
+// THE SESSION IS ALWAYS THE PAYLOAD'S: it is the one fact a hook has about which conversation the
+// call is in, and the run's membership is decided by it (runlive.InferRunDir).
+func callerOf(agentID, agentType, session string) runlive.Caller {
 	if agentID != "" {
-		return runlive.Caller{ID: agentID, Type: agentType}
+		return runlive.Caller{ID: agentID, Type: agentType, Session: session}
 	}
-	return runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}
+	return runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType(), Session: session}
 }
 
 // noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
@@ -296,6 +301,7 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 	case i.MarkerDir != "":
 		rec.OKIn(runlive.StageUnusable, i.MarkerDir)
 	}
+	runlive.NoteMembership(i, rec, "the run directory is not injected into its commands, and its calls are not counted")
 }
 
 // envelopeTool is the tool a Workflow seat returns its envelope with: the harness tells each seat to
