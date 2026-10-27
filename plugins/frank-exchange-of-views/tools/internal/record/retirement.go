@@ -201,7 +201,8 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 	for _, g := range gaps {
 		open[g.id], minted[g.id] = true, g.mintedBy
 	}
-	answers := blueAnswersOf(evs, win, open)
+	motions := motionsAt(evs, ids, win)
+	answers := blueAnswersOf(evs, win, open, motions)
 	for _, g := range gaps {
 		if a := answers[g.id]; a.answered() {
 			out = append(out, gapNews{gap: g.id, at: a.at, item: "blue's answer to " + g.id})
@@ -217,7 +218,7 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 	for _, g := range gaps {
 		held[g.id] = g.material || g.supersededBy != ""
 	}
-	for _, m := range motionsAt(evs, ids, win) {
+	for _, m := range motions {
 		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
 			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
 		}
