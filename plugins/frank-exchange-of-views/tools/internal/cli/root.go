@@ -135,7 +135,7 @@ func newRoot() *cobra.Command {
 // Where no run resolves there is no record to ask, so the answer is the flag or nothing.
 func dispatchedSeat() string {
 	runDir, err := seatenv.Resolve("", func() string {
-		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}).Dir
+		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType(), Session: seatenv.Session()}).Dir
 	})
 	if err != nil {
 		return seatenv.Dispatched(nil)
@@ -269,6 +269,7 @@ bench rules and never originates.`,
 			newDashboard(),       // operator: the live run dashboard.html
 			newCapture(),         // operator: the post-hoc capture auditor
 			newEngineStopped(),   // operator: the engine's own stop, written to the log
+			newTakeOver(),        // operator: a resuming session becomes the lead of its run
 			newManual(seatID),    // every surface: every command's own help, in one call
 		)
 	}

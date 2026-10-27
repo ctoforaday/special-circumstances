@@ -359,7 +359,7 @@ func BoundSeat(run record.Run) func() (string, error) {
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string {
-		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType()}).Dir
+		return runlive.InferRunDir("", runlive.Caller{ID: seatenv.AgentID(), Type: seatenv.AgentType(), Session: seatenv.Session()}).Dir
 	})
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that

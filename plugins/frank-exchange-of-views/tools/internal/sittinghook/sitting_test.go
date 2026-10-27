@@ -52,7 +52,7 @@ func capture(t *testing.T) *[]handoffArgs {
 func payloadWith(t *testing.T, agentID, agentType, cwd, transcript string) *strings.Reader {
 	t.Helper()
 	b, err := json.Marshal(map[string]string{
-		"agent_id": agentID, "agent_type": agentType, "cwd": cwd, "agent_transcript_path": transcript,
+		"session_id": testLead, "agent_id": agentID, "agent_type": agentType, "cwd": cwd, "agent_transcript_path": transcript,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func payloadWith(t *testing.T, agentID, agentType, cwd, transcript string) *stri
 
 func payload(t *testing.T, agentID, agentType, cwd string) *strings.Reader {
 	t.Helper()
-	b, err := json.Marshal(map[string]string{"agent_id": agentID, "agent_type": agentType, "cwd": cwd})
+	b, err := json.Marshal(map[string]string{"session_id": testLead, "agent_id": agentID, "agent_type": agentType, "cwd": cwd})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func liveRun(t *testing.T) (cwd, runDir string) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 	return cwd, runDir

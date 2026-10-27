@@ -24,9 +24,9 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 	run := filepath.Join(proj, "research", "2026-07-18_topic")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic","leadSession":"session-lead-under-test"}]}`)
 
-	if got := InferRunDir(proj, Caller{}).Dir; got != run {
+	if got := InferRunDir(proj, Caller{Session: testLead}).Dir; got != run {
 		t.Fatalf("InferRunDir(%q) = %q, want %q", proj, got, run)
 	}
 }
@@ -37,11 +37,11 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 	run := filepath.Join(proj, "research", "r")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":"research/r"}]}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r","leadSession":"session-lead-under-test"}]}`)
 
 	deep := filepath.Join(proj, "plugins", "x", "y")
 	mustMkdir(t, deep)
-	if got := InferRunDir(deep, Caller{}).Dir; got != run {
+	if got := InferRunDir(deep, Caller{Session: testLead}).Dir; got != run {
 		t.Fatalf("from %q got %q, want %q", deep, got, run)
 	}
 }
@@ -50,7 +50,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 // an unusable marker yields nothing and the caller's --run error stands.
 func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 	for _, tc := range []struct{ name, body string }{
-		{"run directory does not exist", `{"runs":[{"runDir":"research/gone"}]}`},
+		{"run directory does not exist", `{"runs":[{"runDir":"research/gone","leadSession":"session-lead-under-test"}]}`},
 		{"no runDir field", `{"started":"2026-07-19T00:00:00Z"}`},
 		{"not json at all", `this is not json`},
 	} {
@@ -58,7 +58,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 			proj := t.TempDir()
 			mustMkdir(t, filepath.Join(proj, ".claude"))
 			writeMarker(t, proj, tc.body)
-			if got := InferRunDir(proj, Caller{}).Dir; got != "" {
+			if got := InferRunDir(proj, Caller{Session: testLead}).Dir; got != "" {
 				t.Fatalf("got %q, want empty", got)
 			}
 		})
@@ -66,7 +66,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 }
 
 func TestInferRunDirIsEmptyWithNoMarkerAnywhere(t *testing.T) {
-	if got := InferRunDir(t.TempDir(), Caller{}).Dir; got != "" {
+	if got := InferRunDir(t.TempDir(), Caller{Session: testLead}).Dir; got != "" {
 		t.Fatalf("got %q, want empty when no run is live", got)
 	}
 }
@@ -76,8 +76,8 @@ func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
 	proj := t.TempDir()
 	elsewhere := t.TempDir()
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
-	if got := InferRunDir(proj, Caller{}).Dir; got != elsewhere {
+	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`,"leadSession":"session-lead-under-test"}]}`)
+	if got := InferRunDir(proj, Caller{Session: testLead}).Dir; got != elsewhere {
 		t.Fatalf("got %q, want %q", got, elsewhere)
 	}
 }
@@ -115,11 +115,11 @@ func TestInferRunDirSaysWhy(t *testing.T) {
 		hasDir bool
 	}{
 		{name: "no marker", why: NoMarker},
-		{name: "resolved", marker: ptr(`{"runs":[{"runDir":"run"}]}`), dirs: []string{"run"}, why: Resolved, hasDir: true},
+		{name: "resolved", marker: ptr(`{"runs":[{"runDir":"run","leadSession":"session-lead-under-test"}]}`), dirs: []string{"run"}, why: Resolved, hasDir: true},
 		{name: "no run open", marker: ptr(`{"runs":[]}`), why: NoRunOpen},
-		{name: "two runs live", marker: ptr(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`), dirs: []string{"a", "b"}, why: Ambiguous, fault: true},
+		{name: "two runs live", marker: ptr(`{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"b","leadSession":"session-lead-under-test"}]}`), dirs: []string{"a", "b"}, why: Ambiguous, fault: true},
 		{name: "unreadable", marker: ptr("{ not json"), why: Unreadable, fault: true},
-		{name: "directory gone", marker: ptr(`{"runs":[{"runDir":"gone"}]}`), why: NoRunOpen},
+		{name: "directory gone", marker: ptr(`{"runs":[{"runDir":"gone","leadSession":"session-lead-under-test"}]}`), why: NoRunOpen},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			proj := t.TempDir()
@@ -130,7 +130,7 @@ func TestInferRunDirSaysWhy(t *testing.T) {
 				mustMkdir(t, filepath.Join(proj, ".claude"))
 				writeMarker(t, proj, *tc.marker)
 			}
-			got := InferRunDir(proj, Caller{})
+			got := InferRunDir(proj, Caller{Session: testLead})
 			if got.Why != tc.why {
 				t.Fatalf("Why = %v, want %v", got.Why, tc.why)
 			}
