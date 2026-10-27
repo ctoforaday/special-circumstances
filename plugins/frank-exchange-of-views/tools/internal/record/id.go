@@ -28,7 +28,7 @@ func NewID(kind string) string {
 }
 
 // FindingRef is how a finding is named in text: its id, then the area of the lens that filed it.
-// The id says nothing of who found it, and a reader weighing a credit needs that beside it.
+// The id says nothing of who found it, and a reader weighing a found_by needs that beside it.
 func FindingRef(id, area string) string { return id + " (" + area + ")" }
 
 // FindingByKey is the finding this seat recorded under its --key, nil for none: a retried

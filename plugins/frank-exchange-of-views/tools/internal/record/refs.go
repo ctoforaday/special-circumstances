@@ -200,7 +200,7 @@ func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
 
 // requireFindings refuses found_by attribution to a finding that does not exist.
 //
-// found_by is the credit chain from a lens's work to the board gap it earned, and it is
+// found_by is the chain from a lens's work to the board gap it earned, and it is
 // read back by the capture-recapture estimate. An invented id inflates the count of
 // lens-sourced gaps with a finding nobody made.
 func requireFindings(q recordsql.Querier, ids []string, flag string) error {

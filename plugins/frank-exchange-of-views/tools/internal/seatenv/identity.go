@@ -103,7 +103,7 @@ type Seat struct {
 // Order mirrors Resolve: injected → flag → inference. The DISAGREEMENT is again the point — a
 // --seat-id that contradicts the injected identity is REFUSED rather than obeyed or silently
 // overridden. Attribution is the one fact a seat must not be able to get wrong: an event filed
-// under the wrong seat is credited to the wrong party, and every found_by, estoppel and parity
+// under the wrong seat is attributed to the wrong party, and every found_by, estoppel and parity
 // check reads it.
 func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) {
 	// THE BOUND SEAT IS THE ONE THE RECORD BINDS THIS AGENT TO — its latest register, else its latest
