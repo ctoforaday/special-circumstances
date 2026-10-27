@@ -151,7 +151,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('judge · terminal')), 'no unruled motion, no terminal sitting')
 })
 
-test('CEILING: nobody ready and every open material gap at its limit — the stamp says so and names no deadlock', async () => {
+test('CEILING: the run at its epoch limit — the stamp says so and names no deadlock', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan() })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'CEILING')
@@ -173,11 +173,8 @@ test('CEILING: the reason names each unchecked citation or proof and each on a f
   }
   const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('P-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
-  const limits = 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again'
   const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
   const clause = '; unchecked: C-706fda63, P-cd9f4c5a; on a failed check: C-0b0e0d0a'
-  assert.equal(await ended([chairEnv({ plan: ceilingPlan(none) })]), limits)
-  assert.equal(await ended([chairEnv({ plan: ceilingPlan(standing) })]), limits + clause)
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
 })
@@ -265,13 +262,13 @@ test('a plan whose blockers alone change keeps going, whatever their kind', asyn
   }
 })
 
-// ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
+// ── the epoch limit: a run TERM, and the record's word ────────────
 const limitPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 4,
   why: ['G-00000001: open, material, 1 exchange(s) (0 stalled) — below its limits', "epoch limit 4 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"],
   blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 const toTheLimit = (last) => [...[11, 12, 13].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head }) })), chairEnv({ plan: last }), passChair()]
 
-test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named, apart from the carried ceiling', async () => {
+test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named', async () => {
   const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan()) }))
   const out = await world.run(script, ARGS)
   assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
@@ -280,8 +277,6 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
   assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
   assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
 
-  const carried = await makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan() })] })).run(script, ARGS)
-  assert.deepEqual([carried.verdict, carried.termination.epoch_limit_reached], ['CEILING', false], 'the carried ceiling is told apart')
 })
 
 test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches nobody, whatever parties it still lists', async () => {
@@ -493,7 +488,7 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const bench = firstPrompt(world, 'judge')
   for (const want of ['Docketed for you: G-00000001, G-00000002', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
     'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
-    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a gap you remand at impasse a second time stays open at its limit', 'NAMED infrastructure debt',
+    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }

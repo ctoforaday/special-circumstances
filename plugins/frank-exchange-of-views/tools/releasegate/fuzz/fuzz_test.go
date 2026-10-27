@@ -419,10 +419,10 @@ type runner struct {
 	// blue's retires of such a citation, and failedCloseRefused the closes the tool refused of a gap
 	// carrying a failed check that still stood.
 	unreadAnswers, unreadRepeats, unreadRetires, failedCloseRefused int
-	proofReopenedReadied                         map[string]int
-	owedKept, proofOwedKept                      int
-	owedKeptBy                                   map[string]int
-	reopenedOwnerErr                             string
+	proofReopenedReadied                                            map[string]int
+	owedKept, proofOwedKept                                         int
+	owedKeptBy                                                      map[string]int
+	reopenedOwnerErr                                                string
 	// quotesRefused counts the corroborations the tool REFUSED for a quote the report does not
 	// hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
 	// the first such act the tool recorded, or refused without saying whose sentence the quote
@@ -469,6 +469,11 @@ type runner struct {
 	// both counts at zero.
 	closedRemandsRefused, trifleRemandsRouted int
 	trifleRemanded                            map[string]bool
+	// remandActs counts, by role, the acts on a remanded gap the remand's blocking item held a seat to
+	// (answerRemands), and pastLimitRemandsRefused the bench's remands past the limit the tool refused
+	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
+	remandActs              map[string]int
+	pastLimitRemandsRefused int
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -912,6 +917,10 @@ func (r *runner) dischargeOwed(seatID string) {
 				}
 			}
 		}
+	}
+	// A REMAND'S ITEM HOLDS BLUE AND THE MINTING LENS UNTIL EACH ACTS ON THE GAP (answerRemands).
+	if seatID == "blue-respond" || strings.HasPrefix(seatID, "red-lens-") {
+		r.answerRemands(seatID)
 	}
 	if seatID == "blue-respond" {
 		r.fixFailed(seatID)
@@ -3430,8 +3439,9 @@ const (
 // board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
 // Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
 // closing sitting; a proof, a grade motion or silence is a stalled exchange, the gap is at impasse
-// after one, and the bench remands every docket but a lost dispute: the remand's one more exchange
-// stalls the same way, the gap is docketed again, and the second remand leaves it at its limit.
+// after one, and the bench remands every docket but a lost dispute: the remand's one more exchange —
+// blue and the lens each held to an act on the gap — stalls the same way, the gap is docketed again,
+// and the bench, refused a second remand, rules a disposition that closes it.
 // MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (PROVE 70,
 // PROVE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
 // and 8 runs reached VERIFIED. At four lenses 63 of 250 gaps ended remanded and 29 of 80 runs
@@ -4065,8 +4075,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// `remanded` means — "the material needs another exchange", stated as a decision.
 		// THE BENCH RULES THE DOCKET, which the plan names: a gap reaches it at impasse, once per
 		// docketing. A remanded gap goes back for one more exchange and, still at impasse, is
-		// docketed again; remanded a second time it stays open at its limit — that gap's deadlock,
-		// and what CEILING is made of; a disposed one leaves the board. There is no run-level deadlock for the
+		// docketed again; a second remand is refused, and the bench closes it; a disposed one leaves
+		// the board. There is no run-level deadlock for the
 		// bench to declare any more (plans/roundless.md §III.B.2): impasse is per gap and the
 		// record counts it, so the envelope carries only the resolutions.
 		// THE BENCH RULES WHAT IT WAS ENGAGED ON — the plan's fresh docket AND the gaps a party
@@ -4093,11 +4103,18 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if closed && r.scenarioOf(id) != dirDisputeLost {
 				r.remandOfClosedRefused(seatID, id)
 			}
-			if !closed && r.scenarioOf(id) != dirDisputeLost {
+			// A GAP AT ITS REMAND LIMIT IS NOT REMANDED EITHER: the bench's work list says a remand of it
+			// is refused, the bench reaches for one and is refused naming the dispositions that close
+			// the gap, and it rules one of them.
+			atLimit := !closed && r.scenarioOf(id) != dirDisputeLost && r.remandPastLimit(seatID, id)
+			if atLimit {
+				r.remandPastLimitRefused(seatID, id)
+			}
+			if !closed && !atLimit && r.scenarioOf(id) != dirDisputeLost {
 				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
 				r.remandRouted(id)
 			}
-			if closed || r.scenarioOf(id) == dirDisputeLost {
+			if closed || atLimit || r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
 				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
@@ -4691,6 +4708,9 @@ type outcome struct {
 	rulerFilingsRefused int
 	// closedRemandsRefused and trifleRemandsRouted are runner's.
 	closedRemandsRefused, trifleRemandsRouted int
+	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
+	// pastLimitRemandsRefused.
+	blueRemandActs, lensRemandActs, pastLimitRemandsRefused int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -5969,6 +5989,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
+	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
@@ -6715,6 +6736,8 @@ func TestFuzzDebate(t *testing.T) {
 	unclassifiedMinted, unclassifiedRefused := 0, 0         // catch-all mints landed; refused for want of a reason
 	rulerFilingsRefused := 0                                // filings refused the seat that rules their subject
 	closedRemandsRefused, trifleRemandsRouted := 0, 0       // remands of a closed gap refused; remands of a gap not material routed
+	blueRemandActs, lensRemandActs := 0, 0                  // acts on a remanded gap its blocking item held blue and the lens to
+	pastLimitRemandsRefused := 0                            // remands past the limit refused naming the closing dispositions
 	applyMisses := map[string]int{}                         // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}                      // and why the estoppel drive declined, for the same reason
 
@@ -6842,6 +6865,9 @@ func TestFuzzDebate(t *testing.T) {
 			rulerFilingsRefused += o.rulerFilingsRefused
 			closedRemandsRefused += o.closedRemandsRefused
 			trifleRemandsRouted += o.trifleRemandsRouted
+			blueRemandActs += o.blueRemandActs
+			lensRemandActs += o.lensRemandActs
+			pastLimitRemandsRefused += o.pastLimitRemandsRefused
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -7100,6 +7126,15 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if trifleRemandsRouted == 0 {
 			t.Errorf("fuzz readied ZERO remands of a gap that is not material across %d runs — the route by which the bench's remand outranks materiality is unexercised (false green)", completed)
+		}
+		// THE REMAND'S ITEM BLOCKS, AND ONE REMAND AT IMPASSE IS THE LIMIT (gblock, 2026-10-25): each seat a
+		// remand readies is held until it acts on the gap, and a second remand at impasse is refused.
+		t.Logf("remands: %d act(s) by blue and %d by the minting lens on a remanded gap its item held them to; %d remand(s) past the limit refused", blueRemandActs, lensRemandActs, pastLimitRemandsRefused)
+		if blueRemandActs == 0 || lensRemandActs == 0 {
+			t.Errorf("fuzz drove %d blue and %d lens act(s) on a remanded gap whose item blocked the seat, across %d runs — the remand's blocking item is unexercised for a seat it holds (false green)", blueRemandActs, lensRemandActs, completed)
+		}
+		if pastLimitRemandsRefused == 0 {
+			t.Errorf("fuzz drove ZERO remands past the limit across %d runs — the refusal that names the dispositions that close the gap is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

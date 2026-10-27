@@ -464,8 +464,8 @@ SELECT
   --
   -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
   -- minting lens and blue, on the direction the ruling states (docket_direction). Where a remanded
-  -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
-  -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
+  -- gap stands against that exchange — owed or had — turns on the exchanges and the acts in them,
+  -- so the record's Go fold decides it (exchangesOf, over the "remand" view's
   -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
   -- unruled. Without it the chair was told only "gap G1 is open and material — PASS is refused while
   -- it is", which is true of a gap nobody has ever put before the bench and of one the bench has

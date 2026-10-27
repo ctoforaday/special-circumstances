@@ -88,7 +88,9 @@ const heldBy = (parties) => parties.flatMap((p) => (p.gap_ids.length ? p.gap_ids
 export const withKey = (p) => ({ key: createHash('sha256').update(JSON.stringify({ ...p, key: undefined })).digest('hex').slice(0, 16), ...p })
 export const plan = (parties = [], over = {}) => withKey({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
-export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G-00000001: at impasse, ruled remanded — at its limit'], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
+// ceilingPlan is the plan at the run's epoch limit relayed in the first sitting: the one ceiling the
+// record states.
+export const ceilingPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 1, why: ["epoch limit 1 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 // chairEnv is a chair's envelope: the envelope IS the plan, so the plan given as `plan` is spread to
 // its top level, and every other key given (the plan's `verdict`, the chair's `notes`) sits beside it.
 export const chairEnv = ({ plan: p = plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over } = {}) => ({ ...p, ...over })

@@ -74,14 +74,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, id := range ManifestUnreceipted(evs, win, WhileRunning).Gaps {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
-		// A REMAND SENDS ITS GAP BACK FOR ONE MORE EXCHANGE, and the direction the bench wrote has
-		// to reach the seats that owe it. The dispatch readies blue on the gap (routeOf, the plan's
-		// own predicate); this says what that sitting is for, in the ruling's words.
-		for _, g := range gaps {
-			if g.Open && g.route == routeRemandOwed {
-				add(remandOwedItem(g, true))
-			}
-		}
 		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with
 		// the mint's reason and every regrade that moved a grade (gblock, 2026-10-18). It stays here
@@ -178,13 +170,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// re-audits and closes its gap, so this is news for that seat and noise for any other.
 		for _, w := range blueAnswers(evs, win, gaps, seatID) {
 			add(w)
-		}
-		// THE OTHER SEAT A REMAND READIES, on the originator's list by the same rule: the minting
-		// lens re-audits blue's answer to the direction, and only it may close the gap.
-		for _, g := range gaps {
-			if g.Open && g.route == routeRemandOwed && minted[g.ID] == seatID {
-				add(remandOwedItem(g, false))
-			}
 		}
 		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
 		//
@@ -450,16 +435,57 @@ func anchorOwnerOf(proof bool) string {
 	return evidenceSeat
 }
 
-// remandOwedItem is the work item a remand's exchange puts on the list of each seat the dispatch
-// readies for it — blue, and the gap's minting lens — carrying the research direction the ruling
-// states, so the bench's words reach the two seats that owe them.
-func remandOwedItem(g WorkGapState, blue bool) string {
-	dir := g.DocketDirection
-	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench"
-	if blue {
-		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + dir + next
+// remandItemsOf is the item a remand's exchange puts on the list of each seat the dispatch readies
+// for it — blue-respond, and the gap's minting lens — carrying the research direction the ruling
+// states, so the bench's words reach the two seats that owe them. blue says which of the two seatID
+// is.
+//
+// IT BLOCKS UNTIL THE SEAT HAS ACTED ON THE GAP (gblock, 2026-10-25), by the per-seat envelope gate
+// (EnvelopeRefusal): an act on the gap after the ruling (gapActsOf) clears it, and until then the
+// seat's sitting cannot end. On universe-m34 the item was offered and not owed, blue worked other
+// gaps, and a sitting that never touched the remanded gap was the exchange the remand granted.
+//
+// A SITTING OPENED BEFORE THE RULING IS NOT HELD BY IT: the remand landed while it sat, the next plan
+// readies the seat, and that sitting owes it. Once the seat has acted the item stays on the list,
+// not owed, while the remand's exchange is: the direction is still what the exchange is about.
+//
+// It stands while the plan's own route (routeOf) owes the remand's exchange, so it goes when the gap
+// closes, when a docket motion on it puts it back before the bench, and when the exchange has been
+// had.
+func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
+	minted := mintedBy(evs)
+	var acts map[string][]gapAct
+	var out []Item
+	for _, g := range gaps {
+		if !g.Open || g.route != routeRemandOwed || (!blue && minted[g.ID] != seatID) {
+			continue
+		}
+		if acts == nil {
+			acts = gapActsOf(evs, win.IDs(evs))
+		}
+		what := remandItem(g, blue)
+		switch {
+		case seatActedSince(acts[g.ID], seatID, g.remandRuled):
+			out = append(out, Item{What: what + " — you have recorded an act on it since the ruling, so it does not hold your sitting"})
+		case win.LatestSittingOf(seatID) < g.remandRuled:
+			out = append(out, Item{What: what + " — the ruling landed after this sitting opened, so your next sitting owes it"})
+		default:
+			out = append(out, Item{What: what, Blocks: true})
+		}
 	}
-	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + dir + next
+	return out
+}
+
+// remandItem is the remand's sentence for blue or for the gap's minting lens: the direction, the act
+// that discharges it, and where the gap goes next.
+func remandItem(g WorkGapState, blue bool) string {
+	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
+	if blue {
+		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + g.DocketDirection +
+			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a proof that answers it, a fate on the inquiry it is anchored on, or a motion on it" + next
+	}
+	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + g.DocketDirection +
+		". Your sitting cannot end until you record an act on " + g.ID + ": a regrade (one that keeps the grade says what your check still finds failing), a close, or a finding about it" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
@@ -470,13 +496,11 @@ func remandedGapForChair(g WorkGapState) string {
 	case routeRemandOwed:
 		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketDirection
 	case routeRedocket:
-		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again"
-	case routeAtLimit:
-		return head + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
+		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again, to be closed"
 	case routeDocket:
 		return head + g.ID + " is open, the BENCH REMANDED it before it reached impasse, and it is at impasse now — the dispatch dockets it for the bench"
 	case routeNobody:
-		return head + g.ID + " is open, the BENCH REMANDED it, and it is not material: the exchange its remand granted has begun, and the dispatch readies nobody for it"
+		return head + g.ID + " is open, the BENCH REMANDED it, and it is not material: the exchange its remand granted has been had, and the dispatch readies nobody for it"
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	}

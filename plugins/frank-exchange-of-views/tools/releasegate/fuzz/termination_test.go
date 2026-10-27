@@ -31,8 +31,7 @@ type move struct {
 	bench, rules bool
 	// pass: nobody is ready and PASS is permitted; the chair records PASS → VERIFIED.
 	pass bool
-	// ceiling: nobody is ready, every open material gap at its limit (remanded again after its
-	// remand's exchange) → CEILING.
+	// ceiling: the run's epoch limit is reached with parties ready → CEILING.
 	ceiling bool
 	// stall: nobody is ready and neither PASS nor CEILING holds → UNVERIFIED.
 	stall bool
@@ -107,7 +106,7 @@ func party(seat string, gaps ...string) map[string]any {
 }
 
 // plan is a relayed plan as the verb prints it: one that permits no PASS names what holds it — its
-// parties' own blockers (debatejs.HeldBy), and at the ceiling the material gap at its limit.
+// parties' own blockers (debatejs.HeldBy), and at the ceiling the material gap the limit left open.
 func plan(parties []any, pass, ceiling bool, docket []any, why string) map[string]any {
 	if docket == nil {
 		docket = []any{}
@@ -119,8 +118,12 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 	case !pass:
 		blockers = debatejs.HeldBy(parties)
 	}
+	maxEpochs := 0
+	if ceiling {
+		maxEpochs = 1
+	}
 	return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
-		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers})
+		"max_epochs": maxEpochs, "epoch": 1, "final_sitting": false, "epoch_limit_reached": ceiling, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers})
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {
@@ -130,8 +133,8 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 		if sitting >= 1 && sitting <= len(sched) {
 			return sched[sitting-1]
 		}
-		// PAST THE SCHEDULE the record's terms have run out: every open gap is at its limit. The
-		// stand-in is the ceiling, which is what a run of stalled exchanges ends in.
+		// PAST THE SCHEDULE the record's terms have run out: the run is at its epoch limit, the
+		// ceiling.
 		return move{name: "ceiling", ceiling: true}
 	}
 	var lastMove move
@@ -150,7 +153,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				e.Relay(plan([]any{}, true, false, nil, "pass permitted"))
 				e["verdict"] = "PASS"
 			case m.ceiling:
-				e.Relay(plan([]any{}, false, true, nil, "every open material gap is at its limit"))
+				e.Relay(plan([]any{}, false, true, nil, "epoch limit 1 reached — this chair sitting opens the run's last epoch"))
 			case m.stall:
 				p := plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}

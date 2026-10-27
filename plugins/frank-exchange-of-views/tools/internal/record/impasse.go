@@ -39,23 +39,30 @@ type GapExchanges struct {
 	// the work lists and the chair's row read it from here, so no reader re-derives it.
 	Remand remandStage
 	// rounds is each counted exchange in order — where it began (its minting lens's sitting), where
-	// it ended (blue's), and whether it moved the gap — so "was the gap at impasse when the bench
-	// ruled" and "has an exchange been had since" are asked of the same fold that counts.
+	// it ended (blue's), whether it moved the gap and whether a party acted on it — so "was the gap at
+	// impasse when the bench ruled" and "has the remand's exchange been had" are asked of the same
+	// fold that counts.
 	rounds []exchangeRound
 	// remandSittings is the place of each bench sitting the fold COUNTED as a remand: one that remanded
 	// the gap while it was at impasse, keyed on the latest remand ruling in that sitting.
 	remandSittings []int64
 	// latestRemandOwed is the latest remand the bench ruled on the gap, counted or not, with no
-	// exchange begun since its ruling (latestRemandOwed): what routes a remand of a gap that is not
-	// material (routeOf).
+	// exchange since its ruling in which a party acted on the gap (latestRemandOwed): what routes a
+	// remand of a gap that is not material (routeOf).
 	latestRemandOwed bool
+	// latestRemand is the place of that ruling (the latest of remandSittingsOf), 0 where the bench
+	// never remanded the gap: each party's act on the gap after it is what clears the remand's item
+	// on that party's work list (remandItemsOf).
+	latestRemand int64
 }
 
-// exchangeRound is one counted exchange: the places its red and blue sittings began and ended, and
-// whether anything moved the gap between them.
+// exchangeRound is one counted exchange: the places its red and blue sittings began and ended,
+// whether anything moved the gap between them, and whether either party recorded an act on the gap
+// there (gapActsOf) — the exchange a remand grants is had only by a round that acted.
 type exchangeRound struct {
 	start, end int64
 	moved      bool
+	acted      bool
 }
 
 // Counted is the fold's numbers in the words a seat reads, and it is THE ONE PLACE the not-measured
@@ -133,6 +140,9 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 		ruled := remandSittingsOf(remands[g])
 		x.remandSittings = countedRemands(x.rounds, ruled, p)
 		x.latestRemandOwed = latestRemandOwed(x.rounds, ruled)
+		if len(ruled) > 0 {
+			x.latestRemand = ruled[len(ruled)-1]
+		}
 		x.Impasse = impasseOf(x.rounds, x.remandSittings, p, math.MaxInt64)
 		x.Remand = remandStageOf(x)
 	}
@@ -147,6 +157,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 	movement := map[string][]int64{} // gap -> ids of movement events
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	closer := sittingCloserOf(evs, ids, win, openings, when)
+	acts := gapActsOf(evs, ids)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -237,7 +248,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			} else {
 				x.Stalled++
 			}
-			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved})
+			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved, acted: partyActed(acts[g], minted[g], pendingRed, s.end)})
 			pendingRed = math.MinInt64
 		}
 	}

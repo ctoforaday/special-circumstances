@@ -47,8 +47,7 @@ const (
 //
 //	HALTED    a halt event exists — the bench ended the run on its own authority
 //	VERIFIED  the chair recorded a PASS verdict
-//	CEILING   the dispatch plan's ceiling: every open material gap is at its limit and ruled,
-//	          or the run's epoch limit is reached — the why says which
+//	CEILING   the dispatch plan's ceiling: the run's epoch limit is reached with parties ready
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
@@ -112,10 +111,9 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	case passed:
 		return "VERIFIED", "the chair recorded a PASS verdict", true, nil
 	}
-	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
-	// open material gap is at impasse after the one more exchange its remand granted and the bench
-	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
-	// epoch limit, a term setup records. A record with no cast cannot reach it.
+	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2): the chair has sat for the run's
+	// last epoch under its epoch limit, a term setup records. A gap at its own limit is closed by the
+	// bench, never left open (requireRemandWithinLimit). A record with no cast cannot reach it.
 	standing := ""
 	if cast != nil {
 		params, err := files.params()
@@ -123,20 +121,17 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 			return "", "", false, err
 		}
 		plan := foldPlan(params, *r.plan)
-		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term, its
-		// limits or no terminal state with a citation or proof nobody has read against the sentence the
-		// report carries, or one whose check failed, and the reason is where a reader of the outcome
+		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term or with
+		// no terminal state over a citation or proof nobody has read against the sentence the report
+		// carries, or one whose check failed, and the reason is where a reader of the outcome
 		// learns which. No other blocker kind is named: the reason states why the run stopped, and the
 		// board states what else is open.
 		standing = anchorsStanding(plan.Blockers)
-		switch {
 		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
 		// undispatched, its ruling leaves nobody ready (epochLimitHeldTheBench).
-		case plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan):
+		if plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan) {
 			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing, true, nil
-		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil

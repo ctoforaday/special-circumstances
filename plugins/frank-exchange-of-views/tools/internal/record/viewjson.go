@@ -842,9 +842,9 @@ type WorkGapJSON struct {
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
 	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
-	// impasse or not), "spent" (that exchange has begun), "at_limit" (the bench remanded it at
-	// impasse twice and is not asked again). "" when the bench has ruled no remand while the gap was
-	// at impasse — a remand of a material gap's docket filed before impasse spends nothing.
+	// impasse or not), "spent" (that exchange has been had: one in which either seat acted on the
+	// gap). "" when the bench has ruled no remand while the gap was at impasse — a remand of a
+	// material gap's docket filed before impasse spends nothing.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -972,10 +972,15 @@ type WorkGapState struct {
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
-	remand                           remandStage
-	route                            gapRoute
-	unruledDocket                    bool
-	latestRemandOwed                 bool   // GapExchanges.latestRemandOwed, which the PASS gate's list reads
+	remand           remandStage
+	route            gapRoute
+	unruledDocket    bool
+	latestRemandOwed bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
+	remandRuled      int64 // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
+	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
+	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
+	// item on a docket motion says so before it rules.
+	remandLimit                      int64
 	Fate                             string // the last closer's word; closed gaps only
 	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
@@ -1130,7 +1135,8 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			x = &GapExchanges{GapID: g.ID}
 		}
 		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
-		g.latestRemandOwed = x.latestRemandOwed
+		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
+		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))
 		// A REMAND OF A GAP THAT IS NOT MATERIAL IS OWED ITS EXCHANGE whether or not the bench ruled it
 		// at impasse (routeOf), so the stage says what the route does.
 		if g.route == routeRemandOwed {
