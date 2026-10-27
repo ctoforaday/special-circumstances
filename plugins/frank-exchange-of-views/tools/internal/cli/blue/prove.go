@@ -51,6 +51,9 @@ func newProve() *cobra.Command {
 		if strings.TrimSpace(script) == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --script: the path of the program that settles it — absolute, or relative to the run directory")
 		}
+		if err := record.RefuseRecordFile(run, proof.ScriptPath(run.Dir(), script), "--script", "a program"); err != nil {
+			return nil, err
+		}
 
 		// CRASH-RETRY AND KEY COLLISION LOOK IDENTICAL AT THE KEY, AND ARE OPPOSITE FACTS.
 		//
