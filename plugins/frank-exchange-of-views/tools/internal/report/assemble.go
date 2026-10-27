@@ -28,6 +28,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/yuin/goldmark/ast"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -148,7 +150,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), escapeNotesInLine(oneLine(citationTitle(s))), locator, s.URL, accessed(s.AccessDate),
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), plainInLine(citationTitle(s)), locator, oneLine(s.URL), accessed(s.AccessDate),
 			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
@@ -203,7 +205,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s%s%s%s", citationTitle(pick), url, accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly))
+	return fmt.Sprintf("%s. %s%s%s%s%s", plainInLine(citationTitle(pick)), oneLine(url), accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly))
 }
 
 // copyNote is what the reader is told when a citation's bytes are not its url's own: where the
@@ -215,6 +217,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 // bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
 // corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
 func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
+	copyURL = oneLine(copyURL)
 	switch kind {
 	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:
 		return fmt.Sprintf(" (full text read at %s)", copyURL)
@@ -717,9 +720,9 @@ func inquiries(a *assembly, s Section) string {
 		if !want(a.Status) {
 			continue
 		}
-		row := "- **Question:** " + inItem(a.Question, "  ")
+		row := "- **Question:** " + oneLine(a.Question)
 		if a.Hypothesis != "" {
-			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
+			row += "\n  - **Hypothesis:** " + oneLine(a.Hypothesis)
 		}
 		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. An inquiry
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
@@ -731,7 +734,7 @@ func inquiries(a *assembly, s Section) string {
 		// method is most often a phrase with no full stop, and the label after it would read as its
 		// last words, so it ends with one as the fate does.
 		if a.Method != "" {
-			row += " **Method:** " + endSentence(inItem(a.Method, "    "))
+			row += " **Method:** " + endSentence(oneLine(a.Method))
 		}
 		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
 		if a.Reason != "" {
@@ -739,7 +742,7 @@ func inquiries(a *assembly, s Section) string {
 			if ran(a.Status) {
 				label = "Found"
 			}
-			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))
+			row += fmt.Sprintf(" **%s:** %s", label, oneLine(a.Reason))
 		}
 		// THERE IS NO PER-INQUIRY SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. A per-epoch `supported`/`weakened`/`unsupported`/`absent` verdict on each
@@ -771,21 +774,6 @@ func endSentence(prose string) string {
 	return prose + "."
 }
 
-// inItem keeps prose of several lines inside the list item that prints it: every further line is
-// indented to the item's text and ends the one before it with a hard break, and blank lines go.
-// A blank or unindented line ends a list item — in markdown and in report.html's reading alike — so a line
-// written as paragraphs otherwise leaves its own row, and the hypothesis and fate under it read
-// as rows of their own.
-func inItem(prose, indent string) string {
-	var lines []string
-	for _, ln := range strings.Split(prose, "\n") {
-		if ln = strings.TrimSpace(ln); ln != "" {
-			lines = append(lines, ln)
-		}
-	}
-	return strings.Join(lines, "  \n"+indent)
-}
-
 // withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.
 //
 // Substance leaves the report only through `blue retire`, which names the claim as it stood,
@@ -807,8 +795,8 @@ func withdrawnClaims(fam record.Family) string {
 		if claim == "" {
 			continue
 		}
-		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), r.GetReason(), e.GetSeatId(), w.Sitting)
-		if s := r.GetSupersededBy(); s != "" {
+		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), oneLine(r.GetReason()), e.GetSeatId(), w.Sitting)
+		if s := oneLine(r.GetSupersededBy()); s != "" {
 			row += "\n  - superseded by: " + s
 		}
 		// A PHANTOM RETIREMENT IS WORSE THAN USELESS, and only the basis distinguishes one.
@@ -853,11 +841,11 @@ func provenance(g *record.Gap, findings map[string]*record.Event) string {
 			lines = append(lines, "- "+lbl+": (no finding with this id is on the record)")
 			continue
 		}
-		loc := f.GetLocation()
+		loc := oneLine(f.GetLocation())
 		if loc != "" {
 			loc = " (" + loc + ")"
 		}
-		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, f.GetText()))
+		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, oneLine(f.GetText())))
 	}
 	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
 }
@@ -908,13 +896,13 @@ func boardSection(fam record.Family) string {
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
 			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
-				g.ID, g.Mint.GetProblem(),
-				g.Mint.GetLocation(),
+				g.ID, oneLine(g.Mint.GetProblem()),
+				oneLine(g.Mint.GetLocation()),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
 				regraded,
-				g.Mint.GetRequiredFix(),
+				oneLine(g.Mint.GetRequiredFix()),
 				fixProposal(g.Mint),
-				g.Mint.GetAcceptanceCheck(),
+				oneLine(g.Mint.GetAcceptanceCheck()),
 				mintReason(g.Mint),
 				foundBy))
 		} else {
@@ -947,7 +935,7 @@ func boardSection(fam record.Family) string {
 			// claimed. A run where every finding was minted and every gap closed printed red's
 			// leaf-level words nowhere. The closure answers what happened; it does not restate
 			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), closureDetail(g), provenance(g, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), succ, regradeHistory(g), closureDetail(g), provenance(g, findings)))
 		}
 	}
 	var b strings.Builder
@@ -1087,7 +1075,7 @@ func correctnessManifest(fam record.Family) string {
 	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
 	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
 	for _, r := range rows {
-		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, r.text)
+		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, oneLine(r.text))
 	}
 	if len(unmanifested) > 0 {
 		fmt.Fprintf(&b, "\n**%d repaired gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
@@ -1112,7 +1100,7 @@ func spotChecks(fam record.Family) string {
 	fmt.Fprintf(&b, "### Spot-checks (%d)\n\n", len(checks))
 	b.WriteString("Red re-reading before a PASS what it would otherwise take on trust: the stale areas, each a retired lens's area the report has moved past since it sat, and its own closure record, which is only as good as the last time anyone looked. These are the sittings that looked, and what each found.\n\n")
 	for _, sc := range checks {
-		b.WriteString("- " + sc.Describe() + "\n")
+		b.WriteString("- " + oneLine(sc.Describe()) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -1192,7 +1180,7 @@ func regradeHistory(g *record.Gap) string {
 		// `--reason` LANDS ON `basis` (recordpb/required.go: "grade movement is recorded with
 		// its reason"). Regrade has no `reason` field, and inventing one would have been a
 		// silent blank in the one place this section exists to show.
-		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, r.GetBasis()))
+		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, oneLine(r.GetBasis())))
 	}
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
@@ -1219,7 +1207,7 @@ func unmintedFindings(fam record.Family) string {
 			continue
 		}
 		head := record.FindingRef(f.GetId(), record.AreaOf(e.GetSeatId()))
-		loc := f.GetLocation()
+		loc := oneLine(f.GetLocation())
 		if loc != "" {
 			loc = " — " + loc
 		}
@@ -1245,7 +1233,7 @@ func unmintedFindings(fam record.Family) string {
 			head, loc,
 			gradeWord(f.GetSeverity()), gradeWord(f.GetLikelihood()), gradeWord(f.GetImpact()),
 			e.GetSeatId(),
-			f.GetText()))
+			ownBlock(f.GetText())))
 	}
 	if len(rows) == 0 {
 		return ""
@@ -1321,7 +1309,7 @@ func debate(fam record.Family) string {
 			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
 			// record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
-				epoch = append(epoch, redHead+"\n"+p.GetText())
+				epoch = append(epoch, redHead+"\n"+ownBlock(p.GetText()))
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
@@ -1329,18 +1317,18 @@ func debate(fam record.Family) string {
 				if record.PartyOf(e) == "blue" {
 					side = "BLUE"
 				}
-				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), c.GetText()))
+				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), ownBlock(c.GetText())))
 				continue
 			}
 			// THE SPOT-CHECK IS PART OF RED'S ARGUMENT: a defect the chair finds in a stale area is
 			// stated there, with no verdict recorded, and this transcript is where a reader of the
 			// sitting looks for it.
 			if sc, ok := record.SpotCheckOf(e, fam.At, archive); ok {
-				epoch = append(epoch, "### RED SPOT-CHECK\n"+sc.Describe())
+				epoch = append(epoch, "### RED SPOT-CHECK\n"+oneLine(sc.Describe()))
 			}
 			// A LENS THAT KEPT ITS GRADE: red's argument on that gap after its re-audit.
 			if kept[e] {
-				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+e.GetRegrade().GetBasis())
+				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+ownBlock(e.GetRegrade().GetBasis()))
 			}
 			// THE REPORT SERVED TO A LENS: which lens was given the whole report at which head.
 			if rr, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
@@ -1382,7 +1370,7 @@ func debate(fam record.Family) string {
 				// disposition renderer, where the same substitution was needed for the same
 				// reason.
 				docketGapOf[mr.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
-				d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+mr.GetOpinion())
+				oneLine(d.Docket.GetPrinciple()), oneLine(d.Docket.GetTension()), oneLine(d.Docket.GetReviewFlag()))+"\n"+ownBlock(mr.GetOpinion()))
 		}
 		if len(lead) > 0 {
 			epoch = append(epoch, "### LEAD\n"+strings.Join(lead, "\n"))
@@ -1403,11 +1391,11 @@ func debate(fam record.Family) string {
 	for _, l := range fam.Events {
 		e := l
 		if h, ok := recordpb.BodyAs[*recordpb.Halt](e); ok {
-			disp = append(disp, "**HALT** — "+h.GetOpinion())
+			disp = append(disp, "**HALT** — "+ownBlock(h.GetOpinion()))
 			continue
 		}
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
-			disp = append(disp, "**Certification** — "+c.GetStatement())
+			disp = append(disp, "**Certification** — "+ownBlock(c.GetStatement()))
 			continue
 		}
 		// A DECLARATION BINDS HOW THE RECORD IS READ, so it belongs in the artifact the
@@ -1415,7 +1403,7 @@ func debate(fam record.Family) string {
 		// which is why it could never have appeared in the per-gap dispositions above, and
 		// why the bench that needed one had nowhere to put it (#361).
 		if d, ok := recordpb.BodyAs[*recordpb.Declare](e); ok {
-			disp = append(disp, "**Declared** — "+d.GetHolding())
+			disp = append(disp, "**Declared** — "+ownBlock(d.GetHolding()))
 			continue
 		}
 		// AND THE OUTCOME'S OWN ACCOUNT, which used to open the RESEARCH document and now lands
@@ -1425,7 +1413,7 @@ func debate(fam record.Family) string {
 		// goes to find them, not in front of a reader who came for the subject.
 		if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
 			if r := strings.TrimSpace(o.GetProse()); r != "" {
-				disp = append(disp, "**How the run ended** — "+r)
+				disp = append(disp, "**How the run ended** — "+ownBlock(r))
 			}
 		}
 	}
@@ -1485,7 +1473,7 @@ func logSection(fam record.Family) string {
 		if !ok {
 			continue
 		}
-		t := strings.TrimSpace(f.GetText())
+		t := oneLine(f.GetText())
 		if t == "" {
 			continue
 		}
@@ -1540,14 +1528,45 @@ func grade(v any) string {
 	return "—"
 }
 
-// cell keeps a value on one table row: pipes and newlines would break the markdown table.
+// cell keeps a value in one cell of a table row: on one line (oneLine), and with its pipes escaped.
 func cell(s string) string {
-	s = strings.ReplaceAll(s, "|", "\\|")
-	s = strings.ReplaceAll(s, "\n", " ")
-	if strings.TrimSpace(s) == "" {
+	s = strings.ReplaceAll(oneLine(s), "|", "\\|")
+	if s == "" {
 		return "—"
 	}
 	return s
+}
+
+// ownBlock is seat prose the tool places as blocks of their own — a position, a closing argument, an
+// opinion — with every fence it opens closed: a text that ends inside a fenced block gets the line
+// that closes it. Prose keeps its paragraphs, lists and headings, which are the seat's to write; a
+// fence left open is the one construct that runs past the text into what the tool writes after it,
+// turning every later heading, note and proof anchor in the document into code. A fence inside a list
+// item or a quotation closes with its container, and the tool's next line ends that.
+func ownBlock(s string) string {
+	if !strings.Contains(s, "```") && !strings.Contains(s, "~~~") {
+		return s
+	}
+	src := []byte(s)
+	f, ok := parsePage(src).LastChild().(*ast.FencedCodeBlock)
+	if !ok || f.Pos() < 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	lineOf := func(off int) int { return strings.Count(s[:off], "\n") }
+	last := lineOf(f.Pos())
+	if n := f.Lines().Len(); n > 0 {
+		last = lineOf(f.Lines().At(n - 1).Start)
+	}
+	open := src[f.Pos():]
+	if last+1 < len(lines) && closesFence(open, lines[last+1]) {
+		return s
+	}
+	n := 0
+	for n < len(open) && open[n] == open[0] {
+		n++
+	}
+	return strings.TrimRight(s, "\n") + "\n" + string(open[:n])
 }
 
 func collapseBlanks(s string) string {

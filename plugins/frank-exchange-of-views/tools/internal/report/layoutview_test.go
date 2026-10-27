@@ -81,7 +81,8 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if s := by["Open questions"]; !s.Ships || s.Text != "## Open questions\n\nWhether 13 is prime." {
 		t.Errorf("the section that closes the report's text is not the Open questions row's: %+v", s)
 	}
-	docs, err := AssembleAll(run)
+	// The set as composed for shipping, its masthead not yet on it: the layout's text is that.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +238,7 @@ func TestEveryLayoutRowCarriesTextOrSaysWhyItHasNone(t *testing.T) {
 }
 
 // ONE PARSE PER TEXT. The layout reads each composed document once, however many rows it looks for in
-// it; and the write's three refusals read one parse of each text between them. Counted, not timed.
+// it. Counted, not timed. (The write's refusals take ParsedText, which holds the one parse of a text.)
 func TestEachTextIsParsedOnce(t *testing.T) {
 	const title = "# On 91 parsed once"
 	run := runtest.Open(t, newRun(t))
@@ -249,25 +250,16 @@ func TestEachTextIsParsedOnce(t *testing.T) {
 	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
-	docs, err := AssembleAll(run)
+	docs, err := shippedDocs(run)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Every composed document opens with the title, and so does the report's text, read once to part it.
-	_, marked := countParses(t, title)
-	if _, err := Layout(run); err != nil {
+	rd, _, marked := countParses(title)
+	if _, err := rd.layoutOf(run); err != nil {
 		t.Fatal(err)
 	}
 	if want := len(docs) + 1; *marked != want {
 		t.Errorf("the layout parsed %d text(s) holding the title, want %d: each of the %d documents once, and the report's text once", *marked, want, len(docs))
-	}
-
-	all, _ := countParses(t, "")
-	was, now := ParseText(blue), ParseText(blue+"\n## Appendix B\n\nMore.\n")
-	ComposedIn(was, now)
-	WovenNoteIn(was, now)
-	OutOfOrderIn(was, now)
-	if *all != 2 {
-		t.Errorf("the refusals parsed %d time(s) for two texts, want 2", *all)
 	}
 }

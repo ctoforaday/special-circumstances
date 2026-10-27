@@ -53,7 +53,7 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	}
 
 	open := runtest.Open(t, runDir)
-	docs, err := report.AssembleAll(open)
+	docs, err := shippedDocs(open)
 	if err != nil {
 		t.Fatal(err)
 	}

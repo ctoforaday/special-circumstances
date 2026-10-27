@@ -215,17 +215,17 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 // A ROW IS ONE LIST ITEM HOWEVER MANY PARAGRAPHS ITS PROSE HOLDS. The archived sleeper-service-plan
 // and quadratic-formula runs hold lines written as two and three paragraphs; printed as written,
 // the blank line ended the item, the later paragraphs stood outside the list, and the hypothesis
-// and fate opened a list of their own. Markdown and the site read the same rule: a line indented
-// under an item, with no blank line before it, continues the item.
+// and fate opened a list of their own. Each field is one line of its row (oneLine), which opens and
+// closes no block whatever the seat wrote.
 func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 	board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 		Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Method: proto.String("census"),
 		Question: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
 		Reason: proto.String("none exists.\n\nThe plan names no function.")})})
 	got := inquirySection(t, board, "Research areas")
-	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce.\n" +
-		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
-		"  - **Fate:** refuted. **Method:** census. **Found:** none exists.  \n    The plan names no function."
+	want := "- **Question:** APPROACH: census the plan. ARGUMENT: ordering is scarce.\n" +
+		"  - **Hypothesis:** one exists and it is explicit\n" +
+		"  - **Fate:** refuted. **Method:** census. **Found:** none exists. The plan names no function."
 	if !strings.Contains(got, want) {
 		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
 	}
@@ -403,6 +403,7 @@ func inquirySection(t *testing.T, fam record.Family, heading string) string {
 // sectionBlock is the section under heading as assembly places it, through its row.
 func sectionBlock(t *testing.T, heading string, a *assembly) string {
 	t.Helper()
+	a.rd = stdReaders()
 	for _, s := range layout {
 		if s.Heading == heading && s.compose != nil {
 			return s.block(a)

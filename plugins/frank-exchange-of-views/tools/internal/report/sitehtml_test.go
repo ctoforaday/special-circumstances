@@ -151,12 +151,11 @@ func TestReportHTMLCarriesNoSeatHTML(t *testing.T) {
 // THE ALLOWLIST IS ON THE PAGE, not only in its own tests: a renderer that wrote a seat's script would
 // still ship none.
 func TestTheAllowlistHoldsWhatTheRendererLetThrough(t *testing.T) {
-	was := renderBody
-	t.Cleanup(func() { renderBody = was })
-	renderBody = func(parsed, string, anchors, map[string]int, map[string]bool) rendered {
+	rr := stdRenderer()
+	rr.body = func(ParsedText, string, anchors, map[string]int, map[string]bool) rendered {
 		return rendered{html: `<p>kept</p><script>alert(1)</script><img src="x" onerror="y()"><a href="javascript:z()" onclick="w()">l</a><!-- c -->`}
 	}
-	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}))
+	body := mainOf(renderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}, rr))
 	if bad := outsideAllowlist(body); len(bad) > 0 {
 		t.Errorf("report.html carries what the allowlist exists to drop: %q\n%s", bad, body)
 	}

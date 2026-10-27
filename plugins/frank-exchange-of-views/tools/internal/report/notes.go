@@ -20,7 +20,7 @@ import (
 //
 // So text assembly composes is escaped where it is composed (Section.block, and the three places
 // outside the table that print a seat's words: the inquiries document, the evidence document, and
-// the notes the weave writes) — `\[^P5]`, which every markdown reader prints as the five
+// the notes and Bibliography entries the weave writes) — `\[^P5]`, which every markdown reader prints as the five
 // characters the seat typed — and the weave, which runs after, is then the one writer of an
 // unescaped `[^` in a tool-composed block. The report's own text is not escaped: a footnote under
 // a label that is not the weave's is the report's to write (WovenNoteIn refuses the others at the
@@ -41,11 +41,14 @@ const (
 // codeIn), which the shipped .md shares (ship): a `[^` is code or prose in the same place in all
 // three, so a line an HTML block would hold as code to a reader with the grammar is prose here, as it
 // is to both shipped readings.
-func EscapeNotes(md string) string {
+func EscapeNotes(md string) string { return stdReaders().escapeNotes(md) }
+
+// escapeNotes is EscapeNotes, reading md with rd.
+func (rd readers) escapeNotes(md string) string {
 	if !strings.Contains(md, noteOpen) {
 		return md
 	}
-	return escapeNotesOutside(md, codeIn(parsePage([]byte(md)), []byte(md)))
+	return escapeNotesOutside(md, codeIn(rd.page([]byte(md)), []byte(md)))
 }
 
 // escapeNotesInLine is EscapeNotes for a fragment assembly splices into the middle of a line it

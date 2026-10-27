@@ -35,8 +35,9 @@ package report
 // THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
 // proof's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
 // and resolveMarkSpans makes it the anchor and returns its span. A `<` inside such a span is the
-// tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly weaves or strips
-// every anchor token before a document ships (AssembleAll), so a token in one is a seat's text.
+// tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly strips every anchor
+// token as text enters composition, but those the weave turns into notes (stripTokens), and the weave
+// takes the rest, so a token in a shipped document is a seat's text.
 //
 // WHAT A READER IS GUARANTEED. A reader that parses the file as CommonMark with GitHub's extensions
 // finds no HTML in it but the proofs' anchors, and prints each escaped `<` as the character typed.
@@ -49,7 +50,6 @@ package report
 // text: it renders through pageReader (md.go) and an allowlist after it (site.go).
 
 import (
-	"reflect"
 	"slices"
 
 	"github.com/yuin/goldmark"
@@ -63,14 +63,16 @@ import (
 )
 
 // parseMD is a parse of a shipped .md, in the dialect a markdown viewer reads it in (mdReader).
-var parseMD = func(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
+func parseMD(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
 
-// probeReader is mdReader's grammar with its two HTML parsers recording where they would open a node,
-// and declining (probingHTML).
+// probeReader is mdReader's grammar with its two HTML parsers each wrapped to record where it would open
+// a node, and decline: pageReader's grammar, and the HTML grammar as a probe.
 var probeReader = goldmark.New(goldmark.WithParser(parser.NewParser(
-	parser.WithBlockParsers(append(probingHTML(parser.DefaultBlockParsers()),
+	parser.WithBlockParsers(append(blockParsers(),
+		util.Prioritized(htmlBlockProbe{parser.NewHTMLBlockParser()}, htmlBlockPriority),
 		util.Prioritized(extension.NewFootnoteBlockParser(), 999))...),
-	parser.WithInlineParsers(append(probingHTML(parser.DefaultInlineParsers()),
+	parser.WithInlineParsers(append(inlineParsers(),
+		util.Prioritized(rawHTMLProbe{parser.NewRawHTMLParser()}, rawHTMLPriority),
 		util.Prioritized(extension.NewFootnoteParser(), 101))...),
 	parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
 )), goldmark.WithExtensions(extension.GFM))
@@ -80,39 +82,12 @@ var htmlAtKey = parser.NewContextKey()
 
 // htmlAt is the offset of each `<` of src at which a CommonMark reader opens an HTML node, src read as
 // pageReader reads it (probeReader), in order.
-var htmlAt = func(src []byte) []int {
+func htmlAt(src []byte) []int {
 	pc := parser.NewContext()
 	probeReader.Parser().Parse(text.NewReader(src), parser.WithContext(pc))
 	at, _ := pc.Get(htmlAtKey).([]int)
 	slices.Sort(at)
 	return slices.Compact(at)
-}
-
-// probingHTML is ps with CommonMark's HTML block parser and inline HTML parser each wrapped to record
-// and decline.
-func probingHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
-	out := slices.Clone(ps)
-	for i, p := range out {
-		if !isHTMLParser(p) {
-			continue
-		}
-		switch v := p.Value.(type) {
-		case parser.BlockParser:
-			out[i].Value = htmlBlockProbe{v}
-		case parser.InlineParser:
-			out[i].Value = rawHTMLProbe{v}
-		}
-	}
-	return out
-}
-
-// htmlParsers are CommonMark's HTML block parser and inline HTML parser, by type: the whole of the
-// HTML grammar pageReader leaves out (withoutHTML) and probeReader wraps (probingHTML).
-var htmlParsers = []reflect.Type{reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())}
-
-// isHTMLParser reports whether p is one of htmlParsers.
-func isHTMLParser(p util.PrioritizedValue) bool {
-	return slices.Contains(htmlParsers, reflect.TypeOf(p.Value))
 }
 
 // recordHTML adds offset i of the source to the parse's record.
@@ -156,21 +131,36 @@ func (p rawHTMLProbe) Parse(parent ast.Node, block text.Reader, pc parser.Contex
 	return nil
 }
 
+// readers is the parses shipping and assembly take: report.html's reading of a text (page), a markdown
+// viewer's (md), and where that viewer opens HTML in report.html's reading (probe). They are passed, so
+// a test counts what a shipping or an assembly parses by handing it readers that count.
+type readers struct {
+	page  func([]byte) ast.Node
+	md    func([]byte) ast.Node
+	probe func([]byte) []int
+}
+
+// stdReaders is the readers the set ships with.
+func stdReaders() readers { return readers{page: parsePage, md: parseMD, probe: htmlAt} }
+
+// ship is md as its .md ships (readers.ship).
+func ship(md string) string { return stdReaders().ship(md) }
+
 // ship is md as its .md ships: its proofs' anchors in place, and no HTML in it a CommonMark reader
 // finds but those anchors.
-func ship(md string) string {
+func (rd readers) ship(md string) string {
 	md, tool := resolveMarkSpans(md)
 	src := []byte(md)
 	if len(angles(src, tool)) == 0 {
 		return md
 	}
 	var at []int
-	for _, i := range htmlAt(src) {
+	for _, i := range rd.probe(src) {
 		if !inSpan(i, tool) {
 			at = append(at, i)
 		}
 	}
-	if out, spans := escapeAt(src, at, tool); len(seatHTML(parseMD(out), out, spans)) == 0 {
+	if out, spans := escapeAt(src, at, tool); len(seatHTML(rd.md(out), out, spans)) == 0 {
 		return string(out)
 	}
 	out, _ := escapeAt(src, angles(src, tool), tool)

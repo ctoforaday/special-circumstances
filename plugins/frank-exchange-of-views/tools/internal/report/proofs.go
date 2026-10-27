@@ -82,7 +82,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			proofNote(num[label]), escapeNotesInLine(oneLine(firstNonEmpty(p.Reason, storedScript(p)))), FileEvidence, label)
+			proofNote(num[label]), plainInLine(firstNonEmpty(plain(p.Reason), storedScript(p))), FileEvidence, label)
 	}
 	return b.String(), order
 }
@@ -118,13 +118,13 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		label := p.Label
 		n := num[label]
 		b.WriteString(proofAnchorMark(label) + "\n\n")
-		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, storedScript(p))))
+		fmt.Fprintf(&b, "### P%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), storedScript(p)))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
 		}
 		fmt.Fprintf(&b, "- **basis**: %s", p.Basis)
 		if p.Drift != "" {
-			fmt.Fprintf(&b, " — %s", p.Drift)
+			fmt.Fprintf(&b, " — %s", plain(p.Drift))
 		}
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "- **script**: %s (sha256 %s)\n", codeSpanOf(storedScript(p)), codeSpanOf(shortSHA(p.SHA)))
@@ -153,7 +153,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		var notes []string
 		for _, j := range p.Judgements {
 			if j.Note != "" && (p.Soundness != record.SoundnessUnsound || !j.Sound) {
-				notes = append(notes, j.Note)
+				notes = append(notes, plain(j.Note))
 			}
 		}
 		note := ""
@@ -231,7 +231,12 @@ func longestRun(s string, c byte) int {
 	return most
 }
 
-// oneLine keeps a captured output on a single markdown line.
+// oneLine is s as one line of markdown, its runs of whitespace one space: the form of every value the
+// tool splices into a line it composes — a heading, a list item, a note, a table cell, a labelled
+// line. A value of several lines spliced raw leaves the line: a fence on its second line opens code
+// that runs to the end of the document and takes every heading, note and anchor after it, and a `#`
+// line is a heading the tool did not write. On one line, behind the tool's own text, a value opens and
+// closes no block. strings.Fields splits at every line ending CommonMark has, a lone `\r` included.
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }

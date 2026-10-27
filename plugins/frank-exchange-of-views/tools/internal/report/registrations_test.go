@@ -45,7 +45,7 @@ func stampedRun(t *testing.T, config string, regs ...stamped) string {
 			t.Fatal(err)
 		}
 	}
-	docs, err := AssembleAll(runtest.Open(t, dir))
+	docs, err := shippedDocs(runtest.Open(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}

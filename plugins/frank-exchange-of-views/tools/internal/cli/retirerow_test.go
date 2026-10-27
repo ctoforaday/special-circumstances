@@ -56,7 +56,7 @@ func TestARetireLeavesARowOfSymbolsWhereItStands(t *testing.T) {
 	if rep := readReport(t, runDir); !strings.HasSuffix(rep, table) {
 		t.Errorf("the report's table reads\n%s\nwant it to end\n%s", rep, table)
 	}
-	docs, err := report.AssembleAll(runtest.Open(t, runDir))
+	docs, err := shippedDocs(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

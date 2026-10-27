@@ -188,7 +188,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("--assembled --json is not the layout: %v\n%s", err, out)
 	}
-	docs, err := report.AssembleAll(runtest.Open(t, runDir))
+	docs, err := shippedDocs(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if proofs != 9 {
 		t.Fatalf("the migrated m20's report carries %d proof anchors, want 9", proofs)
 	}
-	docs, err := report.AssembleAll(dst)
+	docs, err := shippedDocs(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -378,4 +378,19 @@ func TestTheBareAssembledLayoutSaysItCarriesNoText(t *testing.T) {
 	if strings.Contains(seen, report.LayoutHasNoText) {
 		t.Errorf("the form that carries the text says it carries none:\n%q", seen)
 	}
+}
+
+// shippedDocs is the run's report set as it ships: each document's name, and its .md as Write writes
+// it, masthead and all, in Body.
+func shippedDocs(run record.Run) ([]report.Doc, error) {
+	set, err := report.AssembleShipped(run)
+	if err != nil {
+		return nil, err
+	}
+	var docs []report.Doc
+	for _, f := range set.Files() {
+		text, _ := set.Text(f)
+		docs = append(docs, report.Doc{File: f, Body: text})
+	}
+	return docs, nil
 }

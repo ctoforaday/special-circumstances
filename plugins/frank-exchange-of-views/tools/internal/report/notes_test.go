@@ -48,11 +48,11 @@ func TestAnEscapedNoteIsTextInTheHTMLTier(t *testing.T) {
 // footnote under a label that is not the weave's is the report's to write.
 func TestOnlyWhatAssemblyComposesIsEscaped(t *testing.T) {
 	says := func(*assembly, Section) string { return "a seat wrote [^P5] here" }
-	tool := Section{Heading: "The board", Composer: Tool, compose: says}.block(nil)
+	tool := Section{Heading: "The board", Composer: Tool, compose: says}.block(&assembly{rd: stdReaders()})
 	if !strings.Contains(tool, `a seat wrote \[^P5] here`) {
 		t.Errorf("a tool-composed block ships a seat's words as a footnote reference:\n%s", tool)
 	}
-	blue := Section{Heading: "Body", Composer: Blue, compose: says}.block(nil)
+	blue := Section{Heading: "Body", Composer: Blue, compose: says}.block(&assembly{rd: stdReaders()})
 	if blue != "a seat wrote [^P5] here" {
 		t.Errorf("the report's own text was changed on its way into the set:\n%s", blue)
 	}

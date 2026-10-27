@@ -87,11 +87,13 @@ type Section struct {
 
 // block is the section as assembly places it, or "" for one this run has nothing under.
 func (s Section) block(a *assembly) string {
-	text := s.compose(a, s)
+	// The section's text enters its document here, so its tokens leave here, before anything reads
+	// what their removal joins (stripTokens).
+	text := stripTokens(s.compose(a, s), true)
 	if s.Composer == Tool {
 		// WHAT ASSEMBLY COMPOSES OPENS NO FOOTNOTE (notes.go): the weave runs over the document
 		// after this, and is the one writer of a note in it.
-		text = EscapeNotes(text)
+		text = a.rd.escapeNotes(text)
 	}
 	if s.Composer == Tool && s.Line == "" && strings.TrimSpace(text) != "" {
 		return "## " + s.Heading + "\n\n" + text
@@ -107,6 +109,7 @@ type assembly struct {
 	bj      record.BoardJSON
 	outcome *recordpb.Outcome
 	blue    blueText
+	rd      readers // what the assembly parses with
 }
 
 const (
@@ -290,7 +293,7 @@ var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assemb
 	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
-	"The shipped .md differs from that text in one way: a backslash stands before each `<` a markdown reader would take for HTML a seat wrote."
+	"The shipped .md differs from that text in one way: a backslash stands before each `<` a markdown reader would take for HTML a seat wrote, or, in a document whose reading the tool cannot predict, before every `<` but a proof's anchor, code included."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
@@ -359,22 +362,26 @@ type mdLine struct {
 	heading       bool   // an ATX heading opens on the line
 }
 
-// ParsedText is a text as report.html reads it (pageReader), parsed once: its lines in order, each
-// with what the parser says of it, and every stretch of the text the tree reads as code (codeIn).
-// What is code and what is a heading is the parser's answer, the one both shipped readings share,
-// so a line indented into code, or a fence's info string holding backticks, is what the parser says.
-// Every question asked of a text's headings, fences and code is asked of one: a text is parsed once,
-// however many readers ask.
+// ParsedText is a text as report.html reads it (pageReader), parsed once: the tree the page renders,
+// its lines in order, each with what the parser says of it, and every stretch of the text the tree
+// reads as code (codeIn). What is code and what is a heading is the parser's answer, the one both
+// shipped readings share, so a line indented into code, or a fence's info string holding backticks,
+// is what the parser says. Every question asked of a text's headings, fences and code is asked of
+// one, and report.html renders its tree: a text is parsed once, however many readers ask.
 type ParsedText struct {
-	src   string
+	src   []byte
+	tree  ast.Node
 	lines []mdLine
 	code  [][2]int
 }
 
 // ParseText is md as report.html reads it.
-func ParseText(md string) ParsedText {
+func ParseText(md string) ParsedText { return stdReaders().text(md) }
+
+// text is md as report.html reads it, parsed by rd.
+func (rd readers) text(md string) ParsedText {
 	src := []byte(md)
-	tree := parsePage(src)
+	tree := rd.page(src)
 	lines := strings.Split(md, "\n")
 	starts := make([]int, len(lines))
 	for i, at := 1, 0; i < len(lines); i++ {
@@ -416,7 +423,7 @@ func ParseText(md string) ParsedText {
 		}
 		return ast.WalkContinue, nil
 	})
-	out := ParsedText{src: md, lines: make([]mdLine, len(lines)), code: codeIn(tree, src)}
+	out := ParsedText{src: src, tree: tree, lines: make([]mdLine, len(lines)), code: codeIn(tree, src)}
 	for i, ln := range lines {
 		out.lines[i] = mdLine{text: ln, trimmed: strings.TrimSpace(ln), code: code[i], heading: heading[i]}
 	}
@@ -703,7 +710,7 @@ func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 }
 
 func wovenNotes(text ParsedText) (out []claim) {
-	src := text.src
+	src := string(text.src)
 	prose := func(s string) {
 		for _, m := range wovenNote.FindAllString(s, -1) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})

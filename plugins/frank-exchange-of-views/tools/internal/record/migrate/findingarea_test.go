@@ -50,12 +50,12 @@ func TestEveryFindingIdPrintsItsArea(t *testing.T) {
 			}
 			texts["view "+v] = string(md)
 		}
-		docs, err := report.AssembleAll(run)
+		set, err := report.AssembleShipped(run)
 		if err != nil {
 			t.Fatalf("%s: assemble: %v", name, err)
 		}
-		for _, d := range docs {
-			texts[d.File] = d.Body
+		for _, f := range set.Files() {
+			texts[f], _ = set.Text(f)
 		}
 		for where, text := range texts {
 			text = anchor.Replace(text, func(_, _ string) string { return "" })

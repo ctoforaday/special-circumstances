@@ -189,7 +189,8 @@ func delta(old, new string) string {
 	}
 }
 
-// oneLine flattens a span onto a single line so the diff block stays a diff block.
+// oneLine flattens a value onto a single line: a span, so the diff block stays a diff block, and an
+// inquiry's field, so its row stays one list item (InquiryBody).
 //
 // NOTHING IS ELIDED. A truncated span is exactly the decontextualized evidence this view
 // exists to stop red reasoning from — a long edit is long, and the reader who wants it

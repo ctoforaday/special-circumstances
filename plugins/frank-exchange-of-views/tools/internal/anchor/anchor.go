@@ -243,30 +243,6 @@ func Husk(s string) bool {
 	return husk.MatchString(s)
 }
 
-// StripAssembled removes every token of a kind the assembly strips, whatever it holds (writtenAt): the
-// assembled report ships no such token, an elided one included.
-func StripAssembled(md string) string {
-	var b strings.Builder
-	last := 0
-	for i := 0; i < len(md); {
-		n, k, _ := writtenAt(md, i)
-		if n == 0 {
-			i++
-			continue
-		}
-		if k.assembly == Strip {
-			b.WriteString(md[last:i])
-			last = i + n
-		}
-		i += n
-	}
-	if last == 0 {
-		return md
-	}
-	b.WriteString(md[last:])
-	return b.String()
-}
-
 // idAt is the id inside the token of length n beginning at i.
 func idAt(s string, i, n int) string {
 	tok := s[i : i+n]

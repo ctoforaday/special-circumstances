@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
+	"golang.org/x/net/html"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -69,10 +70,22 @@ func pageHTML(s string) template.HTML { return template.HTML(bodyPolicy.Sanitize
 // composed it — the record's text, unescaped, in the tree Ship parsed it to with no HTML grammar —
 // and not the shipped .md: no markdown link bar and no repeated H1, because the tab strip and the
 // header say those things better here, and none of the .md's backslashes.
-func RenderSite(set Shipped, fam record.Family) string {
+func RenderSite(set Shipped, fam record.Family) string { return renderSite(set, fam, stdRenderer()) }
+
+// renderer is what renderSite writes each document's body and the title with.
+type renderer struct {
+	body  func(p ParsedText, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered
+	title func(string) string
+}
+
+// stdRenderer is the renderer the page is written with (md.go).
+func stdRenderer() renderer { return renderer{body: renderDoc, title: inline} }
+
+// renderSite is RenderSite with rr writing each fragment that holds the record's text.
+func renderSite(set Shipped, fam record.Family, rr renderer) string {
 	docs := set.docs
 	short := shortTitle(set)
-	title, bodies := renderSet(set)
+	title, bodies := renderSet(set, rr)
 	page := sitePage{
 		TitleText: short,
 		TitleHTML: pageHTML(title),
@@ -115,7 +128,7 @@ func shortTitle(set Shipped) string { return strings.TrimSpace(strings.TrimPrefi
 
 // renderSet is each fragment of the page that holds the record's text, as the renderer writes it and
 // before the wall (pageHTML): the title, and each document's body with its ids linked across the set.
-func renderSet(set Shipped) (title string, bodies []string) {
+func renderSet(set Shipped, rr renderer) (title string, bodies []string) {
 	// TWO PASSES, and the reason is the join: pass one renders each document and records
 	// where every record id is DEFINED; pass two links every mention across the whole set. A
 	// one-pass render can only link backwards, which is the half of the joins nobody needs.
@@ -125,15 +138,44 @@ func renderSet(set Shipped) (title string, bodies []string) {
 		files[d.File] = true
 	}
 	docs := make([]rendered, len(set.docs))
-	slugs := map[string]int{}
+	slugs := reservedIDs(set.docs)
 	for i, d := range set.docs {
-		docs[i] = renderBody(set.html[i], d.File, anchor, slugs, files)
+		docs[i] = rr.body(set.html[i], d.File, anchor, slugs, files)
 	}
 	for i, d := range set.docs {
 		bodies = append(bodies, linkIDs(docs[i], anchor, d.File))
 	}
-	return renderTitle(shortTitle(set)), bodies
+	return rr.title(shortTitle(set)), bodies
 }
+
+// reservedIDs is the ids the page gives out before a document is rendered, each counted once, so a
+// heading's id is never one of them: the page's own (pageIDs) and each document's article
+// (docElement). A heading "Doc report" is "doc-report-2", and a fragment naming the report's article
+// still lands on it. The citation layer takes its ids from the same count (citations).
+func reservedIDs(docs []Doc) map[string]int {
+	seen := map[string]int{}
+	for _, id := range pageIDs {
+		seen[id] = 1
+	}
+	for _, d := range docs {
+		seen[docElement(d.File)] = 1
+	}
+	return seen
+}
+
+// pageIDs is every id the page's skeleton (site.html.tmpl) writes as it stands, read from it.
+var pageIDs = func() []string {
+	var ids []string
+	z := html.NewTokenizer(strings.NewReader(siteHTML))
+	for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
+		for _, a := range z.Token().Attr {
+			if a.Key == "id" && !strings.Contains(a.Val, "{{") {
+				ids = append(ids, a.Val)
+			}
+		}
+	}
+	return ids
+}()
 
 // siteLink opens a link to target: the set's own cross-file links — `[the board](docket.md)`,
 // `[evidence.md](evidence.md#p-deadbeef)` — as tab switches, any other as itself.
@@ -217,13 +259,6 @@ func countBadges(fam record.Family) string {
 // diagram's source text with a note, never to a broken page. The version is pinned so the
 // artifact renders the same way years later or not at all — never differently.
 const mermaidCDN = "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs"
-
-// renderBody and renderTitle are the renderers RenderSite runs each document and the title through;
-// a test swaps one for a renderer that writes what the renderer never does, to see the allowlist hold.
-var (
-	renderBody  = renderDoc
-	renderTitle = inline
-)
 
 // linkSchemes are the schemes a link in a document may name; any other renders as a link to nothing
 // (linkURL), and bodyPolicy drops it all the same.

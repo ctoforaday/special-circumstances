@@ -513,7 +513,8 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	docs, err := AssembleAll(run)
+	// The sections as composed, under no masthead: the masthead's title says the report has none.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatalf("a run with no report ingested does not assemble: %v", err)
 	}
@@ -533,7 +534,7 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 		New: proto.String("another"), Text: proto.String("a reason")}); err != nil {
 		t.Fatal(err)
 	}
-	if docs, err := AssembleAll(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
+	if docs, err := shippedDocs(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report that does not replay: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 
@@ -548,7 +549,7 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if docs, err := AssembleAll(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
+	if docs, err := shippedDocs(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 }

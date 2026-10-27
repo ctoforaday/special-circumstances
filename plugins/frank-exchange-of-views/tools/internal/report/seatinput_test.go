@@ -171,7 +171,7 @@ func assembleHostile(t *testing.T, h string) Shipped {
 // the wall, hold nothing outside it either.
 func honestOnThePage(t *testing.T, set Shipped) {
 	t.Helper()
-	title, bodies := renderSet(set)
+	title, bodies := renderSet(set, stdRenderer())
 	for i, frag := range append([]string{title}, bodies...) {
 		where := "the title"
 		if i > 0 {
@@ -239,7 +239,7 @@ func TestNoSeatInputIsMarkupOnThePage(t *testing.T) {
 			set := assembleHostile(t, h)
 			honestOnThePage(t, set)
 			// Each field reached the page: a field no document carries tests nothing here.
-			_, bodies := renderSet(set)
+			_, bodies := renderSet(set, stdRenderer())
 			shown := textOf(strings.Join(bodies, ""))
 			for field, w := range recordInputs {
 				if !strings.Contains(shown, w) {
@@ -253,12 +253,11 @@ func TestNoSeatInputIsMarkupOnThePage(t *testing.T) {
 // THE WALL STANDS OVER THE TITLE AS OVER EACH BODY. A title renderer that wrote a seat's markup ships
 // none of it: the masthead holds only what the allowlist holds.
 func TestTheAllowlistHoldsTheTitle(t *testing.T) {
-	was := renderTitle
-	t.Cleanup(func() { renderTitle = was })
-	renderTitle = func(string) string {
+	rr := stdRenderer()
+	rr.title = func(string) string {
 		return `kept<script>alert(1)</script><img src="x" onerror="y()"><a href="javascript:z()" onclick="w()">l</a>`
 	}
-	page := RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{})
+	page := renderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}, rr)
 	if bad := outsideAllowlist(mastheadOf(page)); len(bad) > 0 {
 		t.Errorf("the masthead carries what the allowlist exists to drop: %q\n%s", bad, mastheadOf(page))
 	}

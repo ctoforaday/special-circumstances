@@ -62,9 +62,12 @@ type LayoutJSON struct {
 // of a row after it (a record from before the refusal holds such). Assembly writes a mark line
 // above each block it composes here, in the table's order, and the row's text runs to the next
 // row that ships. The mark is drawn for the call, so no line of the report's text is one.
-func Layout(run record.Run) (LayoutJSON, error) {
+func Layout(run record.Run) (LayoutJSON, error) { return stdReaders().layoutOf(run) }
+
+// layoutOf is Layout, reading with rd.
+func (rd readers) layoutOf(run record.Run) (LayoutJSON, error) {
 	mark := "\x00" + rand.Text()
-	docs, composed, title, err := assemble(run, mark)
+	docs, composed, title, err := rd.assemble(run, mark)
 	if err != nil {
 		return LayoutJSON{}, err
 	}
@@ -81,7 +84,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 			}
 			kept = append(kept, ln)
 		}
-		rendered[d.File] = ParseText(strings.Join(kept, "\n"))
+		rendered[d.File] = rd.text(strings.Join(kept, "\n"))
 	}
 	starts := make([]int, len(layout))
 	for i, s := range layout {
@@ -133,7 +136,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 }
 
 // opens is the line a row no block of assembly's places opens on: the title, the first line that
-// starts as it does, which is the head (head) composedText puts on every document; and a section a pass over
+// starts as it does, which is the masthead composedText puts on every document; and a section a pass over
 // the whole document writes after the rows, the last heading of its name. -1 when none does.
 func opens(doc ParsedText, s Section) int {
 	found := -1

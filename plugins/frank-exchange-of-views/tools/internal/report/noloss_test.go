@@ -6,7 +6,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -61,7 +60,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			}
 			want := map[string]int{}
 			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln != "" {
+				if ln = strings.TrimSpace(stripTokens(ln, true)); ln != "" {
 					want[ln]++
 				}
 			}
@@ -74,7 +73,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			// text's lines stand in report.md in the order written, whatever order that is.
 			at, title := 0, part(ParseText(blue)).title
 			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln == "" {
+				if ln = strings.TrimSpace(stripTokens(ln, true)); ln == "" {
 					continue
 				}
 				if ln == title {

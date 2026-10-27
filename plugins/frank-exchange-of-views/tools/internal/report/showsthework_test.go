@@ -25,7 +25,7 @@ func docOf(t *testing.T, file string, evs ...*record.Event) string {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, evs...)
-	docs, err := AssembleAll(runtest.Open(t, dir))
+	docs, err := shippedDocs(runtest.Open(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -58,9 +58,9 @@ var (
 	// anchor, the one node only the tool's mark produces. The References list keeps a definition
 	// nothing references (citations).
 	pageReader = goldmark.New(goldmark.WithParser(parser.NewParser(
-		parser.WithBlockParsers(append(withoutHTML(parser.DefaultBlockParsers()),
+		parser.WithBlockParsers(append(blockParsers(),
 			util.Prioritized(extension.NewFootnoteBlockParser(), 999), util.Prioritized(proofAnchorParser{}, 100))...),
-		parser.WithInlineParsers(append(withoutHTML(parser.DefaultInlineParsers()),
+		parser.WithInlineParsers(append(inlineParsers(),
 			util.Prioritized(extension.NewFootnoteParser(), 101))...),
 		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
 	)), goldmark.WithExtensions(extension.GFM))
@@ -68,7 +68,7 @@ var (
 	// with: a title that starts "1." is a title, not a list. It has pageReader's inline grammar.
 	lineReader = parser.NewParser(
 		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
-		parser.WithInlineParsers(append(withoutHTML(parser.DefaultInlineParsers()),
+		parser.WithInlineParsers(append(inlineParsers(),
 			util.Prioritized(extension.NewLinkifyParser(), 999),
 			util.Prioritized(extension.NewStrikethroughParser(), 500))...),
 	)
@@ -79,13 +79,43 @@ var (
 	idToken = regexp.MustCompile(`\b(` + anchor.IDPattern("gap", "motion", "finding") + `|P\d+)\b`)
 )
 
-// withoutHTML is ps without CommonMark's HTML block and inline HTML parsers.
-func withoutHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
-	return slices.DeleteFunc(ps, isHTMLParser)
+// CommonMark's grammar is goldmark's default parsers, and its HTML grammar is two of them: the HTML
+// block parser and the inline HTML parser. The readers here are built from the rest, named one by one
+// from goldmark's constructors at goldmark's priorities, so no parser reaches a reader by being in a
+// default list: an upgrade that adds or changes a default parser changes none of them, and
+// TestTheGrammarIsGoldmarksDefaultsLessHTML fails until these lists say what to do with it.
+const (
+	htmlBlockPriority = 900 // parser.NewHTMLBlockParser's place among the block parsers
+	rawHTMLPriority   = 400 // parser.NewRawHTMLParser's among the inline parsers
+)
+
+// blockParsers is CommonMark's block grammar without its HTML block parser.
+func blockParsers() []util.PrioritizedValue {
+	return []util.PrioritizedValue{
+		util.Prioritized(parser.NewSetextHeadingParser(), 100),
+		util.Prioritized(parser.NewThematicBreakParser(), 200),
+		util.Prioritized(parser.NewListParser(), 300),
+		util.Prioritized(parser.NewListItemParser(), 400),
+		util.Prioritized(parser.NewCodeBlockParser(), 500),
+		util.Prioritized(parser.NewATXHeadingParser(), 600),
+		util.Prioritized(parser.NewFencedCodeBlockParser(), 700),
+		util.Prioritized(parser.NewBlockquoteParser(), 800),
+		util.Prioritized(parser.NewParagraphParser(), 1000),
+	}
+}
+
+// inlineParsers is CommonMark's inline grammar without its inline HTML parser.
+func inlineParsers() []util.PrioritizedValue {
+	return []util.PrioritizedValue{
+		util.Prioritized(parser.NewCodeSpanParser(), 100),
+		util.Prioritized(parser.NewLinkParser(), 200),
+		util.Prioritized(parser.NewAutoLinkParser(), 300),
+		util.Prioritized(parser.NewEmphasisParser(), 500),
+	}
 }
 
 // parsePage is report.html's one parse of a document (pageReader).
-var parsePage = func(src []byte) ast.Node { return pageReader.Parser().Parse(text.NewReader(src)) }
+func parsePage(src []byte) ast.Node { return pageReader.Parser().Parse(text.NewReader(src)) }
 
 // anchors is the map from a record id to the document and element that DEFINES it, filled as
 // each document renders and applied across the set afterwards.
@@ -112,7 +142,7 @@ type rendered struct {
 //
 // files is the document set: a link to one of them is a tab switch, written as one here, because
 // in a single page there is no sibling file to open.
-func renderDoc(p parsed, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
+func renderDoc(p ParsedText, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
 	r := &mdRender{src: p.src, file: file, anchor: anchor, seen: seen, files: files, link: true, anchored: map[string]bool{}}
 	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
 	// and left in the text as a marker that holds only its index (refMark); each definition is kept
@@ -124,12 +154,6 @@ func renderDoc(p parsed, file string, anchor anchors, seen map[string]int, files
 	var b strings.Builder
 	r.blocks(&b, p.tree)
 	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
-}
-
-// parsed is one document's text as report.html reads it, and the tree parsed from it.
-type parsed struct {
-	src  []byte
-	tree ast.Node
 }
 
 // unmarked is md with the marker bytes made the replacement character. The markers are control
@@ -252,6 +276,14 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 			note.scent = scentOf(title.noteBody(fn))
 			r.notes = append(r.notes, note)
 		}
+	case *ast.HTMLBlock:
+		// pageReader has no HTML grammar, so no tree it builds holds one. Should a reader with that
+		// grammar ever parse a document, the block is shown as typed, as every HTML in the text is.
+		text := r.lines(x)
+		if x.HasClosure() {
+			text += string(x.ClosureLine.Value(r.src))
+		}
+		b.WriteString("<p>" + escape(strings.TrimSuffix(text, "\n")) + "</p>\n")
 	default:
 		// A block this renderer has no element for is shown as its text, never dropped.
 		b.WriteString("<p>" + escape(r.lines(n)) + "</p>\n")
@@ -458,6 +490,12 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			r.linkTo(b, linkURL(x.Destination), func() { r.inlines(b, x, false) })
 		case *east.FootnoteLink:
 			b.WriteString(r.ref(r.footnoteLabel(x)))
+		case *ast.RawHTML:
+			// As an HTML block is: shown as typed, should a reader with the HTML grammar build the tree.
+			for i := 0; i < x.Segments.Len(); i++ {
+				seg := x.Segments.At(i)
+				b.WriteString(escape(string(seg.Value(r.src))))
+			}
 		case *east.TaskCheckBox:
 			if x.IsChecked {
 				b.WriteString("[x] ")
@@ -675,12 +713,21 @@ func citations(body string, refs []string, notes []footnote, seen map[string]int
 	listed := slices.DeleteFunc(slices.Clone(order), func(l string) bool { _, ok := byLabel[l]; return !ok })
 
 	// The ids, in the order the page shows each label.
-	suffix := map[string]string{}
+	// An entry's id is "fn-" and the marker's "fnref-" before one name, and the name is the first,
+	// of the label and the label with a count, under which neither is given out yet: a heading
+	// "Fnref 1" holds "fnref-1", and the note labelled 1 is then "fn-1-2" and "fnref-1-2".
+	names := map[string]string{}
 	id := func(l string) string {
-		if _, ok := suffix[l]; !ok {
-			suffix[l] = strings.TrimPrefix(uniqueID(seen, "fn-"+noteID(l)), "fn-"+noteID(l))
+		if _, ok := names[l]; !ok {
+			name := noteID(l)
+			for n := 2; seen["fn-"+name] > 0 || seen["fnref-"+name] > 0; n++ {
+				name = fmt.Sprintf("%s-%d", noteID(l), n)
+			}
+			seen["fn-"+name]++
+			seen["fnref-"+name]++
+			names[l] = name
 		}
-		return noteID(l) + suffix[l]
+		return names[l]
 	}
 	cite := func(k int) string {
 		l := refs[k]

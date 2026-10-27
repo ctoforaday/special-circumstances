@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -38,8 +37,8 @@ func citationsSection(fam record.Family) string {
 	b.WriteString("Each source the report cites, with the sentence it backs and every reading of the source against that sentence. ")
 	b.WriteString("A reading's outcome is what the source does for the sentence — `supports`, `supports_with_bridge` (it supports the sentence through a step the source does not state), `weak`, `refutes`, `absent` (the source says nothing on it) or `unreachable` — and its confidence is how sure the reading is.\n\n")
 	for _, s := range ev.Sources {
-		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), s.URL))
-		fmt.Fprintf(&b, "- **source**: %s", s.URL)
+		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plain(s.URL)))
+		fmt.Fprintf(&b, "- **source**: %s", plain(s.URL))
 		if s.AccessDate != "" {
 			fmt.Fprintf(&b, ", accessed %s", s.AccessDate)
 		}
@@ -60,9 +59,9 @@ func citationsSection(fam record.Family) string {
 		fmt.Fprintf(&b, "### Sources the report does not cite (%d)\n\n", len(others))
 		b.WriteString("Sources red found and read against a sentence of the report that place no citation in it: a reading that does not support its sentence places none.\n\n")
 		for _, v := range others {
-			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(plain(v.Title), v.URL, "(no source named)"))
+			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(plain(v.Title), plain(v.URL), "(no source named)"))
 			if v.URL != "" && plain(v.Title) != "" {
-				fmt.Fprintf(&b, " — %s", v.URL)
+				fmt.Fprintf(&b, " — %s", plain(v.URL))
 			}
 			b.WriteString("\n")
 			b.WriteString(indent(readings([]record.EvidenceVerificationJSON{v}, ""), "  "))
@@ -108,11 +107,14 @@ func readings(vs []record.EvidenceVerificationJSON, backs string) string {
 	return b.String()
 }
 
-// plain is a seat's text on one line with no anchor token in it: the evidence document is composed
-// after the weave, so a token copied into record prose would otherwise ship raw.
-func plain(s string) string {
-	return oneLine(anchor.StripAssembled(anchor.Replace(s, func(string, string) string { return "" })))
-}
+// plain is a record field as the tool writes it into a line it composes after the weave — a field of
+// evidence.md, a note's text, a Bibliography entry — on one line, with no anchor token in it
+// (stripTokens): no weave follows to take one, and no strip.
+func plain(s string) string { return oneLine(stripTokens(s, false)) }
+
+// plainInLine is plain for a field a line holds after the notes of its document are escaped — a
+// note's text, a Bibliography entry — with its own escaped (escapeNotesInLine).
+func plainInLine(s string) string { return escapeNotesInLine(plain(s)) }
 
 // indent prefixes every non-empty line of s.
 func indent(s, by string) string {

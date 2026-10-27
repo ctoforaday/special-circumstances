@@ -19,7 +19,8 @@ func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, evs...)
 	run := runtest.Open(t, dir)
-	docs, err := AssembleAll(run)
+	// The document as composed, under no masthead: it is compared with the view whole.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -192,13 +191,13 @@ func TestATextInOrderShipsInTheOrderWritten(t *testing.T) {
 			if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(doc)}); err != nil {
 				t.Fatal(err)
 			}
-			docs, err := AssembleAll(run)
+			docs, err := shippedDocs(run)
 			if err != nil {
 				t.Fatal(err)
 			}
 			at := 0
 			for _, ln := range strings.Split(doc, "\n")[1:] {
-				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln == "" {
+				if ln = strings.TrimSpace(stripTokens(ln, true)); ln == "" {
 					continue
 				}
 				i := strings.Index(docs[0].Body[at:], ln)

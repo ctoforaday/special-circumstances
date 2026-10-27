@@ -38,7 +38,7 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 	)
 	run := runtest.Open(t, dir)
 
-	docs, err := AssembleAll(run)
+	docs, err := shippedDocs(run)
 	if err != nil {
 		t.Fatal(err)
 	}

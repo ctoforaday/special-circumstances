@@ -41,7 +41,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	docs, err := report.AssembleAll(runtest.Open(t, runDir))
+	docs, err := shippedDocs(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -266,8 +266,8 @@ func TestCodeAutolinksAndDestinationsShipByteForByte(t *testing.T) {
 // of its own, a pass per row.
 func TestAPastedHTMLTableLeavesCodeAlone(t *testing.T) {
 	md := "Run `make <target>` first.\n\n<table>\n" + strings.Repeat("<tr><td>x</td></tr>\n", 200) + "</table>\n\n```\n<td>kept</td>\n```\n"
-	all, _ := countParses(t, "")
-	got := ship(md)
+	rd, all, _ := countParses("")
+	got := rd.ship(md)
 	if *all > 2 {
 		t.Errorf("a 200-row table parsed the text %d times, want at most 2", *all)
 	}
@@ -435,10 +435,9 @@ func TestAssembledSetCarriesNoSeatHTML(t *testing.T) {
 	}
 }
 
-// countParses counts the parses Ship makes, of either tier and the probe's, while the test runs, and
+// countParses is readers that count the parses made with them, of either tier and the probe's, and
 // of them the ones of a text that holds marker.
-func countParses(t *testing.T, marker string) (all, marked *int) {
-	t.Helper()
+func countParses(marker string) (rd readers, all, marked *int) {
 	all, marked = new(int), new(int)
 	seen := func(src []byte) {
 		*all++
@@ -446,17 +445,12 @@ func countParses(t *testing.T, marker string) (all, marked *int) {
 			*marked++
 		}
 	}
-	count := func(parse *func([]byte) ast.Node) {
-		was := *parse
-		*parse = func(src []byte) ast.Node { seen(src); return was(src) }
-		t.Cleanup(func() { *parse = was })
-	}
-	count(&parseMD)
-	count(&parsePage)
-	was := htmlAt
-	htmlAt = func(src []byte) []int { seen(src); return was(src) }
-	t.Cleanup(func() { htmlAt = was })
-	return all, marked
+	std := stdReaders()
+	return readers{
+		page:  func(src []byte) ast.Node { seen(src); return std.page(src) },
+		md:    func(src []byte) ast.Node { seen(src); return std.md(src) },
+		probe: func(src []byte) []int { seen(src); return std.probe(src) },
+	}, all, marked
 }
 
 // THE PARSES ARE BOUNDED: two, whatever the text. Each `<` is decided in the reading the shipped text
@@ -472,8 +466,8 @@ func TestShippingIsBounded(t *testing.T) {
 		"a pasted table":                "<table>\n" + strings.Repeat("<tr><td>x</td></tr>\n", 5000) + "</table>\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			all, _ := countParses(t, "")
-			got := ship(md)
+			rd, all, _ := countParses("")
+			got := rd.ship(md)
 			if *all > 2 {
 				t.Errorf("shipping 5,000 lines of HTML parsed the text %d times, want at most 2: the probe and the check", *all)
 			}
@@ -487,12 +481,12 @@ func TestShippingIsBounded(t *testing.T) {
 // TEXT WITH NOTHING TO ESCAPE IS NOT PARSED. Most documents hold no `<` but a proof's anchor, and most
 // sections no `[^`: neither costs a parse.
 func TestTextWithNothingToEscapeIsNotParsed(t *testing.T) {
-	all, _ := countParses(t, "")
+	rd, all, _ := countParses("")
 	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\nn > 3, and `code`.\n"
-	if got := ship(md); got != resolveMarks(md) {
+	if got := rd.ship(md); got != resolveMarks(md) {
 		t.Errorf("shipped %q, want the text with its anchor in place", got)
 	}
-	if got := EscapeNotes("a [note] and `[x]`\n"); got != "a [note] and `[x]`\n" {
+	if got := rd.escapeNotes("a [note] and `[x]`\n"); got != "a [note] and `[x]`\n" {
 		t.Errorf("EscapeNotes edited text with no `[^`: %q", got)
 	}
 	if *all != 0 {
@@ -503,11 +497,10 @@ func TestTextWithNothingToEscapeIsNotParsed(t *testing.T) {
 // A TEXT THAT DEFEATS THE PROBE STILL SHIPS NO SEAT HTML. Where the check finds HTML the probe did not
 // predict, ship escapes every `<` but the tool's — the code span's too — and checks once more.
 func TestADefeatedProbeEscapesEveryAngle(t *testing.T) {
-	was := htmlAt
-	htmlAt = func([]byte) []int { return nil }
-	t.Cleanup(func() { htmlAt = was })
+	rd := stdReaders()
+	rd.probe = func([]byte) []int { return nil }
 	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n<!-- c -->\n    <b>x</b>\n\nand `<i>` here, and an escaped \\<u> there.\n"
-	got := ship(md)
+	got := rd.ship(md)
 	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="P-deadbeef">`, "</a>"}) {
 		t.Errorf("a CommonMark reader finds HTML other than the proof's anchor: %q\n%s", found, got)
 	}
@@ -549,30 +542,18 @@ func TestOnlyWhatTheParserReadsAsHTMLIsEscaped(t *testing.T) {
 }
 
 // EACH TIER READS EACH DOCUMENT ONCE, IN SHIP. Ship parses each document's text once for report.html
-// and at most twice for the .md on the common path — a marker byte in it costs no second shipping —
-// and RenderSite and Write take its result: neither parses a body again.
+// and at most twice for the .md on the common path — a marker byte in it costs no second shipping.
+// RenderSite and Write take its result, and hold no reader to parse a body with.
 func TestEachDocumentIsShippedOnce(t *testing.T) {
 	const body = "BODYTEXT"
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Body: "## A\n\n" + body + " one <b>x</b>.\n"},
 		{File: FileDebate, Nav: "Debate", Body: "## B\n\n" + body + " two \x01.\n"},
 	}
-	all, marked := countParses(t, body)
-	set := Ship("# T", docs)
+	rd, _, marked := countParses(body)
+	rd.shipSet("# T", docs)
 	if *marked > 3*len(docs) {
 		t.Errorf("Ship parsed the bodies %d times, want at most %d", *marked, 3*len(docs))
-	}
-	*all, *marked = 0, 0
-	RenderSite(set, record.Family{})
-	if *all != 0 {
-		t.Errorf("RenderSite parsed %d text(s); it renders the trees Ship parsed", *all)
-	}
-	*marked = 0
-	if _, err := Write(runtest.Open(t, newRun(t)), set, "index"); err != nil {
-		t.Fatal(err)
-	}
-	if *marked != 0 {
-		t.Errorf("Write parsed a body %d time(s); it writes the text Ship escaped", *marked)
 	}
 }
 

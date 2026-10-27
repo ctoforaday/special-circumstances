@@ -787,7 +787,7 @@ func inquiryMD(in Input) []byte {
 
 // InquiryBody is the inquiries projection WITHOUT its heading, or "" when the run recorded no
 // inquiry — the ONE rendering behind both `show inquiries` and the shipped
-// inquiries.md (report.AssembleAll), so the view a seat reads and the document a human reads
+// inquiries.md (report.AssembleShipped), so the view a seat reads and the document a human reads
 // cannot drift into two accounts of the same inquiries. The seat's view prints the record's text as written; the
 // shipped inquiries.md is this text with a backslash before each `<` a CommonMark reader would take
 // for HTML (report.Ship), which that reader prints as the same characters, and report.html shows it
@@ -824,17 +824,19 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string
 			// The one-line row keeps its shape — question, reason, seat — and the lifecycle adds to
 			// it rather than replacing it. The method is the latest fate's account, as the reason is,
 			// so it prints once: a superseded method is one blue recorded the fate again to correct.
-			head := a.ID + " " + a.Question
+			// Each value the record holds is one line of its row (oneLine): a row is a list item, and a
+			// value's second line would leave it.
+			head := a.ID + " " + oneLine(a.Question)
 			reason := ""
 			if a.Reason != "" {
-				reason = " — " + a.Reason
+				reason = " — " + oneLine(a.Reason)
 			}
 			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s (%s)", head, reason, a.SeatID))
 			if a.Hypothesis != "" {
-				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
+				inquiry = append(inquiry, "  - hypothesis: "+oneLine(a.Hypothesis))
 			}
 			if a.Method != "" {
-				inquiry = append(inquiry, "  - method: "+a.Method)
+				inquiry = append(inquiry, "  - method: "+oneLine(a.Method))
 			}
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
@@ -844,7 +846,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string
 				}
 			}
 			if a.Ruling != "" {
-				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, oneLine(a.RulingWhy)))
 			}
 		}
 		inquiry = append(inquiry, "")
@@ -879,14 +881,14 @@ func superseded(a *record.Inquiry) []string {
 		case s.Reason == prevReason:
 			line += " — the same reason as the record before it"
 		default:
-			line += " — " + s.Reason
+			line += " — " + oneLine(s.Reason)
 		}
 		switch {
 		case s.Method == "":
 		case s.Method == prevMethod:
 			line += "; the same method"
 		default:
-			line += "; method: " + s.Method
+			line += "; method: " + oneLine(s.Method)
 		}
 		prevReason, prevMethod = s.Reason, s.Method
 		out = append(out, line)
