@@ -287,17 +287,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 		if err != nil || f == FileInquiries {
 			continue
 		}
-		eachLine(string(b), func(l mdLine) {
+		for _, l := range ParseText(string(b)).lines {
 			ln := l.text
 			key, ok := headingKey(l)
 			if !ok || l.code {
-				return
+				continue
 			}
 			shipped[f+"\x00"+key] = true
 			if !rows[f+"\x00"+key] && !strings.Contains(blue, ln) {
 				t.Errorf("%s ships %q and the layout has no row for it: the write does not refuse it, the layout view does not list it, and no help page names it", f, ln)
 			}
-		})
+		}
 	}
 	for _, s := range layout {
 		// The fixture runs no computation, cites and retires nothing, certifies once, and its title
@@ -311,11 +311,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 	}
 	// In the row's place: report.md's headings are the table's, in the table's order.
 	var order, wantOrder []string
-	eachLine(got, func(l mdLine) {
+	for _, l := range ParseText(got).lines {
 		if key, ok := headingKey(l); ok && !l.code && rows[FileReport+"\x00"+key] {
 			order = append(order, key)
 		}
-	})
+	}
 	for _, s := range layout {
 		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
 			for _, h := range s.first {

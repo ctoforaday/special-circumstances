@@ -100,7 +100,7 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 		return nil, fmt.Errorf("the migrated record's report does not render: %w", err)
 	}
 	res.ReportOrder = OrderInOrder
-	if _, out := report.OutOfOrderIn("", text); out {
+	if _, out := report.OutOfOrderIn(report.ParseText(""), report.ParseText(text)); out {
 		res.ReportOrder = OrderAsWritten
 	}
 	return res, nil

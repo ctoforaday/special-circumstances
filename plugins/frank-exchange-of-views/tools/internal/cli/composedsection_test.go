@@ -285,7 +285,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if line, s, found := report.ComposedIn("", blue); !found || line != "## Alternatives considered" || s.Heading != "Alternatives considered" {
+	if line, s, found := report.ComposedIn(report.ParseText(""), report.ParseText(blue)); !found || line != "## Alternatives considered" || s.Heading != "Alternatives considered" {
 		t.Fatalf("the migrated m20's report carries %q (found %v), want \"## Alternatives considered\" — this archive is the case", line, found)
 	}
 	proofs := 0

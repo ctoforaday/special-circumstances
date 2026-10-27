@@ -66,7 +66,7 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 	if got := headingsOf(text); !slices.Equal(got, want) {
 		t.Errorf("the migrated m20's sections stand as\n  %q\nwant\n  %q", got, want)
 	}
-	if mis, out := report.OutOfOrderIn("", text); out {
+	if mis, out := report.OutOfOrderIn(report.ParseText(""), report.ParseText(text)); out {
 		t.Errorf("the migrated m20's text is out of order: %+v", mis)
 	}
 
@@ -215,7 +215,7 @@ func TestMigrateReordersTheBaseOnlyWhereEveryActReplays(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, out := report.OutOfOrderIn("", got)
+			_, out := report.OutOfOrderIn(report.ParseText(""), report.ParseText(got))
 			switch tc.want {
 			case migrate.OrderReordered:
 				if got != report.Ordered(was) || out {

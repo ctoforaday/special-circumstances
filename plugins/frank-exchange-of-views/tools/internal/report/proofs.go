@@ -82,7 +82,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			proofNote(num[label]), EscapeNotes(strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, storedScript(p))))), FileEvidence, label)
+			proofNote(num[label]), escapeNotesInLine(oneLine(firstNonEmpty(p.Reason, storedScript(p)))), FileEvidence, label)
 	}
 	return b.String(), order
 }

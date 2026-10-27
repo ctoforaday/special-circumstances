@@ -131,7 +131,11 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 			t.Errorf("report.md carries %q %d time(s), want once:\n%s", want, n, shipped)
 		}
 	}
-	html := report.RenderSite(report.Ship(report.Title(open), docs), record.Family{})
+	set, err := report.AssembleShipped(open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := report.RenderSite(set, record.Family{})
 	for id, text := range map[string]string{"fn-scope": "Of the natural numbers.", "fn-1": "Division tables.", "fn-P1": "thirteen has no divisor below four"} {
 		li := `<li id="` + id + `">`
 		if n := strings.Count(html, li); n != 1 || !strings.Contains(html, li+text) {
@@ -139,10 +143,10 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 		}
 	}
 	// What the weave wrote is what the write refuses: the two are one set of labels.
-	if label, _, found := report.WovenNoteIn("", shipped); !found || label != "[^1]" {
+	if label, _, found := report.WovenNoteIn(report.ParseText(""), report.ParseText(shipped)); !found || label != "[^1]" {
 		t.Errorf("the assembled report's first woven label reads %q (found %v), want [^1]", label, found)
 	}
-	if label, _, found := report.WovenNoteIn("", readReport(t, runDir)); found {
+	if label, _, found := report.WovenNoteIn(report.ParseText(""), report.ParseText(readReport(t, runDir))); found {
 		t.Errorf("the report's text carries %s, a label the weave writes", label)
 	}
 }

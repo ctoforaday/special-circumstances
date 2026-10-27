@@ -148,7 +148,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), escapeNotesInLine(oneLine(citationTitle(s))), locator, s.URL, accessed(s.AccessDate),
 			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
@@ -316,7 +316,7 @@ type Assembled struct {
 // carries both the ordered event log and the replayed gaps) and blue/report.md, and composes
 // the report from those two — no --inputs, no intermediate round-trip.
 func Assemble(run record.Run) (Assembled, error) {
-	docs, err := AssembleAll(run)
+	set, err := AssembleShipped(run)
 	if err != nil {
 		return Assembled{}, err
 	}
@@ -324,8 +324,7 @@ func Assemble(run record.Run) (Assembled, error) {
 	if err != nil {
 		return Assembled{}, fmt.Errorf("reading the board: %w", err)
 	}
-	title := Title(run)
-	set := Ship(title, docs)
+	title, docs := set.title, set.docs
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
 	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(set, fam)), 0o644); err != nil {

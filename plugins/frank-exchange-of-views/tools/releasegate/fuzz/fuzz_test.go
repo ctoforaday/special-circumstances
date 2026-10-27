@@ -5358,16 +5358,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
-	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		if line, _, found := reportdoc.ComposedIn("", string(text)); found {
+	if out, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		none, text := reportdoc.ParseText(""), reportdoc.ParseText(string(out))
+		if line, _, found := reportdoc.ComposedIn(none, text); found {
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
 			return res
 		}
-		if label, _, found := reportdoc.WovenNoteIn("", string(text)); found {
+		if label, _, found := reportdoc.WovenNoteIn(none, text); found {
 			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
 			return res
 		}
-		if m, found := reportdoc.OutOfOrderIn("", string(text)); found {
+		if m, found := reportdoc.OutOfOrderIn(none, text); found {
 			res.err = "the report's text carries " + m.Line + " out of the order it ships in, past the refusal at the write"
 			return res
 		}

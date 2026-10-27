@@ -92,7 +92,7 @@ func TestATextInOrderIsNotRefused(t *testing.T) {
 		"a title-like line inside a fence": tl + own1 + "```\n# a comment in code\n```\n\n" + open,
 		"a second title line":              title + tl + own1 + "# Another line that opens as a title\n\n" + open,
 	} {
-		if m, found := OutOfOrderIn("", doc); found {
+		if m, found := OutOfOrderIn(ParseText(""), ParseText(doc)); found {
 			t.Errorf("%s: refused for %q %v %q", name, m.Line, m.After, m.Beside)
 		}
 	}
@@ -138,7 +138,7 @@ func TestATextOutOfOrderNamesTheLineWhereItStandsAndWhereItBelongs(t *testing.T)
 		"a fence before the TL;DR": {title + "```\ncode\n```\n\n" + tl,
 			Misplaced{"## TL;DR", "```", true, afterT}},
 	} {
-		got, found := OutOfOrderIn("", tc.doc)
+		got, found := OutOfOrderIn(ParseText(""), ParseText(tc.doc))
 		if !found || got != tc.want {
 			t.Errorf("%s: got %+v (found %v), want %+v", name, got, found, tc.want)
 		}
@@ -158,7 +158,7 @@ func TestOnlyALineTheWritePutsOutOfOrderIsRefused(t *testing.T) {
 		"the misplaced section reworded":  strings.Replace(was, "These two factors", "The two factors", 1),
 		"another section moved around it": title + tl + own1 + own2 + cat + open,
 	} {
-		if m, found := OutOfOrderIn(was, now); found {
+		if m, found := OutOfOrderIn(ParseText(was), ParseText(now)); found {
 			t.Errorf("%s: refused for %q beside %q", name, m.Line, m.Beside)
 		}
 	}
@@ -167,7 +167,7 @@ func TestOnlyALineTheWritePutsOutOfOrderIsRefused(t *testing.T) {
 		"a second Catechism":                   {title + tl + own1 + cat + cat + open, "## The Catechism"},
 		"the TL;DR moved out of place as well": {title + own1 + tl + cat + open, "## TL;DR"},
 	} {
-		if m, found := OutOfOrderIn(was, tc.now); !found || m.Line != tc.line {
+		if m, found := OutOfOrderIn(ParseText(was), ParseText(tc.now)); !found || m.Line != tc.line {
 			t.Errorf("%s: got %q (found %v), want %q refused", name, m.Line, found, tc.line)
 		}
 	}
@@ -182,7 +182,7 @@ func TestATextInOrderShipsInTheOrderWritten(t *testing.T) {
 	n := 0
 	arrange = func(done, left []string) {
 		doc := title + strings.Join(done, "")
-		if _, out := OutOfOrderIn("", doc); !out {
+		if _, out := OutOfOrderIn(ParseText(""), ParseText(doc)); !out {
 			n++
 			run := runtest.Open(t, newRun(t))
 			id := record.Identity{Run: run, SeatID: "blue-synthesize"}

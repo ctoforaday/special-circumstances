@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
 // ONLY THE WEAVE OPENS A FOOTNOTE IN WHAT ASSEMBLY COMPOSES.
@@ -44,9 +45,29 @@ func EscapeNotes(md string) string {
 	if !strings.Contains(md, noteOpen) {
 		return md
 	}
+	return escapeNotesOutside(md, codeIn(parsePage([]byte(md)), []byte(md)))
+}
+
+// escapeNotesInLine is EscapeNotes for a fragment assembly splices into the middle of a line it
+// writes — a citation's title, a proof's reason, each made one line — after a note's `[^N]: `. In
+// place the fragment is inline text of that line, so the only code in it is a code span it holds
+// whole, and it is read as one line of a paragraph (lineReader), never as a document of its own: read
+// alone, "```[^1] spec" opens a fence whose info string holds the `[^1]`, which in place is prose.
+// What stands before the fragment on its line holds no backtick, so a span the fragment holds is a
+// span in place.
+func escapeNotesInLine(s string) string {
+	if !strings.Contains(s, noteOpen) {
+		return s
+	}
+	src := []byte(s)
+	return escapeNotesOutside(s, codeIn(lineReader.Parse(text.NewReader(src)), src))
+}
+
+// escapeNotesOutside escapes each `[^` of md outside code, the stretches of md that are code in order.
+func escapeNotesOutside(md string, code [][2]int) string {
 	var b strings.Builder
 	last := 0
-	for _, c := range codeIn(parsePage([]byte(md)), []byte(md)) {
+	for _, c := range code {
 		b.WriteString(escapeNoteOpens(md[last:c[0]]))
 		b.WriteString(md[c[0]:c[1]])
 		last = c[1]
@@ -65,7 +86,7 @@ func escapeNoteOpens(s string) string {
 			return b.String()
 		}
 		b.WriteString(s[:i])
-		if !NoteEscapedAt(s, i) {
+		if !escapedAt(s, i) {
 			b.WriteByte('\\')
 		}
 		b.WriteString(noteOpen)
@@ -73,12 +94,12 @@ func escapeNoteOpens(s string) string {
 	}
 }
 
-// NoteEscapedAt reports whether the `[^` at byte i of md is escaped, and so is text: the one
-// reading of the escape, for the reader that renders a document and the audit that counts its
-// references.
-func NoteEscapedAt(md string, i int) bool {
+// escapedAt reports whether the byte at i of s is escaped, and so is text: an odd run of backslashes
+// stands before it. It is the one reading of the escape, for a `[^` (escapeNoteOpens, noteRefsIn)
+// and for a `<` (ship).
+func escapedAt[T ~string | ~[]byte](s T, i int) bool {
 	n := 0
-	for j := i - 1; j >= 0 && md[j] == '\\'; j-- {
+	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
 		n++
 	}
 	return n%2 == 1

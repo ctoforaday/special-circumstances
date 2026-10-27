@@ -329,7 +329,7 @@ var SubjectHeadingsNote = func() string {
 // HEADINGS ARE READ ONE WAY, by every reader here: the composer that parts the report's text, the
 // refusals at the write, and the view that slices the assembled document.
 //
-// A line opens a section when report.html's reading of the text (pageReader, eachLine) opens an ATX
+// A line opens a section when report.html's reading of the text (pageReader, ParseText) opens an ATX
 // heading on it and, its surrounding whitespace trimmed, it starts with "## ". Two headings name the
 // same section when they agree after their anchors and the note references assembly weaves from them
 // are taken out, case is folded, runs of whitespace are single spaces and a trailing "(in full)" is
@@ -359,11 +359,22 @@ type mdLine struct {
 	heading       bool   // an ATX heading opens on the line
 }
 
-// eachLine visits md's lines in order, each as report.html's reading of md has it (pageReader): what
-// is code and what is a heading is the parser's answer, the one both shipped readings share, so a
-// line indented into code, or a fence's info string holding backticks, is what the parser says.
-func eachLine(md string, visit func(l mdLine)) {
+// ParsedText is a text as report.html reads it (pageReader), parsed once: its lines in order, each
+// with what the parser says of it, and every stretch of the text the tree reads as code (codeIn).
+// What is code and what is a heading is the parser's answer, the one both shipped readings share,
+// so a line indented into code, or a fence's info string holding backticks, is what the parser says.
+// Every question asked of a text's headings, fences and code is asked of one: a text is parsed once,
+// however many readers ask.
+type ParsedText struct {
+	src   string
+	lines []mdLine
+	code  [][2]int
+}
+
+// ParseText is md as report.html reads it.
+func ParseText(md string) ParsedText {
 	src := []byte(md)
+	tree := parsePage(src)
 	lines := strings.Split(md, "\n")
 	starts := make([]int, len(lines))
 	for i, at := 1, 0; i < len(lines); i++ {
@@ -379,7 +390,7 @@ func eachLine(md string, visit func(l mdLine)) {
 	}
 	code := make([]bool, len(lines))
 	heading := make([]bool, len(lines))
-	_ = ast.Walk(parsePage(src), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
@@ -405,9 +416,11 @@ func eachLine(md string, visit func(l mdLine)) {
 		}
 		return ast.WalkContinue, nil
 	})
+	out := ParsedText{src: md, lines: make([]mdLine, len(lines)), code: codeIn(tree, src)}
 	for i, ln := range lines {
-		visit(mdLine{text: ln, trimmed: strings.TrimSpace(ln), code: code[i], heading: heading[i]})
+		out.lines[i] = mdLine{text: ln, trimmed: strings.TrimSpace(ln), code: code[i], heading: heading[i]}
 	}
+	return out
 }
 
 // closesFence reports whether ln is the delimiter that closes the fence opened at the start of open:
@@ -459,16 +472,16 @@ func added(was, now []claim) (c claim, found bool) {
 // carry (refused) and was, the text as it stood, did not: a heading that names one, or, before the
 // first heading, a line opening as one that ships without a heading does. It is returned as the
 // text writes it, with that section's row.
-func ComposedIn(was, text string) (line string, s Section, found bool) {
+func ComposedIn(was, text ParsedText) (line string, s Section, found bool) {
 	c, found := added(composedClaims(was), composedClaims(text))
 	return c.text, c.row, found
 }
 
-func composedClaims(text string) (out []claim) {
+func composedClaims(text ParsedText) (out []claim) {
 	preamble := true
-	eachLine(text, func(l mdLine) {
+	for _, l := range text.lines {
 		if l.code {
-			return
+			continue
 		}
 		t := l.trimmed
 		key, isHeading := headingKey(l)
@@ -482,10 +495,10 @@ func composedClaims(text string) (out []claim) {
 			if isHeading && key == normalizeHeading(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
 				out = append(out, claim{key: row.Heading, text: t, row: row})
-				return
+				break
 			}
 		}
-	})
+	}
 	return out
 }
 
@@ -559,7 +572,7 @@ type Misplaced struct {
 
 // OutOfOrderIn returns the first line text holds out of the order it ships in (TextOrder) that
 // was, the text as it stood, did not (added).
-func OutOfOrderIn(was, text string) (Misplaced, bool) {
+func OutOfOrderIn(was, text ParsedText) (Misplaced, bool) {
 	c, found := added(orderClaims(was), orderClaims(text))
 	if !found {
 		return Misplaced{}, false
@@ -589,11 +602,10 @@ type stand struct {
 	at   int    // the line's index in the text
 }
 
-func stands(text string) (out []stand, rows []Section, body int) {
+func stands(text ParsedText) (out []stand, rows []Section, body int) {
 	rows, body = textRows()
-	preamble, titled, at := true, false, -1
-	eachLine(text, func(l mdLine) {
-		at++
+	preamble, titled := true, false
+	for at, l := range text.lines {
 		t, fenced := l.trimmed, l.code
 		key, isHeading := "", false
 		if !fenced {
@@ -618,13 +630,13 @@ func stands(text string) (out []stand, rows []Section, body int) {
 			preamble = false
 			out = append(out, stand{body, t, at})
 		}
-	})
+	}
 	return out, rows, body
 }
 
 // orderClaims is each line of a row's that text holds out of order, with the first thing that
 // stands on the wrong side of it.
-func orderClaims(text string) (out []claim) {
+func orderClaims(text ParsedText) (out []claim) {
 	all, rows, body := stands(text)
 	for i, s := range all {
 		if s.rank == body {
@@ -685,24 +697,24 @@ func notesRow() Section {
 // text as it stood, did not (added), as the text writes it, with the row of the section the notes
 // belong to. Code is not read — a fenced block, or a span in backticks: a label there is no
 // footnote.
-func WovenNoteIn(was, text string) (label string, s Section, found bool) {
+func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 	c, found := added(wovenNotes(was), wovenNotes(text))
 	return c.text, c.row, found
 }
 
-func wovenNotes(text string) (out []claim) {
-	src := []byte(text)
+func wovenNotes(text ParsedText) (out []claim) {
+	src := text.src
 	prose := func(s string) {
 		for _, m := range wovenNote.FindAllString(s, -1) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	}
 	last := 0
-	for _, c := range codeIn(parsePage(src), src) {
-		prose(text[last:c[0]])
+	for _, c := range text.code {
+		prose(src[last:c[0]])
 		last = c[1]
 	}
-	prose(text[last:])
+	prose(src[last:])
 	return out
 }
 
@@ -720,10 +732,10 @@ type blueText struct {
 // closing section last (OutOfOrderIn); a record migrated with its text as written can hold more
 // after it, a second section of its name included, and that ships after it with every anchor it
 // carries.
-func part(blue string) (out blueText) {
+func part(blue ParsedText) (out blueText) {
 	var parts [2][]string
 	closed := 0
-	eachLine(blue, func(l mdLine) {
+	for _, l := range blue.lines {
 		ln, t, fenced := l.text, l.trimmed, l.code
 		if key, ok := headingKey(l); ok && !fenced {
 			for _, s := range layout {
@@ -733,10 +745,10 @@ func part(blue string) (out blueText) {
 			}
 		} else if !fenced && out.title == "" && strings.HasPrefix(t, "# ") {
 			out.title = t
-			return
+			continue
 		}
 		parts[closed] = append(parts[closed], ln)
-	})
+	}
 	out.body, out.close = strings.TrimSpace(strings.Join(parts[0], "\n")), strings.TrimSpace(strings.Join(parts[1], "\n"))
 	return out
 }

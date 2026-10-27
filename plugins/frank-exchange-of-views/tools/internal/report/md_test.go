@@ -55,8 +55,8 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"<ul><li>first</li>", "<ol><li>one</li>",
 		// A list that starts at 3 shows 3: the number is the list's start, not a count of the items.
 		`<ol start="3"><li>three</li>`,
-		// A destination that would run script links nowhere.
-		`<a href="">script link</a>`,
+		// A destination that would run script is no link: its text stands alone.
+		`<p>A script link does nothing.</p>`,
 		`<pre><code class="language-bash">## not a heading`,
 		"echo &#39;x&#39; &gt; y", // escaped, and NOT parsed as a heading or a quote
 		"<hr>",

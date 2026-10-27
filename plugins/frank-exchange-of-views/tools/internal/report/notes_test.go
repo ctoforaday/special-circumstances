@@ -79,3 +79,30 @@ func TestEscapeNotesReadsCodeAsTheShippedReadingsDo(t *testing.T) {
 		t.Errorf("a `[^` both shipped readings take as prose is not escaped:\n%s", got)
 	}
 }
+
+// A FRAGMENT IS READ WHERE IT STANDS. A citation's title and a proof's reason are spliced into the
+// middle of a note's line, where they are inline text: read alone as a document, "```[^9] spec" opens
+// a fence whose info string holds the `[^9]`, and it was left as code; in place it is prose and opened
+// a footnote. A code span the fragment holds whole is code in place too, and is left as it is.
+func TestAFragmentIsEscapedAsItReadsInPlace(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"```[^9] spec", "```\\[^9] spec"},
+		{"`[^9]`", "`[^9]`"},
+		{"a `[^9]` and a [^9]", "a `[^9]` and a \\[^9]"},
+		{"    [^9] indented", "    \\[^9] indented"},
+		{"# [^9] a heading's shape", "# \\[^9] a heading's shape"},
+	} {
+		if got := escapeNotesInLine(c.in); got != c.want {
+			t.Errorf("escapeNotesInLine(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	// Through the two weaves that splice one: the note line holds the escape.
+	cited := weaveCitations("A claim<!--cite:C-00000001-->.\n", []record.Source{{Label: "C-00000001", URL: "https://example.invalid/a", Title: "```[^9] spec"}})
+	if !strings.Contains(cited, "[^1]: ```\\[^9] spec. https://example.invalid/a") {
+		t.Errorf("the citation's note does not escape the title's [^9]:\n%s", cited)
+	}
+	proved, _ := weaveProofRefs("A claim<!--proof:P-00000001-->.\n", []record.Proof{{Label: "P-00000001", Reason: "```[^9] spec"}})
+	if !strings.Contains(proved, "[^P1]: ```\\[^9] spec — ") {
+		t.Errorf("the proof's note does not escape the reason's [^9] as it reads in place:\n%s", proved)
+	}
+}

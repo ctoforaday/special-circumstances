@@ -22,7 +22,7 @@ func TestTheTextIsPartedVerbatimAndFenceAware(t *testing.T) {
 		"```", "## Open questions", "not a heading — inside a fence", "```", "",
 		"## Analysis", "", "the analysis.", "",
 	}, "\n")
-	got := part(md)
+	got := part(ParseText(md))
 	if !strings.Contains(got.body, "Q1: kept  as-is.  \n") {
 		t.Errorf("the body is not the text as written: %q", got.body)
 	}
@@ -40,17 +40,17 @@ func TestTheTextIsPartedVerbatimAndFenceAware(t *testing.T) {
 	// of whitespace, an anchor on the heading line, the note reference the weave leaves where a
 	// citation's stood and a trailing "(in full)" do not make a present section absent.
 	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions[^2]", "## Open questions (in full)"} {
-		if got := part("intro\n" + h + "\n\nwhat remains.\n"); got.body != "intro" || got.close != h+"\n\nwhat remains." {
+		if got := part(ParseText("intro\n" + h + "\n\nwhat remains.\n")); got.body != "intro" || got.close != h+"\n\nwhat remains." {
 			t.Errorf("%q: the text is not cut at its closing section: body %q, close %q", h, got.body, got.close)
 		}
 	}
 }
 
 func TestTheTitleIsTakenVerbatimOrFlagged(t *testing.T) {
-	if got := titleOr(part("intro\n# Whether X — research report\n## The Catechism\n").title); got != "# Whether X — research report" {
+	if got := titleOr(part(ParseText("intro\n# Whether X — research report\n## The Catechism\n")).title); got != "# Whether X — research report" {
 		t.Errorf("the title is not the line as written: %q", got)
 	}
-	if got := titleOr(part("no title here\n## Analysis\n```\n# a comment in code\n```\n").title); !strings.Contains(got, "not authored here") {
+	if got := titleOr(part(ParseText("no title here\n## Analysis\n```\n# a comment in code\n```\n")).title); !strings.Contains(got, "not authored here") {
 		t.Errorf("a missing title must be flagged, never authored: %q", got)
 	}
 }
@@ -521,8 +521,8 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 	for n := 1; n < 2000; n += 7 {
 		for _, l := range []string{citationNote(n), proofNote(n)} {
 			for _, doc := range []string{"A claim" + l + ".\n", "A claim.\n\n" + l + ": a note.\n", "## TL;DR\n\n| a" + l + " | b |\n"} {
-				if got, s, found := WovenNoteIn("", doc); !found || got != l || s.Heading != bibliographyHeading {
-					t.Errorf("WovenNoteIn(%q) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
+				if got, s, found := WovenNoteIn(ParseText(""), ParseText(doc)); !found || got != l || s.Heading != bibliographyHeading {
+					t.Errorf("WovenNoteIn(ParseText(%q)) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
 				}
 			}
 		}
@@ -534,11 +534,11 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)
 	}
 	for _, l := range labels {
-		if got, _, found := WovenNoteIn("", l); !found || got != l {
+		if got, _, found := WovenNoteIn(ParseText(""), ParseText(l)); !found || got != l {
 			t.Errorf("the weave wrote %s, and the write does not refuse it", l)
 		}
 	}
-	if got, _, _ := WovenNoteIn("", "A claim[^p3].\n"); got != "[^p3]" {
+	if got, _, _ := WovenNoteIn(ParseText(""), ParseText("A claim[^p3].\n")); got != "[^p3]" {
 		t.Errorf("a proof's label in lower case reads %q; a renderer folds a label's case", got)
 	}
 	for _, doc := range []string{
@@ -549,8 +549,8 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 		"~~~\nA claim[^P1].\n~~~\n",
 		"Item [1], power 2^3, set [^0-9].\n",
 	} {
-		if l, _, found := WovenNoteIn("", doc); found {
-			t.Errorf("WovenNoteIn(%q) found %q; the weave writes no such label", doc, l)
+		if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); found {
+			t.Errorf("WovenNoteIn(ParseText(%q)) found %q; the weave writes no such label", doc, l)
 		}
 	}
 	if !strings.Contains(WovenNotesRule, notesRow().Path) || !strings.Contains(WovenNotesRule, NoteInCode) {
@@ -565,11 +565,11 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 // the comment's block at its line and reads the indented line as code.
 func TestWovenNoteInReadsCodeAsTheShippedReadingsDo(t *testing.T) {
 	for _, doc := range []string{"Para.\n\n    grep '[^1]'\n", "A ``class\n[^P2]`` here.\n"} {
-		if l, _, found := WovenNoteIn("", doc); found {
-			t.Errorf("WovenNoteIn(%q) found %q in code", doc, l)
+		if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); found {
+			t.Errorf("WovenNoteIn(ParseText(%q)) found %q in code", doc, l)
 		}
 	}
-	if l, _, found := WovenNoteIn("", "x\n\n<!-- c -->\n    see [^1]\n"); !found || l != "[^1]" {
+	if l, _, found := WovenNoteIn(ParseText(""), ParseText("x\n\n<!-- c -->\n    see [^1]\n")); !found || l != "[^1]" {
 		t.Errorf("a label both shipped readings take as prose is not refused: %q, %v", l, found)
 	}
 }
@@ -583,13 +583,13 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		{"  ## The Board (in full)\n", "## The Board (in full)", "The board"},
 		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
 	} {
-		line, s, found := ComposedIn("", tc.doc)
+		line, s, found := ComposedIn(ParseText(""), ParseText(tc.doc))
 		if !found || line != tc.line || s.Heading != tc.heading {
-			t.Errorf("ComposedIn(%q) = %q, %q, %v; want %q in %q", tc.doc, line, s.Heading, found, tc.line, tc.heading)
+			t.Errorf("ComposedIn(ParseText(%q)) = %q, %q, %v; want %q in %q", tc.doc, line, s.Heading, found, tc.line, tc.heading)
 		}
 	}
 	for _, s := range layout {
-		_, got, found := ComposedIn("", "## TL;DR\nx\n\n## "+s.Heading+"\ny\n")
+		_, got, found := ComposedIn(ParseText(""), ParseText("## TL;DR\nx\n\n## "+s.Heading+"\ny\n"))
 		if found != s.refused() || found && got.Heading != s.Heading {
 			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s, a subject's heading too: %v", s.Heading, found, got.Heading, s.Composer, s.SubjectHeading)
 		}
@@ -604,8 +604,8 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		"## Additional findings\n",
 		"## Technical foundations\nx\n\n## Analysis\ny\n\n## " + bodyHeading + "\nz\n",
 	} {
-		if line, _, found := ComposedIn("", doc); found {
-			t.Errorf("ComposedIn(%q) found %q; that text claims no section the tool composes", doc, line)
+		if line, _, found := ComposedIn(ParseText(""), ParseText(doc)); found {
+			t.Errorf("ComposedIn(ParseText(%q)) found %q; that text claims no section the tool composes", doc, line)
 		}
 	}
 }
@@ -884,7 +884,7 @@ func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
 		"##  open questions (in full)", "a second, spelled another way.", "",
 		"## Appendix: raw benchmarks", "a section after the closing one.", "",
 	}
-	got := part(strings.Join(lines, "\n"))
+	got := part(ParseText(strings.Join(lines, "\n")))
 	if got.title != "# A topic — research report" {
 		t.Errorf("title = %q", got.title)
 	}
@@ -898,10 +898,10 @@ func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
 		t.Errorf("the closing part is not the text from its closing section on, as written:\n%s", got.close)
 	}
 	// A report with no closing section is its body, and one that is only its closing section has none.
-	if e := part("# t\n\n## TL;DR\nx\n\n## Appendix\ny\n"); e.close != "" || e.body != "## TL;DR\nx\n\n## Appendix\ny" {
+	if e := part(ParseText("# t\n\n## TL;DR\nx\n\n## Appendix\ny\n")); e.close != "" || e.body != "## TL;DR\nx\n\n## Appendix\ny" {
 		t.Errorf("a report with no closing section is not its body: %+v", e)
 	}
-	if e := part("# t\n\n## Open questions\ny\n"); e.body != "" || e.close != "## Open questions\ny" {
+	if e := part(ParseText("# t\n\n## Open questions\ny\n")); e.body != "" || e.close != "## Open questions\ny" {
 		t.Errorf("a report that is only its closing section: %+v", e)
 	}
 }

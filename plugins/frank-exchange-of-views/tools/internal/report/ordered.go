@@ -10,10 +10,11 @@ import (
 // is returned as it is; in text that is not, one blank line parts each section from the next.
 // `migrate` brings a record written before the write held the order forward with it.
 func Ordered(text string) string {
-	if len(orderClaims(text)) == 0 {
+	parsed := ParseText(text)
+	if len(orderClaims(parsed)) == 0 {
 		return text
 	}
-	all, _, _ := stands(text)
+	all, _, _ := stands(parsed)
 	chunks, ranks := [][]string{nil}, []int{0} // the first is the title line's
 	for i, ln := range strings.Split(text, "\n") {
 		to := len(chunks) - 1

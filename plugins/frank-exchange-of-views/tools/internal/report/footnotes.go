@@ -111,7 +111,7 @@ func noteRefsIn(s string) (spans [][2]int) {
 		}
 		at := i + j
 		i = at + len(noteOpen)
-		if NoteEscapedAt(s, at) {
+		if escapedAt(s, at) {
 			continue
 		}
 		end := strings.IndexAny(s[i:], "]\n[")

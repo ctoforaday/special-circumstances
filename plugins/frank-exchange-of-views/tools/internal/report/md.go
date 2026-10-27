@@ -17,13 +17,17 @@ package report
 // HTML IN THE TEXT IS TEXT. The renderer passes no HTML through: an inline tag, a comment, an HTML
 // block are each shown as typed, whoever wrote them. The one element the tool places in a document
 // that markdown cannot say — a proof's anchor — is a node only the tool can produce (proofanchor.go),
-// so a seat's copy of it is HTML in the text like any other. RenderSite then holds every body to an
-// allowlist of exactly what this file writes (bodyPolicy).
+// so a seat's copy of it is HTML in the text like any other.
+//
+// EVERY VALUE IS WRITTEN FOR ITS CONTEXT. The renderer builds its HTML by hand, so each value it
+// places is escaped where it is placed: text and attributes by escape, a link's URL decoded, checked
+// and encoded (linkURL), a footnote label in an id or a fragment as noteID. RenderSite then holds
+// every fragment of the page that holds the record's text — the title, the badges, each body — to an
+// allowlist of exactly what this file writes (pageHTML, bodyPolicy).
 
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -77,8 +81,7 @@ var (
 
 // withoutHTML is ps without CommonMark's HTML block and inline HTML parsers.
 func withoutHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
-	html := []reflect.Type{reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())}
-	return slices.DeleteFunc(ps, func(p util.PrioritizedValue) bool { return slices.Contains(html, reflect.TypeOf(p.Value)) })
+	return slices.DeleteFunc(ps, isHTMLParser)
 }
 
 // parsePage is report.html's one parse of a document (pageReader).
@@ -443,20 +446,16 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			r.inlines(b, x, link)
 			b.WriteString("</del>")
 		case *ast.Link:
-			b.WriteString(siteLink(safeURL(x.Destination), r.files))
-			r.inlines(b, x, false)
-			b.WriteString("</a>")
+			r.linkTo(b, linkURL(x.Destination), func() { r.inlines(b, x, false) })
 		case *ast.AutoLink:
 			url := x.URL(r.src)
 			if x.AutoLinkType == ast.AutoLinkEmail {
 				url = append([]byte("mailto:"), url...)
 			}
-			b.WriteString(`<a href="` + safeURL(url) + `">` + escape(string(x.Label(r.src))) + `</a>`)
+			r.linkTo(b, linkURL(url), func() { b.WriteString(escape(string(x.Label(r.src)))) })
 		case *ast.Image:
 			// An image is shown as a link to it: the page loads nothing the text names.
-			b.WriteString(`<a href="` + safeURL(x.Destination) + `">`)
-			r.inlines(b, x, false)
-			b.WriteString("</a>")
+			r.linkTo(b, linkURL(x.Destination), func() { r.inlines(b, x, false) })
 		case *east.FootnoteLink:
 			b.WriteString(r.ref(r.footnoteLabel(x)))
 		case *east.TaskCheckBox:
@@ -470,6 +469,19 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 		}
 	}
 	flush()
+}
+
+// linkTo writes a link to url around what text writes: a tab switch to a document of the set
+// (siteLink), a link to anything else, and, where url is empty — a destination linkURL refuses, or
+// none — the text alone, as the allowlist would leave it.
+func (r *mdRender) linkTo(b *strings.Builder, url string, text func()) {
+	if url == "" {
+		text()
+		return
+	}
+	b.WriteString(siteLink(url, r.files))
+	text()
+	b.WriteString("</a>")
 }
 
 // footnoteLabel is the label of the definition a reference resolved to.
@@ -518,20 +530,45 @@ func textValue(v []byte) []byte {
 	return v
 }
 
-// safeURL is a destination for an href: percent-encoded as a URL and escaped as an attribute, and
-// empty unless it is relative or names a scheme bodyPolicy allows. A scheme is what precedes the first
-// ':' when no '/', '?' or '#' comes before it.
-func safeURL(u []byte) string {
+// linkURL is a destination as a link's URL, percent-encoded and not yet escaped for an attribute
+// (escape does that where it is written), and empty unless it is relative or names a scheme
+// bodyPolicy allows. A scheme is what precedes the first ':' when no '/', '?' or '#' comes before it.
+//
+// THE SCHEME IS READ FROM THE URL A BROWSER FOLLOWS, NOT FROM THE SOURCE. The source spells a
+// destination with backslash escapes and character references — `javascript&colon;`,
+// `&#106;avascript:` — which a reader resolves, so the destination is decoded first (textValue),
+// then checked, then encoded. Checked before decoding, `&colon;` hid the colon from the check and
+// the encoder put it back.
+func linkURL(dest []byte) string {
+	u := textValue(dest)
 	if i := bytes.IndexAny(u, ":/?#"); i >= 0 && u[i] == ':' && !slices.Contains(linkSchemes, strings.ToLower(string(u[:i]))) {
 		return ""
 	}
-	return escape(string(util.URLEscape(u, true)))
+	return string(util.URLEscape(u, false))
 }
 
 // supRef is a footnote reference outside a document's citation layer — a title, a note's scent —
 // where it renders as its label.
 func supRef(label string) string {
-	return `<sup class="fnref"><a href="#fn-` + label + `">` + label + `</a></sup>`
+	return `<sup class="fnref"><a href="#fn-` + noteID(label) + `">` + escape(label) + `</a></sup>`
+}
+
+// noteID is a footnote label as it stands in an element id and the fragment that links to it: its
+// letters, digits and `.`, `:` and `-` as written, and each other byte `_` and two hex digits. A
+// label is the seat's to write and may hold a quotation mark or a space, which an attribute must
+// escape and a URL must encode, two spellings of one id that the page's script compares; this one
+// needs neither, and no two labels share it.
+func noteID(label string) string {
+	var b strings.Builder
+	for i := 0; i < len(label); i++ {
+		switch c := label[i]; {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '.', c == ':', c == '-':
+			b.WriteByte(c)
+		default:
+			fmt.Fprintf(&b, "_%02x", c)
+		}
+	}
+	return b.String()
 }
 
 // uniqueID is id the first time the set asks for it, and id with a count after that.
@@ -641,15 +678,16 @@ func citations(body string, refs []string, notes []footnote, seen map[string]int
 	suffix := map[string]string{}
 	id := func(l string) string {
 		if _, ok := suffix[l]; !ok {
-			suffix[l] = strings.TrimPrefix(uniqueID(seen, "fn-"+l), "fn-"+l)
+			suffix[l] = strings.TrimPrefix(uniqueID(seen, "fn-"+noteID(l)), "fn-"+noteID(l))
 		}
-		return escape(l) + suffix[l]
+		return noteID(l) + suffix[l]
 	}
 	cite := func(k int) string {
 		l := refs[k]
-		title := l
+		// The scent is text of the note's rendering, escaped already; the label is the seat's.
+		title := escape(l)
 		if s := byLabel[l].scent; s != "" {
-			title = l + " — " + s
+			title += " — " + s
 		}
 		if first[k] {
 			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s" title="%s">[%d]</a>`, id(l), id(l), title, num[l])
@@ -746,8 +784,8 @@ func linkIDs(doc rendered, anchor anchors, self string) string {
 			return m.id
 		}
 		if file == self {
-			return `<a class="idref" href="#` + frag + `">` + m.id + `</a>`
+			return `<a class="idref" href="#` + escape(frag) + `">` + m.id + `</a>`
 		}
-		return `<a class="idref" href="#` + frag + `" data-doc="` + file + `">` + m.id + `</a>`
+		return `<a class="idref" href="#` + escape(frag) + `" data-doc="` + escape(file) + `">` + m.id + `</a>`
 	})
 }

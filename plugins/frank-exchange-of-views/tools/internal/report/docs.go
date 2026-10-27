@@ -105,26 +105,37 @@ func AssemblyWritten(run record.Run) (bool, error) {
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
 func AssembleAll(run record.Run) ([]Doc, error) {
-	docs, _, err := assemble(run, "")
+	docs, _, _, err := assemble(run, "")
 	return docs, err
+}
+
+// AssembleShipped is the run's report set as it ships (Ship), under the run's title.
+func AssembleShipped(run record.Run) (Shipped, error) {
+	docs, _, title, err := assemble(run, "")
+	if err != nil {
+		return Shipped{}, err
+	}
+	return Ship(title, docs), nil
 }
 
 // assemble is AssembleAll, with the headings of the rows it composed a section for: what the
 // assembled layout reads to tell a section the table placed from a line of the report's text
 // that opens as one does. The layout passes a mark line to stand above each block composed, which
-// is how it finds where each stands; the set that ships is assembled with none.
-func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
+// is how it finds where each stands; the set that ships is assembled with none. It returns the
+// run's short title too — the H1 every document in the set opens with — read from the same parse of
+// the report's text as the rest.
+func assemble(run record.Run, mark string) ([]Doc, map[string]bool, string, error) {
 	blue, err := blueReport(run)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading the board: %w", err)
+		return nil, nil, "", fmt.Errorf("reading the board: %w", err)
 	}
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("encoding the board: %w", err)
+		return nil, nil, "", fmt.Errorf("encoding the board: %w", err)
 	}
 	evs := fam.Events
 
@@ -133,7 +144,8 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// run only the stamp — the outcome's word and its basis as state. Every sentence explaining a
 	// verdict, what answered the seats, the board in full and the transcript are envelope, and
 	// their rows put them in the documents behind it.
-	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(blue)}
+	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(ParseText(blue))}
+	title, _ := heading(a.blue.title)
 	body := map[string]*sections{}
 	composed := map[string]bool{}
 	for _, s := range layout {
@@ -196,11 +208,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cited sources: %w", err)
+		return nil, nil, "", fmt.Errorf("cited sources: %w", err)
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("recorded proofs: %w", err)
+		return nil, nil, "", fmt.Errorf("recorded proofs: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -247,21 +259,44 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		}
 	}
 
+	// NO TOKEN SHIPS, AND THIS IS WHERE THAT IS MADE SO. The strip above runs before the weave,
+	// because the weave reads the citation and proof tokens; the weave's notes and evidence.md are
+	// composed after it, from record text — a proof's reason, a citation's title — that a seat wrote
+	// and may have copied a token into. Every document is final here, so every token still in its
+	// prose, of any kind and as written, is a seat's copy, and it goes. Code keeps it: evidence.md
+	// shows each proof's script and output as the bytes that ran, and a script may hold a token's
+	// shape as a string.
 	var out []Doc
 	for _, d := range docs {
+		d.Body = withoutTokens(d.Body)
 		if strings.TrimSpace(d.Body) == "" {
 			continue
 		}
 		out = append(out, d)
 	}
-	return out, composed, nil
+	return out, composed, title, nil
 }
 
-// Title returns the run's short title — the H1 every document in the set opens with.
-func Title(run record.Run) string {
-	blue, _ := blueReport(run)
-	t, _ := heading(part(blue).title)
-	return t
+// withoutTokens is md with every anchor token as written (anchor.EachWritten) taken out of its prose:
+// a token inside what report.html's reading holds as code (codeIn) stays.
+func withoutTokens(md string) string {
+	var spans [][2]int
+	anchor.EachWritten(md, func(start, end int, _ string) { spans = append(spans, [2]int{start, end}) })
+	if len(spans) == 0 {
+		return md
+	}
+	code := codeIn(parsePage([]byte(md)), []byte(md))
+	var b strings.Builder
+	last := 0
+	for _, s := range spans {
+		if inSpan(s[0], code) {
+			continue
+		}
+		b.WriteString(md[last:s[0]])
+		last = s[1]
+	}
+	b.WriteString(md[last:])
+	return b.String()
 }
 
 // blueReport renders the report's text from the record. A run with no base ingested has none, and

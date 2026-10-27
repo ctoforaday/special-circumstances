@@ -50,11 +50,11 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 				t.Fatal(err)
 			}
-			docs, err := AssembleAll(run)
+			set, err := AssembleShipped(run)
 			if err != nil {
 				t.Fatal(err)
 			}
-			shipped := Ship(Title(run), docs).md[0]
+			shipped := set.md[0]
 			have := map[string]int{}
 			for _, ln := range strings.Split(shipped, "\n") {
 				have[strings.TrimSpace(ln)]++
@@ -72,7 +72,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			}
 			// AND NONE MOVES PAST ANOTHER: but for the title line, which opens the document, the
 			// text's lines stand in report.md in the order written, whatever order that is.
-			at, title := 0, part(blue).title
+			at, title := 0, part(ParseText(blue)).title
 			for _, ln := range strings.Split(blue, "\n") {
 				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln == "" {
 					continue

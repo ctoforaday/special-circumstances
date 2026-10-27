@@ -625,7 +625,7 @@ func TestASeatsCopyOfAProofAnchorIsText(t *testing.T) {
 	if n := strings.Count(page, `id="P-deadbeef"`); n != 1 {
 		t.Fatalf("report.html holds %d element(s) with the proof's id, want 1", n)
 	}
-	if strings.Index(page, `id="P-deadbeef"`) < strings.Index(page, `<article id="doc-`+slugFile(FileEvidence)) {
+	if strings.Index(page, `id="P-deadbeef"`) < strings.Index(page, `<article id="`+docElement(FileEvidence)) {
 		t.Errorf("the proof's id is not evidence.md's element")
 	}
 	if md := set.md[0]; !strings.Contains(md, `\<a id="P-deadbeef">\</a>`) {

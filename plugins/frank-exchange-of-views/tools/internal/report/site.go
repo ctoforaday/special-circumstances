@@ -38,8 +38,11 @@ var siteHTML string
 
 var siteTmpl = template.Must(template.New("site").Parse(siteHTML))
 
-// sitePage is the template's whole world. Bodies and badges arrive as template.HTML because
-// they are this package's OWN rendered output — the template escapes everything else.
+// sitePage is the template's whole world. The template escapes every string; what arrives as
+// template.HTML is this package's own rendering, and every such fragment that holds a word of the
+// record's text — the title, the badges, each body — is made only by pageHTML, so the allowlist
+// stands over all of them. The board chart is the one fragment outside it: the tool draws it from
+// the board's counts and it holds no text but numbers and the tool's own labels.
 type sitePage struct {
 	TitleText string
 	TitleHTML template.HTML
@@ -51,10 +54,16 @@ type sitePage struct {
 }
 
 type siteDoc struct {
-	File, Slug, Nav, Blurb string
-	Selected               bool
-	Body                   template.HTML
+	File, Element, Nav, Blurb string // Element: the id of the article that holds the document (docElement)
+	Selected                  bool
+	Chart                     template.HTML // the board chart, the tool's drawing of counts (boardChart)
+	Body                      template.HTML
 }
+
+// pageHTML is a fragment of the renderer's output as the page carries it: held to bodyPolicy, the
+// allowlist of exactly what the renderer writes. On honest output it changes nothing a browser reads;
+// it is the second wall, should the renderer ever let a seat's markup through.
+func pageHTML(s string) template.HTML { return template.HTML(bodyPolicy.Sanitize(s)) }
 
 // RenderSite builds the whole set into one HTML file. It renders each document's body as assembly
 // composed it — the record's text, unescaped, in the tree Ship parsed it to with no HTML grammar —
@@ -62,48 +71,34 @@ type siteDoc struct {
 // header say those things better here, and none of the .md's backslashes.
 func RenderSite(set Shipped, fam record.Family) string {
 	docs := set.docs
-	short := strings.TrimSpace(strings.TrimPrefix(set.title, "# "))
-
-	// TWO PASSES, and the reason is the join: pass one renders each document and records
-	// where every record id is DEFINED; pass two links every mention across the whole set. A
-	// one-pass render can only link backwards, which is the half of the joins nobody needs.
-	anchor := anchors{}
-	files := map[string]bool{}
-	for _, d := range docs {
-		files[d.File] = true
-	}
-	bodies := make([]rendered, len(docs))
-	slugs := map[string]int{}
-	for i, d := range docs {
-		bodies[i] = renderBody(set.html[i], d.File, anchor, slugs, files)
-	}
-
+	short := shortTitle(set)
+	title, bodies := renderSet(set)
 	page := sitePage{
 		TitleText: short,
-		TitleHTML: template.HTML(inline(short)),
+		TitleHTML: pageHTML(title),
 		MultiDoc:  len(docs) > 1,
 		CSS:       template.CSS(siteCSS),
 		JS:        template.JS(strings.Replace(siteJS, "MERMAID_CDN_URL", mermaidCDN, 1)),
 	}
 	if outcome, cls := outcomeBadge(fam); outcome != "" {
-		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(outcome), countBadges(fam)))
+		page.Badges = pageHTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(outcome), countBadges(fam)))
 	}
 	for i, d := range docs {
-		body := bodyPolicy.Sanitize(linkIDs(bodies[i], anchor, d.File))
+		doc := siteDoc{
+			File: d.File, Element: docElement(d.File), Nav: d.Nav, Blurb: d.Blurb,
+			Selected: i == 0,
+			Body:     pageHTML(bodies[i]),
+		}
 		if d.File == FileRun {
 			// The trajectory opens the run document: "how did the board converge" is the
 			// first question behind the verdict, and it is a picture. Markdown cannot carry
 			// it (GitHub strips inline SVG), so it is drawn HERE, in the reading tier, while
 			// the durable tier keeps the same numbers as text.
 			if c := boardChart(fam); c != "" {
-				body = "<h2>The board, by epoch</h2>\n" + c + body
+				doc.Chart = template.HTML("<h2>The board, by epoch</h2>\n" + c)
 			}
 		}
-		page.Docs = append(page.Docs, siteDoc{
-			File: d.File, Slug: slugFile(d.File), Nav: d.Nav, Blurb: d.Blurb,
-			Selected: i == 0,
-			Body:     template.HTML(body),
-		})
+		page.Docs = append(page.Docs, doc)
 	}
 
 	var b strings.Builder
@@ -115,6 +110,31 @@ func RenderSite(set Shipped, fam record.Family) string {
 	return b.String()
 }
 
+// shortTitle is the run's title as the page's header and <title> show it.
+func shortTitle(set Shipped) string { return strings.TrimSpace(strings.TrimPrefix(set.title, "# ")) }
+
+// renderSet is each fragment of the page that holds the record's text, as the renderer writes it and
+// before the wall (pageHTML): the title, and each document's body with its ids linked across the set.
+func renderSet(set Shipped) (title string, bodies []string) {
+	// TWO PASSES, and the reason is the join: pass one renders each document and records
+	// where every record id is DEFINED; pass two links every mention across the whole set. A
+	// one-pass render can only link backwards, which is the half of the joins nobody needs.
+	anchor := anchors{}
+	files := map[string]bool{}
+	for _, d := range set.docs {
+		files[d.File] = true
+	}
+	docs := make([]rendered, len(set.docs))
+	slugs := map[string]int{}
+	for i, d := range set.docs {
+		docs[i] = renderBody(set.html[i], d.File, anchor, slugs, files)
+	}
+	for i, d := range set.docs {
+		bodies = append(bodies, linkIDs(docs[i], anchor, d.File))
+	}
+	return renderTitle(shortTitle(set)), bodies
+}
+
 // siteLink opens a link to target: the set's own cross-file links — `[the board](docket.md)`,
 // `[evidence.md](evidence.md#p-deadbeef)` — as tab switches, any other as itself.
 //
@@ -122,17 +142,23 @@ func RenderSite(set Shipped, fam record.Family) string {
 // a sibling file. In one HTML file there is no sibling file, so the browser would try to open
 // a document that is already open, in a pane it cannot reach. Same links, two tiers, and only
 // one of them can follow a path.
+//
+// target is a URL (linkURL), escaped here, once, for the attribute. A link to a document with no
+// fragment names the document's own element, the article site.js opens at its top: an empty
+// fragment is no URL to the allowlist, and a link with no href is no link.
 func siteLink(target string, files map[string]bool) string {
 	file, frag, _ := strings.Cut(target, "#")
 	if !files[file] {
-		return `<a href="` + target + `">`
+		return `<a href="` + escape(target) + `">`
 	}
 	if frag == "" {
-		// The document's own element: an empty fragment is no URL, and a link with no href is no link.
-		frag = "doc-" + slugFile(file)
+		frag = docElement(file)
 	}
-	return fmt.Sprintf(`<a class="idref" data-doc="%s" href="#%s">`, escape(file), escape(frag))
+	return `<a class="idref" data-doc="` + escape(file) + `" href="#` + escape(frag) + `">`
 }
+
+// docElement is the id of the element that holds file's document on the page (site.html.tmpl).
+func docElement(file string) string { return "doc-" + slugFile(file) }
 
 // slugFile turns "CHANGELOG.md" into an element id fragment.
 func slugFile(f string) string {
@@ -192,12 +218,15 @@ func countBadges(fam record.Family) string {
 // artifact renders the same way years later or not at all — never differently.
 const mermaidCDN = "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs"
 
-// renderBody is the renderer RenderSite runs each document through; a test swaps it for one that
-// writes what the renderer never does, to see the allowlist hold.
-var renderBody = renderDoc
+// renderBody and renderTitle are the renderers RenderSite runs each document and the title through;
+// a test swaps one for a renderer that writes what the renderer never does, to see the allowlist hold.
+var (
+	renderBody  = renderDoc
+	renderTitle = inline
+)
 
 // linkSchemes are the schemes a link in a document may name; any other renders as a link to nothing
-// (safeURL), and bodyPolicy drops it all the same.
+// (linkURL), and bodyPolicy drops it all the same.
 var linkSchemes = []string{"http", "https", "mailto"}
 
 // bodyPolicy is every element and attribute the document renderer (md.go, citations, linkIDs,

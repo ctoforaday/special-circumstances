@@ -91,17 +91,28 @@ var htmlAt = func(src []byte) []int {
 // probingHTML is ps with CommonMark's HTML block parser and inline HTML parser each wrapped to record
 // and decline.
 func probingHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
-	block, inline := reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())
 	out := slices.Clone(ps)
 	for i, p := range out {
-		switch reflect.TypeOf(p.Value) {
-		case block:
-			out[i].Value = htmlBlockProbe{p.Value.(parser.BlockParser)}
-		case inline:
-			out[i].Value = rawHTMLProbe{p.Value.(parser.InlineParser)}
+		if !isHTMLParser(p) {
+			continue
+		}
+		switch v := p.Value.(type) {
+		case parser.BlockParser:
+			out[i].Value = htmlBlockProbe{v}
+		case parser.InlineParser:
+			out[i].Value = rawHTMLProbe{v}
 		}
 	}
 	return out
+}
+
+// htmlParsers are CommonMark's HTML block parser and inline HTML parser, by type: the whole of the
+// HTML grammar pageReader leaves out (withoutHTML) and probeReader wraps (probingHTML).
+var htmlParsers = []reflect.Type{reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())}
+
+// isHTMLParser reports whether p is one of htmlParsers.
+func isHTMLParser(p util.PrioritizedValue) bool {
+	return slices.Contains(htmlParsers, reflect.TypeOf(p.Value))
 }
 
 // recordHTML adds offset i of the source to the parse's record.
@@ -188,7 +199,7 @@ func seatHTML(tree ast.Node, src []byte, tool [][2]int) []int {
 		}
 		for _, seg := range segs {
 			for i := seg.Start; i < seg.Stop; i++ {
-				if src[i] == '<' && !inSpan(i, tool) && !escaped(src, i) {
+				if src[i] == '<' && !inSpan(i, tool) && !escapedAt(src, i) {
 					at = append(at, i)
 				}
 			}
@@ -205,20 +216,11 @@ func inSpan(i int, spans [][2]int) bool {
 	return k > 0 && i < spans[k-1][1]
 }
 
-// escaped reports whether the byte at i is escaped: an odd run of backslashes stands before it.
-func escaped(src []byte, i int) bool {
-	n := 0
-	for k := i - 1; k >= 0 && src[k] == '\\'; k-- {
-		n++
-	}
-	return n%2 == 1
-}
-
 // angles is every `<` of src outside spans that is not already escaped: the fallback's edits.
 func angles(src []byte, spans [][2]int) []int {
 	var at []int
 	for i, c := range src {
-		if c == '<' && !inSpan(i, spans) && !escaped(src, i) {
+		if c == '<' && !inSpan(i, spans) && !escapedAt(src, i) {
 			at = append(at, i)
 		}
 	}

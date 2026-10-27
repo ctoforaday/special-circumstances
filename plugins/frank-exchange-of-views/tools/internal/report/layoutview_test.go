@@ -148,12 +148,14 @@ func TestTheReportTemplateListsTheLayoutsSections(t *testing.T) {
 // A FENCE OF FOUR HOLDS A LINE OF THREE, for every reader of the report's lines: read as a close,
 // the inner line made the code after it prose, and a "# " line in the code the report's title.
 func TestALongerFenceHoldsAShorterOne(t *testing.T) {
-	got := part("````\n```\n# Not a title\n## Not a section\n````\n# The title\n\nBody.\n")
+	got := part(ParseText("````\n```\n# Not a title\n## Not a section\n````\n# The title\n\nBody.\n"))
 	if got.title != "# The title" {
 		t.Errorf("the title is %q, want the line after the fence", got.title)
 	}
 	var fenced []bool
-	eachLine("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout", func(l mdLine) { fenced = append(fenced, l.code) })
+	for _, l := range ParseText("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout").lines {
+		fenced = append(fenced, l.code)
+	}
 	if want := []bool{true, true, true, true, true, false}; !slices.Equal(fenced, want) {
 		t.Errorf("fenced lines %v, want %v", fenced, want)
 	}
@@ -173,7 +175,7 @@ func TestCodeAndHeadingsAreTheParsersReading(t *testing.T) {
 		{"a heading carried on as a paragraph's continuation", "# Title\n\npara\n    ## Open questions\n", "# Title", "para\n    ## Open questions", ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := part(c.text)
+			got := part(ParseText(c.text))
 			if got.title != c.title || !strings.HasSuffix(got.body, c.body) || got.close != c.close {
 				t.Errorf("parted %q as title %q, body %q, close %q; want %q, a body ending %q, close %q", c.text, got.title, got.body, got.close, c.title, c.body, c.close)
 			}
@@ -231,5 +233,41 @@ func TestEveryLayoutRowCarriesTextOrSaysWhyItHasNone(t *testing.T) {
 	}
 	if shipping == 0 || absent == 0 {
 		t.Fatalf("the run measured %d shipping and %d absent rows; both kinds are needed for this to test anything", shipping, absent)
+	}
+}
+
+// ONE PARSE PER TEXT. The layout reads each composed document once, however many rows it looks for in
+// it; and the write's three refusals read one parse of each text between them. Counted, not timed.
+func TestEachTextIsParsedOnce(t *testing.T) {
+	const title = "# On 91 parsed once"
+	run := runtest.Open(t, newRun(t))
+	id := record.Identity{Run: run, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	blue := title + "\n\n## TL;DR\n\nIt is not.\n\n## Appendix\n\n91 / 7 = 13.\n\n## Open questions\n\nWhether 13 is prime.\n"
+	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+		t.Fatal(err)
+	}
+	docs, err := AssembleAll(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every composed document opens with the title, and so does the report's text, read once to part it.
+	_, marked := countParses(t, title)
+	if _, err := Layout(run); err != nil {
+		t.Fatal(err)
+	}
+	if want := len(docs) + 1; *marked != want {
+		t.Errorf("the layout parsed %d text(s) holding the title, want %d: each of the %d documents once, and the report's text once", *marked, want, len(docs))
+	}
+
+	all, _ := countParses(t, "")
+	was, now := ParseText(blue), ParseText(blue+"\n## Appendix B\n\nMore.\n")
+	ComposedIn(was, now)
+	WovenNoteIn(was, now)
+	OutOfOrderIn(was, now)
+	if *all != 2 {
+		t.Errorf("the refusals parsed %d time(s) for two texts, want 2", *all)
 	}
 }
