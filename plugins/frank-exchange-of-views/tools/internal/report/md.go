@@ -46,12 +46,18 @@ import (
 )
 
 var (
-	// mdReader is the dialect a markdown viewer reads a shipped .md in: footnoteReader's, without the
-	// step that drops a definition nothing references.
-	mdReader = goldmark.New(goldmark.WithExtensions(extension.GFM), goldmark.WithParserOptions(
-		parser.WithBlockParsers(util.Prioritized(extension.NewFootnoteBlockParser(), 999)),
-		parser.WithInlineParsers(util.Prioritized(extension.NewFootnoteParser(), 101)),
-	))
+	// mdReader is the dialect a markdown viewer reads a shipped .md in: CommonMark with its HTML grammar,
+	// GitHub's extensions with GitHub's extended autolink (viewerInlineParsers), and footnotes, keeping a
+	// definition nothing references.
+	mdReader = goldmark.New(goldmark.WithParser(parser.NewParser(
+		parser.WithBlockParsers(append(blockParsers(),
+			util.Prioritized(parser.NewHTMLBlockParser(), htmlBlockPriority),
+			util.Prioritized(extension.NewFootnoteBlockParser(), 999))...),
+		parser.WithInlineParsers(append(viewerInlineParsers(),
+			util.Prioritized(parser.NewRawHTMLParser(), rawHTMLPriority),
+			util.Prioritized(extension.NewFootnoteParser(), 101))...),
+		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+	)), goldmark.WithExtensions(extension.Table, extension.TaskList))
 	// pageReader is the dialect report.html reads a document in: mdReader's with no HTML grammar, so
 	// no node of the tree is HTML and a tag, a comment or an unclosed `<!--` is text in the paragraph
 	// it stands in — it cannot take the lines after it into an HTML block — and with the proof's
@@ -131,7 +137,7 @@ type rendered struct {
 	mentions []mention
 }
 
-// renderDoc renders one document from the tree Ship parsed it to. It records every anchor it
+// renderDoc renders one document from the tree shipSet parsed it to. It records every anchor it
 // defines into anchor, keyed by the record id, valued as "<file>#<elementID>".
 //
 // seen counts the ids given out, ACROSS THE SET: the documents are tabs of one page, a fragment
@@ -276,14 +282,6 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 			note.scent = scentOf(title.noteBody(fn))
 			r.notes = append(r.notes, note)
 		}
-	case *ast.HTMLBlock:
-		// pageReader has no HTML grammar, so no tree it builds holds one. Should a reader with that
-		// grammar ever parse a document, the block is shown as typed, as every HTML in the text is.
-		text := r.lines(x)
-		if x.HasClosure() {
-			text += string(x.ClosureLine.Value(r.src))
-		}
-		b.WriteString("<p>" + escape(strings.TrimSuffix(text, "\n")) + "</p>\n")
 	default:
 		// A block this renderer has no element for is shown as its text, never dropped.
 		b.WriteString("<p>" + escape(r.lines(n)) + "</p>\n")
@@ -490,12 +488,6 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			r.linkTo(b, linkURL(x.Destination), func() { r.inlines(b, x, false) })
 		case *east.FootnoteLink:
 			b.WriteString(r.ref(r.footnoteLabel(x)))
-		case *ast.RawHTML:
-			// As an HTML block is: shown as typed, should a reader with the HTML grammar build the tree.
-			for i := 0; i < x.Segments.Len(); i++ {
-				seg := x.Segments.At(i)
-				b.WriteString(escape(string(seg.Value(r.src))))
-			}
 		case *east.TaskCheckBox:
 			if x.IsChecked {
 				b.WriteString("[x] ")

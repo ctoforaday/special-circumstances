@@ -101,7 +101,7 @@ func AssemblyWritten(run record.Run) (bool, error) {
 	}
 }
 
-// AssembleShipped is the run's report set as it ships (Ship), under the run's title. It writes
+// AssembleShipped is the run's report set as it ships (shipSet), under the run's title. It writes
 // nothing; Write does that. A document with an empty body is not in the set — a run with no motions
 // has no judgments.md, and no empty heading standing in for one.
 func AssembleShipped(run record.Run) (Shipped, error) {
@@ -142,8 +142,11 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// verdict, what answered the seats, the board in full and the transcript are envelope, and
 	// their rows put them in the documents behind it.
 	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(rd.text(blue)), rd: rd}
+	// The title enters composition here, so its tokens leave here, before heading measures and cuts it
+	// (stripTokens): a token's bytes are no part of the length a reader sees, and the cut is at a
+	// boundary in what ships. The Question line is cut from the same title.
+	a.blue.title = stripTokens(a.blue.title, false)
 	title, _ := heading(a.blue.title)
-	title = stripTokens(title, false)
 	body := map[string]*sections{}
 	composed := map[string]bool{}
 	for _, s := range layout {
@@ -361,7 +364,7 @@ func composedText(d Doc, title string, set []Doc) string {
 
 // Shipped is a report set as it ships, each document read once per tier: its .md text, masthead and
 // body shipped whole (ship), and its body as report.html reads it, which the page renders under its
-// own header. It is made only by Ship, so neither tier can be handed a text the decision was not
+// own header. It is made only by shipSet, so neither tier can be handed a text the decision was not
 // taken on.
 type Shipped struct {
 	title string
@@ -370,10 +373,7 @@ type Shipped struct {
 	html  []ParsedText // and its body as report.html reads it
 }
 
-// Ship takes each tier's reading of each document of the set, under the run's title.
-func Ship(title string, docs []Doc) Shipped { return stdReaders().shipSet(title, docs) }
-
-// shipSet is Ship, reading with rd.
+// shipSet takes each tier's reading of each document of the set, under the run's title, reading with rd.
 func (rd readers) shipSet(title string, docs []Doc) Shipped {
 	set := Shipped{title: title, docs: docs}
 	for _, d := range docs {
@@ -518,7 +518,7 @@ func Write(run record.Run, set Shipped, index string) (string, error) {
 	for i, d := range set.docs {
 		want[d.File] = true
 		path := filepath.Join(run.Dir(), d.File)
-		// Each document's link bar is over the set Ship was given, which is the set written here,
+		// Each document's link bar is over the set shipSet was given, which is the set written here,
 		// so it can never link a file nobody wrote.
 		if err := os.WriteFile(path, []byte(set.md[i]), 0o644); err != nil {
 			return "", fmt.Errorf("write %s: %w", d.File, err)

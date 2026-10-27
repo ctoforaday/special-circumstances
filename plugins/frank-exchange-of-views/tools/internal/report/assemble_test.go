@@ -575,6 +575,19 @@ func TestWovenNoteInReadsCodeAsTheShippedReadingsDo(t *testing.T) {
 	}
 }
 
+// THE REFUSAL READS THE TEXT AS IT SHIPS. Assembly takes a gap's token out of the report's text, and
+// the brackets either side of it join into a label of the weave's shape that ships beside the weave's
+// own note of that label.
+func TestWovenNoteInReadsTheTextAsItShips(t *testing.T) {
+	doc := "A claim [<!--gap:G-00000001-->^1] here.\n"
+	if !strings.Contains(stripTokens(doc, true), "[^1]") {
+		t.Fatalf("assembly does not join the label, so this measures nothing: %q", stripTokens(doc, true))
+	}
+	if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); !found || l != "[^1]" {
+		t.Errorf("a label the strip joins is not refused: %q, %v", l, found)
+	}
+}
+
 // THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
 // only what the tool composes.
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {

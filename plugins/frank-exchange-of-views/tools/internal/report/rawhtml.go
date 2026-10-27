@@ -6,13 +6,13 @@ package report
 // fill — and a markdown viewer parses it WHOLE: a fence one unit leaves open flips the next unit's
 // code and prose, and an unclosed `<!--` hides every section after it. Seats read untrusted web
 // content, and a viewer that renders raw HTML from the .md is a page the human opens. So the
-// decision is taken on each whole document, once (Ship), and Write writes it.
+// decision is taken on each whole document, once (shipSet), and Write writes it.
 //
 // THE .md READS AS report.html READS. report.html reads a document with no HTML grammar
 // (pageReader): a tag, a comment or an HTML block's opener is text in the paragraph it stands in,
 // and the lines after it are what they would be without it. The shipped .md is that reading, made
-// to hold for a reader that has the grammar (mdReader): ship puts a backslash before each `<` at
-// which such a reader would open an HTML node in that reading, and before no other. Code, autolinks,
+// to hold for a reader that has the grammar (mdReader): ship writes each `<` at which such a reader
+// would open an HTML node in that reading as `&lt;` (ltEntity), and no other. Code, autolinks,
 // link destinations and info strings are not edited — the reading has no HTML node in them, so no
 // `<` there is one — and that includes code that is code only because an enclosing HTML block is
 // read as text: `<div>`, a fence, `</div>` ships its fence byte for byte.
@@ -20,17 +20,27 @@ package report
 // WHERE A READER OPENS AN HTML NODE IS THE PARSER'S ANSWER, taken in one parse (htmlAt). probeReader
 // is mdReader's grammar with its HTML block parser and inline HTML parser each wrapped: the wrapped
 // parser runs, and where it would open a node the wrapper records the `<` and declines. A parser
-// that declines is a parser that is absent, so the tree is pageReader's, and each `<` recorded is
-// one mdReader opens a node at when the text before it reads as pageReader reads it. Escaping every
-// one makes that so: a `\<` opens nothing, and is the same character to every other parser. Each
+// that declines is a parser that is absent, so the tree is the viewer's with no HTML grammar, and each
+// `<` recorded is one mdReader opens a node at when the text before it reads that way. Escaping every
+// one makes that so: a `&lt;` opens nothing, and is the same character to every other parser. Each
 // `<` is decided in the reading the shipped text has, so escaping one never exposes another — no
 // pass per row of a pasted table, no pass per tag a backtick frees.
 //
-// ship then parses the result as a reader does (parseMD) and checks it holds no seat HTML. A text
-// that defeats the probe — a reader's reading the probe did not predict — ships with every `<` but the
-// tool's escaped, code included. That text holds no seat HTML by construction — every `<` a seat
-// wrote is escaped, and an HTML node opens only at an unescaped `<` — so it is not checked again, and
-// no seat's text can stop a document shipping.
+// A `<` IS NEUTRALISED BY WHAT THE READER DOES, NOT BY THE BYTES BEFORE IT. The viewer's grammar is
+// GitHub's, extended autolink and all (gfmautolink.go): a URL takes every byte up to whitespace or a
+// `<`, so a seat's "http://x.co/a\<img …>" is a link ending in a backslash and a live tag, while to
+// goldmark the backslash escapes the `<`. The probe reads it as the viewer does and records that `<`;
+// its edit is the entity, since a backslash written there would be taken the same way, and the
+// backslash that stood before it goes, as the entity is now the escape. The viewer's grammar is
+// report.html's but for that autolink, so the readings differ only where a URL in prose takes a byte
+// goldmark's linkify would not.
+//
+// ship then parses the result as a reader does (parseMD) and checks it holds no seat HTML, whatever
+// stands before its `<`. A text that defeats the probe — a reader's reading the probe did not predict,
+// as when an edit lets a URL run on and take a backtick — ships with every `<` but the tool's written
+// `&lt;`, code included. That text holds no seat HTML by construction — no `<` a seat wrote is left,
+// and an HTML node opens only at a `<` — so it is not checked again, and no seat's text can stop a
+// document shipping.
 //
 // THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
 // proof's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
@@ -40,7 +50,8 @@ package report
 // takes the rest, so a token in a shipped document is a seat's text.
 //
 // WHAT A READER IS GUARANTEED. A reader that parses the file as CommonMark with GitHub's extensions
-// finds no HTML in it but the proofs' anchors, and prints each escaped `<` as the character typed.
+// finds no HTML in it but the proofs' anchors, and prints each `&lt;` ship wrote as the `<` typed, but
+// inside code a fallback reached and in a URL GitHub's autolink takes it into.
 // A viewer that does not parse the file as CommonMark is not covered: one that reads
 // `<svg:x onfocus=…>` — an autolink to CommonMark — or an angle-bracket link destination as a tag
 // finds a tag there.
@@ -66,16 +77,16 @@ import (
 func parseMD(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
 
 // probeReader is mdReader's grammar with its two HTML parsers each wrapped to record where it would open
-// a node, and decline: pageReader's grammar, and the HTML grammar as a probe.
+// a node, and decline: the viewer's grammar with no HTML in it, and the HTML grammar as a probe.
 var probeReader = goldmark.New(goldmark.WithParser(parser.NewParser(
 	parser.WithBlockParsers(append(blockParsers(),
 		util.Prioritized(htmlBlockProbe{parser.NewHTMLBlockParser()}, htmlBlockPriority),
 		util.Prioritized(extension.NewFootnoteBlockParser(), 999))...),
-	parser.WithInlineParsers(append(inlineParsers(),
+	parser.WithInlineParsers(append(viewerInlineParsers(),
 		util.Prioritized(rawHTMLProbe{parser.NewRawHTMLParser()}, rawHTMLPriority),
 		util.Prioritized(extension.NewFootnoteParser(), 101))...),
 	parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
-)), goldmark.WithExtensions(extension.GFM))
+)), goldmark.WithExtensions(extension.Table, extension.TaskList))
 
 // htmlAtKey holds, in one parse's context, the offsets the probes recorded.
 var htmlAtKey = parser.NewContextKey()
@@ -168,7 +179,8 @@ func (rd readers) ship(md string) string {
 }
 
 // seatHTML is the offset of every `<` in src that stands inside an HTML node of tree, outside the
-// tool's anchors (tool, their spans), and is not already escaped, in order.
+// tool's anchors (tool, their spans), in order. A backslash before one is no defence: the node is
+// there because the reader did not take the backslash as an escape.
 func seatHTML(tree ast.Node, src []byte, tool [][2]int) []int {
 	var at []int
 	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -189,7 +201,7 @@ func seatHTML(tree ast.Node, src []byte, tool [][2]int) []int {
 		}
 		for _, seg := range segs {
 			for i := seg.Start; i < seg.Stop; i++ {
-				if src[i] == '<' && !inSpan(i, tool) && !escapedAt(src, i) {
+				if src[i] == '<' && !inSpan(i, tool) {
 					at = append(at, i)
 				}
 			}
@@ -206,31 +218,48 @@ func inSpan(i int, spans [][2]int) bool {
 	return k > 0 && i < spans[k-1][1]
 }
 
-// angles is every `<` of src outside spans that is not already escaped: the fallback's edits.
+// angles is every `<` of src outside spans, escaped or not: the fallback's edits.
 func angles(src []byte, spans [][2]int) []int {
 	var at []int
 	for i, c := range src {
-		if c == '<' && !inSpan(i, spans) && !escapedAt(src, i) {
+		if c == '<' && !inSpan(i, spans) {
 			at = append(at, i)
 		}
 	}
 	return at
 }
 
-// escapeAt is src with a backslash before each offset of at, which are in order, and spans moved
-// to where their bytes now stand. No offset of at lies inside a span.
+// ltEntity is how ship writes a `<` a reader would open HTML at: a character reference opens nothing
+// in any CommonMark reader and prints as the `<` typed, and, unlike a backslash, no GitHub autolink
+// can take it as a character of its URL and leave the `<` behind it live.
+const ltEntity = "&lt;"
+
+// escapeAt is src with each `<` at an offset of at, which are in order, written ltEntity, and a
+// backslash that escapes it taken out — the entity is the escape now, and the backslash kept would
+// print — with spans moved to where their bytes now stand. No offset of at lies inside a span, and no
+// span ends on the backslash before one: a span ends with its tag's `>`.
 func escapeAt(src []byte, at []int, spans [][2]int) ([]byte, [][2]int) {
-	out := make([]byte, 0, len(src)+len(at))
-	last := 0
-	for _, i := range at {
-		out = append(append(out, src[last:i]...), '\\')
-		last = i
+	out := make([]byte, 0, len(src)+len(at)*(len(ltEntity)-1))
+	shift := make([]int, len(at)) // what the edits up to and including each one add to the length
+	last, grown := 0, 0
+	for k, i := range at {
+		cut := i
+		if escapedAt(src, i) {
+			cut--
+		}
+		out = append(append(out, src[last:cut]...), ltEntity...)
+		last = i + 1
+		grown += len(ltEntity) - 1 - (i - cut)
+		shift[k] = grown
 	}
 	out = append(out, src[last:]...)
 	moved := make([][2]int, len(spans))
 	for k, s := range spans {
-		n, _ := slices.BinarySearch(at, s[0])
-		moved[k] = [2]int{s[0] + n, s[1] + n}
+		d := 0
+		if n, _ := slices.BinarySearch(at, s[0]); n > 0 {
+			d = shift[n-1]
+		}
+		moved[k] = [2]int{s[0] + d, s[1] + d}
 	}
 	return out, moved
 }

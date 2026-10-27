@@ -100,7 +100,7 @@ var seatHTMLCases = []struct {
 func joinUnits(units []string) string {
 	var esc []string
 	for _, u := range units {
-		esc = append(esc, EscapeNotes(u))
+		esc = append(esc, stdReaders().escapeNotes(u))
 	}
 	return "# R\n\n" + strings.Join(esc, "\n\n") + "\n"
 }
@@ -151,7 +151,7 @@ func TestShippedMarkdownCarriesNoSeatHTML(t *testing.T) {
 	for _, c := range seatHTMLCases {
 		t.Run(c.name, func(t *testing.T) {
 			d := Doc{File: FileReport, Nav: "Report", Body: joinUnits(c.units)}
-			md := Ship("# T <script>t()</script>", []Doc{d}).md[0]
+			md := stdReaders().shipSet("# T <script>t()</script>", []Doc{d}).md[0]
 			if found := htmlNodes(md); len(found) > 0 {
 				t.Errorf("a CommonMark reader finds HTML in the shipped .md: %q\n%s", found, md)
 			}
@@ -179,7 +179,7 @@ func TestSeatHTMLInEveryContainerShipsAsTyped(t *testing.T) {
 		{"in a table cell", "| a | b |\n|---|---|\n| <img src=x onerror=y()> | <!-- c --> |\n", "<img src=x onerror=y()>"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			set := Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: c.md}})
+			set := stdReaders().shipSet("# T", []Doc{{File: FileReport, Nav: "Report", Body: c.md}})
 			md := set.md[0]
 			if found := htmlNodes(md); len(found) > 0 {
 				t.Errorf("a CommonMark reader finds HTML in the shipped .md: %q\n%s", found, md)
@@ -229,11 +229,11 @@ func seatElements(page string) []string {
 func TestTheMarkdownKeepsOnlyTheToolsAnchor(t *testing.T) {
 	md := "# R\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n\n" +
 		"<a id=\"P-deadbeef\"></a>\n\n<!--cite:C-00000001-->\n\nA claim<!--gap:G-0000abcd--> stands.\n"
-	got := Ship("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}).md[0]
+	got := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}).md[0]
 	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="P-deadbeef">`, "</a>"}) {
 		t.Errorf("a CommonMark reader finds HTML other than the proof's anchor: %q\n%s", found, got)
 	}
-	for _, want := range []string{"\n" + proofAnchor("P-deadbeef") + "\n", `\<a id="P-deadbeef">\</a>`, `\<!--cite:C-00000001-->`, `A claim\<!--gap:G-0000abcd--> stands.`} {
+	for _, want := range []string{"\n" + proofAnchor("P-deadbeef") + "\n", `&lt;a id="P-deadbeef">&lt;/a>`, `&lt;!--cite:C-00000001-->`, `A claim&lt;!--gap:G-0000abcd--> stands.`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the shipped .md lacks %q:\n%s", want, got)
 		}
@@ -241,8 +241,8 @@ func TestTheMarkdownKeepsOnlyTheToolsAnchor(t *testing.T) {
 }
 
 // CODE, AUTOLINKS AND LINK DESTINATIONS SHIP BYTE FOR BYTE. None is HTML to a CommonMark reader, so
-// nothing in them is edited: inside code a backslash is a character, and in a destination it would
-// change the link.
+// nothing in them is edited: inside code an entity or a backslash is characters, and in a destination
+// it would change the link.
 func TestCodeAutolinksAndDestinationsShipByteForByte(t *testing.T) {
 	md := "Prose with `<b>code</b>` and ``a `<i>` b`` and <https://example.invalid/a> and <someone@example.invalid>.\n\n" +
 		"An autolink to CommonMark: <svg:x/autofocus/tabindex=1/onfocus=alert(1)>.\n\n" +
@@ -285,7 +285,7 @@ func TestAPastedHTMLTableLeavesCodeAlone(t *testing.T) {
 // unclosed `<!--`, a reader with the HTML grammar holds the lines as HTML; report.html, with none, reads
 // the code span, fence and autolink in them. The shipped .md is that reading: only the enclosing nodes'
 // `<` are escaped, and the code and the autolink are the same bytes — and the same code — to a CommonMark
-// reader of the .md as to report.html. Escaping every `<` of the block put a backslash inside each.
+// reader of the .md as to report.html. Escaping every `<` of the block put an edit inside each.
 func TestCodeInsideDissolvedHTMLShipsByteForByte(t *testing.T) {
 	inner := "`<b>` is a tag\n\n```\n<b>\n```\n\nsee <https://example.invalid/a>\n"
 	for _, c := range []struct {
@@ -303,8 +303,8 @@ func TestCodeInsideDissolvedHTMLShipsByteForByte(t *testing.T) {
 			if found := htmlNodes(got); len(found) > 0 {
 				t.Errorf("a CommonMark reader finds HTML in the shipped text: %q\n%s", found, got)
 			}
-			if n := strings.Count(got, `\`); n != c.escapes {
-				t.Errorf("shipped %d backslashes, want %d, one before each HTML node's `<`:\n%s", n, c.escapes, got)
+			if n := strings.Count(got, ltEntity); n != c.escapes || strings.Contains(got, `\`) {
+				t.Errorf("shipped %d entities, want %d, one for each HTML node's `<`, and no backslash:\n%s", n, c.escapes, got)
 			}
 			src := []byte(md)
 			want := codeText(codeIn(parsePage(src), src), src)
@@ -487,7 +487,7 @@ func TestTextWithNothingToEscapeIsNotParsed(t *testing.T) {
 		t.Errorf("shipped %q, want the text with its anchor in place", got)
 	}
 	if got := rd.escapeNotes("a [note] and `[x]`\n"); got != "a [note] and `[x]`\n" {
-		t.Errorf("EscapeNotes edited text with no `[^`: %q", got)
+		t.Errorf("escapeNotes edited text with no `[^`: %q", got)
 	}
 	if *all != 0 {
 		t.Errorf("parsed %d time(s) a text with nothing to escape", *all)
@@ -504,8 +504,13 @@ func TestADefeatedProbeEscapesEveryAngle(t *testing.T) {
 	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="P-deadbeef">`, "</a>"}) {
 		t.Errorf("a CommonMark reader finds HTML other than the proof's anchor: %q\n%s", found, got)
 	}
-	if !strings.Contains(got, "`\\<i>`") || !strings.Contains(got, ` \<u> `) {
-		t.Errorf("the fallback did not escape the `<` in code:\n%s", got)
+	if !strings.Contains(got, "`&lt;i>`") || !strings.Contains(got, ` &lt;u> `) {
+		t.Errorf("the fallback did not write the `<` in code, and the escaped one, as the entity:\n%s", got)
+	}
+	// The check reads the tag a URL leaves live after taking the backslash before it: the backslash is
+	// no escape where the reader built a node.
+	if got := rd.ship("see http://x.co/a\\<img src=x onerror=alert(1)>\n"); len(htmlNodes(got)) > 0 {
+		t.Errorf("a tag behind a backslash a URL takes ships live: %q", got)
 	}
 }
 
@@ -519,15 +524,14 @@ func TestOnlyWhatTheParserReadsAsHTMLIsEscaped(t *testing.T) {
 			t.Errorf("text with no HTML was edited:\n--- in\n%s\n--- out\n%s", md, got)
 		}
 	}
-	// A `<` an odd run of backslashes already escapes gets no other: a second would escape the backslash
-	// and leave the `<` to open a tag.
-	if got, want := ship("<div>\\<b>x\n"), "\\<div>\\<b>x\n"; got != want {
+	// A `<` the viewer reads an odd run of backslashes as escaping is left as it is.
+	if got, want := ship("<div>\\<b>x\n"), "&lt;div>\\<b>x\n"; got != want {
 		t.Errorf("shipped %q, want %q", got, want)
 	}
 	for _, c := range []struct{ md, want string }{
-		{"<!-- ` -->\nfoo ` <b>bad</b> `\n", `\<b>bad`},
-		{"<div>\n- x\n\n    <script>y()</script>\n", `\<script>`},
-		{"<!--\nfoo\n-->\n    <b>x</b>\n", `\<b>x`},
+		{"<!-- ` -->\nfoo ` <b>bad</b> `\n", `&lt;b>bad`},
+		{"<div>\n- x\n\n    <script>y()</script>\n", `&lt;script>`},
+		{"<!--\nfoo\n-->\n    <b>x</b>\n", `&lt;b>x`},
 	} {
 		t.Run(c.md, func(t *testing.T) {
 			got := ship(c.md)
@@ -541,7 +545,7 @@ func TestOnlyWhatTheParserReadsAsHTMLIsEscaped(t *testing.T) {
 	}
 }
 
-// EACH TIER READS EACH DOCUMENT ONCE, IN SHIP. Ship parses each document's text once for report.html
+// EACH TIER READS EACH DOCUMENT ONCE, IN SHIPPING. shipSet parses each document's text once for report.html
 // and at most twice for the .md on the common path — a marker byte in it costs no second shipping.
 // RenderSite and Write take its result, and hold no reader to parse a body with.
 func TestEachDocumentIsShippedOnce(t *testing.T) {
@@ -553,12 +557,12 @@ func TestEachDocumentIsShippedOnce(t *testing.T) {
 	rd, _, marked := countParses(body)
 	rd.shipSet("# T", docs)
 	if *marked > 3*len(docs) {
-		t.Errorf("Ship parsed the bodies %d times, want at most %d", *marked, 3*len(docs))
+		t.Errorf("shipSet parsed the bodies %d times, want at most %d", *marked, 3*len(docs))
 	}
 }
 
 // THE SEAT READS THE RECORD'S TEXT. `show report --assembled` and its --quote and --match selectors
-// read the layout, and a seat copies a sentence from it into `edit`: a backslash the shipped file
+// read the layout, and a seat copies a sentence from it into `edit`: an entity the shipped file
 // carries would make the copy a misquote and a quote of the text match nothing.
 func TestTheLayoutShowsTheRecordsTextUnescaped(t *testing.T) {
 	run := runtest.Open(t, newRun(t))
@@ -585,7 +589,7 @@ func TestTheLayoutShowsTheRecordsTextUnescaped(t *testing.T) {
 			t.Errorf("the assembled layout does not hold %q as the record has it:\n%s", want, all.String())
 		}
 	}
-	if strings.Contains(all.String(), `\<`) {
+	if strings.Contains(all.String(), ltEntity) {
 		t.Errorf("the assembled layout carries the shipped file's escapes:\n%s", all.String())
 	}
 	if !slices.Contains(headings, "Types of List<String>") {
@@ -601,7 +605,7 @@ func TestASeatsCopyOfAProofAnchorIsText(t *testing.T) {
 		{File: FileReport, Nav: "Report", Body: "## A\n\n<a id=\"P-deadbeef\"></a>\n\nA claim[^P1].\n\n[^P1]: [the computation](evidence.md#P-deadbeef)\n"},
 		{File: FileEvidence, Nav: "Evidence", Body: "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n"},
 	}
-	set := Ship("# T", docs)
+	set := stdReaders().shipSet("# T", docs)
 	page := RenderSite(set, record.Family{})
 	if n := strings.Count(page, `id="P-deadbeef"`); n != 1 {
 		t.Fatalf("report.html holds %d element(s) with the proof's id, want 1", n)
@@ -609,7 +613,7 @@ func TestASeatsCopyOfAProofAnchorIsText(t *testing.T) {
 	if strings.Index(page, `id="P-deadbeef"`) < strings.Index(page, `<article id="`+docElement(FileEvidence)) {
 		t.Errorf("the proof's id is not evidence.md's element")
 	}
-	if md := set.md[0]; !strings.Contains(md, `\<a id="P-deadbeef">\</a>`) {
+	if md := set.md[0]; !strings.Contains(md, `&lt;a id="P-deadbeef">&lt;/a>`) {
 		t.Errorf("report.md ships the seat's copy of the anchor as HTML:\n%s", md)
 	}
 	if md := set.md[1]; !strings.Contains(md, "\n"+proofAnchor("P-deadbeef")+"\n") {
@@ -629,7 +633,7 @@ func TestAProofsCodeShipsByteForByte(t *testing.T) {
 	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "s.py",
 		Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Recorded: recorded, Observed: "a ` b"}}}
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
-	set := Ship("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}})
+	set := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}})
 	blocks := codeBlocks(t, mainOf(RenderSite(set, record.Family{})))
 	for _, want := range []string{script, output} {
 		if !slices.Contains(blocks, want) {

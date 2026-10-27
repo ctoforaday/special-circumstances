@@ -22,11 +22,11 @@ func TestEscapeNotesMakesEveryNoteOpenerText(t *testing.T) {
 		{"a backslash that is itself escaped does not escape", `a \\[^P5]`, `a \\\[^P5]`},
 		{"nothing to escape", "no note here [x] ^", "no note here [x] ^"},
 	} {
-		got := EscapeNotes(c.in)
+		got := stdReaders().escapeNotes(c.in)
 		if got != c.want {
 			t.Errorf("%s:\n  in   %q\n  got  %q\n  want %q", c.name, c.in, got, c.want)
 		}
-		if again := EscapeNotes(got); again != got {
+		if again := stdReaders().escapeNotes(got); again != got {
 			t.Errorf("%s: escaping twice changes it again: %q", c.name, again)
 		}
 	}
@@ -74,7 +74,7 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 // with none, and the shipped .md, which escapes the comment, take it as the paragraph's continuation —
 // prose, where an unescaped `[^a]` opens a footnote.
 func TestEscapeNotesReadsCodeAsTheShippedReadingsDo(t *testing.T) {
-	got := EscapeNotes("x\n\n<!-- c -->\n    see [^a]\n")
+	got := stdReaders().escapeNotes("x\n\n<!-- c -->\n    see [^a]\n")
 	if !strings.Contains(got, `see \[^a]`) {
 		t.Errorf("a `[^` both shipped readings take as prose is not escaped:\n%s", got)
 	}

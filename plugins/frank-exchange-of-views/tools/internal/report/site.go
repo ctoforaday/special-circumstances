@@ -67,7 +67,7 @@ type siteDoc struct {
 func pageHTML(s string) template.HTML { return template.HTML(bodyPolicy.Sanitize(s)) }
 
 // RenderSite builds the whole set into one HTML file. It renders each document's body as assembly
-// composed it — the record's text, unescaped, in the tree Ship parsed it to with no HTML grammar —
+// composed it — the record's text, unescaped, in the tree shipSet parsed it to with no HTML grammar —
 // and not the shipped .md: no markdown link bar and no repeated H1, because the tab strip and the
 // header say those things better here, and none of the .md's backslashes.
 func RenderSite(set Shipped, fam record.Family) string { return renderSite(set, fam, stdRenderer()) }

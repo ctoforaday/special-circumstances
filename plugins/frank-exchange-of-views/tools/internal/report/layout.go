@@ -293,7 +293,7 @@ var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assemb
 	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
-	"The shipped .md differs from that text in one way: a backslash stands before each `<` a markdown reader would take for HTML a seat wrote, or, in a document whose reading the tool cannot predict, before every `<` but a proof's anchor, code included."
+	"The shipped .md differs from that text in one way: each `<` a markdown reader would take for HTML a seat wrote is written `&lt;`, which the reader prints as `<` — or, in a document whose reading the tool cannot predict, every `<` but a proof's anchor is, code included."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
@@ -701,9 +701,13 @@ func notesRow() Section {
 }
 
 // WovenNoteIn returns the first footnote label of the weave's shape that text carries and was, the
-// text as it stood, did not (added), as the text writes it, with the row of the section the notes
-// belong to. Code is not read — a fenced block, or a span in backticks: a label there is no
-// footnote.
+// text as it stood, did not (added), as the text reads once assembly has taken its tokens out, with
+// the row of the section the notes belong to. Code is not read — a fenced block, or a span in
+// backticks: a label there is no footnote.
+//
+// THE TEXT IS READ AS IT SHIPS. Assembly takes each token the weave does not turn into a note out of
+// the report's text as it enters its document (stripTokens), and what stood either side of one joins:
+// `[<!--gap:G-00000001-->^1]` ships as a live `[^1]`. Read with its tokens in, it holds no label.
 func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 	c, found := added(wovenNotes(was), wovenNotes(text))
 	return c.text, c.row, found
@@ -712,7 +716,7 @@ func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 func wovenNotes(text ParsedText) (out []claim) {
 	src := string(text.src)
 	prose := func(s string) {
-		for _, m := range wovenNote.FindAllString(s, -1) {
+		for _, m := range wovenNote.FindAllString(stripTokens(s, true), -1) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	}

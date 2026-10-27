@@ -6318,6 +6318,13 @@ func withoutWrittenTokens(s string) string {
 	return b.String()
 }
 
+// asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<` it
+// would take for HTML written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison
+// are read so, so a seat's own `&lt;` reads the same on each.
+func asRead(s string) string {
+	return strings.NewReplacer("&lt;", "<", `\[^`, "[^").Replace(s)
+}
+
 func assembledSet(runDir string) (string, error) {
 	var b strings.Builder
 	for _, name := range reportdoc.Files() {
@@ -6339,7 +6346,7 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 	if err != nil {
 		return err.Error()
 	}
-	flatRpt := flat(rpt)
+	flatRpt := flat(asRead(rpt))
 	var missing, unclassified []string
 	seen := map[string]bool{}
 	for _, e := range board.Events {
@@ -6357,8 +6364,9 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 		}
 		// The reader gets the prose as assembly ships it: no token in it — a gap anchor a seat quoted
 		// into its retire or a prescription carried is not prose — and, where the tool places it in a
-		// line, on one line; so both sides are read with their whitespace runs one space.
-		prose := flat(withoutWrittenTokens(fieldStr(t, e, key)))
+		// line, on one line; so both sides are read with their whitespace runs one space, and as a
+		// reader reads them (asRead).
+		prose := flat(asRead(withoutWrittenTokens(fieldStr(t, e, key))))
 		if prose == "" || strings.Contains(flatRpt, prose) {
 			continue
 		}

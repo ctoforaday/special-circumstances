@@ -90,7 +90,7 @@ func TestStaleDocumentsAreRemovedOnReassembly(t *testing.T) {
 	if err := os.WriteFile(stale, []byte("yesterday's motions"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Write(runtest.Open(t, runDir), Ship("# run", []Doc{{File: FileReport, Nav: "Report", Body: "today"}}), "index"); err != nil {
+	if _, err := Write(runtest.Open(t, runDir), stdReaders().shipSet("# run", []Doc{{File: FileReport, Nav: "Report", Body: "today"}}), "index"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {

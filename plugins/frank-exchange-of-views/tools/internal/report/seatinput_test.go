@@ -230,7 +230,7 @@ func TestNoSeatInputIsMarkupOnThePage(t *testing.T) {
 					{File: FileReport, Nav: "Report", Body: strings.ReplaceAll(in.doc, "{h}", h)},
 					{File: FileDocket, Nav: "Board", Body: "## The board\n"},
 				}
-				honestOnThePage(t, Ship(strings.ReplaceAll(in.title, "{h}", h), docs))
+				honestOnThePage(t, stdReaders().shipSet(strings.ReplaceAll(in.title, "{h}", h), docs))
 			})
 		}
 	}
@@ -257,7 +257,7 @@ func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 	rr.title = func(string) string {
 		return `kept<script>alert(1)</script><img src="x" onerror="y()"><a href="javascript:z()" onclick="w()">l</a>`
 	}
-	page := renderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}, rr)
+	page := renderSite(stdReaders().shipSet("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}, rr)
 	if bad := outsideAllowlist(mastheadOf(page)); len(bad) > 0 {
 		t.Errorf("the masthead carries what the allowlist exists to drop: %q\n%s", bad, mastheadOf(page))
 	}

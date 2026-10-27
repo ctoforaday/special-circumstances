@@ -36,14 +36,11 @@ const (
 	noteEscape = `\` + noteOpen
 )
 
-// EscapeNotes returns md with every `[^` outside code escaped, so that nothing in it opens a
-// footnote. One already escaped is left as it is. What is code is report.html's reading (pageReader,
-// codeIn), which the shipped .md shares (ship): a `[^` is code or prose in the same place in all
-// three, so a line an HTML block would hold as code to a reader with the grammar is prose here, as it
-// is to both shipped readings.
-func EscapeNotes(md string) string { return stdReaders().escapeNotes(md) }
-
-// escapeNotes is EscapeNotes, reading md with rd.
+// escapeNotes returns md with every `[^` outside code escaped, so that nothing in it opens a
+// footnote, reading md with rd. One already escaped is left as it is. What is code is report.html's
+// reading (pageReader, codeIn), which the shipped .md shares (ship): a `[^` is code or prose in the
+// same place in all three, so a line an HTML block would hold as code to a reader with the grammar is
+// prose here, as it is to both shipped readings.
 func (rd readers) escapeNotes(md string) string {
 	if !strings.Contains(md, noteOpen) {
 		return md
@@ -51,7 +48,7 @@ func (rd readers) escapeNotes(md string) string {
 	return escapeNotesOutside(md, codeIn(rd.page([]byte(md)), []byte(md)))
 }
 
-// escapeNotesInLine is EscapeNotes for a fragment assembly splices into the middle of a line it
+// escapeNotesInLine is escapeNotes for a fragment assembly splices into the middle of a line it
 // writes — a citation's title, a proof's reason, each made one line — after a note's `[^N]: `. In
 // place the fragment is inline text of that line, so the only code in it is a code span it holds
 // whole, and it is read as one line of a paragraph (lineReader), never as a document of its own: read

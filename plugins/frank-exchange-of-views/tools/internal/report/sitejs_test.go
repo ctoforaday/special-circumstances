@@ -50,7 +50,7 @@ function click(doc, href) {
 // with no place in it, as it took the empty fragment before: the page scrolls to the top and the
 // address names the document alone. A link to a place in a document still scrolls there.
 func TestALinkToADocumentOpensItsTabAtTheTop(t *testing.T) {
-	page := RenderSite(Ship("# T", []Doc{
+	page := RenderSite(stdReaders().shipSet("# T", []Doc{
 		{File: FileReport, Nav: "Report", Body: "See [the board](docket.md) and [a gap](docket.md#g-1).\n"},
 		{File: FileDocket, Nav: "Board", Body: "## The board\n"},
 	}), record.Family{})

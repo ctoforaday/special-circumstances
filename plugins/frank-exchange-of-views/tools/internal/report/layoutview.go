@@ -14,8 +14,8 @@ import (
 // placed among sections the tool composes. A seat needs to see which sections the tool composes.
 // Layout assembles the set from the record as it stands and slices what assembly made by the rows
 // of `layout`, so the view cannot describe a report other than the one that ships. It shows the
-// record's text as written, because a seat quotes and edits it: the shipped .md is that text with a
-// backslash before each `<` a CommonMark reader would take for a seat's HTML (Ship), and report.html
+// record's text as written, because a seat quotes and edits it: the shipped .md is that text with
+// each `<` a CommonMark reader would take for a seat's HTML written `&lt;` (ship), and report.html
 // shows it as typed.
 
 // LayoutSection is one row of the assembled layout, for the run it was asked of.

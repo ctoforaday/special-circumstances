@@ -83,14 +83,11 @@ func TestASeatsTextOpensNoBlockPastItsPlace(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: proto.String("first\n# forged\n```\nopen"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.Event(t, "blue-respond", &recordpb.Log{Text: proto.String("after"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
-	if !strings.Contains(log, "first # forged ``` open\n") {
-		t.Errorf("the log entry is not one line of its row:\n%s", log)
+	if !strings.Contains(log, "- **red-chair** (defect): first\n  # forged\n  ```\n  open\n  ```\n- **blue-respond** (defect): after\n") {
+		t.Errorf("the log entry's lines are not its row's, its fence closed:\n%s", log)
 	}
-	tree := ParseText(log)
-	for _, l := range tree.lines {
-		if l.code || l.heading && !strings.HasPrefix(l.trimmed, "## Log") {
-			t.Errorf("the log section holds a line the tool did not write as one: %+v\n%s", l, log)
-		}
+	if items := topItems(log); len(items) != 2 {
+		t.Errorf("the log's rows read as %d items, want 2:\n%s", len(items), log)
 	}
 
 	block := "### Epoch 1\n\n" + ownBlock("argues\n\n```\nunclosed") + "\n\n### Epoch 2\n\nlater"
@@ -150,7 +147,7 @@ func shipSeeded(t *testing.T, evs ...*record.Event) Shipped {
 // article id, and a fragment naming the article landed on the heading; "Fnref 1" took the citation
 // marker's.
 func TestAHeadingTakesNoIDThePageGivesOut(t *testing.T) {
-	page := RenderSite(Ship("# T", []Doc{
+	page := RenderSite(stdReaders().shipSet("# T", []Doc{
 		{File: FileReport, Nav: "Report", Body: "## Doc report\n\n## Toc\n\n## Fnref 1\n\nCited[^1].\n\n[^1]: A source.\n"},
 		{File: FileDebate, Nav: "Debate", Body: "## Doc debate\n"},
 	}), record.Family{})
@@ -192,6 +189,21 @@ func TestTheGrammarIsGoldmarksDefaultsLessHTML(t *testing.T) {
 			t.Errorf("goldmark's default %s parsers are %v; the readers hold %v and the HTML parser", name, c.got, c.want)
 		}
 	}
+	// And the renderer is handed no HTML: neither reader report.html renders from builds a node of it,
+	// so the renderer has no element for one.
+	src := []byte("a <b>bold</b> word <!-- c --> and <?p?>\n\n<div>\nblock\n</div>\n\n<!--\nopen\n")
+	for name, tree := range map[string]ast.Node{"page": parsePage(src), "line": lineReader.Parse(text.NewReader(src))} {
+		_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			switch n.(type) {
+			case *ast.RawHTML, *ast.HTMLBlock:
+				t.Errorf("the %s reader built an HTML node: %q", name, n.Text(src))
+			}
+			return ast.WalkContinue, nil
+		})
+	}
+	if len(htmlNodes(string(src))) == 0 {
+		t.Fatal("a reader with the HTML grammar finds none in the fixture, so this measures nothing")
+	}
 }
 
 // sameEntries reports whether a and b hold the same entries, in any order.
@@ -212,30 +224,6 @@ func sameEntries[T comparable](a, b []T) bool {
 		}
 	}
 	return true
-}
-
-// HTML A TREE HOLDS IS SHOWN AS TYPED. pageReader builds no HTML node; a tree that holds one — a reader
-// with the grammar — renders it as text rather than dropping it.
-func TestTheRendererShowsHTMLItIsHandedAsText(t *testing.T) {
-	src := []byte("a <b>bold</b> word\n\n<div>\nblock\n</div>\n")
-	tree := mdReader.Parser().Parse(text.NewReader(src))
-	html := renderDoc(ParsedText{src: src, tree: tree}, FileReport, anchors{}, map[string]int{}, nil).html
-	for _, want := range []string{"&lt;b&gt;bold&lt;/b&gt;", "&lt;div&gt;", "block", "&lt;/div&gt;"} {
-		if !strings.Contains(html, want) {
-			t.Errorf("the renderer does not show %q of the HTML it was handed:\n%s", want, html)
-		}
-	}
-	var held bool
-	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		switch n.(type) {
-		case *ast.RawHTML, *ast.HTMLBlock:
-			held = true
-		}
-		return ast.WalkContinue, nil
-	})
-	if !held {
-		t.Fatal("the fixture holds no HTML node, so this measures nothing")
-	}
 }
 
 // ONE PAGE PARSE PER DOCUMENT. Assembly and shipping read a document's text once in report.html's
@@ -283,6 +271,131 @@ func TestStripTokens(t *testing.T) {
 	} {
 		if got := stripTokens(c.in, c.weave); got != c.want {
 			t.Errorf("stripTokens(%q, %v) = %q, want %q", c.in, c.weave, got, c.want)
+		}
+	}
+}
+
+// A TITLE IS MEASURED AS IT SHIPS. A token in the H1 goes before the title is cut: its bytes counted
+// toward the limit cut a title that fits at its colon, and an H1 that was only a token shipped as an
+// empty heading atop every document.
+func TestATitleIsMeasuredWithoutItsTokens(t *testing.T) {
+	const fits = "Whether the cache is coherent: what seventy characters of a title hold"
+	for _, c := range []struct{ h1, want string }{
+		{"# " + fits + "<!--gap:G-00000001-->", "# " + fits},
+		{"# <!--gap:G-00000001-->", titleOr("")},
+	} {
+		_, run := seededRun(t, recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(c.h1 + "\n\n## TL;DR\n\nA claim.\n")}))
+		set, err := AssembleShipped(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		md, _ := set.Text(FileReport)
+		if first, _, _ := strings.Cut(md, "\n"); first != c.want {
+			t.Errorf("%q ships under the title %q, want %q", c.h1, first, c.want)
+		}
+		if strings.Contains(md, questionLine) {
+			t.Errorf("%q ships a Question line, so the title was cut:\n%s", c.h1, md)
+		}
+	}
+}
+
+// topItems is each item of the first list md holds at its top level, in report.html's reading.
+func topItems(md string) []ast.Node {
+	var items []ast.Node
+	for n := parsePage([]byte(md)).FirstChild(); n != nil; n = n.NextSibling() {
+		if l, ok := n.(*ast.List); ok {
+			for c := l.FirstChild(); c != nil; c = c.NextSibling() {
+				items = append(items, c)
+			}
+			break
+		}
+	}
+	return items
+}
+
+// A SEAT'S PROSE IN A LIST ITEM KEEPS ITS BLOCKS, AND THE ITEM KEEPS THEM. An opinion written as
+// paragraphs, with a list and a fence it never closed, after a ruling on a row of judgments.md: on one
+// line its paragraphs ran together; written raw, its second paragraph ended the row and its fence took
+// every row after it as code. Indented to the item, its fence closed where it ends, it is the ruling's
+// blocks, and the next row and the next heading are the tool's — in both tiers.
+func TestAProseValueKeepsItsBlocksInsideItsItem(t *testing.T) {
+	opinion := "First paragraph.\n\nSecond paragraph, with points:\n- a point\n- another\n\n```\nunclosed code"
+	var unruled int
+	body := motionRow(&record.Motion{ID: "M-1", Subject: "petition", Fields: map[string]string{"class": "x"}, Filer: "red-lens-logic", Sitting: 1,
+		Ruling: "granted", RulingBy: "judge", RulingSitting: 2, Opinion: opinion}, &unruled) + "\n" +
+		motionRow(&record.Motion{ID: "M-2", Subject: "petition", Fields: map[string]string{"class": "y"}, Filer: "red-lens-logic", Sitting: 3}, &unruled) +
+		"\n\n## Next\n\nAfter.\n"
+	set := stdReaders().shipSet("# T", []Doc{{File: FileJudgments, Nav: "Judgments", Body: body}})
+	md, _ := set.Text(FileJudgments)
+	if !strings.Contains(md, "\n    unclosed code\n    ```\n") {
+		t.Errorf("the opinion's fence is not closed where the opinion ends:\n%s", md)
+	}
+	for tier, tree := range map[string]struct {
+		root ast.Node
+		src  []byte
+	}{"the .md": {parseMD([]byte(md)), []byte(md)}, "report.html": {set.html[0].tree, set.html[0].src}} {
+		var list *ast.List
+		var heading bool
+		for n := tree.root.FirstChild(); n != nil; n = n.NextSibling() {
+			switch x := n.(type) {
+			case *ast.List:
+				if list == nil {
+					list = x
+				}
+			case *ast.Heading:
+				heading = heading || string(x.Lines().Value(tree.src)) == "Next"
+			}
+		}
+		if list == nil || list.ChildCount() != 2 {
+			t.Errorf("%s: the rows are not two items of one list:\n%s", tier, md)
+			continue
+		}
+		if !heading {
+			t.Errorf("%s: the heading after the rows is not a heading:\n%s", tier, md)
+		}
+		var paras, lists, fences int
+		_ = ast.Walk(list.FirstChild(), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			if entering {
+				switch n.(type) {
+				case *ast.Paragraph:
+					paras++
+				case *ast.List:
+					lists++
+				case *ast.FencedCodeBlock:
+					fences++
+				}
+			}
+			return ast.WalkContinue, nil
+		})
+		// The row's own list of sub-items, the opinion's list; its two paragraphs; its fence.
+		if paras < 2 || lists != 2 || fences != 1 {
+			t.Errorf("%s: the first row holds %d paragraph(s), %d list(s), %d fence(s); want the opinion's two paragraphs, its list and its fence:\n%s", tier, paras, lists, fences, md)
+		}
+	}
+}
+
+// RED'S NOTES ON A PROOF KEEP THEIR BLOCKS. Notes of one line share the judgement's line; where one runs
+// to several, each is a paragraph of the judgement's item in evidence.md, and a fence one leaves open
+// closes where it ends rather than taking the next note as code.
+func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	for _, c := range []struct {
+		notes []string
+		want  string
+	}{
+		{[]string{"one", "two<!--gap:G-00000001-->"}, "establishes this sentence — one / two\n"},
+		{[]string{"one\n```\nx", "two\n\nthree"}, "establishes this sentence — one\n  ```\n  x\n  ```\n\n  two\n\n  three\n"},
+	} {
+		var js []record.ProofJudgement
+		for _, n := range c.notes {
+			js = append(js, record.ProofJudgement{SeatID: "red-lens-evidence", Sound: true, Note: n})
+		}
+		proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
+			Soundness: record.SoundnessSound, Judgements: js}}
+		if ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true}); !strings.Contains(ev, c.want) {
+			t.Errorf("notes %q: evidence.md does not hold %q:\n%s", c.notes, c.want, ev)
 		}
 	}
 }

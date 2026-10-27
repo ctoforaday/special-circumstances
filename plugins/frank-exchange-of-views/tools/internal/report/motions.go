@@ -38,16 +38,16 @@ func motionRow(m *record.Motion, unruled *int) string {
 	}
 	fmt.Fprintf(&b, "- **%s** · %s · filed by %s #%d", m.ID, motionHead(m), filer, m.Sitting)
 	if m.Basis != "" {
-		fmt.Fprintf(&b, "\n  - asked: %s", oneLine(m.Basis))
+		fmt.Fprintf(&b, "\n  - asked: %s", inItem(m.Basis, "    "))
 	}
 	if m.Relief != "" {
 		// The OPERATIVE half of a granted ruling, distinct from the reasoning (#330).
-		fmt.Fprintf(&b, "\n  - relief sought: %s", oneLine(m.Relief))
+		fmt.Fprintf(&b, "\n  - relief sought: %s", inItem(m.Relief, "    "))
 	}
 	if m.Ruled() {
 		fmt.Fprintf(&b, "\n  - **ruled %s** by %s #%d", m.Ruling, m.RulingBy, m.RulingSitting)
 		if m.Opinion != "" {
-			fmt.Fprintf(&b, " — %s", oneLine(m.Opinion))
+			fmt.Fprintf(&b, " — %s", inItem(m.Opinion, "    "))
 		}
 	} else {
 		// THE ABSENCE IS THE INTERESTING CASE and must not fold into the empty set: an unruled

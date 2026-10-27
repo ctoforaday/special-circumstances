@@ -364,9 +364,14 @@ const titleLimit = 80
 // THE CUT IS AT A PUNCTUATION BOUNDARY BLUE ITSELF WROTE, never mid-clause: a colon, an
 // em-dash clause, or a sentence end. A title truncated at N characters would read as a defect;
 // one cut at the author's own boundary reads as a title.
+//
+// A TITLE WITH NO TEXT IS NO TITLE: an H1 that was only an anchor's token is "# " once the token is
+// out, and ships as the line that says the title is missing (titleOr), never as an empty heading.
 func heading(h1 string) (title, question string) {
-	h1 = titleOr(h1)
 	full := strings.TrimSpace(strings.TrimPrefix(h1, "# "))
+	if full == "" {
+		full = strings.TrimPrefix(titleOr(""), "# ")
+	}
 	// The suffix is a convention of the template, not part of the subject.
 	subject := strings.TrimSpace(strings.TrimSuffix(full, " — research report"))
 	if len([]rune(subject)) <= titleLimit {
@@ -845,7 +850,7 @@ func provenance(g *record.Gap, findings map[string]*record.Event) string {
 		if loc != "" {
 			loc = " (" + loc + ")"
 		}
-		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, oneLine(f.GetText())))
+		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, inItem(f.GetText(), "  ")))
 	}
 	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
 }
@@ -1075,7 +1080,7 @@ func correctnessManifest(fam record.Family) string {
 	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
 	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
 	for _, r := range rows {
-		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, oneLine(r.text))
+		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, inItem(r.text, "  "))
 	}
 	if len(unmanifested) > 0 {
 		fmt.Fprintf(&b, "\n**%d repaired gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
@@ -1100,7 +1105,7 @@ func spotChecks(fam record.Family) string {
 	fmt.Fprintf(&b, "### Spot-checks (%d)\n\n", len(checks))
 	b.WriteString("Red re-reading before a PASS what it would otherwise take on trust: the stale areas, each a retired lens's area the report has moved past since it sat, and its own closure record, which is only as good as the last time anyone looked. These are the sittings that looked, and what each found.\n\n")
 	for _, sc := range checks {
-		b.WriteString("- " + oneLine(sc.Describe()) + "\n")
+		b.WriteString("- " + inItem(sc.Describe(), "  ") + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -1180,7 +1185,7 @@ func regradeHistory(g *record.Gap) string {
 		// `--reason` LANDS ON `basis` (recordpb/required.go: "grade movement is recorded with
 		// its reason"). Regrade has no `reason` field, and inventing one would have been a
 		// silent blank in the one place this section exists to show.
-		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, oneLine(r.GetBasis())))
+		rows = append(rows, fmt.Sprintf("\n  - %s — %s", moved, inItem(r.GetBasis(), "    ")))
 	}
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
@@ -1324,7 +1329,7 @@ func debate(fam record.Family) string {
 			// stated there, with no verdict recorded, and this transcript is where a reader of the
 			// sitting looks for it.
 			if sc, ok := record.SpotCheckOf(e, fam.At, archive); ok {
-				epoch = append(epoch, "### RED SPOT-CHECK\n"+oneLine(sc.Describe()))
+				epoch = append(epoch, "### RED SPOT-CHECK\n"+ownBlock(sc.Describe()))
 			}
 			// A LENS THAT KEPT ITS GRADE: red's argument on that gap after its re-audit.
 			if kept[e] {
@@ -1473,7 +1478,7 @@ func logSection(fam record.Family) string {
 		if !ok {
 			continue
 		}
-		t := oneLine(f.GetText())
+		t := inItem(f.GetText(), "  ")
 		if t == "" {
 			continue
 		}
@@ -1567,6 +1572,30 @@ func ownBlock(s string) string {
 		n++
 	}
 	return strings.TrimRight(s, "\n") + "\n" + string(open[:n])
+}
+
+// inItem is seat prose the tool writes after its own text on a list item's line — a ruling's opinion,
+// a regrade's basis, a judgement's note — kept as the blocks its author wrote, inside that item. Every
+// later line is indented to the item's content column (indent), so a paragraph, a list or a fence in
+// it is the item's and the tool's next item or heading is still its own; a blank or unindented line
+// would end the item, leaving the rest of the value outside it as rows nobody wrote. Read in place —
+// its first line the end of the item's line, the rest blocks of the item — a fence the value leaves
+// open runs into the tool's next line, so it is closed (ownBlock, reading the first line as text
+// after text). A value of one line is that line. CommonMark ends a line at a `\r` as at a `\n`.
+func inItem(s, indent string) string {
+	s = strings.TrimSpace(strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(s))
+	if !strings.Contains(s, "\n") {
+		return s
+	}
+	lines := strings.Split(ownBlock("x" + s)[1:], "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			lines[i] = ""
+		} else {
+			lines[i] = indent + lines[i]
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func collapseBlanks(s string) string {

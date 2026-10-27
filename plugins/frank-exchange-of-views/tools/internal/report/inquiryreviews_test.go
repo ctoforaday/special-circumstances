@@ -79,7 +79,7 @@ func TestARunWithNoReviewShipsTheInquiriesAlone(t *testing.T) {
 	if strings.Contains(doc, "Inquiry reviews") {
 		t.Errorf("a run with no review ships a heading for them:\n%s", doc)
 	}
-	if strings.TrimSpace(doc) != strings.TrimSpace(EscapeNotes(seatView)) {
+	if strings.TrimSpace(doc) != strings.TrimSpace(stdReaders().escapeNotes(seatView)) {
 		t.Errorf("with no review, inquiries.md is not the inquiries view whole:\n%s\nview:\n%s", doc, seatView)
 	}
 }

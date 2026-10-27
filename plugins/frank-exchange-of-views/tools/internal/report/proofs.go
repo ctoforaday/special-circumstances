@@ -82,7 +82,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			proofNote(num[label]), plainInLine(firstNonEmpty(plain(p.Reason), storedScript(p))), FileEvidence, label)
+			proofNote(num[label]), escapeNotesInLine(firstNonEmpty(plain(p.Reason), plain(storedScript(p)))), FileEvidence, label)
 	}
 	return b.String(), order
 }
@@ -153,12 +153,12 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		var notes []string
 		for _, j := range p.Judgements {
 			if j.Note != "" && (p.Soundness != record.SoundnessUnsound || !j.Sound) {
-				notes = append(notes, plain(j.Note))
+				notes = append(notes, j.Note)
 			}
 		}
 		note := ""
 		if len(notes) > 0 {
-			note = " — " + strings.Join(notes, " / ")
+			note = " — " + judgementNotes(notes)
 		}
 		switch p.Soundness {
 		case record.SoundnessSound:
@@ -229,6 +229,26 @@ func longestRun(s string, c byte) int {
 		most = max(most, n)
 	}
 	return most
+}
+
+// judgementNotes is red's notes on a proof, written after the judgement on its list item's line, each
+// without its tokens (stripTokens): notes of one line each are joined on that line, and where one runs
+// to several lines each note is the item's own paragraph, its fences closed where it ends (inItem for
+// the first, which follows the tool's text, ownBlock for each after it, which opens a block).
+func judgementNotes(notes []string) string {
+	multi := false
+	for i, n := range notes {
+		notes[i] = strings.TrimSpace(strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(stripTokens(n, false)))
+		multi = multi || strings.Contains(notes[i], "\n")
+	}
+	if !multi {
+		return strings.Join(notes, " / ")
+	}
+	notes[0] = ownBlock("x" + notes[0])[1:]
+	for i := 1; i < len(notes); i++ {
+		notes[i] = ownBlock(notes[i])
+	}
+	return inItem(strings.Join(notes, "\n\n"), "  ")
 }
 
 // oneLine is s as one line of markdown, its runs of whitespace one space: the form of every value the

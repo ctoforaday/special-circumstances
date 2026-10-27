@@ -250,7 +250,7 @@ func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T
 	}
 }
 
-// renderOne renders md as one document of a set: Ship's parse, rendered by RenderSite's first pass.
+// renderOne renders md as one document of a set: shipSet's parse, rendered by RenderSite's first pass.
 func renderOne(md, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
-	return renderDoc(Ship("# T", []Doc{{File: file, Body: md}}).html[0], file, anchor, seen, files)
+	return renderDoc(stdReaders().shipSet("# T", []Doc{{File: file, Body: md}}).html[0], file, anchor, seen, files)
 }
