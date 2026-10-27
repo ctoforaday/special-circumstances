@@ -18,7 +18,7 @@ import (
 func TestAConcurrentReaderNeverSeesAPartialMarker(t *testing.T) {
 	proj := t.TempDir()
 	t0 := time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
-	if _, err := WriteRunLiveMarker(proj, "research/base", nil, t0, "", ""); err != nil {
+	if _, err := WriteRunLiveMarker(proj, "research/base", nil, t0, "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 	var stop atomic.Bool
@@ -68,7 +68,7 @@ func TestAConcurrentReaderNeverSeesAPartialMarker(t *testing.T) {
 		for j := range pins {
 			pins[j] = fmt.Sprintf("ideas/pin-%d-%d.md", i, j)
 		}
-		if _, werr = WriteRunLiveMarker(proj, run, pins, t0, "", ""); werr == nil {
+		if _, werr = WriteRunLiveMarker(proj, run, pins, t0, "", "", testLead); werr == nil {
 			_, _, werr = RemoveRunLiveEntry(proj, run)
 		}
 	}
@@ -111,7 +111,7 @@ func TestAFailedMarkerWriteIsReported(t *testing.T) {
 		}
 	})
 	t.Run("write", func(t *testing.T) {
-		if _, err := WriteRunLiveMarker(blocked(t), "research/x", nil, time.Now(), "", ""); err == nil {
+		if _, err := WriteRunLiveMarker(blocked(t), "research/x", nil, time.Now(), "", "", testLead); err == nil {
 			t.Fatal("a write that failed reported success")
 		}
 	})
@@ -122,7 +122,7 @@ func TestAFailedMarkerWriteIsReported(t *testing.T) {
 // finds no file. While the lock is held the read does not return; once released it sees the marker.
 func TestAReaderWaitsForAWriterHoldingTheMarkerLock(t *testing.T) {
 	proj := t.TempDir()
-	if _, err := WriteRunLiveMarker(proj, "research/x", nil, time.Now(), "", ""); err != nil {
+	if _, err := WriteRunLiveMarker(proj, "research/x", nil, time.Now(), "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 	release, err := lockMarker(proj)

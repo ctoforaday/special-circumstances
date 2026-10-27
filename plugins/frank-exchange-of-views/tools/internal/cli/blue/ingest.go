@@ -62,6 +62,9 @@ func newIngest() *cobra.Command {
 		}
 
 		reportPath := filepath.Join(run.Dir(), "blue", "report.md")
+		if err := record.RefuseRecordFile(run, reportPath, "blue/report.md", "a report"); err != nil {
+			return nil, err
+		}
 		content, err := os.ReadFile(reportPath)
 		if os.IsNotExist(err) {
 			// NOTHING WAITS AT THIS PATH, so a report written anywhere else is a refusal naming where

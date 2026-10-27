@@ -146,10 +146,10 @@ func TestOnlyAFaultyMarkerIsRecorded(t *testing.T) {
 		fault  bool
 	}{
 		"unreadable":                   {"{ not json", true},
-		"directory gone":               {`{"runs":[{"runDir":"research/gone"}]}`, false},
+		"directory gone":               {`{"runs":[{"runDir":"research/gone","leadSession":"session-lead-under-test"}]}`, false},
 		"no run open":                  {`{"runs":[]}`, false},
-		"two runs live":                {`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`, true},
-		"one live, one directory gone": {`{"runs":[{"runDir":"a"},{"runDir":"research/gone"}]}`, false},
+		"two runs live":                {`{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"b","leadSession":"session-lead-under-test"}]}`, true},
+		"one live, one directory gone": {`{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"research/gone","leadSession":"session-lead-under-test"}]}`, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("XDG_STATE_HOME", t.TempDir())

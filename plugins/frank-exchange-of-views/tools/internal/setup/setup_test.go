@@ -89,7 +89,7 @@ func TestBuildPinned(t *testing.T) {
 // WriteRunLiveMarker: commitment-as-state with the pinned paths for hook guards.
 func TestWriteRunLiveMarker(t *testing.T) {
 	project := t.TempDir()
-	p, err := runlive.WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now(), "", "")
+	p, err := runlive.WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now(), "", "", testLead)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestWriteRunLiveMarker(t *testing.T) {
 		t.Errorf("pinnedPaths missing: %s", body)
 	}
 	// An empty pinnedPaths must render as [] not null.
-	q, err := runlive.WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now(), "", "")
+	q, err := runlive.WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now(), "", "", testLead)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestPreflightRecordBinary(t *testing.T) {
 // live run stands on (TestSetupRefusesASecondLiveRun drives it).
 func TestTheMarkerRowReadsBackAndADifferentRunIsNotTheSame(t *testing.T) {
 	cwd := t.TempDir()
-	if _, err := runlive.WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 

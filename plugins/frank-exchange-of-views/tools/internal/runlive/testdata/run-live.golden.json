@@ -8,7 +8,8 @@
       ],
       "started": "2026-07-18T09:00:00.000Z",
       "runId": "run-alpha",
-      "scriptPath": "scripts/run.mjs"
+      "scriptPath": "scripts/run.mjs",
+      "leadSession": "session-lead-under-test"
     },
     {
       "runDir": "research/2026-07-18_beta",
@@ -16,7 +17,8 @@
         "research/old",
         "ideas/other.md"
       ],
-      "started": "2026-07-18T10:30:00.000Z"
+      "started": "2026-07-18T10:30:00.000Z",
+      "leadSession": "session-lead-under-test"
     }
   ]
 }
