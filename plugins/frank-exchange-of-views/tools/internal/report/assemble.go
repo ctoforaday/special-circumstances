@@ -325,13 +325,13 @@ func Assemble(run record.Run) (Assembled, error) {
 		return Assembled{}, fmt.Errorf("reading the board: %w", err)
 	}
 	title := Title(run)
-	set := Ship(docs)
+	set := Ship(title, docs)
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
-	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, set, fam)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(set, fam)), 0o644); err != nil {
 		return Assembled{}, fmt.Errorf("write report.html: %w", err)
 	}
-	path, err := Write(run, title, set, indexDoc(run, title, docs, fam))
+	path, err := Write(run, set, indexDoc(run, title, docs, fam))
 	if err != nil {
 		return Assembled{}, err
 	}

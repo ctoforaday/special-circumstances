@@ -23,7 +23,7 @@ func siteFixture(t *testing.T) (string, record.Family) {
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nG-00000001 is still open.\n"},
 		{File: FileDocket, Nav: "Board", Blurb: "the gaps", Body: "### G-00000001 — eviction races the reader\n\ncache.go:88\n"},
 	}
-	return RenderSite("# Whether the cache is coherent", Ship(docs), board.fam()), board.fam()
+	return RenderSite(Ship("# Whether the cache is coherent", docs), board.fam()), board.fam()
 }
 
 // ONE FILE. A reader opens it out of a tarball months later, offline — so nothing the page
@@ -136,7 +136,7 @@ func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 		{File: FileDebate, Nav: "Debate", Body: "A position[^1] on the proof[^P1].\n\n[^1]: Another source.\n[^P1]: The computation.\n"},
 		{File: FileRun, Nav: "Run", Body: "A third[^1].\n\n[^1]: A third source.\n"},
 	}
-	html := RenderSite("# T", Ship(docs), record.Family{})
+	html := RenderSite(Ship("# T", docs), record.Family{})
 	arts := regexp.MustCompile(`(?s)<article[^>]*data-doc="([^"]+)"[^>]*>(.*?)</article>`).FindAllStringSubmatch(html, -1)
 	if len(arts) != len(docs) {
 		t.Fatalf("the page holds %d article(s), want %d", len(arts), len(docs))

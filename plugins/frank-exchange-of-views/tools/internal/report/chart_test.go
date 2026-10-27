@@ -73,7 +73,7 @@ func TestBoardChartOpensTheRunDocument(t *testing.T) {
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nfine\n"},
 		{File: FileRun, Nav: "Run", Blurb: "the machinery", Body: "## Friction\n\nnone\n"},
 	}
-	html := RenderSite("# T", Ship(docs), board.fam())
+	html := RenderSite(Ship("# T", docs), board.fam())
 	if !strings.Contains(html, "<h2>The board, by epoch</h2>") || !strings.Contains(html, `<figure class="chart">`) {
 		t.Errorf("the run document did not open with the board chart")
 	}

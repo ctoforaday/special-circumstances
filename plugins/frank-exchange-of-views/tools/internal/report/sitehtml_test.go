@@ -134,7 +134,7 @@ func TestReportHTMLCarriesNoSeatHTML(t *testing.T) {
 			if bad := outsideAllowlist(renderOne(md, FileReport, anchors{}, map[string]int{}, nil).html); len(bad) > 0 {
 				t.Errorf("the renderer wrote markup of a seat's unit: %q", bad)
 			}
-			body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
+			body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
 			if bad := outsideAllowlist(body); len(bad) > 0 {
 				t.Errorf("report.html carries markup of a seat's unit: %q\n%s", bad, body)
 			}
@@ -156,7 +156,7 @@ func TestTheAllowlistHoldsWhatTheRendererLetThrough(t *testing.T) {
 	renderBody = func(parsed, string, anchors, map[string]int, map[string]bool) rendered {
 		return rendered{html: `<p>kept</p><script>alert(1)</script><img src="x" onerror="y()"><a href="javascript:z()" onclick="w()">l</a><!-- c -->`}
 	}
-	body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}))
+	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}))
 	if bad := outsideAllowlist(body); len(bad) > 0 {
 		t.Errorf("report.html carries what the allowlist exists to drop: %q\n%s", bad, body)
 	}
@@ -203,7 +203,7 @@ func TestTheAllowlistChangesNothingTheRendererWrites(t *testing.T) {
 		{File: FileDocket, Nav: "Board", Body: "## The board\n\n### G-00000001 — the gap\n\nIt is open; see [the report](report.md).\n"},
 		{File: FileEvidence, Nav: "Evidence", Body: "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n\n```python\nprint(91 % 7)\n```\n"},
 	}
-	set := Ship(docs)
+	set := Ship("# T", docs)
 	anchor, seen, files := anchors{}, map[string]int{}, map[string]bool{}
 	for _, d := range docs {
 		files[d.File] = true
@@ -302,7 +302,7 @@ func TestAnAutolinkShapedTagIsNoElement(t *testing.T) {
 	if bad := outsideAllowlist(renderOne(md, FileReport, anchors{}, map[string]int{}, nil).html); len(bad) > 0 {
 		t.Errorf("the renderer links an autolink-shaped tag to a scheme no link may name: %q", bad)
 	}
-	body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
+	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
 	if bad := outsideAllowlist(body); len(bad) > 0 {
 		t.Errorf("report.html makes an element or a script link of an autolink-shaped tag: %q\n%s", bad, body)
 	}
@@ -317,7 +317,7 @@ func TestAnAutolinkShapedTagIsNoElement(t *testing.T) {
 // of its own indented that text by the label's width, which a long label makes an indented code block.
 func TestATokenOpeningAFootnoteKeepsTheNote(t *testing.T) {
 	md := "A claim[^scope].\n\n[^scope]: <!--cite:C-deadbeef--> the note says <b>x</b>.\n"
-	body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}), record.Family{}))
+	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}), record.Family{}))
 	if strings.Contains(body, "<pre>") {
 		t.Errorf("the note's text renders as code:\n%s", body)
 	}
@@ -332,7 +332,7 @@ func TestATokenOpeningAFootnoteKeepsTheNote(t *testing.T) {
 // AN ANGLE-BRACKET DESTINATION IS A LINK. Escaping its `<` made `[a](<foo bar>)` literal text.
 func TestAngleBracketDestinationsStayLinks(t *testing.T) {
 	md := "See [a](<foo bar.md>) and [r] and ![i](<https://x.invalid/a b.png>).\n\n[r]: <https://x.invalid/r r>\n"
-	body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
+	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
 	for _, want := range []string{`<a href="foo%20bar.md">a</a>`, `<a href="https://x.invalid/r%20r">r</a>`, `<a href="https://x.invalid/a%20b.png">i</a>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("report.html lacks the link %s:\n%s", want, body)
@@ -344,9 +344,9 @@ func TestAngleBracketDestinationsStayLinks(t *testing.T) {
 // tag, and a label that is no proof id panicked the assembly.
 func TestAProofLabelAnchorsOnce(t *testing.T) {
 	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P2\n\n" + proofAnchorMark("not-a-label") + "\n\n### P3\n"
-	set := Ship([]Doc{{File: FileEvidence, Nav: "Evidence", Body: md}})
-	page := mainOf(RenderSite("# T", set, record.Family{}))
-	shipped := set.file(0, "# T")
+	set := Ship("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}})
+	page := mainOf(RenderSite(set, record.Family{}))
+	shipped := set.md[0]
 	for tier, got := range map[string]string{"report.html": page, "evidence.md": shipped} {
 		if n := strings.Count(got, proofAnchor("P-deadbeef")); n != 1 {
 			t.Errorf("%s holds %d anchors for the label, want 1:\n%s", tier, n, got)
@@ -363,7 +363,7 @@ func TestAFenceInfoStringIsNotEscaped(t *testing.T) {
 	if got := ship(md); got != md {
 		t.Errorf("the .md escaped a fence's info string:\n%s", got)
 	}
-	body := mainOf(RenderSite("# T", Ship([]Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
+	body := mainOf(RenderSite(Ship("# T", []Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
 	z := html.NewTokenizer(strings.NewReader(body))
 	for z.Next() != html.ErrorToken {
 		if tok := z.Token(); tok.Data == "code" && tok.Type == html.StartTagToken {

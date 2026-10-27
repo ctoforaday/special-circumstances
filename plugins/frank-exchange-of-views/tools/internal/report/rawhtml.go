@@ -1,44 +1,39 @@
 package report
 
-// WHAT A MARKDOWN VIEWER MAY READ AS HTML IS DECIDED ONCE, ON THE WHOLE SHIPPED .md.
+// A SHIPPED .md HOLDS NO SEAT'S HTML FOR A COMMONMARK READER.
 //
 // A shipped document is composed from units — the report's text, and each section a seat's words
-// fill — and a markdown viewer parses it WHOLE. A unit checked alone is parsed alone, so its fence
-// and HTML state is not the state the reader meets: a fence one unit leaves open flips the next
-// unit's code and prose, an indented line one unit wrote as code is HTML inside the list the unit
-// before it ended with, and an unclosed `<!--` hides every section after it. Seats read untrusted
-// web content, and a viewer that renders raw HTML from the .md is a page the human opens.
+// fill — and a markdown viewer parses it WHOLE: a fence one unit leaves open flips the next unit's
+// code and prose, and an unclosed `<!--` hides every section after it. Seats read untrusted web
+// content, and a viewer that renders raw HTML from the .md is a page the human opens. So the
+// decision is taken on each whole document, once (Ship), and Write writes it.
 //
-// This file governs the .md tier alone: Ship takes the decision on each document once, and Write
-// writes it. report.html never reads this text — it renders the composed text through a renderer
-// that passes no HTML through (md.go) and an allowlist after it (site.go). The seat-facing views —
-// `show report --assembled` (Layout), `show inquiries` — print the record's text as written,
-// because a seat quotes and edits it.
+// WHAT IS HTML IS THE PARSER'S READING, in the grammar a CommonMark viewer reads the file in
+// (mdReader: CommonMark, GitHub's extensions, footnotes). ship parses the document and puts a
+// backslash before every `<` inside each HTML node — an HTML block's lines, an inline tag or
+// comment — but the tool's, and parses again, because text that stops being HTML can let the lines
+// around it read differently: a comment line escaped into a paragraph takes the indented line after
+// it as a continuation, where it was code. It stops at the first parse that
+// finds no seat HTML. Code, autolinks, link destinations and info strings are never edited: the
+// parser reads none of them as HTML.
 //
-// THE ESCAPE IS NOT A JUDGEMENT OF WHAT A PARSER WOULD CALL HTML. Asking that of one parser makes
-// the shipped text safe only in readers that parse alike, and each escape can expose another
-// opener, which made the check a loop. Instead every `<` outside code is escaped with a backslash,
-// which every markdown reader prints as the character typed, except three shapes:
-//   - an autolink, `<scheme:…>` or `<name@host>`, which no reader can take for a tag;
-//   - a run of the tool's anchor tokens, an HTML comment that renders as nothing — and where such a
-//     run opens a line and more text follows it, the text moves to a line of its own, because a
-//     comment opening a line opens an HTML block and an HTML block takes the rest of its line raw;
-//   - evidence.md's anchor per proof, only where evidenceDoc wrote it: it writes a mark no record
-//     text can hold (anchorMark), and shipping turns each mark into the anchor. The same tag typed
-//     anywhere is a seat's, and is escaped like any other.
+// THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
+// proof's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
+// and resolveMarkSpans makes it the anchor and returns its span. A `<` inside such a span is the
+// tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly weaves or strips
+// every anchor token before a document ships (AssembleAll), so a token in one is a seat's text.
 //
-// What is code comes from one parse of the document. Escaping cannot make code of prose that
-// matters, but it can make prose of code: a comment escaped into a paragraph takes the next line,
-// or a backtick it held, into the paragraph with it. So the escaped text is parsed again, and if
-// that parse holds any HTML outside the three shapes, every `<` is escaped, code or not — the
-// backslash then prints inside code, which only text built to defeat the first walk meets. Should
-// even that parse hold HTML a token opened, the tokens are escaped too. At most two parses on the
-// common path and four on any, never a loop.
+// THE PARSES ARE BOUNDED. Each parse costs the document's length, and maxEscapePasses caps them;
+// a text that still holds seat HTML after them has every `<` but the tool's escaped, code or not —
+// the backslash then prints inside code, which only text built to need that many passes meets.
+//
+// The seat-facing views — `show report --assembled` (Layout), `show inquiries` — print the
+// record's text as written, because a seat quotes and edits it. report.html never reads this text:
+// it renders through a reader with no HTML grammar (md.go) and an allowlist after it (site.go).
 
 import (
 	"bytes"
 	"slices"
-	"strings"
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -49,317 +44,127 @@ import (
 // parseMD is a parse of a shipped .md, in the dialect a markdown viewer reads it in (mdReader).
 var parseMD = func(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
 
-// ship is md as its .md ships: the decision taken, in at most four parses.
+// maxEscapePasses is how many parses ship spends finding seat HTML before it escapes every `<`.
+var maxEscapePasses = 4
+
+// ship is md as its .md ships: its proofs' anchors in place, and no HTML in it a CommonMark reader
+// finds but those anchors.
+//
+// WHAT A READER IS GUARANTEED. A reader that parses the file as CommonMark with GitHub's extensions
+// finds no HTML in it but the proofs' anchors: every other `<` that would open a tag, a comment or
+// an HTML block carries a backslash, and such a reader prints it as the character typed. A viewer
+// that does not parse the file as CommonMark is not covered: one that reads `<svg:x onfocus=…>` —
+// an autolink to CommonMark — or an angle-bracket link destination as a tag finds a tag there.
 func ship(md string) string {
 	md, tool := resolveMarkSpans(md)
-	src := []byte(md)
-	first := parseMD(src)
-	out, at := escapeWalk(md, codeIn(first, src), tool, true)
-	tree := first
-	if !bytes.Equal(out, src) {
-		tree = parseMD(out)
-	}
-	if onlyToolHTML(tree, out, at) {
-		return string(out)
-	}
-	for _, tokens := range []bool{true, false} {
-		out, at = escapeWalk(md, nil, tool, tokens)
-		if onlyToolHTML(parseMD(out), out, at) {
-			return string(out)
+	src, spans := []byte(md), tool
+	for pass := 1; ; pass++ {
+		at := seatHTML(parseMD(src), src, spans)
+		if len(at) == 0 {
+			return string(src)
 		}
-	}
-	panic("report: text with every `<` escaped but the proofs' anchors still parses to HTML the tool did not write")
-}
-
-// codeIn is every stretch of src the tree reads as code, in order: a fence's info string, a code
-// block's lines and a code span's content.
-func codeIn(tree ast.Node, src []byte) [][2]int {
-	var code [][2]int
-	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		switch x := n.(type) {
-		case *ast.FencedCodeBlock, *ast.CodeBlock:
-			if f, ok := x.(*ast.FencedCodeBlock); ok && f.Info != nil {
-				code = append(code, [2]int{f.Info.Segment.Start, f.Info.Segment.Stop})
-			}
-			for i := 0; i < x.Lines().Len(); i++ {
-				seg := x.Lines().At(i)
-				code = append(code, [2]int{seg.Start, seg.Stop})
-			}
-			return ast.WalkSkipChildren, nil
-		case *ast.CodeSpan:
-			first, last := x.FirstChild(), x.LastChild()
-			if first != nil {
-				code = append(code, [2]int{first.(*ast.Text).Segment.Start, last.(*ast.Text).Segment.Stop})
-			}
-			return ast.WalkSkipChildren, nil
-		}
-		return ast.WalkContinue, nil
-	})
-	slices.SortFunc(code, func(a, b [2]int) int { return a[0] - b[0] })
-	return code
-}
-
-// escapeWalk is s with every `<` outside code escaped but the three shapes, in one pass, and the
-// offsets in the result where the tool's anchors begin. tool is the span of each of those in s;
-// without tokens, a token is escaped like any other comment.
-func escapeWalk(s string, code, tool [][2]int, tokens bool) ([]byte, []int) {
-	var b bytes.Buffer
-	var at []int
-	last, ci, ti := 0, 0, 0
-	for i := 0; i < len(s); {
-		j := strings.IndexByte(s[i:], '<')
-		if j < 0 {
+		if pass == maxEscapePasses {
 			break
 		}
-		i += j
-		for ci < len(code) && code[ci][1] <= i {
-			ci++
-		}
-		if ci < len(code) && code[ci][0] <= i {
-			i = code[ci][1]
-			continue
-		}
-		for ti < len(tool) && tool[ti][0] < i {
-			ti++
-		}
-		if ti < len(tool) && tool[ti][0] == i {
-			at = append(at, b.Len()+i-last)
-			i = tool[ti][1]
-			continue
-		}
-		if end := anchor.SkipRun(s, i); tokens && end > i {
-			// A run of tokens, and the tokens and blanks after it on its line.
-			for k := skipBlanks(s, end); k > end && anchor.SkipRun(s, k) > k; k = skipBlanks(s, end) {
-				end = anchor.SkipRun(s, k)
-			}
-			rest := skipBlanks(s, end)
-			ls := strings.LastIndexByte(s[:i], '\n') + 1
-			if rest < len(s) && s[rest] != '\n' && s[rest] != '\r' && opensLine(s[ls:i]) {
-				b.WriteString(s[last:end])
-				b.WriteByte('\n')
-				b.WriteString(continuation(s[ls:i]))
-				last = rest
-			}
-			i = rest
-			continue
-		}
-		if n := autolinkLen(s, i); n > 0 {
-			i += n
-			continue
-		}
-		floor := 0
-		if ci > 0 {
-			floor = code[ci-1][1]
-		}
-		if backslashesBefore(s, i, floor)%2 == 0 {
-			b.WriteString(s[last:i])
-			b.WriteByte('\\')
-			last = i
-		}
-		i++
+		src, spans = escapeAt(src, at, spans)
 	}
-	if last == 0 && b.Len() == 0 {
-		return []byte(s), at
+	src, spans = escapeAt([]byte(md), angles([]byte(md), tool), tool)
+	if len(seatHTML(parseMD(src), src, spans)) > 0 {
+		panic("report: text with every `<` escaped but the proofs' anchors still parses to HTML the tool did not write")
 	}
-	b.WriteString(s[last:])
-	return b.Bytes(), at
+	return string(src)
 }
 
-// skipBlanks is the offset of the first byte at or after i that is not a space or a tab.
-func skipBlanks(s string, i int) int {
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	return i
-}
-
-// backslashesBefore counts the backslashes running back from i, no further than floor: an odd count
-// escapes the byte at i.
-func backslashesBefore(s string, i, floor int) int {
-	n := 0
-	for k := i - 1; k >= floor && s[k] == '\\'; k-- {
-		n++
-	}
-	return n
-}
-
-// opensLine reports whether prefix — what stands before a byte on its line — can be no more than
-// the container markers and indentation a block opens after: blanks, block quote markers, list
-// markers, and a footnote definition's label. Saying yes where a reader says no costs a line break
-// inside a paragraph, which renders as a space.
-func opensLine(prefix string) bool {
-	if i := strings.Index(prefix, "]:"); i >= 0 {
-		if k := strings.Index(prefix[:i], "[^"); k >= 0 && markers(prefix[:k]) && markers(prefix[i+2:]) {
-			return true
-		}
-	}
-	return markers(prefix)
-}
-
-func markers(s string) bool {
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; {
-		case c == ' ' || c == '\t' || c == '>' || c == '-' || c == '+' || c == '*' || c == '.' || c == ')':
-		case c >= '0' && c <= '9':
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-// continuation is the line prefix that keeps a line in the containers prefix opened: its block
-// quote markers and its width in blanks.
-func continuation(prefix string) string {
-	b := []byte(prefix)
-	for i, c := range b {
-		if c != '>' && c != '\t' {
-			b[i] = ' '
-		}
-	}
-	return string(b)
-}
-
-// autolinkLen is the length of the autolink at i, or 0: CommonMark's `<scheme:…>` and `<name@host>`.
-// Neither can be read as a tag — a tag name holds no `:` and no `@` — so no reader makes HTML of one.
-func autolinkLen(s string, i int) int {
-	j := i + 1
-	k := j
-	for k < len(s) && k-j < 33 && (isAlpha(s[k]) || k > j && (isDigit(s[k]) || s[k] == '+' || s[k] == '.' || s[k] == '-')) {
-		k++
-	}
-	if n := k - j; n >= 2 && n <= 32 && k < len(s) && s[k] == ':' {
-		for k++; k < len(s); k++ {
-			switch c := s[k]; {
-			case c == '>':
-				return k - i + 1
-			case c == '<' || c <= ' ' || c == 0x7f:
-				return 0
-			}
-		}
-		return 0
-	}
-	k = j
-	for k < len(s) && (isAlpha(s[k]) || isDigit(s[k]) || strings.IndexByte(".!#$%&'*+/=?^_`{|}~-", s[k]) >= 0) {
-		k++
-	}
-	if k == j || k >= len(s) || s[k] != '@' {
-		return 0
-	}
-	k++
-	for {
-		start := k
-		for k < len(s) && k-start < 63 && (isAlpha(s[k]) || isDigit(s[k]) || s[k] == '-') {
-			k++
-		}
-		if k == start || s[start] == '-' || s[k-1] == '-' || k >= len(s) {
-			return 0
-		}
-		switch s[k] {
-		case '>':
-			return k - i + 1
-		case '.':
-			k++
-		default:
-			return 0
-		}
-	}
-}
-
-func isAlpha(c byte) bool { return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' }
-func isDigit(c byte) bool { return c >= '0' && c <= '9' }
-
-// onlyToolHTML reports whether every HTML node of tree is in a shape the tool wrote: a run of anchor
-// tokens, as a block or inline, or a proof's anchor beginning at one of at.
-func onlyToolHTML(tree ast.Node, src []byte, at []int) bool {
-	ok := true
+// seatHTML is the offset of every `<` in src that stands inside an HTML node of tree, outside the
+// tool's anchors (tool, their spans), and is not already escaped, in order.
+func seatHTML(tree ast.Node, src []byte, tool [][2]int) []int {
+	var at []int
 	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
+		var segs []text.Segment
 		switch x := n.(type) {
 		case *ast.HTMLBlock:
-			ok = tokensOnly(rawLines(x, src))
+			segs = x.Lines().Sliced(0, x.Lines().Len())
+			if x.HasClosure() {
+				segs = append(segs, x.ClosureLine)
+			}
 		case *ast.RawHTML:
-			ok = tokenRun(rawText(x, src)) || toolAnchorPart(x, src, at)
-		}
-		if !ok {
-			return ast.WalkStop, nil
-		}
-		return ast.WalkContinue, nil
-	})
-	return ok
-}
-
-// toolAnchorPart reports whether x is the opening or the closing tag of a proof's anchor the tool
-// placed at one of at.
-func toolAnchorPart(x *ast.RawHTML, src []byte, at []int) bool {
-	open := x
-	if rawText(x, src) == "</a>" {
-		p, isRaw := x.PreviousSibling().(*ast.RawHTML)
-		if !isRaw || p.Segments.At(p.Segments.Len()-1).Stop != x.Segments.At(0).Start {
-			return false
-		}
-		open = p
-	}
-	start := open.Segments.At(0).Start
-	if _, found := slices.BinarySearch(at, start); !found {
-		return false
-	}
-	whole := rawText(open, src) + "</a>"
-	label := strings.TrimSuffix(strings.TrimPrefix(whole, `<a id="`), `"></a>`)
-	return proofLabel(label) && whole == proofAnchor(label)
-}
-
-// tokensOnly reports whether s is anchor tokens and blanks, at least one token.
-func tokensOnly(s string) bool {
-	found := false
-	for i := 0; i < len(s); {
-		if end := anchor.SkipRun(s, i); end > i {
-			found, i = true, end
-			continue
-		}
-		switch s[i] {
-		case ' ', '\t', '\n', '\r':
-			i++
+			segs = x.Segments.Sliced(0, x.Segments.Len())
 		default:
-			return false
+			return ast.WalkContinue, nil
 		}
-	}
-	return found
+		for _, seg := range segs {
+			for i := seg.Start; i < seg.Stop; i++ {
+				if src[i] == '<' && !inSpan(i, tool) && !escaped(src, i) {
+					at = append(at, i)
+				}
+			}
+		}
+		return ast.WalkSkipChildren, nil
+	})
+	slices.Sort(at)
+	return slices.Compact(at)
 }
 
-// tokenRun reports whether s is one or more anchor tokens and nothing else.
-func tokenRun(s string) bool { return s != "" && anchor.SkipRun(s, 0) == len(s) }
+// inSpan reports whether offset i lies inside one of spans, which are in order and do not overlap.
+func inSpan(i int, spans [][2]int) bool {
+	k, _ := slices.BinarySearchFunc(spans, i+1, func(s [2]int, i int) int { return s[0] - i })
+	return k > 0 && i < spans[k-1][1]
+}
+
+// escaped reports whether the byte at i is escaped: an odd run of backslashes stands before it.
+func escaped(src []byte, i int) bool {
+	n := 0
+	for k := i - 1; k >= 0 && src[k] == '\\'; k-- {
+		n++
+	}
+	return n%2 == 1
+}
+
+// angles is every `<` of src outside spans that is not already escaped: the fallback's edits.
+func angles(src []byte, spans [][2]int) []int {
+	var at []int
+	for i, c := range src {
+		if c == '<' && !inSpan(i, spans) && !escaped(src, i) {
+			at = append(at, i)
+		}
+	}
+	return at
+}
+
+// escapeAt is src with a backslash before each offset of at, which are in order, and spans moved
+// to where their bytes now stand. No offset of at lies inside a span.
+func escapeAt(src []byte, at []int, spans [][2]int) ([]byte, [][2]int) {
+	out := make([]byte, 0, len(src)+len(at))
+	last := 0
+	for _, i := range at {
+		out = append(append(out, src[last:i]...), '\\')
+		last = i
+	}
+	out = append(out, src[last:]...)
+	moved := make([][2]int, len(spans))
+	for k, s := range spans {
+		n, _ := slices.BinarySearch(at, s[0])
+		moved[k] = [2]int{s[0] + n, s[1] + n}
+	}
+	return out, moved
+}
 
 // proofLabel reports whether label is a proof id: the anchor package reads the id shape, from the
 // token it would spell.
 func proofLabel(label string) bool {
-	return anchor.Kind(label) == "proof" && tokenRun(anchor.Token(label))
+	tok := anchor.Token(label)
+	return anchor.Kind(label) == "proof" && anchor.SkipRun(tok, 0) == len(tok)
 }
 
 // rawText is an inline HTML node's source.
 func rawText(x *ast.RawHTML, src []byte) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	for i := 0; i < x.Segments.Len(); i++ {
 		seg := x.Segments.At(i)
 		b.Write(seg.Value(src))
-	}
-	return b.String()
-}
-
-// rawLines is an HTML block's source, its closing line with it.
-func rawLines(x *ast.HTMLBlock, src []byte) string {
-	var b strings.Builder
-	for i := 0; i < x.Lines().Len(); i++ {
-		seg := x.Lines().At(i)
-		b.Write(seg.Value(src))
-	}
-	if x.HasClosure() {
-		b.Write(x.ClosureLine.Value(src))
 	}
 	return b.String()
 }

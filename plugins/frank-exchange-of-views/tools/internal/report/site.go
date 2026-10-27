@@ -59,9 +59,9 @@ type siteDoc struct {
 // RenderSite builds the whole set into one HTML file. It takes the shipped document bodies (no
 // markdown link bar, no repeated H1) because the tab strip and the header say those things
 // better here.
-func RenderSite(title string, set Shipped, fam record.Family) string {
+func RenderSite(set Shipped, fam record.Family) string {
 	docs := set.docs
-	short := strings.TrimSpace(strings.TrimPrefix(title, "# "))
+	short := strings.TrimSpace(strings.TrimPrefix(set.title, "# "))
 
 	// TWO PASSES, and the reason is the join: pass one renders each document and records
 	// where every record id is DEFINED; pass two links every mention across the whole set. A

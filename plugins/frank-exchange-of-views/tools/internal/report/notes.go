@@ -2,7 +2,10 @@ package report
 
 import (
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/yuin/goldmark/ast"
 )
 
 // ONLY THE WEAVE OPENS A FOOTNOTE IN WHAT ASSEMBLY COMPOSES.
@@ -82,4 +85,35 @@ func NoteEscapedAt(md string, i int) bool {
 		n++
 	}
 	return n%2 == 1
+}
+
+// codeIn is every stretch of src the tree reads as code, in order: a fence's info string, a code
+// block's lines and a code span's content.
+func codeIn(tree ast.Node, src []byte) [][2]int {
+	var code [][2]int
+	_ = ast.Walk(tree, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch x := n.(type) {
+		case *ast.FencedCodeBlock, *ast.CodeBlock:
+			if f, ok := x.(*ast.FencedCodeBlock); ok && f.Info != nil {
+				code = append(code, [2]int{f.Info.Segment.Start, f.Info.Segment.Stop})
+			}
+			for i := 0; i < x.Lines().Len(); i++ {
+				seg := x.Lines().At(i)
+				code = append(code, [2]int{seg.Start, seg.Stop})
+			}
+			return ast.WalkSkipChildren, nil
+		case *ast.CodeSpan:
+			first, last := x.FirstChild(), x.LastChild()
+			if first != nil {
+				code = append(code, [2]int{first.(*ast.Text).Segment.Start, last.(*ast.Text).Segment.Stop})
+			}
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	slices.SortFunc(code, func(a, b [2]int) int { return a[0] - b[0] })
+	return code
 }

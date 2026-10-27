@@ -133,7 +133,7 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	// ONE PAGE, ONE ELEMENT PER ID. report.html holds every document as a tab, and a fragment
 	// resolves to the first element of that id on the page: the report's own "Proofs" and
 	// evidence.md's are two ids.
-	html := report.RenderSite(report.Title(open), report.Ship(docs), record.Family{})
+	html := report.RenderSite(report.Ship(report.Title(open), docs), record.Family{})
 	seen := map[string]bool{}
 	for _, m := range regexp.MustCompile(` id="([^"]+)"`).FindAllStringSubmatch(html, -1) {
 		if seen[m[1]] {

@@ -314,33 +314,28 @@ func composedText(d Doc, title string, set []Doc) string {
 	return head(d, title, set) + resolveMarks(strings.TrimRight(d.Body, "\n")+"\n")
 }
 
-// Shipped is a report set as it ships, each document read once per tier: its .md text, the escape
-// taken on the whole document (ship), and its parse, which report.html renders. It is made only by
-// Ship, so neither tier can be handed a text the decision was not taken on.
+// Shipped is a report set as it ships, each document read once per tier: its .md text, head and
+// body shipped whole (ship), and its body's parse, which report.html renders under its own header.
+// It is made only by Ship, so neither tier can be handed a text the decision was not taken on.
 type Shipped struct {
-	docs []Doc
-	md   []string // each document's body as report.md and its siblings ship it
-	html []parsed // and the tree report.html renders it from
+	title string
+	docs  []Doc
+	md    []string // each document as report.md and its siblings ship it
+	html  []parsed // and the tree report.html renders its body from
 }
 
-// Ship takes each tier's reading of each document of the set. The head Write puts on a document is
-// shipped on its own: a blank line and a rule close it, so nothing in it reaches the body.
-func Ship(docs []Doc) Shipped {
-	set := Shipped{docs: docs}
+// Ship takes each tier's reading of each document of the set, under the run's title.
+func Ship(title string, docs []Doc) Shipped {
+	set := Shipped{title: title, docs: docs}
 	for _, d := range docs {
 		body := strings.TrimRight(d.Body, "\n") + "\n"
-		set.md = append(set.md, ship(body))
+		set.md = append(set.md, ship(head(d, title, docs)+body))
 		// The reading tier shows a marker byte as the replacement character; the durable tier ships
 		// the text as written.
 		src := []byte(unmarked(body))
 		set.html = append(set.html, parsed{src: src, tree: parsePage(src)})
 	}
 	return set
-}
-
-// file is the i'th document as its .md ships: its head, shipped on its own, and its shipped body.
-func (s Shipped) file(i int, title string) string {
-	return ship(head(s.docs[i], title, s.docs)) + s.md[i]
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the
@@ -451,14 +446,14 @@ func supersededAsks(evs []*record.Event) string {
 // Write renders the set to disk and returns report.md's path. Files in the set that this run
 // produced no content for are REMOVED rather than left stale: a run re-assembled after its
 // motions were withdrawn must not keep yesterday's judgments.md next to today's report.
-func Write(run record.Run, title string, set Shipped, index string) (string, error) {
+func Write(run record.Run, set Shipped, index string) (string, error) {
 	want := map[string]bool{FileIndex: true}
 	for i, d := range set.docs {
 		want[d.File] = true
 		path := filepath.Join(run.Dir(), d.File)
-		// The link bar is applied HERE, over the set that actually exists, so it can never
-		// link a file nobody wrote.
-		if err := os.WriteFile(path, []byte(set.file(i, title)), 0o644); err != nil {
+		// Each document's link bar is over the set Ship was given, which is the set written here,
+		// so it can never link a file nobody wrote.
+		if err := os.WriteFile(path, []byte(set.md[i]), 0o644); err != nil {
 			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}
