@@ -1514,7 +1514,12 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	r.mu.Lock()
 	filed := len(r.petitionsFiled)
 	r.mu.Unlock()
-	r.maybePetition(seatID)
+	// A FORCED RUN'S CHAIR FILES NO PETITION. A petition readies the bench, so a chair sitting whose
+	// plan readied nobody re-arms the run with one, one coin per sitting: the forced run would end
+	// when the coin first misses rather than one march after its first sitting (findsFresh).
+	if !r.forcedVerdict() {
+		r.maybePetition(seatID)
+	}
 	r.mu.Lock()
 	petitioned := len(r.petitionsFiled) > filed
 	r.mu.Unlock()
@@ -1607,6 +1612,16 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	}
 	r.mu.Unlock()
 	switch {
+	// A FORCED RUN'S SITTINGS ALL COUNT, because its bound (findsFresh) is counted in them. Both
+	// drawn openings below register under an agent id, and an opening that carries an agent is sat
+	// through only once its sitting_close lands — which SubagentStop writes in a live run and
+	// nothing writes here (record.satThroughOf). Such a sitting moves no pin and counts nothing
+	// toward retirement, so a lens drawing it sits again at the same head, drawing again from the
+	// shared stream in scheduler order: the forced run's tail is a geometric draw per lens, and on
+	// the forced-UNVERIFIED test it outran the epoch limit and ended CEILING. A forced run opens by
+	// a plain register, sat through at its next opening; the drawn runs keep both shapes.
+	case r.forcedVerdict():
+		r.admit(registerArgs(seatID, occ)...)
 	case r.coin(25):
 		r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
@@ -1786,6 +1801,10 @@ func (r *runner) findsFresh() bool {
 	defer r.mu.Unlock()
 	return r.chairRegisters <= 1
 }
+
+// forcedVerdict is whether this run is forced to a terminal verdict, UNVERIFIED or VERIFIED: the
+// runs findsFresh bounds, and whose every sitting counts (sit, and the lens's whole read).
+func (r *runner) forcedVerdict() bool { return r.forceUnverified || r.forceVerified }
 
 // landedMints is the mints of seatID that landed in this run.
 func (r *runner) landedMints(seatID string) int {
@@ -4077,8 +4096,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// served it at the head is ready at the head again, until it is or retires. Most sittings
 		// read it, in either whole form; the rest read only a selection, which serves part of it and
 		// moves nothing, so the sweep reaches a lens readied again at a head it sat at.
+		// A forced run's lens reads it whole every sitting, so each sitting moves its pin: a selection
+		// read leaves it ready at the head it sat at, which is one more sitting the bound does not count.
 		switch n := r.rng.Intn(10); {
-		case n < 5:
+		case r.forcedVerdict() || n < 5:
 			r.readOnly("show", seatID, "report")
 		case n < 9:
 			r.readOnly("show", seatID, "report", "--json")
