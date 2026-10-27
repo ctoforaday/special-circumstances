@@ -4306,20 +4306,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					// EVERY ONE, because each is owed: an unchecked anchor's item blocks its owner's
 					// envelope, so an item this sitting leaves refuses it. What is drawn is the result.
-					results := []string{"supports", "unreachable"}
-					if r.forceVerified {
-						results = results[:1]
-					}
+					//
+					// A FAILED CHECK ONE TIME IN TEN. Each starts a chain — the reader's gap, blue's
+					// remedy, a fresh check — and drawn at even odds over every owed anchor the chains
+					// outran the sweep's time limit; the archive holds two unreachable readings in 31
+					// runs. The forced-VERIFIED run reads every one, and neither forced run judges a
+					// proof unsound (judgement).
 					for _, it := range owed {
 						if !r.firstThisSitting(seatID, it.Anchor) {
 							continue
 						}
 						if it.Sha != "" {
-							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", r.judgement()).
+							as := "sound"
+							if r.judgement() == "unsound" && r.coin(20) {
+								as = "unsound"
+							}
+							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", as).
 								set("--reason", "fuzz: read the script against the sentence as it now stands").admit()
 						} else {
+							as := "supports"
+							if !r.forceVerified && r.coin(10) {
+								as = "unreachable"
+							}
 							r.do("verify", seatID).set("--anchor", it.Anchor).
-								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
+								set("--as", as).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
 						}
 					}

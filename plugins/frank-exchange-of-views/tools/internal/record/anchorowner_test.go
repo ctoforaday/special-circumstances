@@ -116,6 +116,11 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 			}
 			b.cite("C-1").proof("P-1", "s1").cite("C-2").supports(outsideLens, "C-2").
 				proof("P-2", "s2").reproduce(outsideLens, "P-2", "s2", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("C-2", "P-2")
+			// Each lens sits again after the anchors are placed: a sitting opened before an anchor was
+			// served a report without it, and is not held by it.
+			for _, lens := range c.cast {
+				b.sit(b.at(), lens)
+			}
 			run := b.seed()
 			fam, err := FamilyOf(run)
 			if err != nil {
