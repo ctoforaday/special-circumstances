@@ -43,13 +43,34 @@ func (b *stage) exchangeOn(gap string) *stage {
 		sitClosed(evLens).sitClosed("blue-respond")
 }
 
-// actingExchangeOn is one exchange on gap in which the minting lens acts on it without moving it: a
-// regrade that keeps the grade, recorded in its sitting. It is the remand's exchange when one is owed.
+// actingExchangeOn is one exchange on gap in which both parties act on it without moving it: the
+// minting lens keeps the grade, and blue records a proof answering it. It is the remand's exchange
+// when one is owed, because blue acted in it.
 func (b *stage) actingExchangeOn(gap string) *stage {
+	b.lensActs(gap)
+	agent := fmt.Sprintf("blue-proves-%d", b.n)
+	return b.registerAs("blue-respond", agent).blueProves(gap).stop(agent)
+}
+
+// lensOnlyExchangeOn is one exchange on gap in which only the minting lens acts: it sits first and
+// keeps the grade, and blue sits after it and records nothing on the gap — universe-m35's order. It
+// begins no remand's exchange.
+func (b *stage) lensOnlyExchangeOn(gap string) *stage {
+	return b.lensActs(gap).sitClosed("blue-respond")
+}
+
+// lensActs is the chair dispatching the minting lens and blue on gap, and the lens sitting first and
+// keeping the grade.
+func (b *stage) lensActs(gap string) *stage {
 	b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap)
 	agent := fmt.Sprintf("%s-keeps-%d", evLens, b.n)
-	b.registerAs(evLens, agent).served(evLens, b.head()).keepGrade(evLens, gap, keptReason).stop(agent)
-	return b.sitClosed("blue-respond")
+	return b.registerAs(evLens, agent).served(evLens, b.head()).keepGrade(evLens, gap, keptReason).stop(agent)
+}
+
+// blueProves is blue recording a proof answering gap: an act on it that moves nothing.
+func (b *stage) blueProves(gap string) *stage {
+	return b.add("blue-respond", &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("P-%d", b.n+1)),
+		ProofSha: proto.String(fmt.Sprintf("sha-%d", b.n+1)), Answers: proto.String(gap)})
 }
 
 // docketAndRemand is the chair's verb docketing gap at impasse as motion, and the bench sitting for
@@ -180,8 +201,8 @@ func TestARemandLineCarriesItsDirectionAsWritten(t *testing.T) {
 	}
 }
 
-// ONE EXCHANGE, NOT A LOOP. The minting lens and blue sit once on the remanded gap, the lens acts on
-// it, and nothing moves: the gap is at impasse again, and the plan dockets it for the bench afresh
+// ONE EXCHANGE, NOT A LOOP. The minting lens and blue sit once on the remanded gap, both act on it,
+// and nothing moves: the gap is at impasse again, and the plan dockets it for the bench afresh
 // rather than readying the parties a second time. The work lists stop carrying the direction once its
 // exchange is spent.
 func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
@@ -233,7 +254,7 @@ func TestARemandExchangeThatMovesTheGapLeavesItBelowItsLimits(t *testing.T) {
 // A SITTING THAT DOES NOT TOUCH THE GAP SPENDS NOTHING (gblock, 2026-10-25). The minting lens and blue
 // sit once after the ruling and neither records an act on G1: the remand's exchange is still owed, so
 // the plan readies both on it again with the direction, nothing goes back to the bench, the stage
-// stays owed and the PASS is held. The next exchange, in which the lens acts, is the remand's.
+// stays owed and the PASS is held. The next exchange, in which blue acts, is the remand's.
 func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	run := remandedAtImpasse(t).exchangeOn("G1").register("red-chair").seed()
 	plan, err := PlanDispatch(run)
@@ -256,7 +277,7 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
-		t.Errorf("the exchange in which the lens acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+		t.Errorf("the exchange in which blue acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
 	}
 
 	// The null exchange is not the remand's, so it cannot hold G1 at impasse: the exchange after it
@@ -509,7 +530,8 @@ func TestARemandedTrifleIsOwedItsExchange(t *testing.T) {
 			lensAgent := fmt.Sprintf("%s-agent-%d", evLens, more.n+1)
 			more.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").
 				registerAs(evLens, lensAgent).served(evLens, 2).keepGrade(evLens, "G1", keptReason).stop(lensAgent).
-				sitClosed("blue-respond").register("red-chair").seed()
+				registerAs("blue-respond", "blue-proves-trifle").blueProves("G1").stop("blue-proves-trifle").
+				register("red-chair").seed()
 			after, err := PlanDispatch(run)
 			if err != nil {
 				t.Fatal(err)
@@ -609,5 +631,133 @@ func TestTheStoredPlanCarriesTheRemandOwed(t *testing.T) {
 	}
 	if got := stored[len(stored)-1].Plan.RemandOwed; !slices.Equal(got, plan.RemandOwed) {
 		t.Errorf("the stored plan owes %+v, the printed one %+v", got, plan.RemandOwed)
+	}
+}
+
+// A LENS'S ACT BEFORE BLUE'S BEGINS NO REMAND'S EXCHANGE (ruled by gblock 2026-10-27). The lenses sit
+// before blue in an epoch, so the minting lens acts on the remanded gap first: on universe-m35 its
+// regrade ("Blue has not answered the remand") was counted as the exchange, blue's item vanished when
+// blue's sitting closed, and blue never acted. Here the lens keeps the grade and blue sits without
+// touching G1: the exchange has not begun — the plan readies both again with the direction, nothing
+// goes back to the bench, the stage is owed — the lens's item no longer holds it, and blue's still
+// blocks. The exchange in which blue then acts is the remand's.
+func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
+	run := remandedAtImpasse(t).lensOnlyExchangeOn("G1").register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || len(plan.ToFile) != 0 ||
+		!slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Errorf("only the lens acted, so the remand's exchange is still owed: remand_owed %+v, to file %v, parties %+v, why %q",
+			plan.RemandOwed, plan.ToFile, plan.Parties, plan.Why)
+	}
+	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}, {"chair", "red-chair"}} {
+		if got := remandStageOn(t, run, seat.role, seat.id, "G1"); got != "owed" {
+			t.Errorf("%s: remand_stage = %q, want owed", seat.id, got)
+		}
+	}
+	if r, err := EnvelopeRefusal(run, evLens); err != nil || strings.Contains(r, remandDirection) {
+		t.Errorf("the lens acted on G1 since the ruling, so the remand does not hold its envelope: %q (%v)", r, err)
+	}
+	if !remandItemBlocks(t, run, "blue", "blue-respond") {
+		t.Errorf("blue has not acted on G1, and its remand item does not block its list")
+	}
+
+	spent := remandedAtImpasse(t).lensOnlyExchangeOn("G1").actingExchangeOn("G1").register("red-chair").seed()
+	after, err := PlanDispatch(spent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
+		t.Errorf("blue acted in the next exchange, which is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+	}
+}
+
+// remandItemBlocks reports whether the seat's work list holds the remand's item on G1 as blocking —
+// and fails the test if it holds it at all with a reason that says it does not.
+func remandItemBlocks(t *testing.T, run Run, role, seat string) bool {
+	t.Helper()
+	w, err := WorkOfSeat(run, role, seat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range w.Sitting.Open {
+		if strings.Contains(it.What, "gap G1") && strings.Contains(it.What, remandDirection) {
+			return it.Blocks
+		}
+	}
+	return false
+}
+
+// BLUE'S REMAND ITEM BLOCKS, AND SAYS SO TRULY, BEFORE AND AFTER ITS REGISTER, AND STAYS WHILE OWED.
+// Blue's harness bracket names no seat — its configuration sits several — so until blue registers,
+// the latest sitting of blue-respond is the one before the ruling. On universe-m35 the item read "the
+// ruling landed after this sitting opened" (not blocking) before register, blocked after it, and
+// vanished when the sitting closed. Read off the dispatch blue is sitting for, it blocks at each step
+// while the exchange is owed, and stops blocking only once blue has acted.
+func TestBlueRemandItemBlocksBeforeAndAfterRegister(t *testing.T) {
+	st := remandedAtImpasse(t).lensActs("G1")
+	st.add(HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("blue-m35"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")})
+	run := st.seed()
+	steps := []struct {
+		name  string
+		act   func(*stage)
+		block bool
+	}{
+		{"bracketed, before register", func(*stage) {}, true},
+		{"registered", func(b *stage) { b.registerAs("blue-respond", "blue-m35") }, true},
+		{"its sitting closed without an act", func(b *stage) { b.stop("blue-m35") }, true},
+		{"dispatched again and acted", func(b *stage) {
+			b.register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-again").blueProves("G1")
+		}, false},
+	}
+	for _, s := range steps {
+		// Each step's acts are appended to the seeded record (more), so the record grows as the
+		// sitting does.
+		st = st.more()
+		s.act(st)
+		st.seed()
+		w, err := WorkOfSeat(run, "blue", "blue-respond")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var item *Item
+		for i, it := range w.Sitting.Open {
+			if strings.Contains(it.What, "gap G1") && strings.Contains(it.What, remandDirection) {
+				item = &w.Sitting.Open[i]
+			}
+		}
+		switch {
+		case item == nil:
+			t.Errorf("%s: blue's remand item on G1 vanished while the exchange is owed", s.name)
+		case item.Blocks != s.block:
+			t.Errorf("%s: blue's remand item blocks %v, want %v: %q", s.name, item.Blocks, s.block, item.What)
+		case strings.Contains(item.What, "landed after"):
+			t.Errorf("%s: blue's remand item says the ruling landed after its dispatch, and the ruling preceded it: %q", s.name, item.What)
+		}
+	}
+}
+
+// A REMAND IS ANSWERED ONLY AFTER IT (ruled by gblock 2026-10-27). Blue answered G1 with an edit, the
+// exchanges after it stalled it to impasse, and the bench remanded it: the edit is what the bench
+// heard, and it answers nothing the remand asks. On universe-m35 the lens's list said "ANSWERED by an
+// edit" beside the remand item while every answering edit predated the ruling. Once blue edits after
+// the ruling, the lens's list says it was answered.
+func TestAnEditBeforeTheRemandDoesNotAnswerIt(t *testing.T) {
+	answered := "gap G1 has been ANSWERED by an edit"
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
+	st.movingExchangeOn("G1").exchangeOn("G1").exchangeOn("G1").docketAndRemand("M1", "G1")
+	run := st.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").seed()
+	if got := remandStageOn(t, run, "lens", evLens, "G1"); got != "owed" {
+		t.Fatalf("setup: remand_stage = %q, want owed", got)
+	}
+	if workMentions(t, run, "lens", evLens, answered) {
+		t.Errorf("the lens's list counts blue's edit from before the remand as its answer")
+	}
+	st.more().registerAs("blue-respond", "blue-edits-after").edit("G1", "old after", "new after").stop("blue-edits-after").seed()
+	if !workMentions(t, run, "lens", evLens, answered) {
+		t.Errorf("blue edited G1 after the remand, and the lens's list does not say it was answered")
 	}
 }

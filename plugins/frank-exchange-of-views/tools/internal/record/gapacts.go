@@ -5,11 +5,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// AN ACT ON A GAP IS A RECORDED EVENT THAT NAMES IT (gblock, 2026-10-25: a remand's exchange has
-// begun only once its minting lens or blue has recorded an act on the gap, not because a sitting
-// opened). A sitting that opens and records nothing on the gap is the null turn the exchange fold
-// counts as a turn taken; a remand grants ONE more exchange so the direction it states is worked,
-// and a null turn works nothing.
+// AN ACT ON A GAP IS A RECORDED EVENT THAT NAMES IT (gblock, 2026-10-25), and A REMAND'S EXCHANGE
+// BEGINS ONLY WHEN BLUE RECORDS ONE (ruled by gblock 2026-10-27). A sitting that opens and records
+// nothing on the gap is the null turn the exchange fold counts as a turn taken; a remand grants ONE
+// more exchange so the direction it states is worked, and a null turn works nothing. The minting
+// lens sits before blue in an epoch, so its act on a remanded gap is an audit of an answer that does
+// not exist yet: on universe-m35 the voice lens's regrade ("Blue has not answered the remand") was
+// counted as the exchange, blue's item went with it, and blue never acted. The lens's act still
+// clears the lens's own item (remandItemsOf); it begins nothing.
 //
 // The acts, by the field each names the gap in:
 //
@@ -70,11 +73,11 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 	return out
 }
 
-// partyActed reports whether a party to the gap's dispute — its minting lens, minter, or blue —
-// recorded one of acts in the places (after, upto].
-func partyActed(acts []gapAct, minter string, after, upto int64) bool {
+// blueActed reports whether blue recorded one of acts in the places (after, upto]: whether the
+// round that spans them begins a remand's exchange.
+func blueActed(acts []gapAct, after, upto int64) bool {
 	for _, a := range acts {
-		if a.at > after && a.at <= upto && (a.seat == minter || seatclass.RoleOfSeat(a.seat) == "blue") {
+		if a.at > after && a.at <= upto && seatclass.RoleOfSeat(a.seat) == "blue" {
 			return true
 		}
 	}
