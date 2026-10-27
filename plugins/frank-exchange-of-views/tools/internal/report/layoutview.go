@@ -15,8 +15,9 @@ import (
 // placed among sections the tool composes. A seat needs to see which sections the tool composes.
 // Layout assembles the set from the record as it stands and slices what assembly made by the rows
 // of `layout`, so the view cannot describe a report other than the one that ships. It shows the
-// record's text as written, because a seat quotes and edits it: the shipped .md is that text with
-// HTML escaped (Ship), and report.html shows it as typed.
+// record's text as written, because a seat quotes and edits it: the shipped .md is that text with a
+// backslash before each `<` a CommonMark reader would take for a seat's HTML (Ship), and report.html
+// shows it as typed.
 
 // LayoutSection is one row of the assembled layout, for the run it was asked of.
 type LayoutSection struct {
@@ -35,7 +36,7 @@ type LayoutSection struct {
 	// AuthoredHeadings is the headings of the report's own sections, on the row that is the body.
 	AuthoredHeadings []string `json:"authored_headings,omitempty"`
 	// Text is the section as assembly composed it: anchors resolved, notes numbered, the record's
-	// text as written — not the shipped .md, which escapes HTML in it. It is always a string, "" on a
+	// text as written — not the shipped .md, which escapes a seat's HTML in it. It is always a string, "" on a
 	// row that does not ship, so a search over every row's text is a search, not a type error.
 	Text string `json:"text"`
 	// NoText is why a row carries no text: set exactly on a row that does not ship. An empty `text`
@@ -110,9 +111,9 @@ func Layout(run record.Run) (LayoutJSON, error) {
 			row.Ships, row.NoText = true, ""
 			row.Text = strings.TrimSpace(strings.Join(lines[start:end], "\n"))
 			if s.embeds {
-				eachLine(strings.Join(lines[start:end], "\n"), func(_, t string, fenced bool) {
-					if _, ok := headingKey(t); ok && !fenced {
-						row.AuthoredHeadings = append(row.AuthoredHeadings, strings.TrimPrefix(t, "## "))
+				eachLine(strings.Join(lines[start:end], "\n"), func(l mdLine) {
+					if _, ok := headingKey(l); ok && !l.code {
+						row.AuthoredHeadings = append(row.AuthoredHeadings, strings.TrimPrefix(l.trimmed, "## "))
 					}
 				})
 			}
@@ -127,17 +128,18 @@ func Layout(run record.Run) (LayoutJSON, error) {
 // the whole document writes after the rows, the last heading of its name. -1 when none does.
 func opens(lines []string, s Section) int {
 	found, n := -1, 0
-	eachLine(strings.Join(lines, "\n"), func(_, t string, fenced bool) {
+	eachLine(strings.Join(lines, "\n"), func(l mdLine) {
 		i := n
 		n++
-		if fenced {
+		if l.code {
 			return
 		}
+		t := l.trimmed
 		if s.Line != "" {
 			if found < 0 && strings.HasPrefix(t, s.Line) {
 				found = i
 			}
-		} else if key, ok := headingKey(t); ok && key == normalizeHeading(s.Heading) {
+		} else if key, ok := headingKey(l); ok && key == normalizeHeading(s.Heading) {
 			found = i
 		}
 	})

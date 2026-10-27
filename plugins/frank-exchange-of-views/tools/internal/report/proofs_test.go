@@ -268,3 +268,18 @@ func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
 		t.Errorf("the same proof was numbered twice:\n%s", out)
 	}
 }
+
+// AN EMPTY OUTPUT IS SAID TO BE EMPTY. A re-run that printed nothing was shown as two backticks with
+// nothing between them, which are no code span: a reader saw two stray characters where the record
+// holds no output at all.
+func TestAnEmptyReRunOutputSaysSo(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(1)", "1\n")
+	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "s.py",
+		Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Recorded: "1", Observed: " \n"}}}
+	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+	if !strings.Contains(ev, "  - on re-run: _(empty)_\n") || strings.Contains(ev, "on re-run: ``") {
+		t.Errorf("the empty re-run output is not said to be empty:\n%s", ev)
+	}
+}

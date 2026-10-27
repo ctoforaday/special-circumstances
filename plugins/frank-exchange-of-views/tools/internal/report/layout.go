@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/yuin/goldmark/ast"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -287,7 +289,8 @@ var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inq
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
 	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
-	"With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`."
+	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
+	"The shipped .md differs from that text in one way: a backslash stands before each `<` a markdown reader would take for HTML a seat wrote."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
@@ -326,15 +329,16 @@ var SubjectHeadingsNote = func() string {
 // HEADINGS ARE READ ONE WAY, by every reader here: the composer that parts the report's text, the
 // refusals at the write, and the view that slices the assembled document.
 //
-// A line opens a section when, outside a code fence, it starts with "## " once its surrounding
-// whitespace is trimmed. Two headings name the same section when they agree after their anchors
-// and the note references assembly weaves from them are taken out, case is folded, runs of
-// whitespace are single spaces and a trailing "(in full)" is dropped. What is in a fence is eachLine's reading.
-func headingKey(trimmed string) (string, bool) {
-	if !strings.HasPrefix(trimmed, "## ") {
+// A line opens a section when report.html's reading of the text (pageReader, eachLine) opens an ATX
+// heading on it and, its surrounding whitespace trimmed, it starts with "## ". Two headings name the
+// same section when they agree after their anchors and the note references assembly weaves from them
+// are taken out, case is folded, runs of whitespace are single spaces and a trailing "(in full)" is
+// dropped.
+func headingKey(l mdLine) (string, bool) {
+	if !l.heading || !strings.HasPrefix(l.trimmed, "## ") {
 		return "", false
 	}
-	return normalizeHeading(strings.TrimPrefix(trimmed, "## ")), true
+	return normalizeHeading(strings.TrimPrefix(l.trimmed, "## ")), true
 }
 
 // normalizeHeading folds a heading to its comparison key. The note references are read as text
@@ -348,38 +352,74 @@ func normalizeHeading(h string) string {
 	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
 }
 
-// eachLine visits md's lines with each one's trimmed form and whether it is inside a code fence
-// or is one of the fence's own delimiters. A fence closes as CommonMark closes one: on a line of
-// its own character, at least as long as the line that opened it, with nothing after the run — so
-// a fence of four backticks holds a line of three.
-func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
-	var open string // the run that opened the fence the line is in, or "" outside one
-	for _, ln := range strings.Split(md, "\n") {
-		t := strings.TrimSpace(ln)
-		run := fenceRun(t)
-		switch {
-		case open == "" && run != "":
-			open = run
-		case open != "" && run != "" && run[0] == open[0] && len(run) >= len(open) && t == run:
-			open = ""
-		default:
-			visit(ln, t, open != "")
-			continue
+// mdLine is one line of a text, as report.html's reading of the whole text has it.
+type mdLine struct {
+	text, trimmed string // the line, and the line with its surrounding whitespace trimmed
+	code          bool   // the line is code: a fenced block's line or delimiter, or an indented block's line
+	heading       bool   // an ATX heading opens on the line
+}
+
+// eachLine visits md's lines in order, each as report.html's reading of md has it (pageReader): what
+// is code and what is a heading is the parser's answer, the one both shipped readings share, so a
+// line indented into code, or a fence's info string holding backticks, is what the parser says.
+func eachLine(md string, visit func(l mdLine)) {
+	src := []byte(md)
+	lines := strings.Split(md, "\n")
+	starts := make([]int, len(lines))
+	for i, at := 1, 0; i < len(lines); i++ {
+		at += len(lines[i-1]) + 1
+		starts[i] = at
+	}
+	lineOf := func(off int) int {
+		i, found := slices.BinarySearch(starts, off)
+		if !found {
+			i--
 		}
-		visit(ln, t, true)
+		return i
+	}
+	code := make([]bool, len(lines))
+	heading := make([]bool, len(lines))
+	_ = ast.Walk(parsePage(src), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch x := n.(type) {
+		case *ast.Heading:
+			if x.Pos() >= 0 && src[x.Pos()] == '#' {
+				heading[lineOf(x.Pos())] = true
+			}
+		case *ast.FencedCodeBlock, *ast.CodeBlock:
+			last := -1
+			if x.Pos() >= 0 {
+				last = lineOf(x.Pos())
+				code[last] = true
+			}
+			for i := 0; i < x.Lines().Len(); i++ {
+				last = lineOf(x.Lines().At(i).Start)
+				code[last] = true
+			}
+			if f, ok := x.(*ast.FencedCodeBlock); ok && f.Pos() >= 0 && last+1 < len(lines) && closesFence(src[f.Pos():], lines[last+1]) {
+				code[last+1] = true
+			}
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	for i, ln := range lines {
+		visit(mdLine{text: ln, trimmed: strings.TrimSpace(ln), code: code[i], heading: heading[i]})
 	}
 }
 
-// fenceRun is the run of three or more backticks or tildes t opens with, or "".
-func fenceRun(t string) string {
-	if !strings.HasPrefix(t, "```") && !strings.HasPrefix(t, "~~~") {
-		return ""
-	}
+// closesFence reports whether ln is the delimiter that closes the fence opened at the start of open:
+// past its indentation and any quote markers, a run of the fence's character at least as long as the
+// one that opened it, and nothing after the run but whitespace.
+func closesFence(open []byte, ln string) bool {
 	n := 0
-	for n < len(t) && t[n] == t[0] {
+	for n < len(open) && open[n] == open[0] {
 		n++
 	}
-	return t[:n]
+	t := strings.TrimSpace(strings.TrimLeft(ln, " \t>"))
+	return len(t) >= n && strings.Trim(t, string(open[0])) == ""
 }
 
 // A claim is one place where text takes what is the tool's, or stands out of the order the text
@@ -426,11 +466,12 @@ func ComposedIn(was, text string) (line string, s Section, found bool) {
 
 func composedClaims(text string) (out []claim) {
 	preamble := true
-	eachLine(text, func(_, t string, fenced bool) {
-		if fenced {
+	eachLine(text, func(l mdLine) {
+		if l.code {
 			return
 		}
-		key, isHeading := headingKey(t)
+		t := l.trimmed
+		key, isHeading := headingKey(l)
 		if isHeading {
 			preamble = false
 		}
@@ -551,11 +592,12 @@ type stand struct {
 func stands(text string) (out []stand, rows []Section, body int) {
 	rows, body = textRows()
 	preamble, titled, at := true, false, -1
-	eachLine(text, func(_, t string, fenced bool) {
+	eachLine(text, func(l mdLine) {
 		at++
+		t, fenced := l.trimmed, l.code
 		key, isHeading := "", false
 		if !fenced {
-			key, isHeading = headingKey(t)
+			key, isHeading = headingKey(l)
 		}
 		switch {
 		case isHeading:
@@ -649,14 +691,18 @@ func WovenNoteIn(was, text string) (label string, s Section, found bool) {
 }
 
 func wovenNotes(text string) (out []claim) {
-	eachLine(text, func(_, t string, fenced bool) {
-		if fenced {
-			return
-		}
-		for _, m := range wovenNote.FindAllString(reCodeSpan.ReplaceAllString(t, ""), -1) {
+	src := []byte(text)
+	prose := func(s string) {
+		for _, m := range wovenNote.FindAllString(s, -1) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
-	})
+	}
+	last := 0
+	for _, c := range codeIn(parsePage(src), src) {
+		prose(text[last:c[0]])
+		last = c[1]
+	}
+	prose(text[last:])
 	return out
 }
 
@@ -677,8 +723,9 @@ type blueText struct {
 func part(blue string) (out blueText) {
 	var parts [2][]string
 	closed := 0
-	eachLine(blue, func(ln, t string, fenced bool) {
-		if key, ok := headingKey(t); ok && !fenced {
+	eachLine(blue, func(l mdLine) {
+		ln, t, fenced := l.text, l.trimmed, l.code
+		if key, ok := headingKey(l); ok && !fenced {
 			for _, s := range layout {
 				if s.Composer == Blue && s.Line == "" && !s.embeds && key == normalizeHeading(s.Heading) {
 					closed = 1

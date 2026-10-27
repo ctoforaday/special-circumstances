@@ -774,7 +774,7 @@ func endSentence(prose string) string {
 
 // inItem keeps prose of several lines inside the list item that prints it: every further line is
 // indented to the item's text and ends the one before it with a hard break, and blank lines go.
-// A blank or unindented line ends a list item — in markdown and in mdToHTML alike — so a line
+// A blank or unindented line ends a list item — in markdown and in report.html's reading alike — so a line
 // written as paragraphs otherwise leaves its own row, and the hypothesis and fate under it read
 // as rows of their own.
 func inItem(prose, indent string) string {

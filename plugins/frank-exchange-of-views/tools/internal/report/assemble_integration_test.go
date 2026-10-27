@@ -287,9 +287,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 		if err != nil || f == FileInquiries {
 			continue
 		}
-		eachLine(string(b), func(ln, tr string, fenced bool) {
-			key, ok := headingKey(tr)
-			if !ok || fenced {
+		eachLine(string(b), func(l mdLine) {
+			ln := l.text
+			key, ok := headingKey(l)
+			if !ok || l.code {
 				return
 			}
 			shipped[f+"\x00"+key] = true
@@ -310,8 +311,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 	}
 	// In the row's place: report.md's headings are the table's, in the table's order.
 	var order, wantOrder []string
-	eachLine(got, func(_, tr string, fenced bool) {
-		if key, ok := headingKey(tr); ok && !fenced && rows[FileReport+"\x00"+key] {
+	eachLine(got, func(l mdLine) {
+		if key, ok := headingKey(l); ok && !l.code && rows[FileReport+"\x00"+key] {
 			order = append(order, key)
 		}
 	})

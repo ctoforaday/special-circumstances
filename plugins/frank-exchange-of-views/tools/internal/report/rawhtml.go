@@ -8,14 +8,29 @@ package report
 // content, and a viewer that renders raw HTML from the .md is a page the human opens. So the
 // decision is taken on each whole document, once (Ship), and Write writes it.
 //
-// WHAT IS HTML IS THE PARSER'S READING, in the grammar a CommonMark viewer reads the file in
-// (mdReader: CommonMark, GitHub's extensions, footnotes). ship parses the document and puts a
-// backslash before every `<` inside each HTML node — an HTML block's lines, an inline tag or
-// comment — but the tool's, and parses again, because text that stops being HTML can let the lines
-// around it read differently: a comment line escaped into a paragraph takes the indented line after
-// it as a continuation, where it was code. It stops at the first parse that
-// finds no seat HTML. Code, autolinks, link destinations and info strings are never edited: the
-// parser reads none of them as HTML.
+// THE .md READS AS report.html READS. report.html reads a document with no HTML grammar
+// (pageReader): a tag, a comment or an HTML block's opener is text in the paragraph it stands in,
+// and the lines after it are what they would be without it. The shipped .md is that reading, made
+// to hold for a reader that has the grammar (mdReader): ship puts a backslash before each `<` at
+// which such a reader would open an HTML node in that reading, and before no other. Code, autolinks,
+// link destinations and info strings are not edited — the reading has no HTML node in them, so no
+// `<` there is one — and that includes code that is code only because an enclosing HTML block is
+// read as text: `<div>`, a fence, `</div>` ships its fence byte for byte.
+//
+// WHERE A READER OPENS AN HTML NODE IS THE PARSER'S ANSWER, taken in one parse (htmlAt). probeReader
+// is mdReader's grammar with its HTML block parser and inline HTML parser each wrapped: the wrapped
+// parser runs, and where it would open a node the wrapper records the `<` and declines. A parser
+// that declines is a parser that is absent, so the tree is pageReader's, and each `<` recorded is
+// one mdReader opens a node at when the text before it reads as pageReader reads it. Escaping every
+// one makes that so: a `\<` opens nothing, and is the same character to every other parser. Each
+// `<` is decided in the reading the shipped text has, so escaping one never exposes another — no
+// pass per row of a pasted table, no pass per tag a backtick frees.
+//
+// ship then parses the result as a reader does (parseMD) and checks it holds no seat HTML. A text
+// that defeats the probe — a reader's reading the probe did not predict — ships with every `<` but the
+// tool's escaped, code included. That text holds no seat HTML by construction — every `<` a seat
+// wrote is escaped, and an HTML node opens only at an unescaped `<` — so it is not checked again, and
+// no seat's text can stop a document shipping.
 //
 // THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
 // proof's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
@@ -23,20 +38,26 @@ package report
 // tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly weaves or strips
 // every anchor token before a document ships (AssembleAll), so a token in one is a seat's text.
 //
-// THE PARSES ARE BOUNDED. Each parse costs the document's length, and maxEscapePasses caps them;
-// a text that still holds seat HTML after them has every `<` but the tool's escaped, code or not —
-// the backslash then prints inside code, which only text built to need that many passes meets.
+// WHAT A READER IS GUARANTEED. A reader that parses the file as CommonMark with GitHub's extensions
+// finds no HTML in it but the proofs' anchors, and prints each escaped `<` as the character typed.
+// A viewer that does not parse the file as CommonMark is not covered: one that reads
+// `<svg:x onfocus=…>` — an autolink to CommonMark — or an angle-bracket link destination as a tag
+// finds a tag there.
 //
 // The seat-facing views — `show report --assembled` (Layout), `show inquiries` — print the
-// record's text as written, because a seat quotes and edits it. report.html never reads this text:
-// it renders through a reader with no HTML grammar (md.go) and an allowlist after it (site.go).
+// record's text as written, because a seat quotes and edits it. report.html never reads the shipped
+// text: it renders through pageReader (md.go) and an allowlist after it (site.go).
 
 import (
-	"bytes"
+	"reflect"
 	"slices"
 
+	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
@@ -44,35 +65,105 @@ import (
 // parseMD is a parse of a shipped .md, in the dialect a markdown viewer reads it in (mdReader).
 var parseMD = func(src []byte) ast.Node { return mdReader.Parser().Parse(text.NewReader(src)) }
 
-// maxEscapePasses is how many parses ship spends finding seat HTML before it escapes every `<`.
-var maxEscapePasses = 4
+// probeReader is mdReader's grammar with its two HTML parsers recording where they would open a node,
+// and declining (probingHTML).
+var probeReader = goldmark.New(goldmark.WithParser(parser.NewParser(
+	parser.WithBlockParsers(append(probingHTML(parser.DefaultBlockParsers()),
+		util.Prioritized(extension.NewFootnoteBlockParser(), 999))...),
+	parser.WithInlineParsers(append(probingHTML(parser.DefaultInlineParsers()),
+		util.Prioritized(extension.NewFootnoteParser(), 101))...),
+	parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+)), goldmark.WithExtensions(extension.GFM))
+
+// htmlAtKey holds, in one parse's context, the offsets the probes recorded.
+var htmlAtKey = parser.NewContextKey()
+
+// htmlAt is the offset of each `<` of src at which a CommonMark reader opens an HTML node, src read as
+// pageReader reads it (probeReader), in order.
+var htmlAt = func(src []byte) []int {
+	pc := parser.NewContext()
+	probeReader.Parser().Parse(text.NewReader(src), parser.WithContext(pc))
+	at, _ := pc.Get(htmlAtKey).([]int)
+	slices.Sort(at)
+	return slices.Compact(at)
+}
+
+// probingHTML is ps with CommonMark's HTML block parser and inline HTML parser each wrapped to record
+// and decline.
+func probingHTML(ps []util.PrioritizedValue) []util.PrioritizedValue {
+	block, inline := reflect.TypeOf(parser.NewHTMLBlockParser()), reflect.TypeOf(parser.NewRawHTMLParser())
+	out := slices.Clone(ps)
+	for i, p := range out {
+		switch reflect.TypeOf(p.Value) {
+		case block:
+			out[i].Value = htmlBlockProbe{p.Value.(parser.BlockParser)}
+		case inline:
+			out[i].Value = rawHTMLProbe{p.Value.(parser.InlineParser)}
+		}
+	}
+	return out
+}
+
+// recordHTML adds offset i of the source to the parse's record.
+func recordHTML(pc parser.Context, i int) {
+	at, _ := pc.Get(htmlAtKey).([]int)
+	pc.Set(htmlAtKey, append(at, i))
+}
+
+// firstAngle is the offset of the first `<` of src in seg: the one an HTML parser opened on.
+func firstAngle(src []byte, seg text.Segment) int {
+	for i := seg.Start; i < seg.Stop; i++ {
+		if src[i] == '<' {
+			return i
+		}
+	}
+	return seg.Start
+}
+
+// htmlBlockProbe is the HTML block parser, recording the `<` of a line it would open a block on.
+type htmlBlockProbe struct{ parser.BlockParser }
+
+func (p htmlBlockProbe) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	line, pos := reader.Position()
+	_, seg := reader.PeekLine()
+	if n, _ := p.BlockParser.Open(parent, reader, pc); n != nil {
+		recordHTML(pc, firstAngle(reader.Source(), seg))
+		reader.SetPosition(line, pos)
+	}
+	return nil, parser.NoChildren
+}
+
+// rawHTMLProbe is the inline HTML parser, recording the `<` it would open a tag or comment on. The
+// inline parse restores the reader's position after a parser that declines.
+type rawHTMLProbe struct{ parser.InlineParser }
+
+func (p rawHTMLProbe) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+	_, seg := block.PeekLine()
+	if p.InlineParser.Parse(parent, block, pc) != nil {
+		recordHTML(pc, firstAngle(block.Source(), seg))
+	}
+	return nil
+}
 
 // ship is md as its .md ships: its proofs' anchors in place, and no HTML in it a CommonMark reader
 // finds but those anchors.
-//
-// WHAT A READER IS GUARANTEED. A reader that parses the file as CommonMark with GitHub's extensions
-// finds no HTML in it but the proofs' anchors: every other `<` that would open a tag, a comment or
-// an HTML block carries a backslash, and such a reader prints it as the character typed. A viewer
-// that does not parse the file as CommonMark is not covered: one that reads `<svg:x onfocus=…>` —
-// an autolink to CommonMark — or an angle-bracket link destination as a tag finds a tag there.
 func ship(md string) string {
 	md, tool := resolveMarkSpans(md)
-	src, spans := []byte(md), tool
-	for pass := 1; ; pass++ {
-		at := seatHTML(parseMD(src), src, spans)
-		if len(at) == 0 {
-			return string(src)
-		}
-		if pass == maxEscapePasses {
-			break
-		}
-		src, spans = escapeAt(src, at, spans)
+	src := []byte(md)
+	if len(angles(src, tool)) == 0 {
+		return md
 	}
-	src, spans = escapeAt([]byte(md), angles([]byte(md), tool), tool)
-	if len(seatHTML(parseMD(src), src, spans)) > 0 {
-		panic("report: text with every `<` escaped but the proofs' anchors still parses to HTML the tool did not write")
+	var at []int
+	for _, i := range htmlAt(src) {
+		if !inSpan(i, tool) {
+			at = append(at, i)
+		}
 	}
-	return string(src)
+	if out, spans := escapeAt(src, at, tool); len(seatHTML(parseMD(out), out, spans)) == 0 {
+		return string(out)
+	}
+	out, _ := escapeAt(src, angles(src, tool), tool)
+	return string(out)
 }
 
 // seatHTML is the offset of every `<` in src that stands inside an HTML node of tree, outside the
@@ -157,14 +248,4 @@ func escapeAt(src []byte, at []int, spans [][2]int) ([]byte, [][2]int) {
 func proofLabel(label string) bool {
 	tok := anchor.Token(label)
 	return anchor.Kind(label) == "proof" && anchor.SkipRun(tok, 0) == len(tok)
-}
-
-// rawText is an inline HTML node's source.
-func rawText(x *ast.RawHTML, src []byte) string {
-	var b bytes.Buffer
-	for i := 0; i < x.Segments.Len(); i++ {
-		seg := x.Segments.At(i)
-		b.Write(seg.Value(src))
-	}
-	return b.String()
 }

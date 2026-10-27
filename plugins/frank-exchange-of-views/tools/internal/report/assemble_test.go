@@ -558,6 +558,22 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 	}
 }
 
+// THE REFUSAL READS CODE AS BOTH SHIPPED READINGS DO (#1580). A label in an indented code block, or in
+// a code span of two backticks running over a line break, is code to them and no footnote; a label on
+// the line after a comment is the comment's paragraph to them — report.html has no HTML grammar, and
+// the shipped .md escapes the comment — and is a footnote there, though a reader with the grammar ends
+// the comment's block at its line and reads the indented line as code.
+func TestWovenNoteInReadsCodeAsTheShippedReadingsDo(t *testing.T) {
+	for _, doc := range []string{"Para.\n\n    grep '[^1]'\n", "A ``class\n[^P2]`` here.\n"} {
+		if l, _, found := WovenNoteIn("", doc); found {
+			t.Errorf("WovenNoteIn(%q) found %q in code", doc, l)
+		}
+	}
+	if l, _, found := WovenNoteIn("", "x\n\n<!-- c -->\n    see [^1]\n"); !found || l != "[^1]" {
+		t.Errorf("a label both shipped readings take as prose is not refused: %q, %v", l, found)
+	}
+}
+
 // THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
 // only what the tool composes.
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {

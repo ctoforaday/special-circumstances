@@ -3,11 +3,12 @@ package report
 // MARKDOWN → HTML, FROM THE TREE A MARKDOWN READER BUILDS.
 //
 // The documents are markdown, and what each line of one is — a heading, a list item, a fence, a
-// table, a footnote, prose — is markdown's grammar, read by a markdown parser (mdReader: the
-// dialect footnotes.go reads, CommonMark with GitHub's extensions and footnotes). This file
-// renders that tree; it reads no line of the text itself. The rendering is the reading tier's
-// own — the ids, the tab links, the numbered citations — and the tree is the one any markdown
-// reader of the .md file sees, so the two tiers cannot disagree about what a line is.
+// table, a footnote, prose — is markdown's grammar, read by a markdown parser (pageReader:
+// CommonMark with GitHub's extensions and footnotes, and no HTML grammar). This file renders that
+// tree; it reads no line of the text itself. The rendering is the reading tier's own — the ids, the
+// tab links, the numbered citations — and the tree is the one a markdown reader of the shipped .md
+// file sees (ship escapes each `<` at which that reader would open HTML, and nothing else), so the
+// two tiers cannot disagree about what a line is.
 //
 // WHAT IT DOES NOT DO IS AS IMPORTANT: it does not round-trip. The markdown files are the
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into

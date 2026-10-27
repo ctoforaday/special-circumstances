@@ -68,3 +68,14 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 		t.Errorf("the note does not carry its own label unescaped and the title's bracket escaped:\n%s", got)
 	}
 }
+
+// WHAT IS CODE TO ESCAPENOTES IS WHAT IS CODE TO BOTH SHIPPED READINGS (#1580). A reader with the HTML
+// grammar ends a comment's block at its line and takes the indented line after it as code; report.html,
+// with none, and the shipped .md, which escapes the comment, take it as the paragraph's continuation —
+// prose, where an unescaped `[^a]` opens a footnote.
+func TestEscapeNotesReadsCodeAsTheShippedReadingsDo(t *testing.T) {
+	got := EscapeNotes("x\n\n<!-- c -->\n    see [^a]\n")
+	if !strings.Contains(got, `see \[^a]`) {
+		t.Errorf("a `[^` both shipped readings take as prose is not escaped:\n%s", got)
+	}
+}

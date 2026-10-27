@@ -203,8 +203,13 @@ func fenced(lang, content string) string {
 
 // codeSpanOf is s as a code span that shows it exactly: delimited by backticks one longer than the
 // longest run of them in s, and padded with a space where s would otherwise touch a delimiter with a
-// backtick or lose an edge space to the span's stripping.
+// backtick or lose an edge space to the span's stripping. An empty s has no code to show and is
+// said to be empty, as the documents mark a value the record does not hold: two backticks with
+// nothing between them are no code span, and print as typed.
 func codeSpanOf(s string) string {
+	if s == "" {
+		return "_(empty)_"
+	}
 	d := strings.Repeat("`", longestRun(s, '`')+1)
 	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") || len(s) > 1 && s[0] == ' ' && s[len(s)-1] == ' ' && strings.TrimSpace(s) != "" {
 		s = " " + s + " "

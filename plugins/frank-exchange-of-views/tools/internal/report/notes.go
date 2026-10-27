@@ -1,7 +1,6 @@
 package report
 
 import (
-	"regexp"
 	"slices"
 	"strings"
 
@@ -29,10 +28,6 @@ import (
 // CODE IS LEFT AS IT IS. Inside a fence or a code span nothing is a reference and a backslash is a
 // character, so an escape there would print.
 
-// reCodeSpan is a code span as the refusal of a woven label in the report's text reads one
-// (WovenNoteIn). Escaping and rendering read code from the markdown parser's tree (codeIn).
-var reCodeSpan = regexp.MustCompile("`[^`]+`")
-
 // noteOpen is what opens a footnote reference or definition, and noteEscape is that with the
 // backslash that makes it text.
 const (
@@ -41,15 +36,17 @@ const (
 )
 
 // EscapeNotes returns md with every `[^` outside code escaped, so that nothing in it opens a
-// footnote. One already escaped is left as it is. What is code is the parser's reading (codeIn): a
-// fence of four backticks holds a line of three, which a scan of fence lines takes for its close.
+// footnote. One already escaped is left as it is. What is code is report.html's reading (pageReader,
+// codeIn), which the shipped .md shares (ship): a `[^` is code or prose in the same place in all
+// three, so a line an HTML block would hold as code to a reader with the grammar is prose here, as it
+// is to both shipped readings.
 func EscapeNotes(md string) string {
 	if !strings.Contains(md, noteOpen) {
 		return md
 	}
 	var b strings.Builder
 	last := 0
-	for _, c := range codeIn(parseMD([]byte(md)), []byte(md)) {
+	for _, c := range codeIn(parsePage([]byte(md)), []byte(md)) {
 		b.WriteString(escapeNoteOpens(md[last:c[0]]))
 		b.WriteString(md[c[0]:c[1]])
 		last = c[1]

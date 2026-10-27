@@ -56,9 +56,10 @@ type siteDoc struct {
 	Body                   template.HTML
 }
 
-// RenderSite builds the whole set into one HTML file. It takes the shipped document bodies (no
-// markdown link bar, no repeated H1) because the tab strip and the header say those things
-// better here.
+// RenderSite builds the whole set into one HTML file. It renders each document's body as assembly
+// composed it — the record's text, unescaped, in the tree Ship parsed it to with no HTML grammar —
+// and not the shipped .md: no markdown link bar and no repeated H1, because the tab strip and the
+// header say those things better here, and none of the .md's backslashes.
 func RenderSite(set Shipped, fam record.Family) string {
 	docs := set.docs
 	short := strings.TrimSpace(strings.TrimPrefix(set.title, "# "))

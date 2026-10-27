@@ -261,18 +261,88 @@ func TestCodeAutolinksAndDestinationsShipByteForByte(t *testing.T) {
 	}
 }
 
-// A PASTED HTML TABLE COSTS ONE MORE PARSE, NOT THE CODE ELSEWHERE. Every `<` of an HTML node is
-// escaped at once, so a block of many rows is gone in one pass; escaping only its opener left the next
-// row a block of its own, a pass per row, until the bound escaped the code too.
+// A PASTED HTML TABLE COSTS NO MORE PARSES, AND NOT THE CODE ELSEWHERE. Every row's `<` is decided in
+// the one reading, so 200 rows are two parses; escaping only a block's opener left the next row a block
+// of its own, a pass per row.
 func TestAPastedHTMLTableLeavesCodeAlone(t *testing.T) {
-	md := "Run `make <target>` first.\n\n<table>\n" + strings.Repeat("<tr><td>x</td></tr>\n", 10) + "</table>\n"
+	md := "Run `make <target>` first.\n\n<table>\n" + strings.Repeat("<tr><td>x</td></tr>\n", 200) + "</table>\n\n```\n<td>kept</td>\n```\n"
+	all, _ := countParses(t, "")
 	got := ship(md)
-	if !strings.Contains(got, "`make <target>`") {
-		t.Errorf("the code span was escaped:\n%s", got)
+	if *all > 2 {
+		t.Errorf("a 200-row table parsed the text %d times, want at most 2", *all)
+	}
+	for _, code := range []string{"`make <target>`", "```\n<td>kept</td>\n```"} {
+		if !strings.Contains(got, code) {
+			t.Errorf("the code %q was edited:\n%s", code, got)
+		}
 	}
 	if found := htmlNodes(got); len(found) > 0 {
 		t.Errorf("a CommonMark reader finds HTML in the shipped text: %q\n%s", found, got)
 	}
+}
+
+// CODE AN ENCLOSING HTML NODE HID SHIPS BYTE FOR BYTE (#1580). Inside `<div>` … `</div>`, or after an
+// unclosed `<!--`, a reader with the HTML grammar holds the lines as HTML; report.html, with none, reads
+// the code span, fence and autolink in them. The shipped .md is that reading: only the enclosing nodes'
+// `<` are escaped, and the code and the autolink are the same bytes — and the same code — to a CommonMark
+// reader of the .md as to report.html. Escaping every `<` of the block put a backslash inside each.
+func TestCodeInsideDissolvedHTMLShipsByteForByte(t *testing.T) {
+	inner := "`<b>` is a tag\n\n```\n<b>\n```\n\nsee <https://example.invalid/a>\n"
+	for _, c := range []struct {
+		name, md string
+		escapes  int // the `<` of each HTML node: the div's open and close tags, or the comment
+	}{
+		{"in a div", "<div>\n" + inner + "</div>\n", 2},
+		{"after an unclosed comment", "<!--\n" + inner, 1},
+		{"in a list item", "- <div>\n" + prefixLines(inner, "  ") + "  </div>\n", 2},
+		{"in a quote", "> <!--\n" + prefixLines(inner, "> "), 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			md := c.md
+			got := ship(md)
+			if found := htmlNodes(got); len(found) > 0 {
+				t.Errorf("a CommonMark reader finds HTML in the shipped text: %q\n%s", found, got)
+			}
+			if n := strings.Count(got, `\`); n != c.escapes {
+				t.Errorf("shipped %d backslashes, want %d, one before each HTML node's `<`:\n%s", n, c.escapes, got)
+			}
+			src := []byte(md)
+			want := codeText(codeIn(parsePage(src), src), src)
+			if have := codeText(codeIn(parseMD([]byte(got)), []byte(got)), []byte(got)); !slices.Equal(have, want) {
+				t.Errorf("a reader of the .md reads the code as %q, report.html as %q:\n%s", have, want, got)
+			}
+			if !slices.Contains(autolinks(got), "https://example.invalid/a") {
+				t.Errorf("the autolink is not an autolink to a reader of the .md:\n%s", got)
+			}
+		})
+	}
+}
+
+// prefixLines is s with prefix before each of its lines.
+func prefixLines(s, prefix string) string {
+	return prefix + strings.ReplaceAll(strings.TrimSuffix(s, "\n"), "\n", "\n"+prefix) + "\n"
+}
+
+// codeText is the text of each stretch of src in code.
+func codeText(code [][2]int, src []byte) []string {
+	var out []string
+	for _, c := range code {
+		out = append(out, string(src[c[0]:c[1]]))
+	}
+	return out
+}
+
+// autolinks is the URL of each autolink a CommonMark reader finds in md.
+func autolinks(md string) []string {
+	src := []byte(md)
+	var out []string
+	_ = ast.Walk(parseMD(src), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if l, ok := n.(*ast.AutoLink); ok && entering {
+			out = append(out, string(l.URL(src)))
+		}
+		return ast.WalkContinue, nil
+	})
+	return out
 }
 
 // A FOOTNOTE OPENING WITH A COMMENT STAYS A NOTE. Whatever the label's width, the definition's text is
@@ -365,44 +435,47 @@ func TestAssembledSetCarriesNoSeatHTML(t *testing.T) {
 	}
 }
 
-// countParses counts the parses Ship makes, of either tier, while the test runs, and of them the ones of a text that
-// holds marker.
+// countParses counts the parses Ship makes, of either tier and the probe's, while the test runs, and
+// of them the ones of a text that holds marker.
 func countParses(t *testing.T, marker string) (all, marked *int) {
 	t.Helper()
 	all, marked = new(int), new(int)
+	seen := func(src []byte) {
+		*all++
+		if marker != "" && bytes.Contains(src, []byte(marker)) {
+			*marked++
+		}
+	}
 	count := func(parse *func([]byte) ast.Node) {
 		was := *parse
-		*parse = func(src []byte) ast.Node {
-			*all++
-			if marker != "" && bytes.Contains(src, []byte(marker)) {
-				*marked++
-			}
-			return was(src)
-		}
+		*parse = func(src []byte) ast.Node { seen(src); return was(src) }
 		t.Cleanup(func() { *parse = was })
 	}
 	count(&parseMD)
 	count(&parsePage)
+	was := htmlAt
+	htmlAt = func(src []byte) []int { seen(src); return was(src) }
+	t.Cleanup(func() { htmlAt = was })
 	return all, marked
 }
 
-// THE PARSES ARE BOUNDED, so the cost is linear in the text. Escaping the opener of an HTML block alone
-// exposed the next — each `<script>` line opens a block running to the end once the line above it is a
-// paragraph — and a parse per opener made a seat's thousand such lines a million lines parsed, on every
-// assembly. The parses are counted, not timed: the box is shared.
+// THE PARSES ARE BOUNDED: two, whatever the text. Each `<` is decided in the reading the shipped text
+// has, so escaping one exposes no other. Escaping only an HTML block's opener exposed the next — each
+// `<script>` line opens a block running to the end once the line above it is a paragraph — and a
+// backtick each escaped tag frees pairs with the next line's and frees that line's tag; decided a
+// parse at a time, either cost a parse per line. The parses are counted, not timed: the box is shared.
 func TestShippingIsBounded(t *testing.T) {
 	for name, md := range map[string]string{
-		"lines that each open a block": strings.Repeat("<script>\n", 5000),
-		"lines that each hold a tag":   strings.Repeat("text <b>x</b> and <!-- c -->\n\n", 5000),
-		// Each tag escaped frees a backtick, which pairs with the next line's and frees that line's tag:
-		// one more tag per parse, for as many parses as there are lines.
+		"lines that each open a block":  strings.Repeat("<script>\n", 5000),
+		"lines that each hold a tag":    strings.Repeat("text <b>x</b> and <!-- c -->\n\n", 5000),
 		"lines that each free the next": "<a t=\"`\">" + strings.Repeat("`<b t='`'>\n", 5000),
+		"a pasted table":                "<table>\n" + strings.Repeat("<tr><td>x</td></tr>\n", 5000) + "</table>\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			all, _ := countParses(t, "")
 			got := ship(md)
-			if *all > maxEscapePasses+1 {
-				t.Errorf("shipping 5,000 lines of HTML parsed the text %d times, want at most %d", *all, maxEscapePasses+1)
+			if *all > 2 {
+				t.Errorf("shipping 5,000 lines of HTML parsed the text %d times, want at most 2: the probe and the check", *all)
 			}
 			if found := htmlNodes(got); len(found) > 0 {
 				t.Errorf("a CommonMark reader finds %d HTML node(s) in the shipped text", len(found))
@@ -411,25 +484,35 @@ func TestShippingIsBounded(t *testing.T) {
 	}
 }
 
-// AT THE BOUND, EVERY `<` IS ESCAPED. A comment line escaped into a paragraph takes the indented line
-// after it as a continuation, where it was code, so the line's tag is HTML only to the second parse; with
-// one parse allowed, ship escapes every `<` but the tool's — the code span's too.
-func TestAtTheBoundEveryAngleIsEscaped(t *testing.T) {
-	was := maxEscapePasses
-	maxEscapePasses = 1
-	t.Cleanup(func() { maxEscapePasses = was })
+// TEXT WITH NOTHING TO ESCAPE IS NOT PARSED. Most documents hold no `<` but a proof's anchor, and most
+// sections no `[^`: neither costs a parse.
+func TestTextWithNothingToEscapeIsNotParsed(t *testing.T) {
 	all, _ := countParses(t, "")
+	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\nn > 3, and `code`.\n"
+	if got := ship(md); got != resolveMarks(md) {
+		t.Errorf("shipped %q, want the text with its anchor in place", got)
+	}
+	if got := EscapeNotes("a [note] and `[x]`\n"); got != "a [note] and `[x]`\n" {
+		t.Errorf("EscapeNotes edited text with no `[^`: %q", got)
+	}
+	if *all != 0 {
+		t.Errorf("parsed %d time(s) a text with nothing to escape", *all)
+	}
+}
+
+// A TEXT THAT DEFEATS THE PROBE STILL SHIPS NO SEAT HTML. Where the check finds HTML the probe did not
+// predict, ship escapes every `<` but the tool's — the code span's too — and checks once more.
+func TestADefeatedProbeEscapesEveryAngle(t *testing.T) {
+	was := htmlAt
+	htmlAt = func([]byte) []int { return nil }
+	t.Cleanup(func() { htmlAt = was })
 	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n<!-- c -->\n    <b>x</b>\n\nand `<i>` here, and an escaped \\<u> there.\n"
 	got := ship(md)
-	parses := *all
 	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="P-deadbeef">`, "</a>"}) {
 		t.Errorf("a CommonMark reader finds HTML other than the proof's anchor: %q\n%s", found, got)
 	}
 	if !strings.Contains(got, "`\\<i>`") || !strings.Contains(got, ` \<u> `) {
 		t.Errorf("the fallback did not escape the `<` in code:\n%s", got)
-	}
-	if parses != 2 {
-		t.Errorf("parsed the text %d times, want 2: one to find HTML, one to check the fallback", parses)
 	}
 }
 
@@ -592,4 +675,14 @@ func TestAProofsCodeShipsByteForByte(t *testing.T) {
 // escapeForTest is s as goldmark's HTML renderer writes text.
 func escapeForTest(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;").Replace(s)
+}
+
+// rawText is an inline HTML node's source.
+func rawText(x *ast.RawHTML, src []byte) string {
+	var b bytes.Buffer
+	for i := 0; i < x.Segments.Len(); i++ {
+		seg := x.Segments.At(i)
+		b.Write(seg.Value(src))
+	}
+	return b.String()
 }

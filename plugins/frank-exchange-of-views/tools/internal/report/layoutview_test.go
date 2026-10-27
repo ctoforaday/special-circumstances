@@ -153,9 +153,31 @@ func TestALongerFenceHoldsAShorterOne(t *testing.T) {
 		t.Errorf("the title is %q, want the line after the fence", got.title)
 	}
 	var fenced []bool
-	eachLine("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout", func(_, _ string, f bool) { fenced = append(fenced, f) })
+	eachLine("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout", func(l mdLine) { fenced = append(fenced, l.code) })
 	if want := []bool{true, true, true, true, true, false}; !slices.Equal(fenced, want) {
 		t.Errorf("fenced lines %v, want %v", fenced, want)
+	}
+}
+
+// WHAT IS CODE, AND WHAT IS A HEADING, IS THE PARSER'S ANSWER for every reader of the report's lines
+// (#1580). A line of backticks indented into a code block opens no fence, and neither does a line of
+// prose that opens with a code span — a backtick fence's info string holds no backtick — so the
+// sections after either are sections; a "## " line indented into code, or carried on as a paragraph's
+// continuation, opens none, and a "# " line indented into code is no title.
+func TestCodeAndHeadingsAreTheParsersReading(t *testing.T) {
+	for _, c := range []struct{ name, text, title, body, close string }{
+		{"a fence line indented into code", "    ```\n    x\n\n# Title\n\n## Open questions\n\nq\n", "# Title", "```\n    x", "## Open questions\n\nq"},
+		{"prose opening with a code span", "```x``` is code.\n\n# Title\n\n## Open questions\n\nq\n", "# Title", "```x``` is code.", "## Open questions\n\nq"},
+		{"a heading indented into code", "# Title\n\n    ## Open questions\n\nbody\n", "# Title", "## Open questions\n\nbody", ""},
+		{"a title line indented into code", "Intro.\n\n    # Not a title\n\n# Title\n\nbody\n", "# Title", "    # Not a title\n\n\nbody", ""},
+		{"a heading carried on as a paragraph's continuation", "# Title\n\npara\n    ## Open questions\n", "# Title", "para\n    ## Open questions", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := part(c.text)
+			if got.title != c.title || !strings.HasSuffix(got.body, c.body) || got.close != c.close {
+				t.Errorf("parted %q as title %q, body %q, close %q; want %q, a body ending %q, close %q", c.text, got.title, got.body, got.close, c.title, c.body, c.close)
+			}
+		})
 	}
 }
 
