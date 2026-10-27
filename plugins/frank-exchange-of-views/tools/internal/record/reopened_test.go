@@ -332,18 +332,6 @@ func TestAnUnreachableFirstCheckAfterTheEditDoesNotReopen(t *testing.T) {
 	}
 }
 
-// F7: with no evidence lens to dispatch, the anchor is shown and holds nothing.
-func TestNoEvidenceLensInTheCastNoBlocker(t *testing.T) {
-	run := newStage(t).cast(outsideLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		dispatch(2, outsideLens).register(outsideLens).cite("C-1").supports(outsideLens, "C-1").reopen("C-1").seed()
-	if rows := standingOf(t, run); len(rows) != 1 || rows[0].Anchor != "C-1" {
-		t.Fatalf("show evidence reopened = %+v, want C-1 listed", rows)
-	}
-	if got := reopenedOf(t, run); len(got) != 0 {
-		t.Errorf("blockers = %+v, want none: no seat on this cast is dispatched for it", got)
-	}
-}
-
 // F8: the sitting the evidence lens is readied into for a reopened anchor is a sitting like any
 // other in the lens fold — one that mints nothing fresh is barren.
 func TestAReopenedSittingCountsInTheRetirementFold(t *testing.T) {
@@ -405,12 +393,9 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 }
 
 // F5, F12: a CEILING over a standing reopened anchor names it, and nothing else on the board. With
-// none standing, each reason is the sentence it is without this rule.
+// none standing, the reason is the sentence it is without this rule.
 func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
-	const (
-		term   = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
-		limits = "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted"
-	)
+	const term = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
 	why := func(b *stage, maxEpochs string) string {
 		t.Helper()
 		run := b.seed()
@@ -440,16 +425,6 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
 	}
 
-	// Every material gap at its limit.
-	atLimit := func() *stage { return remandedAtImpasse(t).exchangeOn("G1").docketAndRemand("M2", "G1") }
-	coverage = base(why(atLimit().register("red-chair"), ""), limits)
-	// The lens has sat since the edit and left the anchor, so nobody is ready and the limit holds.
-	b := atLimit().cite("C-1").supports(evLens, "C-1").reopen("C-1")
-	b.sit(b.at(), evLens)
-	b.sit(b.at(), evLens)
-	if got := why(b.register("red-chair"), ""); got != limits+"; reopened and unchecked: C-1"+coverage {
-		t.Errorf("reason = %q, want the limit's reason naming C-1 and not the gap at its limit", got)
-	}
 }
 
 // F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting, the report is served to it

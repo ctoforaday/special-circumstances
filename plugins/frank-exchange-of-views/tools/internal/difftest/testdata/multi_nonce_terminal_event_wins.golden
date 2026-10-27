@@ -48,7 +48,7 @@ TWO CONSEQUENCES:
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · lens red-lens-evidence is ready — PASS is refused while it is
 
-$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high --distinct-from GAP001
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check b --severity high --likelihood high --problem from the live dispatch --impact high
 exit 0
 stdout:
 minted GAP002
@@ -82,7 +82,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, no
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","distinct_from":["GAP001"],"fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 {"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"gap_ids":["GAP002"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_DISPATCH"}
@@ -125,12 +125,12 @@ The matrix is a scan surface: a cell is the field's first sentence, or its first
 
 ## Research areas
 
-_(none on the record)_
+No approach was put forward or pursued.
 
 ## Future research directions
 
-_(none on the record)_
+No approach was kept for later research.
 
 ## Alternatives considered
 
-_(none on the record)_
+No approach was weighed and set aside.

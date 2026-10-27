@@ -663,17 +663,18 @@ jobs:
       # (cli 180s -> 411s). Net negative at machine level; the premise ignored
       # inter-package parallelism.
       #
-      # SWEEPS AT THE BOUNDARY, GUARDS ON EVERY RUN (ruled 2026-09-04). releasegate/fuzz's
+      # SWEEPS IN THEIR OWN JOBS, GUARDS ON EVERY RUN (ruled 2026-09-04). releasegate/fuzz's
       # binary-driving sweeps — the debate fuzz, the shipped-hook resolution, the schedule
       # enumeration — skip unless FEOV_RELEASE_GATE=1, which is set here only on the
-      # nightly, and by the release job on a feov tag (where the sweep's own PASS line is
-      # asserted, so a typo'd variable cannot skip its way to green). The package's cheap
+      # nightly, by the release-fuzz job on a pull request that changes what they drive, and
+      # by the release job on a feov tag (the last two assert the sweep's own PASS line, so a
+      # typo'd variable cannot skip its way to green). The package's cheap
       # literal-surface guards run on every event, in ~2s. Measured at the split: the
-      # 573s Windows fuzz bill (run 32813820292) leaves pull requests entirely. What a
+      # 573s Windows fuzz bill (run 32813820292) leaves this job's pull-request legs. What a
       # sweep run proved about the PLATFORM — the .exe build, the spawns, the temp
       # plumbing — the guards and the rest of the suite still prove; the depth was always
       # statistics on debate semantics, which are platform-independent and keep full depth
-      # on the nightly and the tag.
+      # on the nightly, the release-fuzz job and the tag.
       #
       # -short remains for the packages that carry their own Short gears. record and
       # recordsql still run FULL depth everywhere: the DSN truncation and the unclosed
@@ -686,11 +687,13 @@ jobs:
       # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
       # bytes a stackless dev box compiles; the real engine has its own step above.
       #
-      # -timeout=40m ON THE NIGHTLY, where the debate sweep runs: it outruns Go's default ten
-      # minutes per package, and the leg then fails on the clock with the sweep's own verdict
-      # unprinted. The release job's sweep step carries the same bound for the same reason; every
-      # other event keeps the default, where no package runs that long. Both arms are workflow literals, like the -short arms.
-      - run: go test ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+      # -timeout=100m ON THE NIGHTLY, where the debate sweep runs: TestFuzzDebate alone took
+      # 4271s (71 min) on a runner to itself (release-fuzz, run 40178244370), and a 40-minute
+      # bound killed it mid-sweep on main's nightly (run 40181045085), the leg failing on the clock
+      # with the sweep's own verdict unprinted. The release-fuzz job and the release job's sweep
+      # step carry the same bound for the same reason; every other event keeps Go's default ten
+      # minutes, where no package runs that long. Both arms are workflow literals, like the -short arms.
+      - run: go test ${{ github.event_name == 'schedule' && '-timeout=100m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
@@ -755,6 +758,111 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: "1"
+
+  release-fuzz:
+    # THE DEBATE SWEEPS ON THE PULL REQUESTS THAT CAN MOVE THEM (ruled 2026-10-25: "CI on PRs +
+    # local once"). releasegate/fuzz's binary-driving sweeps — forty debates against the built
+    # binary, the shipped hooks resolved against it — run here on every pull request that
+    # changes what they drive, so a red lands on the branch that caused it, and an agent reads
+    # this job's result instead of sweeping on a shared dev box.
+    #
+    # THE JOB ALWAYS RUNS AND DECIDES FOR ITSELF. The filter is a step, not `on.pull_request.paths`:
+    # this workflow holds every job, and a workflow-level filter that skipped the workflow would
+    # leave a required check pending forever. A pull request that touches none of the paths below
+    # reports this job green with the sweep step skipped, and the scope step says so.
+    #
+    # THE PATHS are what the sweeps execute or read: the FEOV tools module (the binary, the record,
+    # the hook commands, the fuzz itself), the plugin's hooks (hooks.json is resolved against the
+    # built binary), the debate engine script, and this workflow, so a change to this job proves
+    # itself on its own pull request.
+    #
+    # LINUX ONLY: the sweeps are statistics on debate semantics, which are platform-independent;
+    # what the platform contributes, feov-record's Windows leg proves without them.
+    #
+    # NO BUILD CACHE: this job runs on pull requests only, and a pull request's cache lives on its
+    # merge ref, where no other pull request can restore it. Sharing feov-record's key instead
+    # would race it for the save (see that job's setup-go comment). The compile is a minute or two
+    # against a sweep of about seventy.
+    #
+    # timeout-minutes 115: TestFuzzDebate alone measured 4271s (71 min), the package 4311s, on this
+    # job's runner (run 40178244370). The test's own -timeout=100m fires first, with ~28 minutes of
+    # headroom over that, and names the running test; this bound is for a runner that never
+    # reaches it.
+    #
+    # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
+    # new run and the old one finishes and reports against its own commit.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    env:
+      GOTOOLCHAIN: local
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
+          # The merge commit and its first parent, the base tip: their diff is exactly what
+          # this pull request changes against the branch it merges into.
+          fetch-depth: 2
+      - name: Does this pull request change what the sweeps drive?
+        id: scope
+        working-directory: .
+        shell: bash
+        run: |
+          git rev-parse -q --verify HEAD^2 >/dev/null || {
+            echo "::error::HEAD is not the pull request's merge commit, so its changes cannot be read"
+            exit 1
+          }
+          hits=$(git diff --name-only HEAD^1 HEAD | grep -E '^(plugins/frank-exchange-of-views/(tools/|hooks/|skills/research-protocol/scripts/debate\.js$)|\.github/workflows/hooks\.yml$)' || true)
+          if [ -z "$hits" ]; then
+            echo "::notice::this pull request changes nothing the release sweeps drive; they skip"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "the release sweeps run for:"
+            echo "$hits"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: tmpfs for TEMP
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v7
+        if: steps.scope.outputs.run == 'true'
+        with:
+          cache: false
+          go-version: "1.27"
+      # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE, as in the release job: the sweeps
+      # skip when FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
+      # nothing. The full log is kept and uploaded when the step fails.
+      - name: The debate sweeps hold on this pull request
+        if: steps.scope.outputs.run == 'true'
+        shell: bash
+        env:
+          FEOV_RELEASE_GATE: "1"
+        run: |
+          log="$RUNNER_TEMP/release-fuzz.log"
+          go test -v -count=1 -timeout=100m ./releasegate/fuzz/ >"$log" 2>&1 || {
+            # The verdict lines, not the goroutine dump a timeout ends with: the dump is in the
+            # uploaded log.
+            grep -E '^(--- |panic:|FAIL|ok)|RUNSTAT|running tests:|^[[:space:]]+Test[A-Za-z]+ \(' "$log" | tail -60
+            exit 1
+          }
+          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -qE '^--- PASS: TestFuzzDebate \(' "$log" || {
+            echo "::error::the sweep did not run TestFuzzDebate; the gate guarded nothing"
+            exit 1
+          }
+      - uses: actions/upload-artifact@v7
+        if: (failure() || cancelled()) && steps.scope.outputs.run == 'true'
+        with:
+          name: release-fuzz-log
+          path: ${{ runner.temp }}/release-fuzz.log
+          retention-days: 14
 
   gray-area:
     # The trajectory-capture runtime. Its own Go module, so neither the
@@ -1700,10 +1808,10 @@ jobs:
       - name: The tag and the manifest agree
         run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
         working-directory: scripts
-      # THE FUZZ SWEEPS, AT THE BOUNDARY WHERE THE BINARY SHIPS (ruled 2026-09-04). Pull
-      # requests run only releasegate/fuzz's cheap guards; the binary-driving sweeps run
-      # here, at full depth, before anything is published — and on the nightly, so a
-      # regression is caught between releases rather than bisected at one.
+      # THE FUZZ SWEEPS, AT THE BOUNDARY WHERE THE BINARY SHIPS (ruled 2026-09-04). The
+      # binary-driving sweeps run here, at full depth, before anything is published — and on
+      # every pull request that changes what they drive (the release-fuzz job), and on the
+      # nightly, which sweeps main itself.
       #
       # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE: the sweeps skip when
       # FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
@@ -1711,10 +1819,11 @@ jobs:
       # way. Only a frank-exchange-of-views tag runs this; the other plugins' releases
       # have no fuzz sweep to hold.
       #
-      # -timeout=40m: a test timeout catches a HANG, and Go's default of ten minutes is the
-      # sweep's own length on a busy runner — forty debates of up to twelve chair sittings.
-      # A stuck debate is named by the sweep's own tripwire (no command finished for three
-      # minutes), long before this bound.
+      # -timeout=100m: a test timeout catches a HANG, and TestFuzzDebate alone — forty debates
+      # of up to twelve chair sittings — took 4271s (71 min) on a runner to itself (run
+      # 40178244370); a 40-minute bound killed it on main's nightly (run 40181045085). A stuck
+      # debate is named by the sweep's own tripwire (no command finished for three minutes),
+      # long before this bound.
       - name: The debate sweeps hold at the release boundary
         if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
         working-directory: ${{ steps.plugin.outputs.dir }}
@@ -1722,9 +1831,9 @@ jobs:
         env:
           FEOV_RELEASE_GATE: "1"
         run: |
-          out=$(go test -v -count=1 -timeout=40m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
+          out=$(go test -v -count=1 -timeout=100m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
           echo "$out" | grep -E "^(--- |ok)" | tail -30
-          grep -q '^--- PASS: TestFuzzDebate' <<<"$out" || {
+          grep -qE '^--- PASS: TestFuzzDebate \(' <<<"$out" || {
             echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }

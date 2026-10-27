@@ -34,7 +34,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cast, lanes := record.CastFor(nil, 1)
+	cast, lanes := record.CastFor(1)
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatal(err)
 	}

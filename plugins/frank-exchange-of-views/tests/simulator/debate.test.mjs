@@ -151,7 +151,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   assert.ok(!world.calls.some((c) => c.opts.label.startsWith('judge · terminal')), 'no unruled motion, no terminal sitting')
 })
 
-test('CEILING: nobody ready and every open material gap at its limit — the stamp says so and names no deadlock', async () => {
+test('CEILING: the run at its epoch limit — the stamp says so and names no deadlock', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan() })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'CEILING')
@@ -163,7 +163,7 @@ test('CEILING: nobody ready and every open material gap at its limit — the sta
 })
 
 // A CEILING over a reopened citation or proof names it in the reason the run ends on, and names no
-// other blocker; with none standing, each reason is the sentence it is without the rule. The
+// other blocker; with none standing, the reason is the sentence it is without the rule. The
 // record's derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
 test('CEILING: the reason names a standing reopened citation or proof, and only that', async () => {
   const ended = async (chair) => {
@@ -173,11 +173,8 @@ test('CEILING: the reason names a standing reopened citation or proof, and only 
   }
   const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'reopened'), blocker('P-cd9f4c5a', 'red-lens-evidence', 'reopened')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
-  const limits = 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again'
   const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
   const clause = '; reopened and unchecked: C-706fda63, P-cd9f4c5a'
-  assert.equal(await ended([chairEnv({ plan: ceilingPlan(none) })]), limits)
-  assert.equal(await ended([chairEnv({ plan: ceilingPlan(standing) })]), limits + clause)
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
 })
@@ -265,13 +262,13 @@ test('a plan whose blockers alone change keeps going, whatever their kind', asyn
   }
 })
 
-// ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
+// ── the epoch limit: a run TERM, and the record's word ────────────
 const limitPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 4,
   why: ['G-00000001: open, material, 1 exchange(s) (0 stalled) — below its limits', "epoch limit 4 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"],
   blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 const toTheLimit = (last) => [...[11, 12, 13].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head }) })), chairEnv({ plan: last }), passChair()]
 
-test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named, apart from the carried ceiling', async () => {
+test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named', async () => {
   const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan()) }))
   const out = await world.run(script, ARGS)
   assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
@@ -280,8 +277,6 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
   assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
   assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
 
-  const carried = await makeWorld(makeResponder({ chair: [chairEnv({ plan: ceilingPlan() })] })).run(script, ARGS)
-  assert.deepEqual([carried.verdict, carried.termination.epoch_limit_reached], ['CEILING', false], 'the carried ceiling is told apart')
 })
 
 test('EPOCH LIMIT: a relayed plan that says the limit is reached dispatches nobody, whatever parties it still lists', async () => {
@@ -407,7 +402,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
-  for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'or the catch-all with the reason none does', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
+  for (const want of ['YOU MINT YOUR OWN GAPS', 'read the board first', 'then mint', 'or the catch-all with the reason none does', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
@@ -493,7 +488,7 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const bench = firstPrompt(world, 'judge')
   for (const want of ['Docketed for you: G-00000001, G-00000002', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
     'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
-    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a gap you remand at impasse a second time stays open at its limit', 'NAMED infrastructure debt',
+    "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
@@ -520,8 +515,8 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
-      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal))\b/.test(body),
+      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+).{20}/) || [''])[0]}`)
   }
 })
 
@@ -606,13 +601,6 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
 })
 
 // ── bookends and prompt clauses carried forward ─────────────────────────────────────────────
-
-test('an unknown lens area is refused before any seat is dispatched', async () => {
-  const world = makeWorld(makeResponder({ chair: [passChair()] }))
-  await assert.rejects(() => world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversarial'] }),
-    (e) => /unknown lens area/.test(e.message) && /adversarial/.test(e.message) && /architecture/.test(e.message))
-  assert.equal(world.calls.length, 0)
-})
 
 test('lane floor: lanes below 3 refuses dispatch unless an override reason is given', async () => {
   await assert.rejects(makeWorld(makeResponder()).run(script, { ...ARGS, lanes: 1 }), /below the floor of 3/)
@@ -1018,7 +1006,7 @@ test('both tiers are required and every dispatch carries one of them; binDir is 
 
 test('the lenses dispatched are the plan\'s, each under a configuration of its own', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-adversary'), party('red-lens-architecture')]) }), passChair()] }))
-  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversary', 'architecture'] })
+  await world.run(script, ARGS)
   assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label), ['red-lens-adversary #1 · test', 'red-lens-architecture #1 · test'])
   assert.equal(new Set(labelsOf(world, 'red-lens').map((c) => c.opts.agentType)).size, 2, 'two lenses, two configurations')
   assert.equal(labelsOf(world, 'red-lens-evidence').length, 0, 'an area the plan did not ready does not sit — the record decides, not the roster')
@@ -1030,7 +1018,7 @@ test('the lenses dispatched are the plan\'s, each under a configuration of its o
 // envelope carries nothing — what the lens did is on the record — and it is closed.
 test('every lens is dispatched with the closed, empty lens envelope', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(LENS_AREAS.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
-  await world.run(script, { ...ARGS, lensAreas: LENS_AREAS })
+  await world.run(script, ARGS)
   const lenses = labelsOf(world, 'red-lens')
   assert.equal(lenses.length, LENS_AREAS.length, 'the drive dispatches every lens')
   for (const c of lenses) {
@@ -1088,13 +1076,11 @@ test('a relayed plan missing a required field, or carrying the wrong type, abort
   assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
 })
 
-// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits every one, and a plan
-// naming each dispatches one lens sitting per area, one agent configuration per area.
-test('the default cast is every lens area', async () => {
+// A plan naming every area dispatches one lens sitting per area, one agent configuration per area.
+test('every lens area sits under a configuration of its own', async () => {
   const areas = LENS_AREAS
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(areas.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
-  const { lensAreas, ...noAreas } = ARGS
-  await world.run(script, noAreas)
+  await world.run(script, ARGS)
   assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label).sort(), areas.map((a) => `red-lens-${a} #1 · test`).sort(), 'one lens sitting per area')
   assert.equal(new Set(labelsOf(world, 'red-lens').map((c) => c.opts.agentType)).size, areas.length, 'one configuration per area')
 })

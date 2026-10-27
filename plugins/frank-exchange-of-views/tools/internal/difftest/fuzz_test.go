@@ -257,6 +257,16 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		}
 	}
 	res := replayResult{setup: setupEvents}
+	// THE SOURCES ARE IN THE CACHE BEFORE THE FIRST COMMAND, so no command's events depend on how
+	// long a socket took to answer (source_test.go says what that cost).
+	seedFuzzSources(t, runDir, cmds)
+	hits := fuzzSourceHits.Load()
+	defer func() {
+		if n := fuzzSourceHits.Load() - hits; n != 0 {
+			t.Errorf("the replay fetched the fuzz source over the network %d time(s): a cite missed the seeded run cache, "+
+				"so its event depends on fetch timing — seed every url the sequence names (seedFuzzSources)", n)
+		}
+	}()
 	for _, c := range cmds {
 		c.args = fillVars(c.args, vars)
 		inv := runGo(bin, runDir, m, c)
@@ -342,11 +352,6 @@ var fuzzArms = []fuzzArm{
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
 				"--about-kind", "section", "--about", "Findings"}
-			// GAP001 is on the board from the prologue, so naming it distinct drives the field the mint's
-			// duplicate screen is answered with.
-			if rng.Intn(4) == 0 {
-				f = append(f, "--distinct-from", "GAP001")
-			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}

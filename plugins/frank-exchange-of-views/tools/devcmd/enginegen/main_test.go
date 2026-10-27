@@ -37,7 +37,6 @@ func TestTheBlockStatesEveryDispatchedSeatAndNoOther(t *testing.T) {
   'red-lens-evidence': { role: 'lens', tier: 'bulk', agentType: 'p:red-lens-evidence', area: 'evidence' },
 }
 const LANE = { prefix: 'blue-lane-', role: 'blue', tier: 'bulk', agentType: 'p:blue-researcher' }
-const RED_AREAS = ['evidence']
 const OCCASION = { docket: 'docket', petition: 'petition' }
 const MASS_MAPPING_VERSION = 'v2'
 `

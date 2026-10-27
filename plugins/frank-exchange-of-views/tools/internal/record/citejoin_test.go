@@ -74,9 +74,10 @@ func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
 }
 
 // The affordance must reach the seat, not merely exist — the surrounding derivation is what a
-// lens actually reads.
+// lens actually reads. The seat is the citation's owner (anchorOwnerOf).
 func TestTheLensSeesTheAffordance(t *testing.T) {
-	b := loadedFamilyT(t, nil, []*Event{citeEvent(t, "c-a08c9764", "x")})
+	cast := recordtest.Event(t, HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair"}})
+	b := loadedFamilyT(t, nil, []*Event{cast, citeEvent(t, "c-a08c9764", "x")})
 	// Asked of the SITTING, not of availableOf: "reaches the seat" is a claim about the one list
 	// a seat reads, and this test passed for as long as the affordance existed on a surface the
 	// seat's completion check could not see.

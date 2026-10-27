@@ -66,11 +66,21 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 	}
 }
 
+// castRun is a run whose record holds the cast setup writes, and nothing else.
+func castRun(t *testing.T) Run {
+	t.Helper()
+	run := mustRun(t, recordtest.TmpRun(t))
+	seats, _ := CastFor(1)
+	if _, err := Append(Identity{Run: run, SeatID: HarnessSeat}, &recordpb.Cast{SeatIds: seats}); err != nil {
+		t.Fatal(err)
+	}
+	return run
+}
+
 // EVERY READ DeriveVerdict MAKES SURFACES ITS FAILURE THROUGH TerminalVerdict, each failed alone.
 //
 // When the bench recorded no outcome, TerminalVerdict asks the record to decide, and that is four
-// reads in order: the halt, the gate, the cast (UnseatedAreas and CastOf read it), and the
-// dispatch plan. A fold on any one of them turns a busy record into ("", nil) — "not ended" — and
+// reads in order: the halt, the gate, the cast, and the dispatch plan. A fold on any one of them turns a busy record into ("", nil) — "not ended" — and
 // the liveness audit convicts a finished run as TERMINATED. Failing only the first read proves
 // nothing about the rest, because it returns first; so each case leaves the reads before it healthy
 // and breaks exactly one, and the error must name what that read asked for.
@@ -80,7 +90,7 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 // handle, the way every later read of that run would then fail; the plan read is failed at the
 // run's configuration, which it reads first.
 func TestTerminalVerdictSurfacesEachReadTheDerivationMakes(t *testing.T) {
-	healthy := castWith(t, "evidence")
+	healthy := castRun(t)
 	if v, err := TerminalVerdict(healthy); err != nil || v != "" {
 		t.Fatalf("TerminalVerdict over a healthy cast-only record = (%q, %v), want (\"\", nil)", v, err)
 	}
@@ -116,7 +126,7 @@ func TestTerminalVerdictSurfacesEachReadTheDerivationMakes(t *testing.T) {
 		}, "run-config.json"},
 	} {
 		t.Run(tc.read, func(t *testing.T) {
-			run := castWith(t, "evidence")
+			run := castRun(t)
 			tc.fail(t, run)
 			v, err := TerminalVerdict(run)
 			if err == nil || v != "" {

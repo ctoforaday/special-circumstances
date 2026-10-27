@@ -164,32 +164,46 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 	}
 }
 
-// TelemetryAudit checks one telemetry line per red epoch. redEpochs comes from the debate view
-// (epochs with a red section), read in-process. Telemetry is now DERIVED from the record via the
-// shared view library (never a materialized file), so it cannot be "absent": the check is whether
-// the derived series covers every red epoch. SKIP when there were no red epochs.
-func TelemetryAudit(run record.Run, redEpochs int) Audit {
+// TelemetryAudit checks that the telemetry series derived from the record has a row for every red
+// epoch.
+//
+// EVERY EPOCH IS A RED EPOCH: the record numbers its epochs by the chair's sittings (events_w), so
+// the red epochs are 1..N, where N is the last epoch with work in it (WindowIndex.CurrentEpoch). The
+// count is read off that field, never off the chair's positions: a run that ends in PASS files no
+// position, and a count of positions reads 0 on a run of seven epochs — a zero indistinguishable
+// from a run where the chair never sat.
+//
+// famErr is FamilyOf's error. A record that cannot be read is NOT MEASURED, never 0 red epochs.
+func TelemetryAudit(run record.Run, fam record.Family, famErr error) Audit {
+	if famErr != nil {
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "NOT MEASURED — the record could not be read, so its red epochs are unknown (not a run with none): " + famErr.Error()}
+	}
+	redEpochs := fam.At.CurrentEpoch(fam.Events)
 	if redEpochs == 0 {
-		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red epoch(s)"}
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the record holds no epoch with work in it: the chair never sat"}
 	}
 	lines, err := view.Telemetry(run)
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
-	// A ROW WITHOUT AN EPOCH IS NOT COUNTED, and with the row typed that is now the only way to
-	// miss: the field is optional in the schema, so presence is the question, and a key that was
-	// never written can no longer masquerade as one that was absent.
-	epochs := map[int32]bool{}
+	// A ROW WITHOUT AN EPOCH IS NOT COUNTED: the field is optional in the schema, so presence is the
+	// question, and a key that was never written cannot masquerade as one that was absent.
+	covered := map[int32]bool{}
 	for _, j := range lines {
 		if j.Epoch != nil {
-			epochs[j.GetEpoch()] = true
+			covered[j.GetEpoch()] = true
 		}
 	}
-	v := "FAIL"
-	if len(epochs) >= redEpochs {
-		v = "PASS"
+	var missing []string
+	for r := 1; r <= redEpochs; r++ {
+		if !covered[int32(r)] {
+			missing = append(missing, strconv.Itoa(r))
+		}
 	}
-	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry epoch(s) vs %d red epoch(s) on the record", len(epochs), redEpochs)}
+	if len(missing) > 0 {
+		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry has no row for red epoch(s) %s of the %d on the record", strings.Join(missing, ", "), redEpochs)}
+	}
+	return Audit{Check: "telemetry", Verdict: "PASS", Detail: fmt.Sprintf("telemetry covers all %d red epoch(s) on the record", redEpochs)}
 }
 
 // AUDIT 2 IS GONE: "shard self-report vs files".
@@ -433,28 +447,6 @@ func AssemblyScreen(run record.Run) Audit {
 
 // ---- AUDIT 6: record parity ----
 
-// repoRootOf walks up from the run directory to the repository root — the directory holding
-// `plugins/`. Derived rather than passed: capture is invoked with a run directory and a
-// transcript directory, and threading a third path through every caller for one audit would be
-// more surface than the audit is worth.
-func repoRootOf(run record.Run) string {
-	dir, err := filepath.Abs(run.Dir())
-	if err != nil {
-		return ""
-	}
-	for i := 0; i < 12; i++ {
-		if st, e := os.Stat(filepath.Join(dir, "plugins")); e == nil && st.IsDir() {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
-	return ""
-}
-
 // StrayRecordsAudit finds event shards written OUTSIDE any run directory.
 //
 // # What a stray is, and why it is not simply "another run"
@@ -491,13 +483,13 @@ func repoRootOf(run record.Run) string {
 // What it was protecting is still protected, one layer down and by construction: every event
 // written is a row, and `UNIQUE (seat_id, nonce, seq)` is what stops two writers claiming one slot.
 
-func StrayRecordsAudit(repoRoot, runDir string) Audit {
-	if repoRoot == "" {
-		return Audit{Check: "stray-records", Verdict: "SKIP", Detail: "no repository root to walk"}
+func StrayRecordsAudit(project, runDir string) Audit {
+	if project == "" {
+		return Audit{Check: "stray-records", Verdict: "SKIP", Detail: "no project directory to walk"}
 	}
 	captured, _ := filepath.Abs(runDir)
 	var strays []string
-	_ = filepath.WalkDir(repoRoot, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(project, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
 			return nil //nolint:nilerr // an unreadable subtree is not this audit's finding
 		}
@@ -522,7 +514,7 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		}
 		shards, _ := filepath.Glob(filepath.Join(path, "events-*.jsonl"))
 		if len(shards) > 0 {
-			rel, rerr := filepath.Rel(repoRoot, path)
+			rel, rerr := filepath.Rel(project, path)
 			if rerr != nil {
 				rel = path
 			}
@@ -1799,15 +1791,23 @@ func ingestSeatTurns(run record.Run, transcripts []record.Transcript) string {
 }
 
 // Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
-// audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
-// (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
-// process.cwd().
+// audits, the report string, and whether any audit FAILed (exit 2).
+//
+// project is the directory every project-side effect lands in — run-archive/, feov-memory/,
+// law/, .claude/run-live.json — and the tree the stray-records audit walks. It is the caller's to
+// state: the command passes its working directory, the project the run was set up from, where
+// setup wrote the run-live row capture lifts. It is never derived from the run directory's
+// ancestors: a directory name such as plugins/ is not unique to this repository (~/.claude holds
+// one), and a run under a scratch directory beneath it archived into ~/.claude/run-archive/.
 // `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
 // is controllable in a test, the same way WriteRunLiveMarker takes its clock.
 //
 // transcriptDir is the Workflow's directory, read for its journal alone: the seats' transcripts
 // are the ones the record names (seatTranscripts).
-func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
+func Run(run record.Run, transcriptDir, project string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
+	if project == "" {
+		return nil, "", false, errors.New("capture: no project directory given — run-archive/, feov-memory/, law/ and .claude/run-live.json have nowhere to go")
+	}
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
@@ -1845,11 +1845,11 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
 	// archive that silently did not happen is a run whose evidence is gone the next time the
 	// container is reclaimed, and nothing would have said so.
-	if arc, aerr := ArchiveRecord(run, repoRootOf(run)); aerr != nil {
+	if arc, aerr := ArchiveRecord(run, project); aerr != nil {
 		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
 	} else {
 		rel := arc
-		if r, rerr := filepath.Rel(repoRootOf(run), arc); rerr == nil {
+		if r, rerr := filepath.Rel(project, arc); rerr == nil {
 			rel = r
 		}
 		if st, serr := os.Stat(arc); serr == nil {
@@ -1918,26 +1918,18 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// The family off the record; a run whose record cannot be read audits with fam == nil,
 	// exactly as the nil board did.
 	var fam *record.Family
-	if f, ferr := record.FamilyOf(run); ferr == nil {
+	f, ferr := record.FamilyOf(run)
+	if ferr == nil {
 		fam = &f
-	}
-	redEpochs := 0
-	if fam != nil {
-		dj := record.DebateJSONOfFamily(*fam)
-		for _, r := range dj.Epochs {
-			if len(r.Red) > 0 {
-				redEpochs++
-			}
-		}
 	}
 
 	audits = []Audit{
 		LivenessAudit(run, now),
-		TelemetryAudit(run, redEpochs),
+		TelemetryAudit(run, f, ferr),
 		ContextUse(transcripts),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
-		StrayRecordsAudit(repoRootOf(run), run.Dir()),
+		StrayRecordsAudit(project, run.Dir()),
 		RecordParityAudit(run),
 		DispatchParityAudit(run, results, journalPresent),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
@@ -1954,8 +1946,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		LaneCoverageAudit(run),
 	}
 
-	cwd, _ := os.Getwd()
-	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), fam)
+	sc := WriteScorecards(run, results, filepath.Join(project, "feov-memory"), fam)
 	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
 	// partial failure — some cards written, one unwritable — showed the cheerful line and
 	// swallowed the reason entirely.
@@ -1966,10 +1957,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), famEvents(fam))
+	prec := HarvestPrecedents(run, results, filepath.Join(project, "law"), famEvents(fam))
 	lines = append(lines, precedentLine(prec))
 
-	markerLine, markerErr := closeRunLiveMarker(cwd, run.Dir())
+	markerLine, markerErr := closeRunLiveMarker(project, run.Dir())
 	lines = append(lines, markerLine)
 
 	var out []string
@@ -2034,7 +2025,7 @@ func copyFile(src, dst string) error {
 
 // ---- record archive ----
 
-// ArchiveRecord writes the run's RAW RECORD to run-archive/<slug>.tar.gz at the repository root,
+// ArchiveRecord writes the run's RAW RECORD to run-archive/<slug>.tar.gz in the project directory,
 // which is the only part of a run that outlives the container.
 //
 // THE EVIDENCE WAS THE ONE THING NOT BEING KEPT. `research/*/` is gitignored — deliberately, and
@@ -2055,7 +2046,7 @@ func copyFile(src, dst string) error {
 //
 // It does not reintroduce ffc4bf4's hazard: seats read their own run directory and the inputs
 // mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
-func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
+func ArchiveRecord(run record.Run, project string) (string, error) {
 	recs := run.Records()
 	// SEAL BEFORE WALKING, because the archive is the copy nobody can re-derive. The record runs
 	// journal_mode=WAL and nothing checkpoints it during the run, so a third of a finished run's
@@ -2151,7 +2142,7 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 		return "", fmt.Errorf("no event shards under %s — refusing to write an archive that would "+
 			"preserve nothing while looking like a preserved run", recs)
 	}
-	outDir := filepath.Join(repoRoot, "run-archive")
+	outDir := filepath.Join(project, "run-archive")
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", err
 	}

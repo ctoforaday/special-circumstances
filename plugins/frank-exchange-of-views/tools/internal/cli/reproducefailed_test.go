@@ -107,7 +107,7 @@ func TestASoundVerdictOnAnObservedProofIsRecorded(t *testing.T) {
 // the first lens's `sound` on the other, and neither overwrites the other.
 func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
-	cast, lanes := record.CastFor(nil, 1)
+	cast, lanes := record.CastFor(1)
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)
@@ -245,7 +245,7 @@ func evidenceJSON(t *testing.T, runDir string) record.EvidenceJSON {
 // same ground as over a fresh failed run.
 func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	runDir := newRun(t)
-	cast, lanes := record.CastFor(nil, 1)
+	cast, lanes := record.CastFor(1)
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)

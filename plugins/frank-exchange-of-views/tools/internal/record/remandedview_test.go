@@ -14,8 +14,8 @@ import (
 //
 // `remanded` answers its motion and sends the gap back to the debate for one more exchange, so an
 // open gap with a remand behind it is a different situation from one nobody has ever put before
-// the bench, and the chair used to get the same sentence for both. The view also counts the
-// remands, which is how the dispatch tells a gap owed its remand's exchange from one at its limit.
+// the bench, and the chair used to get the same sentence for both. The view also lists the
+// remands, which is how the dispatch tells a gap owed its remand's exchange from one that has had it.
 //
 // FIVE GAPS, AND FOUR OF THEM ARE THE NEGATIVE CASES. A flag that is simply true for every open
 // gap would pass any test that only checks the positive one, which is the shape #759 warned this

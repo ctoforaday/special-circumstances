@@ -399,7 +399,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 	}
 
-	foundBy, err := listValuesByEvent(q, "gap_found_by")
+	foundBy, err := listValuesByEvent(q, "mint_found_by")
 	if err != nil {
 		return out, err
 	}
@@ -632,8 +632,7 @@ func listValuesByEvent(db recordsql.Querier, table string) (map[int64][]string, 
 }
 
 // WorkJSON is the chair's SHRINKING working set: OPEN gaps only, in the lean shape a
-// merge acts on turn to turn, plus a prose-free index of the closed gaps so a near-match
-// screen has ids and locations to hit without carrying every closed gap's full prose.
+// merge acts on turn to turn.
 //
 // It exists because the full board JSON grows monotonically (every closed gap stays, with
 // all its prose), and the chair re-read that whole thing every epoch only to act on the
@@ -842,9 +841,10 @@ type WorkGapJSON struct {
 	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
-	// minting lens and blue, is owed), "spent" (that exchange has begun), "at_limit" (the bench
-	// remanded it at impasse twice and is not asked again). "" when the bench has ruled no remand while
-	// the gap was at impasse — a remand of a docket filed before impasse spends nothing.
+	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
+	// impasse or not), "spent" (that exchange has been had: one in which either seat acted on the
+	// gap). "" when the bench has ruled no remand while the gap was at impasse — a remand of a
+	// material gap's docket filed before impasse spends nothing.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -863,7 +863,7 @@ type WorkGapJSON struct {
 //
 // A WORK LIST IS THE OPEN WORK, AND AN ESTOPPEL IS OPEN. It is not history a seat reads about; it
 // is a live constraint on its next act — the one thing it cannot find out safely anywhere else,
-// because `near-match` carries `closed_by` but nothing REQUIRES a seat to screen before minting.
+// because the board carries `closed_by` but nothing REQUIRES a seat to read it before minting.
 // Red's closures leave; the bar stays.
 //
 // Every seat reads this list — `show work` is the projection each one is told to run first and
@@ -972,9 +972,15 @@ type WorkGapState struct {
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
-	remand                           remandStage
-	route                            gapRoute
-	unruledDocket                    bool
+	remand           remandStage
+	route            gapRoute
+	unruledDocket    bool
+	latestRemandOwed bool  // GapExchanges.latestRemandOwed, which the PASS gate's list reads
+	remandRuled      int64 // GapExchanges.latestRemand, which the remand's items read (remandItemsOf)
+	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
+	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
+	// item on a docket motion says so before it rules.
+	remandLimit                      int64
 	Fate                             string // the last closer's word; closed gaps only
 	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
@@ -1024,7 +1030,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		r.absent = noRecord(q)
 		return r, err
 	}
-	if r.foundBy, err = listValuesByEvent(q, "gap_found_by"); err != nil {
+	if r.foundBy, err = listValuesByEvent(q, "mint_found_by"); err != nil {
 		return r, err
 	}
 	if r.supersedes, err = listValuesByEvent(q, "mint_supersedes"); err != nil {
@@ -1129,6 +1135,13 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			x = &GapExchanges{GapID: g.ID}
 		}
 		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
+		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))
+		// A REMAND OF A GAP THAT IS NOT MATERIAL IS OWED ITS EXCHANGE whether or not the bench ruled it
+		// at impasse (routeOf), so the stage says what the route does.
+		if g.route == routeRemandOwed {
+			g.remand = remandOwed
+		}
 	}
 	return out, nil
 }
@@ -1524,11 +1537,6 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 				mintedBy[id] = append(mintedBy[id], m.GetGapId())
 			}
 		}
-		// A CREDIT ADDS THE FINDING TO AN OPEN GAP'S found_by, so the gap credits it as its mint's
-		// own list would.
-		if c, ok := recordpb.BodyAs[*recordpb.Credit](e); ok {
-			mintedBy[c.GetFoundBy()] = append(mintedBy[c.GetFoundBy()], c.GetGapId())
-		}
 	}
 	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
@@ -1576,8 +1584,7 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 // every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
 var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
 	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_MINT,
-	recordpb.EventType_EVENT_TYPE_CREDIT)
+	recordpb.EventType_EVENT_TYPE_MINT)
 
 // FindingsJSONBytes renders the findings view as indented JSON.
 func FindingsJSONBytes(run Run) ([]byte, error) { return findingsView.jsonBytes(run) }

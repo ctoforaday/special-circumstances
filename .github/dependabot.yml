@@ -22,7 +22,7 @@ updates:
   - package-ecosystem: gomod
     directory: /plugins/prosthetic-conscience/tools
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       go-dependencies:
         patterns: ["*"]
@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: gomod
     directory: /plugins/frank-exchange-of-views/tools
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       go-dependencies:
         patterns: ["*"]
@@ -38,7 +38,15 @@ updates:
   - package-ecosystem: gomod
     directory: /plugins/gray-area/tools
     schedule:
-      interval: monthly
+      interval: weekly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /scripts
+    schedule:
+      interval: weekly
     groups:
       go-dependencies:
         patterns: ["*"]
@@ -52,7 +60,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       actions:
         patterns: ["*"]

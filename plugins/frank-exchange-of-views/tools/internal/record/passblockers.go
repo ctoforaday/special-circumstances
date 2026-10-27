@@ -31,6 +31,7 @@ type BlockerKind string
 const (
 	BlockerStrandedGap   BlockerKind = "stranded_gap"
 	BlockerMaterialGap   BlockerKind = "material_gap"
+	BlockerRemandOwed    BlockerKind = "remand_owed"
 	BlockerContradiction BlockerKind = "contradiction"
 	BlockerReopened      BlockerKind = "reopened"
 	BlockerUnsoundProof  BlockerKind = "unsound_proof"
@@ -154,7 +155,7 @@ func reopenedFact(b Blocker) string {
 }
 
 // reopenedOwed is the other sentence every wording of a reopened blocker states: whose the check
-// is. Its owner owes it (reopenedOwnerOf) — dispatch readies that seat and its work list blocks on
+// is. Its owner owes it (anchorOwnerOf) — dispatch readies that seat and its work list blocks on
 // the anchor — and it is not the only seat whose check clears: the fold reads no seat.
 func reopenedOwed(b Blocker) string {
 	return ownerOr(b, reopenedOwner) + " owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
@@ -240,14 +241,30 @@ var blockerKinds = []blockerKind{
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
+	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (ruled by
+	// gblock 2026-10-24). A material gap holds it as material_gap
+	// whatever its remand; this row is the one a gap below material holds once the bench has sent it
+	// back, so the plan that readies its minting lens and blue never reads as permitting a PASS over
+	// the exchange it readies them for (routeOf).
+	{
+		kind:  BlockerRemandOwed,
+		gloss: "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
+		item: func(b Blocker) string {
+			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange in which either records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
+		},
+		refusal: func(bs []Blocker) string {
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one in which either records an act on the gap — on the ruling's direction; the dispatch readies them. PASS waits for it; `--as FAIL` does not",
+				len(bs), strings.Join(subjects(bs), ", "))
+		},
+	},
 	{
 		kind:  BlockerContradiction,
 		gloss: "a contradicting source no gap answers",
 		item: func(b Blocker) string {
 			if b.raisedBy != "" {
-				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`, and %s, or, where an open gap already holds its defect, credits that gap with it (`credit --id <the gap> --found-by %s`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionGapSubject, b.raisedBy, contradictionAnswerBudget, contradictionCitationAnswer)
+				return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q; finding %s raised it, and no gap answers it — PASS is refused until one does; %s mints the gap with `mint --found-by %s`, and %s. A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, b.raisedBy, ownerPhrase(b, "reader", contradictionReader), b.raisedBy, contradictionGapSubject, contradictionAnswerBudget, contradictionCitationAnswer)
 			}
-			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`; %s) or, where an open gap already holds its defect, by crediting that gap with the finding (`credit --id <the gap> --found-by <the finding's id>`). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionGapSubject, contradictionAnswerBudget, contradictionCitationAnswer)
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, whether or not the sentence still stands, and answers it with the gap minted from that finding (`mint --found-by <the finding's id>`; %s). A source the report misstates is a citation defect, so its gap is material by its class whatever reader decision you judge it to change. %s. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionGapSubject, contradictionAnswerBudget, contradictionCitationAnswer)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -257,13 +274,13 @@ var blockerKinds = []blockerKind{
 					continue
 				}
 				if b.raisedBy != "" {
-					named = append(named, fmt.Sprintf("%s: %q (read by %s, raised by finding %s, no gap minted from it or credited with it)", contradictionFact(b), b.Detail, b.Owner, b.raisedBy))
+					named = append(named, fmt.Sprintf("%s: %q (read by %s, raised by finding %s, no gap minted from it)", contradictionFact(b), b.Detail, b.Owner, b.raisedBy))
 					continue
 				}
 				named = append(named, fmt.Sprintf("%s: %q (read by %s)", contradictionFact(b), b.Detail, b.Owner))
 			}
 			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and nothing has answered them:\n  %s\n"+
-				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis — only a finding naming it raises it; one whose `--quote` contains the claim raises nothing — and answers it with the gap it mints from that finding (the lens's `mint --found-by <the finding's id>`; "+contradictionGapSubject+") or, where an open gap already holds its defect, with that gap credited with the finding (the lens's `credit --id <the gap> --found-by <the finding's id>`), so it enters the board with the lifecycle, the blue duty and the gate every other defect has. A finding alone answers nothing: a source the report misstates is a citation defect, material by its class. "+contradictionCitationAnswer+". "+
+				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis — only a finding naming it raises it; one whose `--quote` contains the claim raises nothing — and answers it with the gap it mints from that finding (the lens's `mint --found-by <the finding's id>`; "+contradictionGapSubject+"), so it enters the board with the lifecycle, the blue duty and the gate every other defect has. A finding alone answers nothing: a source the report misstates is a citation defect, material by its class. "+contradictionCitationAnswer+". "+
 				"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
@@ -272,8 +289,8 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the anchor's
-	// (reopenedOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
-	// proof's the lens that owns proofs. The owner owes the check, so it is not retired, and the
+	// (anchorOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
+	// proof's the computation lens. The owner owes the check, so it is not retired, and the
 	// edit that reopened the anchor moved the head past its last sitting: dispatch readies it.
 	//
 	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check from a sitting opened
@@ -494,6 +511,9 @@ func PassBlockerGlosses() []string {
 type blockerGap struct {
 	id, mintedBy, supersededBy string
 	material                   bool
+	// latestRemandOwed is the gap's latest remand with no exchange since its ruling in which a party
+	// acted on the gap (latestRemandOwed).
+	latestRemandOwed bool
 }
 
 func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
@@ -506,15 +526,18 @@ func blockerGapsOfStates(gaps []WorkGapState) []blockerGap {
 		if g.Stranded {
 			sup = g.SupersededBy
 		}
-		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material})
+		out = append(out, blockerGap{id: g.ID, mintedBy: g.MintedBy, supersededBy: sup, material: g.Material, latestRemandOwed: g.latestRemandOwed})
 	}
 	return out
 }
 
-func blockerGapsOfOpen(gaps []openGap) []blockerGap {
+// blockerGapsOfOpen is the plan's open gaps as the list reads them, with owed the gaps whose latest
+// remand's exchange is owed (remandsOwedOf) — nil where the reader asks only each gap's id and
+// minter, as the lens fold does (lensOwesOf, owedBlockersOf).
+func blockerGapsOfOpen(gaps []openGap, owed map[string]bool) []blockerGap {
 	out := make([]blockerGap, 0, len(gaps))
 	for _, g := range gaps {
-		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material})
+		out = append(out, blockerGap{id: g.id, mintedBy: g.mintedBy, supersededBy: g.supersededBy, material: g.material, latestRemandOwed: owed[g.id]})
 	}
 	return out
 }
@@ -534,6 +557,11 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	for _, g := range gaps {
 		if g.supersededBy == "" && g.material {
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
+		}
+	}
+	for _, g := range gaps {
+		if g.supersededBy == "" && !g.material && g.latestRemandOwed {
+			out = append(out, Blocker{Kind: BlockerRemandOwed, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
 	events := owedBlockersOf(evs, ids, win, gaps)
@@ -572,19 +600,13 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	for _, c := range unansweredContradictions(evs, win) {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy, raiser: c.raiser})
 	}
-	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE CAST SEATS ITS OWNER. A blocker whose owner
-	// cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence` lists the
-	// anchor either way.
-	cast := castOfEvents(evs)
 	for _, r := range reopenedEvidence(evs, win) {
-		if owner := reopenedOwnerOf(cast, r); owner != "" {
-			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: owner, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
-		}
+		out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: anchorOwnerOf(r.proof), Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 	}
 	for _, u := range unsoundProofsOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerUnsoundProof, Subject: u.anchor, Owner: u.judge, Detail: u.sha, since: u.since, answeredBy: u.answeredBy, answeredAt: u.answeredAt})
 	}
-	if cast != nil && reportHeadOf(evs, ids) == 0 {
+	if castOfEvents(evs) != nil && reportHeadOf(evs, ids) == 0 {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
@@ -658,7 +680,7 @@ func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
 }
 
 // passBlockerReadsAt is every answer the gate's list takes off the record: the stream, the fresh
-// material gaps and the open gaps.
+// material gaps, the open gaps and the bench's remands.
 func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	var r planReads
 	var err error
@@ -668,13 +690,17 @@ func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.fresh, err = freshMaterialOf(q); err != nil {
 		return r, err
 	}
-	r.gaps, err = openGaps(q)
+	if r.gaps, err = openGaps(q); err != nil {
+		return r, err
+	}
+	r.remands, err = remandRulingsOf(q)
 	return r, err
 }
 
 // passBlockersOfReads folds the gate's list from what passBlockerReadsAt read.
 func passBlockersOfReads(r planReads) []Blocker {
-	return passBlockersOf(r.evs, r.win.IDs(r.evs), r.win, blockerGapsOfOpen(r.gaps), r.fresh)
+	ids := r.win.IDs(r.evs)
+	return passBlockersOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps, remandsOwedOf(r.evs, ids, r.win, r.remands)), r.fresh)
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and

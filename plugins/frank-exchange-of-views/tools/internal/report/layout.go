@@ -76,6 +76,9 @@ type Section struct {
 	first []string
 	// fate, on an inquiry section, is which inquiry statuses it holds.
 	fate func(status string) bool
+	// none, on an inquiry section, is the sentence it holds when no inquiry has its fate: what that
+	// absence says about the subject, true for that fate alone.
+	none string
 	// compose renders the section's body; nil for one a later pass over the whole document writes.
 	compose func(a *assembly, s Section) string
 }
@@ -142,9 +145,9 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return riskMatrix(a.bj) }},
 	// THREE DESCRIPTIVE AREAS, and every inquiry lands in exactly one. See taken, deferred and
 	// setAside in assemble.go for why three and why setAside is a complement.
-	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: inquiries},
-	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: inquiries},
-	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: inquiries},
+	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, none: "No approach was put forward or pursued.", compose: inquiries},
+	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, none: "No approach was kept for later research.", compose: inquiries},
+	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, none: "No approach was weighed and set aside.", compose: inquiries},
 	{File: FileReport, Heading: "Open questions", Composer: Blue,
 		From:    "the section of this name in the report's text, which closes it",
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",

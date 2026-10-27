@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"os"
 	"slices"
 	"strings"
@@ -155,5 +156,58 @@ func TestALongerFenceHoldsAShorterOne(t *testing.T) {
 	eachLine("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout", func(_, _ string, f bool) { fenced = append(fenced, f) })
 	if want := []bool{true, true, true, true, true, false}; !slices.Equal(fenced, want) {
 		t.Errorf("fenced lines %v, want %v", fenced, want)
+	}
+}
+
+// EVERY ROW OF THE JSON CARRIES ITS TEXT AS A STRING, AND A ROW WITH NONE SAYS WHY.
+//
+// A row that did not ship used to omit `text`, so a seat's `jq '.sections[] | select(.text |
+// test(...))'` stopped on a null four times in one run (universe-m34), and a null reads as data the
+// view failed to read. The encoded form is the contract, so it is what this reads.
+func TestEveryLayoutRowCarriesTextOrSaysWhyItHasNone(t *testing.T) {
+	run := runtest.Open(t, newRun(t))
+	id := record.Identity{Run: run, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\nIt is not prime.\n")}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Layout(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows struct {
+		Sections []map[string]any `json:"sections"`
+	}
+	if err := json.Unmarshal(b, &rows); err != nil {
+		t.Fatal(err)
+	}
+	shipping, absent := 0, 0
+	for _, r := range rows.Sections {
+		text, isString := r["text"].(string)
+		if !isString {
+			t.Errorf("section %q encodes `text` as %#v, not a string", r["heading"], r["text"])
+		}
+		reason, hasReason := r["no_text"]
+		switch ships, _ := r["ships"].(bool); {
+		case ships:
+			shipping++
+			if hasReason || text == "" {
+				t.Errorf("section %q ships with text %q and no_text %#v", r["heading"], text, reason)
+			}
+		default:
+			absent++
+			if reason != NotInTheSet || text != "" {
+				t.Errorf("section %q does not ship and says %#v of its text %q, want %q", r["heading"], reason, text, NotInTheSet)
+			}
+		}
+	}
+	if shipping == 0 || absent == 0 {
+		t.Fatalf("the run measured %d shipping and %d absent rows; both kinds are needed for this to test anything", shipping, absent)
 	}
 }

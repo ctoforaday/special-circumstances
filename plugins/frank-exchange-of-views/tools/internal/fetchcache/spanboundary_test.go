@@ -259,3 +259,26 @@ func TestAnOCRPagesSpanEndsAtABoundary(t *testing.T) {
 		t.Errorf("before a semicolon on page 2: %v", err)
 	}
 }
+
+// THE EXAMPLE THE RULE'S TEXT SHOWS IS WHAT THE TOOL DOES: each span it calls accepted passes
+// both boundaries, and each it calls refused fails at the side it names.
+func TestSpanBoundarysExampleIsWhatTheToolDoes(t *testing.T) {
+	for _, c := range []struct {
+		span     string
+		from, to bool
+	}{
+		{spanExampleWhole, true, true},
+		{spanExampleClause, true, true},
+		{spanExampleCutStart, false, true},
+		{spanExampleCutEnd, true, false},
+	} {
+		i := strings.Index(spanExample, c.span)
+		if i < 0 || !strings.Contains(SpanBoundary, "«"+c.span+"»") {
+			t.Fatalf("%q is not in the example or not shown in SpanBoundary", c.span)
+		}
+		from, to := spanStartsAtBoundary(spanExample, i), spanEndsAtBoundary(spanExample, i+len(c.span))
+		if from != c.from || to != c.to {
+			t.Errorf("%q: starts at a boundary %v, ends at one %v; SpanBoundary says %v, %v", c.span, from, to, c.from, c.to)
+		}
+	}
+}

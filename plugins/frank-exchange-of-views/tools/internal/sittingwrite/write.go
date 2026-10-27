@@ -18,6 +18,7 @@
 package sittingwrite
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"io"
@@ -204,6 +205,7 @@ func Write(s Sitting, seat io.Writer) error {
 		return err
 	}
 	var body proto.Message
+	var guards []record.Guard
 	switch phase {
 	case Open:
 		// THE WRITER DOES THE JOIN THE HOOK CANNOT. SubagentStart carries the configuration, not the
@@ -223,13 +225,17 @@ func Write(s Sitting, seat io.Writer) error {
 		if transcriptPath != "" {
 			cl.AgentTranscriptPath = proto.String(transcriptPath)
 		}
+		// ONE CLOSE A SITTING. A seat nudged to return its envelope stops twice; the second stop's
+		// close is the same fact and writes nothing, but its turns are still ingested below — the
+		// envelope turn is on the transcript only at the second stop.
+		guards = append(guards, record.OneCloseASitting(cl))
 		body = cl
 	default:
 		return fmt.Errorf("sittingwrite: unknown phase %q — a span has exactly two ends", phase)
 	}
 	// Round -1 is UNKNOWN and is NOT round 0: a hook fires outside any seat's round, and
 	// conflating the two is the phantom-archive defect this field exists to prevent.
-	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, body); err != nil {
+	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, body, guards...); err != nil && !errors.Is(err, record.ErrWritesNothing) {
 		return err
 	}
 	if phase == Open && seat != nil {

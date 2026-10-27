@@ -153,6 +153,26 @@ func RefuseUnknownFlag(c *cobra.Command, name, said string, answered bool, cause
 	return &Refusal{Diagnosis: b.String(), Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
 }
 
+// RefuseFlagBeforeVerb is the refusal for a verb's flag typed BEFORE the verb: the command name is
+// read at the first word that is not a flag or a root flag's value, so the flag's value was read as
+// the command, and the seat was told no command of that name exists — with the whole surface beneath.
+//
+// IT NAMES WHAT HAPPENED AND ACCEPTS NOTHING. A flag the root does not declare has no arity before a
+// verb is found, so reading past its value would be the tool choosing which verb the seat meant; the
+// call is refused, and the refusal says which flag, which verbs on THIS surface take it (`takers`,
+// read from the tree), and what was read as the command. It is a few lines and names the page, as a
+// flag refusal does, rather than printing it.
+func RefuseFlagBeforeVerb(root *cobra.Command, flag, read string, takers []string) error {
+	verb := "take"
+	if len(takers) == 1 {
+		verb = "takes"
+	}
+	d := fmt.Sprintf("--%s came before the verb, so the word after it, %q, was read as the command name — and no command has that name. "+
+		"--%s is a verb's flag: on this surface %s %s it, after the verb (`%s <verb> --%s …`). Nothing ran.",
+		flag, read, flag, andList(quoted(takers)), verb, root.CommandPath(), flag)
+	return &Refusal{Diagnosis: d, Path: root.CommandPath(), Lists: listsOf(root), Cause: feov.Errorf(feov.Validation, "%s", d)}
+}
+
 // ownFlags is the line that says WHAT THIS VERB TAKES: every flag it parsed against, less the ones
 // every command shares (the root's) and its `--help`. A view under a group takes the group's
 // flags, so they are listed.

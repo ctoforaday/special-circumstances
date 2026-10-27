@@ -31,7 +31,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 
 	const why = "blue may well have done the work; what is missing is the record of it"
 	registerLensOnce(t, runDir)
-	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
 		"--key", "argued", "--class", "spec_underspecification",
 		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
@@ -55,7 +55,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// --REASON IS NEVER THE PROBLEM. A mint that gives the argument and no --problem is refused, in
 	// the problem's own words: the text it would have stored was red's argument, and filing it as
 	// the problem — which the report prints — puts red's reasoning in the risk matrix.
-	_, err = runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	_, err = runMint(t, "--run", runDir, "--seat-id", lensSeat,
 		"--key", "viareason", "--class", "spec_underspecification",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",

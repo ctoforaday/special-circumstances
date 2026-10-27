@@ -435,22 +435,6 @@ JOIN "motion_docket" md ON md."event_id" = mo."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 WHERE d."closes";
 
--- THE FINDINGS A GAP IS FOUND BY: the ones its mint named, then each finding a lens CREDITED to it
--- since (credit), in the order the credits landed. Keyed on the gap's mint event, the key its mint's
--- own rows carry, so a reader of a gap's found_by reads this and gets both arms; reading
--- "mint_found_by" alone drops every credit and prints a gap that answers a contradiction as one that
--- answers nothing.
-CREATE VIEW "gap_found_by" AS
-SELECT f."event_id" AS "event_id", f."ord" AS "ord", f."value" AS "value"
-FROM "mint_found_by" f
-UNION ALL
-SELECT m."event_id",
-  (SELECT count(*) FROM "mint_found_by" x WHERE x."event_id" = m."event_id")
-    + (SELECT count(*) FROM "credit" p WHERE p."gap_id" = c."gap_id" AND p."event_id" < c."event_id"),
-  c."found_by"
-FROM "credit" c
-JOIN "mint" m ON m."gap_id" = c."gap_id";
-
 -- THE GAP, AND WHETHER IT IS MATERIAL. Its current grades and its "material" column are gap_grade's
 -- row that stands now (until_seq IS NULL) — the one definition of both the regrade overlay and the
 -- materiality rule, which convergence_at reads at every other point of the record.
@@ -480,8 +464,8 @@ SELECT
   --
   -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
   -- minting lens and blue, on the direction the ruling states (docket_direction). Where a remanded
-  -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
-  -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
+  -- gap stands against that exchange — owed or had — turns on the exchanges and the acts in them,
+  -- so the record's Go fold decides it (exchangesOf, over the "remand" view's
   -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
   -- unruled. Without it the chair was told only "gap G1 is open and material — PASS is refused while
   -- it is", which is true of a gap nobody has ever put before the bench and of one the bench has
@@ -550,7 +534,7 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "gap_found_by"    f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
   -- THE CURRENT GRADES, one per axis, off gap_grade's standing row. The plain "severity" columns
   -- above are MINT-TIME grades — a reader that wants what the gap is graded NOW and reaches for them
   -- silently reads a number a regrade may have moved, which is why the overlay is answered here

@@ -36,6 +36,14 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"material gap", BlockerMaterialGap, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, false},
+		// THE BENCH'S REMAND OUTRANKS MATERIALITY: a gap graded low, docketed by a party, its closing
+		// filed, and remanded — its one more exchange is owed, and nothing else holds.
+		{"remanded gap that is not material", BlockerRemandOwed, true, true, func(b *stage) {
+			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+			b.docketMotion("blue-respond", "M1", "G1")
+			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
+			b.register("judge").add("judge", remandRuling("M1", remandDirection))
+		}, false},
 		{"unraised contradiction", BlockerContradiction, true, true, func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, false},

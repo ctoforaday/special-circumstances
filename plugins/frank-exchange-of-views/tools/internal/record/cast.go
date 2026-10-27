@@ -18,24 +18,17 @@ import (
 // from the hooks. It is not a debate seat: nothing dispatches it and it never registers.
 const HarnessSeat = "harness"
 
-// DefaultCastAreas are the lens areas a run dispatches when the operator names none: every area
-// (debate.js DEFAULT_AREAS). An operator narrows the cast only with a reason; a lens that finds
-// nothing sits once per report head and, owing nothing, retires at its third such sitting.
-var DefaultCastAreas = LensAreas
-
-// CastFor is the run's admissible seats for a lens-area selection and a lane count
-// (plans/roundless.md §III.B.1): a lens per area, the chair, the blue lanes, the synthesizer and
-// responder, the frontier, the bench in its three sittings. Petition sittings are not listed —
-// InCast admits exactly the seat ids the cast names.
-func CastFor(areas []string, lanes int) (seats, laneSeats []string) {
-	if len(areas) == 0 {
-		areas = DefaultCastAreas
-	}
-	sorted := append([]string{}, areas...)
+// CastFor is the run's admissible seats for a lane count (plans/roundless.md §III.B.1): a lens per
+// area in LensAreas, the chair, the blue lanes, the synthesizer and responder, the frontier, the
+// bench in its three sittings. Every run seats every lens: a lens that finds nothing sits once per
+// report head and, owing nothing, retires at its third such sitting. Petition sittings are not
+// listed — InCast admits exactly the seat ids the cast names.
+func CastFor(lanes int) (seats, laneSeats []string) {
+	sorted := append([]string{}, LensAreas...)
 	sort.Strings(sorted)
 	out := []string{}
 	for _, a := range sorted {
-		out = append(out, "red-lens-"+strings.TrimPrefix(a, "red-lens-"))
+		out = append(out, "red-lens-"+a)
 	}
 	out = append(out, "red-chair")
 	laneSeats = LaneSeatIDs(lanes)

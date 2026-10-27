@@ -439,13 +439,13 @@ func TestPlanJSONEmitsArraysNeverNull(t *testing.T) {
 
 func TestDefaultCastListsAllSevenAreas(t *testing.T) {
 	var lenses []string
-	for _, s := range func() []string { s, _ := CastFor(nil, 1); return s }() {
+	for _, s := range func() []string { s, _ := CastFor(1); return s }() {
 		if strings.HasPrefix(s, "red-lens-") {
 			lenses = append(lenses, strings.TrimPrefix(s, "red-lens-"))
 		}
 	}
 	if len(lenses) != 7 || len(lenses) != len(LensAreas) {
-		t.Fatalf("the default cast seats %v, want all seven areas %v", lenses, LensAreas)
+		t.Fatalf("the cast seats %v, want all seven areas %v", lenses, LensAreas)
 	}
 	have := map[string]bool{}
 	for _, a := range lenses {

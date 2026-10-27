@@ -105,9 +105,9 @@ func answersOwnUnsound(evs []*Event, win WindowIndex, seatID string, kind record
 // UNCHANGED IS THE LEDGER'S STANDING (anchorStanding.stands): the judgement stands exactly while the
 // report carries the sentence it judged. An edit naming the anchor reopens it, and a judgement after
 // that is a fresh one, admitted; a retire takes the anchor out. The open gap already carries the
-// judgement to blue. A second judgement of the same sentence would owe a second gap (answeredBy reads
-// from the judgement's own sitting on), mintable past the duplicate screen only by a distinctness
-// claim that is false — the release-gate fuzz minted ~490 such gaps per 40 runs. A `sound`
+// judgement to blue. A second judgement of the same sentence would owe a second gap for the defect
+// the open one holds (answeredBy reads from the judgement's own sitting on) — the release-gate fuzz
+// minted ~490 such gaps per 40 runs. A `sound`
 // re-judgement is never refused here: it clears the blocker. Another lens's judgement is its own.
 //
 // Replay exempts it: an archived judgement is what a seat DID, recorded before this refusal existed.

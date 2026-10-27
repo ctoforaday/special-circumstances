@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -74,14 +73,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// is the sitting reading it. Its unreceipted edits are the receipts it can still file.
 		for _, id := range ManifestUnreceipted(evs, win, WhileRunning).Gaps {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
-		}
-		// A REMAND SENDS ITS GAP BACK FOR ONE MORE EXCHANGE, and the direction the bench wrote has
-		// to reach the seats that owe it. The dispatch readies blue on the gap (routeOf, the plan's
-		// own predicate); this says what that sitting is for, in the ruling's words.
-		for _, g := range gaps {
-			if g.Open && g.route == routeRemandOwed {
-				add(remandOwedItem(g, true))
-			}
 		}
 		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with
@@ -167,17 +158,18 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
 			add("gap " + o.GapID + " had a grade motion ACCEPTED and no regrade followed it: " + o.accepted() + " — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
-		for _, key := range citedClaimsWithoutVerify(evs) {
-			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
+		// A CITATION OR PROOF NOBODY CHECKED IS ON ITS OWNER'S LIST ALONE (anchorOwnerOf). Every other
+		// lens reads the anchor's standing check off `show evidence` and audits its sentence as content.
+		if seatID == anchorOwnerOf(false) {
+			for _, key := range citedClaimsWithoutVerify(evs) {
+				add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
+			}
 		}
-		// A PROOF IS ON ITS OWNER'S LIST ALONE (proofOwnerOf). Every other lens judges the proof's
-		// sentence as content and reads its standing verdict off `show evidence`.
-		//
-		// THE ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
+		// THE PROOF ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
 		// takes and the seat reads in the report. When the verb took the script's sha256 and the
 		// item named the anchor, three lenses on universe-m11 spent 22 proof-file reads and 14
 		// filesystem hunts translating one into the other, for 12 re-runs.
-		if seatID == proofOwnerOf(castOfEvents(evs)) {
+		if seatID == anchorOwnerOf(true) {
 			for _, o := range proofChecksOwed(evs, win) {
 				//
 				// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
@@ -199,13 +191,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// re-audits and closes its gap, so this is news for that seat and noise for any other.
 		for _, w := range blueAnswers(evs, win, gaps, seatID) {
 			add(w)
-		}
-		// THE OTHER SEAT A REMAND READIES, on the originator's list by the same rule: the minting
-		// lens re-audits blue's answer to the direction, and only it may close the gap.
-		for _, g := range gaps {
-			if g.Open && g.route == routeRemandOwed && minted[g.ID] == seatID {
-				add(remandOwedItem(g, false))
-			}
 		}
 		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
 		//
@@ -515,7 +500,7 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 // with the first anchor's re-run, and its sentence shipped judged by a verdict on another.
 //
 // A reopened anchor — judged, then edited — is not an item here: it is the reopened row, owed by
-// the same owner and holding a PASS (reopenedEvidence, reopenedOwnerOf).
+// the same owner and holding a PASS (reopenedEvidence, anchorOwnerOf).
 //
 // Every proof carries its script's sha: the write refuses one without (validate), because no act
 // could discharge the item it would put here.
@@ -540,28 +525,32 @@ func proofChecksOwed(evs []*Event, win WindowIndex) []proofOwed {
 	return out
 }
 
-// computationSeat is the computation lens's seat — the owner of every unjudged proof where the
-// cast seats it (proofOwnerOf).
+// computationSeat is the computation lens's seat — the owner of every proof's check
+// (anchorOwnerOf).
 const computationSeat = "red-lens-computation"
 
-// proofOwnerOf is the lens whose work list offers a proof nobody has judged: the computation lens
-// where the cast seats it, else the evidence lens, else none.
+// anchorOwnerOf is the lens that owes the check of an anchor of one kind — proof says which: a
+// citation's is the evidence lens, a proof's the computation lens. Every run seats both. It is the
+// one answer to "who owes this anchor's check": the work list that offers a citation or proof nobody
+// checked, the debt that keeps a lens from retiring (lensOwesOf), and the owner of a reopened
+// anchor's blocker, whom dispatch readies (passBlockersOf).
 //
 // ONE LENS OWNS A PROOF (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
 // for the rest it's just content to judge?" A proof item on every lens's list put lenses dispatched
 // together in a race to re-run and judge one script — universe-m26 re-ran one script 16 times across
-// five lenses. Every other lens reads the proof's standing verdict and judges its sentence as
-// content. A cast seating neither lens offers the proof to nobody, and it ships stated "not judged"
-// in the report's evidence, as a proof nobody judged does in any cast; a proof never held a PASS
-// for being unjudged.
-func proofOwnerOf(cast []string) string {
-	switch {
-	case slices.Contains(cast, computationSeat):
+// five lenses.
+//
+// ONE LENS OWNS A CITATION (gblock, 2026-10-25), and for the same reason: every lens's list offered
+// every citation nobody had verified, and lenses opened together verified the same ones — on the
+// run measured, 12 of the 15 first-epoch verifies were by lenses other than the evidence lens, and
+// later runs put 42 of 58 and 35 of 45 there.
+//
+// Every other lens reads the anchor's standing check and judges its sentence as content.
+func anchorOwnerOf(proof bool) string {
+	if proof {
 		return computationSeat
-	case slices.Contains(cast, evidenceSeat):
-		return evidenceSeat
 	}
-	return ""
+	return evidenceSeat
 }
 
 // ProofRef is a recorded proof named BOTH ways: the anchor the report carries and the verb takes,
@@ -595,16 +584,57 @@ func (o proofOwed) item() string {
 		read + ", and `reproduce --anchor " + o.Anchor + "` records your verdict on its sentence without re-running it"
 }
 
-// remandOwedItem is the work item a remand's exchange puts on the list of each seat the dispatch
-// readies for it — blue, and the gap's minting lens — carrying the research direction the ruling
-// states, so the bench's words reach the two seats that owe them.
-func remandOwedItem(g WorkGapState, blue bool) string {
-	dir := g.DocketDirection
-	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench"
-	if blue {
-		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + dir + next
+// remandItemsOf is the item a remand's exchange puts on the list of each seat the dispatch readies
+// for it — blue-respond, and the gap's minting lens — carrying the research direction the ruling
+// states, so the bench's words reach the two seats that owe them. blue says which of the two seatID
+// is.
+//
+// IT BLOCKS UNTIL THE SEAT HAS ACTED ON THE GAP (gblock, 2026-10-25), by the per-seat envelope gate
+// (EnvelopeRefusal): an act on the gap after the ruling (gapActsOf) clears it, and until then the
+// seat's sitting cannot end. On universe-m34 the item was offered and not owed, blue worked other
+// gaps, and a sitting that never touched the remanded gap was the exchange the remand granted.
+//
+// A SITTING OPENED BEFORE THE RULING IS NOT HELD BY IT: the remand landed while it sat, the next plan
+// readies the seat, and that sitting owes it. Once the seat has acted the item stays on the list,
+// not owed, while the remand's exchange is: the direction is still what the exchange is about.
+//
+// It stands while the plan's own route (routeOf) owes the remand's exchange, so it goes when the gap
+// closes, when a docket motion on it puts it back before the bench, and when the exchange has been
+// had.
+func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
+	minted := mintedBy(evs)
+	var acts map[string][]gapAct
+	var out []Item
+	for _, g := range gaps {
+		if !g.Open || g.route != routeRemandOwed || (!blue && minted[g.ID] != seatID) {
+			continue
+		}
+		if acts == nil {
+			acts = gapActsOf(evs, win.IDs(evs))
+		}
+		what := remandItem(g, blue)
+		switch {
+		case seatActedSince(acts[g.ID], seatID, g.remandRuled):
+			out = append(out, Item{What: what + " — you have recorded an act on it since the ruling, so it does not hold your sitting"})
+		case win.LatestSittingOf(seatID) < g.remandRuled:
+			out = append(out, Item{What: what + " — the ruling landed after this sitting opened, so your next sitting owes it"})
+		default:
+			out = append(out, Item{What: what, Blocks: true})
+		}
 	}
-	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + dir + next
+	return out
+}
+
+// remandItem is the remand's sentence for blue or for the gap's minting lens: the direction, the act
+// that discharges it, and where the gap goes next.
+func remandItem(g WorkGapState, blue bool) string {
+	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
+	if blue {
+		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + g.DocketDirection +
+			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a proof that answers it, a fate on the inquiry it is anchored on, or a motion on it" + next
+	}
+	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + g.DocketDirection +
+		". Your sitting cannot end until you record an act on " + g.ID + ": a regrade (one that keeps the grade says what your check still finds failing), a close, or a finding about it" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
@@ -615,11 +645,11 @@ func remandedGapForChair(g WorkGapState) string {
 	case routeRemandOwed:
 		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketDirection
 	case routeRedocket:
-		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again"
-	case routeAtLimit:
-		return head + g.ID + " is open because the BENCH REMANDED it again after the exchange its first remand granted — it is at its limit, and the dispatch readies nobody for it"
+		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again, to be closed"
 	case routeDocket:
 		return head + g.ID + " is open, the BENCH REMANDED it before it reached impasse, and it is at impasse now — the dispatch dockets it for the bench"
+	case routeNobody:
+		return head + g.ID + " is open, the BENCH REMANDED it, and it is not material: the exchange its remand granted has been had, and the dispatch readies nobody for it"
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	}

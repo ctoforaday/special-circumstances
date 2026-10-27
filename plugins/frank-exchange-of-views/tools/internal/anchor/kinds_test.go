@@ -153,6 +153,11 @@ func TestReplaceAndStripAssembled(t *testing.T) {
 		t.Errorf("StripAssembled = %q, want %q", got, want)
 	}
 	// An opener with no close on its line takes nothing after it.
+	// A PLACEHOLDER IS STRIPPED WITH ITS KIND, and a woven kind's stays for the weave: the shape is
+	// read off the tag, whatever the token holds.
+	if got, want := StripAssembled("a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token"), "a ``, `` or `<!--cite:C-…-->` token"; got != want {
+		t.Errorf("StripAssembled = %q, want %q", got, want)
+	}
 	if in := "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"; StripAssembled(in) != in {
 		t.Errorf("StripAssembled took text across a line end: %q", StripAssembled(in))
 	}

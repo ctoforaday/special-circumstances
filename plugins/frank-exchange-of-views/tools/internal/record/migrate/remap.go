@@ -98,13 +98,13 @@ var (
 //
 // mints names the id fields whose value brings an id into being, and the kind it is an id of.
 var (
-	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by Mint.distinct_from
+	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
 		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id Credit.gap_id Credit.found_by`)
+		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Cite.text

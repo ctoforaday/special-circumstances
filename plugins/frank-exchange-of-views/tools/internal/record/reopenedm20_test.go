@@ -18,8 +18,8 @@ const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 // Every surface said the PASS waited "until red-lens-evidence re-runs it" while the fold had
 // cleared the anchor three events earlier, on another seat's check. The fold is the rule: a check
 // is a reading from a sitting opened after the edit, whichever lens makes it. What the surfaces
-// state is who owes it and is readied, and what clears it — both, in the same sentence. m20's cast
-// seats the computation lens, so the proof is its (reopenedOwnerOf), and neither lens that sat owes it.
+// state is who owes it and is readied, and what clears it — both, in the same sentence. The proof is
+// the computation lens's (anchorOwnerOf), and neither lens that sat owes it.
 //
 // The event ids are this archive's rows, read by SQL outside the fold (blue_edit_reopened, and
 // reproduce joined to events on the proof's anchor).

@@ -46,8 +46,7 @@ const (
 //
 //	HALTED    a halt event exists — the bench ended the run on its own authority
 //	VERIFIED  the chair recorded a PASS verdict
-//	CEILING   the dispatch plan's ceiling: every open material gap is at its limit and ruled,
-//	          or the run's epoch limit is reached — the why says which
+//	CEILING   the dispatch plan's ceiling: the run's epoch limit is reached with parties ready
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
@@ -105,28 +104,15 @@ func verdictReadsAt(q recordsql.Querier) (verdictReads, error) {
 // for the run's terms, read only when the verdict turns on the plan.
 func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, err error) {
 	halted, passed, cast := r.halted, r.passed, r.cast
-	// THE COVERAGE LIMIT RIDES ON THE BASIS, for every terminal verdict and not only a PASS.
-	//
-	// A run whose cast never seated an area did not audit that dimension, and until this the
-	// verdict read identically whether every lens sat or two of them did not. It is appended to
-	// the basis rather than changing the verdict WORD: the narrowing is often correct and is the
-	// operator's call, so the honest act is to state the limit, not to withhold the stamp.
-	// UnseatedAreas returns nothing when the record holds no cast, which is the state the
-	// CEILING arm below already distinguishes.
-	coverage := ""
-	if unseated, hasCast := unseatedAreasOf(cast); hasCast && len(unseated) > 0 {
-		coverage = " (" + CoverageNote(unseated) + ")"
-	}
 	switch {
 	case halted:
-		return "HALTED", "a halt event is on the record" + coverage, true, nil
+		return "HALTED", "a halt event is on the record", true, nil
 	case passed:
-		return "VERIFIED", "the chair recorded a PASS verdict" + coverage, true, nil
+		return "VERIFIED", "the chair recorded a PASS verdict", true, nil
 	}
-	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2), for one of two reasons: every
-	// open material gap is at impasse after the one more exchange its remand granted and the bench
-	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
-	// epoch limit, a term setup records. A record with no cast cannot reach it.
+	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2): the chair has sat for the run's
+	// last epoch under its epoch limit, a term setup records. A gap at its own limit is closed by the
+	// bench, never left open (requireRemandWithinLimit). A record with no cast cannot reach it.
 	if cast != nil {
 		params, err := files.params()
 		if err != nil {
@@ -147,14 +133,11 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 		if len(named) > 0 {
 			standing = "; reopened and unchecked: " + strings.Join(named, ", ")
 		}
-		switch {
 		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
 		// undispatched, its ruling leaves nobody ready (epochLimitHeldTheBench).
-		case plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan):
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing + coverage, true, nil
-		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing + coverage, true, nil
+		if plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan) {
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil
