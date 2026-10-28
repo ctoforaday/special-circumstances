@@ -336,7 +336,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a proof whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint: it is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a proof whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; it is admitted at the cap, and does not count while it is open"
 
 // answersOwnRaiseAt is the contradiction a mint by seatID naming foundBy would answer that seatID's
 // own finding raised — its id, or "" where it answers none. It is the fold's own question asked of
