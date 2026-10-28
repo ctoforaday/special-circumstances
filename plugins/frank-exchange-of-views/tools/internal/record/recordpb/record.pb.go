@@ -1317,7 +1317,7 @@ func (InquiryRuling) EnumDescriptor() ([]byte, []int) {
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
-// finding can never be credited in a gap's found_by and its work is lost.
+// finding can never be named in a gap's found_by and its work is lost.
 // FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
 //
 // A defect about an ABSENCE has no sentence to quote, and a quote borrowed as a handle points a
@@ -3926,7 +3926,7 @@ func (x *SpotCheck) GetAreas() []string {
 
 type Finding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// id is the finding's one name: the tool mints it, a gap's found_by credits it by it, and the
+	// id is the finding's one name: the tool mints it, a gap's found_by names it by it, and the
 	// finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
 	//
 	// A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
@@ -5207,7 +5207,7 @@ type Retire struct {
 	// leaves its anchor BARE: the anchor alone in its segment, backing no prose. Before this field
 	// nothing could take that anchor out, so it stood forever — a `[^N]` orphan with a live
 	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
-	// counter still counted, which let a retire credit a claim that had never left the count.
+	// counter still counted, which let a retire count a claim that had never left the count.
 	//
 	// Filled with the anchors that stood on the retired claim in the edit that took it out — the
 	// claim being the whole of that edit's old span or a run of its whole sentences, across the anchor
