@@ -406,7 +406,8 @@ type runner struct {
 	// proofReopenedReadied counts, by owner, the reopened PROOFS whose owner a plan readied; the
 	// sweep gates both owners at zero. owedKept counts the lenses a plan's fold kept from retiring
 	// because they owed work (three barren sittings or more, and a debt), and proofOwedKept those
-	// whose debt held an unjudged proof; the sweep gates each at zero. reopenedOwnerErr is the first
+	// whose debt held an unjudged proof; the sweep gates each at zero (THE DEBT GATE says why the
+	// second is fed). reopenedOwnerErr is the first
 	// reopened proof a plan gave an owner other than the run's proof owner; it fails the run.
 	// owedKeptBy counts those folds by each kind of debt they held (owedKind).
 	reopenedReadied, reopenedPlans int
@@ -7092,6 +7093,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		// THE DEBT GATE. A lens that owes is not retired; a sweep where no fold kept a lens with three
 		// barren sittings from retiring — or none for an unjudged proof — leaves the rule unexercised.
+		//
+		// THE UNJUDGED-PROOF DEBT IS FED BY CONSTRUCTION, not left to the draw (gblock, 2026-10-25): the
+		// draw rarely holds it, since the owner checks every proof it owes in the sitting it is offered
+		// one, and a sweep of 40 drew it zero times (#1604). owedProofSeed's run proves a fresh sentence
+		// in every blue sitting while the owner is barren, so a fold holds the owner for a proof it has
+		// not yet sat to judge. TestALensThatOwesIsNotRetired (internal/record) proves the rule itself.
 		if owedKept == 0 || proofOwedKept == 0 {
 			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged proof, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", owedKept, proofOwedKept, completed)
 		}
