@@ -4628,18 +4628,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A PROOF JUDGED UNSOUND AFTER answerFailed RAN — a reopened proof re-run, one the owner was
 		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
 		r.answerFailed(seatID)
-		// AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
-		// another seat's act can land after the pass above — blue's cite or proof while the anchor's
-		// owner sits is that sitting's to check — and the seat clears what it now owes, at most four
-		// times, as a parallel blue can place more than once.
-		for range 4 {
-			if refusal, err := record.EnvelopeRefusal(r.run(), seatID); err != nil || refusal == "" {
-				break
-			}
-			r.answerContradictions(seatID)
-			r.dischargeOwed(seatID)
-			r.answerFailed(seatID)
-		}
 		// A LENS PETITIONS ON THE RECORD — its envelope carries nothing, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
 		// unruled and is refused (envelopeRefusedEarly).
@@ -8345,8 +8333,20 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) {
 // envelopeEnds is every seat's envelope at the end of its drive: a seat's sitting ends only once
 // nothing it owes stands (record.EnvelopeRefusal), so a drive that returns its envelope with an item
 // standing is a drive that leaves undone what the record would refuse the seat for.
+//
+// AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
+// another seat's act can land after the drive's last pass — blue's cite or proof while the anchor's
+// owner sits is that sitting's to check — so a lens clears what it now owes and offers the envelope
+// again, at most four times, as a parallel blue can place more than once. The check that decides is
+// the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) {
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
+	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
+		r.answerContradictions(seatID)
+		r.dischargeOwed(seatID)
+		r.answerFailed(seatID)
+		refusal, err = record.EnvelopeRefusal(r.run(), seatID)
+	}
 	switch {
 	case err != nil:
 		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
