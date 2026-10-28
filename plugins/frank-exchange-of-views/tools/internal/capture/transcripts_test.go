@@ -96,7 +96,7 @@ func TestCaptureRunReadsTheSeatTranscriptsFromTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"transcripts: 1 named by the record's sitting closes, 1 readable here", "tarball: 1 transcript(s)", "seat turns: 1 row(s) from 1 transcript(s)"} {
+	for _, want := range []string{"transcripts: 1 named by the record's sitting closes, 1 readable here", "tarball: 1 transcript(s)", "seat turns: 1 row(s) on the record, 1 of them added by this capture from 1 transcript(s)"} {
 		if !strings.Contains(report, want) {
 			t.Errorf("capture's report lacks %q:\n%s", want, report)
 		}
