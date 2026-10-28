@@ -318,6 +318,9 @@ type runner struct {
 	// anchorOfferErr is the first lens sitting whose work list offered a citation or proof it does
 	// not own.
 	anchorOfferErr string
+	// offeredToOwner counts, by kind, the owner sittings whose work list offered an anchor of that
+	// kind for its first check (checkAnchorOffers).
+	offeredToOwner map[string]int
 
 	// progress is when a command of this run last finished (UnixNano) — what driveDebate's stall
 	// tripwire reads. Atomic: every seat's goroutine writes it.
@@ -2725,15 +2728,26 @@ func (r *runner) ownerOf(kind string) string {
 }
 
 // checkAnchorOffers records, once, a lens sitting whose work list offers a citation or proof it does
-// not own.
+// not own, and counts each owner sitting offered one for its first check.
+//
+// THE OWNER'S OFFER IS COUNTED AT ITS SITTING, NOT ONLY AT THE RUN'S END. An unchecked anchor's item
+// blocks its owner's envelope, so the owner checks every one it is offered before its sitting ends,
+// and a run ends with one offered only when the run stops inside that sitting: read at the end alone,
+// the routing would almost never be exercised.
 func (r *runner) checkAnchorOffers(seatID string) {
 	for _, kind := range []string{"proof", "citation"} {
 		owner := r.ownerOf(kind)
-		if seatID == owner {
-			continue
-		}
 		got, err := anchorItemsOn(r.run(), seatID, kind)
 		if err != nil || len(got) == 0 {
+			continue
+		}
+		if seatID == owner {
+			r.mu.Lock()
+			if r.offeredToOwner == nil {
+				r.offeredToOwner = map[string]int{}
+			}
+			r.offeredToOwner[kind]++
+			r.mu.Unlock()
 			continue
 		}
 		r.mu.Lock()
@@ -2746,8 +2760,9 @@ func (r *runner) checkAnchorOffers(seatID string) {
 
 // anchorOffersAgree is "" when, at the run's end, the record's own answer and the work lists agree:
 // each kind's owner's list offers for a first check exactly the anchors of that kind the record holds
-// unchecked with no edit since they were placed (`show evidence`'s `unchecked` rows with edit 0), and
-// every other cast lens's list offers none; and every citation on a failed check is on blue's list,
+// unchecked with no edit since they were placed (`show evidence`'s `unchecked` rows with edit 0) and
+// placed before its latest sitting opened — one placed after was not in the report that sitting was
+// served, and the next sitting owes it — and every other cast lens's list offers none; and every citation on a failed check is on blue's list,
 // with the remedy it owes. Otherwise what disagreed. proofs and citations are how many the owners
 // were offered.
 func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citations int) {
@@ -2760,6 +2775,22 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citation
 	for _, p := range ev.Proofs {
 		isProof[p.Anchor] = true
 	}
+	// placed is the events.id of the act that put each anchor on the record: blue's cite or proof,
+	// or red's corroboration.
+	placed := map[string]int64{}
+	for _, e := range fam.Events {
+		var a string
+		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
+			a = c.GetLabel()
+		} else if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
+			a = p.GetProofId()
+		} else if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && v.GetClaim() != "" {
+			a = v.GetLabel()
+		}
+		if _, seen := placed[a]; a != "" && !seen {
+			placed[a] = fam.At.Of(e).ID
+		}
+	}
 	want := map[string][]string{}
 	for _, u := range ev.Unchecked {
 		if u.Edit != 0 {
@@ -2768,6 +2799,9 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citation
 		kind := "citation"
 		if isProof[u.Anchor] {
 			kind = "proof"
+		}
+		if fam.At.LatestSittingOf(r.ownerOf(kind)) <= placed[u.Anchor] {
+			continue
 		}
 		want[kind] = append(want[kind], u.Anchor)
 	}
@@ -4707,8 +4741,9 @@ type outcome struct {
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// ownerOffered is the proofs nobody judged that the run ended with, each offered on its owner's
-	// work list and on no other lens's (anchorOffersAgree). citationsOffered is the same count of the
-	// citations nobody verified, each offered to the evidence lens alone.
+	// work list and on no other lens's (anchorOffersAgree), plus the owner sittings offered one for its
+	// first check (checkAnchorOffers). citationsOffered is the same count of the citations nobody
+	// verified, offered to the evidence lens.
 	ownerOffered     int
 	citationsOffered int
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
@@ -5967,6 +6002,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.ownerOffered, res.citationsOffered = proofs, citations
 	}
 	r.mu.Lock()
+	res.ownerOffered += r.offeredToOwner["proof"]
+	res.citationsOffered += r.offeredToOwner["citation"]
 	if r.anchorOfferErr != "" && res.err == "" {
 		res.err = r.anchorOfferErr
 	}
@@ -6753,8 +6790,8 @@ func TestFuzzDebate(t *testing.T) {
 	owedKept, proofOwedKept := 0, 0                         // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
 	unreadAnswers, unreadRepeats := 0, 0                    // gaps minted about a citation a lens's reading could not read; repeat unread readings refused
 	unreadRetires, failedCloseRefused := 0, 0               // blue's retires of such a citation; closes refused over a standing failed check
-	ownerOfferedRuns := 0                                   // runs ending with an unjudged proof offered to its owner alone
-	citationOfferedRuns := 0                                // runs ending with an unverified citation offered to the evidence lens alone
+	ownerOfferedRuns := 0                                   // runs whose proof owner was offered an unjudged proof, at a sitting or the run's end
+	citationOfferedRuns := 0                                // runs whose evidence lens was offered an unverified citation, at a sitting or the run's end
 	repeatsRefused := 0                                     // second acts refused in a sitting that holds one, naming the answering act
 	budgetRefused := 0                                      // mints refused a lens holding its whole mint budget open
 	ownAnswers := 0                                         // mints that answered the minting lens's own raise
@@ -6930,8 +6967,8 @@ func TestFuzzDebate(t *testing.T) {
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
-	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone", ownerOfferedRuns)
-	t.Logf("citation owner: %d run(s) ended with an unverified citation offered to the evidence lens alone", citationOfferedRuns)
+	t.Logf("proof owner: %d run(s) offered an unjudged proof to its owner, at a sitting or the run's end", ownerOfferedRuns)
+	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", citationOfferedRuns)
 	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", unsoundReadied, unsoundPlans, forcedUnsoundReadied, unsoundProofSeed, unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", spansRefused, forcedSpansRefused, absentSpanSeed)
 	if completed > 0 && (unsoundReadied == 0 || unsoundAnswers == 0) {
@@ -7042,14 +7079,14 @@ func TestFuzzDebate(t *testing.T) {
 		if unreadAnswers == 0 || unreadRetires == 0 {
 			t.Errorf("fuzz minted %d gap(s) about an unread citation and retired %d such citation(s) off its sentence, across %d runs — the failed-check path for a citation is unexercised (false green)", unreadAnswers, unreadRetires, completed)
 		}
-		// THE ANCHOR-OWNER GATE. anchorOffersAgree reads every lens's list at each run's end; a run that
-		// ended with no unverified citation or no unjudged proof asks it nothing of that kind, so a
-		// sweep where none did leaves the routing unexercised.
+		// THE ANCHOR-OWNER GATE. checkAnchorOffers reads each lens's list at each of its sittings, and
+		// anchorOffersAgree every lens's at each run's end; a sweep in which no owner was offered an
+		// anchor of a kind asks neither anything of that kind, and leaves the routing unexercised.
 		if citationOfferedRuns == 0 {
-			t.Errorf("fuzz ended no run with an unverified citation offered to the evidence lens, across %d runs — the citation routing is unexercised (false green)", completed)
+			t.Errorf("fuzz offered no unverified citation to the evidence lens in any of %d runs — the citation routing is unexercised (false green)", completed)
 		}
 		if ownerOfferedRuns == 0 {
-			t.Errorf("fuzz ended no run with an unjudged proof offered to its owner, across %d runs — the proof routing is unexercised (false green)", completed)
+			t.Errorf("fuzz offered no unjudged proof to its owner in any of %d runs — the proof routing is unexercised (false green)", completed)
 		}
 		// THE CLOSING GATE. The `closing` verb gate above is satisfied by any one act, so a plan that
 		// stopped holding the bench for an awaited closing, or a drive that stopped leaving one unfiled,
