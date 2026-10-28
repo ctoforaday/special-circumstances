@@ -138,8 +138,8 @@ var hostIntervals = map[string]time.Duration{
 	// stated ceiling without a key is 3 requests a second; taken at a third of that, because a
 	// sanctioned route is a courtesy to keep rather than a budget to spend.
 	"pmc-oa-opendata.s3.amazonaws.com": time.Second,
-	// api.openalex.org is the open-access index this tool asks. Its singleton lookups cost no
-	// credits, but the budget is per IP and shared with anything else on this box.
+	// api.openalex.org is the open-access index this tool asks. Its singleton lookups are
+	// free, but the budget is per IP and shared with anything else on this box.
 	"api.openalex.org": 500 * time.Millisecond,
 }
 

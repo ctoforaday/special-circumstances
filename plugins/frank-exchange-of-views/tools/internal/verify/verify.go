@@ -144,7 +144,7 @@ func gapsDisposed(f record.Family) Check {
 		"a gap is closed with no recorded reason (a torn closure, not a decision)", bad)
 }
 
-// foundByResolves: every gap's found_by credit names a finding or observation that actually
+// foundByResolves: every gap's found_by names a finding or observation that actually
 // exists on the record. Enforced at write time; verified here against the replayed set in case
 // a shard was hand-edited or lost.
 func foundByResolves(f record.Family) Check {
@@ -169,8 +169,8 @@ func foundByResolves(f record.Family) Check {
 		}
 	}
 	return result("found-by-resolves",
-		"every found_by credit names a real finding",
-		"a gap credits a finding that no lens recorded (attribution to a finding nobody made)", bad)
+		"every found_by names a real finding",
+		"a gap's found_by names a finding that no lens recorded (attribution to a finding nobody made)", bad)
 }
 
 // dialecticRefsResolve: every act that argues ABOUT a gap (a closing, or a motion filed about

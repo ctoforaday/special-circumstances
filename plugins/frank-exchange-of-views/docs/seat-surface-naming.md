@@ -612,7 +612,7 @@ and the first run's headline figure answers only the first.
 
 SEEN is measured per BLOCK, not per line, because the board stages ROOT help as setup material and
 root's command list contains `friction` and `verify` — names that are also role verbs. A line-level
-match credits every seat with two verbs before it acts, and flatters exactly the arms that open help
+match counts every seat as having seen two verbs before it acts, and flatters exactly the arms that open help
 least. A block counts only when every name in it is one of the role's own.
 
 ## Result
