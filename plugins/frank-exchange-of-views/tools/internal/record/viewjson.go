@@ -384,6 +384,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
 	report, renderErr := RenderAt(q)
+	located := newLocatedReport(report, renderErr)
 
 	verified := backingOf(evs)
 	// THE CLOSURE IS THE GAP VIEW'S (the last act of each arm, by its events.id, with the body
@@ -449,7 +450,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			Backing: []GapBackingJSON{},
 		}
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
-		locateGap(report, renderErr, &g)
+		locateGap(located, &g)
 		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
 		// THE BOARD SERVES THE PAIR `--accept` SENDS, AND THE WORK ITEM SERVES THE BOARD'S: locateGap
 		// reads it for both over the one render.
@@ -1096,12 +1097,12 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	}
 	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	report, renderErr := renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+	located := newLocatedReport(renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr))
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
-		locateGap(report, renderErr, &g)
+		locateGap(located, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
 		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, g.benchClosedLast, byID, r.win)
 		if err != nil {
@@ -1973,17 +1974,19 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 // IT READS THE GAP'S PRESCRIBED PAIR FIRST, over the same report: FixNew comes in as recorded, and
 // the pair is located from the location AS MINTED, which the marking below replaces. The board and
 // the work item both take the pair from here, so neither can serve one the other does not.
-func locateGap(report string, err error, g *WorkGapState) {
+func locateGap(l *locatedReport, g *WorkGapState) {
+	report := l.text
 	g.FixOld, g.FixNew = ProposalOver(report, g.ID, g.Location, g.FixNew)
 	if g.Location == "" {
 		return
 	}
-	if err != nil {
+	if l.err != nil {
 		g.LocationState = LocationUnrendered
 		return
 	}
 	g.LocationState = LocationGone
-	sp, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), g.ID)
+	bare, sentences := l.spans()
+	sp, ok := gapSentenceIn(report, sentences, bare, g.ID)
 	if !ok {
 		return
 	}
@@ -2009,4 +2012,27 @@ func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]
 		}
 	}
 	return [2]int{}, false
+}
+
+// locatedReport is one render of the report with what locateGap reads of it besides the text: the
+// anchors standing bare and the sentence spans. Both are a pass over the whole report and neither
+// depends on the gap, so they are read once per render, on the first gap that needs them, rather
+// than once per gap.
+type locatedReport struct {
+	text      string
+	err       error
+	read      bool
+	bare      []string
+	sentences [][2]int
+}
+
+func newLocatedReport(text string, err error) *locatedReport {
+	return &locatedReport{text: text, err: err}
+}
+
+func (l *locatedReport) spans() ([]string, [][2]int) {
+	if !l.read {
+		l.bare, l.sentences, l.read = claimcount.BareAnchorIDs(l.text), anchor.Sentences(l.text), true
+	}
+	return l.bare, l.sentences
 }

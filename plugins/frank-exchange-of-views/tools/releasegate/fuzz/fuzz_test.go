@@ -1523,7 +1523,12 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	r.mu.Lock()
 	filed := len(r.petitionsFiled)
 	r.mu.Unlock()
-	r.maybePetition(seatID)
+	// A FORCED RUN'S CHAIR FILES NO PETITION. A petition readies the bench, so a chair sitting whose
+	// plan readied nobody re-arms the run with one, one coin per sitting: the forced run would end
+	// when the coin first misses rather than one march after its first sitting (findsFresh).
+	if !r.forcedVerdict() {
+		r.maybePetition(seatID)
+	}
 	r.mu.Lock()
 	petitioned := len(r.petitionsFiled) > filed
 	r.mu.Unlock()
@@ -1616,6 +1621,16 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	}
 	r.mu.Unlock()
 	switch {
+	// A FORCED RUN'S SITTINGS ALL COUNT, because its bound (findsFresh) is counted in them. Both
+	// drawn openings below register under an agent id, and an opening that carries an agent is sat
+	// through only once its sitting_close lands — which SubagentStop writes in a live run and
+	// nothing writes here (record.satThroughOf). Such a sitting moves no pin and counts nothing
+	// toward retirement, so a lens drawing it sits again at the same head, drawing again from the
+	// shared stream in scheduler order: the forced run's tail is a geometric draw per lens, and on
+	// the forced-UNVERIFIED test it outran the epoch limit and ended CEILING. A forced run opens by
+	// a plain register, sat through at its next opening; the drawn runs keep both shapes.
+	case r.forcedVerdict():
+		r.admit(registerArgs(seatID, occ)...)
 	case r.coin(25):
 		r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
@@ -1795,6 +1810,10 @@ func (r *runner) findsFresh() bool {
 	defer r.mu.Unlock()
 	return r.chairRegisters <= 1
 }
+
+// forcedVerdict is whether this run is forced to a terminal verdict, UNVERIFIED or VERIFIED: the
+// runs findsFresh bounds, and whose every sitting counts (sit, and the lens's whole read).
+func (r *runner) forcedVerdict() bool { return r.forceUnverified || r.forceVerified }
 
 // landedMints is the mints of seatID that landed in this run.
 func (r *runner) landedMints(seatID string) int {
@@ -4011,7 +4030,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
-		r.maybePetition(seatID)
+		// A forced run's seats file no petition: a petition readies the bench (see chairEnvelope).
+		if !r.forcedVerdict() {
+			r.maybePetition(seatID)
+		}
 		// THE ENVELOPE RELAYS NOTHING THE RECORD HOLDS: no claim count and no attestation of what the
 		// sitting put on the record (TestNoEnvelopeRestatesARecordFact).
 		return map[string]any{}
@@ -4131,7 +4153,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// path a seat actually takes.
 		// A GAP ITS CLOSING WAS FILED ON THIS SITTING IS REFUSED: docketed again, it would owe a second
 		// closing this sitting cannot file.
-		if len(open) > 0 && r.coin(15) {
+		// A FORCED RUN'S BLUE ESCALATES NOTHING BY HAND, here or in escalateTrifle: a hand-filed
+		// motion dockets a gap no impasse sent to the bench, and the bench's remand of it readies its
+		// lens and blue for one more exchange, whose edit moves the head and readies again every lens
+		// that owes. Traced on the forced-VERIFIED test: every material gap closed by epoch 4, and blue
+		// escalated two gaps that are not material, one after the other, each remanded — the run hit
+		// the epoch limit on the second remand's exchange and ended CEILING.
+		if len(open) > 0 && !r.forcedVerdict() && r.coin(15) {
 			id := open[r.rng.Intn(len(open))]
 			args := []string{"motion", "docket", "file", "--seat-id", seatID, "--id", id,
 				"--reason", "fuzz: " + id + " is not converging in the exchange and is the bench's to settle"}
@@ -4141,7 +4169,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.admitFresh(id, args...)
 			}
 		}
-		r.escalateTrifle(seatID)
+		if !r.forcedVerdict() {
+			r.escalateTrifle(seatID)
+		}
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
 		// minted with; blue reads it back off the board and does what it says. This replaces a
@@ -4319,8 +4349,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// served it at the head is ready at the head again, until it is or retires. Most sittings
 		// read it, in either whole form; the rest read only a selection, which serves part of it and
 		// moves nothing, so the sweep reaches a lens readied again at a head it sat at.
+		// A forced run's lens reads it whole every sitting, so each sitting moves its pin: a selection
+		// read leaves it ready at the head it sat at, which is one more sitting the bound does not count.
 		switch n := r.rng.Intn(10); {
-		case n < 5:
+		case r.forcedVerdict() || n < 5:
 			r.readOnly("show", seatID, "report")
 		case n < 9:
 			r.readOnly("show", seatID, "report", "--json")
@@ -4708,9 +4740,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A LENS PETITIONS ON THE RECORD — its envelope carries nothing, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
 		// unruled and is refused (envelopeRefusedEarly).
+		// Beyond that one, a forced run's lenses file none: a petition readies the bench for a sitting
+		// of its own, which the forced run's bound (findsFresh) does not count.
 		if r.forceUnverified && r.petitionsFiledN() == 0 {
 			r.filePetition(seatID)
-		} else {
+		} else if !r.forcedVerdict() {
 			r.maybePetition(seatID)
 		}
 		// THE LENS'S ENVELOPE IS EMPTY (record.LensEnvelope); the frontier's and a lane's return
@@ -8174,6 +8208,33 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	if basis != record.VerdictAsserted {
 		t.Fatalf("outcome verdict_basis %q, expected %q — UNVERIFIED was reached, but not as the asserted word this path drives", basis, record.VerdictAsserted)
 	}
+}
+
+// TestFuzzVerifiedPath drives verifiedSeed's forced-VERIFIED run alone, through runOne, the call
+// the sweep makes for that seed — so a run that ends anywhere but VERIFIED is reproducible with
+// -run rather than only as one line of a sixty-run sweep. The sweep's own check stays: this test
+// runs after TestFuzzDebate's census and cannot supply the word to it.
+func TestFuzzVerifiedPath(t *testing.T) {
+	releaseGate(t)
+	bin := buildBinary(t)
+	wrapped := debateWrapped(t)
+	o := runOne(t, wrapped, bin, verifiedSeed, false, false, true)
+	defer func() {
+		_ = recordsql.CloseUnder(o.runDir)
+		if !t.Failed() {
+			_ = os.RemoveAll(o.runDir)
+		}
+	}()
+	stat := fmt.Sprintf("epochs=%d limit=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d run=%s",
+		o.epochs, o.epochLimit, o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.runDir)
+	if o.err != "" {
+		t.Fatalf("the forced-VERIFIED run failed: %s\n%s", o.err, stat)
+	}
+	if o.verdict != "VERIFIED" {
+		t.Fatalf("the forced-VERIFIED run on seed %d ended %q, not VERIFIED.%s\n%s",
+			verifiedSeed, o.verdict, forcedWhyClause(o.why), stat)
+	}
+	t.Logf("VERIFIEDSTAT %s", stat)
 }
 
 // THE GUARD THAT WOULD HAVE NAMED #637's 29 RUNS. Every case below reached the sweep's
