@@ -2059,27 +2059,26 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// journal_mode=WAL and nothing checkpoints it during the run, so a third of a finished run's
 	// events sit in record.db-wal. Shipping the two files side by side means any later reader that
 	// takes only the database — the natural thing to do with a tarball — gets a run that is
-	// smaller, self-consistent and wrong. recordsql.Seal folds the log in; the check below refuses
-	// to write an archive where it did not take.
+	// smaller, self-consistent and wrong. recordsql.SealedBytes folds the log in, refuses where it
+	// did not take, and reads the database with this process's connection RELEASED: a descriptor
+	// opened beside a live connection drops that connection's locks when it closes. So the
+	// database's bytes come from there, and the walk below never opens a database file itself —
+	// the sealed log is empty and the shared memory is process scratch, so neither is shipped.
 	dbPath := filepath.Join(recs, "record.db")
+	var dbBytes []byte
 	if _, err := os.Stat(dbPath); err == nil {
-		if err := recordsql.Seal(dbPath); err != nil {
-			return "", err
-		}
-		n, err := recordsql.SealedSize(dbPath)
+		b, err := recordsql.SealedBytes(dbPath)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("refusing to archive %s: %w", dbPath, err)
 		}
-		if n != 0 {
-			return "", fmt.Errorf("refusing to archive %s: %d bytes remain in the write-ahead log after sealing. "+
-				"An archive whose events are split across two files reads as a shorter, complete run to anyone "+
-				"who opens the database alone", dbPath, n)
-		}
+		dbBytes = b
 	}
-	var files []struct {
+	type archived struct {
 		name string
 		path string
+		data []byte // the bytes, when they were read for the walk rather than by it
 	}
+	var files []archived
 	add := func(root, prefix string) error {
 		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
@@ -2089,15 +2088,15 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 			if rerr != nil {
 				return rerr
 			}
-			// -shm is SHARED MEMORY, not data: it is scratch for live connections and means nothing
-			// once the run is over. Shipping it suggests the files beside it are equally live, which
-			// is the confusion the seal above exists to end.
-			if strings.HasSuffix(p, "-shm") {
+			if p == dbPath || p == dbPath+"-wal" || p == dbPath+"-shm" {
 				return nil
 			}
-			files = append(files, struct{ name, path string }{prefix + filepath.ToSlash(rel), p})
+			files = append(files, archived{name: prefix + filepath.ToSlash(rel), path: p})
 			return nil
 		})
+	}
+	if dbBytes != nil {
+		files = append(files, archived{name: "records/record.db", data: dbBytes})
 	}
 	if err := add(recs, "records/"); err != nil {
 		return "", err
@@ -2123,7 +2122,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// record, while the law mirror is read by seats during the run and is provenance rather than
 	// function. Carrying provenance is a separate decision, and naming it here is how it stays one.
 	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
-		files = append(files, struct{ name, path string }{"inputs/run-config.json", cfg})
+		files = append(files, archived{name: "inputs/run-config.json", path: cfg})
 	}
 
 	// THE STAGED CORPUS IS HASHED, NOT CARRIED (gblock, 2026-09-19).
@@ -2138,7 +2137,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
 		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
 			if os.WriteFile(digestPath, b, 0o644) == nil {
-				files = append(files, struct{ name, path string }{"inputs/" + corpusDigestName, digestPath})
+				files = append(files, archived{name: "inputs/" + corpusDigestName, path: digestPath})
 			}
 		}
 	}
@@ -2163,9 +2162,12 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	tw := tar.NewWriter(gz)
 	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
 	for _, fl := range files {
-		b, rerr := os.ReadFile(fl.path)
-		if rerr != nil {
-			return "", rerr
+		b := fl.data
+		if b == nil {
+			var rerr error
+			if b, rerr = os.ReadFile(fl.path); rerr != nil {
+				return "", rerr
+			}
 		}
 		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
 			return "", err

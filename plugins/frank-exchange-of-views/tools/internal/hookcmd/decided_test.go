@@ -29,7 +29,7 @@ func TestAfterTheOutcomeTheHookBindsTheBenchAlone(t *testing.T) {
 		t.Helper()
 		b, _ := json.Marshal(map[string]any{
 			"tool_name": "Bash", "tool_input": map[string]string{"command": "true"}, "cwd": cwd,
-			"agent_id": agent, "agent_type": agentType,
+			"session_id": testLead, "agent_id": agent, "agent_type": agentType,
 		})
 		var out bytes.Buffer
 		if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {

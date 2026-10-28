@@ -23,7 +23,7 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	t.Cleanup(func() { envelopeRefusal = prev })
 	pre := func(tool string) (decision, reason string) {
 		b, _ := json.Marshal(map[string]any{"tool_name": tool, "tool_input": map[string]string{}, "cwd": cwd,
-			"agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:lead-judge"})
+			"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:lead-judge"})
 		var out bytes.Buffer
 		if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {
 			t.Fatal(err)

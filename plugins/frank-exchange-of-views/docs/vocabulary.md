@@ -23,6 +23,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [lane](#lane) | blue, bench, operator |
 | [synthesizer](#synthesizer) | blue, bench, operator |
 | [engine](#engine) | lens, chair, blue, bench, operator |
+| [lead session](#lead-session) | operator |
 | [operator](#operator) | lens, chair, blue, bench, operator |
 | [the log](#the-log) | lens, chair, blue, bench, operator |
 | [friction](#friction) | lens, chair, blue, bench, operator |
@@ -256,6 +257,16 @@ The engine is the workflow script that dispatches the seats the record says are 
 **Collisions:**
 
 - **harness** — the Claude Code runtime a seat runs inside keeps the word
+
+## lead session
+
+A run's lead session is the Claude Code session its live-run row names — the one that ran setup, or took the run over since — and the hooks attribute an agent to the run only when its payload's session_id is that session.
+
+**Delivered to:** operator
+
+**Collisions:**
+
+- **the lead** — "the lead" alone is the engine's banned variant; a session that leads a run is "the run's lead session", never "the lead"
 
 ## operator
 

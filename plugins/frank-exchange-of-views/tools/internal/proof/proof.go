@@ -101,16 +101,22 @@ type Result struct {
 // difference is exactly what a reader needs. Neither outcome is refused — the run is GRADED,
 // because refusing the moving kind would bar the evidence that beats documentation, and
 // accepting it silently would launder a measurement as a proof.
+// ScriptPath is the file a --script names: absolute as given, or relative to the run directory —
+// the one resolution ScriptSha, Run and the caller's checks all read.
+func ScriptPath(runDir, scriptPath string) string {
+	if filepath.IsAbs(scriptPath) {
+		return scriptPath
+	}
+	return filepath.Join(runDir, scriptPath)
+}
+
 // ScriptSha is the proof's identity — sha256 of the script's bytes — computed WITHOUT running it.
 //
 // It exists so `prove` can tell a crash-retry from a key collision before it decides to skip the
 // work. Those two look identical at the key and are opposite facts: one is the same program
 // arriving twice, the other is a DIFFERENT program under a key an earlier dispatch already burned.
 func ScriptSha(runDir, scriptPath string) (string, error) {
-	abs := scriptPath
-	if !filepath.IsAbs(abs) {
-		abs = filepath.Join(runDir, scriptPath)
-	}
+	abs := ScriptPath(runDir, scriptPath)
 	body, err := os.ReadFile(abs)
 	if err != nil {
 		return "", fmt.Errorf("cannot read %s: %w", scriptPath, err)
@@ -120,10 +126,7 @@ func ScriptSha(runDir, scriptPath string) (string, error) {
 }
 
 func Run(runDir, scriptPath string) (*Result, error) {
-	abs := scriptPath
-	if !filepath.IsAbs(abs) {
-		abs = filepath.Join(runDir, scriptPath)
-	}
+	abs := ScriptPath(runDir, scriptPath)
 	body, err := os.ReadFile(abs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %s: %w", scriptPath, err)
