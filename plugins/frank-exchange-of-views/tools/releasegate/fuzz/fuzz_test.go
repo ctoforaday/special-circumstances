@@ -443,6 +443,10 @@ type runner struct {
 	// budgetRefused counts the mints the tool refused a lens holding its whole mint budget open.
 	// The sweep gates it at zero.
 	budgetRefused int
+	// oneGapRefused counts the mints the tool refused because an open gap of their class stood on
+	// their sentence or inquiry, and oneGapFindings the findings the refused lens then filed about
+	// that gap. The sweep gates both at zero.
+	oneGapRefused, oneGapFindings int
 	// ownAnswers counts the mints that landed answering a contradiction the minting lens's own
 	// finding raised — the gaps outside its budget; the sweep gates it at zero. answerBudgetErr is
 	// the first such mint the budget refused, which fails the run: a lens can always answer what it
@@ -2911,6 +2915,12 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 			args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 		}
 	}
+	// A FORCED RUN'S GAPS ARE ITS VERDICT'S DRIVE, so its lens takes a pool class no open gap holds on
+	// the subject: a mint the one-gap rule refuses is a gap the forced verdict does not get, and the
+	// rule is driven by every other run.
+	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
+		r.freeClass(args)
+	}
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
@@ -2935,6 +2945,10 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		}
 	}
 	out, err := r.exec(args...)
+	if err != nil && strings.Contains(out, oneGapWords) {
+		r.oneGapAnswered(seatID, out, args)
+		return ""
+	}
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
 			// READ AGAIN AFTER THE REFUSAL: a raise answered in between is a mint that counts, and
@@ -2968,6 +2982,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if env.Result.GapID != "" {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
+		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
 			r.mu.Lock()
 			r.unclassifiedMinted++
@@ -2983,6 +2998,227 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 // collapseWS collapses runs of whitespace: the guard measures its threshold on
 // whitespace-collapsed text, so a length taken any other way would pick a different sentence.
 func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// oneGapWords is the one-gap refusal's own sentence (record.oneGapRefusal), which tells it from the
+// other conflicts a mint meets — an estoppel, a budget.
+const oneGapWords = "Two defects of one class on one subject are one gap"
+
+// firstEpoch is whether the chair has opened no epoch past the first: the wave of lenses that sit in
+// parallel on the report before any of them has read another's gap.
+func (r *runner) firstEpoch() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.chairRegisters <= 1
+}
+
+// argOf is the value args give flag, or "".
+func argOf(args []string, flag string) string {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// sameClassAndSubject is the gaps on the board, open and closed, of class on the subject a mint's
+// args name: the inquiry it is about, or the sentence the board marks holding its quote. A mint about
+// anything else names no such subject, and has none.
+func (r *runner) sameClassAndSubject(class string, args []string) (open, all []record.GapJSON) {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return nil, nil
+	}
+	quote, kind, ref := argOf(args, "--quote"), argOf(args, "--about-kind"), argOf(args, "--about")
+	on := func(g record.GapJSON) bool {
+		switch {
+		case g.Class != class:
+			return false
+		case kind == "inquiry":
+			return g.AboutKind == "inquiry" && g.AboutRef == ref
+		case quote != "":
+			return g.LocationState == record.LocationMarked && strings.Contains(collapseWS(g.Location), collapseWS(anchortext.Visible(quote)))
+		}
+		return false
+	}
+	for _, g := range bj.Open {
+		if on(g) {
+			open, all = append(open, g), append(all, g)
+		}
+	}
+	for _, g := range bj.Closed {
+		if on(g) {
+			all = append(all, g)
+		}
+	}
+	return open, all
+}
+
+// oneGapAnswered is a lens's answer to the one-gap refusal of the mint args stated: the refusal must
+// name a gap of the mint's class on its subject, and the lens files its point as a finding about that
+// gap. A refusal naming no such gap fails the run.
+func (r *runner) oneGapAnswered(seatID, out string, args []string) {
+	_, all := r.sameClassAndSubject(argOf(args, "--class"), args)
+	held := ""
+	for _, g := range all {
+		if strings.Contains(out, g.ID) {
+			held = g.ID
+		}
+	}
+	if held == "" {
+		r.noteActErr("a mint was refused as a second gap of its class on its subject, naming no gap of that class on that subject on the board: " + firstLine(out))
+		return
+	}
+	r.mu.Lock()
+	r.oneGapRefused++
+	r.mu.Unlock()
+	// A gap another lens minted after this lens sat is a change since its read point, so the finding
+	// may meet the stale refusal first and is recorded again, as a seat does. The first-wave lenses
+	// file their findings about one gap concurrently, and each is a change since every sibling's read
+	// point, so a lens may meet one refusal per sibling: it records the act again once per lens in the
+	// cast, and once more.
+	if _, ok := r.admitFreshWithin(r.lensesCast()+1, held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
+		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
+		return
+	}
+	r.mu.Lock()
+	r.oneGapFindings++
+	r.mu.Unlock()
+}
+
+// freeClass replaces the --class args state, where an open gap of that class stands on the mint's
+// subject, with the first pool class, from a drawn start, that no open gap holds there; args keep
+// their class where every pool class is held.
+func (r *runner) freeClass(args []string) {
+	at := slices.Index(args, "--class") + 1
+	if at == 0 || at >= len(args) {
+		return
+	}
+	if open, _ := r.sameClassAndSubject(args[at], args); len(open) == 0 {
+		return
+	}
+	start := r.rng.Intn(len(mintPoolClasses))
+	for i := range mintPoolClasses {
+		c := mintPoolClasses[(start+i)%len(mintPoolClasses)]
+		if open, _ := r.sameClassAndSubject(c, args); len(open) == 0 {
+			args[at] = c
+			return
+		}
+	}
+}
+
+// lensesCast is how many lens seats the run's cast holds.
+func (r *runner) lensesCast() int {
+	cast, err := record.CastOf(r.run())
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, s := range cast {
+		if strings.HasPrefix(s, "red-lens-") {
+			n++
+		}
+	}
+	return n
+}
+
+// checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
+// subject — a gap still open now was open at the write, since a closed gap does not reopen — unless
+// the mint names it in --supersedes or names a finding in its found_by, whose contradiction it may answer.
+func (r *runner) checkOneGap(gapID string, args []string) {
+	if argOf(args, "--found-by") != "" {
+		return
+	}
+	open, _ := r.sameClassAndSubject(argOf(args, "--class"), args)
+	order := r.mintOrder()
+	for _, g := range open {
+		if g.ID != gapID && order[g.ID] < order[gapID] && !strings.Contains(argOf(args, "--supersedes"), g.ID) {
+			r.noteActErr(fmt.Sprintf("mint admitted %s while %s, of its class %s, stood open on its subject", gapID, g.ID, g.Class))
+			return
+		}
+	}
+}
+
+// mintOrder is each gap's place in mint order on the record.
+func (r *runner) mintOrder() map[string]int {
+	out := map[string]int{}
+	fam, err := record.FamilyOf(r.runHandle)
+	if err != nil {
+		return out
+	}
+	for i, e := range fam.Events {
+		if m := e.GetMint(); m != nil {
+			out[m.GetGapId()] = i
+		}
+	}
+	return out
+}
+
+// mintOverOpen is the first wave's race, driven: as lens seatID, a mint of the class of an open gap,
+// on its subject — its marked sentence or its inquiry — drawn from other lenses' gaps where the board
+// holds any. The record refuses it naming that gap, and the lens files its point as a finding about it
+// (oneGapAnswered). An admission fails the run unless the gap has closed since the board was read.
+func (r *runner) mintOverOpen(seatID string) {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return
+	}
+	// DRAWN, NOT THE FIRST: every first-wave lens taking the board's first gap piles its finding on
+	// one gap, each a change since the others' read points, and a lens then meets the stale refusal
+	// more times than a seat records an act again.
+	var others, own []*record.GapJSON
+	for i := range bj.Open {
+		g := &bj.Open[i]
+		switch {
+		case g.LocationState != record.LocationMarked && g.AboutKind != "inquiry":
+		case r.minterOf(g.ID) == seatID:
+			own = append(own, g)
+		default:
+			others = append(others, g)
+		}
+	}
+	if len(others) == 0 {
+		others = own
+	}
+	if len(others) == 0 {
+		return
+	}
+	pick := others[r.rng.Intn(len(others))]
+	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect another lens holds",
+		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+		"--reason", "fuzz: minted over an open gap of its class"}
+	if pick.AboutKind == "inquiry" {
+		args = append(args, "--about-kind", "inquiry", "--about", pick.AboutRef)
+	} else {
+		args = append(args, "--quote", pick.Location)
+	}
+	out, err := r.exec(args...)
+	switch {
+	case err != nil && strings.Contains(out, oneGapWords):
+		r.oneGapAnswered(seatID, out, args)
+	case err != nil:
+		// Another rule refused it first — an estoppel on text blue applied, say — or the quote left
+		// the report under a concurrent edit; neither is this drive's to judge.
+		noteEither([]string{"mint"}, "a mint over an open gap of its class, refused by another rule", false)
+	default:
+		open, _ := r.sameClassAndSubject(pick.Class, args)
+		for _, g := range open {
+			if g.ID == pick.ID {
+				r.noteActErr(fmt.Sprintf("mint over open gap %s, of its class %s on its subject, was admitted: %s", pick.ID, pick.Class, firstLine(out)))
+				return
+			}
+		}
+		noteEither([]string{"mint"}, "a mint over an open gap of its class, which closed under it", true)
+		var env struct {
+			Result struct {
+				GapID string `json:"gap_id"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.GapID != "" {
+			r.noteMint(seatID, env.Result.GapID)
+		}
+	}
+}
 
 // mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from red's
 // own --fix-new, with no --supersedes naming the gap that prescribed it. That is exactly the shape
@@ -4176,6 +4412,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			r.mint(seatID) // refused past the budget, which the sweep counts as a driven refusal
 		}
+		// THE FIRST WAVE'S RACE: parallel lenses each read the board before their siblings minted.
+		// Half the first-epoch lens sittings mint a gap of a class already open on a subject.
+		if !r.forceUnverified && !r.forceVerified && !r.forceEstoppel && r.firstEpoch() && r.coin(50) {
+			r.mintOverOpen(seatID)
+		}
 		if r.forceEstoppel {
 			r.mintEstopped(seatID)
 		} else if r.findsFresh() {
@@ -4635,6 +4876,8 @@ type outcome struct {
 	// budgetRefused is the mints the tool refused a lens holding its whole budget open
 	// (runner.budgetRefused).
 	budgetRefused int
+	// oneGapRefused and oneGapFindings are the runner's.
+	oneGapRefused, oneGapFindings int
 	// ownAnswers is the mints that answered the minting lens's own raise (runner.ownAnswers).
 	ownAnswers int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
@@ -5891,6 +6134,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.lensSittings = r.lensSittings
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
 	res.budgetRefused = r.budgetRefused
+	res.oneGapRefused, res.oneGapFindings = r.oneGapRefused, r.oneGapFindings
 	res.ownAnswers = r.ownAnswers
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
