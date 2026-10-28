@@ -2892,6 +2892,12 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 			args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 		}
 	}
+	// A FORCED RUN'S GAPS ARE ITS VERDICT'S DRIVE, so its lens takes a pool class no open gap holds on
+	// the subject: a mint the one-gap rule refuses is a gap the forced verdict does not get, and the
+	// rule is driven by every other run.
+	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
+		r.freeClass(args)
+	}
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
@@ -3055,6 +3061,27 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	r.mu.Lock()
 	r.oneGapFindings++
 	r.mu.Unlock()
+}
+
+// freeClass replaces the --class args state, where an open gap of that class stands on the mint's
+// subject, with the first pool class, from a drawn start, that no open gap holds there; args keep
+// their class where every pool class is held.
+func (r *runner) freeClass(args []string) {
+	at := slices.Index(args, "--class") + 1
+	if at == 0 || at >= len(args) {
+		return
+	}
+	if open, _ := r.sameClassAndSubject(args[at], args); len(open) == 0 {
+		return
+	}
+	start := r.rng.Intn(len(mintPoolClasses))
+	for i := range mintPoolClasses {
+		c := mintPoolClasses[(start+i)%len(mintPoolClasses)]
+		if open, _ := r.sameClassAndSubject(c, args); len(open) == 0 {
+			args[at] = c
+			return
+		}
+	}
 }
 
 // lensesCast is how many lens seats the run's cast holds.
