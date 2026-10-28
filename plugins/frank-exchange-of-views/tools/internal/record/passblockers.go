@@ -69,6 +69,9 @@ type Blocker struct {
 	// failed check — so dispatch can ask whether its owner has sat since, and an unchecked anchor's
 	// wording can name its edit; 0 for the other kinds.
 	since int64
+	// placed is the events.id of the act that put an unchecked anchor on the record, which dispatch
+	// readies its owner off (a cite or a proof moves no report head); 0 for every other blocker.
+	placed int64
 	// lastCheck is the events.id of an unchecked anchor's latest check, which does not clear it, 0
 	// when it has none.
 	lastCheck int64
@@ -672,7 +675,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy, raiser: c.raiser})
 	}
 	for _, u := range uncheckedAnchors(evs, win) {
-		out = append(out, Blocker{Kind: BlockerUnchecked, Subject: u.anchor, Owner: anchorOwnerOf(u.proof), Detail: u.sha, since: u.edit, lastCheck: u.lastCheck, rerun: u.rerun})
+		out = append(out, Blocker{Kind: BlockerUnchecked, Subject: u.anchor, Owner: anchorOwnerOf(u.proof), Detail: u.sha, since: u.edit, placed: u.placed, lastCheck: u.lastCheck, rerun: u.rerun})
 	}
 	for _, f := range failedChecksOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerFailedCheck, Subject: f.anchor, Owner: f.owner, Detail: f.sha, since: f.since, answeredBy: f.answeredBy, answeredAt: f.answeredAt})

@@ -483,11 +483,32 @@ func foldPlan(params Params, r planReads) Plan {
 	// stopped at the call limit or never closed readies it again, the reason says so, and the blocker still holds the
 	// PASS — the precedent benchSatFor set for the docket.
 	//
-	// A CITATION OR PROOF WITH NO CHECK OF ITS SENTENCE AS IT STANDS NEEDS NO ARM HERE. Its owner owes
-	// the check, so it is not retired (lensOwesOf), and the act that placed the anchor or changed its
-	// sentence moved the head past its last sitting: Source 1 readies it, once per head move, saying
-	// what it owes.
+	// A CITATION OR PROOF WITH NO CHECK OF ITS SENTENCE AS IT STANDS READIES ITS OWNER, once per
+	// cause: the edit that changed its sentence, or the act that placed it. Its owner owes the check,
+	// so it is not retired (lensOwesOf), but a cite or a proof moves no report head (reportHeadOf), so
+	// Source 1 does not ready it for an anchor blue placed after its last sitting — and with nobody
+	// ready the run ended UNVERIFIED over the citation (the release fuzz's forced-VERIFIED seed). The
+	// owner is ready until it sits through a sitting opened after the cause, and one reason names every
+	// anchor it is readied for.
 	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps, owed), fresh)
+	uncheckedFor := map[string][]string{}
+	var uncheckedOwners []string
+	for _, b := range blockers {
+		if b.Kind != BlockerUnchecked || seatclass.RoleOfSeat(b.Owner) != "lens" {
+			continue
+		}
+		if _, sat := firstAfter(ends.through[b.Owner], max(b.since, b.placed)); sat {
+			continue
+		}
+		if uncheckedFor[b.Owner] == nil {
+			uncheckedOwners = append(uncheckedOwners, b.Owner)
+		}
+		uncheckedFor[b.Owner] = append(uncheckedFor[b.Owner], b.Subject)
+	}
+	for _, owner := range uncheckedOwners {
+		engage(owner, "")
+		plan.Why = append(plan.Why, fmt.Sprintf("%s owns %s, placed or changed since the last sitting it sat through, and no check of its sentence as it stands is on the record — ready, to check each", owner, strings.Join(uncheckedFor[owner], ", ")))
+	}
 	for _, b := range blockers {
 		switch {
 		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:

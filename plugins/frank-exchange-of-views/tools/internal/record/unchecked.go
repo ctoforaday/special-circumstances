@@ -12,6 +12,8 @@ type unchecked struct {
 	// edit is the latest blue edit naming the anchor in its `reopened`, 0 when none has; lastCheck is
 	// the anchor's latest check, 0 when it has none, and neither clears it.
 	edit, lastCheck int64
+	// placed is the events.id of the act that put the anchor on the record (anchorStanding.placed).
+	placed int64
 	// rerun is a proof's script state (proofVerdict.rerunWord) — a re-run belongs to the script, so a
 	// proof owed a judgement may be owed no re-run; "" for a citation.
 	rerun string
@@ -42,7 +44,7 @@ func uncheckedAnchors(evs []*Event, win WindowIndex) []unchecked {
 		if s.state() != stateUnchecked {
 			continue
 		}
-		u := unchecked{anchor: s.anchor, proof: s.proof, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck()}
+		u := unchecked{anchor: s.anchor, proof: s.proof, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck(), placed: s.placed}
 		if s.proof {
 			if reruns == nil {
 				reruns = scriptRerunsOf(evs)

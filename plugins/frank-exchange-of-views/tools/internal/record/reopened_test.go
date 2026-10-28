@@ -125,10 +125,13 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	d.sit(d.at(), evLens).supports(evLens, "C-1")
 	check = d.at()
 	d.reopen("C-1")
-	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: d.at(), lastCheck: check}) {
+	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: d.at(), lastCheck: check, placed: boardCite}) {
 		t.Errorf("rows after a second edit = %+v, want C-1 reopened at edit %d, last check %d", got, d.at(), check)
 	}
 }
+
+// boardCite is the events.id of reopenedBoard's cite of C-1, which placed it.
+const boardCite = 6
 
 // reopenedRows is the fold over a staged record.
 func reopenedRows(t *testing.T, b *stage) []unchecked {
@@ -141,7 +144,7 @@ func TestACheckBeforeTheEditDoesNotClear(t *testing.T) {
 	b := reopenedBoard(t)
 	check := b.at()
 	b.reopen("C-1")
-	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: b.at(), lastCheck: check}) {
+	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: b.at(), lastCheck: check, placed: boardCite}) {
 		t.Errorf("rows = %+v, want C-1 at edit %d with its earlier check %d", got, b.at(), check)
 	}
 }
@@ -443,6 +446,23 @@ func TestACitationPlacedWhileItsOwnerSitsIsThatSittingsToCheck(t *testing.T) {
 	}
 	if got := reopenedOf(t, board().supports(evLens, "C-2").seed()); len(got) != 0 {
 		t.Errorf("a check of C-2 from the sitting open when it was cited leaves it unchecked: %+v", got)
+	}
+}
+
+// A CITATION BLUE PLACES AFTER ITS OWNER SAT READIES THE OWNER, once. A cite moves no report head, so
+// the owner's pin stays at the head and nothing else readies it, while the never-checked citation
+// holds the PASS: the plan readies it until it sits through a sitting opened after the cite.
+func TestACitationPlacedAfterItsOwnerSatReadiesItOnce(t *testing.T) {
+	board := func() *stage { return reopenedBoard(t).register("red-chair").cite("C-2") }
+	plan := planOf(t, board().register("red-chair"))
+	if !lensReady(plan) || !strings.Contains(whyOf(plan), evLens+" owns C-2, placed or changed since the last sitting it sat through") {
+		t.Fatalf("the plan after the cite does not ready the owner for C-2: parties %+v, why %q", plan.Parties, plan.Why)
+	}
+	b := board()
+	cite := b.at()
+	again := planOf(t, b.register("red-chair").sit(cite, evLens).logEntry(evLens).register("red-chair"))
+	if strings.Contains(whyOf(again), "owns C-2, placed") {
+		t.Errorf("the owner sat through a sitting opened after the cite and is readied for C-2 again: why %q", again.Why)
 	}
 }
 
