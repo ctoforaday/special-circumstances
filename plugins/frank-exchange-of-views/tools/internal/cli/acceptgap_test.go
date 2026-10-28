@@ -201,7 +201,7 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			g2, err := mintQuote(t, runDir, "G2", loc)
+			g2, err := mintQuote(t, runDir, "G2", loc, "--class", otherClass)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -257,7 +257,7 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 					t.Fatal(err)
 				}
 				t1 := anchor.Token(g1)
-				g2, err := mintQuote(t, runDir, "G2", acceptS+t1+term, "--new", "Costs rose, though less than feared"+t1+term)
+				g2, err := mintQuote(t, runDir, "G2", acceptS+t1+term, "--new", "Costs rose, though less than feared"+t1+term, "--class", otherClass)
 				if err != nil {
 					t.Fatalf("a mint quoting the first gap's anchor: %v", err)
 				}
@@ -425,13 +425,13 @@ func TestMintVerifiesExactlyWhatTheAcceptApplies(t *testing.T) {
 				return loc, acceptN + anchor.Token(citeSentence(t, d, acceptS+".", "https://costs/1")) + term
 			}, true},
 			row{"a second gap on S" + term, costs, func(t *testing.T, d string) (string, string) {
-				if _, err := mintQuote(t, d, "G0", loc); err != nil {
+				if _, err := mintQuote(t, d, "G0", loc, "--class", otherClass); err != nil {
 					t.Fatal(err)
 				}
 				return loc, acceptN + term
 			}, true},
 			row{"quoting another gap's anchor" + term, costs, func(t *testing.T, d string) (string, string) {
-				g1, err := mintQuote(t, d, "G0", loc, "--new", acceptN+term)
+				g1, err := mintQuote(t, d, "G0", loc, "--new", acceptN+term, "--class", otherClass)
 				if err != nil {
 					t.Fatal(err)
 				}

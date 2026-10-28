@@ -1982,17 +1982,30 @@ func locateGap(report string, err error, g *WorkGapState) {
 		return
 	}
 	g.LocationState = LocationGone
-	tok := anchor.Token(g.ID)
-	at := strings.Index(report, tok)
-	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(report), g.ID) {
+	sp, ok := gapSentenceIn(report, anchor.Sentences(report), claimcount.BareAnchorIDs(report), g.ID)
+	if !ok {
 		return
 	}
-	for _, sp := range anchor.Sentences(report) {
+	g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
+	g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
+	g.Passage = PassageAround(report, strings.Index(report, anchor.Token(g.ID)))
+}
+
+// gapSentenceIn is the bounds of the sentence holding gap id's anchor in report, whose sentences
+// are spans and whose bare anchors are bare: the sentence the board shows as a quote gap's
+// location. ok is false where the anchor is not in report, stands bare, or sits in no sentence —
+// the board's `gone`. It is the one reading of "the sentence a gap is on": the board marks a gap
+// with it, and a mint is refused on it (requireOneGapPerClassAndSubject).
+func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]int, bool) {
+	tok := anchor.Token(id)
+	at := strings.Index(report, tok)
+	if at < 0 || slices.Contains(bare, id) {
+		return [2]int{}, false
+	}
+	for _, sp := range spans {
 		if sp[0] <= at && at+len(tok) <= sp[1] {
-			g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
-			g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
-			g.Passage = PassageAround(report, at)
-			return
+			return sp, true
 		}
 	}
+	return [2]int{}, false
 }

@@ -192,12 +192,18 @@ func renderFrom(q recordsql.Querier) func() (string, error) {
 }
 
 // validationReadsReport is whether the write path's validation of body, written by seatID, reads
-// the report: a mint by a lens whose budget is measured on it (requireMintWithinBudget). The
+// the report: a mint with a quote, whose sentence the one-gap rule reads
+// (requireOneGapPerClassAndSubject), or a mint by a lens whose budget is measured on it
+// (requireMintWithinBudget). The
 // write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
 // away before the measure renders for nothing.
 func validationReadsReport(seatID string, body proto.Message) bool {
-	if _, ok := body.(*recordpb.Mint); !ok {
+	m, ok := body.(*recordpb.Mint)
+	if !ok {
 		return false
+	}
+	if strings.TrimSpace(m.GetLocation()) != "" {
+		return true
 	}
 	s, ok := mintScales[AreaOf(seatID)]
 	return ok && s.measure.readsReport
