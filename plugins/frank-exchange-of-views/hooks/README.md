@@ -54,6 +54,18 @@ registered as a seat (the main session, an operator) is never counted. Under a h
 seat the payload carries no agent_id, so the identity and run come from FEOV_AGENT_ID and FEOV_RUN in
 the environment the hook inherits.
 
+THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelope with and that ends
+its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
+a blocking item on the seat's own work list stands, the call is denied naming each item, and the
+refusal is logged under the seat. An envelope the record does not refuse is recorded as ADMITTED — an
+`envelope_admitted` event under `harness`, keyed to the agent — and that admission is what tells a
+finished sitting from a failed one: a closed sitting of a seat whose work arrives as items, with no
+admission, failed (its envelope was refused until the harness gave up, or its agent died), and
+capture names it. A check that cannot run, or an admission the record does not take, refuses the
+envelope naming the error. THE GATE RUNS BEFORE THE HARNESS'S SCHEMA CHECK: the harness validates the
+envelope against its schema inside the tool's own call, after every PreToolUse hook, so an admitted
+envelope the schema then rejects stays admitted.
+
 ## SubagentStart
 
 Opens the span. THE SITTING SPAN (#265). Seat durations read ZERO because both ends came from

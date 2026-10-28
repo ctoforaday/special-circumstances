@@ -14,6 +14,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [run](#run) | lens, chair, blue, bench, operator |
 | [epoch](#epoch) | lens, chair, blue, bench, operator |
 | [sitting](#sitting) | lens, chair, blue, bench, operator |
+| [failed sitting](#failed-sitting) | operator |
 | [exchange](#exchange) | lens, chair, blue, bench, operator |
 | [seat](#seat) | lens, chair, blue, bench, operator |
 | [side](#side) | lens, chair, blue, bench, operator |
@@ -154,6 +155,16 @@ A sitting is one seat's dispatch, from the prompt the engine hands it to the env
 **Collisions:**
 
 - **turn** — a NULL TURN (a sitting that moved nothing on a gap) and an API turn (one model call inside a sitting) keep the word
+
+## failed sitting
+
+A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the envelope gate refused its envelope until the harness gave up, or its agent died; the engine dispatches the seat again while it owes its items, and capture names each one.
+
+**Delivered to:** operator
+
+**Collisions:**
+
+- **FAIL (a verdict)** — the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing
 
 ## exchange
 

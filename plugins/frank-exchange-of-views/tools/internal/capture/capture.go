@@ -143,6 +143,15 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
 			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
 	}
+	// THE ENGINE'S OWN STOP IS ON THE RECORD, and it is not a run in flight however recently it was
+	// written: the engine threw, the lead wrote the error (`engine-stopped`), and nothing sat after it.
+	// The record's own movement would otherwise read that last entry as activity and pass the run as
+	// captured mid-run.
+	if stop, err := engineStop(run); err != nil {
+		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — the record could not be read: " + err.Error()}
+	} else if stop != "" {
+		return Audit{Check: "liveness", Verdict: "FAIL", Detail: "NO terminal outcome on the record, and the ENGINE STOPPED the run — its error, as the lead recorded it: " + stop}
+	}
 	// THE RECORD'S ACTIVITY, NOT THE RUN'S DISPOSITION: this audit runs before capture writes the
 	// mark that ends the run, and again on a run captured before, and either way it asks whether the
 	// record stopped moving before anyone captured it.
@@ -162,6 +171,40 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 			"no terminal outcome yet and the record was still moving %s before capture (last: %s) — captured mid-run",
 			l.Age.Round(time.Second), l.Last.Seat)}
 	}
+}
+
+// engineStop is the error the engine stopped the run on, as the lead recorded it — the latest
+// `failure` entry under the harness seat, which is the stop as fields (`engine-stopped`) — where no
+// seat opened a sitting after it, with the sittings that failed (record.FailedSittingsOf) named
+// after it; "" when the record holds no stop, or a resume sat past it.
+func engineStop(run record.Run) (string, error) {
+	m, err := record.MergedEvents(run)
+	if err != nil {
+		return "", err
+	}
+	stop := -1
+	for i, e := range m.Events {
+		if _, opens := m.At.Opens(e); opens {
+			stop = -1
+			continue
+		}
+		if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok && e.GetSeatId() == record.HarnessSeat && l.GetType() == recordpb.LogType_LOG_TYPE_FAILURE {
+			stop = i
+		}
+	}
+	if stop < 0 {
+		return "", nil
+	}
+	text := m.Events[stop].GetLog().GetText()
+	failed := record.FailedSittingsOf(m.Events, m.At)
+	if len(failed) == 0 {
+		return text, nil
+	}
+	named := make([]string, len(failed))
+	for i, f := range failed {
+		named[i] = fmt.Sprintf("%s sitting %d (epoch %d)", f.SeatID, f.Sitting, f.Epoch)
+	}
+	return fmt.Sprintf("%s — and %d sitting(s) closed with no admitted envelope: %s", text, len(failed), strings.Join(named, "; ")), nil
 }
 
 // TelemetryAudit checks that the telemetry series derived from the record has a row for every red
@@ -1934,6 +1977,8 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		DispatchParityAudit(run, results, journalPresent),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),
+		// Which sittings closed with no admitted envelope. See failedsittings.go.
+		FailedSittingsAudit(run),
 		BackfillAudit(run),
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),
