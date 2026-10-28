@@ -26,7 +26,7 @@ import (
 // probe's RENDERED MARKDOWN — a fact composed into prose at one end and recovered by matcher at
 // the other, whose miss returns a plausible zero indistinguishable from a seat that never opened
 // help. It bit that analysis twice: a `\s{2,}` column separator silently dropped exactly one verb
-// per role, and line-level counting credited every seat with `friction` from the ROOT listing the
+// per role, and line-level counting counted every seat as having seen `friction` from the ROOT listing the
 // board stages as setup — flattering precisely the arms that open help least.
 //
 // So it is a projection now: computed in Go, tested against both of those, and emitted as JSON a
@@ -60,7 +60,7 @@ func newShowDiagnostics() *cobra.Command {
 			"taught it) and can be shown verbs it never reaches for. Reporting one as the other is how a naming\n" +
 			"experiment measures its own instrument.\n\n" +
 			"SEEN is counted per BLOCK, never per line: the root listing carries names that are also role verbs, so\n" +
-			"a line-level match credits every seat before it acts.",
+			"a line-level match counts every seat as having seen it before it acts.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -189,7 +189,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	//
 	// THIS REPORTED FOUR SEATS ON ITS FIRST RUN AND THREE OF THEM NEVER SAT. A board's BUILD
 	// registers every seat so the fixture has parties to hang events on; only one is then
-	// dispatched. Reporting every seat on the record therefore credited three seats with
+	// dispatched. Reporting every seat on the record therefore gave three seats
 	// SEEN 0 — which reads as three seats that were shown nothing, when they were never asked
 	// anything. That is the plausible zero, produced by the projection built to remove it, and it
 	// is why this refuses rather than guesses: nothing in a trajectory attributes an invocation
@@ -199,7 +199,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 		sort.Strings(sat)
 		return out, feov.Errorf(feov.MissingField,
 			"--sitting names whose sitting this trajectory is. A run's record carries every seat "+
-				"that opened a sitting (%s), and a trajectory is one of them; reporting them all would credit the rest with "+
+				"that opened a sitting (%s), and a trajectory is one of them; reporting them all would attribute to the rest "+
 				"an exposure of zero they were never given the chance to earn",
 			strings.Join(dedupeSeats(sat), ", "))
 	}

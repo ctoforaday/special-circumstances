@@ -202,7 +202,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 | collapse | state |
 |---|---|
 | **Envelope round-trip** — the dominant token lever: the envelope carries refs, the tool re-derives from the record | PARTIAL. Done for grade disputes, manifest (#318) and the docket. `corroboration[]` (#326) and the petition ruling's opinion prose (#330) still round-trip. |
-| **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "credited by no gap". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and proof paths. |
+| **observe/dispose → retire** | EXECUTED (#327, 2026-08-09). Re-opened after #320 gave observations a reader, then decided to retire regardless: the two verbs and their events are gone, and "undisposed" became "no gap was minted from". **The cost is stated, not hidden — `checked-held` (a check red RAN and confirmed) has no successor vocabulary**, so the run can no longer record a confirmed negative outside the spot-check and proof paths. |
 | **regrade → canonical; debate.js must name it** | EXECUTED (#325, verified 2026-08-13). Named in debate.js and red-auditor.md, and a probed chair seat listed it among its options unprompted. |
 | **tldr / open_questions → drop from the envelope** | DONE. Now `CLEAN` in the table. |
 | Shipped before this section had trackers | the board `mint` duplication (#225), the retire detector (#226), the `undisposed_observations` metric (#227). |

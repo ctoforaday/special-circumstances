@@ -1959,7 +1959,7 @@ func (r *runner) raisePrinted(seatID, printed string) {
 }
 
 // ownUnansweredRaise is whether finding is seatID's own and raised a contradiction `show evidence`
-// still lists as unanswered: the mint crediting it answers it outside seatID's budget.
+// still lists as unanswered: the mint naming it in found_by answers it outside seatID's budget.
 func (r *runner) ownUnansweredRaise(seatID, finding string) bool {
 	b, ok := r.board()
 	if !ok {
@@ -2739,7 +2739,7 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citation
 // may later close or regrade the gap, which is why every landed mint is noted on r.minter.
 func (r *runner) mint(seatID string) string { return r.mintFrom(seatID, "") }
 
-// mintFrom mints as mint does, crediting foundBy in --found-by when it is set: the gap that answers
+// mintFrom mints as mint does, naming foundBy in --found-by when it is set: the gap that answers
 // a contradiction the finding foundBy raised.
 func (r *runner) mintFrom(seatID, foundBy string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
@@ -4722,8 +4722,8 @@ type outcome struct {
 	// would pass it while the axis quietly went all-prose.
 	verifiedBasis int
 	// Mints the record accepted WITH a found_by. The unreached-flags gate counts --found-by when the
-	// mint carrying it is refused, so only the event shows a finding was ever credited.
-	creditedMints int
+	// mint carrying it is refused, so only the event shows a finding was ever named in found_by.
+	foundByMints int
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
@@ -6090,7 +6090,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				res.verifiedBasis++
 			}
 			if len(t.GetFoundBy()) > 0 {
-				res.creditedMints++
+				res.foundByMints++
 			}
 		case *recordpb.Log:
 			// SOURCE IS CHECKED, NOT JUST TYPE. An estoppel entry a SEAT filed is a seat claiming
@@ -6765,7 +6765,7 @@ func TestFuzzDebate(t *testing.T) {
 	forcedVerdict, forcedWhy := "", ""                      // what the FORCED-UNVERIFIED seed actually ended as
 	verifiedVerdict, verifiedWhy := "", ""                  // and the FORCED-VERIFIED seed
 	verifiedBasis := 0                                      // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
-	creditedMints := 0                                      // mints accepted with a found_by naming a recorded finding
+	foundByMints := 0                                       // mints accepted with a found_by naming a recorded finding
 	verbatimApplied := 0                                    // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	typedVerbatim := 0                                      // those blue typed rather than accepted
 	estoppels := 0                                          // the TOOL's own refusals of a mint against text blue applied verbatim
@@ -6865,7 +6865,7 @@ func TestFuzzDebate(t *testing.T) {
 			cacheFiles += o.cacheFiles
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
-			creditedMints += o.creditedMints
+			foundByMints += o.foundByMints
 			verbatimApplied += o.verbatimApplied
 			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
@@ -7204,8 +7204,8 @@ func TestFuzzDebate(t *testing.T) {
 		if verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
 		}
-		if creditedMints == 0 {
-			t.Errorf("fuzz minted ZERO gaps crediting a finding across %d runs — no accepted mint carried --found-by, so the id a finding is credited by is unexercised (false green)", completed)
+		if foundByMints == 0 {
+			t.Errorf("fuzz minted ZERO gaps naming a finding in found_by across %d runs — no accepted mint carried --found-by, so the id a found_by names a finding by is unexercised (false green)", completed)
 		}
 		if verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
