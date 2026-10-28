@@ -2199,6 +2199,12 @@ func (r *runner) proveToReopen(seatID string) {
 	}
 }
 
+// forcedChainProof is whether anchor is the proof a forced chain judges (judgeToReopen, judgeUnsound).
+func (r *runner) forcedChainProof(anchor string) bool {
+	return r.forceReopenedProof && slices.Contains(r.forcedProofs(), anchor) ||
+		r.forceUnsoundProof && slices.Contains(r.proofsOfScript(unsoundProofScript), anchor)
+}
+
 // judgeToReopen is the owner's half of the forced chain: it judges every forced proof its work list
 // offers.
 func (r *runner) judgeToReopen(seatID string) {
@@ -2760,9 +2766,8 @@ func (r *runner) checkAnchorOffers(seatID string) {
 
 // anchorOffersAgree is "" when, at the run's end, the record's own answer and the work lists agree:
 // each kind's owner's list offers for a first check exactly the anchors of that kind the record holds
-// unchecked with no edit since they were placed (`show evidence`'s `unchecked` rows with edit 0) and
-// placed before its latest sitting opened — one placed after was not in the report that sitting was
-// served, and the next sitting owes it — and every other cast lens's list offers none; and every citation on a failed check is on blue's list,
+// unchecked with no edit since they were placed (`show evidence`'s `unchecked` rows with edit 0), and
+// every other cast lens's list offers none; and every citation on a failed check is on blue's list,
 // with the remedy it owes. Otherwise what disagreed. proofs and citations are how many the owners
 // were offered.
 func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citations int) {
@@ -2775,22 +2780,6 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citation
 	for _, p := range ev.Proofs {
 		isProof[p.Anchor] = true
 	}
-	// placed is the events.id of the act that put each anchor on the record: blue's cite or proof,
-	// or red's corroboration.
-	placed := map[string]int64{}
-	for _, e := range fam.Events {
-		var a string
-		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
-			a = c.GetLabel()
-		} else if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
-			a = p.GetProofId()
-		} else if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && v.GetClaim() != "" {
-			a = v.GetLabel()
-		}
-		if _, seen := placed[a]; a != "" && !seen {
-			placed[a] = fam.At.Of(e).ID
-		}
-	}
 	want := map[string][]string{}
 	for _, u := range ev.Unchecked {
 		if u.Edit != 0 {
@@ -2799,9 +2788,6 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, proofs, citation
 		kind := "citation"
 		if isProof[u.Anchor] {
 			kind = "proof"
-		}
-		if fam.At.LatestSittingOf(r.ownerOf(kind)) <= placed[u.Anchor] {
-			continue
 		}
 		want[kind] = append(want[kind], u.Anchor)
 	}
@@ -4347,6 +4333,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					// runs. The forced-VERIFIED run reads every one, and neither forced run judges a
 					// proof unsound (judgement).
 					for _, it := range owed {
+						// A FORCED CHAIN'S PROOF IS ITS OWN DRIVE'S: judgeToReopen and judgeUnsound judge
+						// it below, and dischargeOwed clears any they leave before the envelope.
+						if it.Sha != "" && r.forcedChainProof(it.Anchor) {
+							continue
+						}
 						if !r.firstThisSitting(seatID, it.Anchor) {
 							continue
 						}
@@ -4613,9 +4604,20 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// while one stands (record.EnvelopeRefusal), so one the drive left for later is raised here.
 		r.answerContradictions(seatID)
 		r.dischargeOwed(seatID)
-		// A PROOF JUDGED UNSOUND AFTER answerUnsound RAN — a reopened proof re-run, one the owner was
+		// A PROOF JUDGED UNSOUND AFTER answerFailed RAN — a reopened proof re-run, one the owner was
 		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
 		r.answerFailed(seatID)
+		// AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
+		// another seat's act can land after the pass above — blue's cite or proof while the anchor's
+		// owner sits is that sitting's to check — and the seat clears what it now owes, at most twice.
+		for range 2 {
+			if refusal, err := record.EnvelopeRefusal(r.run(), seatID); err != nil || refusal == "" {
+				break
+			}
+			r.answerContradictions(seatID)
+			r.dischargeOwed(seatID)
+			r.answerFailed(seatID)
+		}
 		// A LENS PETITIONS ON THE RECORD — its envelope carries nothing, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
 		// unruled and is refused (envelopeRefusedEarly).

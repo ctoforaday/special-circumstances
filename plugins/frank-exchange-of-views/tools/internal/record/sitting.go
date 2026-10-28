@@ -365,11 +365,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// (passBlockersOf), and dispatch readies the lens for it — so it qualifies under the rule at the
 	// top of this file, and it is the kind table's own sentence.
 	//
-	// AN UNCHECKED ANCHOR IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS CAUSE: the edit that
-	// changed its sentence, or, for one no edit has changed, the act that placed it. A sitting already
-	// open when the edit landed cannot clear the item (anchorStanding.sinceEdit), and one already open
-	// when blue cited or proved it was served a report without it, so holding either open on it would
-	// hold it on work it was never given; the next plan readies the lens, and that sitting lists it.
+	// AN ITEM OF AN EDITED SENTENCE IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS EDIT. A sitting
+	// already open when the edit landed cannot clear the item (anchorStanding.sinceEdit), so holding
+	// that sitting open on it would hold it on work it cannot do; the next plan readies the lens, and
+	// that sitting lists it.
 	//
 	// Nothing else blocks a lens. The acts a lens genuinely has open to it — corroborating a source
 	// blue never cited, among others — come from availableOf and land on this same list carrying
@@ -393,7 +392,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if (b.Kind != BlockerContradiction && b.Kind != BlockerUnchecked && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
-			if b.Kind == BlockerUnchecked && win.LatestSittingOf(seatID) <= max(b.since, b.placed) {
+			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
 			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every

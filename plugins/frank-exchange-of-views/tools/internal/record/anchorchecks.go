@@ -67,9 +67,6 @@ type anchorStanding struct {
 	proof bool
 	// sha is a proof's proof_sha — the script every proof anchor on it shares; "" for a citation.
 	sha string
-	// placed is the events.id of the act that put the anchor on the record: blue's cite or proof, or
-	// red's corroboration.
-	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
 	// the anchor was placed or last retired.
 	edit int64
@@ -211,11 +208,11 @@ func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anc
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 	l := &anchorLedger{byAnchor: map[string]*anchorStanding{}}
-	hold := func(e *Event, anchor string, proof bool, sha string) {
+	hold := func(anchor string, proof bool, sha string) {
 		if anchor == "" || l.byAnchor[anchor] != nil {
 			return
 		}
-		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha, placed: win.Of(e).ID}
+		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha}
 		l.byAnchor[anchor] = s
 		l.order = append(l.order, s)
 	}
@@ -224,13 +221,13 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
 		case *recordpb.Cite:
-			hold(e, b.GetLabel(), false, "")
+			hold(b.GetLabel(), false, "")
 		case *recordpb.Verify:
 			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
-				hold(e, b.GetLabel(), false, "")
+				hold(b.GetLabel(), false, "")
 			}
 		case *recordpb.Proof:
-			hold(e, b.GetProofId(), true, b.GetProofSha())
+			hold(b.GetProofId(), true, b.GetProofSha())
 		}
 	}
 	for _, e := range evs {

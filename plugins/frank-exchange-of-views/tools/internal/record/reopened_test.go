@@ -125,13 +125,10 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	d.sit(d.at(), evLens).supports(evLens, "C-1")
 	check = d.at()
 	d.reopen("C-1")
-	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: d.at(), lastCheck: check, placed: boardCite}) {
+	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: d.at(), lastCheck: check}) {
 		t.Errorf("rows after a second edit = %+v, want C-1 reopened at edit %d, last check %d", got, d.at(), check)
 	}
 }
-
-// boardCite is the events.id of reopenedBoard's cite of C-1, which placed it.
-const boardCite = 6
 
 // reopenedRows is the fold over a staged record.
 func reopenedRows(t *testing.T, b *stage) []unchecked {
@@ -144,7 +141,7 @@ func TestACheckBeforeTheEditDoesNotClear(t *testing.T) {
 	b := reopenedBoard(t)
 	check := b.at()
 	b.reopen("C-1")
-	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: b.at(), lastCheck: check, placed: boardCite}) {
+	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: b.at(), lastCheck: check}) {
 		t.Errorf("rows = %+v, want C-1 at edit %d with its earlier check %d", got, b.at(), check)
 	}
 }
@@ -434,22 +431,18 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 	}
 }
 
-// THE SAME-WAVE CASE FOR A NEW ANCHOR. The lens's sitting is open when blue cites a source: it was
-// served a report without the citation, so it is not held by it and can complete; a sitting opened
-// after the cite owes the check.
-func TestALensSittingOpenedBeforeACitationIsPlacedIsNotHeldByIt(t *testing.T) {
+// A CITATION PLACED WHILE ITS OWNER SITS IS THAT SITTING'S TO CHECK, unlike an edited one. A check
+// from a sitting opened before the cite reads the sentence the report carries (anchorStanding.sinceEdit
+// holds with no edit), so the sitting can clear it and is held by it; and a cite does not move the
+// report head, so a sitting released from it would leave the owner unreadied and the PASS held with
+// nobody to clear it.
+func TestACitationPlacedWhileItsOwnerSitsIsThatSittingsToCheck(t *testing.T) {
 	board := func() *stage { return reopenedBoard(t).logEntry(evLens).cite("C-2") }
-	s := sittingOfRunT(t, board().seed(), "lens", evLens)
-	if _, listed := itemNaming(s, "citation C-2 is on the record"); listed || !s.Complete {
-		t.Fatalf("a sitting open when C-2 was cited lists it (%v) or is held (%q)", listed, blockingItems(s))
+	if _, listed := itemNaming(sittingOfRunT(t, board().seed(), "lens", evLens), "citation C-2 is on the record"); !listed {
+		t.Fatal("the owner's open sitting does not list C-2, cited while it sat")
 	}
-	b := board()
-	placed := b.at()
-	next := b.register("red-chair").sit(placed, evLens).logEntry(evLens).seed()
-	// The fixture's report carries no C-2 token, so the item is listed as one no verify of this
-	// sitting can reach (as in TestANeverCheckedCitationIsOwedAndHoldsThePass).
-	if it, listed := itemNaming(sittingOfRunT(t, next, "lens", evLens), "citation C-2 is on the record"); !listed {
-		t.Errorf("a sitting opened after the cite does not list C-2's check: %+v", it)
+	if got := reopenedOf(t, board().supports(evLens, "C-2").seed()); len(got) != 0 {
+		t.Errorf("a check of C-2 from the sitting open when it was cited leaves it unchecked: %+v", got)
 	}
 }
 
