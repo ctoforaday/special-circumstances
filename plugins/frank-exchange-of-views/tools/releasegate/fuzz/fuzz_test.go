@@ -3081,27 +3081,35 @@ func (r *runner) mintOrder() map[string]int {
 }
 
 // mintOverOpen is the first wave's race, driven: as lens seatID, a mint of the class of an open gap,
-// on its subject — its marked sentence or its inquiry — preferring another lens's gap. The record
-// refuses it naming that gap, and the lens files its point as a finding about it (oneGapAnswered). An
-// admission fails the run unless the gap has closed since the board was read.
+// on its subject — its marked sentence or its inquiry — drawn from other lenses' gaps where the board
+// holds any. The record refuses it naming that gap, and the lens files its point as a finding about it
+// (oneGapAnswered). An admission fails the run unless the gap has closed since the board was read.
 func (r *runner) mintOverOpen(seatID string) {
 	bj, err := record.BoardJSONOfRun(r.runHandle)
 	if err != nil {
 		return
 	}
-	var pick *record.GapJSON
+	// DRAWN, NOT THE FIRST: every first-wave lens taking the board's first gap piles its finding on
+	// one gap, each a change since the others' read points, and a lens then meets the stale refusal
+	// more times than a seat records an act again.
+	var others, own []*record.GapJSON
 	for i := range bj.Open {
 		g := &bj.Open[i]
-		if g.LocationState != record.LocationMarked && g.AboutKind != "inquiry" {
-			continue
-		}
-		if pick == nil || (r.minterOf(pick.ID) == seatID && r.minterOf(g.ID) != seatID) {
-			pick = g
+		switch {
+		case g.LocationState != record.LocationMarked && g.AboutKind != "inquiry":
+		case r.minterOf(g.ID) == seatID:
+			own = append(own, g)
+		default:
+			others = append(others, g)
 		}
 	}
-	if pick == nil {
+	if len(others) == 0 {
+		others = own
+	}
+	if len(others) == 0 {
 		return
 	}
+	pick := others[r.rng.Intn(len(others))]
 	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect another lens holds",
 		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: minted over an open gap of its class"}
