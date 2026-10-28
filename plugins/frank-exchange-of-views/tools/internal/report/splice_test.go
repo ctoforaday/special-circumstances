@@ -109,7 +109,7 @@ func TestATokensRemovalOpensNoNote(t *testing.T) {
 	set := shipSeeded(t,
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: proto.String("see [<!--gap:G-00000001-->^1] here"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	)
-	run, _ := set.Text(FileRun)
+	run, _ := set.textOf(FileRun)
 	if !strings.Contains(run, `see \[^1] here`) {
 		t.Errorf("run.md does not show the log entry's text, its `[^` escaped:\n%s", run)
 	}
@@ -126,7 +126,7 @@ func TestAHuskGoesWholeForEveryToken(t *testing.T) {
 		recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
 			"# On 91 — research report\n\n## TL;DR\n\nIt is not.\n\n- kept\n- <!--cite:C-…-->.\n- <!--fx:F-1-->.\n- also kept\n")}),
 	)
-	report, _ := set.Text(FileReport)
+	report, _ := set.textOf(FileReport)
 	if !strings.Contains(report, "- kept\n- also kept\n") {
 		t.Errorf("a line the strip left a husk ships:\n%s", report)
 	}
@@ -289,7 +289,7 @@ func TestATitleIsMeasuredWithoutItsTokens(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		md, _ := set.Text(FileReport)
+		md, _ := set.textOf(FileReport)
 		if first, _, _ := strings.Cut(md, "\n"); first != c.want {
 			t.Errorf("%q ships under the title %q, want %q", c.h1, first, c.want)
 		}
@@ -326,7 +326,7 @@ func TestAProseValueKeepsItsBlocksInsideItsItem(t *testing.T) {
 		motionRow(&record.Motion{ID: "M-2", Subject: "petition", Fields: map[string]string{"class": "y"}, Filer: "red-lens-logic", Sitting: 3}, &unruled) +
 		"\n\n## Next\n\nAfter.\n"
 	set := stdReaders().shipSet("# T", []Doc{{File: FileJudgments, Nav: "Judgments", Body: body}})
-	md, _ := set.Text(FileJudgments)
+	md, _ := set.textOf(FileJudgments)
 	if !strings.Contains(md, "\n    unclosed code\n    ```\n") {
 		t.Errorf("the opinion's fence is not closed where the opinion ends:\n%s", md)
 	}

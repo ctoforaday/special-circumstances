@@ -48,13 +48,14 @@ func (rd readers) escapeNotes(md string) string {
 	return escapeNotesOutside(md, codeIn(rd.page([]byte(md)), []byte(md)))
 }
 
-// escapeNotesInLine is escapeNotes for a fragment assembly splices into the middle of a line it
-// writes — a citation's title, a proof's reason, each made one line — after a note's `[^N]: `. In
-// place the fragment is inline text of that line, so the only code in it is a code span it holds
-// whole, and it is read as one line of a paragraph (lineReader), never as a document of its own: read
-// alone, "```[^1] spec" opens a fence whose info string holds the `[^1]`, which in place is prose.
-// What stands before the fragment on its line holds no backtick, so a span the fragment holds is a
-// span in place.
+// escapeNotesInLine is escapeNotes for a fragment assembly writes on a line after the line's own
+// label — a citation's note or Bibliography entry, whole, after `[^N]: ` or `- `, and a proof's
+// reason — each value in it made one line. In place the fragment is inline text of that line, so the
+// only code in it is a code span it holds whole, and it is read as one line of a paragraph
+// (lineReader), never as a document of its own: read alone, "```[^1] spec" opens a fence whose info
+// string holds the `[^1]`, which in place is prose. Nothing else on its line holds a backtick, so a
+// span the fragment holds is a span in place: a citation's line is escaped whole because a backtick
+// in its URL closes a span its title opens.
 func escapeNotesInLine(s string) string {
 	if !strings.Contains(s, noteOpen) {
 		return s

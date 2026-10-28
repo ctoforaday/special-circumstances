@@ -112,10 +112,6 @@ func readings(vs []record.EvidenceVerificationJSON, backs string) string {
 // (stripTokens): no weave follows to take one, and no strip.
 func plain(s string) string { return oneLine(stripTokens(s, false)) }
 
-// plainInLine is plain for a field a line holds after the notes of its document are escaped — a
-// note's text, a Bibliography entry — with its own escaped (escapeNotesInLine).
-func plainInLine(s string) string { return escapeNotesInLine(plain(s)) }
-
 // indent prefixes every non-empty line of s.
 func indent(s, by string) string {
 	lines := strings.Split(s, "\n")

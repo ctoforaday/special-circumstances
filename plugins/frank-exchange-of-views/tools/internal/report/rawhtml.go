@@ -13,16 +13,22 @@ package report
 // them for any reader, whatever its HTML and autolink rules: nothing is predicted about which `<` a
 // reader would take for HTML. A character reference opens nothing and prints as the `<` typed; a
 // backslash that escaped the `<` goes, as the entity is the escape now and the backslash kept would
-// print. What that costs, stated plainly: the raw .md shows `&lt;`, and a seat's `<url>` autolink or
-// `[a](<x y>)` destination ships as text.
+// print. What that costs, stated plainly: the raw .md shows `&lt;`, a seat's `<url>` autolink or
+// `[a](<x y>)` destination ships as text, and a `<` a bare URL runs into prints as `&lt;` on GitHub —
+// its extended autolink takes every byte up to whitespace or a `<`, the entity's included, into the
+// link's text and target (ltEntity).
 //
-// CODE SHIPS BYTE FOR BYTE, SO WHERE CODE IS IS THE ONE READING SHIP TAKES. A `<` in a code span, a
-// code block or a fence's info string is a character to every reader, and an entity there would
-// print as `&lt;`. ship reads the text with every `<` escaped (codeReader) — the reading the shipped
-// text has outside code — and keeps each `<` that reading holds as code but one at the head of a
-// line: there a `<` opens an HTML block before the span running across that line is read
-// (lineHeads), and anywhere else code's content moves no boundary. That costs a `<` at a line's head
-// inside such a span, which ships as `&lt;` in code.
+// ONE LINE ENDING. CommonMark ends a line at a `\n`, a `\r\n` and a lone `\r`; goldmark ends one only
+// at a `\n`. ship writes each line ending `\n` first (lineEnds), so the lines it reads are the lines
+// every reader reads, and a line ending prints as one whichever it was.
+//
+// CODE SHIPS BYTE FOR BYTE, ITS LINE ENDINGS `\n`, SO WHERE CODE IS IS THE ONE READING SHIP TAKES. A
+// `<` in a code span, a code block or a fence's info string is a character to every reader, and an
+// entity there would print as `&lt;`. ship reads the text with every `<` escaped (codeReader) — the
+// reading the shipped text has outside code — and keeps each `<` that reading holds as code but one
+// at the head of a line: there a `<` opens an HTML block before the span running across that line is
+// read (lineHeads), and anywhere else code's content moves no boundary. That costs a `<` at a line's
+// head inside such a span, which ships as `&lt;` in code.
 //
 // codeReader is report.html's grammar less the HTML grammar it no longer needs, with goldmark's
 // readings of code made cmark-gfm's where they differ: a code span opens where cmark-gfm's record of
@@ -41,8 +47,8 @@ package report
 //
 // WHAT A READER IS GUARANTEED. A reader that agrees with codeReader on where code is — pinned against
 // cmark-gfm 0.29.0.gfm.13, GitHub's parser — finds no HTML in the file but the proofs' anchors, and
-// prints each `&lt;` ship wrote as the `<` typed. A viewer that does not parse the file as CommonMark
-// finds no `<` in its prose either; what it takes for code is its own.
+// prints each `&lt;` ship wrote as the `<` typed, but one a bare URL runs into. A viewer that does not
+// parse the file as CommonMark finds no `<` in its prose either; what it takes for code is its own.
 //
 // The seat-facing views — `show report --assembled` (Layout), `show inquiries` — print the
 // record's text as written, because a seat quotes and edits it. report.html never reads the shipped
@@ -50,6 +56,7 @@ package report
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -224,13 +231,13 @@ func stdReaders() readers { return readers{page: parsePage, code: parseCode} }
 // ship is md as its .md ships (readers.ship).
 func ship(md string) string { return stdReaders().ship(md) }
 
-// ship is md as its .md ships: its proofs' anchors in place, and every other `<` outside code written
-// ltEntity. Which `<` stand in code is read from the text with all of them escaped: escaping a `<`
-// outside code changes how a reader reads the text around it — an autolink, an angle-bracket
-// destination or a tag that held a backtick is text, and the backtick may open a span — and that
-// reading is the shipped one.
+// ship is md as its .md ships: its line endings `\n` (lineEnds), its proofs' anchors in place, and
+// every other `<` outside code written ltEntity. Which `<` stand in code is read from the text with
+// all of them escaped: escaping a `<` outside code changes how a reader reads the text around it — an
+// autolink, an angle-bracket destination or a tag that held a backtick is text, and the backtick may
+// open a span — and that reading is the shipped one.
 func (rd readers) ship(md string) string {
-	md, tool := resolveMarkSpans(md)
+	md, tool := resolveMarkSpans(lineEnds.Replace(md))
 	src := []byte(md)
 	at := angles(src, tool)
 	if len(at) == 0 {
@@ -277,6 +284,13 @@ func lineHeads(tree ast.Node, src []byte) []int {
 	return heads
 }
 
+// lineEnds writes each line ending CommonMark has as `\n`: a `\r\n` and a lone `\r` end a line to
+// cmark-gfm as a `\n` does, and goldmark ends one only at a `\n`, so a text holding either reads with
+// lines codeReader does not see — a `<` after a lone `\r` at the head of a line cmark-gfm opens an HTML
+// block on. With one line ending, every reader breaks the text's lines where codeReader does, and
+// reads the same document: a line ending prints as one whichever it was.
+var lineEnds = strings.NewReplacer("\r\n", "\n", "\r", "\n")
+
 // inSpan reports whether offset i lies inside one of spans, which are in order and do not overlap.
 func inSpan(i int, spans [][2]int) bool {
 	k, _ := slices.BinarySearchFunc(spans, i+1, func(s [2]int, i int) int { return s[0] - i })
@@ -295,8 +309,11 @@ func angles(src []byte, spans [][2]int) []int {
 }
 
 // ltEntity is how ship writes a `<` outside code: a character reference opens nothing in any
-// CommonMark reader and prints as the `<` typed, and, unlike a backslash, no GitHub autolink can take
-// it as a character of its URL and leave the `<` behind it live.
+// CommonMark reader and prints as the `<` typed — but where a bare URL runs into it. GitHub's extended
+// autolink takes every byte up to whitespace or a `<` as the URL's, so after "http://x.co/a" the
+// entity is the link's, and its text and target show `&lt;` as typed: a character of a link, never a
+// tag. A backslash there would be the link's too, leaving the `<` behind it live, and a form that
+// ended the link before the `<` would change the text the seat wrote.
 const ltEntity = "&lt;"
 
 // escapeAt is src with each `<` at an offset of at, which are in order, written ltEntity, and a

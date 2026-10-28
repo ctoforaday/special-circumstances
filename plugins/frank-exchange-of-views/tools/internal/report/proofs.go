@@ -233,12 +233,13 @@ func longestRun(s string, c byte) int {
 
 // judgementNotes is red's notes on a proof, written after the judgement on its list item's line, each
 // without its tokens (stripTokens): notes of one line each are joined on that line, and where one runs
-// to several lines each note is the item's own paragraph, its fences closed where it ends (inItem for
-// the first, which follows the tool's text, ownBlock for each after it, which opens a block).
+// to several lines each note is the item's own paragraph, its fences closed where it ends (ownBlock,
+// reading the first as text after the tool's, and each after it as a block of its own), and the whole
+// the rest of the item (itemLines).
 func judgementNotes(notes []string) string {
 	multi := false
 	for i, n := range notes {
-		notes[i] = strings.TrimSpace(strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(stripTokens(n, false)))
+		notes[i] = strings.TrimSpace(lineEnds.Replace(stripTokens(n, false)))
 		multi = multi || strings.Contains(notes[i], "\n")
 	}
 	if !multi {
@@ -248,7 +249,7 @@ func judgementNotes(notes []string) string {
 	for i := 1; i < len(notes); i++ {
 		notes[i] = ownBlock(notes[i])
 	}
-	return inItem(strings.Join(notes, "\n\n"), "  ")
+	return itemLines(strings.Join(notes, "\n\n"), "  ")
 }
 
 // oneLine is s as one line of markdown, its runs of whitespace one space: the form of every value the

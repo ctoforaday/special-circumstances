@@ -386,17 +386,9 @@ func (rd readers) shipSet(title string, docs []Doc) Shipped {
 	return set
 }
 
-// Files is the names of the set's documents, in reading order.
-func (s Shipped) Files() []string {
-	var out []string
-	for _, d := range s.docs {
-		out = append(out, d.File)
-	}
-	return out
-}
-
-// Text is the document named file as it ships — its .md, masthead and all — and whether the set holds it.
-func (s Shipped) Text(file string) (string, bool) {
+// textOf is the document named file as it ships — its .md, masthead and all — and whether the set
+// holds it.
+func (s Shipped) textOf(file string) (string, bool) {
 	for i, d := range s.docs {
 		if d.File == file {
 			return s.md[i], true

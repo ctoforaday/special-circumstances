@@ -789,9 +789,9 @@ func inquiryMD(in Input) []byte {
 // inquiry — the ONE rendering behind both `show inquiries` and the shipped
 // inquiries.md (report.AssembleShipped), so the view a seat reads and the document a human reads
 // cannot drift into two accounts of the same inquiries. The seat's view prints the record's text as written; the
-// shipped inquiries.md is this text with each `<` a CommonMark reader would take for HTML written
-// `&lt;` (report.AssembleShipped), which that reader prints as the same character, and report.html
-// shows it as typed.
+// shipped inquiries.md is this text with every line ending `\n` and every `<` outside code written
+// `&lt;` (report.AssembleShipped), which a CommonMark reader prints as the same character but where a
+// bare URL runs into it, and report.html shows it as typed.
 //
 // THE CHOOSING, NOT JUST THE PLAN. An inquiry has an id, a hypothesis, a fate recorded with a
 // stated reason, and red's ruling — so the projection renders the DECISION: what was proposed,

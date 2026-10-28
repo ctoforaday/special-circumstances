@@ -328,17 +328,22 @@ func TestAMigrationRestoresTheClock(t *testing.T) {
 	}
 }
 
-// shippedDocs is the run's report set as it ships: each document's name, and its .md as Write writes
-// it, masthead and all, in Body.
+// shippedDocs is the run's report set as it ships: the run assembled, and each document it wrote — its
+// name, and its .md, masthead and all, in Body — in reading order.
 func shippedDocs(run record.Run) ([]report.Doc, error) {
-	set, err := report.AssembleShipped(run)
-	if err != nil {
+	if _, err := report.Assemble(run); err != nil {
 		return nil, err
 	}
 	var docs []report.Doc
-	for _, f := range set.Files() {
-		text, _ := set.Text(f)
-		docs = append(docs, report.Doc{File: f, Body: text})
+	for _, f := range report.Files() {
+		b, err := os.ReadFile(filepath.Join(run.Dir(), f))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, report.Doc{File: f, Body: string(b)})
 	}
 	return docs, nil
 }

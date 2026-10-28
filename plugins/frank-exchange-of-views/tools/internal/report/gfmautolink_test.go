@@ -179,6 +179,14 @@ func TestTheShippedCodeIsWhereGitHubsParserReadsCode(t *testing.T) {
 		// A span that runs across lines holds no `<` at a line's head: there a `<` opens an HTML block
 		// before the span is read (lineHeads).
 		{"`a\n<div>\n`\n", "`a\n&lt;div>\n`\n"},
+		// cmark-gfm ends a line at a lone `\r` and at a `\r\n` as at a `\n`, and goldmark only at a
+		// `\n`: each ships as `\n`, so the `<` after it is at a line's head to every reader (lineEnds).
+		{"x `a\r<img src=x onerror=alert(1)>\r` y\n", "x `a\n&lt;img src=x onerror=alert(1)>\n` y\n"},
+		{"x `a\r<script>alert(1)</script>\r` y\n", "x `a\n&lt;script>alert(1)</script>\n` y\n"},
+		{"x `a\r<div onmouseover=alert(1)>\r` y\n", "x `a\n&lt;div onmouseover=alert(1)>\n` y\n"},
+		{"x `a\r\n<img src=x onerror=alert(1)>\r\n` y\r\n", "x `a\n&lt;img src=x onerror=alert(1)>\n` y\n"},
+		{"x `a\r\n<script>alert(1)</script>\r\n` y\r\n", "x `a\n&lt;script>alert(1)</script>\n` y\n"},
+		{"x `a\r\n<div onmouseover=alert(1)>\r\n` y\r\n", "x `a\n&lt;div onmouseover=alert(1)>\n` y\n"},
 	} {
 		if got := ship(c.md); got != c.want {
 			t.Errorf("%q ships as %q; GitHub's parser reads its code as %q does", c.md, got, c.want)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // WHAT A SEAT TYPED OPENS NO FOOTNOTE. Both rows that head this table shipped in one run's set: a
@@ -66,6 +67,34 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 	})
 	if !strings.Contains(got, "Claim[^1].") || !strings.Contains(got, `[^1]: Negated classes: \[^a-z] and friends`) {
 		t.Errorf("the note does not carry its own label unescaped and the title's bracket escaped:\n%s", got)
+	}
+}
+
+// EVERY VALUE A CITATION'S LINE CARRIES IS ESCAPED, AND THE LINE IS READ WHOLE. A URL and a copy's
+// URL are a seat's text as much as a title is: a `[^1]` in one no reader links is a footnote reference
+// only the weave may write, and in one a reader links the escape is a character of the link. And a backtick in a URL closes a span a backtick in the title opens, so what is code is
+// read over the line as it stands — escaped alone, the title's `[^2]` took a backslash that prints in
+// code.
+func TestACitationsLineIsEscapedWhole(t *testing.T) {
+	got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{{
+		Label: "C-00000001", URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
+		CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d",
+	}})
+	for _, want := range []string{
+		"[^1]: T. doi:10.1/a\\[^1]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c\\[^1]d]**\n",
+		"- T. doi:10.1/a\\[^1]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c\\[^1]d]**\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a citation's line does not carry its URLs' `[^` escaped, want %q:\n%s", want, got)
+		}
+	}
+	got = weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{{
+		Label: "C-00000001", URL: "https://example.invalid/a`b", Title: "x `[^2]",
+	}})
+	for _, want := range []string{"[^1]: x `[^2]. https://example.invalid/a`b\n", "- x `[^2]. https://example.invalid/a`b\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a `[^` the line holds in code is escaped, want %q:\n%s", want, got)
+		}
 	}
 }
 

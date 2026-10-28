@@ -150,8 +150,8 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s%s\n", citationNote(n), plainInLine(citationTitle(s)), locator, oneLine(s.URL), accessed(s.AccessDate),
-			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
+		fmt.Fprintf(&out, "%s: %s\n", citationNote(n), escapeNotesInLine(plain(citationTitle(s))+locator+". "+plain(s.URL)+accessed(s.AccessDate)+
+			copyNote(s.CopySubstitution, s.CopyURL)+retractionNote(s.WorkStatus)+abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT)))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -205,7 +205,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			pick, found = src, true
 		}
 	}
-	return fmt.Sprintf("%s. %s%s%s%s%s", plainInLine(citationTitle(pick)), oneLine(url), accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly))
+	return escapeNotesInLine(fmt.Sprintf("%s. %s%s%s%s%s", plain(citationTitle(pick)), plain(url), accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly)))
 }
 
 // copyNote is what the reader is told when a citation's bytes are not its url's own: where the
@@ -217,7 +217,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 // bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
 // corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
 func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
-	copyURL = oneLine(copyURL)
+	copyURL = plain(copyURL)
 	switch kind {
 	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:
 		return fmt.Sprintf(" (full text read at %s)", copyURL)
@@ -1583,11 +1583,17 @@ func ownBlock(s string) string {
 // open runs into the tool's next line, so it is closed (ownBlock, reading the first line as text
 // after text). A value of one line is that line. CommonMark ends a line at a `\r` as at a `\n`.
 func inItem(s, indent string) string {
-	s = strings.TrimSpace(strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(s))
+	s = strings.TrimSpace(lineEnds.Replace(s))
 	if !strings.Contains(s, "\n") {
 		return s
 	}
-	lines := strings.Split(ownBlock("x" + s)[1:], "\n")
+	return itemLines(ownBlock("x" + s)[1:], indent)
+}
+
+// itemLines is s, its fences closed, as the rest of a list item whose line its first line ends: every
+// later line indented to the item's content column (indent), and a blank one empty.
+func itemLines(s, indent string) string {
+	lines := strings.Split(s, "\n")
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) == "" {
 			lines[i] = ""
