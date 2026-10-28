@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
 const twoTurns = `{"agentId":"AGENT","timestamp":"2026-09-03T03:00:00.000Z","message":{"model":"claude-opus-4-1","content":[{"type":"thinking"}],"usage":{"input_tokens":100,"output_tokens":3,"cache_read_input_tokens":900,"cache_creation_input_tokens":0}}}
@@ -54,13 +55,14 @@ func TestIngestSeatTurnsWritesRowsAndReportsThem(t *testing.T) {
 	if got := seatTurnRows(t, run); got != 4 {
 		t.Errorf("two transcripts of two turns gave %d rows, want 4", got)
 	}
-	if !strings.Contains(line, "4 row(s)") || !strings.Contains(line, "2 transcript(s)") {
-		t.Errorf("the reported line does not state what was ingested: %q", line)
+	if want := "seat turns: 4 row(s) on the record, 4 of them added by this capture from 2 transcript(s)"; line != want {
+		t.Errorf("the reported line = %q, want %q", line, want)
 	}
 
-	// Re-running capture on unchanged transcripts must not double the run's measured cost.
-	if line := ingestSeatTurns(run, files); !strings.Contains(line, "0 row(s)") {
-		t.Errorf("a re-run reported %q, want 0 new rows", line)
+	// Re-running capture on unchanged transcripts must not double the run's measured cost, and
+	// says the record still holds every row.
+	if line, want := ingestSeatTurns(run, files), "seat turns: 4 row(s) on the record, 0 of them added by this capture from 2 transcript(s)"; line != want {
+		t.Errorf("a re-run reported %q, want %q", line, want)
 	}
 	if got := seatTurnRows(t, run); got != 4 {
 		t.Errorf("a re-run left %d rows, want 4", got)
@@ -76,7 +78,7 @@ func TestIngestSeatTurnsNamesWhatItCouldNotRead(t *testing.T) {
 	if !strings.Contains(line, "NOT INGESTED") {
 		t.Errorf("an unreadable transcript was swallowed: %q", line)
 	}
-	if !strings.Contains(line, "2 row(s)") {
+	if !strings.Contains(line, "2 row(s) on the record, 2 of them added") {
 		t.Errorf("the readable transcript's turns are missing from %q", line)
 	}
 }
@@ -94,5 +96,20 @@ func TestIngestSeatTurnsTreatsATurnlessTranscriptAsEmptyNotBroken(t *testing.T) 
 	}
 	if got := seatTurnRows(t, run); got != 0 {
 		t.Errorf("got %d rows from a transcript with no usage", got)
+	}
+}
+
+// THE TURNS A SITTING'S CLOSE FILED ARE COUNTED. The close ingests a seat's transcript, so by capture
+// the record holds its rows and capture adds none; the line printed what capture added, and read
+// "0 row(s)" on a record holding 596 (universe-m33, m34) — a zero indistinguishable from a run
+// whose seats took no turns.
+func TestCaptureCountsTheTurnsTheSittingCloseFiled(t *testing.T) {
+	run, _, files := ingestFixture(t, map[string]string{"agent-one.jsonl": twoTurns})
+	agentID, turns := seatturn.Parse(twoTurns)
+	if n, err := record.AppendSeatTurns(run, agentID, turns); err != nil || n != 2 {
+		t.Fatalf("filing the close's turns: %d, %v", n, err)
+	}
+	if line, want := ingestSeatTurns(run, files), "seat turns: 2 row(s) on the record, 0 of them added by this capture from 1 transcript(s)"; line != want {
+		t.Errorf("capture after the close filed its turns reported %q, want %q", line, want)
 	}
 }
