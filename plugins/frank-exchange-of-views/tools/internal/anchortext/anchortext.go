@@ -397,7 +397,8 @@ const shownOccurrences = 5
 // shownSentence caps a quoted sentence, in bytes, at a rune boundary.
 const shownSentence = 240
 
-// occurrences names each start in doc: the heading of its section and the sentence it begins in.
+// occurrences names each start in doc: the heading of its section, its paragraph's ordinal in that
+// section (counting every block under the heading), and the sentence it begins in.
 func occurrences(doc string, starts []int) string {
 	blocks := anchor.Blocks(doc)
 	var parts []string
@@ -406,14 +407,21 @@ func occurrences(doc string, starts []int) string {
 			parts = append(parts, fmt.Sprintf("and %d more", len(starts)-i))
 			break
 		}
-		section, sentence := "before the first heading", ""
+		// THE PARAGRAPH TELLS TWO COPIES OF ONE STANDALONE SENTENCE APART: their section and sentence
+		// read the same, and the seat needs to know which block of the section each one is.
+		section, sentence, paragraph := "before the first heading", "", 0
 		for _, b := range blocks {
 			if b.Start > at {
 				break
 			}
 			if b.Kind == anchor.Heading {
-				section = "under the heading \"" + normalizeQuote(strings.TrimLeft(doc[b.Body:b.End], "# ")) + "\""
+				section, paragraph = "under the heading \""+normalizeQuote(strings.TrimLeft(doc[b.Body:b.End], "# "))+"\"", 0
+				if at <= b.End {
+					sentence = doc[b.Body:b.End]
+				}
+				continue
 			}
+			paragraph++
 			if b.Start <= at && at <= b.End {
 				sentence = doc[b.Body:b.End]
 				for _, sp := range b.Sentences {
@@ -432,7 +440,7 @@ func occurrences(doc string, starts []int) string {
 			}
 			sentence = sentence[:cut] + "…"
 		}
-		parts = append(parts, fmt.Sprintf("%d. %s, in the sentence \"%s\"", i+1, section, sentence))
+		parts = append(parts, fmt.Sprintf("%d. %s, paragraph %d, in the sentence \"%s\"", i+1, section, paragraph, sentence))
 	}
 	return fmt.Sprintf("it stands %d times — %s", len(starts), strings.Join(parts, "; "))
 }

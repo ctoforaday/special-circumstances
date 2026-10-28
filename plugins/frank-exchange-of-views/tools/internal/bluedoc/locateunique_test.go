@@ -12,7 +12,7 @@ func TestLocateUniqueNamesEachSiteOfARepeatedQuote(t *testing.T) {
 	if err == nil {
 		t.Fatal("a repeated quote was located")
 	}
-	for _, want := range []string{"MORE THAN ONCE", "it stands 2 times", `under the heading "A"`, `under the heading "B", in the sentence "Then costs rose"`} {
+	for _, want := range []string{"MORE THAN ONCE", "it stands 2 times", `under the heading "A"`, `under the heading "B", paragraph 1, in the sentence "Then costs rose"`} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not say %q:\n%v", want, err)
 		}

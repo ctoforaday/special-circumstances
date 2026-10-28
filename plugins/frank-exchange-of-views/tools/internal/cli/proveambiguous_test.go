@@ -22,8 +22,8 @@ func TestProveRefusesAnAmbiguousQuoteNamingEachOccurrence(t *testing.T) {
 	for _, want := range []string{
 		"occurs more than once in the report",
 		"it stands 2 times",
-		`under the heading "Method", in the sentence "91 is 7 times 13"`,
-		`under the heading "Check", in the sentence "By hand, 91 is 7 times 13"`,
+		`under the heading "Method", paragraph 1, in the sentence "91 is 7 times 13"`,
+		`under the heading "Check", paragraph 1, in the sentence "By hand, 91 is 7 times 13"`,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not say %q:\n%v", want, err)

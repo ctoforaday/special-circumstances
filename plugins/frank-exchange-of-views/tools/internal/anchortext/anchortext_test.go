@@ -433,8 +433,8 @@ func TestAnAmbiguousQuoteNamesEveryOccurrence(t *testing.T) {
 	refusal := Refusal(err).Error()
 	for _, want := range []string{
 		"it stands 2 times",
-		`1. under the heading "Method", in the sentence "The check passed"`,
-		`2. under the heading "Results", in the sentence "As before, the check passed"`,
+		`1. under the heading "Method", paragraph 1, in the sentence "The check passed"`,
+		`2. under the heading "Results", paragraph 1, in the sentence "As before, the check passed"`,
 	} {
 		if !strings.Contains(refusal, want) {
 			t.Errorf("the refusal does not say %q:\n%s", want, refusal)
@@ -448,6 +448,18 @@ func TestAnAmbiguousQuoteCountsTheOccurrencesItDoesNotShow(t *testing.T) {
 	_, _, err := LocateOnce(doc, "Costs rose.", StopAtParagraph)
 	where := WhereAmbiguous(err)
 	for _, want := range []string{fmt.Sprintf("it stands %d times", shownOccurrences+2), "and 2 more", "before the first heading"} {
+		if !strings.Contains(where, want) {
+			t.Errorf("where = %q, want it to say %q", where, want)
+		}
+	}
+}
+
+// TWO COPIES OF ONE STANDALONE SENTENCE IN ONE SECTION are told apart by their paragraph: their
+// section and sentence read the same, so without it the refusal names one place twice.
+func TestTwinStandaloneSentencesAreToldApartByParagraph(t *testing.T) {
+	_, _, err := LocateOnce("# H\n\nCosts rose.\n\nCosts rose.\n", "Costs rose.", StopAtParagraph)
+	where := WhereAmbiguous(err)
+	for _, want := range []string{`1. under the heading "H", paragraph 1,`, `2. under the heading "H", paragraph 2,`} {
 		if !strings.Contains(where, want) {
 			t.Errorf("where = %q, want it to say %q", where, want)
 		}
