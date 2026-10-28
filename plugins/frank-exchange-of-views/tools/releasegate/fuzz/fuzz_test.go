@@ -3050,7 +3050,7 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
 // subject — a gap still open now was open at the write, since a closed gap does not reopen — unless
-// the mint names it in --supersedes or credits a finding, whose contradiction it may answer.
+// the mint names it in --supersedes or names a finding in its found_by, whose contradiction it may answer.
 func (r *runner) checkOneGap(gapID string, args []string) {
 	if argOf(args, "--found-by") != "" {
 		return
