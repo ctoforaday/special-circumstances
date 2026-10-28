@@ -6318,9 +6318,9 @@ func withoutWrittenTokens(s string) string {
 	return b.String()
 }
 
-// asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<` it
-// would take for HTML written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison
-// are read so, so a seat's own `&lt;` reads the same on each.
+// asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<`
+// outside code written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison are
+// read so, so a seat's own `&lt;` reads the same on each.
 func asRead(s string) string {
 	return strings.NewReplacer("&lt;", "<", `\[^`, "[^").Replace(s)
 }

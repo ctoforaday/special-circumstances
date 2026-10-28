@@ -7,8 +7,8 @@ package report
 // CommonMark with GitHub's extensions and footnotes, and no HTML grammar). This file renders that
 // tree; it reads no line of the text itself. The rendering is the reading tier's own — the ids, the
 // tab links, the numbered citations — and the tree is the one a markdown reader of the shipped .md
-// file sees (ship escapes each `<` at which that reader would open HTML, and nothing else), so the
-// two tiers cannot disagree about what a line is.
+// file sees but for a `<` autolink or angle-bracket destination, which the .md ships as text (ship
+// writes every `<` outside code `&lt;`), so the two tiers do not disagree about what a line is.
 //
 // WHAT IT DOES NOT DO IS AS IMPORTANT: it does not round-trip. The markdown files are the
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into
@@ -46,23 +46,11 @@ import (
 )
 
 var (
-	// mdReader is the dialect a markdown viewer reads a shipped .md in: CommonMark with its HTML grammar,
-	// GitHub's extensions with GitHub's extended autolink (viewerInlineParsers), and footnotes read as
-	// GitHub reads them (viewerFootnote), keeping a definition nothing references.
-	mdReader = goldmark.New(goldmark.WithParser(parser.NewParser(
-		parser.WithBlockParsers(append(viewerBlockParsers(),
-			util.Prioritized(parser.NewHTMLBlockParser(), htmlBlockPriority),
-			util.Prioritized(viewerFootnote{extension.NewFootnoteBlockParser()}, 999))...),
-		parser.WithInlineParsers(append(viewerInlineParsers(),
-			util.Prioritized(parser.NewRawHTMLParser(), rawHTMLPriority),
-			util.Prioritized(extension.NewFootnoteParser(), 101))...),
-		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
-	)), goldmark.WithExtensions(extension.Table, extension.TaskList))
-	// pageReader is the dialect report.html reads a document in: mdReader's with no HTML grammar, so
-	// no node of the tree is HTML and a tag, a comment or an unclosed `<!--` is text in the paragraph
-	// it stands in — it cannot take the lines after it into an HTML block — and with the proof's
-	// anchor, the one node only the tool's mark produces. The References list keeps a definition
-	// nothing references (citations).
+	// pageReader is the dialect report.html reads a document in: CommonMark with GitHub's extensions
+	// and footnotes, and no HTML grammar, so no node of the tree is HTML and a tag, a comment or an
+	// unclosed `<!--` is text in the paragraph it stands in — it cannot take the lines after it into
+	// an HTML block — and with the proof's anchor, the one node only the tool's mark produces. The
+	// References list keeps a definition nothing references (citations).
 	pageReader = goldmark.New(goldmark.WithParser(parser.NewParser(
 		parser.WithBlockParsers(append(blockParsers(),
 			util.Prioritized(extension.NewFootnoteBlockParser(), 999), util.Prioritized(proofAnchorParser{}, 100))...),

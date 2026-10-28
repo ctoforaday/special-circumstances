@@ -293,7 +293,7 @@ var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assemb
 	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
-	"The shipped .md differs from that text in one way: each `<` a markdown reader would take for HTML a seat wrote is written `&lt;`, which the reader prints as `<` — or, in a document whose reading the tool cannot predict, every `<` but a proof's anchor is, code included."
+	"The shipped .md differs from that text in one way: every `<` outside code but a proof's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }

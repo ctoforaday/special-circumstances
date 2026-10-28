@@ -1,20 +1,19 @@
 package report
 
-// A MARKDOWN VIEWER THAT RENDERS GITHUB'S EXTENSIONS LINKS A BARE URL, AND THE LINK TAKES BYTES.
+// A MARKDOWN VIEWER THAT RENDERS GITHUB'S EXTENSIONS LINKS A BARE URL, AND THE LINK TAKES BACKTICKS.
 //
 // GitHub's extended autolink (cmark-gfm, extensions/autolink.c) runs inside the inline parse: at a
 // `:` after `http`, `https` or `ftp`, and at `www.` after a space, `*`, `_`, `~` or `(`, it takes the
 // URL up to the next whitespace or `<`, then gives back trailing punctuation. What it takes is no
-// longer syntax: a backslash there is a character of the URL, not an escape, so in
-// "http://x.co/a\<img …>" the link ends at the backslash and `<img …>` is a tag; a backtick there opens
-// no code span, so a `<` the next backtick would have held as code is prose. goldmark's linkify is
-// not that rule — it takes no backslash, starts only after a space, and links an email inside the
-// parse — so a reader built on it predicts neither.
+// longer syntax: a backtick there opens no code span, so in "http://x.co/a`<b>`" the backticks are the
+// URL's and `<b>` is prose, and a backslash there escapes nothing. goldmark's linkify is not that rule
+// — it takes no backtick or backslash, starts only after a space, and links an email inside the parse
+// — so a reading built on it puts code where GitHub's has none.
 //
-// viewerInlineParsers is the inline grammar a viewer reads a shipped .md with (probeReader, mdReader):
-// pageReader's, with cmark-gfm's extended autolink in place of goldmark's linkify. cmark-gfm links an
-// email after the parse, over the text it built, so that link takes no syntax and is not modelled.
-// Nothing here renders: report.html reads with pageReader.
+// codeInlineParsers is the inline grammar ship reads a shipped .md's code with (codeReader):
+// pageReader's, with cmark-gfm's extended autolink in place of goldmark's linkify and cmark-gfm's code
+// span (cmarkBackticks). cmark-gfm links an email after the parse, over the text it built, so that link
+// takes no syntax and is not modelled. Nothing here renders: report.html reads with pageReader.
 
 import (
 	"bytes"
@@ -30,10 +29,11 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// viewerInlineParsers is pageReader's inline grammar with GitHub's extended autolink (gfmAutolink): the
-// link parser tells it when a bracket is open (bracketWatch), and the emphasis and strikethrough parsers
-// hand it a `www.` their delimiter stands before (wwwAfter).
-func viewerInlineParsers() []util.PrioritizedValue {
+// codeInlineParsers is pageReader's inline grammar with GitHub's extended autolink (gfmAutolink) and
+// cmark-gfm's code span (cmarkBackticks): the link parser tells the autolink when a bracket is open
+// (bracketWatch), and the emphasis and strikethrough parsers hand it a `www.` their delimiter stands
+// before (wwwAfter).
+func codeInlineParsers() []util.PrioritizedValue {
 	ps := inlineParsers()
 	for i, p := range ps {
 		switch p.Value {
@@ -60,14 +60,7 @@ type bracketWatch struct{ parser.InlineParser }
 
 func (w bracketWatch) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	line, _ := block.PeekLine()
-	dest := inlineDestAngles(line, block)
 	n := w.InlineParser.Parse(parent, block, pc)
-	switch n.(type) {
-	case *ast.Link, *ast.Image:
-		for _, i := range dest {
-			recordHTML(pc, i)
-		}
-	}
 	open, _ := pc.Get(bracketsKey).(int)
 	switch {
 	case line[0] == '[' || line[0] == '!' && n != nil:
@@ -77,25 +70,6 @@ func (w bracketWatch) Parse(parent ast.Node, block text.Reader, pc parser.Contex
 	}
 	pc.Set(bracketsKey, open)
 	return n
-}
-
-// inlineDestAngles is the source offset of each `<` inside the angle-bracket destination of the inline
-// link or image a `]` at line would close (angleDestAngles): goldmark takes the link, cmark-gfm takes none, and
-// the probe records them (htmlAt), as written `&lt;` they leave the destination the same to both.
-func inlineDestAngles(line []byte, block text.Reader) []int {
-	if len(line) < 2 || line[0] != ']' || line[1] != '(' {
-		return nil
-	}
-	l, pos := block.Position()
-	defer block.SetPosition(l, pos)
-	block.Advance(2)
-	block.SkipSpaces()
-	b, seg := block.PeekLine()
-	at := angleDestAngles(b)
-	for k := range at {
-		at[k] += seg.Start - seg.Padding // a tab's padding stands before the line's bytes
-	}
-	return at
 }
 
 func (w bracketWatch) CloseBlock(parent ast.Node, block text.Reader, pc parser.Context) {

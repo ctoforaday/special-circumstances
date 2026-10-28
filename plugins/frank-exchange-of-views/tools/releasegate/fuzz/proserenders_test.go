@@ -13,9 +13,9 @@ import (
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
-// THE PROSE IS READ AS THE REPORT SHIPS IT. A shipped .md writes a `<` a reader would take for HTML as
-// `&lt;`, which the reader prints as the `<` the seat typed: a check that reads the file's bytes found
-// "see <div> handling" absent from a report that prints it.
+// THE PROSE IS READ AS THE REPORT SHIPS IT. A shipped .md writes a `<` outside code as `&lt;`, which a
+// reader prints as the `<` the seat typed: a check that reads the file's bytes found "see <div>
+// handling" absent from a report that prints it.
 func TestProseRendersReadsTheShippedText(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, reportdoc.FileDebate), []byte("### RED POSITION\nsee &lt;div> handling\n"), 0o644); err != nil {

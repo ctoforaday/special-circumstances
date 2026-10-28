@@ -59,7 +59,8 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 	if d := body[report.FileDocket]; !strings.Contains(d, `the one footnote \[^P1] cites`) {
 		t.Errorf("the board document does not carry the finding's words escaped:\n%s", d)
 	}
-	if r := body[report.FileRun]; !strings.Contains(r, `grep -o '\[^<>]{0,120}term\[^<>]{0,120}'`) {
+	// Its `<` ship as the entity, as every `<` outside code does.
+	if r := body[report.FileRun]; !strings.Contains(r, `grep -o '\[^&lt;>]{0,120}term\[^&lt;>]{0,120}'`) {
 		t.Errorf("the run document does not carry the log entry's words escaped:\n%s", r)
 	}
 	// THE THREE WRITERS OUTSIDE THE TABLE: the note the weave defines, which carries blue's words
