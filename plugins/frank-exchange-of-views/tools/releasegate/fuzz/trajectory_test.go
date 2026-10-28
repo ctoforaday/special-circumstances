@@ -124,14 +124,12 @@ func noteNaming(args []string, err error, out []byte, inProcess bool) {
 
 // namedOtherThanOnce lists the refusals the sweep met that name their command 0 times or 2 and
 // more, one row per distinct first line.
-func namedOtherThanOnce() (walked int, wrong []string) {
-	namingMu.Lock()
-	defer namingMu.Unlock()
-	for line, why := range namingWrong {
+func namedOtherThanOnce(p processTally) (walked int, wrong []string) {
+	for line, why := range p.NamingWrong {
 		wrong = append(wrong, why+"\n      "+line)
 	}
 	sort.Strings(wrong)
-	return namingWalked, wrong
+	return p.NamingWalked, wrong
 }
 
 func note(args []string, err error, out []byte, inProcess bool) {
@@ -363,12 +361,10 @@ var exemptSurfaces = map[string]string{
 }
 
 // unreachedSurfaces returns the command paths the tree exposes that no run ever invoked.
-func unreachedSurfaces() []string {
-	execMu.Lock()
-	defer execMu.Unlock()
+func unreachedSurfaces(p processTally) []string {
 	var out []string
 	for _, path := range cli.CommandPaths() {
-		if execRuns[path] > 0 {
+		if p.ExecRuns[path] > 0 {
 			continue
 		}
 		// `hook` and friends have subcommands, so the tree yields "hook pretooluse";
@@ -384,16 +380,14 @@ func unreachedSurfaces() []string {
 }
 
 // execReport renders the tally for the sweep's log — the fuzz's own trajectory.
-func execReport() string {
-	execMu.Lock()
-	defer execMu.Unlock()
+func execReport(p processTally) string {
 	type row struct {
 		path       string
 		n, f, inpr int
 	}
-	rows := make([]row, 0, len(execRuns))
-	for p, n := range execRuns {
-		rows = append(rows, row{p, n, execFail[p], execInProc[p]})
+	rows := make([]row, 0, len(p.ExecRuns))
+	for path, n := range p.ExecRuns {
+		rows = append(rows, row{path, n, p.ExecFail[path], p.ExecInProc[path]})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].n > rows[j].n })
 	var b strings.Builder
@@ -472,19 +466,17 @@ var refusalExpected = map[string]string{}
 // The full-surface gate asks "was this path invoked". That question is satisfied by a path that
 // has never done anything but be refused — the plausible zero this sweep exists to detect,
 // wearing the sweep's own coverage line.
-func neverSucceeded() []string {
-	execMu.Lock()
-	defer execMu.Unlock()
+func neverSucceeded(p processTally) []string {
 	var out []string
-	for p, n := range execRuns {
-		if n == 0 || execFail[p] < n {
+	for path, n := range p.ExecRuns {
+		if n == 0 || p.ExecFail[path] < n {
 			continue
 		}
-		if why := refusalExpected[p]; why != "" {
+		if why := refusalExpected[path]; why != "" {
 			continue
 		}
 		out = append(out, fmt.Sprintf("%s — %d of %d invocations refused, never once succeeded; first refusal: %s",
-			p, execFail[p], n, execFailWhy[p]))
+			path, p.ExecFail[path], n, p.ExecFailWhy[path]))
 	}
 	sort.Strings(out)
 	return out

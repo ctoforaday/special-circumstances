@@ -27,10 +27,9 @@ import (
 // the path. Separating those two is #535 step 2 and is deliberately not attempted here.
 
 // graphEdges renders the observed seat -> verb edges, and the recording verbs no seat reached.
-func graphEdges() (seats int, edges int, reached map[string][]string, unreachedRecording []string) {
-	execMu.Lock()
+func graphEdges(p processTally) (seats int, edges int, reached map[string][]string, unreachedRecording []string) {
 	byVerb := map[string]map[string]bool{}
-	for seat, verbs := range execEdges {
+	for seat, verbs := range p.ExecEdges {
 		seats++
 		for v := range verbs {
 			edges++
@@ -40,7 +39,6 @@ func graphEdges() (seats int, edges int, reached map[string][]string, unreachedR
 			byVerb[v][seat] = true
 		}
 	}
-	execMu.Unlock()
 
 	reached = map[string][]string{}
 	for v, ss := range byVerb {
@@ -112,9 +110,9 @@ func permittedReport() string {
 // graphReport is the human-facing rendering, logged beside execReport so the two tallies of one
 // sweep are read together. Every recording verb appears with the event it writes, so a reader
 // never has to hold the annotation in their head to know what an edge costs the record.
-func graphReport() string {
+func graphReport(p processTally) string {
 	records := cli.CommandRecords()
-	seats, edges, reached, unreachedRecording := graphEdges()
+	seats, edges, reached, unreachedRecording := graphEdges(p)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "observed graph (#535 step 1): %d seats · %d seat->verb edges · %d of %d recording verbs reached",

@@ -21,6 +21,6 @@ import (
 func releaseGate(t *testing.T) {
 	t.Helper()
 	if os.Getenv("FEOV_RELEASE_GATE") == "" {
-		t.Skip("release-boundary sweep: CI's release-fuzz job, the nightly and a feov tag run it as FEOV_RELEASE_GATE=1 go test -v -count=1 -timeout=100m ./releasegate/fuzz/")
+		t.Skip("release-boundary sweep: CI's release-fuzz job runs it in four parts (FUZZ_PART=k/4, judged together by release-fuzz-tally); the nightly and a feov tag run it whole as FEOV_RELEASE_GATE=1 go test -v -count=1 -timeout=100m ./releasegate/fuzz/")
 	}
 }
