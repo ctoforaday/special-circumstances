@@ -148,10 +148,9 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 // The bytes copied are the ones this test binary's own recordsql.Open wrote into a scratch directory
 // the first time any test asked, so they cannot fall behind the schema. A checked-in file could.
 //
-// THE COPY IS HELD TO MORE THAN A FRESH DATABASE IS. recordsql opens a record it did not create
-// through requireDeclaredSchema — every table, column, view and the epoch, against this binary's
-// declaration — which a database it creates itself skips. A template that drifted from the schema is
-// refused at the first open, by name.
+// THE COPY IS OPENED AS A RECORD THIS BINARY DID NOT CREATE, so it is held to the binary's epoch
+// (recordsql.requireThisEpoch), which a database the binary creates itself skips. It states this
+// binary's epoch by construction, so it passes, and a template from any other epoch is refused.
 func CreatedRecord(t *testing.T, runDir string) string {
 	t.Helper()
 	dir := filepath.Join(runDir, "records")
