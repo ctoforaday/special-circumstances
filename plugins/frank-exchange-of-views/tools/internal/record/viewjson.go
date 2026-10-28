@@ -843,9 +843,9 @@ type WorkGapJSON struct {
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
 	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
-	// impasse or not), "spent" (that exchange has been had: one in which either seat acted on the
-	// gap). "" when the bench has ruled no remand while the gap was at impasse — a remand of a
-	// material gap's docket filed before impasse spends nothing.
+	// impasse or not), "spent" (that exchange has been had: one in which blue acted on the gap).
+	// "" when the bench has ruled no remand while the gap was at impasse — a remand of a material
+	// gap's docket filed before impasse spends nothing.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record

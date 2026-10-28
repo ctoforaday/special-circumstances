@@ -216,7 +216,7 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 // the item blocks): blue a proof answering the gap — an act that moves nothing, so a gap the scenario
 // leaves unanswered still stalls, goes back to the bench and is closed there — and the minting lens a
 // regrade that keeps the grade. It acts on a gap only where the item blocks this seat's list, so a
-// seat that already acted, or whose sitting opened before the ruling, is held to nothing here.
+// seat that already acted, or whose dispatch was made before the ruling, is held to nothing here.
 func (r *runner) answerRemands(seatID string) {
 	role := "lens"
 	if seatID == "blue-respond" {
@@ -250,6 +250,9 @@ func (r *runner) answerRemands(seatID string) {
 		if w2, err := record.WorkOfSeat(r.run(), role, seatID); err == nil && blocksOn(w2.Sitting, g.ID, g.DocketDirection) {
 			r.noteActErr(fmt.Sprintf("%s recorded an act on remanded gap %s and the remand's item still blocks its list", seatID, g.ID))
 			continue
+		}
+		if role == "lens" {
+			r.noteLensFirst(g.ID, g.DocketDirection)
 		}
 		r.mu.Lock()
 		if r.remandActs == nil {
@@ -314,5 +317,79 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 			r.pastLimitRemandsRefused++
 			r.mu.Unlock()
 		}
+	}
+}
+
+// THE LENS SITS FIRST, AND ITS ACT BEGINS NO REMAND'S EXCHANGE (ruled by gblock 2026-10-27).
+//
+// debate.js dispatches the lenses before blue in an epoch, so the minting lens records its act on a
+// remanded gap before blue has answered. noteLensFirst remembers each gap the lens acted on while
+// blue's remand item on it still blocked — blue had not acted since the ruling — and the stage
+// still reads owed: the lens's act alone has begun nothing. lensFirstHeld then reads blue's list
+// BEFORE blue registers, when blue's sitting is not yet blue-respond's on the record: the item on each
+// such gap must be there and must block, with no reason saying the ruling came after blue's dispatch.
+// On universe-m35 it read "the ruling landed after this sitting opened" and did not block, and after
+// blue's sitting closed it was gone.
+
+// noteLensFirst records gapID as a remanded gap its minting lens acted on before blue, holding the
+// stage to owed while blue's item still blocks.
+func (r *runner) noteLensFirst(gapID, direction string) {
+	w, err := record.WorkOfSeat(r.run(), "blue", "blue-respond")
+	if err != nil {
+		r.noteActErr("blue's work list could not be read after the lens acted on a remanded gap: " + err.Error())
+		return
+	}
+	if !blocksOn(w.Sitting, gapID, direction) {
+		return // blue acted on it since the ruling: the lens is not first
+	}
+	for _, g := range w.Open {
+		if g.ID == gapID && g.RemandStage != "owed" {
+			r.noteActErr(fmt.Sprintf("the minting lens acted on remanded gap %s before blue did, and its remand_stage reads %q — the lens's act alone began the exchange", gapID, g.RemandStage))
+			return
+		}
+	}
+	r.mu.Lock()
+	if r.lensFirst == nil {
+		r.lensFirst = map[string]string{}
+	}
+	r.lensFirst[gapID] = direction
+	r.mu.Unlock()
+}
+
+// lensFirstHeld holds blue's list, read before blue registers, to each remanded gap the lens acted on
+// first: while the remand is owed, its item is on the list and blocks.
+func (r *runner) lensFirstHeld() {
+	r.mu.Lock()
+	pending := map[string]string{}
+	for g, d := range r.lensFirst {
+		pending[g] = d
+	}
+	r.mu.Unlock()
+	if len(pending) == 0 {
+		return
+	}
+	w, err := record.WorkOfSeat(r.run(), "blue", "blue-respond")
+	if err != nil {
+		r.noteActErr("blue's work list could not be read before it registered: " + err.Error())
+		return
+	}
+	owed := map[string]bool{}
+	for _, g := range w.Open {
+		owed[g.ID] = g.RemandStage == "owed"
+	}
+	for g, d := range pending {
+		r.mu.Lock()
+		delete(r.lensFirst, g)
+		r.mu.Unlock()
+		if !owed[g] {
+			continue // closed or docketed again since: no exchange is owed, and no item stands
+		}
+		if !blocksOn(w.Sitting, g, d) {
+			r.noteActErr(fmt.Sprintf("the minting lens acted on remanded gap %s first, and before blue registered its remand item does not block its list — the exchange is owed and blue has not acted", g))
+			continue
+		}
+		r.mu.Lock()
+		r.lensFirstHolds++
+		r.mu.Unlock()
 	}
 }
