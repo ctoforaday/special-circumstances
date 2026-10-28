@@ -772,9 +772,9 @@ func inquiries(a *assembly, s Section) string {
 		if !want(a.Status) {
 			continue
 		}
-		row := "- **Question:** " + oneLine(a.Question)
+		row := "- **Question:** " + inItem(a.Question, "  ")
 		if a.Hypothesis != "" {
-			row += "\n  - **Hypothesis:** " + oneLine(a.Hypothesis)
+			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
 		}
 		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. An inquiry
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
@@ -786,7 +786,7 @@ func inquiries(a *assembly, s Section) string {
 		// method is most often a phrase with no full stop, and the label after it would read as its
 		// last words, so it ends with one as the fate does.
 		if a.Method != "" {
-			row += " **Method:** " + endSentence(oneLine(a.Method))
+			row += " **Method:** " + endSentence(inItem(a.Method, "    "))
 		}
 		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
 		if a.Reason != "" {
@@ -794,7 +794,7 @@ func inquiries(a *assembly, s Section) string {
 			if ran(a.Status) {
 				label = "Found"
 			}
-			row += fmt.Sprintf(" **%s:** %s", label, oneLine(a.Reason))
+			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))
 		}
 		// THERE IS NO PER-INQUIRY SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. A per-epoch `supported`/`weakened`/`unsupported`/`absent` verdict on each

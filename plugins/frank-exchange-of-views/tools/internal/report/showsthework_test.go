@@ -166,7 +166,7 @@ func TestTheInquiriesShowEveryRecordOfThePath(t *testing.T) {
 	if strings.Contains(seatView, "Read A000040.") {
 		t.Errorf("the view a seat reads carries the superseded records of the path:\n%s", seatView)
 	}
-	if want := view.InquiryBody(nil, record.WindowIndex{}, true); want != "" {
+	if want := view.InquiryBody(nil, record.WindowIndex{}, true, inItem); want != "" {
 		t.Errorf("no inquiries render %q", want)
 	}
 }

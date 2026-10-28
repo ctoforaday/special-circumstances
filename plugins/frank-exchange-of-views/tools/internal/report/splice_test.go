@@ -399,3 +399,14 @@ func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 		}
 	}
 }
+
+// textOf is the document named file as it ships — its .md, masthead and all — and whether the set
+// holds it.
+func (s Shipped) textOf(file string) (string, bool) {
+	for i, d := range s.docs {
+		if d.File == file {
+			return s.md[i], true
+		}
+	}
+	return "", false
+}

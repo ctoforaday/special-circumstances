@@ -775,7 +775,7 @@ func debateMD(in Input) []byte {
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := InquiryBody(in.Events, in.At, false)
+	body := InquiryBody(in.Events, in.At, false, AsWritten)
 	if body == "" {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -804,7 +804,12 @@ func inquiryMD(in Input) []byte {
 // the path's statuses and the current fate's account, which is what a seat acts on; the reasonings
 // an inquiry went through before it (m28: Q-40ceefaa's five `underway` records before `deferred`)
 // are the human's record of how the fate was reached.
-func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string {
+//
+// value writes each value the record holds — a question, a reason, a hypothesis, a method, a ruling's
+// why — into its row, given the indent of the row's content: the seat view prints it as written
+// (AsWritten), because a seat quotes and matches it, and the shipped document keeps its paragraphs
+// inside the item (report's inItem).
+func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool, value func(s, indent string) string) string {
 	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
@@ -824,29 +829,27 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string
 			// The one-line row keeps its shape — question, reason, seat — and the lifecycle adds to
 			// it rather than replacing it. The method is the latest fate's account, as the reason is,
 			// so it prints once: a superseded method is one blue recorded the fate again to correct.
-			// Each value the record holds is one line of its row (oneLine): a row is a list item, and a
-			// value's second line would leave it.
-			head := a.ID + " " + oneLine(a.Question)
+			head := a.ID + " " + value(a.Question, "  ")
 			reason := ""
 			if a.Reason != "" {
-				reason = " — " + oneLine(a.Reason)
+				reason = " — " + value(a.Reason, "  ")
 			}
 			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s (%s)", head, reason, a.SeatID))
 			if a.Hypothesis != "" {
-				inquiry = append(inquiry, "  - hypothesis: "+oneLine(a.Hypothesis))
+				inquiry = append(inquiry, "  - hypothesis: "+value(a.Hypothesis, "    "))
 			}
 			if a.Method != "" {
-				inquiry = append(inquiry, "  - method: "+oneLine(a.Method))
+				inquiry = append(inquiry, "  - method: "+value(a.Method, "    "))
 			}
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
 				if steps {
-					inquiry = append(inquiry, superseded(a)...)
+					inquiry = append(inquiry, superseded(a, value)...)
 				}
 			}
 			if a.Ruling != "" {
-				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, oneLine(a.RulingWhy)))
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, value(a.RulingWhy, "    ")))
 			}
 		}
 		inquiry = append(inquiry, "")
@@ -871,7 +874,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex, steps bool) string
 // superseded is an inquiry's records before its current fate, each with what it gave: its epoch,
 // status and seat, its reason, and its method when it states one. A reason or a method the record
 // before it already gave is said to be the same rather than printed again.
-func superseded(a *record.Inquiry) []string {
+func superseded(a *record.Inquiry, value func(s, indent string) string) []string {
 	var out []string
 	prevReason, prevMethod := "", ""
 	for _, s := range a.Steps[:len(a.Steps)-1] {
@@ -881,20 +884,23 @@ func superseded(a *record.Inquiry) []string {
 		case s.Reason == prevReason:
 			line += " — the same reason as the record before it"
 		default:
-			line += " — " + oneLine(s.Reason)
+			line += " — " + value(s.Reason, "      ")
 		}
 		switch {
 		case s.Method == "":
 		case s.Method == prevMethod:
 			line += "; the same method"
 		default:
-			line += "; method: " + oneLine(s.Method)
+			line += "; method: " + value(s.Method, "      ")
 		}
 		prevReason, prevMethod = s.Reason, s.Method
 		out = append(out, line)
 	}
 	return out
 }
+
+// AsWritten is a value as the record holds it: InquiryBody's value for the seat view.
+func AsWritten(s, _ string) string { return s }
 
 // ---- the telemetry wire shape ----
 //

@@ -149,3 +149,34 @@ func TestAFragmentIsEscapedAsItReadsInPlace(t *testing.T) {
 		t.Errorf("the proof's note does not escape the reason's [^9] as it reads in place:\n%s", proved)
 	}
 }
+
+// A `[^` IS LEFT ONLY WHERE BOTH TIERS READ CODE. GitHub's extended autolink takes the backticks
+// after "www.a.com", so in the shipped .md the `[^1]` that report.html holds in a span is prose, and
+// cmark-gfm 0.29.0.gfm.13 (`--unsafe -e autolink -e table -e strikethrough -e tasklist -e footnotes`)
+// read the unescaped text with a live footnote reference. Each want is bytes it reads with none, and
+// report.html reads the escape in its code span as a backslash and text.
+func TestANoteTheTiersReadDifferentlyIsEscaped(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"See www.a.com`` and [^1]``.", "See www.a.com`` and \\[^1]``."},
+		{"see www.x.com`` [^1]``", "see www.x.com`` \\[^1]``"},
+		{"a `[^9]` and http://x.co/a` [^9]`", "a `[^9]` and http://x.co/a` \\[^9]`"},
+	} {
+		if got := stdReaders().escapeNotes(c.in); got != c.want {
+			t.Errorf("escapeNotes(%q) = %q, want %q", c.in, got, c.want)
+		}
+		if got := escapeNotesInLine(c.in); got != c.want {
+			t.Errorf("escapeNotesInLine(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// THE REFUSAL READS A LABEL AS BOTH TIERS DO. The report's text is not escaped, so a label the shipped
+// .md reads as prose — the extended autolink took the backticks that would have held it — ships as a
+// live note colliding with the weave's, and is refused at the write.
+func TestTheRefusalReadsALabelAsBothTiersDo(t *testing.T) {
+	for _, doc := range []string{"see www.x.com`` [^1]``\n", "See www.a.com`` and [^1]``.\n"} {
+		if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); !found || l != "[^1]" {
+			t.Errorf("WovenNoteIn(ParseText(%q)) = %q, %v; the shipped .md reads a live [^1]", doc, l, found)
+		}
+	}
+}

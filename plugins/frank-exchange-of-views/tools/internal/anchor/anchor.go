@@ -214,6 +214,38 @@ func EachWritten(s string, visit func(start, end int, held string)) {
 	}
 }
 
+// StripWritten is s with every token as written (EachWritten) taken out but each keep reports true
+// for — keep nil takes every one — and each line the strip leaves a husk (Husk) taken out whole. Lines
+// are matched by position: a token is one line's, so the strip takes no newline.
+func StripWritten(s string, keep func(tok string) bool) string {
+	var spans [][2]int
+	EachWritten(s, func(start, end int, _ string) {
+		if keep != nil && keep(s[start:end]) {
+			return
+		}
+		spans = append(spans, [2]int{start, end})
+	})
+	if len(spans) == 0 {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for _, sp := range spans {
+		b.WriteString(s[last:sp[0]])
+		last = sp[1]
+	}
+	b.WriteString(s[last:])
+	stripped, was := strings.Split(b.String(), "\n"), strings.Split(s, "\n")
+	kept := stripped[:0]
+	for i, ln := range stripped {
+		if ln != was[i] && Husk(ln) {
+			continue
+		}
+		kept = append(kept, ln)
+	}
+	return strings.Join(kept, "\n")
+}
+
 // husk is no more than block-quote and list markers and sentence punctuation.
 var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 

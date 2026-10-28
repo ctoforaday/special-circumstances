@@ -164,10 +164,10 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
 	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
 	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
-	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it — not a
-	// section of the table and not a second account — followed by the chair's reviews of the report
-	// against those inquiries (inquiryReviews).
-	inq := view.InquiryBody(evs, fam.At, true)
+	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it and each
+	// value's paragraphs kept inside its item (inItem) — not a section of the table and not a second
+	// account — followed by the chair's reviews of the report against those inquiries (inquiryReviews).
+	inq := view.InquiryBody(evs, fam.At, true, inItem)
 	if reviews := inquiryReviews(evs, fam.At); reviews != "" {
 		if inq != "" {
 			inq = strings.TrimRight(inq, "\n") + "\n\n"
@@ -260,7 +260,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // syntax nothing had escaped: `[<!--gap:G-00000001-->^1]` became a live `[^1]`. The proofs' scripts
 // and outputs in evidence.md are no field: they are the bytes that ran, and ship as such.
 
-// stripTokens is md with every anchor token as written (anchor.EachWritten) taken out, but, where weave
+// stripTokens is md with every anchor token as written (anchor.StripWritten) taken out, but, where weave
 // is set, a token of a real id the weave turns into a note (a citation's or a proof's): the text a
 // woven document is composed from keeps those for the weave, and every other text keeps none.
 //
@@ -271,35 +271,10 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // held a token is content — a table's delimiter row, a row of marks, a rule, a line of code — and
 // ships without the token.
 func stripTokens(md string, weave bool) string {
-	var spans [][2]int
-	anchor.EachWritten(md, func(start, end int, _ string) {
-		if weave && wovenToken(md[start:end]) {
-			return
-		}
-		spans = append(spans, [2]int{start, end})
-	})
-	if len(spans) == 0 {
-		return md
+	if !weave {
+		return anchor.StripWritten(md, nil)
 	}
-	var b strings.Builder
-	last := 0
-	for _, s := range spans {
-		b.WriteString(md[last:s[0]])
-		last = s[1]
-	}
-	b.WriteString(md[last:])
-	stripped := strings.Split(b.String(), "\n")
-	// A line that held a token and is a husk without it goes. Lines are matched by position: the strip
-	// takes no newline, since a token is one line's (anchor.EachWritten).
-	was := strings.Split(md, "\n")
-	kept := stripped[:0]
-	for i, ln := range stripped {
-		if ln != was[i] && anchor.Husk(ln) {
-			continue
-		}
-		kept = append(kept, ln)
-	}
-	return strings.Join(kept, "\n")
+	return anchor.StripWritten(md, wovenToken)
 }
 
 // wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a
@@ -384,17 +359,6 @@ func (rd readers) shipSet(title string, docs []Doc) Shipped {
 		set.html = append(set.html, rd.text(unmarked(body)))
 	}
 	return set
-}
-
-// textOf is the document named file as it ships — its .md, masthead and all — and whether the set
-// holds it.
-func (s Shipped) textOf(file string) (string, bool) {
-	for i, d := range s.docs {
-		if d.File == file {
-			return s.md[i], true
-		}
-	}
-	return "", false
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the

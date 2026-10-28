@@ -364,9 +364,9 @@ type mdLine struct {
 
 // ParsedText is a text as report.html reads it (pageReader), parsed once: the tree the page renders,
 // its lines in order, each with what the parser says of it, and every stretch of the text the tree
-// reads as code (codeIn). What is code and what is a heading is the parser's answer, the one both
-// shipped readings share, so a line indented into code, or a fence's info string holding backticks,
-// is what the parser says. Every question asked of a text's headings, fences and code is asked of
+// reads as code (codeIn). What is code and what is a heading is the parser's answer, so a line
+// indented into code, or a fence's info string holding backticks, is what the parser says. Whether a
+// `[^` is code is asked of both tiers, this reading and the shipped .md's (noteCode). Every question asked of a text's headings, fences and code is asked of
 // one, and report.html renders its tree: a text is parsed once, however many readers ask.
 type ParsedText struct {
 	src   []byte
@@ -703,7 +703,10 @@ func notesRow() Section {
 // WovenNoteIn returns the first footnote label of the weave's shape that text carries and was, the
 // text as it stood, did not (added), as the text reads once assembly has taken its tokens out, with
 // the row of the section the notes belong to. Code is not read — a fenced block, or a span in
-// backticks: a label there is no footnote.
+// backticks: a label there is no footnote. Code is what both tiers read as code (noteCode): a label
+// report.html holds in a span and the shipped .md reads as prose — a `[^1]` between two pairs of
+// backticks after "www.x.com", the first pair GitHub's extended autolink takes into the URL — is a
+// live footnote in the .md, and is refused.
 //
 // THE TEXT IS READ AS IT SHIPS. Assembly takes each token the weave does not turn into a note out of
 // the report's text as it enters its document (stripTokens), and what stood either side of one joins:
@@ -720,8 +723,11 @@ func wovenNotes(text ParsedText) (out []claim) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	}
+	if !strings.Contains(src, "^") {
+		return nil
+	}
 	last := 0
-	for _, c := range text.code {
+	for _, c := range noteCode(text.code, shippedCode(text.src, parseCode)) {
 		prose(src[last:c[0]])
 		last = c[1]
 	}

@@ -6297,26 +6297,8 @@ func gapIsOpen(board record.Family, id string) bool {
 	return g != nil && g.Open
 }
 
-// assembledSet is EVERY document the assembler wrote, concatenated.
-//
-// The deliverable is a set, and "did this prose reach the reader" is a question about the set:
-// a log entry lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
-// An oracle that reads report.md alone measures one document of the artifact and reports the
-// others as clean — which is the exact failure shape these gates exist to catch, one level up.
 // flat is s with each run of whitespace one space.
 func flat(s string) string { return strings.Join(strings.Fields(s), " ") }
-
-// withoutWrittenTokens is s with every anchor token as written taken out.
-func withoutWrittenTokens(s string) string {
-	var b strings.Builder
-	last := 0
-	anchor.EachWritten(s, func(start, end int, _ string) {
-		b.WriteString(s[last:start])
-		last = end
-	})
-	b.WriteString(s[last:])
-	return b.String()
-}
 
 // asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<`
 // outside code written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison are
@@ -6325,6 +6307,12 @@ func asRead(s string) string {
 	return strings.NewReplacer("&lt;", "<", `\[^`, "[^").Replace(s)
 }
 
+// assembledSet is EVERY document the assembler wrote, concatenated.
+//
+// The deliverable is a set, and "did this prose reach the reader" is a question about the set:
+// a log entry lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
+// An oracle that reads report.md alone measures one document of the artifact and reports the
+// others as clean — which is the exact failure shape these gates exist to catch, one level up.
 func assembledSet(runDir string) (string, error) {
 	var b strings.Builder
 	for _, name := range reportdoc.Files() {
@@ -6362,11 +6350,12 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 			}
 			continue
 		}
-		// The reader gets the prose as assembly ships it: no token in it — a gap anchor a seat quoted
-		// into its retire or a prescription carried is not prose — and, where the tool places it in a
-		// line, on one line; so both sides are read with their whitespace runs one space, and as a
-		// reader reads them (asRead).
-		prose := flat(asRead(withoutWrittenTokens(fieldStr(t, e, key))))
+		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
+		// (anchor.StripWritten, a line left a husk with them) — a gap anchor a seat quoted into its
+		// retire or a prescription carried is not prose — and, where the tool places it in a line, on
+		// one line; so both sides are read with their whitespace runs one space, and as a reader reads
+		// them (asRead).
+		prose := flat(asRead(anchor.StripWritten(fieldStr(t, e, key), nil)))
 		if prose == "" || strings.Contains(flatRpt, prose) {
 			continue
 		}
