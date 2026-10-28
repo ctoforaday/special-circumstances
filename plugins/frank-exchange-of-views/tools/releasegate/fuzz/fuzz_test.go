@@ -318,6 +318,8 @@ type runner struct {
 	// anchorOfferErr is the first lens sitting whose work list offered a citation or proof it does
 	// not own.
 	anchorOfferErr string
+	// owedRecheck is, by seat, the latest reason dischargeOwed left an owed anchor standing.
+	owedRecheck map[string]string
 	// offeredToOwner counts, by kind, the owner sittings whose work list offered an anchor of that
 	// kind for its first check (checkAnchorOffers).
 	offeredToOwner map[string]int
@@ -950,7 +952,11 @@ func (r *runner) dischargeOwed(seatID string) {
 	// way: the touch may have been a verify the drive meant to be refused (a --page on a pageless
 	// source), which recorded nothing and left the item standing; one that was recorded makes this
 	// second act a refused repeat, and the item cleared or not this sitting's to clear. The envelope
-	// check after the drive is what says the item is gone.
+	// check after the drive is what says the item is gone, and what the re-check got back is kept for
+	// it (owedRecheck), so an envelope refused over the item says why the drive did not clear it.
+	if _, ok := r.board(); !ok {
+		r.noteOwedRecheck(seatID, "the board did not read, so no unchecked anchor was re-checked")
+	}
 	for _, it := range r.unchecked() {
 		if !(it.Sha != "" && seatID == proofOwner || it.Sha == "" && seatID == "red-lens-evidence") {
 			continue
@@ -966,10 +972,24 @@ func (r *runner) dischargeOwed(seatID string) {
 		if r.firstThisSitting(seatID, it.Anchor) {
 			a.admit()
 		} else {
-			_, err := a.result()
+			out, err := a.result()
 			noteEither(a.args, "a reopened anchor the drive touched earlier in the sitting", err == nil)
+			if err != nil {
+				r.noteOwedRecheck(seatID, it.Anchor+", touched earlier this sitting, re-checked and refused: "+firstLine(out+" "+err.Error()))
+			}
 		}
 	}
+}
+
+// noteOwedRecheck keeps the latest word on why dischargeOwed left an owed anchor standing for seatID,
+// which envelopeEnds names beside a refused envelope.
+func (r *runner) noteOwedRecheck(seatID, why string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.owedRecheck == nil {
+		r.owedRecheck = map[string]string{}
+	}
+	r.owedRecheck[seatID] = why
 }
 
 // fixFailed is blue's half of a failed check (record.BlockerFailedCheck): for every proof a lens's
@@ -4609,8 +4629,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.answerFailed(seatID)
 		// AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
 		// another seat's act can land after the pass above — blue's cite or proof while the anchor's
-		// owner sits is that sitting's to check — and the seat clears what it now owes, at most twice.
-		for range 2 {
+		// owner sits is that sitting's to check — and the seat clears what it now owes, at most four
+		// times, as a parallel blue can place more than once.
+		for range 4 {
 			if refusal, err := record.EnvelopeRefusal(r.run(), seatID); err != nil || refusal == "" {
 				break
 			}
@@ -8324,7 +8345,13 @@ func (r *runner) envelopeEnds(seatID string) {
 		r.noteActErr(seatID + "'s envelope could not be checked against the record: " + err.Error())
 	case refusal != "":
 		noteEnvelope(seatID, "refused at the end of its drive")
-		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal)
+		r.mu.Lock()
+		why := r.owedRecheck[seatID]
+		r.mu.Unlock()
+		if why == "" {
+			why = "no re-check of an owed anchor was refused"
+		}
+		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "]")
 	default:
 		noteEnvelope(seatID, "admitted")
 	}
