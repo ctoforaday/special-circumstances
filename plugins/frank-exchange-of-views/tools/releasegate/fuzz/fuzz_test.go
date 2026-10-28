@@ -3038,14 +3038,32 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	r.oneGapRefused++
 	r.mu.Unlock()
 	// A gap another lens minted after this lens sat is a change since its read point, so the finding
-	// may meet the stale refusal first and is recorded again (admitFresh), as a seat does.
-	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
+	// may meet the stale refusal first and is recorded again, as a seat does. The first-wave lenses
+	// file their findings about one gap concurrently, and each is a change since every sibling's read
+	// point, so a lens may meet one refusal per sibling: it records the act again once per lens in the
+	// cast, and once more.
+	if _, ok := r.admitFreshWithin(r.lensesCast()+1, held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
 		return
 	}
 	r.mu.Lock()
 	r.oneGapFindings++
 	r.mu.Unlock()
+}
+
+// lensesCast is how many lens seats the run's cast holds.
+func (r *runner) lensesCast() int {
+	cast, err := record.CastOf(r.run())
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, s := range cast {
+		if strings.HasPrefix(s, "red-lens-") {
+			n++
+		}
+	}
+	return n
 }
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its

@@ -229,8 +229,13 @@ func (r *runner) retryCorroboration(args []string, first string) {
 // refusal is that one only when it is a conflict AND the record gained a Stale event of this seat
 // on this gap; then the act is recorded again, up to twice. Any other refusal fails the run.
 func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
+	return r.admitFreshWithin(3, gapID, args...)
+}
+
+// admitFreshWithin is admitFresh recording the act at most tries times.
+func (r *runner) admitFreshWithin(tries int, gapID string, args ...string) (string, bool) {
 	seatID := seatOfArgs(args)
-	for range 3 {
+	for range tries {
 		before := r.staleReads(seatID, gapID)
 		out, err := r.exec(append(append([]string(nil), args...), "--json")...)
 		if err == nil {
@@ -243,7 +248,7 @@ func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
 		}
 		noteEither(args[:1], "an act on a gap another seat changed since this seat's read point, recorded again", false)
 	}
-	r.noteActErr(strings.Join(args, " ") + ": refused as a stale read three times running")
+	r.noteActErr(fmt.Sprintf("%s: refused as a stale read %d times running", strings.Join(args, " "), tries))
 	return "", false
 }
 
