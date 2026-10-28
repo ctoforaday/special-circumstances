@@ -259,11 +259,11 @@ func olderBinaryCreatesFirst(t *testing.T, path string) *sql.Tx {
 	return tx
 }
 
-// TestTheLoserOfAFirstCreateIsHeldToTheDeclaredSchema: whether this open CREATED the record is
+// TestTheLoserOfAFirstCreateIsHeldToThisEpoch: whether this open CREATED the record is
 // decided under the create's own lock, so the opener that queued behind another binary's create
-// refuses that binary's record by its declared schema — never by a bare SQLite error later. A
+// refuses that binary's record by its epoch — never by a bare SQLite error later. A
 // lock-free read taken before the create answered "did not exist" to the loser and let it through.
-func TestTheLoserOfAFirstCreateIsHeldToTheDeclaredSchema(t *testing.T) {
+func TestTheLoserOfAFirstCreateIsHeldToThisEpoch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fresh.db")
 	// The loser connects and sees a fresh file — the lock-free read answers "no table" here.
 	loser, err := sql.Open(driverName(), dsnFor(path))
@@ -303,7 +303,7 @@ func TestTheLoserOfAFirstCreateIsHeldToTheDeclaredSchema(t *testing.T) {
 		t.Fatal("ensureSchema reports that it created a record another binary had already written")
 	}
 	// And what the open does with that answer: the full path, against the record the other
-	// binary left, refuses with the declared-schema message rather than a SQLite error.
+	// binary left, refuses with the epoch message rather than a SQLite error.
 	db, err := openUncached(path)
 	if db != nil {
 		_ = db.Close()
@@ -312,7 +312,7 @@ func TestTheLoserOfAFirstCreateIsHeldToTheDeclaredSchema(t *testing.T) {
 		t.Fatal("opened another binary's older-epoch record without refusing it")
 	}
 	if !strings.Contains(err.Error(), "event-schema epoch") || !strings.Contains(err.Error(), "older binary") {
-		t.Fatalf("the refusal does not name the declared-schema cause: %v", err)
+		t.Fatalf("the refusal does not name the epoch cause: %v", err)
 	}
 }
 

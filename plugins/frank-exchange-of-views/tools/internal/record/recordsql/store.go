@@ -511,12 +511,12 @@ func openUncached(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("preparing %s: %w", path, err)
 	}
-	// A DATABASE THIS BINARY DID NOT CREATE is held to this binary's columns before anything reads
-	// it. Its tables and views are the creating binary's (ensureSchema applies once), so a view
-	// read naming a column added since fails with SQLite's "no such column", which names neither
-	// the cause nor the way out. Refused here by what the database lacks, and by the epoch it states.
+	// A DATABASE THIS BINARY DID NOT CREATE is held to this binary's epoch before anything reads
+	// it. Its tables and views are the creating binary's (ensureSchema applies once), so a record
+	// from another epoch would fail its first read with SQLite's "no such column", which names
+	// neither the cause nor the way out.
 	if !created {
-		if err := requireDeclaredSchema(db); err != nil {
+		if err := requireThisEpoch(db); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -584,198 +584,32 @@ func isBusy(err error) bool {
 	return errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY
 }
 
-// declared is this binary's own table/column set, built once per process from the schema applied
-// to a scratch in-memory database — the schema itself, not a second copy of it.
-var declared struct {
-	once   sync.Once
-	tables []string
-	cols   map[string][]string
-	views  map[string]string
-	err    error
-}
-
-func declaredSchema() ([]string, map[string][]string, error) {
-	declared.once.Do(func() {
-		schema, err := Schema()
-		if err != nil {
-			declared.err = err
-			return
-		}
-		mem, err := sql.Open(driverName(), ":memory:")
-		if err != nil {
-			declared.err = err
-			return
-		}
-		defer mem.Close()
-		mem.SetMaxOpenConns(1) // one connection is one in-memory database
-		if _, err := mem.Exec(schema); err != nil {
-			declared.err = err
-			return
-		}
-		// THE VIEWS GO IN TOO, because they are half of what a reader names. A projection that is a
-		// query over a view fails with SQLite's "no such table: change" on a record written before
-		// that view existed — the same unnamed failure requireDeclaredSchema exists to replace for a
-		// column, in a record whose EVENTS are all present and readable.
-		if _, err := mem.Exec(ViewsDDL); err != nil {
-			declared.err = err
-			return
-		}
-		rows, err := mem.Query(`SELECT "name" FROM sqlite_master WHERE type = 'table' AND "name" NOT LIKE 'sqlite_%' ORDER BY "name"`)
-		if err != nil {
-			declared.err = err
-			return
-		}
-		var tables []string
-		for rows.Next() {
-			var n string
-			if err := rows.Scan(&n); err != nil {
-				rows.Close()
-				declared.err = err
-				return
-			}
-			tables = append(tables, n)
-		}
-		rows.Close()
-		cols := map[string][]string{}
-		for _, t := range tables {
-			have, err := columnsOf(mem, t)
-			if err != nil {
-				declared.err = err
-				return
-			}
-			for c := range have {
-				cols[t] = append(cols[t], c)
-			}
-			sort.Strings(cols[t])
-		}
-		// THE DEFINITION, NOT JUST THE NAME, and both sides are read from sqlite_master so the
-		// comparison is exact by construction: SQLite stores a CREATE VIEW statement verbatim, so two
-		// databases built from the same ViewsDDL hold byte-identical text, and no formatting rule has
-		// to be agreed between a parser here and the DDL there. The leading `--` comments are not part
-		// of the statement and do not appear on either side.
-		vrows, err := mem.Query(`SELECT "name", "sql" FROM sqlite_master WHERE type = 'view' ORDER BY "name"`)
-		if err != nil {
-			declared.err = err
-			return
-		}
-		views := map[string]string{}
-		for vrows.Next() {
-			var n, q string
-			if err := vrows.Scan(&n, &q); err != nil {
-				vrows.Close()
-				declared.err = err
-				return
-			}
-			views[n] = q
-		}
-		vrows.Close()
-		declared.tables, declared.cols, declared.views = tables, cols, views
-	})
-	return declared.tables, declared.cols, declared.err
-}
-
-// declaredViews is every view this binary's ViewsDDL creates, by name, with the text SQLite stored
-// for it. It shares declaredSchema's once, so asking for it applies the same one-time in-memory
-// schema.
-func declaredViews() (map[string]string, error) {
-	if _, _, err := declaredSchema(); err != nil {
-		return nil, err
-	}
-	return declared.views, nil
-}
-
-// requireDeclaredSchema refuses a database missing a table, a column or a VIEW this binary declares,
-// naming each and the way out (`feov-migrate`). Missing columns are named first: they are what a run
-// written before a field was added lacks, and the seat needs to read which field it was.
+// requireThisEpoch refuses a record whose stated event-schema epoch is not this binary's, in either
+// direction, naming both epochs and the way out. The epoch is the whole check: every change to the
+// record's schema — a table, a column, a view's definition — bumps it, and recordsql's
+// TestEveryDDLChangeBumpsTheEpoch fails a schema change that does not. So a record at this binary's
+// epoch holds this binary's tables, columns and views, and the open trusts it rather than rebuilding
+// the declared schema to compare shapes, which cost about three-quarters of every open (#1614).
 //
-// VIEWS ARE CHECKED FOR THE SAME REASON THE COLUMNS ARE, and were not. A run's views are fixed when
-// its database is created — ensureSchema applies once, and deliberately does not take a write lock on
-// every open — so a binary that added a view reads an older record and gets "no such table", naming
-// neither the cause nor the way out. That failure is worse than the column one, because a view is
-// DERIVED: every event the projection needs is present, and the only thing missing is the query.
-func requireDeclaredSchema(db *sql.DB) error {
-	tables, cols, err := declaredSchema()
+// A record that states no epoch predates the field, and is an older run.
+func requireThisEpoch(db *sql.DB) error {
+	epoch, ok, err := recordEpoch(db)
 	if err != nil {
-		return fmt.Errorf("reading this binary's own schema: %w", err)
-	}
-	var lacks, absent []string
-	for _, t := range tables {
-		have, err := columnsOf(db, t)
-		if err != nil {
-			return err
-		}
-		if len(have) == 0 {
-			absent = append(absent, fmt.Sprintf("%q", t))
-			continue
-		}
-		var missing []string
-		for _, c := range cols[t] {
-			if !have[c] {
-				missing = append(missing, fmt.Sprintf("%q", c))
-			}
-		}
-		if len(missing) > 0 {
-			lacks = append(lacks, fmt.Sprintf("this run's %q table has no %s column", t, strings.Join(missing, ", ")))
-		}
-	}
-	if len(absent) > 0 {
-		lacks = append(lacks, "this run's record has no "+strings.Join(absent, ", ")+" table")
-	}
-	views, err := declaredViews()
-	if err != nil {
-		return fmt.Errorf("reading this binary's own views: %w", err)
-	}
-	names := make([]string, 0, len(views))
-	for v := range views {
-		names = append(names, v)
-	}
-	sort.Strings(names) // a map range would reorder the refusal between two identical runs
-	var noView, staleView []string
-	for _, v := range names {
-		have, err := viewSQL(db, v)
-		if err != nil {
-			return err
-		}
-		switch {
-		case have == "":
-			noView = append(noView, fmt.Sprintf("%q", v))
-		case have != views[v]:
-			// A STALE DEFINITION IS THE HALF A NAME CHECK CANNOT SEE, and it is the quieter failure:
-			// the view is present, the query succeeds, and it answers by the OLD rule. Nothing is
-			// missing, so nothing raises — a view whose definition was FIXED goes on returning the
-			// answer it was fixed for, on every record created before the fix.
-			staleView = append(staleView, fmt.Sprintf("%q", v))
-		}
-	}
-	if len(noView) > 0 {
-		lacks = append(lacks, "this run's record has no "+strings.Join(noView, ", ")+" view")
-	}
-	if len(staleView) > 0 {
-		lacks = append(lacks, "this run's "+strings.Join(staleView, ", ")+" view is the one its CREATING binary wrote, and this binary defines it differently")
-	}
-	// THE EPOCHS, COMPARED — one integer, and it answers BOTH directions.
-	//
-	// This asked the question by SHAPE: did the record carry a table or a view this binary does not
-	// declare. Shape cannot distinguish a stale binary from a view the current binary deliberately
-	// DROPPED, so it reported the wrong party as stale and made removing a view a two-step change.
-	// The record states its epoch now, so the question has one answer.
-	//
-	// A record with no epoch at all is an OLDER run and is named by the table check above — it lacks a
-	// declared table — so there is no third case and no tolerance path here.
-	if epoch, ok, err := recordEpoch(db); err != nil {
 		return err
-	} else if ok && epoch != recordpb.EventSchema {
-		if epoch > recordpb.EventSchema {
-			return fmt.Errorf("this run's record was written at event-schema epoch %d and this binary writes %d — %s",
-				epoch, recordpb.EventSchema, newerRunAdvice)
-		}
+	}
+	if !ok {
+		return fmt.Errorf("this run's record states no event-schema epoch and this binary writes %d — %s",
+			recordpb.EventSchema, olderRunAdvice)
+	}
+	if epoch > recordpb.EventSchema {
+		return fmt.Errorf("this run's record was written at event-schema epoch %d and this binary writes %d — %s",
+			epoch, recordpb.EventSchema, newerRunAdvice)
+	}
+	if epoch < recordpb.EventSchema {
 		return fmt.Errorf("this run's record was written at event-schema epoch %d and this binary writes %d — %s",
 			epoch, recordpb.EventSchema, olderRunAdvice)
 	}
-	if len(lacks) == 0 {
-		return nil
-	}
-	return fmt.Errorf("%s — %s", strings.Join(lacks, "; "), olderRunAdvice)
+	return nil
 }
 
 // ensureSchema applies the schema if this database does not have it, DECIDING INSIDE THE
@@ -1128,14 +962,24 @@ var _ = proto.Marshal
 
 // recordEpoch is the event-schema epoch this record was written at, and whether it states one.
 //
-// ok is false ONLY for a record predating the field, which the declared-table check names as an older
-// run before this is consulted — so a caller never has to decide what an absent epoch means.
+// ok is false ONLY for a record with no `schema_epoch` table or no epoch in it — a record predating
+// the field. Any other failed read is the error: the open trusts the epoch it reads, so a read that
+// failed must not pass for an answer.
 func recordEpoch(q queryRower) (int, bool, error) {
+	var n int
+	if err := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND "name" = 'schema_epoch'`).Scan(&n); err != nil {
+		return 0, false, fmt.Errorf("asking whether the record states its epoch: %w", err)
+	}
+	if n == 0 {
+		return 0, false, nil
+	}
 	var epoch sql.NullInt64
 	err := q.QueryRow(`SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1`).Scan(&epoch)
-	if err != nil {
-		// A missing table is not an error here: it is the older-run case, reported by its own check.
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("reading the record's epoch: %w", err)
 	}
 	if !epoch.Valid {
 		return 0, false, nil
