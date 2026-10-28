@@ -470,6 +470,11 @@ type runner struct {
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
 	remandActs              map[string]int
 	pastLimitRemandsRefused int
+	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
+	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
+	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
+	lensFirst      map[string]string
+	lensFirstHolds int
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -3852,6 +3857,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return r.chairEnvelope(seatID, verdict, printed, responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
+		r.lensFirstHeld()
 		r.sit("blue", seatID)
 		// BLUE ANSWERS WHAT THE PLAN ENGAGED IT ON, not every open gap: the record dispatched blue
 		// for exactly these, and its manifest must name them (W2b). Closings are owed on the
@@ -4602,8 +4608,8 @@ type outcome struct {
 	// closedRemandsRefused and trifleRemandsRouted are runner's.
 	closedRemandsRefused, trifleRemandsRouted int
 	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
-	// pastLimitRemandsRefused.
-	blueRemandActs, lensRemandActs, pastLimitRemandsRefused int
+	// pastLimitRemandsRefused; lensFirstHolds is runner's.
+	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -5854,6 +5860,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
+	res.lensFirstHolds = r.lensFirstHolds
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
@@ -6600,6 +6607,7 @@ func TestFuzzDebate(t *testing.T) {
 	closedRemandsRefused, trifleRemandsRouted := 0, 0       // remands of a closed gap refused; remands of a gap not material routed
 	blueRemandActs, lensRemandActs := 0, 0                  // acts on a remanded gap its blocking item held blue and the lens to
 	pastLimitRemandsRefused := 0                            // remands past the limit refused naming the closing dispositions
+	lensFirstHolds := 0                                     // remand items blocking blue before register after the lens acted first
 	applyMisses := map[string]int{}                         // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}                      // and why the estoppel drive declined, for the same reason
 
@@ -6726,6 +6734,7 @@ func TestFuzzDebate(t *testing.T) {
 			blueRemandActs += o.blueRemandActs
 			lensRemandActs += o.lensRemandActs
 			pastLimitRemandsRefused += o.pastLimitRemandsRefused
+			lensFirstHolds += o.lensFirstHolds
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -6991,6 +7000,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if pastLimitRemandsRefused == 0 {
 			t.Errorf("fuzz drove ZERO remands past the limit across %d runs — the refusal that names the dispositions that close the gap is unexercised (false green)", completed)
+		}
+		// THE LENS SITS FIRST AND BEGINS NOTHING (ruled by gblock 2026-10-27): a remanded gap the
+		// minting lens acted on before blue still holds blue, read before blue registers.
+		t.Logf("remands: %d item(s) held blue before its register after the minting lens acted first", lensFirstHolds)
+		if lensFirstHolds == 0 {
+			t.Errorf("fuzz drove ZERO remands in which the minting lens acted before blue and blue's item was read before its register, across %d runs — lens-first ordering under a remand is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267
