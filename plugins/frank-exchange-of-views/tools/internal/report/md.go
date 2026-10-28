@@ -119,10 +119,12 @@ type anchors map[string]string
 // it stands in, so an id is never linked at the site that defines it.
 type mention struct{ id, here string }
 
-// rendered is one document rendered, its id mentions held for the pass that links them.
+// rendered is one document rendered, its id mentions held for the pass that links them, and the
+// name of each footnote entry it lists, by label (citations): the page's title links the report's.
 type rendered struct {
-	html     string
-	mentions []mention
+	html      string
+	mentions  []mention
+	noteNames map[string]string
 }
 
 // renderDoc renders one document from the tree shipSet parsed it to. It records every anchor it
@@ -147,7 +149,8 @@ func renderDoc(p ParsedText, file string, anchor anchors, seen map[string]int, f
 	}
 	var b strings.Builder
 	r.blocks(&b, p.tree)
-	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
+	html, names := citations(b.String(), r.refs, r.notes, seen)
+	return rendered{html: html, mentions: r.mentions, noteNames: names}
 }
 
 // unmarked is md with the marker bytes made the replacement character. The markers are control
@@ -265,8 +268,9 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 		for c := x.FirstChild(); c != nil; c = c.NextSibling() {
 			fn := c.(*east.Footnote)
 			note := footnote{label: string(fn.Ref), html: r.noteBody(fn)}
+			// The scent is the note's text: a reference in it reads as its label, and links nowhere.
 			title := *r
-			title.ref, title.link = supRef, false
+			title.ref, title.link = escape, false
 			note.scent = scentOf(title.noteBody(fn))
 			r.notes = append(r.notes, note)
 		}
@@ -470,7 +474,7 @@ func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
 			if x.AutoLinkType == ast.AutoLinkEmail {
 				url = append([]byte("mailto:"), url...)
 			}
-			r.linkTo(b, linkURL(url), func() { b.WriteString(escape(string(x.Label(r.src)))) })
+			r.linkTo(b, checkedURL(url), func() { b.WriteString(escape(string(x.Label(r.src)))) })
 		case *ast.Image:
 			// An image is shown as a link to it: the page loads nothing the text names.
 			r.linkTo(b, linkURL(x.Destination), func() { r.inlines(b, x, false) })
@@ -557,8 +561,15 @@ func textValue(v []byte) []byte {
 // `&#106;avascript:` — which a reader resolves, so the destination is decoded first (textValue),
 // then checked, then encoded. Checked before decoding, `&colon;` hid the colon from the check and
 // the encoder put it back.
-func linkURL(dest []byte) string {
-	u := textValue(dest)
+//
+// AN AUTOLINK IS NOT DECODED. CommonMark takes the contents of `<…>` as the URL literally, a
+// backslash and an `&` included: `<https://example.com/\[\>` links https://example.com/%5C%5B%5C.
+// It goes to checkedURL as it stands.
+func linkURL(dest []byte) string { return checkedURL(textValue(dest)) }
+
+// checkedURL is u, a URL as a browser follows it, percent-encoded and not yet escaped for an
+// attribute, and empty unless it is relative or names a scheme bodyPolicy allows (linkURL).
+func checkedURL(u []byte) string {
 	if i := bytes.IndexAny(u, ":/?#"); i >= 0 && u[i] == ':' && !slices.Contains(linkSchemes, strings.ToLower(string(u[:i]))) {
 		return ""
 	}
@@ -579,10 +590,18 @@ func linkURL(dest []byte) string {
 	return b.String()
 }
 
-// supRef is a footnote reference outside a document's citation layer — a title, a note's scent —
-// where it renders as its label.
-func supRef(label string) string {
-	return `<sup class="fnref"><a href="#fn-` + noteID(label) + `">` + escape(label) + `</a></sup>`
+// titleRef is what a footnote reference in the page's title renders as: its label, linking the entry
+// the document file lists for it under the name citations gave that entry (names), and opening that
+// document's tab. A label file lists no entry for is its label alone: the title is no document's
+// citation layer, and a name spelled from the label is another element's wherever the page counted it.
+func titleRef(names map[string]string, file string) func(label string) string {
+	return func(label string) string {
+		name, ok := names[label]
+		if !ok {
+			return `<sup class="fnref">` + escape(label) + `</sup>`
+		}
+		return `<sup class="fnref"><a class="idref" data-doc="` + escape(file) + `" href="#fn-` + name + `">` + escape(label) + `</a></sup>`
+	}
 }
 
 // noteID is a footnote label as it stands in an element id and the fragment that links to it: its
@@ -674,7 +693,10 @@ func eachMark(html string, c byte, f func(k int) string) string {
 // earlier document also numbered takes a count — in the entry's id, the marker's and every link
 // between the two — given in the order the page shows them. The label a reader sees, and the title
 // on the marker, stay as written.
-func citations(body string, refs []string, notes []footnote, seen map[string]int) string {
+//
+// It returns the name of each listed entry, by label: a reference resolves to its own document's
+// entry through these, never by spelling the label again.
+func citations(body string, refs []string, notes []footnote, seen map[string]int) (string, map[string]string) {
 	byLabel := map[string]footnote{}
 	var authored []string
 	for _, n := range notes {
@@ -737,7 +759,7 @@ func citations(body string, refs []string, notes []footnote, seen map[string]int
 	}
 	html := eachRefMark(body, cite)
 	if len(listed) == 0 {
-		return html
+		return html, nil
 	}
 	var items []string
 	for _, l := range listed {
@@ -753,7 +775,11 @@ func citations(body string, refs []string, notes []footnote, seen map[string]int
 	// "References", because that is what the entries are — the citation layer the research
 	// protocol requires — and a reader looking for a bibliography must be able to find it by its
 	// own name.
-	return html + "<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(items, "\n") + "\n</ol></section>\n"
+	listedNames := make(map[string]string, len(listed))
+	for _, l := range listed {
+		listedNames[l] = id(l)
+	}
+	return html + "<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(items, "\n") + "\n</ol></section>\n", listedNames
 }
 
 // scentOf is the tooltip a marker carries: the text of its note, cut short — a scent, not the
@@ -796,10 +822,11 @@ func escape(s string) string {
 }
 
 // inline renders one line's inline markdown outside a document — a title — where a footnote
-// reference has no list to number it against and renders as its label.
-func inline(s string) string {
+// reference has no list to number it against and renders as its label, linking the entry file lists
+// under that label (titleRef, names).
+func inline(s string, names map[string]string, file string) string {
 	s = unmarked(s)
-	r := &mdRender{src: []byte(s), seen: map[string]int{}, ref: supRef, looseRefs: true}
+	r := &mdRender{src: []byte(s), seen: map[string]int{}, ref: titleRef(names, file), looseRefs: true}
 	var b strings.Builder
 	doc := lineReader.Parse(text.NewReader(r.src))
 	for c := doc.FirstChild(); c != nil; c = c.NextSibling() {

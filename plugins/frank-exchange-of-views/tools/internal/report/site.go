@@ -75,7 +75,7 @@ func RenderSite(set Shipped, fam record.Family) string { return renderSite(set, 
 // renderer is what renderSite writes each document's body and the title with.
 type renderer struct {
 	body  func(p ParsedText, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered
-	title func(string) string
+	title func(s string, names map[string]string, file string) string
 }
 
 // stdRenderer is the renderer the page is written with (md.go).
@@ -145,7 +145,13 @@ func renderSet(set Shipped, rr renderer) (title string, bodies []string) {
 	for i, d := range set.docs {
 		bodies = append(bodies, linkIDs(docs[i], anchor, d.File))
 	}
-	return rr.title(shortTitle(set)), bodies
+	// The title is the report's, which opens the set: a reference in it links the report's entry.
+	var names map[string]string
+	file := ""
+	if len(docs) > 0 {
+		names, file = docs[0].noteNames, set.docs[0].File
+	}
+	return rr.title(shortTitle(set), names, file), bodies
 }
 
 // reservedIDs is the ids the page gives out before a document is rendered, each counted once, so a

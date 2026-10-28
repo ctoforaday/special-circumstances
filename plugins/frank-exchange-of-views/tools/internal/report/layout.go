@@ -89,11 +89,11 @@ type Section struct {
 func (s Section) block(a *assembly) string {
 	// The section's text enters its document here, so its tokens leave here, before anything reads
 	// what their removal joins (stripTokens).
-	text := a.rd.stripTokens(s.compose(a, s), true)
+	text, code, read := a.rd.stripTokensCode(s.compose(a, s), true)
 	if s.Composer == Tool {
 		// WHAT ASSEMBLY COMPOSES OPENS NO FOOTNOTE (notes.go): the weave runs over the document
 		// after this, and is the one writer of a note in it.
-		text = a.rd.escapeNotes(text)
+		text = a.rd.escapeNotesRead(text, code, read)
 	}
 	if s.Composer == Tool && s.Line == "" && strings.TrimSpace(text) != "" {
 		return "## " + s.Heading + "\n\n" + text
@@ -377,6 +377,12 @@ type ParsedText struct {
 
 // ParseText is md as report.html reads it.
 func ParseText(md string) ParsedText { return stdReaders().text(md) }
+
+// tree is md as report.html renders it, parsed by rd: its tree alone, which is all renderDoc reads.
+func (rd readers) tree(md string) ParsedText {
+	src := []byte(md)
+	return ParsedText{src: src, tree: rd.page(src)}
+}
 
 // text is md as report.html reads it, parsed by rd.
 func (rd readers) text(md string) ParsedText {

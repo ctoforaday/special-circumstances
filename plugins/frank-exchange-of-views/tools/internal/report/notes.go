@@ -46,12 +46,19 @@ const (
 // of backticks after "www.a.com", the first pair GitHub's extended autolink takes into the URL, is
 // prose there and code to report.html — it is escaped, which is text to both, at the cost of a
 // backslash printed in the code of the tier that holds it as code.
-func (rd readers) escapeNotes(md string) string {
+func (rd readers) escapeNotes(md string) string { return rd.escapeNotesRead(md, nil, false) }
+
+// escapeNotesRead is escapeNotes, reading md's code only where read is false: where it is true, code
+// is md's stretches of code as escapeNotes reads them, read already (stripTokensCode).
+func (rd readers) escapeNotesRead(md string, code [][2]int, read bool) string {
 	if !strings.Contains(md, noteOpen) {
 		return md
 	}
-	src := []byte(md)
-	return escapeNotesOutside(md, noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code)))
+	if !read {
+		src := []byte(md)
+		code = noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+	}
+	return escapeNotesOutside(md, code)
 }
 
 // escapeNotesInLine is escapeNotes for a fragment assembly writes on a line after the line's own

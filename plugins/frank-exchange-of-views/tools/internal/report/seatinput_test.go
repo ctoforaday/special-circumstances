@@ -254,7 +254,7 @@ func TestNoSeatInputIsMarkupOnThePage(t *testing.T) {
 // none of it: the masthead holds only what the allowlist holds.
 func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 	rr := stdRenderer()
-	rr.title = func(string) string {
+	rr.title = func(string, map[string]string, string) string {
 		return `kept<script>alert(1)</script><img src="x" onerror="y()"><a href="javascript:z()" onclick="w()">l</a>`
 	}
 	page := renderSite(stdReaders().shipSet("# T", []Doc{{File: FileReport, Nav: "Report", Body: "x\n"}}), record.Family{}, rr)
@@ -269,7 +269,9 @@ func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 // NO TOKEN SHIPS FROM TEXT COMPOSED AFTER THE STRIP. A proof's reason and a citation's title reach the
 // documents after the strip that runs before the weave — the weave's notes, evidence.md's heading for
 // the proof — and a token a seat copied into either shipped there as typed. Through real assembly. A
-// proof's script is code, and evidence.md shows it as the bytes that ran, a token's shape and all.
+// proof's script is code, and evidence.md shows it as the bytes that ran, a token's shape and all. A
+// field's lines are flattened before its tokens are taken: a token on an indented line is code in the
+// field and prose on the one line the tool writes, and stripped in the field's reading it shipped.
 func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "feed0000face1111"
@@ -284,12 +286,12 @@ func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		&recordpb.BaseIngest{Text: proto.String(blue)},
 		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 			Label: proto.String("C-00000001"), Url: proto.String("https://example.invalid/a"),
-			Sha256: proto.String("deadbeef"), Title: proto.String("Coherence <!--gap:G-0000abcd-->Proof <!--cite:C-…-->"), AccessDate: proto.String("2026-08-03"),
+			Sha256: proto.String("deadbeef"), Title: proto.String("Coherence <!--gap:G-0000abcd-->Proof <!--cite:C-…-->\n\n    <!--gap:G-00000001-->"), AccessDate: proto.String("2026-08-03"),
 		},
 		&recordpb.Proof{
 			ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
 			ProofBasis: proto.String("reproducible"), Script: proto.String("check.js"),
-			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--proof:P-00000002-->"),
+			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--proof:P-00000002-->\n\n    <!--gap:G-00000001-->"),
 		},
 	} {
 		if _, err := record.Append(id, body); err != nil {
@@ -324,6 +326,22 @@ func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	for where, text := range map[string]string{FileEvidence: shown[FileEvidence], "report.html": textOf(string(page))} {
 		if !strings.Contains(text, script) {
 			t.Errorf("%s does not show the proof's script as it ran:\n%s", where, text)
+		}
+	}
+}
+
+// A FIELD'S CODE IS READ ON THE LINE IT SHIPS ON. plain writes a field after the tool's own text, so
+// the field is inline text of that line: a fence it opens alone is prose there, and a code span it
+// holds whole is code. A token keeps its place only in the code of that line.
+func TestAFieldsTokensAreReadOnItsLine(t *testing.T) {
+	for in, want := range map[string]string{
+		"```x <!--gap:G-00000001--> y":      "```x y",
+		"a\n\n    <!--gap:G-00000001--> b":  "a b",
+		"a `<!--gap:G-00000001-->` b":       "a `<!--gap:G-00000001-->` b",
+		"a ``\n<!--gap:G-00000001-->\n`` b": "a `` <!--gap:G-00000001--> `` b",
+	} {
+		if got := plain(in); got != want {
+			t.Errorf("plain(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

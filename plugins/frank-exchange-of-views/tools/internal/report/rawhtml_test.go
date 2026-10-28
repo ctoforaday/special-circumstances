@@ -673,3 +673,27 @@ func rawText(x *ast.RawHTML, src []byte) string {
 	}
 	return b.String()
 }
+
+// A SECTION THE STRIP LEAVES AS IT WAS IS READ ONCE FOR BOTH. The strip reads where a tool-composed
+// section's code is; where it took no token out the text is the same, and the note escape reads its
+// code from that reading rather than parsing again. Where the strip changed the text, what is code may
+// have changed with it, and the escape reads the new text.
+func TestASectionTheStripLeavesIsReadOnce(t *testing.T) {
+	for _, c := range []struct {
+		says string
+		want int
+	}{
+		{"a `<!--gap:G-00000001-->` and [^x]\n", 1},
+		{"a <!--gap:G-00000001--> and [^x]\n", 2},
+	} {
+		rd, all, _ := countParses("")
+		says := func(*assembly, Section) string { return c.says }
+		got := Section{Heading: "The board", Composer: Tool, compose: says}.block(&assembly{rd: rd})
+		if !strings.Contains(got, `\[^x]`) {
+			t.Errorf("%q: the note opener is not escaped:\n%s", c.says, got)
+		}
+		if pages := *all / 2; pages != c.want {
+			t.Errorf("%q: read %d time(s) (%d parses), want %d", c.says, pages, *all, c.want)
+		}
+	}
+}

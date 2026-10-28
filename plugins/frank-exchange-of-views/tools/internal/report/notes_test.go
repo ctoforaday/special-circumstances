@@ -39,11 +39,11 @@ func TestEscapeNotesMakesEveryNoteOpenerText(t *testing.T) {
 // THE HTML TIER READS THE ESCAPE: the seat's five characters, and no citation link. Unescaped, the
 // same words are a reference — which is what the weave's own notes are.
 func TestAnEscapedNoteIsTextInTheHTMLTier(t *testing.T) {
-	got := inline(`the one footnote \[^P5] cites`)
+	got := inline(`the one footnote \[^P5] cites`, map[string]string{"P5": "P5"}, FileReport)
 	if !strings.Contains(got, "the one footnote [^P5] cites") || strings.Contains(got, "fnref") || strings.Contains(got, `\`) {
 		t.Errorf("an escaped note did not render as the text the seat typed: %s", got)
 	}
-	if woven := inline("the norms multiply[^P5]."); !strings.Contains(woven, `<sup class="fnref"><a href="#fn-P5">P5</a></sup>`) {
+	if woven := inline("the norms multiply[^P5].", map[string]string{"P5": "P5"}, FileReport); !strings.Contains(woven, `<sup class="fnref"><a class="idref" data-doc="report.md" href="#fn-P5">P5</a></sup>`) {
 		t.Errorf("the weave's own reference no longer renders as one: %s", woven)
 	}
 }

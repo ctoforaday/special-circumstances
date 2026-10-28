@@ -374,3 +374,107 @@ func TestAFenceInfoStringIsNotEscaped(t *testing.T) {
 	}
 	t.Errorf("report.html holds no code:\n%s", body)
 }
+
+// AN AUTOLINK'S URL IS ITS CONTENTS, LITERALLY: CommonMark reads no backslash escape and no character
+// reference inside `<…>`, and its own example links `<https://example.com/\[\>` to
+// `https://example.com/%5C%5B%5C`. A link's destination is decoded (linkURL), an autolink's is not.
+func TestAnAutolinkTakesItsURLLiterally(t *testing.T) {
+	md := "See <https://example.com/\\[\\> and <https://x.invalid/a&amp;b> and [d](https://x.invalid/\\[).\n"
+	body := mainOf(RenderSite(stdReaders().shipSet("# T", []Doc{{File: FileReport, Nav: "Report", Body: md}}), record.Family{}))
+	var hrefs []string
+	z := html.NewTokenizer(strings.NewReader(body))
+	for z.Next() != html.ErrorToken {
+		if tok := z.Token(); tok.Data == "a" && tok.Type == html.StartTagToken {
+			for _, a := range tok.Attr {
+				if a.Key == "href" {
+					hrefs = append(hrefs, a.Val)
+				}
+			}
+		}
+	}
+	want := []string{"https://example.com/%5C%5B%5C", "https://x.invalid/a&amp;b", "https://x.invalid/%5B"}
+	if !slices.Equal(hrefs, want) {
+		t.Errorf("the links go to %q, want %q:\n%s", hrefs, want, body)
+	}
+}
+
+// EVERY FOOTNOTE REFERENCE LINKS ITS OWN DOCUMENT'S ENTRY. A note's id takes a count when the page
+// already gave its name out — to an earlier tab's note of that label, or to a heading "Fn 1" — so a
+// reference that spells `#fn-<label>` itself links another element. Each reference resolves through
+// its document's own names: a body's cite, the scent its title carries, and the page title's
+// reference, which is the report's and opens the report's tab at its entry. A label the report lists
+// no entry for links nowhere.
+func TestEveryNoteReferenceLinksItsOwnDocumentsEntry(t *testing.T) {
+	docs := []Doc{
+		{File: FileReport, Nav: "Report", Body: "## Fn 1\n\nA claim[^1].\n\n[^1]: The report's source.\n"},
+		{File: FileDebate, Nav: "Debate", Body: "## Its own[^1]\n\nA position[^1].\n\n[^1]: The debate's source, after[^2].\n[^2]: A second.\n"},
+	}
+	page := RenderSite(stdReaders().shipSet("# T[^1] and [^9]", docs), record.Family{})
+	root, err := html.Parse(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	attr := func(n *html.Node, key string) string {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return a.Val
+			}
+		}
+		return ""
+	}
+	var walk func(n *html.Node, f func(*html.Node))
+	walk = func(n *html.Node, f func(*html.Node)) {
+		f(n)
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c, f)
+		}
+	}
+	elems := map[string]map[string]string{} // document → id → element
+	var masthead *html.Node
+	walk(root, func(n *html.Node) {
+		if n.Type != html.ElementNode {
+			return
+		}
+		if n.Data == "article" {
+			ids := map[string]string{}
+			walk(n, func(c *html.Node) {
+				if id := attr(c, "id"); c.Type == html.ElementNode && id != "" {
+					ids[id] = c.Data
+				}
+			})
+			elems[attr(n, "data-doc")] = ids
+			doc := attr(n, "data-doc")
+			cites := 0
+			walk(n, func(c *html.Node) {
+				if c.Type != html.ElementNode || c.Data != "a" || !strings.HasPrefix(attr(c, "href"), "#fn-") {
+					return
+				}
+				cites++
+				if ids[strings.TrimPrefix(attr(c, "href"), "#")] != "li" {
+					t.Errorf("%s links %s, which is no entry of that tab", doc, attr(c, "href"))
+				}
+			})
+			if cites == 0 {
+				t.Errorf("%s holds no reference to an entry", doc)
+			}
+		}
+		if n.Data == "h1" && masthead == nil {
+			masthead = n
+		}
+	})
+	if !strings.Contains(page, `title="1 — The debate&#39;s source, after2."`) {
+		t.Errorf("the debate's cite does not carry its own note's scent:\n%s", page)
+	}
+	var links []*html.Node
+	walk(masthead, func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			links = append(links, n)
+		}
+	})
+	if len(links) != 1 {
+		t.Fatalf("the title holds %d link(s), want 1, to the report's entry for 1", len(links))
+	}
+	if id := strings.TrimPrefix(attr(links[0], "href"), "#"); elems[FileReport][id] != "li" || attr(links[0], "data-doc") != FileReport {
+		t.Errorf("the title's reference links #%s in %q, want the report's entry", id, attr(links[0], "data-doc"))
+	}
+}

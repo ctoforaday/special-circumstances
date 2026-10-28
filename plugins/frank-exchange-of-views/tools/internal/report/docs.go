@@ -26,6 +26,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/yuin/goldmark/text"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -174,7 +176,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		}
 		inq += reviews
 	}
-	inq = rd.escapeNotes(rd.stripTokens(inq, true))
+	inq = rd.escapeNotesRead(rd.stripTokensCode(inq, true))
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -274,30 +276,60 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // held a token is content — a table's delimiter row, a row of marks, a rule — and ships without the
 // token; a line of code keeps its token, so the strip leaves it no husk.
 func (rd readers) stripTokens(md string, weave bool) string {
-	held := false
-	anchor.EachWritten(md, func(int, int, string) { held = true })
-	if !held {
-		return md
+	out, _, _ := rd.stripTokensCode(md, weave)
+	return out
+}
+
+// stripTokensCode is stripTokens, with the stretches of code it read md's tokens in when it took none
+// out: the text is md then, and its code is the code escapeNotesRead asks for. read is false where
+// nothing was read, or where the strip changed the text and with it what is code.
+func (rd readers) stripTokensCode(md string, weave bool) (out string, code [][2]int, read bool) {
+	if !holdsToken(md) {
+		return md, nil, false
 	}
 	src := []byte(md)
-	code := noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+	code = noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+	out = stripOutside(md, code, weave)
+	return out, code, out == md
+}
+
+// stripTokensInLine is stripTokens for a fragment the tool writes on one line after its own text
+// (plain), with no token woven: in place the fragment is inline text of that line, so the code in it
+// is what each tier reads as code in one line of a paragraph (lineReader, codeLineReader), as
+// escapeNotesInLine reads it. Read as a document of its own, "```x <!--gap:G-00000001-->" is a fence
+// whose info string holds the token, which in place is prose.
+func stripTokensInLine(s string) string {
+	if !holdsToken(s) {
+		return s
+	}
+	src := []byte(s)
+	return stripOutside(s, noteCode(codeIn(lineReader.Parse(text.NewReader(src)), src), shippedCode(src, parseCodeLine)), false)
+}
+
+// holdsToken reports whether md holds an anchor token as written.
+func holdsToken(md string) bool {
+	held := false
+	anchor.EachWritten(md, func(int, int, string) { held = true })
+	return held
+}
+
+// stripOutside is md with each token as written taken out but those inside code, the stretches in
+// order, and where weave is set the woven ones.
+func stripOutside(md string, code [][2]int, weave bool) string {
 	return anchor.StripWritten(md, func(start, end int) bool {
 		return inCode(code, start, end) || weave && wovenToken(md[start:end])
 	})
 }
 
 // StripTokens is a record field with its tokens taken out as assembly takes them from a field it
-// writes (plain): the release gate's prose oracle reads a seat's field with it.
+// writes: the release gate's prose oracle reads a seat's field with it.
 func StripTokens(s string) string { return stdReaders().stripTokens(s, false) }
 
-// inCode reports whether the span [start, end) lies inside one stretch of code, the stretches in order.
+// inCode reports whether the span [start, end) lies inside one stretch of code, the stretches in order
+// and not overlapping (noteCode): the last stretch opening at or before start holds it, or none does.
 func inCode(code [][2]int, start, end int) bool {
-	for _, c := range code {
-		if c[0] <= start && end <= c[1] {
-			return true
-		}
-	}
-	return false
+	k, _ := slices.BinarySearchFunc(code, start+1, func(c [2]int, at int) int { return c[0] - at })
+	return k > 0 && end <= code[k-1][1]
 }
 
 // wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a
@@ -368,7 +400,7 @@ type Shipped struct {
 	title string
 	docs  []Doc
 	md    []string     // each document as report.md and its siblings ship it
-	html  []ParsedText // and its body as report.html reads it
+	html  []ParsedText // and its body as report.html renders it: the tree alone (tree)
 }
 
 // shipSet takes each tier's reading of each document of the set, under the run's title, reading with rd.
@@ -379,7 +411,7 @@ func (rd readers) shipSet(title string, docs []Doc) Shipped {
 		set.md = append(set.md, rd.ship(masthead(d, title, docs)+body))
 		// The reading tier shows a marker byte as the replacement character; the durable tier ships
 		// the text as written.
-		set.html = append(set.html, rd.text(unmarked(body)))
+		set.html = append(set.html, rd.tree(unmarked(body)))
 	}
 	return set
 }
