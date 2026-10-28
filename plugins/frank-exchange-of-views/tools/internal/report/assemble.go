@@ -234,33 +234,88 @@ func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
 	return ""
 }
 
-// plainURL is a URL field as a citation's line writes it: plain's form, each byte that could act as
-// markdown where it stands percent-encoded. A URL is not prose, so nothing in it is escaped as prose:
-// an escape is a character of every link a reader makes of it. Encoded are a space, a control byte or
-// one outside ASCII, which ends report.html's link; `"`, `'`, `<`, `>`, `[`, `\`, `]`, `^`, a
-// backtick, `{`, `|`, `}`, `*`, `_` and `~` (urlMarkdownBytes), which open a span, a footnote
-// reference, a link or a tag, or end a link in one reader and not the other; the `;` that closes a
-// character reference, which one reader decodes in a link and the other does not; a `#` after the
-// first, which a fragment may not hold and report.html's allowlist writes encoded; and a last byte the
-// extended autolink drops from a link's end — `!`, `.`, `,`, `:`, or a `)` with no `(` to close.
+// plainURL is a URL field as a citation's line writes it: plain's form, written as an inline link
+// whose destination and text are both the URL — `[text](destination)`. A URL is not prose, and a
+// link's destination is not read as markdown: no emphasis, no footnote reference and no autolink
+// opens in it, so the URL's own bytes stand there. Its text is the same URL with each byte markdown
+// reads in a link's text backslash-escaped (urlText), and no reader autolinks text inside a link.
+//
+// WHAT IS PRESERVED. The scheme and the authority are written as given, but for a control byte, a
+// space or a backtick, which no host holds and which would end the destination or open a code span.
+// In the path, query and fragment every byte is written as given — `'`, `*`, `_`, `~`, `;`, `!`,
+// `$`, `&`, `(`, `)`, `\` and a last `.`, `,` or `:` among them — but those no URL may hold
+// there raw: a control byte, a space or a byte outside ASCII, `"`, `<`, `>`, `[`, `]`, `^`, a
+// backtick, `{`, `|`, `}`, and a `#` after the first. Each of those is percent-encoded in place, the
+// form a URL must take to hold it; a `%` stays, so an encoding already in the URL is not doubled. A
+// `\` stays: a browser reads it in an http path as `/`, and encoded it would name another resource.
+// In the destination a `\`, `(` and `)` take a backslash and an `&` is written `&amp;`, so the link's
+// target is the URL's bytes after markdown's escapes and character references are read.
+//
 // The URL then holds no backtick, so a code span the title opens ends in the title
-// (escapeNotesInLine), and every reader links it to the bytes shown. A server reads the target
-// unchanged: most of these bytes no URL may hold raw, and the rest a server decodes before it reads —
-// the Wayback Machine reads a recovered copy's `id%5F` as its `id_`.
-// A last `?` stays, since encoded it is a character of the path where it was a query's opening: both
-// readers link the URL without it, the empty query it opens. A `%` stays as written, so an encoding
-// already in the URL is not encoded twice.
+// (escapeNotesInLine). How a renderer writes the target into an href is its own: cmark-gfm and
+// report.html's linkURL encode a `\`, and cmark-gfm encodes an IP literal's brackets. Whether a
+// scheme links is the viewer's too: report.html links http, https and mailto (linkSchemes), and
+// writes any other URL as the link's text alone.
 func plainURL(s string) string {
-	s = plain(s)
+	u := plain(s)
+	if u == "" {
+		return ""
+	}
+	u = encodeURL(u)
+	return "[" + urlText(u) + "](" + urlDest(u) + ")"
+}
+
+// encodeURL is u with each byte percent-encoded that plainURL's doc names: in the scheme and the
+// authority (up to the first `/`, `?` or `#` after a `//`), a control byte, a space or a backtick; in
+// the rest, those and every other byte no URL holds raw there.
+func encodeURL(u string) string {
+	_, rest := urlAuthority(u)
 	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case c <= ' ' || c >= 0x7f || strings.IndexByte(urlMarkdownBytes, c) >= 0,
-			c == ';' && endsReference(s[:i]),
-			c == '#' && strings.IndexByte(s[:i], '#') >= 0,
-			i == len(s)-1 && (strings.IndexByte("!.,:", c) >= 0 || c == ')' && strings.Count(s, ")") > strings.Count(s, "(")):
+	hash := false
+	for i := 0; i < len(u); i++ {
+		c := u[i]
+		enc := c <= ' ' || c == 0x7f || c == '`'
+		if i >= rest {
+			enc = enc || c > 0x7f || strings.IndexByte(`"<>[]^{|}`, c) >= 0 || c == '#' && hash
+			hash = hash || c == '#'
+		}
+		if enc {
 			fmt.Fprintf(&b, "%%%02X", c)
+		} else {
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// urlAuthority is where u's authority stands, as RFC 3986 §3 splits a URI: after the scheme's `:`
+// and a `//`, up to the first `/`, `?` or `#`. With no `//`, start and end are both where the part
+// after the scheme begins.
+func urlAuthority(u string) (start, end int) {
+	if i := strings.IndexAny(u, ":/?#"); i > 0 && u[i] == ':' {
+		start = i + 1
+	}
+	if !strings.HasPrefix(u[start:], "//") {
+		return start, start
+	}
+	start += 2
+	if j := strings.IndexAny(u[start:], "/?#"); j >= 0 {
+		return start, start + j
+	}
+	return start, len(u)
+}
+
+// urlText is an encoded URL as a link's text: each byte markdown reads in inline text escaped, so
+// the text is the URL's characters to every reader.
+func urlText(u string) string {
+	var b strings.Builder
+	for i := 0; i < len(u); i++ {
+		switch c := u[i]; {
+		case c == '&':
+			b.WriteString("&amp;")
+		case strings.IndexByte(`\*_~[]!<>|`, c) >= 0:
+			b.WriteByte('\\')
+			b.WriteByte(c)
 		default:
 			b.WriteByte(c)
 		}
@@ -268,17 +323,10 @@ func plainURL(s string) string {
 	return b.String()
 }
 
-// urlMarkdownBytes are the printable ASCII bytes plainURL encodes wherever they stand.
-const urlMarkdownBytes = "\"'<>[\\]^`{|}*_~"
-
-// endsReference reports whether s ends as a character reference does before its `;`: an `&` and a
-// run of letters, digits and `#`.
-func endsReference(s string) bool {
-	i := len(s)
-	for i > 0 && (s[i-1] == '#' || s[i-1] >= '0' && s[i-1] <= '9' || s[i-1] >= 'a' && s[i-1] <= 'z' || s[i-1] >= 'A' && s[i-1] <= 'Z') {
-		i--
-	}
-	return i < len(s) && i > 0 && s[i-1] == '&'
+// urlDest is an encoded URL as a link's destination: a `\`, `(` and `)` escaped and an `&` a
+// character reference, so the destination a reader resolves is the URL.
+func urlDest(u string) string {
+	return strings.NewReplacer(`\`, `\\`, "(", `\(`, ")", `\)`, "&", "&amp;").Replace(u)
 }
 
 // abstractNote is what the reader is told about a citation that rests on the work's abstract

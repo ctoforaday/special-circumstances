@@ -239,7 +239,7 @@ func longestRun(s string, c byte) int {
 func judgementNotes(notes []string) string {
 	multi := false
 	for i, n := range notes {
-		notes[i] = strings.TrimSpace(lineEnds.Replace(stripTokens(n, false)))
+		notes[i] = strings.TrimSpace(lineEnds.Replace(StripTokens(n)))
 		multi = multi || strings.Contains(notes[i], "\n")
 	}
 	if !multi {

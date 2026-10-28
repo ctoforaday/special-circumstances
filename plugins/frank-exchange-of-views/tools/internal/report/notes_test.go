@@ -1,6 +1,9 @@
 package report
 
 import (
+	"html"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,47 +73,71 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 	}
 }
 
-// A CITATION'S URL IS ENCODED, NEVER ESCAPED, AND ITS TITLE IS ESCAPED IN PLACE. A URL and a copy's
-// URL are a seat's text as much as a title is, and not prose: a `[^1]` in one is a footnote reference
-// only the weave may write, and a backslash before it would be a character of every link a reader
-// makes, so each byte that could act as markdown is percent-encoded instead — and a backtick with
-// them, which would close a span the title opens, so the title's `[^2]` is escaped where it stands.
-// Each want is bytes cmark-gfm 0.29.0.gfm.13 (`--unsafe -e autolink -e table -e strikethrough -e
-// tasklist -e footnotes`) reads with no footnote reference and no HTML in the line, linking the URL
-// to href and text both equal to the encoded URL; report.html is read here.
+// A CITATION'S URL IS A LINK'S DESTINATION, NEVER PROSE, AND ITS TITLE IS ESCAPED IN PLACE. A URL and
+// a copy's URL are a seat's text as much as a title is, and not prose: written as one, a `[^1]` in it
+// is a footnote reference only the weave may write, a `*` or `_` opens emphasis, and the extended
+// autolink drops a last `.` or `!` from the link. So each is written `[text](destination)`, the
+// destination holding the URL's own bytes, and only a byte no URL may hold raw where it stands is
+// percent-encoded. A sub-delimiter (`;`, `*`, `'`, `(`, `)`, `!`, `&`), an underscore, a last `.` and
+// an IP literal's brackets stay as written: each names its resource raw, and encoded could name another.
+// A backtick is encoded, which would close a span the title opens, so the title's `[^2]` is escaped
+// where it stands. Each want is bytes cmark-gfm 0.29.0.gfm.13 (`--unsafe -e autolink -e table -e
+// strikethrough -e tasklist -e footnotes`) reads with no footnote reference and no HTML in the line,
+// linking the URL to the target written here; report.html is read here, every link of the line's
+// URLs in the note and in the Bibliography.
 func TestACitationsLineIsEscapedWhole(t *testing.T) {
 	for _, c := range []struct {
-		src       record.Source
-		line, url string // url is what each tier links; "" for a URL no reader links
+		src  record.Source
+		line string
+		// links are each link report.html makes of the line, as href then text, read as a browser
+		// reads the attribute and the text.
+		links [][2]string
 	}{
 		{record.Source{URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d"},
-			"T. doi:10.1/a%5B%5E1%5Db (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c%5B%5E1%5Dd]**", ""},
+			"T. [doi:10.1/a%5B%5E1%5Db](doi:10.1/a%5B%5E1%5Db) (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: [https://copy.invalid/c%5B%5E1%5Dd](https://copy.invalid/c%5B%5E1%5Dd)]**",
+			[][2]string{{"https://copy.invalid/c%5B%5E1%5Dd", "https://copy.invalid/c%5B%5E1%5Dd"}}},
 		{record.Source{URL: "https://x.co/a?q[^1]=b", Title: "x `[^2]"},
-			"x `\\[^2]. https://x.co/a?q%5B%5E1%5D=b", "https://x.co/a?q%5B%5E1%5D=b"},
+			"x `\\[^2]. [https://x.co/a?q%5B%5E1%5D=b](https://x.co/a?q%5B%5E1%5D=b)", [][2]string{{"https://x.co/a?q%5B%5E1%5D=b", "https://x.co/a?q%5B%5E1%5D=b"}}},
 		{record.Source{URL: "https://example.invalid/a`b", Title: "x `[^2]"},
-			"x `\\[^2]. https://example.invalid/a%60b", "https://example.invalid/a%60b"},
-		{record.Source{URL: "https://x.co/a_b_*c*~d~'e&amp;f\\g<h> i.", Title: "T"},
-			"T. https://x.co/a%5Fb%5F%2Ac%2A%7Ed%7E%27e&amp%3Bf%5Cg%3Ch%3E%20i%2E", "https://x.co/a%5Fb%5F%2Ac%2A%7Ed%7E%27e&amp;amp%3Bf%5Cg%3Ch%3E%20i%2E"},
-		{record.Source{URL: "https://x.co/ß(a))", Title: "T"}, "T. https://x.co/%C3%9F(a)%29", "https://x.co/%C3%9F(a)%29"},
-		{record.Source{URL: "https://x.co/a#b#c", Title: "T"}, "T. https://x.co/a#b%23c", "https://x.co/a#b%23c"},
+			"x `\\[^2]. [https://example.invalid/a%60b](https://example.invalid/a%60b)", [][2]string{{"https://example.invalid/a%60b", "https://example.invalid/a%60b"}}},
+		{record.Source{URL: "https://x.co/a_b_*c*~d~'e&amp;f;g!h<i> j.", Title: "T"},
+			"T. [https://x.co/a\\_b\\_\\*c\\*\\~d\\~'e&amp;amp;f;g\\!h%3Ci%3E%20j.](https://x.co/a_b_*c*~d~'e&amp;amp;f;g!h%3Ci%3E%20j.)",
+			[][2]string{{"https://x.co/a_b_*c*~d~'e&amp;f;g!h%3Ci%3E%20j.", "https://x.co/a_b_*c*~d~'e&amp;f;g!h%3Ci%3E%20j."}}},
+		{record.Source{URL: "https://x.co/ß(a))", Title: "T"}, "T. [https://x.co/%C3%9F(a))](https://x.co/%C3%9F\\(a\\)\\))", [][2]string{{"https://x.co/%C3%9F(a))", "https://x.co/%C3%9F(a))"}}},
+		{record.Source{URL: "https://x.co/a#b#c", Title: "T"}, "T. [https://x.co/a#b%23c](https://x.co/a#b%23c)", [][2]string{{"https://x.co/a#b%23c", "https://x.co/a#b%23c"}}},
+		{record.Source{URL: "http://[2001:db8::1]/paper", Title: "T"}, "T. [http://\\[2001:db8::1\\]/paper](http://[2001:db8::1]/paper)",
+			[][2]string{{"http://[2001:db8::1]/paper", "http://[2001:db8::1]/paper"}}},
+		{record.Source{URL: "https://w.invalid/wiki/foo_(bar)", Title: "T",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://web.archive.org/web/2020id_/https://w.invalid/a;b=c"},
+			"T. [https://w.invalid/wiki/foo\\_(bar)](https://w.invalid/wiki/foo_\\(bar\\)) **[READ FROM A RECOVERED COPY: [https://web.archive.org/web/2020id\\_/https://w.invalid/a;b=c](https://web.archive.org/web/2020id_/https://w.invalid/a;b=c)]**",
+			[][2]string{{"https://w.invalid/wiki/foo_(bar)", "https://w.invalid/wiki/foo_(bar)"}, {"https://web.archive.org/web/2020id_/https://w.invalid/a;b=c", "https://web.archive.org/web/2020id_/https://w.invalid/a;b=c"}}},
+		{record.Source{URL: "https://x.co/a\\b", Title: "T"}, "T. [https://x.co/a\\\\b](https://x.co/a\\\\b)", [][2]string{{"https://x.co/a%5Cb", "https://x.co/a\\b"}}},
 	} {
 		c.src.Label = "C-00000001"
 		got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{c.src})
 		for _, want := range []string{"[^1]: " + c.line + "\n", "- " + c.line + "\n"} {
 			if !strings.Contains(got, want) {
-				t.Errorf("%q: a citation's line is not its URLs encoded and its title escaped, want %q:\n%s", c.src.URL, want, got)
+				t.Errorf("%q: a citation's line is not its URLs as links and its title escaped, want %q:\n%s", c.src.URL, want, got)
 			}
 		}
 		if strings.Contains(ship(got), "\\[^1]") {
 			t.Errorf("%q: a URL took an escape:\n%s", c.src.URL, ship(got))
 		}
-		html := renderOne(got, FileReport, anchors{}, map[string]int{}, nil).html
-		if link := `<a href="` + c.url + `">` + c.url + `</a>`; c.url != "" && strings.Count(html, link) != 2 {
-			t.Errorf("%q: report.html does not link the encoded URL in the note and the Bibliography, want %q twice:\n%s", c.src.URL, link, html)
+		var links [][2]string
+		for _, m := range htmlLink.FindAllStringSubmatch(renderOne(got, FileReport, anchors{}, map[string]int{}, nil).html, -1) {
+			if !strings.HasPrefix(m[1], "#") {
+				links = append(links, [2]string{html.UnescapeString(m[1]), html.UnescapeString(m[2])})
+			}
+		}
+		if want := append(slices.Clone(c.links), c.links...); !slices.Equal(links, want) {
+			t.Errorf("%q: report.html links %q, want %q, the note's then the Bibliography's", c.src.URL, links, want)
 		}
 	}
 }
+
+// htmlLink is a link report.html writes: its href and its text.
+var htmlLink = regexp.MustCompile(`<a href="([^"]*)"[^>]*>(.*?)</a>`)
 
 // WHAT IS CODE TO ESCAPENOTES IS WHAT IS CODE TO BOTH SHIPPED READINGS (#1580). A reader with the HTML
 // grammar ends a comment's block at its line and takes the indented line after it as code; report.html,
@@ -141,7 +168,7 @@ func TestAFragmentIsEscapedAsItReadsInPlace(t *testing.T) {
 	}
 	// Through the two weaves that splice one: the note line holds the escape.
 	cited := weaveCitations("A claim<!--cite:C-00000001-->.\n", []record.Source{{Label: "C-00000001", URL: "https://example.invalid/a", Title: "```[^9] spec"}})
-	if !strings.Contains(cited, "[^1]: ```\\[^9] spec. https://example.invalid/a") {
+	if !strings.Contains(cited, "[^1]: ```\\[^9] spec. [https://example.invalid/a](https://example.invalid/a)") {
 		t.Errorf("the citation's note does not escape the title's [^9]:\n%s", cited)
 	}
 	proved, _ := weaveProofRefs("A claim<!--proof:P-00000001-->.\n", []record.Proof{{Label: "P-00000001", Reason: "```[^9] spec"}})

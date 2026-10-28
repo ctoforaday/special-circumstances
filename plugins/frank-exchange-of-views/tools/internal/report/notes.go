@@ -60,7 +60,7 @@ func (rd readers) escapeNotes(md string) string {
 // it holds whole, and each tier reads it as one line of a paragraph (lineReader, codeLineReader), never
 // as a document of its own: read alone, "```[^1] spec" opens a fence whose info string holds the
 // `[^1]`, which in place is prose. Nothing else on its line holds a backtick — a citation's URLs are
-// encoded (plainURL) — so a span the fragment holds is a span in place.
+// links that hold none (plainURL) — so a span the fragment holds is a span in place.
 func escapeNotesInLine(s string) string {
 	if !strings.Contains(s, noteOpen) {
 		return s

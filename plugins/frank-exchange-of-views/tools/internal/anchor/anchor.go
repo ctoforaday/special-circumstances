@@ -215,12 +215,13 @@ func EachWritten(s string, visit func(start, end int, held string)) {
 }
 
 // StripWritten is s with every token as written (EachWritten) taken out but each keep reports true
-// for — keep nil takes every one — and each line the strip leaves a husk (Husk) taken out whole. Lines
-// are matched by position: a token is one line's, so the strip takes no newline.
-func StripWritten(s string, keep func(tok string) bool) string {
+// for, given the token's span in s — keep nil takes every one — and each line the strip leaves a husk
+// (Husk) taken out whole. Lines are matched by position: a token is one line's, so the strip takes no
+// newline.
+func StripWritten(s string, keep func(start, end int) bool) string {
 	var spans [][2]int
 	EachWritten(s, func(start, end int, _ string) {
-		if keep != nil && keep(s[start:end]) {
+		if keep != nil && keep(start, end) {
 			return
 		}
 		spans = append(spans, [2]int{start, end})

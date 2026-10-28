@@ -6351,11 +6351,11 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 			continue
 		}
 		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
-		// (anchor.StripWritten, a line left a husk with them) — a gap anchor a seat quoted into its
-		// retire or a prescription carried is not prose — and, where the tool places it in a line, on
-		// one line; so both sides are read with their whitespace runs one space, and as a reader reads
-		// them (asRead).
-		prose := flat(asRead(anchor.StripWritten(fieldStr(t, e, key), nil)))
+		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
+		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
+		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
+		// space, and as a reader reads them (asRead).
+		prose := flat(asRead(reportdoc.StripTokens(fieldStr(t, e, key))))
 		if prose == "" || strings.Contains(flatRpt, prose) {
 			continue
 		}

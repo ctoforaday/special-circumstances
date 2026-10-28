@@ -75,7 +75,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
@@ -401,7 +401,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		}
 	}
 
-	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})

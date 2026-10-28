@@ -145,7 +145,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// The title enters composition here, so its tokens leave here, before heading measures and cuts it
 	// (stripTokens): a token's bytes are no part of the length a reader sees, and the cut is at a
 	// boundary in what ships. The Question line is cut from the same title.
-	a.blue.title = stripTokens(a.blue.title, false)
+	a.blue.title = rd.stripTokens(a.blue.title, false)
 	title, _ := heading(a.blue.title)
 	body := map[string]*sections{}
 	composed := map[string]bool{}
@@ -174,7 +174,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		}
 		inq += reviews
 	}
-	inq = rd.escapeNotes(stripTokens(inq, true))
+	inq = rd.escapeNotes(rd.stripTokens(inq, true))
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -251,30 +251,53 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	return out, composed, title, nil
 }
 
-// NO TOKEN SHIPS, AND IT IS MADE SO WHERE TEXT ENTERS COMPOSITION. A seat copies a token into record
-// prose — a finding's location, a proof's reason, a citation's title — and the report's text carries
-// the ones the tool placed. Every such text passes stripTokens as it enters a document: each section
-// a row composes, before its notes are escaped (Section.block); the inquiries document; and each
-// field the tool writes into a line after the weave — a note's text, a Bibliography entry, a field of
-// evidence.md (plain). Stripped later, a token's removal joined the bytes either side of it into
-// syntax nothing had escaped: `[<!--gap:G-00000001-->^1]` became a live `[^1]`. The proofs' scripts
-// and outputs in evidence.md are no field: they are the bytes that ran, and ship as such.
+// NO TOKEN SHIPS IN PROSE, AND IT IS MADE SO WHERE TEXT ENTERS COMPOSITION. A seat copies a token into
+// record prose — a finding's location, a proof's reason, a citation's title — and the report's text
+// carries the ones the tool placed. Every such text passes stripTokens as it enters a document: each
+// section a row composes, before its notes are escaped (Section.block); the inquiries document; and
+// each field the tool writes into a line after the weave — a note's text, a Bibliography entry, a
+// field of evidence.md (plain). Stripped later, a token's removal joined the bytes either side of it
+// into syntax nothing had escaped: `[<!--gap:G-00000001-->^1]` became a live `[^1]`. A token in a
+// seat's code ships as typed: code is the bytes a seat quotes, a script as it ran, and the proofs'
+// scripts and outputs in evidence.md are no field at all.
 
-// stripTokens is md with every anchor token as written (anchor.StripWritten) taken out, but, where weave
-// is set, a token of a real id the weave turns into a note (a citation's or a proof's): the text a
-// woven document is composed from keeps those for the weave, and every other text keeps none.
+// stripTokens is md with every anchor token as written (anchor.StripWritten) taken out but those in
+// code and, where weave is set, a token of a real id the weave turns into a note (a citation's or a
+// proof's): the text a woven document is composed from keeps those for the weave, and every other
+// text keeps none. Code is what both tiers read as code (noteCode), the reading the note escape takes:
+// a token one tier reads as prose would ship there as prose.
 //
 // A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
 // finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ." in
 // universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker at
 // most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that
-// held a token is content — a table's delimiter row, a row of marks, a rule, a line of code — and
-// ships without the token.
-func stripTokens(md string, weave bool) string {
-	if !weave {
-		return anchor.StripWritten(md, nil)
+// held a token is content — a table's delimiter row, a row of marks, a rule — and ships without the
+// token; a line of code keeps its token, so the strip leaves it no husk.
+func (rd readers) stripTokens(md string, weave bool) string {
+	held := false
+	anchor.EachWritten(md, func(int, int, string) { held = true })
+	if !held {
+		return md
 	}
-	return anchor.StripWritten(md, wovenToken)
+	src := []byte(md)
+	code := noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+	return anchor.StripWritten(md, func(start, end int) bool {
+		return inCode(code, start, end) || weave && wovenToken(md[start:end])
+	})
+}
+
+// StripTokens is a record field with its tokens taken out as assembly takes them from a field it
+// writes (plain): the release gate's prose oracle reads a seat's field with it.
+func StripTokens(s string) string { return stdReaders().stripTokens(s, false) }
+
+// inCode reports whether the span [start, end) lies inside one stretch of code, the stretches in order.
+func inCode(code [][2]int, start, end int) bool {
+	for _, c := range code {
+		if c[0] <= start && end <= c[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a

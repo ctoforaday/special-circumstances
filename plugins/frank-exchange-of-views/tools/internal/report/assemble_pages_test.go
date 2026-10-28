@@ -13,14 +13,17 @@ import (
 
 const pdfURL = "https://ex/1012.pdf"
 
+// pdfLink is pdfURL as a citation's line writes it (plainURL).
+const pdfLink = "[" + pdfURL + "](" + pdfURL + ")"
+
 func TestWeaveNoteCarriesThePDFPage(t *testing.T) {
 	cases := []struct {
 		pages []int32
 		note  string
 	}{
-		{[]int32{10}, "[^1]: IEEE 1012, PDF p. 10. " + pdfURL + " (accessed 2026-09-15)\n"},
-		{[]int32{10, 34}, "[^1]: IEEE 1012, PDF pp. 10, 34. " + pdfURL + " (accessed 2026-09-15)\n"},
-		{nil, "[^1]: IEEE 1012. " + pdfURL + " (accessed 2026-09-15)\n"},
+		{[]int32{10}, "[^1]: IEEE 1012, PDF p. 10. " + pdfLink + " (accessed 2026-09-15)\n"},
+		{[]int32{10, 34}, "[^1]: IEEE 1012, PDF pp. 10, 34. " + pdfLink + " (accessed 2026-09-15)\n"},
+		{nil, "[^1]: IEEE 1012. " + pdfLink + " (accessed 2026-09-15)\n"},
 	}
 	for _, tc := range cases {
 		got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{
@@ -30,7 +33,7 @@ func TestWeaveNoteCarriesThePDFPage(t *testing.T) {
 			t.Errorf("pages %v: note is not %q:\n%s", tc.pages, tc.note, got)
 		}
 		bib := got[strings.Index(got, "## Bibliography"):]
-		if bib != "## Bibliography\n\n- IEEE 1012. "+pdfURL+" (accessed 2026-09-15)\n" {
+		if bib != "## Bibliography\n\n- IEEE 1012. "+pdfLink+" (accessed 2026-09-15)\n" {
 			t.Errorf("pages %v: the Bibliography is not one page-less line:\n%s", tc.pages, bib)
 		}
 	}
@@ -61,18 +64,18 @@ func TestWeaveKeysNotesOnURLAndPages(t *testing.T) {
 		if !strings.Contains(got, "A[^1]. Later[^2].") {
 			t.Errorf("adjacent pageless anchor did not read as the paged note, or the lone one did not keep its own:\n%s", got)
 		}
-		if !strings.Contains(got, "[^1]: IEEE 1012, PDF p. 10.") || !strings.Contains(got, "[^2]: 1012. "+pdfURL) {
+		if !strings.Contains(got, "[^1]: IEEE 1012, PDF p. 10.") || !strings.Contains(got, "[^2]: 1012. "+pdfLink) {
 			t.Errorf("notes wrong:\n%s", got)
 		}
 		// Blue's title, and the earliest date across both.
-		if !strings.Contains(got, "- IEEE 1012. "+pdfURL+" (accessed 2026-09-14)\n") || strings.Count(got, "- ") != 1 {
+		if !strings.Contains(got, "- IEEE 1012. "+pdfLink+" (accessed 2026-09-14)\n") || strings.Count(got, "- ") != 1 {
 			t.Errorf("the Bibliography is not one line with blue's title and the earliest date:\n%s", got)
 		}
 	})
 	t.Run("a corroboration alone keeps its own title", func(t *testing.T) {
 		corr := record.Source{Label: "C-0000000f", URL: pdfURL, Title: "1012", AccessDate: "2026-09-14", Corroborated: true}
 		got := weaveCitations("A<!--cite:C-0000000f-->.\n", []record.Source{corr})
-		if !strings.Contains(got, "- 1012. "+pdfURL) {
+		if !strings.Contains(got, "- 1012. "+pdfLink) {
 			t.Errorf("a lone corroboration's line does not carry its title:\n%s", got)
 		}
 	})

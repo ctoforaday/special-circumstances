@@ -89,7 +89,7 @@ type Section struct {
 func (s Section) block(a *assembly) string {
 	// The section's text enters its document here, so its tokens leave here, before anything reads
 	// what their removal joins (stripTokens).
-	text := stripTokens(s.compose(a, s), true)
+	text := a.rd.stripTokens(s.compose(a, s), true)
 	if s.Composer == Tool {
 		// WHAT ASSEMBLY COMPOSES OPENS NO FOOTNOTE (notes.go): the weave runs over the document
 		// after this, and is the one writer of a note in it.
@@ -708,9 +708,10 @@ func notesRow() Section {
 // backticks after "www.x.com", the first pair GitHub's extended autolink takes into the URL — is a
 // live footnote in the .md, and is refused.
 //
-// THE TEXT IS READ AS IT SHIPS. Assembly takes each token the weave does not turn into a note out of
-// the report's text as it enters its document (stripTokens), and what stood either side of one joins:
-// `[<!--gap:G-00000001-->^1]` ships as a live `[^1]`. Read with its tokens in, it holds no label.
+// THE TEXT IS READ AS IT SHIPS. Assembly takes each token outside code the weave does not turn into a
+// note out of the report's text as it enters its document (stripTokens), and what stood either side of
+// one joins: `[<!--gap:G-00000001-->^1]` ships as a live `[^1]`. Read with its tokens in, it holds no
+// label. Each stretch read here is prose, so every such token in it is taken.
 func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 	c, found := added(wovenNotes(was), wovenNotes(text))
 	return c.text, c.row, found
@@ -719,7 +720,7 @@ func WovenNoteIn(was, text ParsedText) (label string, s Section, found bool) {
 func wovenNotes(text ParsedText) (out []claim) {
 	src := string(text.src)
 	prose := func(s string) {
-		for _, m := range wovenNote.FindAllString(stripTokens(s, true), -1) {
+		for _, m := range wovenNote.FindAllString(anchor.StripWritten(s, func(start, end int) bool { return wovenToken(s[start:end]) }), -1) {
 			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	}

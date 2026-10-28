@@ -196,8 +196,8 @@ func TestATextInOrderShipsInTheOrderWritten(t *testing.T) {
 				t.Fatal(err)
 			}
 			at := 0
-			for _, ln := range strings.Split(doc, "\n")[1:] {
-				if ln = strings.TrimSpace(stripTokens(ln, true)); ln == "" {
+			for _, ln := range strings.Split(stdReaders().stripTokens(doc, true), "\n")[1:] {
+				if ln = strings.TrimSpace(ln); ln == "" {
 					continue
 				}
 				i := strings.Index(docs[0].Body[at:], ln)

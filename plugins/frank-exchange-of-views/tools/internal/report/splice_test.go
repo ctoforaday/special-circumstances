@@ -226,9 +226,11 @@ func sameEntries[T comparable](a, b []T) bool {
 	return true
 }
 
-// ONE PAGE PARSE PER DOCUMENT. Assembly and shipping read a document's text once in report.html's
-// reading, where the text is not changed between: a strip after the weave parsed each document holding
-// a token again.
+// ONE PAGE PARSE PER DOCUMENT, AND ONE PER TEXT THE STRIP READS. Assembly and shipping read a
+// document's text once in report.html's reading, where the text is not changed between: a strip after
+// the weave parsed each document holding a token again. The strip as text enters composition reads a
+// text that holds a token once, for where its code is (stripTokens): run.md's one section holding the
+// log entry is read once there and once to ship.
 func TestADocumentIsReadOncePerAssembly(t *testing.T) {
 	const marker = "LOGMARKER"
 	_, run := seededRun(t,
@@ -248,14 +250,15 @@ func TestADocumentIsReadOncePerAssembly(t *testing.T) {
 		t.Fatal(err)
 	}
 	rd.shipSet(title, docs)
-	if pages != 1 {
-		t.Errorf("run.md was read %d time(s) in report.html's reading, want once (%d parses in all)", pages, *marked)
+	if pages != 2 {
+		t.Errorf("run.md was read %d time(s) in report.html's reading, want twice (%d parses in all)", pages, *marked)
 	}
 }
 
 // ONE STRIP, ONE RULE. Every token as written leaves, whatever it holds — a seat copies one into record
-// prose with its id elided — but, for text a weave follows, a token of a real id the weave turns into a
-// note. A token is one line's, and a line the strip leaves a husk goes whole.
+// prose with its id elided — but a token in code, which ships as the seat typed it, and, for text a
+// weave follows, a token of a real id the weave turns into a note. A token is one line's, and a line
+// the strip leaves a husk goes whole: a fenced `- <!--gap:…-->` is code, keeps its token and is no husk.
 func TestStripTokens(t *testing.T) {
 	for _, c := range []struct {
 		in    string
@@ -264,14 +267,46 @@ func TestStripTokens(t *testing.T) {
 	}{
 		{"A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", true, "A b<!--cite:C-00000002-->."},
 		{"A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->.", false, "A b."},
-		{"a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token", true, "a ``, `` or `` token"},
+		{"a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token", true, "a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token"},
+		{"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\n- <!--gap:G-00000001-->.\nprose<!--fx:F-00000001--> `x<!--cite:C-00000002-->`\n", false,
+			"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\nprose `x<!--cite:C-00000002-->`\n"},
+		{"    indented <!--fx:F-00000001-->\n", false, "    indented <!--fx:F-00000001-->\n"},
 		{"one<!--proof:P-00000003--> two", true, "one<!--proof:P-00000003--> two"},
 		{"A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n", true, "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"},
 		{"- kept\n- <!--fx:F-1-->.\n- **<!--cite:C-…-->**\n|---|<!--gap:G-1-->\n", true, "- kept\n|---|\n"},
 	} {
-		if got := stripTokens(c.in, c.weave); got != c.want {
-			t.Errorf("stripTokens(%q, %v) = %q, want %q", c.in, c.weave, got, c.want)
+		if got := stdReaders().stripTokens(c.in, c.weave); got != c.want {
+			t.Errorf("stdReaders().stripTokens(%q, %v) = %q, want %q", c.in, c.weave, got, c.want)
 		}
+	}
+}
+
+// A SEAT'S CODE SHIPS AS IT TYPED IT, TOKENS AND ALL. A script quoted in a fence and a command in a
+// code span are the bytes that ran; a token in prose leaves, and the line it leaves a husk with it.
+func TestATokenInCodeShipsInReportMD(t *testing.T) {
+	const fence = "```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```"
+	blue := "# T\n\n## Analysis\n\n" + fence + "\n\nRun `grep '<!--gap:G-00000001-->'` here<!--fx:F-00000001-->.\n\n- <!--fx:F-00000001-->.\n- kept\n"
+	runDir := newRun(t)
+	run := runtest.Open(t, runDir)
+	id := record.Identity{Run: run, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+		t.Fatal(err)
+	}
+	set, err := AssembleShipped(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	md := set.md[0]
+	for _, want := range []string{fence + "\n", "Run `grep '<!--gap:G-00000001-->'` here.\n", "\n- kept\n"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report.md does not hold %q:\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "- .") {
+		t.Errorf("a line the strip left a husk shipped:\n%s", md)
 	}
 }
 

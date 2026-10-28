@@ -59,8 +59,10 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 				have[strings.TrimSpace(ln)]++
 			}
 			want := map[string]int{}
-			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(stripTokens(ln, true)); ln != "" {
+			// The text is stripped whole, as assembly strips it: a token in code stays (stripTokens).
+			stripped := stdReaders().stripTokens(blue, true)
+			for _, ln := range strings.Split(stripped, "\n") {
+				if ln = strings.TrimSpace(ln); ln != "" {
 					want[ln]++
 				}
 			}
@@ -72,8 +74,8 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			// AND NONE MOVES PAST ANOTHER: but for the title line, which opens the document, the
 			// text's lines stand in report.md in the order written, whatever order that is.
 			at, title := 0, part(ParseText(blue)).title
-			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(stripTokens(ln, true)); ln == "" {
+			for _, ln := range strings.Split(stripped, "\n") {
+				if ln = strings.TrimSpace(ln); ln == "" {
 					continue
 				}
 				if ln == title {

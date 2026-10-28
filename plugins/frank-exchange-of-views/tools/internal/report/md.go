@@ -562,7 +562,21 @@ func linkURL(dest []byte) string {
 	if i := bytes.IndexAny(u, ":/?#"); i >= 0 && u[i] == ':' && !slices.Contains(linkSchemes, strings.ToLower(string(u[:i]))) {
 		return ""
 	}
-	return string(util.URLEscape(u, false))
+	// AN IP LITERAL'S BRACKETS ARE THE HOST'S SYNTAX: encoded, `http://[2001:db8::1]/` names no host.
+	// The authority is encoded around them (urlAuthority), and the rest of the URL whole.
+	start, end := urlAuthority(string(u))
+	var b bytes.Buffer
+	b.Write(util.URLEscape(u[:start], false))
+	last := start
+	for i := start; i < end; i++ {
+		if u[i] == '[' || u[i] == ']' {
+			b.Write(util.URLEscape(u[last:i], false))
+			b.WriteByte(u[i])
+			last = i + 1
+		}
+	}
+	b.Write(util.URLEscape(u[last:], false))
+	return b.String()
 }
 
 // supRef is a footnote reference outside a document's citation layer — a title, a note's scent —

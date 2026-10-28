@@ -582,8 +582,8 @@ func TestWovenNoteInReadsCodeAsTheShippedReadingsDo(t *testing.T) {
 // own note of that label.
 func TestWovenNoteInReadsTheTextAsItShips(t *testing.T) {
 	doc := "A claim [<!--gap:G-00000001-->^1] here.\n"
-	if !strings.Contains(stripTokens(doc, true), "[^1]") {
-		t.Fatalf("assembly does not join the label, so this measures nothing: %q", stripTokens(doc, true))
+	if !strings.Contains(stdReaders().stripTokens(doc, true), "[^1]") {
+		t.Fatalf("assembly does not join the label, so this measures nothing: %q", stdReaders().stripTokens(doc, true))
 	}
 	if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); !found || l != "[^1]" {
 		t.Errorf("a label the strip joins is not refused: %q, %v", l, found)

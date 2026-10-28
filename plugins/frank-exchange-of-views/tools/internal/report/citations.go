@@ -110,7 +110,7 @@ func readings(vs []record.EvidenceVerificationJSON, backs string) string {
 // plain is a record field as the tool writes it into a line it composes after the weave — a field of
 // evidence.md, a note's text, a Bibliography entry — on one line, with no anchor token in it
 // (stripTokens): no weave follows to take one, and no strip.
-func plain(s string) string { return oneLine(stripTokens(s, false)) }
+func plain(s string) string { return oneLine(StripTokens(s)) }
 
 // indent prefixes every non-empty line of s.
 func indent(s, by string) string {
