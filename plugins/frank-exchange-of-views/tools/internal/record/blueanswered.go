@@ -28,6 +28,12 @@ import (
 // still sitting and may yet answer" are the same silence on the record, and a lens handed the first
 // where the second is true files a closing argument about a dispute that is still in progress.
 // BlueSitting.Unresolved is that fact, and it is read here rather than re-derived.
+//
+// A REMAND IS ANSWERED ONLY AFTER IT (ruled by gblock 2026-10-27). The bench remanded the gap
+// having heard every answer blue gave before the ruling, so none of them answers the remand: on
+// universe-m35 the voice lens's list said "ANSWERED by an edit" beside the remand item while every
+// answering edit predated the ruling. blueAnswersOf reads each gap's answers after its latest remand
+// ruling, so this list, the lens's debt (lensOwesOf) and blue's kept-grade items agree.
 func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
 	minted := mintedBy(evs)
 	var mine []string
@@ -42,7 +48,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 	if len(mine) == 0 {
 		return nil
 	}
-	answers := blueAnswersOf(evs, win, open)
+	answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
 	var out []string
 	for _, g := range mine {
 		a := answers[g]
@@ -86,8 +92,11 @@ func (a blueAnswer) answered() bool { return a.at != 0 }
 
 // blueAnswersOf is blue's answer to each gap of open, by gap: the one reading of it, which the gap's
 // lens is handed (blueAnswers) and owes while it has not sat since (lensOwesOf). The inquiry a gap is
-// anchored on is its mint's, as the gap view's about columns are.
-func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[string]blueAnswer {
+// anchored on is its mint's, as the gap view's about columns are. A remanded gap's answer is read
+// after its latest remand ruling only (remandFloorsOf, off motions — motionsAt's fold of evs, which
+// a caller that already holds it passes rather than folding twice): a sitting opened before it, and
+// an act recorded before it, answers nothing the remand asks.
+func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions []*Motion) map[string]blueAnswer {
 	out := map[string]blueAnswer{}
 	inquiryOf := map[string]string{} // gap -> the inquiry it is anchored on
 	for _, e := range evs {
@@ -95,6 +104,8 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[stri
 			inquiryOf[m.GetGapId()] = m.GetAboutRef()
 		}
 	}
+	floor := remandFloorsOf(motions, open)
+	after := func(g string, e *Event) bool { return win.Of(e).ID > floor[g] }
 	at := func(g string, e *Event) {
 		a := out[g]
 		if id := win.Of(e).ID; id > a.at {
@@ -105,8 +116,9 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[stri
 	// WhileRunning, because this list is read by a seat that is sitting: a later reading is not the
 	// question, and the latest blue sitting is exactly the one that may still be answering.
 	for _, s := range BlueSittings(evs, win, WhileRunning) {
+		opening := evs[s.opened]
 		for _, g := range s.Engaged {
-			if !open[g] {
+			if !open[g] || !after(g, opening) {
 				continue
 			}
 			a := out[g]
@@ -120,7 +132,7 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[stri
 		for _, e := range s.Acts {
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 				for _, g := range s.Engaged {
-					if q, anchored := inquiryOf[g]; anchored && open[g] && q == in.GetInquiryId() {
+					if q, anchored := inquiryOf[g]; anchored && open[g] && q == in.GetInquiryId() && after(g, e) {
 						a := out[g]
 						a.fate = recordpb.Word(in.GetStatus())
 						out[g] = a
@@ -135,12 +147,27 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[stri
 			}
 			// old != new is the same substantive-movement test exchangesOf applies: an edit that
 			// replaced a span with itself is an act and not an answer.
-			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() {
+			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() && after(g, e) {
 				a := out[g]
 				a.edited, a.inquiry = true, inquiryOf[g]
 				out[g] = a
 				at(g, e)
 			}
+		}
+	}
+	return out
+}
+
+// remandFloorsOf is the events.id of the latest remand ruling on each gap of open — the place after
+// which blue's answer to it is read (blueAnswersOf) — off the motion fold the bench's other readers
+// take (motionsAt, read at events.id), so a remand is the ruling the docket's disposition says it
+// is. A gap the bench never remanded has none, and every answer counts.
+func remandFloorsOf(motions []*Motion, open map[string]bool) map[string]int64 {
+	out := map[string]int64{}
+	remanded := recordpb.Word(recordpb.Disposition_DISPOSITION_REMANDED)
+	for _, m := range motions {
+		if m.Subject == "docket" && m.Ruling == remanded && open[m.GapID] {
+			out[m.GapID] = max(out[m.GapID], m.ruled)
 		}
 	}
 	return out
