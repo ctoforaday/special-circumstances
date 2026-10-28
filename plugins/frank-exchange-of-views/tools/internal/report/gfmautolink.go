@@ -24,6 +24,7 @@ import (
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
@@ -40,6 +41,8 @@ func viewerInlineParsers() []util.PrioritizedValue {
 			ps[i].Value = bracketWatch{p.Value.(parser.InlineParser)}
 		case parser.NewEmphasisParser():
 			ps[i].Value = wwwAfter{p.Value.(parser.InlineParser)}
+		case parser.NewCodeSpanParser():
+			ps[i].Value = cmarkBackticks{p.Value.(parser.InlineParser)}
 		}
 	}
 	return append(ps,
@@ -47,47 +50,64 @@ func viewerInlineParsers() []util.PrioritizedValue {
 		util.Prioritized(gfmAutolink{}, 999))
 }
 
-// bracketsKey holds, in one parse's context, the brackets open where the parse stands (bracketWatch).
+// bracketsKey holds, in one parse's context, how many brackets are open where the parse stands
+// (bracketWatch).
 var bracketsKey = parser.NewContextKey()
 
-// openBracket is one `[` or `![` the parse has open, and whether it can still become a link: a link closed
-// inside it makes every enclosing link bracket inactive, since a link holds no link.
-type openBracket struct{ image, active bool }
-
-// bracketWatch is the link parser, keeping cmark-gfm's account of the open brackets beside goldmark's.
+// bracketWatch is the link parser, keeping cmark-gfm's count of the open brackets beside goldmark's: a
+// `[` or `![` stays open until a `]` closes it, whether or not it can still become a link.
 type bracketWatch struct{ parser.InlineParser }
 
 func (w bracketWatch) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	line, _ := block.PeekLine()
+	dest := inlineDestAngles(line, block)
 	n := w.InlineParser.Parse(parent, block, pc)
-	open, _ := pc.Get(bracketsKey).([]openBracket)
-	switch {
-	case line[0] == '[':
-		open = append(open, openBracket{active: true})
-	case line[0] == '!' && n != nil:
-		open = append(open, openBracket{image: true, active: true})
-	case line[0] == ']' && len(open) > 0:
-		open = open[:len(open)-1]
-		if _, ok := n.(*ast.Link); ok {
-			for i := range open {
-				open[i].active = open[i].image
-			}
+	switch n.(type) {
+	case *ast.Link, *ast.Image:
+		for _, i := range dest {
+			recordHTML(pc, i)
 		}
+	}
+	open, _ := pc.Get(bracketsKey).(int)
+	switch {
+	case line[0] == '[' || line[0] == '!' && n != nil:
+		open++
+	case line[0] == ']' && open > 0:
+		open--
 	}
 	pc.Set(bracketsKey, open)
 	return n
 }
 
+// inlineDestAngles is the source offset of each `<` inside the angle-bracket destination of the inline
+// link or image a `]` at line would close (angleDestAngles): goldmark takes the link, cmark-gfm takes none, and
+// the probe records them (htmlAt), as written `&lt;` they leave the destination the same to both.
+func inlineDestAngles(line []byte, block text.Reader) []int {
+	if len(line) < 2 || line[0] != ']' || line[1] != '(' {
+		return nil
+	}
+	l, pos := block.Position()
+	defer block.SetPosition(l, pos)
+	block.Advance(2)
+	block.SkipSpaces()
+	b, seg := block.PeekLine()
+	at := angleDestAngles(b)
+	for k := range at {
+		at[k] += seg.Start - seg.Padding // a tab's padding stands before the line's bytes
+	}
+	return at
+}
+
 func (w bracketWatch) CloseBlock(parent ast.Node, block text.Reader, pc parser.Context) {
-	pc.Set(bracketsKey, nil)
+	pc.Set(bracketsKey, 0)
 	w.InlineParser.(parser.CloseBlocker).CloseBlock(parent, block, pc)
 }
 
-// inBracket reports whether the innermost open bracket can still become a link: cmark-gfm links no URL
-// there.
+// inBracket reports whether a bracket is open: cmark-gfm links no URL inside one, even one a link
+// closed inside it has made unable to become a link.
 func inBracket(pc parser.Context) bool {
-	open, _ := pc.Get(bracketsKey).([]openBracket)
-	return len(open) > 0 && open[len(open)-1].active
+	open, _ := pc.Get(bracketsKey).(int)
+	return open > 0
 }
 
 // wwwAfter is a delimiter parser — emphasis, strikethrough — followed by GitHub's `www.` link where one
@@ -141,6 +161,11 @@ func (gfmAutolink) Parse(parent ast.Node, block text.Reader, pc parser.Context) 
 			return nil
 		}
 		lead = 2
+	case !lineHead(parent, block, seg):
+		// goldmark hands the byte after any inline node to the parsers a line's head goes to; cmark-gfm
+		// reads the byte before `www.`, and a code span's backtick, a link's `)` or a tag's `>` is
+		// none it links after.
+		return nil
 	}
 	end := wwwEnd(line[min(lead, len(line)):])
 	if end == 0 {
@@ -151,6 +176,18 @@ func (gfmAutolink) Parse(parent ast.Node, block text.Reader, pc parser.Context) 
 	}
 	block.Advance(lead + end)
 	return ast.NewAutoLink(ast.AutoLinkURL, ast.NewTextSegment(text.NewSegment(seg.Start+lead, seg.Start+lead+end)))
+}
+
+// lineHead reports whether seg, where the inline parse of parent stands, opens one of parent's lines —
+// the head of the text cmark-gfm parses, or the byte after a line ending in it — or follows a task
+// item's checkbox, which cmark-gfm takes off the text before it parses it.
+func lineHead(parent ast.Node, block text.Reader, seg text.Segment) bool {
+	if _, ok := parent.FirstChild().(*east.TaskCheckBox); ok && parent.FirstChild() == parent.LastChild() {
+		return true
+	}
+	l, _ := block.Position()
+	lines := parent.Lines()
+	return l < lines.Len() && lines.At(l).Start == seg.Start
 }
 
 // wwwEnd is the length of the `www.` link data opens with, or 0 (cmark-gfm's www_match).

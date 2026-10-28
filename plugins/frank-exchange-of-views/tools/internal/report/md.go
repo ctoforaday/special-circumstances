@@ -47,12 +47,12 @@ import (
 
 var (
 	// mdReader is the dialect a markdown viewer reads a shipped .md in: CommonMark with its HTML grammar,
-	// GitHub's extensions with GitHub's extended autolink (viewerInlineParsers), and footnotes, keeping a
-	// definition nothing references.
+	// GitHub's extensions with GitHub's extended autolink (viewerInlineParsers), and footnotes read as
+	// GitHub reads them (viewerFootnote), keeping a definition nothing references.
 	mdReader = goldmark.New(goldmark.WithParser(parser.NewParser(
-		parser.WithBlockParsers(append(blockParsers(),
+		parser.WithBlockParsers(append(viewerBlockParsers(),
 			util.Prioritized(parser.NewHTMLBlockParser(), htmlBlockPriority),
-			util.Prioritized(extension.NewFootnoteBlockParser(), 999))...),
+			util.Prioritized(viewerFootnote{extension.NewFootnoteBlockParser()}, 999))...),
 		parser.WithInlineParsers(append(viewerInlineParsers(),
 			util.Prioritized(parser.NewRawHTMLParser(), rawHTMLPriority),
 			util.Prioritized(extension.NewFootnoteParser(), 101))...),

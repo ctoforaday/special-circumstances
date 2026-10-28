@@ -23,7 +23,9 @@ func viewerLinks(md string) []string {
 	return out
 }
 
-// THE VIEWER LINKS WHAT GITHUB LINKS. The cases are the GitHub Flavored Markdown spec's own for the
+// THE VIEWER LINKS WHAT GITHUB LINKS. Every expected value here and in the shipping tests below is
+// cmark-gfm 0.29.0.gfm.13's reading (`-e autolink -e table -e strikethrough -e tasklist -e footnotes`).
+// The cases are the GitHub Flavored Markdown spec's own for the
 // extended autolink (§6.9), each with the URL cmark-gfm links, and the shapes ship has to read as
 // GitHub does: a backslash and a backtick taken into a URL, a link in brackets, and the bytes before
 // `www.` and before a scheme.
@@ -58,10 +60,19 @@ func TestTheViewerLinksWhatGitHubLinks(t *testing.T) {
 		{"~~www.x.co~~", []string{"www.x.co"}},
 		{"xwww.x.co", nil},
 		{"xhttp://y.co", nil},
-		// In a bracket no URL is linked, until a link closed inside it makes it one no link can be.
+		// cmark-gfm reads the byte before `www.`: after a code span, a link or a footnote reference
+		// there is none it links after, and after a task item's checkbox the text has begun.
+		{"`x`www.x.co/a", nil},
+		{"[a](b)www.x.co", nil},
+		{"- [ ] www.x.co/a", []string{"www.x.co/a"}},
+		{"- [x] *www.x.co*", []string{"www.x.co"}},
+		// In a bracket no URL is linked, while the bracket is open: a link closed inside it does not
+		// close it.
 		{"[http://x.co/a](u)", nil},
-		{"[x [a](b) http://x.co/a]", []string{"http://x.co/a]"}},
+		{"[x [a](b) http://x.co/a]", nil},
 		{"![http://x.co/a](u)", nil},
+		{"[a] http://x.co", []string{"http://x.co"}},
+		{"a ![b](c) http://x.co ]", []string{"http://x.co"}},
 	} {
 		if got := viewerLinks(c.md); !slices.Equal(got, c.want) {
 			t.Errorf("%q: the viewer links %q; GitHub links %q", c.md, got, c.want)
@@ -133,4 +144,50 @@ func pageText(md string) string {
 // decoded is v with its escapes and character references read.
 func decoded(v []byte) []byte {
 	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(v)))
+}
+
+// A SHIPPED .md HOLDS NO HTML FOR GITHUB'S PARSER WHERE GOLDMARK READS OTHERWISE. Each seat text below
+// holds a tag cmark-gfm 0.29.0.gfm.13 renders as HTML while goldmark reads that `<` as no HTML: after
+// a code span, where goldmark would link a `www.` that swallows the backtick opening the next span; in
+// an angle-bracket destination goldmark takes a `<` into and cmark-gfm refuses, so no link and a live
+// tag; in a footnote whose text starts four spaces after its colon, a code block to goldmark; in a
+// footnote defined inside a footnote, which goldmark drops before reading it; on a blockquote line a
+// tab indents less than four columns, which goldmark's HTML block parser does not open on; after a
+// task item's checkbox; at a `<?` or `<!` a byte that is not UTF-8 follows; after a backtick
+// cmark-gfm's run cache reads as unclosed; and inside a list item an empty sublist and a blank line
+// end in goldmark. Each ships as the bytes cmark-gfm reads with no HTML, and no others.
+func TestTheShippedMDHoldsNoHTMLForGitHubsParser(t *testing.T) {
+	for _, c := range []struct{ md, want string }{
+		{"`x`www.x.co/a` `<b>`\n", "`x`www.x.co/a` `&lt;b>`\n"},
+		{"[t](<a<b>)\n", "[t](<a&lt;b>)\n"},
+		{"[t](\n<a<b>)\n", "[t](\n<a&lt;b>)\n"},
+		{"![](<<i>)\n", "![](<&lt;i>)\n"},
+		{"[a]\n\n[a]: <te<st>\n", "[a]\n\n[a]: <te&lt;st>\n"},
+		{"[a]\n\n[a]:\n<te<st>\n", "[a]\n\n[a]:\n<te&lt;st>\n"},
+		{"[a]\n\n[b]: u\n[a]: <te<st>\n", "[a]\n\n[b]: u\n[a]: <te&lt;st>\n"},
+		{"x[^1]\n\n[^1]:     <b>\n", "x[^1]\n\n[^1]:     &lt;b>\n"},
+		{"x[^1]\n\n[^1]: [^1]: <b>x\n", "x[^1]\n\n[^1]: [^1]: &lt;b>x\n"},
+		{"> \t<?x\n", "> \t&lt;?x\n"},
+		{"> \t<div>\n", "> \t&lt;div>\n"},
+		{"- [ ] www.x.co/a\\<b>\n", "- [ ] www.x.co/a&lt;b>\n"},
+		// cmark-gfm keeps, per text, where it last saw a run of backticks of each length, and a scan
+		// that finds a closer moves that mark back: an opener past it is read as having none, so its
+		// backticks are text and the tag after it is live.
+		{"Use `` to `a` and `<script>alert(1)</script>`\n", "Use `` to `a` and `&lt;script>alert(1)&lt;/script>`\n"},
+		{"``-`\n`;`<b>`\n", "``-`\n`;`&lt;b>`\n"},
+		{"`>``` ```/```<v>```\n", "`>``` ```/```&lt;v>```\n"},
+		// An empty list item and a blank line inside an item do not end the outer item: cmark-gfm reads
+		// the indented line as the outer item's, an HTML block, where goldmark ends the list and reads code.
+		{"- -\n\n    <v>\n", "- -\n\n    &lt;v>\n"},
+		// A byte that is not UTF-8 ends cmark-gfm's scan of a processing instruction, a declaration or a
+		// CDATA section, and the node is taken as closed past it.
+		{"h<?\xc2 > <b>\n", "h&lt;?\xc2 > &lt;b>\n"},
+		{"h<!X y\xc2 z\n", "h&lt;!X y\xc2 z\n"},
+		{"h<![CDATA[a\xc2 z\n", "h&lt;![CDATA[a\xc2 z\n"},
+		{"h<?a\n\xc2zz\n", "h&lt;?a\n\xc2zz\n"},
+	} {
+		if got := ship(c.md); got != c.want {
+			t.Errorf("%q ships as %q; GitHub's parser reads HTML in it unless it ships as %q", c.md, got, c.want)
+		}
+	}
 }
