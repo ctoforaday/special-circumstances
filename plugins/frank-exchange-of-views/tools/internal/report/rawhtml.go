@@ -248,7 +248,7 @@ func (rd readers) ship(md string) string {
 	code, heads := codeIn(tree, read), lineHeads(tree, read)
 	var prose []int
 	for k, i := range at {
-		if _, head := slices.BinarySearch(heads, pos[k]); head || !inSpan(pos[k], code) {
+		if _, head := slices.BinarySearch(heads, pos[k]); head || !inSpan(code, pos[k], pos[k]+1) {
 			prose = append(prose, i)
 		}
 	}
@@ -291,17 +291,18 @@ func lineHeads(tree ast.Node, src []byte) []int {
 // reads the same document: a line ending prints as one whichever it was.
 var lineEnds = strings.NewReplacer("\r\n", "\n", "\r", "\n")
 
-// inSpan reports whether offset i lies inside one of spans, which are in order and do not overlap.
-func inSpan(i int, spans [][2]int) bool {
-	k, _ := slices.BinarySearchFunc(spans, i+1, func(s [2]int, i int) int { return s[0] - i })
-	return k > 0 && i < spans[k-1][1]
+// inSpan reports whether [start, end) lies inside one of spans, which are in order and do not
+// overlap: the last span opening at or before start holds it, or none does.
+func inSpan(spans [][2]int, start, end int) bool {
+	k, _ := slices.BinarySearchFunc(spans, start+1, func(s [2]int, at int) int { return s[0] - at })
+	return k > 0 && end <= spans[k-1][1]
 }
 
 // angles is every `<` of src outside spans, escaped or not.
 func angles(src []byte, spans [][2]int) []int {
 	var at []int
 	for i, c := range src {
-		if c == '<' && !inSpan(i, spans) {
+		if c == '<' && !inSpan(spans, i, i+1) {
 			at = append(at, i)
 		}
 	}

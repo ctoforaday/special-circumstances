@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -235,34 +236,51 @@ func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
 }
 
 // plainURL is a URL field as a citation's line writes it: plain's form, written as an inline link
-// whose destination and text are both the URL — `[text](destination)`. A URL is not prose, and a
-// link's destination is not read as markdown: no emphasis, no footnote reference and no autolink
-// opens in it, so the URL's own bytes stand there. Its text is the same URL with each byte markdown
-// reads in a link's text backslash-escaped (urlText), and no reader autolinks text inside a link.
+// — `[text](destination)` — where it names a scheme report.html links (linkSchemes), and as its text
+// alone where it does not. A value with no scheme is no URL a reader can follow from the report:
+// linked, "example.org/paper.pdf" or "10.1234/abc" is a path beside the report. One whose scheme the
+// page does not link is the link's text alone there (checkedURL), and ships as that text here.
 //
-// WHAT IS PRESERVED. The scheme and the authority are written as given, but for a control byte, a
-// space or a backtick, which no host holds and which would end the destination or open a code span.
-// In the path, query and fragment every byte is written as given — `'`, `*`, `_`, `~`, `;`, `!`,
-// `$`, `&`, `(`, `)`, `\` and a last `.`, `,` or `:` among them — but those no URL may hold
-// there raw: a control byte, a space or a byte outside ASCII, `"`, `<`, `>`, `[`, `]`, `^`, a
+// THE TEXT IS THE URL AS RECORDED, the destination the URL as a reader follows it. The text holds the
+// URL's own characters with each byte markdown reads in a link's text backslash-escaped (urlText), so
+// it opens nothing, and no reader autolinks text inside a link. A link's destination is not read as
+// markdown: no emphasis, no footnote reference and no autolink opens in it, so the URL's own bytes
+// stand there, encoded only where a URL cannot hold a byte raw (encodeURL).
+//
+// WHAT THE DESTINATION PRESERVES. The scheme and the authority are written as given, but for a
+// control byte, a space or a backtick, which no host holds and which would end the destination or
+// open a code span. In the path, query and fragment every byte is written as given — `'`, `*`, `_`,
+// `~`, `;`, `!`, `$`, `&`, `(`, `)`, `\` and a last `.`, `,` or `:` among them — but those no URL may
+// hold there raw: a control byte, a space or a byte outside ASCII, `"`, `<`, `>`, `[`, `]`, `^`, a
 // backtick, `{`, `|`, `}`, and a `#` after the first. Each of those is percent-encoded in place, the
 // form a URL must take to hold it; a `%` stays, so an encoding already in the URL is not doubled. A
 // `\` stays: a browser reads it in an http path as `/`, and encoded it would name another resource.
 // In the destination a `\`, `(` and `)` take a backslash and an `&` is written `&amp;`, so the link's
 // target is the URL's bytes after markdown's escapes and character references are read.
 //
-// The URL then holds no backtick, so a code span the title opens ends in the title
-// (escapeNotesInLine). How a renderer writes the target into an href is its own: cmark-gfm and
-// report.html's linkURL encode a `\`, and cmark-gfm encodes an IP literal's brackets. Whether a
-// scheme links is the viewer's too: report.html links http, https and mailto (linkSchemes), and
-// writes any other URL as the link's text alone.
+// A backtick in the text is escaped and in the destination encoded, so a code span the title opens
+// ends in the title (escapeNotesInLine). How a renderer writes the target into an href is its own:
+// cmark-gfm and report.html's linkURL encode a `\`, and cmark-gfm encodes an IP literal's brackets.
 func plainURL(s string) string {
 	u := plain(s)
-	if u == "" {
-		return ""
+	if scheme, ok := urlScheme(u); !ok || !slices.Contains(linkSchemes, scheme) {
+		return urlText(u)
 	}
-	u = encodeURL(u)
-	return "[" + urlText(u) + "](" + urlDest(u) + ")"
+	return "[" + urlText(u) + "](" + urlDest(encodeURL(u)) + ")"
+}
+
+// urlScheme is the scheme u names, lower-cased — the text before a `:` that stands before any `/`,
+// `?` or `#` — and whether it names one.
+func urlScheme[T ~string | ~[]byte](u T) (string, bool) {
+	for i := 0; i < len(u); i++ {
+		switch u[i] {
+		case ':':
+			return strings.ToLower(string(u[:i])), true
+		case '/', '?', '#':
+			return "", false
+		}
+	}
+	return "", false
 }
 
 // encodeURL is u with each byte percent-encoded that plainURL's doc names: in the scheme and the
@@ -305,14 +323,18 @@ func urlAuthority(u string) (start, end int) {
 	return start, len(u)
 }
 
-// urlText is an encoded URL as a link's text: each byte markdown reads in inline text escaped, so
-// the text is the URL's characters to every reader.
+// urlText is a URL as recorded, as inline text — a link's text, or the text alone: each byte markdown
+// reads in inline text escaped, so the text is the URL's characters to every reader.
 func urlText(u string) string {
 	var b strings.Builder
 	for i := 0; i < len(u); i++ {
 		switch c := u[i]; {
 		case c == '&':
 			b.WriteString("&amp;")
+		case c == '`':
+			// A backslash does not stop a backtick closing a code span the title opened before it:
+			// a character reference is no backtick to the span, and prints as one.
+			b.WriteString("&#96;")
 		case strings.IndexByte(`\*_~[]!<>|`, c) >= 0:
 			b.WriteByte('\\')
 			b.WriteByte(c)
@@ -463,12 +485,7 @@ const titleLimit = 80
 // A TITLE WITH NO TEXT IS NO TITLE: an H1 that was only an anchor's token is "# " once the token is
 // out, and ships as the line that says the title is missing (titleOr), never as an empty heading.
 func heading(h1 string) (title, question string) {
-	full := strings.TrimSpace(strings.TrimPrefix(h1, "# "))
-	if full == "" {
-		full = strings.TrimPrefix(titleOr(""), "# ")
-	}
-	// The suffix is a convention of the template, not part of the subject.
-	subject := strings.TrimSpace(strings.TrimSuffix(full, " — research report"))
+	full, subject := titleSubject(h1)
 	if len([]rune(subject)) <= titleLimit {
 		return "# " + full, ""
 	}
@@ -497,6 +514,28 @@ func heading(h1 string) (title, question string) {
 		short = strings.Join(w, " ") + "…"
 	}
 	return "# " + short, questionLine + " " + subject
+}
+
+// titleSubject is an H1's text, and the subject it names: the text without the template's suffix.
+func titleSubject(h1 string) (full, subject string) {
+	full = strings.TrimSpace(strings.TrimPrefix(h1, "# "))
+	if full == "" {
+		full = strings.TrimPrefix(titleOr(""), "# ")
+	}
+	// The suffix is a convention of the template, not part of the subject.
+	return full, strings.TrimSpace(strings.TrimSuffix(full, " — research report"))
+}
+
+// question is the Question line, composed from the title as the report's text writes it with the
+// tokens the weave takes still in it (assemble): whether there is one is heading's call on the title
+// without them, whose length is the one a reader sees, and the line carries the subject whole with
+// them, so a source cited in the title alone is a note of the line and an entry of the Bibliography.
+func (a *assembly) question() string {
+	if _, q := heading(a.rd.stripTokens(a.blue.title, false)); q == "" {
+		return ""
+	}
+	_, subject := titleSubject(a.blue.title)
+	return questionLine + " " + subject
 }
 
 // outcomeOf returns the LAST terminal outcome event's body, or nil if none was recorded.

@@ -76,15 +76,17 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 // A CITATION'S URL IS A LINK'S DESTINATION, NEVER PROSE, AND ITS TITLE IS ESCAPED IN PLACE. A URL and
 // a copy's URL are a seat's text as much as a title is, and not prose: written as one, a `[^1]` in it
 // is a footnote reference only the weave may write, a `*` or `_` opens emphasis, and the extended
-// autolink drops a last `.` or `!` from the link. So each is written `[text](destination)`, the
-// destination holding the URL's own bytes, and only a byte no URL may hold raw where it stands is
+// autolink drops a last `.` or `!` from the link. So each that names a scheme report.html links is
+// written `[text](destination)`: the text is the URL as recorded with markdown's bytes escaped, and the
+// destination holds the URL's own bytes, only a byte no URL may hold raw where it stands
 // percent-encoded. A sub-delimiter (`;`, `*`, `'`, `(`, `)`, `!`, `&`), an underscore, a last `.` and
 // an IP literal's brackets stay as written: each names its resource raw, and encoded could name another.
-// A backtick is encoded, which would close a span the title opens, so the title's `[^2]` is escaped
-// where it stands. Each want is bytes cmark-gfm 0.29.0.gfm.13 (`--unsafe -e autolink -e table -e
-// strikethrough -e tasklist -e footnotes`) reads with no footnote reference and no HTML in the line,
-// linking the URL to the target written here; report.html is read here, every link of the line's
-// URLs in the note and in the Bibliography.
+// A backtick is a character reference in the text and encoded in the destination, since one would
+// close a span the title opens, so the title's `[^2]` is escaped where it stands. A URL whose scheme
+// report.html does not link ships as its text. Each want is bytes cmark-gfm 0.29.0.gfm.13 (`--unsafe
+// -e autolink -e table -e strikethrough -e tasklist -e footnotes`) reads with no footnote reference and
+// no HTML in the line, linking the URL to the target written here with the URL as recorded for its
+// text; report.html is read here, every link of the line's URLs in the note and in the Bibliography.
 func TestACitationsLineIsEscapedWhole(t *testing.T) {
 	for _, c := range []struct {
 		src  record.Source
@@ -95,17 +97,17 @@ func TestACitationsLineIsEscapedWhole(t *testing.T) {
 	}{
 		{record.Source{URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
 			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d"},
-			"T. [doi:10.1/a%5B%5E1%5Db](doi:10.1/a%5B%5E1%5Db) (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: [https://copy.invalid/c%5B%5E1%5Dd](https://copy.invalid/c%5B%5E1%5Dd)]**",
-			[][2]string{{"https://copy.invalid/c%5B%5E1%5Dd", "https://copy.invalid/c%5B%5E1%5Dd"}}},
+			"T. doi:10.1/a\\[^1\\]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: [https://copy.invalid/c\\[^1\\]d](https://copy.invalid/c%5B%5E1%5Dd)]**",
+			[][2]string{{"https://copy.invalid/c%5B%5E1%5Dd", "https://copy.invalid/c[^1]d"}}},
 		{record.Source{URL: "https://x.co/a?q[^1]=b", Title: "x `[^2]"},
-			"x `\\[^2]. [https://x.co/a?q%5B%5E1%5D=b](https://x.co/a?q%5B%5E1%5D=b)", [][2]string{{"https://x.co/a?q%5B%5E1%5D=b", "https://x.co/a?q%5B%5E1%5D=b"}}},
+			"x `\\[^2]. [https://x.co/a?q\\[^1\\]=b](https://x.co/a?q%5B%5E1%5D=b)", [][2]string{{"https://x.co/a?q%5B%5E1%5D=b", "https://x.co/a?q[^1]=b"}}},
 		{record.Source{URL: "https://example.invalid/a`b", Title: "x `[^2]"},
-			"x `\\[^2]. [https://example.invalid/a%60b](https://example.invalid/a%60b)", [][2]string{{"https://example.invalid/a%60b", "https://example.invalid/a%60b"}}},
+			"x `\\[^2]. [https://example.invalid/a&#96;b](https://example.invalid/a%60b)", [][2]string{{"https://example.invalid/a%60b", "https://example.invalid/a`b"}}},
 		{record.Source{URL: "https://x.co/a_b_*c*~d~'e&amp;f;g!h<i> j.", Title: "T"},
-			"T. [https://x.co/a\\_b\\_\\*c\\*\\~d\\~'e&amp;amp;f;g\\!h%3Ci%3E%20j.](https://x.co/a_b_*c*~d~'e&amp;amp;f;g!h%3Ci%3E%20j.)",
-			[][2]string{{"https://x.co/a_b_*c*~d~'e&amp;f;g!h%3Ci%3E%20j.", "https://x.co/a_b_*c*~d~'e&amp;f;g!h%3Ci%3E%20j."}}},
-		{record.Source{URL: "https://x.co/ß(a))", Title: "T"}, "T. [https://x.co/%C3%9F(a))](https://x.co/%C3%9F\\(a\\)\\))", [][2]string{{"https://x.co/%C3%9F(a))", "https://x.co/%C3%9F(a))"}}},
-		{record.Source{URL: "https://x.co/a#b#c", Title: "T"}, "T. [https://x.co/a#b%23c](https://x.co/a#b%23c)", [][2]string{{"https://x.co/a#b%23c", "https://x.co/a#b%23c"}}},
+			"T. [https://x.co/a\\_b\\_\\*c\\*\\~d\\~'e&amp;amp;f;g\\!h\\<i\\> j.](https://x.co/a_b_*c*~d~'e&amp;amp;f;g!h%3Ci%3E%20j.)",
+			[][2]string{{"https://x.co/a_b_*c*~d~'e&amp;f;g!h%3Ci%3E%20j.", "https://x.co/a_b_*c*~d~'e&amp;f;g!h<i> j."}}},
+		{record.Source{URL: "https://x.co/ß(a))", Title: "T"}, "T. [https://x.co/ß(a))](https://x.co/%C3%9F\\(a\\)\\))", [][2]string{{"https://x.co/%C3%9F(a))", "https://x.co/ß(a))"}}},
+		{record.Source{URL: "https://x.co/a#b#c", Title: "T"}, "T. [https://x.co/a#b#c](https://x.co/a#b%23c)", [][2]string{{"https://x.co/a#b%23c", "https://x.co/a#b#c"}}},
 		{record.Source{URL: "http://[2001:db8::1]/paper", Title: "T"}, "T. [http://\\[2001:db8::1\\]/paper](http://[2001:db8::1]/paper)",
 			[][2]string{{"http://[2001:db8::1]/paper", "http://[2001:db8::1]/paper"}}},
 		{record.Source{URL: "https://w.invalid/wiki/foo_(bar)", Title: "T",

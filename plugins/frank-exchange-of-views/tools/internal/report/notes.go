@@ -41,7 +41,7 @@ const (
 
 // escapeNotes returns md with every `[^` outside code escaped, so that nothing in it opens a
 // footnote, reading md with rd. One already escaped is left as it is. A `[^` is left as it is only
-// where both tiers read it as code (noteCode): report.html's reading (rd.page) and the shipped .md's,
+// where both tiers read it as code (bothTierCode): report.html's reading (rd.page) and the shipped .md's,
 // read as ship reads it (shippedCode, rd.code). Where the two differ — a `[^1]` between two pairs
 // of backticks after "www.a.com", the first pair GitHub's extended autolink takes into the URL, is
 // prose there and code to report.html — it is escaped, which is text to both, at the cost of a
@@ -55,8 +55,7 @@ func (rd readers) escapeNotesRead(md string, code [][2]int, read bool) string {
 		return md
 	}
 	if !read {
-		src := []byte(md)
-		code = noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+		code = rd.bothTierCode([]byte(md))
 	}
 	return escapeNotesOutside(md, code)
 }
@@ -68,12 +67,20 @@ func (rd readers) escapeNotesRead(md string, code [][2]int, read bool) string {
 // as a document of its own: read alone, "```[^1] spec" opens a fence whose info string holds the
 // `[^1]`, which in place is prose. Nothing else on its line holds a backtick — a citation's URLs are
 // links that hold none (plainURL) — so a span the fragment holds is a span in place.
-func escapeNotesInLine(s string) string {
-	if !strings.Contains(s, noteOpen) {
-		return s
-	}
-	src := []byte(s)
-	return escapeNotesOutside(s, noteCode(codeIn(lineReader.Parse(text.NewReader(src)), src), shippedCode(src, parseCodeLine)))
+func escapeNotesInLine(s string) string { return lineReaders.escapeNotes(s) }
+
+// lineReaders is the readers of a line fragment: each tier's reading of it as one line of a
+// paragraph (lineReader, codeLineReader).
+var lineReaders = readers{page: parseLine, code: parseCodeLine}
+
+// parseLine is report.html's parse of a line fragment (lineReader).
+func parseLine(src []byte) ast.Node { return lineReader.Parse(text.NewReader(src)) }
+
+// bothTierCode is every stretch of src that is code to both tiers, src read with rd: report.html's
+// reading (rd.page) and the shipped .md's, read as ship reads it (shippedCode, rd.code). It is the one
+// reading of code the note escape, the token strip and the woven-label refusal take.
+func (rd readers) bothTierCode(src []byte) [][2]int {
+	return noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
 }
 
 // codeLineReader is lineReader as the shipped .md reads a line: one line of inline markdown as a

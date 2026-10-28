@@ -283,3 +283,26 @@ func TestAnEmptyReRunOutputSaysSo(t *testing.T) {
 		t.Errorf("the empty re-run output is not said to be empty:\n%s", ev)
 	}
 }
+
+// A NOTE IS READ WHERE IT STANDS: the first, and every note of one line, after the judgement on its
+// item's line, so its first line is prose behind the tool's text, and a "```" opening it opens no
+// fence whose info string would keep a token. A token in a code span it holds stays, and a note that
+// is a paragraph of its own keeps one in its fence's info string.
+func TestAJudgementNoteIsStrippedWhereItShips(t *testing.T) {
+	for _, c := range []struct {
+		notes []string
+		keep  int // tokens that are code where they ship
+	}{
+		{[]string{"```x <!--gap:G-00000001-->"}, 0},
+		{[]string{"```x <!--gap:G-00000001-->\nmore"}, 0},
+		{[]string{"```x <!--gap:G-00000001-->", "second"}, 0},
+		{[]string{"first", "```x <!--gap:G-00000001-->"}, 0},
+		{[]string{"a `<!--gap:G-00000001-->` b\nmore"}, 1},
+		{[]string{"first\nline", "```x <!--gap:G-00000001-->\ny\n```"}, 1},
+	} {
+		got := judgementNotes(append([]string(nil), c.notes...))
+		if n := strings.Count(got, "<!--gap:"); n != c.keep {
+			t.Errorf("judgementNotes(%q) keeps %d tokens, want %d:\n%s", c.notes, n, c.keep, got)
+		}
+	}
+}

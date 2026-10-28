@@ -570,7 +570,7 @@ func linkURL(dest []byte) string { return checkedURL(textValue(dest)) }
 // checkedURL is u, a URL as a browser follows it, percent-encoded and not yet escaped for an
 // attribute, and empty unless it is relative or names a scheme bodyPolicy allows (linkURL).
 func checkedURL(u []byte) string {
-	if i := bytes.IndexAny(u, ":/?#"); i >= 0 && u[i] == ':' && !slices.Contains(linkSchemes, strings.ToLower(string(u[:i]))) {
+	if scheme, ok := urlScheme(u); ok && !slices.Contains(linkSchemes, scheme) {
 		return ""
 	}
 	// AN IP LITERAL'S BRACKETS ARE THE HOST'S SYNTAX: encoded, `http://[2001:db8::1]/` names no host.

@@ -26,8 +26,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/yuin/goldmark/text"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -144,11 +142,13 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// verdict, what answered the seats, the board in full and the transcript are envelope, and
 	// their rows put them in the documents behind it.
 	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(rd.text(blue)), rd: rd}
-	// The title enters composition here, so its tokens leave here, before heading measures and cuts it
-	// (stripTokens): a token's bytes are no part of the length a reader sees, and the cut is at a
-	// boundary in what ships. The Question line is cut from the same title.
-	a.blue.title = rd.stripTokens(a.blue.title, false)
-	title, _ := heading(a.blue.title)
+	// The title enters composition here, so its tokens leave here (stripTokens), by the weave's rule:
+	// the Question line composes the title into a section the weave reads, so a citation's or a
+	// proof's token stays for the weave to make a note of. The H1 is read by no weave, so it is cut
+	// from the title with no token in it: a token's bytes are no part of the length a reader sees,
+	// and the cut is at a boundary in what ships.
+	a.blue.title = rd.stripTokens(a.blue.title, true)
+	title, _ := heading(rd.stripTokens(a.blue.title, false))
 	body := map[string]*sections{}
 	composed := map[string]bool{}
 	for _, s := range layout {
@@ -266,7 +266,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 // stripTokens is md with every anchor token as written (anchor.StripWritten) taken out but those in
 // code and, where weave is set, a token of a real id the weave turns into a note (a citation's or a
 // proof's): the text a woven document is composed from keeps those for the weave, and every other
-// text keeps none. Code is what both tiers read as code (noteCode), the reading the note escape takes:
+// text keeps none. Code is what both tiers read as code (bothTierCode), the reading the note escape takes:
 // a token one tier reads as prose would ship there as prose.
 //
 // A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
@@ -287,8 +287,7 @@ func (rd readers) stripTokensCode(md string, weave bool) (out string, code [][2]
 	if !holdsToken(md) {
 		return md, nil, false
 	}
-	src := []byte(md)
-	code = noteCode(codeIn(rd.page(src), src), shippedCode(src, rd.code))
+	code = rd.bothTierCode([]byte(md))
 	out = stripOutside(md, code, weave)
 	return out, code, out == md
 }
@@ -298,12 +297,22 @@ func (rd readers) stripTokensCode(md string, weave bool) (out string, code [][2]
 // is what each tier reads as code in one line of a paragraph (lineReader, codeLineReader), as
 // escapeNotesInLine reads it. Read as a document of its own, "```x <!--gap:G-00000001-->" is a fence
 // whose info string holds the token, which in place is prose.
-func stripTokensInLine(s string) string {
+func stripTokensInLine(s string) string { return lineReaders.stripTokens(s, false) }
+
+// stripTokensAfter is stripTokens, with no token woven, for text the tool writes after its own on a
+// line, which may run on to lines of its own: in place its first line is inline text behind the
+// tool's, so its code is what both tiers read as code in the text behind a character of prose — a
+// first line opening "```" opens no fence there, and a token in what alone would be its info string is
+// prose. The husk rule reads the text itself.
+func stripTokensAfter(s string) string {
 	if !holdsToken(s) {
 		return s
 	}
-	src := []byte(s)
-	return stripOutside(s, noteCode(codeIn(lineReader.Parse(text.NewReader(src)), src), shippedCode(src, parseCodeLine)), false)
+	code := stdReaders().bothTierCode([]byte("x" + s))
+	for i := range code {
+		code[i] = [2]int{code[i][0] - 1, code[i][1] - 1}
+	}
+	return stripOutside(s, code, false)
 }
 
 // holdsToken reports whether md holds an anchor token as written.
@@ -317,20 +326,13 @@ func holdsToken(md string) bool {
 // order, and where weave is set the woven ones.
 func stripOutside(md string, code [][2]int, weave bool) string {
 	return anchor.StripWritten(md, func(start, end int) bool {
-		return inCode(code, start, end) || weave && wovenToken(md[start:end])
+		return inSpan(code, start, end) || weave && wovenToken(md[start:end])
 	})
 }
 
 // StripTokens is a record field with its tokens taken out as assembly takes them from a field it
 // writes: the release gate's prose oracle reads a seat's field with it.
 func StripTokens(s string) string { return stdReaders().stripTokens(s, false) }
-
-// inCode reports whether the span [start, end) lies inside one stretch of code, the stretches in order
-// and not overlapping (noteCode): the last stretch opening at or before start holds it, or none does.
-func inCode(code [][2]int, start, end int) bool {
-	k, _ := slices.BinarySearchFunc(code, start+1, func(c [2]int, at int) int { return c[0] - at })
-	return k > 0 && end <= code[k-1][1]
-}
 
 // wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a
 // note: a citation's or a proof's.

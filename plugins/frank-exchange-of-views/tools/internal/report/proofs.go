@@ -232,18 +232,24 @@ func longestRun(s string, c byte) int {
 }
 
 // judgementNotes is red's notes on a proof, written after the judgement on its list item's line, each
-// without its tokens (stripTokens): notes of one line each are joined on that line, and where one runs
-// to several lines each note is the item's own paragraph, its fences closed where it ends (ownBlock,
-// reading the first as text after the tool's, and each after it as a block of its own), and the whole
-// the rest of the item (itemLines).
+// without its tokens as it reads where it ships. Notes of one line each are joined on that line, so
+// each is read behind the judgement (stripTokensAfter). Where one runs to several lines each note is
+// the item's own paragraph, its fences closed where it ends (ownBlock, reading the first as text after
+// the tool's, and each after it as a block of its own, as its tokens are read: stripTokensAfter, then
+// StripTokens), and the whole the rest of the item (itemLines).
 func judgementNotes(notes []string) string {
 	multi := false
+	inline := make([]string, len(notes))
 	for i, n := range notes {
-		notes[i] = strings.TrimSpace(lineEnds.Replace(StripTokens(n)))
-		multi = multi || strings.Contains(notes[i], "\n")
+		inline[i] = strings.TrimSpace(lineEnds.Replace(stripTokensAfter(n)))
+		multi = multi || strings.Contains(inline[i], "\n")
 	}
 	if !multi {
-		return strings.Join(notes, " / ")
+		return strings.Join(inline, " / ")
+	}
+	notes[0] = inline[0]
+	for i := 1; i < len(notes); i++ {
+		notes[i] = strings.TrimSpace(lineEnds.Replace(StripTokens(notes[i])))
 	}
 	notes[0] = ownBlock("x" + notes[0])[1:]
 	for i := 1; i < len(notes); i++ {

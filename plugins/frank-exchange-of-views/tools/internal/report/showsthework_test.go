@@ -77,9 +77,9 @@ func TestEvidenceShowsEveryReadingOfEachCitation(t *testing.T) {
 		"## Citations",
 		"### 91 (number), Wikipedia\n\n- **source**: [https://ex/C-00000001](https://ex/C-00000001), accessed 2026-10-18\n- **backs**: The article lists the divisors of 91 as 1, 7, 13 and 91.\n- **read by `red-lens-evidence`** (epoch 1): **supports**, confidence high — "+reading+"\n",
 		"### Unread source\n\n- **source**: [https://ex/C-00000002](https://ex/C-00000002), accessed 2026-10-18\n- **backs**: A second sentence nobody checked.\n- **not read against its sentence**",
-		"### A000040, OEIS\n\n- **source**: [https://oeis.org/A000040?q=%5B%5E1%5D](https://oeis.org/A000040?q=%5B%5E1%5D)\n- **backs**: No standard list of primes contains 91.\n- **red's corroboration**, found by `red-lens-logic`: blue did not cite it\n- **read by `red-lens-logic`** (epoch 1): **supports**, confidence medium — "+corrob+"\n",
+		"### A000040, OEIS\n\n- **source**: [https://oeis.org/A000040?q=\\[^1\\]](https://oeis.org/A000040?q=%5B%5E1%5D)\n- **backs**: No standard list of primes contains 91.\n- **red's corroboration**, found by `red-lens-logic`: blue did not cite it\n- **read by `red-lens-logic`** (epoch 1): **supports**, confidence medium — "+corrob+"\n",
 		"### Sources the report does not cite (1)",
-		"- **Small primes** — [https://ex/small\\_primes%60](https://ex/small_primes%60)\n  - **read by `red-lens-adversary`** (epoch 1): **absent**, confidence low — "+refuting+"\n    - of the sentence: No standard list of primes contains 91.",
+		"- **Small primes** — [https://ex/small\\_primes&#96;](https://ex/small_primes%60)\n  - **read by `red-lens-adversary`** (epoch 1): **absent**, confidence low — "+refuting+"\n    - of the sentence: No standard list of primes contains 91.",
 	)
 	if strings.Count(doc, corrob) != 1 {
 		t.Errorf("the corroboration's reading is listed %d times, want once:\n%s", strings.Count(doc, corrob), doc)
