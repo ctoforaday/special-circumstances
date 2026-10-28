@@ -260,8 +260,8 @@ func TestASubstitutedCopyIsNamedInBothTheNoteAndTheBibliography(t *testing.T) {
 	for _, want := range []string{
 		"[^1]: Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
 		"- Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
-		"[^2]: Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
-		"- Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
+		"[^2]: Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id%5F/https://ex/refused]**",
+		"- Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id%5F/https://ex/refused]**",
 		"[^3]: Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
 		"- Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
 		"[^4]: Named. https://ex/named (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://arxiv.org/pdf/2101.00001]**",

@@ -150,8 +150,8 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s\n", citationNote(n), escapeNotesInLine(plain(citationTitle(s))+locator+". "+plain(s.URL)+accessed(s.AccessDate)+
-			copyNote(s.CopySubstitution, s.CopyURL)+retractionNote(s.WorkStatus)+abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT)))
+		fmt.Fprintf(&out, "%s: %s%s%s%s%s%s\n", citationNote(n), escapeNotesInLine(plain(citationTitle(s))+locator+". "), plainURL(s.URL), accessed(s.AccessDate),
+			copyNote(s.CopySubstitution, s.CopyURL), retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
@@ -205,7 +205,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 			pick, found = src, true
 		}
 	}
-	return escapeNotesInLine(fmt.Sprintf("%s. %s%s%s%s%s", plain(citationTitle(pick)), plain(url), accessed(date), strings.Join(copies, ""), retractionNote(status), abstractNote(found && abstractOnly)))
+	return escapeNotesInLine(plain(citationTitle(pick))+". ") + plainURL(url) + accessed(date) + strings.Join(copies, "") + retractionNote(status) + abstractNote(found && abstractOnly)
 }
 
 // copyNote is what the reader is told when a citation's bytes are not its url's own: where the
@@ -217,7 +217,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 // bytes are the fetch tool's statement of what it found. NONE prints nothing; NOT_RECORDED and a
 // corroboration's NOT_CACHED are the record's absence of an answer, which the record carries for red.
 func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
-	copyURL = plain(copyURL)
+	copyURL = plainURL(copyURL)
 	switch kind {
 	case recordpb.CopySubstitution_COPY_SUBSTITUTION_FOLLOWED_LINK:
 		return fmt.Sprintf(" (full text read at %s)", copyURL)
@@ -232,6 +232,53 @@ func copyNote(kind recordpb.CopySubstitution, copyURL string) string {
 		return fmt.Sprintf(" **[READ FROM ANOTHER COPY: %s]**", copyURL)
 	}
 	return ""
+}
+
+// plainURL is a URL field as a citation's line writes it: plain's form, each byte that could act as
+// markdown where it stands percent-encoded. A URL is not prose, so nothing in it is escaped as prose:
+// an escape is a character of every link a reader makes of it. Encoded are a space, a control byte or
+// one outside ASCII, which ends report.html's link; `"`, `'`, `<`, `>`, `[`, `\`, `]`, `^`, a
+// backtick, `{`, `|`, `}`, `*`, `_` and `~` (urlMarkdownBytes), which open a span, a footnote
+// reference, a link or a tag, or end a link in one reader and not the other; the `;` that closes a
+// character reference, which one reader decodes in a link and the other does not; a `#` after the
+// first, which a fragment may not hold and report.html's allowlist writes encoded; and a last byte the
+// extended autolink drops from a link's end — `!`, `.`, `,`, `:`, or a `)` with no `(` to close.
+// The URL then holds no backtick, so a code span the title opens ends in the title
+// (escapeNotesInLine), and every reader links it to the bytes shown. A server reads the target
+// unchanged: most of these bytes no URL may hold raw, and the rest a server decodes before it reads —
+// the Wayback Machine reads a recovered copy's `id%5F` as its `id_`.
+// A last `?` stays, since encoded it is a character of the path where it was a query's opening: both
+// readers link the URL without it, the empty query it opens. A `%` stays as written, so an encoding
+// already in the URL is not encoded twice.
+func plainURL(s string) string {
+	s = plain(s)
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c <= ' ' || c >= 0x7f || strings.IndexByte(urlMarkdownBytes, c) >= 0,
+			c == ';' && endsReference(s[:i]),
+			c == '#' && strings.IndexByte(s[:i], '#') >= 0,
+			i == len(s)-1 && (strings.IndexByte("!.,:", c) >= 0 || c == ')' && strings.Count(s, ")") > strings.Count(s, "(")):
+			fmt.Fprintf(&b, "%%%02X", c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// urlMarkdownBytes are the printable ASCII bytes plainURL encodes wherever they stand.
+const urlMarkdownBytes = "\"'<>[\\]^`{|}*_~"
+
+// endsReference reports whether s ends as a character reference does before its `;`: an `&` and a
+// run of letters, digits and `#`.
+func endsReference(s string) bool {
+	i := len(s)
+	for i > 0 && (s[i-1] == '#' || s[i-1] >= '0' && s[i-1] <= '9' || s[i-1] >= 'a' && s[i-1] <= 'z' || s[i-1] >= 'A' && s[i-1] <= 'Z') {
+		i--
+	}
+	return i < len(s) && i > 0 && s[i-1] == '&'
 }
 
 // abstractNote is what the reader is told about a citation that rests on the work's abstract

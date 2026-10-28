@@ -37,8 +37,8 @@ func citationsSection(fam record.Family) string {
 	b.WriteString("Each source the report cites, with the sentence it backs and every reading of the source against that sentence. ")
 	b.WriteString("A reading's outcome is what the source does for the sentence — `supports`, `supports_with_bridge` (it supports the sentence through a step the source does not state), `weak`, `refutes`, `absent` (the source says nothing on it) or `unreachable` — and its confidence is how sure the reading is.\n\n")
 	for _, s := range ev.Sources {
-		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plain(s.URL)))
-		fmt.Fprintf(&b, "- **source**: %s", plain(s.URL))
+		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plainURL(s.URL)))
+		fmt.Fprintf(&b, "- **source**: %s", plainURL(s.URL))
 		if s.AccessDate != "" {
 			fmt.Fprintf(&b, ", accessed %s", s.AccessDate)
 		}
@@ -59,9 +59,9 @@ func citationsSection(fam record.Family) string {
 		fmt.Fprintf(&b, "### Sources the report does not cite (%d)\n\n", len(others))
 		b.WriteString("Sources red found and read against a sentence of the report that place no citation in it: a reading that does not support its sentence places none.\n\n")
 		for _, v := range others {
-			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(plain(v.Title), plain(v.URL), "(no source named)"))
+			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(plain(v.Title), plainURL(v.URL), "(no source named)"))
 			if v.URL != "" && plain(v.Title) != "" {
-				fmt.Fprintf(&b, " — %s", plain(v.URL))
+				fmt.Fprintf(&b, " — %s", plainURL(v.URL))
 			}
 			b.WriteString("\n")
 			b.WriteString(indent(readings([]record.EvidenceVerificationJSON{v}, ""), "  "))

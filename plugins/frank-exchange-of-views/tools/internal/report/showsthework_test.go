@@ -48,7 +48,8 @@ func mustContain(t *testing.T, doc, what string, wants ...string) {
 
 // RED'S READING OF EACH CITATION STANDS BESIDE THE CITATION IT READ, with its outcome and its
 // confidence; a corroboration stands as a source of its own beside its claim; a reading that placed
-// no citation is listed after them; a source nobody read says so.
+// no citation is listed after them; a source nobody read says so. A URL is written encoded (plainURL),
+// never escaped.
 func TestEvidenceShowsEveryReadingOfEachCitation(t *testing.T) {
 	const (
 		reading  = "The infobox reads Divisors 1, 7, 13, 91, which is the sentence's claim."
@@ -66,19 +67,19 @@ func TestEvidenceShowsEveryReadingOfEachCitation(t *testing.T) {
 		recordtest.Event(t, "red-lens-evidence", &recordpb.Verify{Anchor: proto.String("C-00000001"), Claim: proto.String("The article lists the divisors of 91 as 1, 7, 13 and 91."),
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String(reading)}),
 		recordtest.Event(t, "red-lens-logic", &recordpb.Verify{Label: proto.String("C-00000003"), Claim: proto.String("No standard list of primes contains 91."),
-			Url: proto.String("https://oeis.org/A000040"), Title: proto.String("A000040, OEIS"),
+			Url: proto.String("https://oeis.org/A000040?q=[^1]"), Title: proto.String("A000040, OEIS"),
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String(corrob)}),
 		recordtest.Event(t, "red-lens-adversary", &recordpb.Verify{Claim: proto.String("No standard list of primes contains 91."),
-			Url: proto.String("https://ex/small-primes"), Title: proto.String("Small primes"),
+			Url: proto.String("https://ex/small_primes`"), Title: proto.String("Small primes"),
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_LOW), Text: proto.String(refuting)}),
 	)
 	mustContain(t, doc, "evidence.md",
 		"## Citations",
 		"### 91 (number), Wikipedia\n\n- **source**: https://ex/C-00000001, accessed 2026-10-18\n- **backs**: The article lists the divisors of 91 as 1, 7, 13 and 91.\n- **read by `red-lens-evidence`** (epoch 1): **supports**, confidence high — "+reading+"\n",
 		"### Unread source\n\n- **source**: https://ex/C-00000002, accessed 2026-10-18\n- **backs**: A second sentence nobody checked.\n- **not read against its sentence**",
-		"### A000040, OEIS\n\n- **source**: https://oeis.org/A000040\n- **backs**: No standard list of primes contains 91.\n- **red's corroboration**, found by `red-lens-logic`: blue did not cite it\n- **read by `red-lens-logic`** (epoch 1): **supports**, confidence medium — "+corrob+"\n",
+		"### A000040, OEIS\n\n- **source**: https://oeis.org/A000040?q=%5B%5E1%5D\n- **backs**: No standard list of primes contains 91.\n- **red's corroboration**, found by `red-lens-logic`: blue did not cite it\n- **read by `red-lens-logic`** (epoch 1): **supports**, confidence medium — "+corrob+"\n",
 		"### Sources the report does not cite (1)",
-		"- **Small primes** — https://ex/small-primes\n  - **read by `red-lens-adversary`** (epoch 1): **absent**, confidence low — "+refuting+"\n    - of the sentence: No standard list of primes contains 91.",
+		"- **Small primes** — https://ex/small%5Fprimes%60\n  - **read by `red-lens-adversary`** (epoch 1): **absent**, confidence low — "+refuting+"\n    - of the sentence: No standard list of primes contains 91.",
 	)
 	if strings.Count(doc, corrob) != 1 {
 		t.Errorf("the corroboration's reading is listed %d times, want once:\n%s", strings.Count(doc, corrob), doc)

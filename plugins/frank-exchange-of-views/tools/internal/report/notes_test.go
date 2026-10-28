@@ -70,30 +70,44 @@ func TestTheWeavesNoteEscapesTheTitleItCarries(t *testing.T) {
 	}
 }
 
-// EVERY VALUE A CITATION'S LINE CARRIES IS ESCAPED, AND THE LINE IS READ WHOLE. A URL and a copy's
-// URL are a seat's text as much as a title is: a `[^1]` in one no reader links is a footnote reference
-// only the weave may write, and in one a reader links the escape is a character of the link. And a backtick in a URL closes a span a backtick in the title opens, so what is code is
-// read over the line as it stands — escaped alone, the title's `[^2]` took a backslash that prints in
-// code.
+// A CITATION'S URL IS ENCODED, NEVER ESCAPED, AND ITS TITLE IS ESCAPED IN PLACE. A URL and a copy's
+// URL are a seat's text as much as a title is, and not prose: a `[^1]` in one is a footnote reference
+// only the weave may write, and a backslash before it would be a character of every link a reader
+// makes, so each byte that could act as markdown is percent-encoded instead — and a backtick with
+// them, which would close a span the title opens, so the title's `[^2]` is escaped where it stands.
+// Each want is bytes cmark-gfm 0.29.0.gfm.13 (`--unsafe -e autolink -e table -e strikethrough -e
+// tasklist -e footnotes`) reads with no footnote reference and no HTML in the line, linking the URL
+// to href and text both equal to the encoded URL; report.html is read here.
 func TestACitationsLineIsEscapedWhole(t *testing.T) {
-	got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{{
-		Label: "C-00000001", URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
-		CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d",
-	}})
-	for _, want := range []string{
-		"[^1]: T. doi:10.1/a\\[^1]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c\\[^1]d]**\n",
-		"- T. doi:10.1/a\\[^1]b (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c\\[^1]d]**\n",
+	for _, c := range []struct {
+		src       record.Source
+		line, url string // url is what each tier links; "" for a URL no reader links
+	}{
+		{record.Source{URL: "doi:10.1/a[^1]b", Title: "T", AccessDate: "2026-10-12",
+			CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED, CopyURL: "https://copy.invalid/c[^1]d"},
+			"T. doi:10.1/a%5B%5E1%5Db (accessed 2026-10-12) **[READ FROM A RECOVERED COPY: https://copy.invalid/c%5B%5E1%5Dd]**", ""},
+		{record.Source{URL: "https://x.co/a?q[^1]=b", Title: "x `[^2]"},
+			"x `\\[^2]. https://x.co/a?q%5B%5E1%5D=b", "https://x.co/a?q%5B%5E1%5D=b"},
+		{record.Source{URL: "https://example.invalid/a`b", Title: "x `[^2]"},
+			"x `\\[^2]. https://example.invalid/a%60b", "https://example.invalid/a%60b"},
+		{record.Source{URL: "https://x.co/a_b_*c*~d~'e&amp;f\\g<h> i.", Title: "T"},
+			"T. https://x.co/a%5Fb%5F%2Ac%2A%7Ed%7E%27e&amp%3Bf%5Cg%3Ch%3E%20i%2E", "https://x.co/a%5Fb%5F%2Ac%2A%7Ed%7E%27e&amp;amp%3Bf%5Cg%3Ch%3E%20i%2E"},
+		{record.Source{URL: "https://x.co/ß(a))", Title: "T"}, "T. https://x.co/%C3%9F(a)%29", "https://x.co/%C3%9F(a)%29"},
+		{record.Source{URL: "https://x.co/a#b#c", Title: "T"}, "T. https://x.co/a#b%23c", "https://x.co/a#b%23c"},
 	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("a citation's line does not carry its URLs' `[^` escaped, want %q:\n%s", want, got)
+		c.src.Label = "C-00000001"
+		got := weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{c.src})
+		for _, want := range []string{"[^1]: " + c.line + "\n", "- " + c.line + "\n"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("%q: a citation's line is not its URLs encoded and its title escaped, want %q:\n%s", c.src.URL, want, got)
+			}
 		}
-	}
-	got = weaveCitations("Claim<!--cite:C-00000001-->.\n", []record.Source{{
-		Label: "C-00000001", URL: "https://example.invalid/a`b", Title: "x `[^2]",
-	}})
-	for _, want := range []string{"[^1]: x `[^2]. https://example.invalid/a`b\n", "- x `[^2]. https://example.invalid/a`b\n"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("a `[^` the line holds in code is escaped, want %q:\n%s", want, got)
+		if strings.Contains(ship(got), "\\[^1]") {
+			t.Errorf("%q: a URL took an escape:\n%s", c.src.URL, ship(got))
+		}
+		html := renderOne(got, FileReport, anchors{}, map[string]int{}, nil).html
+		if link := `<a href="` + c.url + `">` + c.url + `</a>`; c.url != "" && strings.Count(html, link) != 2 {
+			t.Errorf("%q: report.html does not link the encoded URL in the note and the Bibliography, want %q twice:\n%s", c.src.URL, link, html)
 		}
 	}
 }
