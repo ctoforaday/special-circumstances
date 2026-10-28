@@ -128,9 +128,10 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 			t.Fatal(err)
 		}
 		marker := filepath.Join(project, ".claude", "run-live.json")
-		if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":`+strconv.Quote(run)+`}]}`), 0o644); err != nil {
+		if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":`+strconv.Quote(run)+`,"leadSession":"session-seat-test"}]}`), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		t.Setenv(seatenv.SessionVar, "session-seat-test")
 		t.Setenv(seatenv.Var, "")
 		t.Setenv("CLAUDE_PROJECT_DIR", project)
 		c := Of(newCmd())

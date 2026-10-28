@@ -85,6 +85,16 @@ const (
 // context the hook did not rewrite.
 func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
 
+// SessionVar is the CLIENT's variable naming the session a process runs under: Claude Code sets it
+// in every Bash call, a subagent's included, to the session_id its hook payloads carry — which is
+// the dispatching session's for every subagent, so a seat and its lead read the same value. It is
+// what a verb, which has no payload, takes a run's membership from (runlive.Caller.Session), and
+// what `setup` records as the run's lead.
+const SessionVar = "CLAUDE_CODE_SESSION_ID"
+
+// Session is the client session this process runs under, or "" outside Claude Code.
+func Session() string { return strings.TrimSpace(os.Getenv(SessionVar)) }
+
 // AgentType is the harness's name for this process's agent configuration, or "" in a main session,
 // an operator shell, or any context the hook did not rewrite.
 //

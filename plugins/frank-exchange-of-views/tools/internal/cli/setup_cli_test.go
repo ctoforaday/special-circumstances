@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
@@ -92,7 +93,8 @@ func runSetup(t *testing.T, bin, cwd string, args ...string) setupRun {
 	c := exec.Command(bin, append([]string{"setup", "--seat-id", "operator"}, args...)...)
 	c.Dir = cwd
 	// Hermetic: no CLAUDE_PROJECT_DIR leaking a live run's memory into the fixture.
-	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+recordtest.TmpRun(t))
+	// And a launching session, which setup records as the run's lead (seatenv.SessionVar).
+	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+recordtest.TmpRun(t), seatenv.SessionVar+"="+cliTestLead)
 	var so, se strings.Builder
 	c.Stdout, c.Stderr = &so, &se
 	err := c.Run()

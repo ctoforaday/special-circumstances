@@ -58,7 +58,7 @@ const OperatorRole = "operator"
 // AgentTypePrefix is the plugin namespace the harness puts in front of every agent definition's
 // name: `agents/red-chair.md` is dispatched, and attested on a hook payload, as this plus
 // `red-chair`.
-const AgentTypePrefix = "frank-exchange-of-views:"
+const AgentTypePrefix = runlive.SeatTypePrefix
 
 // Seats is every seat id the engine can produce whose spelling is FIXED.
 //

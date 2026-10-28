@@ -1,4 +1,4 @@
-usgs-landscape-table · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@c9ec3d9a9ccd · rendered at 400.00 DPI (native 400.00), 2176x3550 px
+usgs-landscape-table · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@757c966a67b2 · rendered at 400.00 DPI (native 400.00), 2176x3550 px
 table: true · rules: repair · rotated: true · grid intersections: 0 · repaired crossings: 179 · length: 1806 · ink: 4.617%
 text cells: 1 tables, 10 bands, 10 rows, 16 columns, 152 cells, 242 words placed, 643 read
 fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it

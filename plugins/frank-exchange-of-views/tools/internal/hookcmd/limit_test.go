@@ -41,7 +41,7 @@ func limitRun(t *testing.T, limit int) (cwd, runDir string, handoffs *[]limitHan
 	if err := os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"), []byte(cfg), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", ""); err != nil {
+	if _, err := runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,6 +74,7 @@ func call(t *testing.T, cwd, agent, tool, command string) (decision, reason stri
 	p := map[string]any{"tool_name": tool, "tool_input": ti, "cwd": cwd}
 	if agent != "" {
 		p["agent_id"] = agent
+		p["session_id"] = testLead
 		p["agent_type"] = "frank-exchange-of-views:red-lens-evidence"
 	}
 	b, err := json.Marshal(p)

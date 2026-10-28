@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"unsafe"
 )
 
@@ -158,11 +159,24 @@ func captureDiagnostics(fn func() error) (string, error) {
 	defer os.Remove(path)
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
+	// A fatal error inside the window — a signal in the C stack, a runtime throw — writes its
+	// trace to file descriptor 2, which is the scratch file this function then deletes: the
+	// process dies with no trace anywhere. SetCrashOutput duplicates the real stderr while fd 2
+	// is still the real one, so the trace reaches it as well as the scratch file.
+	if err := debug.SetCrashOutput(os.Stderr, debug.CrashOptions{}); err != nil {
+		return "", fmt.Errorf("tessocr: keeping crash output on stderr: %w", err)
+	}
+	defer debug.SetCrashOutput(nil, debug.CrashOptions{})
 	if rc := C.tessocr_diag_begin(cpath); rc != 0 {
 		return "", fmt.Errorf("tessocr: could not capture diagnostics (stage %d: 1 open, 2 dup, 3 dup2, 4 already capturing)", int(rc))
 	}
-	ferr := fn()
-	C.tessocr_diag_end()
+	// Deferred so a panic in fn restores fd 2 before the panic prints: otherwise its trace goes
+	// to the scratch file, and a recovered panic leaves stderr captured for the rest of the
+	// process, every later page refused as "already capturing".
+	ferr := func() error {
+		defer C.tessocr_diag_end()
+		return fn()
+	}()
 	if ferr != nil {
 		return "", ferr
 	}

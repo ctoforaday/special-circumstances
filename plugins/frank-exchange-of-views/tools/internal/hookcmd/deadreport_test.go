@@ -30,6 +30,7 @@ func TestTheHookRefusesASeatsReadOfTheReportFile(t *testing.T) {
 		p := map[string]any{"tool_name": "Read", "tool_input": map[string]string{"file_path": path}, "cwd": cwd}
 		if agent != "" {
 			p["agent_id"] = agent
+			p["session_id"] = testLead
 			p["agent_type"] = "frank-exchange-of-views:red-lens-adversary"
 		}
 		b, _ := json.Marshal(p)

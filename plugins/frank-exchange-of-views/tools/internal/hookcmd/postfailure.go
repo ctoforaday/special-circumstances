@@ -31,6 +31,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 		AgentID     string          `json:"agent_id"`
 		AgentType   string          `json:"agent_type"`
 		Cwd         string          `json:"cwd"`
+		SessionID   string          `json:"session_id"`
 	}
 	b, err := io.ReadAll(stdin)
 	if err != nil || json.Unmarshal(b, &in) != nil {
@@ -40,7 +41,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if in.IsInterrupt {
 		return nil
 	}
-	caller := callerOf(in.AgentID, in.AgentType)
+	caller := callerOf(in.AgentID, in.AgentType, in.SessionID)
 	agent := caller.ID
 	if agent == "" {
 		return nil
