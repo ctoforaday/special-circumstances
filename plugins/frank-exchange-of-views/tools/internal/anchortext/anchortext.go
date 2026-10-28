@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
@@ -310,8 +311,15 @@ func LocateOnce(doc, quote string, scope SpanScope) (start, end int, err error) 
 	if start < 0 {
 		return -1, -1, ErrMisQuote
 	}
-	if s2, _ := locate(doc[end:], quote, CrossParagraphs); s2 >= 0 {
-		return -1, -1, ErrAmbiguous
+	if s2, e2 := locate(doc[end:], quote, CrossParagraphs); s2 >= 0 {
+		starts := []int{start, end + s2}
+		for off := end + e2; e2 > 0; off += e2 {
+			if s2, e2 = locate(doc[off:], quote, CrossParagraphs); s2 < 0 {
+				break
+			}
+			starts = append(starts, off+s2)
+		}
+		return -1, -1, &AmbiguousError{Where: occurrences(doc, starts)}
 	}
 	if _, _, ok := matchFrom(doc, start, normalizeQuote(quote), scope); !ok {
 		return -1, -1, ErrCrossesParagraph
@@ -362,6 +370,73 @@ var (
 	ErrOnHeading = errors.New("the quote ends in a section heading")
 )
 
+// AmbiguousError is ErrAmbiguous with WHERE the quote stands: each occurrence's section and the
+// sentence it begins in, so the seat can quote the one it means with the text before it instead of
+// searching the report for the copy it did not know was there (m35: two `prove` refusals, and
+// blue's own check for a second copy was anchored and missed it).
+type AmbiguousError struct {
+	// Where names every occurrence, in report order.
+	Where string
+}
+
+func (e *AmbiguousError) Error() string { return ErrAmbiguous.Error() }
+func (e *AmbiguousError) Unwrap() error { return ErrAmbiguous }
+
+// WhereAmbiguous is the account of where an ambiguous quote stands, or "" for any other error.
+func WhereAmbiguous(err error) string {
+	var ae *AmbiguousError
+	if errors.As(err, &ae) {
+		return ae.Where
+	}
+	return ""
+}
+
+// shownOccurrences caps how many occurrences a refusal quotes; the rest are counted.
+const shownOccurrences = 5
+
+// shownSentence caps a quoted sentence, in bytes, at a rune boundary.
+const shownSentence = 240
+
+// occurrences names each start in doc: the heading of its section and the sentence it begins in.
+func occurrences(doc string, starts []int) string {
+	blocks := anchor.Blocks(doc)
+	var parts []string
+	for i, at := range starts {
+		if i == shownOccurrences {
+			parts = append(parts, fmt.Sprintf("and %d more", len(starts)-i))
+			break
+		}
+		section, sentence := "before the first heading", ""
+		for _, b := range blocks {
+			if b.Start > at {
+				break
+			}
+			if b.Kind == anchor.Heading {
+				section = "under the heading \"" + normalizeQuote(strings.TrimLeft(doc[b.Body:b.End], "# ")) + "\""
+			}
+			if b.Start <= at && at <= b.End {
+				sentence = doc[b.Body:b.End]
+				for _, sp := range b.Sentences {
+					if sp[0] <= at && at < sp[1] {
+						sentence = doc[sp[0]:sp[1]]
+						break
+					}
+				}
+			}
+		}
+		sentence = normalizeQuote(sentence)
+		if len(sentence) > shownSentence {
+			cut := shownSentence
+			for cut > 0 && !utf8.RuneStart(sentence[cut]) {
+				cut--
+			}
+			sentence = sentence[:cut] + "…"
+		}
+		parts = append(parts, fmt.Sprintf("%d. %s, in the sentence \"%s\"", i+1, section, sentence))
+	}
+	return fmt.Sprintf("it stands %d times — %s", len(starts), strings.Join(parts, "; "))
+}
+
 // Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
 // sentinels and for ErrOnHeading, so every placer teaches them in the same
 // words. ErrMisQuote and ErrInFence, which each verb words for its own quote, come back unchanged.
@@ -371,7 +446,7 @@ var (
 func Refusal(err error) error {
 	switch {
 	case errors.Is(err, ErrAmbiguous):
-		return fmt.Errorf("%w in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored", err)
+		return fmt.Errorf("%w in the report (%s), and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored", err, WhereAmbiguous(err))
 	case errors.Is(err, ErrCrossesParagraph):
 		return fmt.Errorf("%w, and an anchor sits in one passage: quote text inside one paragraph", err)
 	case errors.Is(err, ErrSplitsWord):
