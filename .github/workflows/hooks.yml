@@ -1448,7 +1448,7 @@ jobs:
           fetch-depth: 0
       # Pinned to a commit, not a tag: a tag is mutable, and this action runs with the
       # workflow's token. v2.3.0.
-      - uses: qltysh/qlty-action/install@c9b09987143d1e4ac955f4803c7bea742102feb5
+      - uses: qltysh/qlty-action/install@ebcd284bf32e36a030afe15f1e136c7be08b9506
       - env:
           BASE_REF: ${{ github.base_ref }}
         run: qlty check --no-progress --no-fix --upstream "origin/$BASE_REF"
