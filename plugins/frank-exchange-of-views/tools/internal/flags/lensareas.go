@@ -2,7 +2,7 @@ package flags
 
 // LensAreas are the strategic areas a red lens seat can be dispatched for — one seat each, and
 // the name IS the identity: a finding filed by the adversary lens prints beside its id as
-// `(adversary)`, so a credit reads back as what found it (#791).
+// `(adversary)`, so a found_by reads back as what found it (#791).
 //
 // IT LIVES HERE BECAUSE THREE PACKAGES READ IT AND ONE OF THEM CANNOT IMPORT THE OTHERS.
 // internal/record owns the roster and imports this package, so the list cannot live there without

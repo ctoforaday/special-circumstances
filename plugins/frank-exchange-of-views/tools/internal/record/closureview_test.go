@@ -250,9 +250,9 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 // THE BOARD BESIDE ITS CLOSURES, on one record: a gap closed by BOTH arms (attribution follows the
 // act that ended it, the epoch the LAST closing act, and the embedded body prefers the red close), a
 // non-closing docket ruling that
-// must close nothing, regrade overlays, credited and uncredited findings, and the verify/cite count
+// must close nothing, regrade overlays, minted and unminted findings, and the verify/cite count
 // split.
-func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
+func TestTheBoardEmbedsItsClosuresRegradesAndMints(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
 	red := Identity{Run: run, SeatID: "red-chair"}
@@ -267,7 +267,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	}
 
 	app(lens, &recordpb.Finding{Id: proto.String("F-0a0a0a0a"), Location: proto.String("¶3"), Text: proto.String("overclaims"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-	app(lens, &recordpb.Finding{Id: proto.String("F-0b0b0b0b"), Text: proto.String("uncredited")})
+	app(lens, &recordpb.Finding{Id: proto.String("F-0b0b0b0b"), Text: proto.String("unminted")})
 
 	mint := func(id string, extra func(m *recordpb.Mint)) {
 		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
@@ -373,16 +373,16 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
 		t.Errorf("citation split = %d/%d, want 1/1", bj.Counts.Citations, bj.Counts.CitationsAuthored)
 	}
-	credited, uncredited := 0, 0
+	minted, unminted := 0, 0
 	for _, o := range bj.Observations {
-		if o.Credited {
-			credited++
+		if o.Minted {
+			minted++
 		} else {
-			uncredited++
+			unminted++
 		}
 	}
-	if credited != 1 || uncredited != 1 || bj.Counts.UncreditedFindings != 1 {
-		t.Errorf("credit split = %d/%d (counter %d), want 1/1/1", credited, uncredited, bj.Counts.UncreditedFindings)
+	if minted != 1 || unminted != 1 || bj.Counts.UnmintedFindings != 1 {
+		t.Errorf("minted split = %d/%d (counter %d), want 1/1/1", minted, unminted, bj.Counts.UnmintedFindings)
 	}
 }
 
