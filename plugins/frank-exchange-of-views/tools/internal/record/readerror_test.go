@@ -10,7 +10,7 @@ import (
 
 // A READ THAT FAILS IS AN ERROR, NOT A DIFFERENT ANSWER. RecordedOutcome reads the latest outcome;
 // when that read fails — locked, busy, a malformed table — the caller sees the error, on a record the
-// open has already held to this binary's schema (recordsql.requireDeclaredSchema), so the only way
+// open has already held to this binary's epoch (recordsql.requireThisEpoch), so the only way
 // to reach it is a real error.
 //
 // The failure is made by dropping the table through the run's cached handle: every later read

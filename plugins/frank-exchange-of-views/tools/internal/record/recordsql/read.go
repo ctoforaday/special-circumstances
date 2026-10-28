@@ -456,9 +456,9 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 	// A double-quoted identifier that names no column is read as a STRING LITERAL, so the query
 	// succeeds and every row carries the column's own name as its value — a string field reads
 	// back as its name, a bool as false, and nothing says so. The write path has no such trap (an
-	// INSERT column list must resolve). The open holds a record to this binary's columns
-	// (requireDeclaredSchema), so a miss here is not an older run and the error says only what
-	// is missing.
+	// INSERT column list must resolve). The open holds a record to this binary's epoch
+	// (requireThisEpoch), and an epoch names its columns, so a miss here is not an older run and the
+	// error says only what is missing.
 	if have, err := columnsOf(db, table); err == nil && len(have) > 0 {
 		var absent []string
 		for _, c := range cols {
@@ -526,7 +526,7 @@ type Querier interface {
 }
 
 // olderRunAdvice is the cause and the way out for a record behind this binary, given at the open
-// (requireDeclaredSchema) — the one place an older binary is the cause.
+// (requireThisEpoch) — the one place an older binary is the cause.
 // newerRunAdvice is olderRunAdvice's MIRROR, and it names a different remedy because it is a
 // different mistake. The record is ahead of the binary, so there is nothing to migrate: the binary is
 // the stale party and must be replaced by the one the run was set up with.
