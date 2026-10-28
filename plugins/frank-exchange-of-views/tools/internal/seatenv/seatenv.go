@@ -22,6 +22,7 @@ package seatenv
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
@@ -187,8 +188,22 @@ func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, 
 	return "", RunUnresolved, nil
 }
 
-// sameDir compares two directory paths, ignoring only a trailing separator.
-func sameDir(a, b string) bool { return trimSep(a) == trimSep(b) }
+// sameDir says whether two directory paths name one directory: each is made absolute against this
+// process's working directory and cleaned, after a trailing separator is dropped. A relative --run is
+// the path the lead's own setup prints, so it names the dispatched run when it resolves to it.
+// Symlinks are NOT resolved and case is not folded: a link or a case difference can be a different
+// run, and the tool does not guess which one was meant.
+func sameDir(a, b string) bool { return absDir(a) == absDir(b) }
+
+// absDir is p absolute and cleaned, or p cleaned when the working directory cannot be read — a
+// relative path then never equals an absolute one, so the disagreement is refused, not guessed.
+func absDir(p string) string {
+	p = trimSep(p)
+	if abs, err := filepath.Abs(p); err == nil {
+		return abs
+	}
+	return filepath.Clean(p)
+}
 
 func trimSep(p string) string {
 	for len(p) > 1 && (p[len(p)-1] == '/' || p[len(p)-1] == '\\') {
