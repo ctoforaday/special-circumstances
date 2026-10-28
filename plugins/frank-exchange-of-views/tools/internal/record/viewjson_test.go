@@ -304,7 +304,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Supersedes:      []string{"G1"},
 			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
-			// conversion dropped it, so the test asserted against a gap that credited nobody.
+			// conversion dropped it, so the test asserted against a gap whose found_by named nobody.
 			FoundBy: []string{"F-f0000001", "L5-F3"},
 		}),
 	})
@@ -329,19 +329,19 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	}
 }
 
-// UNCREDITED FINDINGS, not undisposed observations (#327).
+// UNMINTED FINDINGS.
 //
 // The old metric counted `observe` events with no `dispose` fate. Both verbs are retired, so it
 // would now be PERMANENTLY ZERO — a dead detector and a clean board printing the same number,
 // which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
-// so the honest question is whether it was ever credited in a gap's found_by.
-func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
+// so the honest question is whether it was ever named in a gap's found_by.
+func TestUnmintedFindingsCountsFindingsNoGapNames(t *testing.T) {
 	runDir := newRun(t)
 	s := "red-lens-evidence"
 	m := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, s, s+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("credited")}),
-		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never credited")}),
+		recordtest.At(t, s, s+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted")}),
+		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never minted")}),
 	})
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -354,13 +354,13 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		}),
 	})
 	bj := mustBoardJSONT(t, mustRun(t, runDir))
-	if bj.Counts.UncreditedFindings != 1 {
-		t.Errorf("exactly one finding is credited by no gap; got %d uncredited", bj.Counts.UncreditedFindings)
+	if bj.Counts.UnmintedFindings != 1 {
+		t.Errorf("exactly one finding is named by no gap; got %d unminted", bj.Counts.UnmintedFindings)
 	}
 	for _, o := range bj.Observations {
 		want := o.ID == "F-f0000001"
-		if o.Credited != want {
-			t.Errorf("%s: credited=%v, want %v", o.ID, o.Credited, want)
+		if o.Minted != want {
+			t.Errorf("%s: minted=%v, want %v", o.ID, o.Minted, want)
 		}
 	}
 }

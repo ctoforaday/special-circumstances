@@ -317,7 +317,7 @@ type EvidenceJSON struct {
 	// EACH CARRIES ITS ID, and naming it is the only act that raises it (`finding --about-kind
 	// contradiction --about <id>`), whether or not the report still holds the sentence. A finding
 	// whose quote contains the claim raises nothing. A raised one carries the raising finding,
-	// which the gap that answers it credits in its found_by.
+	// which the gap that answers it names in its found_by.
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
 		Sources int `json:"sources"`
@@ -343,7 +343,7 @@ type EvidenceJSON struct {
 // events.id of the reading that opened it, the value `--about` takes; Claim is the sentence the
 // reading was of; Reader is the seat whose reading last joined it, which owes the finding and the
 // gap; Anchor is the citation that reading checked, "" for a corroboration; RaisedBy is the finding
-// that raised it, "" until one has — the id the answering gap's found_by credits.
+// that raised it, "" until one has — the id the answering gap's found_by names.
 type EvidenceContradictionJSON struct {
 	ID       string `json:"id"`
 	Claim    string `json:"claim"`

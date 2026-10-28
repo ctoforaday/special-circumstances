@@ -973,8 +973,8 @@ func boardSection(fam record.Family) string {
 
 	// Lens findings the chair did NOT raise to a gap — red's leaf audit that fell short of a
 	// mint but still carries substance (a claimed failure mode shown inapplicable, a resilient
-	// result confirmed). A finding is "minted" when its id appears in some gap's found_by
-	// credit chain; the rest are dropped on the floor by every report before this one. Surfaced
+	// result confirmed). A finding is "minted" when its id appears in some gap's
+	// found_by; the rest are dropped on the floor by every report before this one. Surfaced
 	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
 	if un := unmintedFindings(fam); un != "" {
 		fmt.Fprintf(&b, "\n\n%s", un)
@@ -1203,7 +1203,7 @@ func regradeHistory(g *record.Gap) string {
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
 
-// unmintedFindings renders the lens findings whose id is credited by NO gap's found_by, or
+// unmintedFindings renders the lens findings whose id is named in NO gap's found_by, or
 // "" if every finding earned a gap. Ordered by the event log so the section is deterministic.
 func unmintedFindings(fam record.Family) string {
 	minted := map[string]bool{}
@@ -1231,7 +1231,7 @@ func unmintedFindings(fam record.Family) string {
 		}
 		// A finding is addressed by COALESCENCE and nothing else: its id named in some gap's
 		// found_by. What a finding reaching this section means is therefore ONE fact — no gap
-		// credits it — and NOT the second fact this comment used to assert, that "the merge
+		// names it — and NOT the second fact this comment used to assert, that "the merge
 		// weighed it and did not mint it".
 		//
 		// NOTHING ON THE RECORD SAYS THE CHAIR WEIGHED ANYTHING. Deliberation is not an event;
@@ -1256,7 +1256,7 @@ func unmintedFindings(fam record.Family) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("### Lens findings credited by no gap (%d)\n\nRed's leaf audit that no gap on the board credits. Whether each was considered and declined, or never reached the chair at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
+	return fmt.Sprintf("### Lens findings no gap was minted from (%d)\n\nRed's leaf audit that no gap on the board names in its found_by. Whether each was considered and declined, or never reached the chair at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
 		len(rows), strings.Join(rows, "\n\n"))
 }
 

@@ -42,7 +42,7 @@ var listingLine = regexp.MustCompile(`^\s{2,}([a-z][a-z-]+) +(\S.*)$`)
 const listingHeader = "Available Commands:"
 
 // housekeeping are the commands cobra generates onto every parent. They belong to no role, so
-// they neither credit a seat nor disqualify the listing they appear in.
+// they neither count for a seat nor disqualify the listing they appear in.
 //
 // "completion" IS LOAD-BEARING HERE AND NAMES NOTHING ON THE LIVE SURFACE. This file reads help
 // listings out of RECORDED TRANSCRIPTS, and the recorded ones carry the word: the generator is
@@ -86,7 +86,7 @@ func helpBlocks(text string) [][]string {
 // COUNTED PER BLOCK, NEVER PER LINE, and that is the difference between a measurement and a
 // flattering one. The probe stages ROOT help into a board as setup material, and the root listing
 // contains `verify` and `count-claims` — names that are also role verbs. A line-level match
-// credits every seat with those before it acts, and flatters exactly the arms that open help
+// counts every seat as having seen those before it acts, and flatters exactly the arms that open help
 // LEAST, which is the direction the whole experiment is testing. A block counts only when every
 // name in it belongs to this role.
 func ReadSeen(trajectoryPath string, acts []string) (Seen, error) {
@@ -133,7 +133,7 @@ func ReadSeen(trajectoryPath string, acts []string) (Seen, error) {
 				// them appearing in a seat's OWN listing failed the all-names test and rejected
 				// the block whole. The seat had been handed its entire surface and the measure
 				// said it had seen nothing — a false zero produced by the rule written to
-				// prevent false credit, which is the same defect facing the other way.
+				// prevent a false count, which is the same defect facing the other way.
 				all := true
 				for _, name := range block {
 					if housekeeping[name] {

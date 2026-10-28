@@ -160,7 +160,7 @@ Do not cache until the derivation is proven expensive. That is the render-shadow
 ## Status
 
 - **Built:** none of the anchoring model yet. Prerequisites landed — board de-dup (#225), retire
-  detector (#226), undisposed metric (#227 — retired with observe/dispose in #327; the honest successor is uncredited_findings).
+  detector (#226), undisposed metric (#227 — retired with observe/dispose in #327; the honest successor is unminted_findings).
 - **Specced (the (c) work):** the worklist view, `mint --check-kind`. The (c)
   spec's Phase 3 is **slice (1a)** — the confirmation loop with the retained report-wide stale-string
   sweep as the T3 backstop. It is the FIRST slice of the stateless stage, not the whole stage.
