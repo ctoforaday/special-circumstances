@@ -51,14 +51,15 @@ type CountsJSON struct {
 	Open          int `json:"open"`
 	Closed        int `json:"closed"`
 	ClosedByBench int `json:"closed_by_bench"`
-	// UncreditedFindings counts lens findings whose id is named in NO gap's found_by.
+	// UnmintedFindings counts lens findings whose id is named in NO gap's found_by.
 	//
-	// A finding's fate is COALESCENCE, so the honest question is whether it was ever credited.
+	// A finding's fate is COALESCENCE, so the honest question is whether a gap
+	// was ever minted from it.
 	// Counting an explicit disposal instead would be permanently zero — the plausible zero this
 	// codebase keeps finding, where a clean board and a dead detector print the same number.
-	UncreditedFindings int `json:"uncredited_findings"`
-	Anomalies          int `json:"anomalies"`
-	TotalObservations  int `json:"total_observations"`
+	UnmintedFindings  int `json:"unminted_findings"`
+	Anomalies         int `json:"anomalies"`
+	TotalObservations int `json:"total_observations"`
 	// Citations counts VERIFY events — red's leaf reads — and is the canonical source for the
 	// envelope's citations_checked, which red reads from its native board view instead of
 	// self-reporting (a number fabricated on haiku).
@@ -191,11 +192,11 @@ type ObservationJSON struct {
 	Kind   string `json:"kind"`
 	Text   string `json:"text"`
 
-	// Credited says the finding's id is named in some gap's found_by — the ONLY way a
+	// Minted says the finding's id is named in some gap's found_by — the ONLY way a
 	// finding is addressed. It is explicit rather than left for the consumer to re-derive by
 	// scanning every gap, because that re-derivation is a second definition free to disagree
 	// with this one.
-	Credited bool `json:"credited"`
+	Minted bool `json:"minted"`
 }
 
 // strs normalizes a nil string slice to an empty one.
@@ -419,7 +420,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, fmt.Errorf("asking the record for its board: %w", err)
 	}
 	defer rows.Close()
-	credited, unrendered := map[string]bool{}, false
+	minted, unrendered := map[string]bool{}, false
 	for rows.Next() {
 		var id string
 		var round int
@@ -463,7 +464,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			gj.Backing = gapBacking(g, verified)
 		}
 		for _, l := range foundBy[mintedEvent] {
-			credited[l] = true
+			minted[l] = true
 		}
 		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, benchClosedLast, byID, win)
 		if err != nil {
@@ -507,9 +508,9 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
 		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
 			ID: f.GetId(), Area: AreaOf(e.GetSeatId()), Text: f.GetText()}
-		oj.Credited = credited[oj.ID]
-		if !oj.Credited {
-			out.Counts.UncreditedFindings++
+		oj.Minted = minted[oj.ID]
+		if !oj.Minted {
+			out.Counts.UnmintedFindings++
 		}
 		out.Observations = append(out.Observations, oj)
 	}
@@ -1459,7 +1460,7 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 // attribute per role/epoch from. It replaces the red/candidates/*.md file the chair used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
-	// ID is the finding's one name: what a gap's found_by credits, and the id inside its anchor in
+	// ID is the finding's one name: what a gap's found_by names, and the id inside its anchor in
 	// the report, so a seat holding either resolves it here. Area is the lens that filed it.
 	ID         string `json:"id"`
 	Area       string `json:"area"`
@@ -1491,7 +1492,7 @@ type FindingJSON struct {
 	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
 	Backing []GapBackingJSON `json:"backing"`
 	Text    string           `json:"text"`
-	// MintedAs is the gap ids whose `found_by` credits this finding — the join the record
+	// MintedAs is the gap ids whose `found_by` names this finding — the join the record
 	// already holds, read from the side that could not reach it.
 	//
 	// It is the same defect `Anchor` above was: a join key living where nothing can reach it
@@ -1501,7 +1502,7 @@ type FindingJSON struct {
 	// sixteen gap rows by hand.
 	//
 	// Measured on 2026-08-23_research-loop-counterparts (#747): 20 findings, 16 gaps, and three
-	// findings — L2-F1, L6-F8, L6-F11 — that no gap credits. One of them alleged a fabricated
+	// findings — L2-F1, L6-F8, L6-F11 — that no gap names. One of them alleged a fabricated
 	// verbatim quote in the very text the chair closed a gap on in that same sitting. Nothing on
 	// the docket said so, because the docket is gap-shaped and this fact is finding-shaped.
 	//
@@ -1528,7 +1529,7 @@ type FindingsJSON struct {
 // run path (FindingsJSONBytes) fetches exactly the finding family.
 func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
-	// WHICH GAPS CREDIT WHICH FINDING, indexed once. A mint's found_by is the record's own
+	// WHICH GAPS NAME WHICH FINDING, indexed once. A mint's found_by is the record's own
 	// statement that a finding became a gap; read here so the finding side can state it too.
 	mintedBy := map[string][]string{}
 	for _, e := range evs {
@@ -1581,7 +1582,7 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 
 // findingsView is the findings read from the record. MINT is not optional company for FINDING:
 // minted_as is computed from the mint bodies in the same slice, so a stream without them reports
-// every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
+// every finding as named by nothing — the same bytes the view uses for a finding genuinely dropped.
 var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
 	recordpb.EventType_EVENT_TYPE_FINDING,
 	recordpb.EventType_EVENT_TYPE_MINT)
