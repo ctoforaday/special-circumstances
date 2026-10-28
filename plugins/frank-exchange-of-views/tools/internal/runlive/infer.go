@@ -44,30 +44,52 @@ import (
 type Inference int
 
 const (
-	NoMarker    Inference = iota // no marker between here and the root: not in a run
-	Resolved                     // exactly one live run
-	NoRunOpen                    // a marker, naming no live run (StateOf)
-	Ambiguous                    // more than one live run: no seat's run can be told — a fault
-	Unreadable                   // a marker that cannot be read or parsed — a fault
-	Unlocatable                  // no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory — a fault
+	NoMarker             Inference = iota // no marker between here and the root: not in a run
+	Resolved                              // exactly one live run
+	NoRunOpen                             // a marker, naming no live run (StateOf)
+	Ambiguous                             // more than one live run: no seat's run can be told — a fault
+	Unreadable                            // a marker that cannot be read or parsed — a fault
+	Unlocatable                           // no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory — a fault
+	OtherSession                          // live runs, none led by the caller's session: not this caller's run
+	Sessionless                           // live runs, and a caller with no session id: nothing can be attributed — a membership fault
+	SeatOfAnotherSession                  // live runs, none led by the caller's session, and the caller is one of this plugin's agents — a membership fault
 )
+
+// SeatTypePrefix is the agent configuration prefix of every seat this plugin dispatches, as the
+// harness attests it on a hook payload (seatclass names each seat's configuration under it).
+const SeatTypePrefix = "frank-exchange-of-views:"
+
+// StageMembership is the failure-record stage for a payload a live run could not be told to own or
+// disown: one with no session id, or one of this plugin's agents dispatched by a session that leads
+// no live run here — the shape of a run resumed in a new session that was not taken over. Cleared
+// only by a payload that IS attributed, so an unrelated session's calls never clear it.
+const StageMembership hookfailures.Stage = "run-membership"
+
+// Membership reports whether the inference is a membership fault (StageMembership).
+func (i Inference) Membership() bool { return i == Sessionless || i == SeatOfAnotherSession }
 
 // Fault reports whether the inference failed for a reason a human should hear about.
 //
-// TWO LIVE RUNS IS A FAULT. A hook's payload names no run, so with two live the hooks bracket no
-// sitting, count no call and inject no run for either one — every seat of both runs acts unbracketed
-// and uncapped. `setup` refuses a second live run, so this is reached only by a marker written
-// around it, and it is said rather than absorbed.
+// TWO LIVE RUNS LED BY ONE SESSION IS A FAULT. A hook's payload names no run, so with two live for
+// one session the hooks bracket no sitting, count no call and inject no run for either one — every
+// seat of both runs acts unbracketed and uncapped. `setup` refuses a second live run for a session,
+// so this is reached only by a marker written around it, and it is said rather than absorbed. Live
+// runs led by different sessions are not ambiguous: each payload's session picks its own.
 func (i Inference) Fault() bool { return i == Unreadable || i == Ambiguous || i == Unlocatable }
 
 // Inferred is InferRunDir's answer: the directory, why, and where the marker was — the project a
 // fault belongs to, which is its scope on the failure record. Live names the live runs when there
 // is more than one, for the fault's own words.
+//
+// Leads names the sessions leading the live runs, and Session the caller's, for a membership
+// fault's own words.
 type Inferred struct {
 	Dir       string
 	Why       Inference
 	MarkerDir string
 	Live      []string
+	Leads     []string
+	Session   string
 }
 
 // StageUnusable is the failure-record stage for a marker that is a fault (Inference.Fault). It is
@@ -75,8 +97,9 @@ type Inferred struct {
 // the subagent sitting hooks — and the stage names one fact about one file.
 const StageUnusable hookfailures.Stage = "run-dir-unusable"
 
-// caller is the agent asking (the zero Caller for none) — StateOf's exceptions between a run's
-// outcome and its capture, the bench's assembly sitting, are answered through it.
+// caller is the agent asking (the zero Caller for none). Its session decides MEMBERSHIP — only a run
+// its session leads is its run — and StateOf's exceptions between a run's outcome and its capture,
+// the bench's assembly sitting, are answered through it.
 func InferRunDir(start string, caller Caller) Inferred {
 	dir := start
 	if dir == "" {
@@ -109,16 +132,33 @@ func InferRunDir(start string, caller Caller) Inferred {
 			// ONLY LIVE ROWS COUNT. A row whose outcome is recorded or whose directory is gone is
 			// residue of a run nothing captured; letting it resolve attributed every later session in this project
 			// to a dead run, and letting it count made a live run beside it ambiguous.
-			var live []string
+			//
+			// AND ONLY THE CALLER'S SESSION'S. A run's members are the agents its lead session
+			// dispatched, and every one carries that session's id; the marker's location says only
+			// which checkout the run is in, and a worktree nested under that checkout finds the same
+			// marker from another conversation entirely.
+			var live, leads []string
+			anyLive := false
 			for _, m := range runs {
-				if StateOf(dir, m, caller) == RowLive {
+				if StateOf(dir, m, caller) != RowLive {
+					continue
+				}
+				anyLive = true
+				leads = append(leads, m.LeadSession)
+				if caller.Leads(m) {
 					live = append(live, Resolve(dir, m.RunDir))
 				}
 			}
-			switch len(live) {
-			case 0:
+			switch {
+			case !anyLive:
 				return Inferred{Why: NoRunOpen, MarkerDir: dir}
-			case 1:
+			case caller.Session == "":
+				return Inferred{Why: Sessionless, MarkerDir: dir, Leads: leads}
+			case len(live) == 0 && strings.HasPrefix(caller.Type, SeatTypePrefix):
+				return Inferred{Why: SeatOfAnotherSession, MarkerDir: dir, Leads: leads, Session: caller.Session}
+			case len(live) == 0:
+				return Inferred{Why: OtherSession, MarkerDir: dir}
+			case len(live) == 1:
 				return Inferred{Dir: live[0], Why: Resolved, MarkerDir: dir}
 			}
 			return Inferred{Why: Ambiguous, MarkerDir: dir, Live: live}
@@ -140,11 +180,36 @@ func FaultDetail(i Inferred) string {
 	case Unreadable:
 		return "the live-run marker in " + i.MarkerDir + " cannot be read"
 	case Ambiguous:
-		return "the live-run marker in " + i.MarkerDir + " names " + strconv.Itoa(len(i.Live)) + " live runs (" +
+		return "the live-run marker in " + i.MarkerDir + " names " + strconv.Itoa(len(i.Live)) + " live runs led by one session (" +
 			strings.Join(i.Live, ", ") + "), so no seat's run can be told apart and none is used — close all but one " +
-			"with `feov-record capture <runDir> <transcript dir> --seat-id operator`, or run the others from a separate checkout"
+			"with `feov-record capture <runDir> <transcript dir> --seat-id operator`, and launch any other run from a separate checkout"
+	case Sessionless:
+		return "a hook payload carried no session_id while the live-run marker in " + i.MarkerDir + " names a live run, " +
+			"so it was attributed to none — a run's members are told by the run's lead session"
+	case SeatOfAnotherSession:
+		leads := make([]string, len(i.Leads))
+		for k, l := range i.Leads {
+			leads[k] = FromSessionArg(l)
+		}
+		return "an agent of this plugin, dispatched by session " + i.Session + ", acted in " + i.MarkerDir +
+			", whose live runs' lead sessions are " + strings.Join(leads, ", ") + "; it was attributed to none. " +
+			"If that session is resuming a run whose lead session has ended, it takes the run over first: " +
+			"`feov-record take-over <runDir> --from-session <the run's lead session, named here> --seat-id operator`"
 	case Unlocatable:
 		return "there is nowhere to look for a live-run marker (no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory)"
 	}
 	return ""
+}
+
+// NoteMembership records a membership fault on the failure record, and clears it when a payload is
+// attributed. ONE place, because the PreToolUse hook and the sitting hooks both resolve a run and
+// both must say when they declined to; a payload no run claims is silent unless it is one of the
+// two shapes a run may be losing its own members to.
+func NoteMembership(i Inferred, rec *hookfailures.Recorder, consequence string) {
+	switch {
+	case i.Why.Membership():
+		rec.FailIn(StageMembership, i.MarkerDir, FaultDetail(i)+" — "+consequence)
+	case i.Why == Resolved:
+		rec.OKIn(StageMembership, i.MarkerDir)
+	}
 }

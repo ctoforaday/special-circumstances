@@ -2,9 +2,6 @@ package chair
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -25,8 +22,8 @@ func init() {
 
 // verdict: the chair's terminal act.
 //
-// It CHECKPOINTS the whole records/ directory (the append-only event log) to a
-// mirror outside the run. The run directory is untracked-by-design until
+// It CHECKPOINTS the record (the append-only event log) to a mirror outside the run, as one
+// consistent database snapshot (record.WriteMirror). The run directory is untracked-by-design until
 // capture, and the 2026-07-17 incident showed how a stray git operation can
 // delete a live blackboard mid-sitting; a mirror keyed by the run path means the
 // events survive the working tree. Projections are regenerated on read from the
@@ -60,7 +57,7 @@ func newVerdict() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		mirror, err := checkpoint(run)
+		mirror, err := record.WriteMirror(run)
 		if err != nil {
 			return nil, err
 		}
@@ -69,68 +66,6 @@ func newVerdict() *cobra.Command {
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), "the seat's terminal act")
 	return seat.Require(c, flags.As)
-}
-
-// checkpoint copies records/ to a per-run directory under the user cache, keyed
-// by a hash of the run dir so two runs never collide.
-//
-// The path comes from record.MirrorDir rather than being composed here, because the reaper in
-// capture and the orphan purge in run-setup have to name the SAME directory this writes to,
-// and three hand-assembled copies of one path is three chances for a purge that silently
-// matches nothing.
-func checkpoint(run record.Run) (string, error) {
-	mirror, err := record.MirrorDir(run.Dir())
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(mirror, 0o755); err != nil {
-		return "", err
-	}
-	src := run.Records()
-	if _, err := os.Stat(src); err == nil {
-		if err := copyDir(src, mirror); err != nil {
-			return "", err
-		}
-	}
-	return mirror, nil
-}
-
-func copyDir(src, dst string) error {
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return err
-	}
-	for _, e := range entries {
-		s, d := filepath.Join(src, e.Name()), filepath.Join(dst, e.Name())
-		if e.IsDir() {
-			if err := copyDir(s, d); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := copyFile(s, d); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
 }
 
 // verdictResult is the verdict recorded and the plan the record now prints, which IS the --json

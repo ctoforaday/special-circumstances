@@ -1,9 +1,11 @@
 ---
 # THE NIGHTLY HAS A READER.
 #
-# `hooks` runs on a schedule, and the scheduled leg is the only one that sets
-# FEOV_RELEASE_GATE=1 — so the debate sweeps and their coverage assertions run there and
-# nowhere else until a tag. That leg went RED on 2026-09-05 and again on 2026-09-06, both
+# `hooks` runs on a schedule, and the scheduled leg is the one that sweeps MAIN with
+# FEOV_RELEASE_GATE=1 — the debate sweeps and their coverage assertions, against what merged.
+# A pull request sweeps only when it changes what the sweeps drive (the release-fuzz job), so
+# a red nightly is a change that filter did not see, two merged changes that interact, or the
+# runner itself. That leg went RED on 2026-09-05 and again on 2026-09-06, both
 # times reporting undriven flags added by a merged pull request, and nobody acted on either.
 # A release converged over the top of it, and the gap was found by hand during a pre-tag
 # sweep rather than by anything that watches.
@@ -90,11 +92,12 @@ jobs:
                 "" \
                 "${RUN_URL}" \
                 "" \
-                "The scheduled leg is the ONLY one that sets \`FEOV_RELEASE_GATE=1\`, so the debate" \
-                "sweeps and their flag/enum coverage assertions run there and nowhere else until a" \
-                "tag. A red nightly is therefore the earliest signal that a merged change left the" \
-                "release gate failing — and until this alarm existed it reached nobody, because a" \
-                "scheduled run has no actor to email." \
+                "The scheduled leg sweeps MAIN with \`FEOV_RELEASE_GATE=1\`: the debate sweeps and" \
+                "their flag/enum coverage assertions, against what merged. A pull request sweeps only" \
+                "when it changes what the sweeps drive (the release-fuzz job), so a red nightly is a" \
+                "change that filter did not see, two merged changes that interact, or the runner." \
+                "Until this alarm existed it reached nobody, because a scheduled run has no actor" \
+                "to email." \
                 "" \
                 "Two reds in September 2026 (the 5th and the 6th) went unread for two days while a" \
                 "release converged; both were undriven flags a merged PR had added." \
