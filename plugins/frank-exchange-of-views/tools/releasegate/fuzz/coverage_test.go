@@ -67,7 +67,7 @@ var enumExemptions = map[string]string{
 	// unreachedEnumValues reads it off the table (EnumValue.ToolOnly) rather than off a row a
 	// hand would have to add for `refusal` and `failure` too. What the row's paragraph promised
 	// still holds and is asserted where it is measured: the sweep drives the real path
-	// (mintEstopped) and TestFuzzDebate FAILS on zero tool-written estoppel entries, counted off
+	// (mintEstopped) and the sweep's judgement FAILS on zero tool-written estoppel entries, counted off
 	// the RECORD with source=TOOL. No equivalent assertion exists for `refusal` or `failure`.
 }
 
@@ -82,15 +82,13 @@ var enumExemptions = map[string]string{
 // ONE CONTRACT, CHECKED ONCE. A persistent flag behaves identically on every command that
 // inherits it, so the honest question is "was it exercised anywhere". Per-path would have
 // demanded 98 drives of `--schema` and 40 of `--id` — repetition measured as coverage.
-func unreachedPersistentFlags() []string {
-	execMu.Lock()
+func unreachedPersistentFlags(p processTally) []string {
 	driven := map[string]bool{}
-	for _, flags := range execFlags {
+	for _, flags := range p.ExecFlags {
 		for f := range flags {
 			driven[f] = true
 		}
 	}
-	execMu.Unlock()
 
 	var missing []string
 	for _, f := range cli.PersistentFlagNames() {
@@ -103,17 +101,8 @@ func unreachedPersistentFlags() []string {
 	return missing
 }
 
-func unreachedFlags() []string {
-	execMu.Lock()
-	driven := map[string]map[string]bool{}
-	for k, v := range execFlags {
-		driven[k] = v
-	}
-	ran := map[string]int{}
-	for k, v := range execRuns {
-		ran[k] = v
-	}
-	execMu.Unlock()
+func unreachedFlags(p processTally) []string {
+	driven, ran := p.ExecFlags, p.ExecRuns
 
 	var missing []string
 	for path, flags := range cli.CommandFlags() {
@@ -131,13 +120,12 @@ func unreachedFlags() []string {
 	return missing
 }
 
-func unreachedEnumValues() []string {
+func unreachedEnumValues(p processTally) []string {
 	// A VALUE IS DRIVEN WHERE A VERB THAT RECORDS THE TYPE PASSED IT: seen is keyed on the event
 	// type and the flag, folded from the command paths cli.CommandRecords maps to that type.
 	records := cli.CommandRecords()
-	execMu.Lock()
 	seen := map[string]map[string]bool{}
-	for at, values := range execValues {
+	for at, values := range p.ExecValues {
 		path, flag, _ := strings.Cut(at, " --")
 		k := records[path] + " --" + flag
 		if seen[k] == nil {
@@ -147,7 +135,6 @@ func unreachedEnumValues() []string {
 			seen[k][v] = true
 		}
 	}
-	execMu.Unlock()
 
 	var missing []string
 	for typ, fields := range record.EnumFields {
@@ -156,7 +143,7 @@ func unreachedEnumValues() []string {
 			// (`estoppel`, `refusal`, `failure`) is refused at flag parse: there is no honest flag
 			// call that produces one, and driving it from a seat would manufacture a refusal that
 			// never happened. `estoppel` is measured where the tool writes it, off the record
-			// (TestFuzzDebate fails on zero source=TOOL estoppel entries); `refusal` and `failure`
+			// (the sweep's judgement fails on zero source=TOOL estoppel entries); `refusal` and `failure`
 			// are NOT asserted by this sweep — a tool-written entry of either is counted nowhere here.
 			for _, v := range record.Names(record.SeatFilable(e.Values)) {
 				if seen[typ+" --"+e.Flag][v] {
