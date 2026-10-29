@@ -468,7 +468,7 @@ Flags:
 
 ── a mint quoting a sentence that repeats
 exit 2
-feov-record: mint: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored; name its section with --about-kind section
+feov-record: mint: the quote occurs more than once in the report (it stands 2 times — 1. under the heading "H", paragraph 3, in the sentence "Costs rose"; 2. under the heading "H", paragraph 4, in the sentence "Costs rose"), and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored; name its section with --about-kind section
 
 ── a mint quoting across a blank line
 exit 2
@@ -488,7 +488,7 @@ feov-record: mint: the quote ends in a section heading, and an anchor sits on pr
 
 ── a finding quoting a sentence that repeats
 exit 2
-feov-record: finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
+feov-record: finding: the quote occurs more than once in the report (it stands 2 times — 1. under the heading "H", paragraph 3, in the sentence "Costs rose"; 2. under the heading "H", paragraph 4, in the sentence "Costs rose"), and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
 
 ── a retry whose stored location the report no longer holds
 exit 2

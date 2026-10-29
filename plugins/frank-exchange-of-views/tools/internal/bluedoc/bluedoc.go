@@ -46,13 +46,13 @@ func LocateUnique(report, old string) (int, int, error) {
 	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
 	// own two refusals jointly unsatisfiable — see anchortext.SpanScope for the measurement.
 	start, end, err := anchortext.LocateOnce(report, old, anchortext.CrossParagraphs)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		return start, end, nil
-	case anchortext.ErrMisQuote:
+	case errors.Is(err, anchortext.ErrMisQuote):
 		return 0, 0, ErrMisQuote
-	case anchortext.ErrAmbiguous:
-		return 0, 0, fmt.Errorf("your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)")
+	case errors.Is(err, anchortext.ErrAmbiguous):
+		return 0, 0, fmt.Errorf("your quoted span appears MORE THAN ONCE in report.md (%s), so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", anchortext.WhereAmbiguous(err))
 	}
 	return 0, 0, fmt.Errorf("%w. Editing letters rather than language produces one-byte ops that carry no meaning on the record", anchortext.ErrSplitsWord)
 }
