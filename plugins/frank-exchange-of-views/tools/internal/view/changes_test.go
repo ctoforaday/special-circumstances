@@ -88,7 +88,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 		"independence is overclaimed",               // the defect
 		"- five independent approaches",             // blue's actual old span
 		"+ five approaches",                         // and its replacement
-		"Changes blue recorded against it (2)",        // both, and only both
+		"Changes blue recorded against it (2)",      // both, and only both
 		"### 1. `blue-respond` #1 ·",                // the seat and its sitting, no round
 	} {
 		if !strings.Contains(out, want) {
