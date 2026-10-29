@@ -30,7 +30,8 @@ import (
 // the entry is about the call's shape.
 //
 // Best-effort and silent: the refusal is what the seat must see, and a failure to record it must
-// not replace it. A refusal to the operator, or on a run that did not resolve, records nothing.
+// not replace it. A refusal to the operator, or on a run that did not resolve, records nothing, and
+// so does an entry the record itself refuses.
 //
 // A REFUSAL AFTER THE CAPTURE IS NOT RECORDED, AND THE CALLER IS TOLD SO. A captured run
 // (record.RunCaptured) takes no write, this entry included: the refusal still prints, and a line
@@ -51,14 +52,10 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	if rerr != nil || seatID == "" || seatID == record.OperatorRole {
 		return
 	}
-	// A SITTING TO ATTRIBUTE IT TO. A seat with no stored sitting — never registered, never
-	// bracketed into one — has none, and the record refuses an append from it. A seat that has one
-	// has its entry attributed to its latest, as every act it writes is — after the outcome too.
-	// Folded with SittingsOf's error, for the same reason: a refusal is logged on a record that can
-	// take it, and one that cannot be read now gets no entry rather than a second failure.
-	if n, err := record.SittingsOf(run, seatID); err != nil || n == 0 {
-		return
-	}
+	// A REFUSAL BEFORE THE SEAT'S FIRST SITTING IS LOGGED, in no sitting. The hook's bracket names no
+	// blue seat — blue-researcher is every blue seat's agent type — so a lane's sitting opens at its
+	// register, and a read before it is in none; the entry opens none either, and the register that
+	// follows opens the lane's first (#1601 smoke: a lane's `show report` before the ingest, unlogged).
 	if captured, cerr := record.RunCaptured(run); cerr != nil || captured {
 		if captured && !errors.Is(err, record.ErrRunCaptured) {
 			fmt.Fprintln(cmd.ErrOrStderr(), "feov-record: the run was captured, so this refusal is not recorded on its log")

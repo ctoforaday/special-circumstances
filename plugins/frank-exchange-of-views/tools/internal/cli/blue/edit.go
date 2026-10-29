@@ -43,7 +43,7 @@ import (
 // --accept still requires --reason because accepting red's text is a decision, not a transcription:
 // the argument for the change is blue's own.
 func newEdit() *cobra.Command {
-	c := seat.Prose(seat.New("edit", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("edit", editResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

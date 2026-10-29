@@ -1,4 +1,4 @@
-prompt sha256: 376809635daeb712a2afd7a793866bc384de609dc8e6175ab0e03caf2bdeffd7
+prompt sha256: 185bb1cb9668c938ef1c3c0cb1ae1ab0ac3819ebabf80894af44a89da3366328
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -19,11 +19,12 @@ For EACH, argue in ~120 words why it should be decided your way, citing the exac
 This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
-`behind`: the report head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
+`behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
 `unchanged`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
+`served`: served to you whole this sitting (pin P) — audit it.
 `undispatched`: the record holds no dispatch for you — log that and end the sitting.
 Only a whole read of the report moves your pin.
-Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
+A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The ids of your findings and of the gaps you mint are the tool's to assign.
 HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g.

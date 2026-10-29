@@ -53,20 +53,42 @@ type OwedSuccessor struct {
 	Of    string
 }
 
-// successorsOwed is what blue-respond's current sitting owes an `engage` on: for each engaged gap
-// it found closed, in engaged order, each successor the record names that is still open and that no
-// dispatch row naming blue-respond in this epoch engages. ok is false where blue-respond is not
-// sitting a sitting for a dispatch — before it registers, or between sittings.
-//
-// THE BOUND IS THE EPOCH'S ROWS. The chair's row engages blue on its gaps, and blue's own `engage`
-// row on the successors; a successor either names is engaged this epoch and owed no further sitting.
-// So once blue records the act its sitting owes nothing more, and a successor the chair's plan
-// already engaged blue on is never sat twice.
+// successorsOwed is what blue-respond's current sitting owes an `engage` on (owedSuccessorsOf). ok
+// is false where blue-respond is not sitting a sitting for a dispatch — before it registers, or
+// between sittings — so the act has no sitting to follow from.
 func successorsOwed(evs []*Event, win WindowIndex, open func(string) bool) (owed []OwedSuccessor, ok bool) {
 	s, sitting := blueSittingNow(evs, win)
 	if !sitting {
 		return nil, false
 	}
+	return owedSuccessorsOf(evs, win, s, open), true
+}
+
+// successorsOwedOnTheWorkList is what blue-respond's work list states it owes an `engage` on: the
+// sitting it owes for its latest dispatch (owedSitting), split by the closes landed since the row
+// (engagementOf), or else the sitting it is in now.
+//
+// THE LIST IS READ BEFORE THE REGISTER, and blue's register opens its sitting: the hook's bracket
+// cannot name blue-respond, because blue-researcher's agent type is every blue seat's. Read only off
+// the sitting blue is in, the owed set was empty on the list blue reads first and appeared at its
+// first act (#1601 smoke, ev362).
+func successorsOwedOnTheWorkList(evs []*Event, win WindowIndex, open func(string) bool) []OwedSuccessor {
+	if d, owed := owedSitting(evs, win, blueRespondSeat); owed {
+		return owedSuccessorsOf(evs, win, engagementOf(evs, d, int64(len(evs))), open)
+	}
+	owed, _ := successorsOwed(evs, win, open)
+	return owed
+}
+
+// owedSuccessorsOf is what blue-respond's sitting s owes an `engage` on: for each engaged gap it
+// found closed, in engaged order, each successor the record names that is still open and that no
+// dispatch row naming blue-respond in this epoch engages.
+//
+// THE BOUND IS THE EPOCH'S ROWS. The chair's row engages blue on its gaps, and blue's own `engage`
+// row on the successors; a successor either names is engaged this epoch and owed no further sitting.
+// So once blue records the act its sitting owes nothing more, and a successor the chair's plan
+// already engaged blue on is never sat twice.
+func owedSuccessorsOf(evs []*Event, win WindowIndex, s BlueSitting, open func(string) bool) (owed []OwedSuccessor) {
 	succ := successorsOf(evs)
 	engaged := blueEngagedThisEpoch(evs, win)
 	seen := map[string]bool{}
@@ -81,7 +103,7 @@ func successorsOwed(evs []*Event, win WindowIndex, open func(string) bool) (owed
 			owed = append(owed, OwedSuccessor{GapID: sg, Of: g})
 		}
 	}
-	return owed, true
+	return owed
 }
 
 // blueSittingNow is blue-respond's latest sitting for a dispatch, when it is the sitting blue is in

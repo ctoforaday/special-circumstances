@@ -780,7 +780,7 @@ func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 //
 // The readers of "has this lens sat" ask it here: the lens fold's pin (a report read counts only in a
 // sitting the lens sat through), never-sat and retirement
-// count (lensStates), its pin before its dispatch (lastReadBefore), the lapse of what it owes
+// count (lensStates), its pin on its work list (lastReadOf), the lapse of what it owes
 // (lensOwesOf) and the once-per-contradiction readiness (foldPlan). The plan, the work lists,
 // the PASS gate and retirement reach it through passBlockersOf, so they agree at every state.
 type satThrough struct {

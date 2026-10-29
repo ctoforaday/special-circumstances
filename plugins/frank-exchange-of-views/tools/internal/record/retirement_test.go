@@ -346,23 +346,62 @@ func TestLensWorkCarriesLastSitting(t *testing.T) {
 	if got := last(t, retBoard(t)); got.Kind != "undispatched" {
 		t.Errorf("never dispatched: %+v", got)
 	}
-	if got := last(t, retBoard(t).sit(2, evLens)); got.Kind != "first" || got.Head != 2 {
+	if got := last(t, retBoard(t).sitUnserved(2, evLens)); got.Kind != "first" || got.Head != 2 {
 		t.Errorf("first sitting, registered: %+v", got)
 	}
-	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
-		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
-	head := int64(b.n)
-	if got := last(t, b.sit(head, evLens)); got.Kind != "behind" || got.Pin != 2 || got.Head != head {
+	edited := func() (*stage, int64) {
+		b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
+			add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
+		head := int64(b.n)
+		return b.sitUnserved(head, evLens), head
+	}
+	behind, head := edited()
+	if got := last(t, behind); got.Kind != "behind" || got.Pin != 2 || got.Head != head {
 		t.Errorf("after a mint and a blue edit: %+v, want behind pin 2 head %d", got, head)
 	}
-	b2 := retBoard(t).sit(2, evLens).sit(2, evLens)
-	if got := last(t, b2); got.Kind != "unchanged" || got.Pin != 2 || got.Head != 2 {
+	// THE FIELD IS AS OF NOW: the whole read this sitting asked for moves it to served at the head
+	// served, on the same sitting (#1601 smoke: dark-side read it whole and was still told behind).
+	behind, head = edited()
+	if got := last(t, behind.served(evLens, head)); got.Kind != "served" || got.Pin != head || got.Head != head {
+		t.Errorf("behind, then served whole in this sitting: %+v, want served pin %d head %d", got, head, head)
+	}
+	if got := last(t, retBoard(t).sit(2, evLens).sitUnserved(2, evLens)); got.Kind != "unchanged" || got.Pin != 2 || got.Head != 2 {
 		t.Errorf("re-dispatched at the same head: %+v", got)
+	}
+	if got := last(t, retBoard(t).sit(2, evLens)); got.Kind != "served" || got.Pin != 2 || got.Head != 2 {
+		t.Errorf("first sitting, served whole: %+v, want served pin 2 head 2", got)
 	}
 	b3 := retBoard(t).dispatch(2, evLens).ingest()
 	h3 := int64(b3.n)
-	if got := last(t, b3.sit(h3, evLens)); got.Kind != "first" {
+	if got := last(t, b3.sitUnserved(h3, evLens)); got.Kind != "first" {
 		t.Errorf("an earlier dispatch the lens never sat for is not a prior sitting: %+v", got)
+	}
+}
+
+// THE WORK LIST'S ITEM SAYS WHAT THE FIELD SAYS: behind before the read, served after it, and the
+// behind item is gone once this sitting served the report whole.
+func TestLensWorkItemFollowsTheServe(t *testing.T) {
+	behind := func() (*stage, int64) {
+		b := retBoard(t).sit(2, evLens).ingest()
+		head := int64(b.n)
+		return b.sitUnserved(head, evLens), head
+	}
+	items := func(st *stage) string {
+		t.Helper()
+		var whats []string
+		for _, it := range sittingOfRunT(t, st.seed(), "lens", evLens).Open {
+			whats = append(whats, it.What)
+		}
+		return strings.Join(whats, "\n")
+	}
+	b, _ := behind()
+	if got := items(b); !strings.Contains(got, "before this sitting, the report was last served to you whole at 2") {
+		t.Errorf("behind: the work list does not say so:\n%s", got)
+	}
+	b, head := behind()
+	got := items(b.served(evLens, head))
+	if strings.Contains(got, "before this sitting") || !strings.Contains(got, fmt.Sprintf("this sitting served you the report whole at head %d", head)) {
+		t.Errorf("served in this sitting: the work list still speaks of before it, or not of the serve:\n%s", got)
 	}
 }
 
@@ -471,7 +510,7 @@ func TestDefaultCastListsAllSevenAreas(t *testing.T) {
 // seat actually has.
 func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 	// first sitting: nothing of the report is yet its own to have read
-	first := sittingOfRunT(t, retBoard(t).sit(2, evLens).seed(), "lens", evLens)
+	first := sittingOfRunT(t, retBoard(t).sitUnserved(2, evLens).seed(), "lens", evLens)
 	if !listsItem(first, "audit the report in full") {
 		t.Errorf("a lens on its FIRST sitting is not told to audit: %+v", first.Open)
 	}
@@ -486,7 +525,7 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
 		add("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b"), EditKey: proto.String("E1")})
 	head := int64(b.n)
-	beh := sittingOfRunT(t, b.sit(head, evLens).seed(), "lens", evLens)
+	beh := sittingOfRunT(t, b.sitUnserved(head, evLens).seed(), "lens", evLens)
 	if !listsItem(beh, "reads it in full") {
 		t.Errorf("a lens whose report MOVED is not sent to the whole document: %+v", beh.Open)
 	}
@@ -506,7 +545,7 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 	}
 
 	// unchanged: nothing moved, so there is nothing to audit and the list says so by silence.
-	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sit(2, evLens).seed(), "lens", evLens)
+	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sitUnserved(2, evLens).seed(), "lens", evLens)
 	if listsItem(un, "audit") {
 		t.Errorf("a lens dispatched against an UNMOVED report is told to audit it: %+v", un.Open)
 	}
@@ -518,7 +557,7 @@ func TestALensAuditIsAnItemOnItsWorkList(t *testing.T) {
 // several against a list that had already said they were complete.
 func TestAnEmptyWorkListSaysSoRatherThanReturningNothing(t *testing.T) {
 	// a lens re-dispatched at the same head: nothing moved, nothing owed
-	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sit(2, evLens).seed(), "lens", evLens)
+	un := sittingOfRunT(t, retBoard(t).sit(2, evLens).sitUnserved(2, evLens).seed(), "lens", evLens)
 	if len(un.Open) == 0 {
 		t.Fatal("a seat with nothing to do got an EMPTY list, which reads as a broken command")
 	}

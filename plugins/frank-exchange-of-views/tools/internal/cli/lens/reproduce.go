@@ -54,7 +54,7 @@ import (
 // — and leaves this argument here, with one more: running the script by hand and then calling this
 // to write down what was seen does the same work twice.
 func newReproduce() *cobra.Command {
-	c := seat.Prose(seat.New("reproduce", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("reproduce", reproduceResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

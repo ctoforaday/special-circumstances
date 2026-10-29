@@ -1,4 +1,4 @@
-prompt sha256: 9ea4aa8b926d01e5386c5cdc2c180970fe4399a25702effec99d213ea15bc55a
+prompt sha256: f514513b99b048139c54a8e760dfc252533568e6fe6a615e806b9c79428dabd2
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -23,11 +23,12 @@ Otherwise re-read the report where each is anchored, put your required fix and b
 A gap you neither regrade nor close this sitting is a NULL TURN on it, and null turns count toward impasse — silence is a turn taken.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
-`behind`: the report head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
+`behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.
 `unchanged`: the report is unchanged since your pin (head H) — NOTHING TO AUDIT: your earlier read stands, and where nothing engages you the sitting owes no entry.
+`served`: served to you whole this sitting (pin P) — audit it.
 `undispatched`: the record holds no dispatch for you — log that and end the sitting.
 Only a whole read of the report moves your pin.
-Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
+A FRESH gap on text an earlier sitting of yours read and passed states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
 The ids of your findings and of the gaps you mint are the tool's to assign.
 HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor patterns (e.g.

@@ -31,7 +31,7 @@ import (
 // easier way out. Two verbs, and each requires what it actually requires.
 func newClose() *cobra.Command {
 	var anchors flags.CSV
-	c := seat.New("close", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("close", seat.CloseResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

@@ -41,7 +41,7 @@ const authorSeat = "blue-synthesize"
 // to go: it was registered (seat.Prose), accepted, and recorded nowhere. The report IS the
 // artifact; a verb with no field for an argument does not accept one.
 func newIngest() *cobra.Command {
-	return seat.New("ingest", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.New("ingest", ingestResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

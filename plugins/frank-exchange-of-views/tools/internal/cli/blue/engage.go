@@ -27,7 +27,7 @@ import (
 // engaged this epoch, and a set that leaves one out — the seat states it, the record holds it to it.
 func newEngage() *cobra.Command {
 	var ids flags.CSV
-	c := seat.New("engage", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("engage", engageResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		gaps := ids.Value()
 		if len(gaps) == 0 {
 			return nil, feov.Errorf(feov.MissingField, "requires --%s: the successors this sitting owes, as your work list's engaged.found_closed names them", flags.IDs)

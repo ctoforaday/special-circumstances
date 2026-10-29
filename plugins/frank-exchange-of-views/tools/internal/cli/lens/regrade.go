@@ -19,7 +19,7 @@ import (
 func newRegrade() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 
-	c := seat.New("regrade", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("regrade", regradeResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		body := &recordpb.Regrade{GapId: proto.String(seat.Str(cmd, flags.ID))}
 		body.Severity = seat.GradeOrNil(&severity)
 		body.Likelihood = seat.GradeOrNil(&likelihood)

@@ -92,10 +92,10 @@ type SittingJSON struct {
 	// — which is the difference this exists to make.
 	Complete bool   `json:"complete"`
 	Open     []Item `json:"open"`
-	// LastRead is a lens's pin before the dispatch it is sitting for — the head the whole report was
-	// last served to it at (lastReadBefore) — on the read it already does first. Present for every
-	// lens, with an explicit kind — first, behind, unchanged or undispatched — never inferred from an
-	// absent field; absent for every other role.
+	// LastRead is a lens's pin as of this read — the head the whole report was last served to it at,
+	// this sitting included (lastReadOf) — on the read it already does first. Present for every lens,
+	// with an explicit kind — first, behind, unchanged, served or undispatched — never inferred from
+	// an absent field; absent for every other role.
 	LastRead *LastReadJSON `json:"last_read,omitempty"`
 	// MintBudget is a lens's standing against its mint budget — what it holds open, its budget
 	// with every term, and what is left — from the reading the write refuses a mint on
@@ -132,7 +132,7 @@ type unverifiableFunc func(anchor string) string
 func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string, reads sittingReads) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	if role == "lens" {
-		ls := lastReadBefore(evs, ids, win, seatID)
+		ls := lastReadOf(evs, ids, win, seatID)
 		s.LastRead = &ls
 	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
@@ -167,11 +167,16 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// So it states the fact and points at the duty, and the seat's constitution keeps saying
 			// what the duty is. A work list that argues with a MUST teaches a seat to weigh the two.
 			//
-			// IT SPEAKS OF BEFORE THIS SITTING, because that is what lastReadBefore measures: a whole read
-			// in this sitting does not move it, and "it is at H now, re-read it" stayed on the list after
-			// the read it asked for (#1565 smoke: 14 work-list reads in 12 sittings).
+			// IT SPEAKS OF BEFORE THIS SITTING because the kind is behind only until this sitting serves
+			// the report whole: the read moves the field to served, and the item goes with it. Measured
+			// before the field counted this sitting (#1565 and #1601 smokes): a lens that had read the
+			// report whole was still told it was behind, re-read its work list, and filed the
+			// contradiction as friction.
 			may(fmt.Sprintf("before this sitting, the report was last served to you whole at %d, and you are dispatched against head %d, so this sitting's audit reads it in full; the pins are here to show you WHAT changed, not to narrow what you audit. %s",
 				s.LastRead.Pin, s.LastRead.Head, ServedPinNote))
+		case "served":
+			may(fmt.Sprintf("this sitting served you the report whole at head %d, and you are dispatched against head %d: the text you were served is this sitting's audit.",
+				s.LastRead.Pin, s.LastRead.Head))
 		}
 	}
 
@@ -289,10 +294,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// through the ordinary route with a grade and a required fix — with the PASS gate behind
 		// it when the gap is material by its class or grade. A second duty here would be the same
 		// fact told twice.
-		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage` (successorsOwed):
-		// the record names the successor, and blue sits on it a second time this epoch.
+		// A GAP THIS SITTING FOUND CLOSED WHOSE SUCCESSOR IS OPEN OWES AN `engage`
+		// (successorsOwedOnTheWorkList): the record names the successor, and blue sits on it a second
+		// time this epoch.
 		if seatID == blueRespondSeat {
-			if owed, _ := successorsOwed(evs, win, openOf(gaps)); len(owed) > 0 {
+			if owed := successorsOwedOnTheWorkList(evs, win, openOf(gaps)); len(owed) > 0 {
 				var named []string
 				for _, o := range owed {
 					named = append(named, o.GapID+" (successor of "+o.Of+")")
@@ -315,6 +321,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			case b.Kind == BlockerFailedCheck && seatID == blueRespondSeat:
 				add(blueFailedItem(b))
 			}
+		}
+		for _, what := range closingsNotOwedItemsOf(evs, ids, win, seatID) {
+			may(what)
 		}
 	case "chair":
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
@@ -377,6 +386,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
+		for _, what := range closingsNotOwedItemsOf(evs, ids, win, seatID) {
+			may(what)
+		}
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			// A CHECK OF ITS THAT FAILED IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
 			// the list as not owed — blue's remedy clears it, or the lens's own check of the sentence
@@ -551,7 +563,8 @@ type EngagedJSON struct {
 	// before this read. It is what the sitting's envelope names as found closed. Never omitted: an empty list
 	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
-	// SuccessorsOwed is the successors this sitting owes an `engage` on (successorsOwed): each open
+	// SuccessorsOwed is the successors this sitting owes an `engage` on (successorsOwedOnTheWorkList),
+	// before its register as well as after: each open
 	// successor of a gap it found closed that no dispatch row of this epoch engages blue on, in
 	// found-closed order, once each. It is exactly the set the act must name, and it is empty when
 	// none is owed and once the act is recorded. Never omitted.
@@ -596,8 +609,7 @@ func engagedOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string
 	}
 	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}, SuccessorsOwed: []string{}}
 	succ, open := successorsOf(live), openOf(gaps)
-	owed, _ := successorsOwed(live, win, open)
-	for _, o := range owed {
+	for _, o := range successorsOwedOnTheWorkList(live, win, open) {
 		e.SuccessorsOwed = append(e.SuccessorsOwed, o.GapID)
 	}
 	for _, ev := range s.FoundClosed {

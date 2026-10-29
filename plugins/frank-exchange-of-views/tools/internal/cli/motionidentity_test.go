@@ -267,3 +267,24 @@ func TestAnUnreadableBindingRefusesAWriteAndNotARead(t *testing.T) {
 		t.Fatal("a write was accepted with no readable binding to attribute it to")
 	}
 }
+
+// EVERY WRITING VERB'S PAGE STATES ITS --json SUCCESS, generated from the result it returns
+// (seat.Returns): the walk is the real trees, so a verb added without one fails here.
+func TestEveryWritingVerbsPageStatesItsJSONResult(t *testing.T) {
+	n := 0
+	for role, root := range AllRoots() {
+		for _, path := range writingLeaves(root) {
+			leaf, _, err := root.Find(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			n++
+			if !strings.Contains(leaf.Long, "OUTPUT (JSON, with --json") {
+				t.Errorf("%s/%s: the page states no --json result", role, strings.Join(path, " "))
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("walked no writing verb — the walk measured nothing")
+	}
+}

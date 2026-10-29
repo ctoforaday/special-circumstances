@@ -245,3 +245,42 @@ func TestARefusalLoggedBeforeTheRegisterDoesNotFailVerify(t *testing.T) {
 		t.Errorf("verify does not pass register-before-append over the tool's own entry:\n%s", out)
 	}
 }
+
+// A REFUSAL BEFORE THE SEAT'S FIRST SITTING IS LOGGED TOO. The hook brackets every blue agent with
+// no seat — blue-researcher is every blue seat's agent type — so a lane's sitting opens only at its
+// register, and a read before it opens none: #1601 smoke, blue-lane-1's `show report` before the base
+// was ingested (agent aba4ef6a5, its bracket at event 12, its register at 13) was refused and the
+// log held nothing of it.
+func TestARefusalBeforeTheSeatsFirstSittingIsLogged(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
+	runDir := newRun(t)
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
+		&recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-synthesize", "blue-lane-1", "blue-respond", "judge"}, LaneSeatIds: []string{"blue-lane-1"}}))
+	const agent = "agent_unnamed_lane"
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.SittingOpen{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(seatenv.AgentVar, agent)
+	if _, err := run(t, "show", "report", "--run", runDir, "--seat-id", "blue-lane-1"); err == nil {
+		t.Fatal("show report before the base was ingested was accepted, so this drives no refusal")
+	}
+	if got := toolRefusals(t, runDir); len(got) != 1 || !strings.HasPrefix(got[0], "blue-lane-1 | refused `show report`") {
+		t.Fatalf("want the one refusal logged under blue-lane-1, got %q", got)
+	}
+	// THE ENTRY OPENS NO SITTING: the lane's register opens its first.
+	if n, err := record.SittingsOf(runtest.Open(t, runDir), "blue-lane-1"); err != nil || n != 0 {
+		t.Fatalf("the refusal's entry opened %d sitting(s) for the lane (%v), want none", n, err)
+	}
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-lane-1"); err != nil {
+		t.Fatalf("the lane's register after its logged refusal was refused: %v", err)
+	}
+	if n, err := record.SittingsOf(runtest.Open(t, runDir), "blue-lane-1"); err != nil || n != 1 {
+		t.Fatalf("after its register the lane has %d sitting(s) (%v), want 1", n, err)
+	}
+	t.Setenv(seatenv.AgentVar, "")
+	out, _ := run(t, "verify", "--run", runDir, "--seat-id", record.OperatorRole)
+	if !strings.Contains(out, "[ok  ] register-before-append") {
+		t.Errorf("verify does not pass register-before-append over the tool's entry before the lane's first sitting:\n%s", out)
+	}
+}

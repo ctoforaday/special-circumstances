@@ -185,7 +185,10 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
-§3 (on 17 pages):
+§3 (on 4 pages):
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{message},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
+§4 (on 17 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -196,28 +199,31 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§4 (on 3 pages):
+§5 (on 3 pages):
 The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§5 (on 6 pages):
+§6 (on 6 pages):
 an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§6 (on 6 pages):
+§7 (on 6 pages):
 the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-§7 (on 6 pages):
+§8 (on 6 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
-§8 (on 2 pages):
+§9 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
 
-§9 (on 3 pages):
+§10 (on 2 pages):
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
+§11 (on 3 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§10 (on 2 pages):
+§12 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§11 (on 2 pages):
+§13 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ========
@@ -259,14 +265,16 @@ what a human should re-examine after the run ends — the bench keeps no memory 
 
 Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in judgments.md — the document the human reviewing the run opens — not the research report, whose reader came for the subject.
 
+(OUTPUT (JSON, with --json — the …) → SHARED §3
+
 (If you need a verb or a flag tha…) → SHARED §1
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a new certification.
 
 Flags:
-      --reason string   REQUIRED — what a human should re-examine after the run, and why. → SHARED §4
+      --reason string   REQUIRED — what a human should re-examine after the run, and why. → SHARED §5
 ========
 $ feov-record declare --help
 a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
@@ -279,15 +287,17 @@ A ruling of yours that was wrong, on a docket motion or on a petition, is said h
 
 A declaration CONSTRUES HOW THE RECORD IS READ; it does not say where a gap stands. Recording one is the only way a holding reaches the other seats: every seat's work list carries every declaration on the record, and beside each gap the declaration is about it shows that gap's status on the board as the list is read. A gap's status is the board's, never the declaration's — record which gaps the holding is about on the declaration itself, and leave whether each is open or closed to the board, which moves when the gap does while your text does not. A gap named only in the holding's text is not one of them.
 
+(OUTPUT (JSON, with --json — the …) → SHARED §3
+
 (If you need a verb or a flag tha…) → SHARED §1
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a new declaration.
 
 Flags:
       --ids gap-ids     the gap-ids of the gaps this holding is about, comma-separated — each a gap the board holds (`show board` lists them). Every seat's work list sets each beside where the board says it stands now; a gap named only in --reason is not one of them
-      --reason string   REQUIRED — the holding: how the whole record is to be READ. → SHARED §4
+      --reason string   REQUIRED — the holding: how the whole record is to be READ. → SHARED §5
 ========
 $ feov-record halt --help
 stop the run at a safety or consent boundary, when continuing would itself be the harm
@@ -296,43 +306,45 @@ The bench's own act on its own channel, and the one terminal state that is not a
 
 A boundary is not a defect, however severe: a bench that disposes of such a gap and lets the run continue has treated a boundary as a finding.
 
+(OUTPUT (JSON, with --json — the …) → SHARED §3
+
 (If you need a verb or a flag tha…) → SHARED §1
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a new halt.
 
 Flags:
-      --reason string   REQUIRED — the opinion: the boundary, and why continuing would itself be the harm. → SHARED §4
+      --reason string   REQUIRED — the opinion: the boundary, and why continuing would itself be the harm. → SHARED §5
 ========
 $ feov-record inquest debate --help
 the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by the chair's `position` and `spot-check`, the lens's and blue's `closing` on a docketed gap (`### RED CLOSING` is the minting lens's, `### BLUE CLOSING` blue-respond's), a lens's `regrade` that keeps a gap's grade (`### RED KEEPS THE GRADE`; `red_keeps` in --json), and the bench's `motion docket rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string],red_keeps:[{gap_id,seat_id,text}],served:[{seat_id,head}]}]}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the entries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the entries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the entries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the entries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record inquest motions --help
 Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file` and `rule`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the motions matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the motions containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the motions matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the motions containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record inquest telemetry --help
 JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:[{class,count}],class_repeat_rate,unclassified_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 ========
@@ -349,9 +361,11 @@ YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing h
 
 A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Your work list says which case you are in, by not asking.
 
+(OUTPUT (JSON, with --json — the …) → SHARED §3
+
 (If you need a verb or a flag tha…) → SHARED §1
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a new log entry.
 
@@ -368,13 +382,15 @@ Enumerated values:
 $ feov-record motion docket rule --help
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §8
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §9
 
 A DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no docket ruling on its gap has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each: that ruling rules on the gap's movement. The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it.
 
 A REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap — the minting lens's act alone begins nothing — and each seat's sitting cannot end until it has acted on it. A REMAND PAST THE LIMIT IS REFUSED — one remand at impasse is a gap's limit: it grants one more exchange between the gap's minting lens and blue, and a gap that exchange leaves at impasse is docketed again to be closed — a second remand would store a direction no dispatch hands any seat. So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. A gap can close while its docket motion stands — its lens closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(OUTPUT (JSON, with --json — the …) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a declaration, which moves no gap: the gap comes before
 you again only in a docket motion another seat files.
@@ -385,7 +401,7 @@ Flags:
       --final                on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this
       --id motion-id         REQUIRED — the motion id
       --principle string     REQUIRED — the rule you applied, stated so a later sitting can apply the same one
-      --reason string        → SHARED §9
+      --reason string        → SHARED §11
       --reopens-on string    on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this
       --review-flag string   REQUIRED — what a human should look at again; where nothing needs a human, what on the record already settles it
       --settled string       REQUIRED — what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition
@@ -415,13 +431,15 @@ Every seat but the one that rules a subject may file on it; exactly one rules, a
 
 A grade motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,subject},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
       --dimension dimension-value   REQUIRED — the grade axis you contest
       --id gap-id                   REQUIRED — the gap this motion is about
       --proposed grade              REQUIRED — the grade you say it should be: trivial | low | low_medium | medium | medium_high | high | certain | realized
-      --reason string               → SHARED §9
+      --reason string               → SHARED §11
 
 Enumerated values:
   --dimension
@@ -433,9 +451,11 @@ Enumerated values:
 $ feov-record motion petition rule --help
 rule on a petition motion — this verb is the bench seat's, and it appears only on that surface.
 
-(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §8
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §9
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(OUTPUT (JSON, with --json — the …) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a declaration.
 
@@ -443,7 +463,7 @@ Flags:
       --as granted|denied     REQUIRED — your ruling
       --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
       --id motion-id          REQUIRED — the motion id
-      --reason string         → SHARED §9
+      --reason string         → SHARED §11
 
 Enumerated values:
   --as
@@ -466,9 +486,11 @@ It is refused while a motion whose gavel is the bench's stands unruled, unless t
 
 Once it is recorded the record is closed to seat acts: any seat's later act is refused, and the refusal lands in the log as the tool's entry. State a declaration or a certification you hold after the stamp, and then assemble. An assembly sitting resumed after the stamp registers for the assemble occasion again, and its declaration, certification and assembly land as the first one's would.
 
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{verdict,verdict_basis},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
 (If you need a verb or a flag tha…) → SHARED §1
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 IF WHAT YOU RECORDED WAS WRONG, say so in a certification: the outcome stands once it is recorded,
 and after it the record takes no seat act but your register for the assemble occasion, your
@@ -497,6 +519,8 @@ A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispat
 It also OPENS THE SITTING where nothing else did, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch and your agent type seats one seat, that bracket opens the sitting, the record counts you as having sat whether or not you register, and your register joins that sitting. Where the bracket names no seat — an agent type that seats several, as blue's researcher does (the frontier, the lanes and the responding seat) — or there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
 NAME WHAT THIS SITTING IS FOR. You are one seat asked four different questions — rule the docket, hear a petition, dispose of what stands at the exit, assemble the report — and your seat id is the same for all four. Your prompt says which of them this sitting is; say so here. It is required of you and refused for every other seat, whose id already answers it. Once the run is archived this is the only thing that tells your sittings apart: without it they read as four identical registrations, and a reader cannot tell the sitting that assembled the report from the one that ruled a gap.
+
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{seat_id,dispatch,identity_absent,run_via,hook_absent,turn_limit_unarmed},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -537,28 +561,28 @@ Use "feov-record show [command] --help" for more information about a command.
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. Each gap's `minted_by` is the seat that minted it, the one seat that may close or regrade it; its `found_by` is the findings it was minted from. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,minted_by,found_by:[string],supersedes:[string],material,remanded,docket_direction,closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,area,seat_id,key,kind,text,minted}],counts:{open,closed,closed_by_bench,unminted_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it) (default "json")
-      --match regex     → SHARED §10
-      --quote text      → SHARED §11
+      --match regex     → SHARED §12
+      --quote text      → SHARED §13
 ========
 $ feov-record show changes --help
 every recorded change to the report, in record order — each edit, and each citation blue retired from a sentence the report keeps; add --id <gap> to put red's required_fix and the changes answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit` and `retire`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted,retired}],counts:{edits}}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
       --id gap-id     scope this projection to one gap — red's required_fix beside the edits and citation retires answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --match regex   select only the edits of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the edits of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the edits of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the edits of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `source_text` is WHAT THE SOURCE SAYS where blue quoted it: blue's span, the same words as the source holds them (`matched`), and the source's own text `before` and `after` them, copied from the cached text when blue cited it — read the sentence against this. `blue_reason` is blue's account of why the source backs the sentence: blue's words, not the source's. A source the tool holds no text for (`source_text_origin` none) has no `source_text`. `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` holds the PDF page the tool found its span on: check the span against that page's image, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor — the id the lens's `reproduce --anchor` takes — with its script's sha256 and red's checks of it, and red's verified claims with their confidence.
@@ -575,42 +599,42 @@ TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` 
 
 THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,blue_reason,seat_id,epoch,source_text_origin,work_status,source_completeness,copy_substitution,copy_url,source_text:{span,before,matched,after,start,end,text_sha},pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,bridge,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness,copy_substitution,copy_url}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,soundness,standing,note,seat_id,epoch}]}],independent:[{claim,anchor,label,outcome,bridge,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness,copy_substitution,copy_url}],unchecked:[{anchor,edit,last_check}],unanswered_contradictions:[{id,claim,reader,anchor,raised_by}],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
 OUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names): {anchor,source:{anchor,url,title,sha256,access_date,location,blue_reason,seat_id,epoch,source_text_origin,work_status,source_completeness,copy_substitution,copy_url,source_text:{span,before,matched,after,start,end,text_sha},pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,bridge,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness,copy_substitution,copy_url}]},proof:{anchor,sha256,basis,cites,drift,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,soundness,standing,note,seat_id,epoch}],script_file,script,recorded_output},unchecked:{anchor,edit,last_check}}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
       --anchor id     read the ONE entry at this anchor id rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)
-      --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record show findings --help
 Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSON): {findings:[{id,area,seat_id,epoch,severity,likelihood,impact,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],text,minted_as:[string]}],counts:{total}}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record show inquiries --help
 the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question and its hypothesis, its current fate, and the reason and method recorded with that fate. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` the epoch it was recorded in, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{id,question,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the inquiries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §5
-      --quote text    select only the inquiries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §6
+      --match regex   select only the inquiries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §6
+      --quote text    select only the inquiries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §7
 ========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
@@ -627,7 +651,7 @@ OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path
 
 EVERY SECTION CARRIES `text`, a string: a section that does not ship carries `""` and `no_text`, which says why it has none.
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
       --anchor id     read the report AT one anchor id (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --assembled are each refused with it
@@ -655,14 +679,14 @@ THE LIST CLOSES WITH THE RUN'S LAW: whether setup staged a law corpus for this r
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §7
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §8
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_read:{kind,pin,head},mint_budget:{open,answering,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_direction,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate,successors:[string]}],successors_owed:[string]},declarations:[{holding,epoch,gaps:[{id,status,fate,closed_by,closed_epoch}]}]}
 
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   → SHARED §10
-      --quote text    → SHARED §11
+      --match regex   → SHARED §12
+      --quote text    → SHARED §13
 
 <!-- END GENERATED SURFACE -->

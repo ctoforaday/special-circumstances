@@ -34,7 +34,7 @@ func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 	var supersedes, foundBy flags.CSV
 
-	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

@@ -93,7 +93,7 @@ import (
 var verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the id from the report's `" + anchor.Token("C-…") + "` token beside the claim"
 
 func newVerify() *cobra.Command {
-	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("verify", verifyResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		body := &recordpb.Verify{Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor)))}
 		claim, err := citedSentence(s, body.GetAnchor())
 		if err != nil {
@@ -275,7 +275,7 @@ func pageList(pages []int32) string {
 // title ("this run", "epoch 3") is flagged and not refused because a real source's title can use
 // those words too.
 func newCorroborate() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.Records(seat.New("corroborate", verifyResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		url := seat.Str(cmd, flags.URL)
 		return writeVerify(s, cmd, &recordpb.Verify{
 			Url:   proto.String(url),

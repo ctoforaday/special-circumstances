@@ -140,6 +140,28 @@ func TestBlueSitsAgainOnTheSuccessorOfAGapItFoundClosed(t *testing.T) {
 	}
 }
 
+// THE LIST BLUE READS BEFORE IT REGISTERS NAMES WHAT IT OWES. The hook's bracket cannot name
+// blue-respond — blue-researcher is every blue seat's agent type — so blue's sitting opens at its
+// register, and the work list it reads first is read with no sitting of its own open (#1601 smoke,
+// ev362: successors_owed empty there, the engage item first at blue's first act).
+func TestTheWorkListBeforeTheRegisterNamesTheOwedSuccessors(t *testing.T) {
+	b := newStage(t).cast(m31Logic, "red-chair", blueSeatID, "judge").ingest().
+		bracket(m31Logic, "logic-0").mint(m31Logic, m31Closed, "high").stop("logic-0").
+		bracket("red-chair", "chair-a").dispatch(2, m31Logic, m31Closed).dispatch(2, blueSeatID, m31Closed).dispatch(2, "judge", m31Closed).stop("chair-a").
+		bracket(m31Logic, "logic-a").mintSuperseding(m31Logic, m31Successor, "high", m31Closed).closeSuperseded(m31Logic, m31Closed, m31Successor).stop("logic-a")
+	run := b.seed()
+	w := workOfBlue(t, run)
+	if !blocking(w, "register for this sitting") {
+		t.Fatalf("blue has not registered, yet its list does not say so: %+v", w.Sitting.Open)
+	}
+	if w.Engaged == nil || !slices.Equal(w.Engaged.SuccessorsOwed, []string{m31Successor}) {
+		t.Errorf("before the register: engaged = %+v, want successors_owed [%s]", w.Engaged, m31Successor)
+	}
+	if !blocking(w, "record `engage`") {
+		t.Errorf("before the register: the engage blue owes is not on its list: %+v", w.Sitting.Open)
+	}
+}
+
 // UNIVERSE-M31 EPOCH 8, REPLAYED: logic closed G-c791e4e4 naming no successor and minted G-77cc033b
 // with "Lineage: none". The record names no successor, so nothing is owed and an engage is refused
 // — blue does not guess one from a gap minted in the same sitting.

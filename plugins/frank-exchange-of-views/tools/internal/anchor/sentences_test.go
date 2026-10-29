@@ -29,12 +29,24 @@ func TestSentences(t *testing.T) {
 		{"He said “Stop.” Then he left.", []string{"He said “Stop.”", "Then he left."}, nil},
 		{"Dr. Smith agrees.", []string{"Dr.", "Smith agrees."}, nil},
 		{"Smith et al. (2020) found X.", []string{"Smith et al.", "(2020) found X."}, nil},
-		// A digit opens a sentence after a word of five letters or more; after an abbreviation, a
-		// number or a decimal point it does not.
+		// A digit opens a sentence after a word of five letters or more, or a word holding a digit;
+		// after an abbreviation, or before a decimal point, it does not.
 		{"Any other number greater than 1 is composite" + c + ". 91 is composite: it equals 7 × 13.", []string{"Any other number greater than 1 is composite" + c + ".", "91 is composite: it equals 7 × 13."}, nil},
 		{"Shown in Fig. 3 and Def. 11, e.g. 5 cases, No. 7.", []string{"Shown in Fig. 3 and Def. 11, e.g. 5 cases, No. 7."}, nil},
-		{"The answer is 7. 13 is prime too. Pi is 3.14 here.", []string{"The answer is 7. 13 is prime too.", "Pi is 3.14 here."}, nil},
+		{"The answer is 7. 13 is prime too. Pi is 3.14 here.", []string{"The answer is 7.", "13 is prime too.", "Pi is 3.14 here."}, nil},
 		{"The exact fraction, approx. 0.999, holds. Divergence. 12 runs.", []string{"The exact fraction, approx. 0.999, holds.", "Divergence.", "12 runs."}, nil},
+		// A number ends its sentence: whole, decimal, grouped, a range, an ordinal, a version, before
+		// an anchor or a closer.
+		{"So no single base settles 91" + c + ". 91 is the smallest pseudoprime.", []string{"So no single base settles 91" + c + ".", "91 is the smallest pseudoprime."}, nil},
+		{"It is 2 (mod 91). 34 bases pass.", []string{"It is 2 (mod 91).", "34 bases pass."}, nil},
+		{"Pi is about 3.14. 2 is even. It cost 3,215. 7 paid.", []string{"Pi is about 3.14.", "2 is even.", "It cost 3,215.", "7 paid."}, nil},
+		{"We test 2–9. 4 pass. It came 3rd. 2 others tied. Fixed in v2.0. 3 bugs remain.", []string{"We test 2–9.", "4 pass.", "It came 3rd.", "2 others tied.", "Fixed in v2.0.", "3 bugs remain."}, nil},
+		{"See No. 5. 6 more follow.", []string{"See No. 5.", "6 more follow."}, nil},
+		// An abbreviation, or a word whose point sits beside a letter, keeps the number.
+		{"Vol. 2, p. 12, U.S. 50 states, run verify_91.py. 3 passes.", []string{"Vol. 2, p. 12, U.S. 50 states, run verify_91.py. 3 passes."}, nil},
+		// A list marker opens a list item; a number after a point with no space is one word.
+		{"Steps:\n1. compute 91.\n2. check it.", []string{"Steps:", "compute 91.", "check it."}, []BlockKind{P, L, L}},
+		{"Version 2.0.1 shipped.", []string{"Version 2.0.1 shipped."}, nil},
 		// An anchor token opening a line is prose, never an HTML block that ends at its line.
 		{c + " First half\nof the sentence. Next.", []string{c + " First half\nof the sentence.", "Next."}, []BlockKind{P}},
 		// A thematic break holds no sentence; a closed fence ends at its closing line.

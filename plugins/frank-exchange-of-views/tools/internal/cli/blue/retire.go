@@ -49,7 +49,7 @@ import (
 // event. Edit still PERFORMS the removal of prose; retire EXPLAINS it and closes it.
 func newRetire() *cobra.Command {
 	var named flags.CSV
-	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("retire", retireResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		if _, err := s.Run(); err != nil {
 			return nil, err
 		}

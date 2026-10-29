@@ -16,7 +16,7 @@ import (
 // anyone else: an unmanifested repair is unchecked by blue's OWN standard, which
 // is a stronger thing to be able to say than "we think it was checked".
 func newManifestRow() *cobra.Command {
-	c := seat.Prose(seat.New("manifest-row", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("manifest-row", manifestRowResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// --reason IS the row. `--row` was a second word for the same prose on the one
 		// verb whose payload key happened to share its name, and the verb already fell back
 		// to the prose channel when it was absent — two spellings, one value.
