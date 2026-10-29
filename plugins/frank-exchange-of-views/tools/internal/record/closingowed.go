@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -70,6 +71,8 @@ type ClosingDuty struct {
 	NotOwedWhy string
 	// filed and ruled are the motion's places (ruled 0 while unruled).
 	filed, ruled int64
+	// closedBy is the seat whose close ended the duty, for ClosingNotOwed on a closed gap.
+	closedBy string
 }
 
 // Why a closing is not owed.
@@ -105,6 +108,7 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 	cast := castOfEvents(evs)
 	minter := map[string]string{}
 	closedAt := map[string]int64{}
+	closer := map[string]string{}
 	type filing struct {
 		seat, gap string
 		at        int64
@@ -117,7 +121,7 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 			minter[b.GetGapId()] = e.GetSeatId()
 		case *recordpb.Close:
 			if _, seen := closedAt[b.GetGapId()]; !seen {
-				closedAt[b.GetGapId()] = ids[i]
+				closedAt[b.GetGapId()], closer[b.GetGapId()] = ids[i], e.GetSeatId()
 			}
 		case *recordpb.Closing:
 			closings = append(closings, filing{seat: e.GetSeatId(), gap: b.GetGapId(), at: ids[i]})
@@ -141,7 +145,7 @@ func closingDutiesOf(evs []*Event, ids []int64, win WindowIndex) []ClosingDuty {
 				}
 			}
 			if at, closed := closedAt[m.GapID]; closed && before(at) {
-				d.State, d.NotOwedWhy = ClosingNotOwed, closingGapClosed
+				d.State, d.NotOwedWhy, d.closedBy = ClosingNotOwed, closingGapClosed, closer[m.GapID]
 				return d
 			}
 			d.State = ClosingAwaited
@@ -175,6 +179,25 @@ func standingClosingDuties(duties []ClosingDuty) []ClosingDuty {
 	for _, d := range duties {
 		if !d.Ruled && d.filed == newest[d.GapID] {
 			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// closingsNotOwedItemsOf is what a party's work list states of each standing docketing it is a party
+// to and owes no closing on because another seat closed the gap (ClosingNotOwed): the gap, the
+// motion, the exception that holds and whose close it was. The party that closed the gap itself is
+// told nothing: the close is its own act.
+//
+// THE DISPATCH NAMED THE CLOSING, AND THE LIST HAS TO SAY WHY IT IS GONE. The plan is read at the
+// epoch's start; a lens that closes the gap before blue sits ends the duty, and a list that only
+// drops the item leaves blue holding a dispatch that names a duty and a list that names nothing —
+// the absent case and the discharged case the same bytes (#1601 smoke, blue ev722).
+func closingsNotOwedItemsOf(evs []*Event, ids []int64, win WindowIndex, seatID string) []string {
+	var out []string
+	for _, d := range standingClosingDuties(closingDutiesOf(evs, ids, win)) {
+		if d.Party == seatID && d.State == ClosingNotOwed && d.closedBy != "" && d.closedBy != seatID {
+			out = append(out, fmt.Sprintf("gap %s is docketed for the bench (motion %s) and no closing argument is owed from you on it: %s (%s closed it); the bench rules the motion on the record as it stands", d.GapID, d.Motion, d.NotOwedWhy, d.closedBy))
 		}
 	}
 	return out

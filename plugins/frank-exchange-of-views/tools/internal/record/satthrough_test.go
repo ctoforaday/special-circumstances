@@ -168,7 +168,7 @@ func TestALensLastSittingSkipsASittingStoppedAtTheLimit(t *testing.T) {
 			b.limit(evLens, 1)
 		}
 		b.stop("a1").ingest()
-		b.sitHooked(b.at(), evLens, "a2", false)
+		b.dispatch(b.at(), evLens).bracket(evLens, "a2")
 		ls := sittingOfRunT(t, b.seed(), "lens", evLens).LastRead
 		want := map[bool]string{true: "first", false: "behind"}[limited]
 		if ls == nil || ls.Kind != want {

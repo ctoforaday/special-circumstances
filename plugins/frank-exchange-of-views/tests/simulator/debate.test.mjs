@@ -192,7 +192,7 @@ test('a lens is told to read its pin from its work list; one engaged on gaps is 
   const logic = firstPrompt(world, 'red-lens-logic')
   for (const [name, p] of [['evidence', evidence], ['logic', logic]]) {
     assert.ok(/YOUR PIN IS ON YOUR WORK LIST: read `sitting\.last_read` first/.test(p), `${name}: the sitting is read from the record`)
-    for (const kind of ['first', 'behind', 'unchanged', 'undispatched']) assert.ok(p.includes(`\`${kind}\``), `${name}: the ${kind} kind is explained`)
+    for (const kind of ['first', 'behind', 'unchanged', 'served', 'undispatched']) assert.ok(p.includes(`\`${kind}\``), `${name}: the ${kind} kind is explained`)
     assert.ok(/why you missed it then/.test(p), `${name}: a fresh gap on already-read text owes why it was missed`)
     assert.ok(!/head 7/.test(p) && !/HEAD MOVED/.test(p), `${name}: no head clause is built from the relay`)
   }

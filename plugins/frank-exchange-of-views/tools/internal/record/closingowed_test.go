@@ -184,6 +184,24 @@ func TestTheWorkListBlocksEachPartyOnItsOwnClosing(t *testing.T) {
 	}
 }
 
+// A CLOSING THE DOCKETING NO LONGER OWES IS STATED, NOT DROPPED. The minting lens files its closing
+// and closes the gap before blue sits (#1601 smoke, G-0354ac40): blue's list names the docketing and
+// why its closing is not owed and whose close ended it, and blocks on nothing for it; the lens that
+// closed the gap is told nothing it did not do itself.
+func TestTheWorkListStatesAClosingTheDocketingNoLongerOwes(t *testing.T) {
+	const item = "gap G1 is docketed for the bench (motion M1) and no closing argument is owed from you on it: " + closingGapClosed + " (" + evLens + " closed it)"
+	s := sittingOfRunT(t, docketed(t).closing(evLens, "G1").closeGap(evLens, "G1").seed(), "blue", "blue-respond")
+	if !listsItem(s, item) || hasItem(s, "is docketed for the bench (motion M1)") {
+		t.Errorf("blue's list does not state, without blocking, that the closing is not owed: %+v", s.Open)
+	}
+	if s := sittingOfRunT(t, docketed(t).closeGap(evLens, "G1").seed(), "lens", evLens); listsItem(s, "no closing argument is owed") {
+		t.Errorf("the lens closed the gap itself and is told so as news: %+v", s.Open)
+	}
+	if s := sittingOfRunT(t, docketed(t).seed(), "blue", "blue-respond"); listsItem(s, item) {
+		t.Errorf("an owed closing is stated as not owed: %+v", s.Open)
+	}
+}
+
 // THE WRITE PATH ADMITS A CLOSING FROM A PARTY ON A DOCKETED GAP, AND NOTHING ELSE: not the chair,
 // which is party to no dispute; not a lens that did not mint the gap; not a lane; not on a gap no
 // unruled docket motion stands on.

@@ -436,23 +436,26 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 
-// LastReadJSON is a lens's pin as its work view carries it: the head the whole report was last served
-// to it at, in a sitting it SAT THROUGH that opened before the dispatch it is now sitting for, beside
-// that dispatch's head. Kind is first | behind | unchanged | undispatched; first is a lens no such
-// sitting was served the report in.
+// LastReadJSON is a lens's pin as its work view carries it, as of now: the head the whole report was
+// last served to it at — in a sitting it SAT THROUGH that opened before the dispatch it is now
+// sitting for, or in the sitting it is sitting now — beside that dispatch's head. Kind is first |
+// behind | unchanged | served | undispatched: first is a lens no such sitting was served the report
+// in; served is a lens this sitting has served it whole, at Pin.
 type LastReadJSON struct {
 	Kind string `json:"kind"`
 	Pin  int64  `json:"pin"`
 	Head int64  `json:"head"`
 }
 
-// lastReadBefore is NOT the fold's pin. The lens reads its work view in its current sitting, before
-// and after it is served the report, and a read in that sitting would turn `behind` into `unchanged`
-// halfway through the audit the work view asks for. D is the latest dispatch naming the seat (the one
-// it sits for, or owes); the pin is its reads in sittings that opened before D and that it sat through
-// (satThrough), so a sitting stopped at the call limit or never closed is not a read of the report it
-// was served.
-func lastReadBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastReadJSON {
+// lastReadOf is NOT the fold's pin, which counts a read only once its sitting closes. The lens reads
+// its work view in its current sitting, before and after it is served the report, and the view
+// answers as of the read: a whole read in this sitting is the kind served, never unchanged, which
+// would tell a lens halfway through the audit it was just served that it has nothing to audit. D is
+// the latest dispatch naming the seat (the one it sits for, or owes); the pin before this sitting is
+// its reads in sittings that opened before D and that it sat through (satThrough), so a sitting
+// stopped at the call limit or never closed is not a read of the report it was served; this sitting
+// is the one it opened for D (sittingFor).
+func lastReadOf(evs []*Event, ids []int64, win WindowIndex, seatID string) LastReadJSON {
 	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow
 	for i := len(ds) - 1; i >= 0; i-- {
@@ -464,12 +467,20 @@ func lastReadBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) L
 	if cur == nil {
 		return LastReadJSON{Kind: "undispatched"}
 	}
-	pin := pinOf(servedOf(evs, ids, win)[seatID], satThroughOf(evs, ids, win, openings), seatID, cur.at)
-	ls := LastReadJSON{Pin: pin, Head: cur.pin}
+	reads := servedOf(evs, ids, win)[seatID]
+	ls := LastReadJSON{Pin: pinOf(reads, satThroughOf(evs, ids, win, openings), seatID, cur.at), Head: cur.pin}
+	if now, sitting := sittingFor(openings[seatID], *cur); sitting {
+		for _, r := range reads {
+			if r.opening == now && (ls.Kind == "" || r.head > ls.Pin) {
+				ls.Kind, ls.Pin = "served", r.head
+			}
+		}
+	}
 	switch {
-	case pin == 0:
+	case ls.Kind != "":
+	case ls.Pin == 0:
 		ls.Kind = "first"
-	case pin < cur.pin:
+	case ls.Pin < cur.pin:
 		ls.Kind = "behind"
 	default:
 		ls.Kind = "unchanged"
