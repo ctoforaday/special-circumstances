@@ -175,6 +175,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			return filed{ID: id, Subject: subject}, nil
 		}),
 	}
+	seat.Returns(c, filed{})
 	// prose() refuses a filing with no argument; the marker says so where the seat reads.
 	seat.SaysRequired(seat.Prose(c), flags.Reason)
 	for _, f := range required {
@@ -408,6 +409,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			return ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil
 		}),
 	}
+	seat.Returns(c, ruled{})
 	seat.Prose(c)
 	if subject == "inquiry" {
 		c.Flags().Lookup(flags.Reason).Usage = "your argument for the ruling: why the inquiry is, or is not, worth this run's time — blue reads it before it records the inquiry's fate"

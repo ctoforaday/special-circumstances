@@ -29,7 +29,7 @@ func init() {
 // events survive the working tree. Projections are regenerated on read from the
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
-	c := seat.New("verdict", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("verdict", verdictResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

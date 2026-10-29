@@ -41,7 +41,7 @@ import (
 // blue-respond's — and is keyed by role. `position` is the chair's alone.
 
 // Register is the register every red seat and the bench mounts.
-func Register() *cobra.Command { return NewKeyed("register", "register", register) }
+func Register() *cobra.Command { return NewKeyed("register", "register", registerResult{}, register) }
 
 // BenchRegister is the bench's register: the same act, and the one seat whose id does not say what
 // the sitting is for. The bench is asked four different questions under one id — rule the docket,
@@ -51,7 +51,7 @@ func Register() *cobra.Command { return NewKeyed("register", "register", registe
 // The flag is on THIS surface only, never on a lens's or blue's and always refused there: a flag
 // a seat can see and never legitimately use is an invitation to try it.
 func BenchRegister() *cobra.Command {
-	c := NewKeyed("register", "register-bench", register)
+	c := NewKeyed("register", "register-bench", registerResult{}, register)
 	enumhelp.Flag(c, flags.Occasion, record.MustEnum("register", "occasion"),
 		"what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your four sittings apart")
 	return Require(c, flags.Occasion)
@@ -146,7 +146,7 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 // the sitting DID things, and one with no acts is bracketed by the harness with the seat's identity,
 // so that it ran is on the record — deriving the clean case from the emptiness beats asserting it.
 func Log() *cobra.Command {
-	c := Prose(New("log", func(s Context, cmd *cobra.Command) (Result, error) {
+	c := Prose(New("log", Msg{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		word := Str(cmd, flags.Type)
 		text, err := Reason(cmd)
 		if err != nil {
@@ -193,7 +193,7 @@ func Log() *cobra.Command {
 // other seat (record.PositionRefusal): a party argues a gap in its closing.
 func Position() *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
-	return SaysRequired(Prose(NewKeyed("position", "position", func(s Context, cmd *cobra.Command) (Result, error) {
+	return SaysRequired(Prose(NewKeyed("position", "position", Msg{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -209,7 +209,7 @@ func Position() *cobra.Command {
 // blue-respond's. The write path refuses it from any other seat, and on a gap no unruled docket
 // motion stands on (record.ClosingRefusal).
 func Closing(key string) *cobra.Command {
-	c := Prose(NewKeyed("closing", key, func(s Context, cmd *cobra.Command) (Result, error) {
+	c := Prose(NewKeyed("closing", key, closingResult{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err

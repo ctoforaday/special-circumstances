@@ -39,7 +39,7 @@ import (
 // `observed`, still evidence but of a system in motion (a live call measures what an API
 // actually does, which beats its documentation), and the report must not read the two alike.
 func newProve() *cobra.Command {
-	c := seat.Prose(seat.New("prove", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("prove", proveResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

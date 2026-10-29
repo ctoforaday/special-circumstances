@@ -469,24 +469,39 @@ type okEnvelope struct {
 	Standing *StandingJSON `json:"standing,omitempty"`
 }
 
-// readOutput is a read verb's --json success as its page states it: okEnvelope with the verb's
-// own result type in the place of the interface, so the tree is generated from the two types that
-// are marshalled.
-func readOutput(result Result) string {
-	env := reflect.TypeOf(okEnvelope{})
-	fields := make([]reflect.StructField, 0, env.NumField())
-	for i := 0; i < env.NumField(); i++ {
-		f := env.Field(i)
-		if f.Type == reflect.TypeOf((*Result)(nil)).Elem() {
-			f.Type = reflect.TypeOf(result)
+// outputOf is a verb's --json success as its page states it, generated from the verb's own result
+// type: okEnvelope with that type in the place of the interface, or, for a Relayed result, the
+// object it relays alone — the two types that are marshalled, so the tree is the wire.
+func outputOf(result Result) string {
+	var tree string
+	if r, ok := result.(Relayed); ok {
+		tree = jsonshape.Tree(r.Relay())
+	} else {
+		env := reflect.TypeOf(okEnvelope{})
+		fields := make([]reflect.StructField, 0, env.NumField())
+		for i := 0; i < env.NumField(); i++ {
+			f := env.Field(i)
+			if f.Type == reflect.TypeOf((*Result)(nil)).Elem() {
+				f.Type = reflect.TypeOf(result)
+			}
+			fields = append(fields, f)
 		}
-		fields = append(fields, f)
+		tree = jsonshape.Tree(reflect.New(reflect.StructOf(fields)).Elem().Interface())
 	}
-	tree := jsonshape.Tree(reflect.New(reflect.StructOf(fields)).Elem().Interface())
 	if tree == "" {
 		return ""
 	}
 	return "\n\nOUTPUT (JSON, with --json — the bare call is the human form): " + tree
+}
+
+// Returns states on c's page the --json success its handler emits, generated from result
+// (outputOf), and binds the handler to it: Emit refuses a result of another type, so the page and
+// the wire are one declaration. New, NewKeyed and NewRead call it; a verb built as a raw cobra
+// command — the motion verbs — calls it beside its RunE.
+func Returns(c *cobra.Command, result Result) *cobra.Command {
+	c.Long += outputOf(result)
+	annotate(c, resultKey, reflect.TypeOf(result).String())
+	return c
 }
 
 func jsonMode(cmd *cobra.Command) bool {
@@ -541,6 +556,7 @@ func Supplies(c *cobra.Command, key, why string) *cobra.Command {
 
 const (
 	recordsKey  = "feov.records"
+	resultKey   = "feov.result"
 	armKey      = "feov.arm"
 	suppliesKey = "feov.supplies."
 )
@@ -906,6 +922,11 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
 	// the human line and a consumer parsing the envelope are answering the same question and must not
 	// be told different things.
+	// THE RESULT IS THE ONE ITS PAGE STATES (Returns). A handler returning another type would print a
+	// shape the page does not describe, and a seat reading the page would guess at keys it lacks.
+	if res != nil && reflect.TypeOf(res).String() != cmd.Annotations[resultKey] {
+		return taught{feov.Errorf(feov.Internal, "%s returned a %T, and its page states the --json result of a %s — the tool is at fault, not your call", cmd.CommandPath(), res, cmd.Annotations[resultKey])}
+	}
 	if r, ok := res.(Relayed); ok && jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(r.Relay())
 	}
@@ -946,7 +967,9 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 // The reverse cost was the same defect from the other side: Long was `help` again, so the page a
 // seat opens after choosing told it nothing the listing had not already said. Both positions
 // carried one string and neither did its own job.
-func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
+func New(name string, result Result, run Handler) *cobra.Command {
+	return NewKeyed(name, name, result, run)
+}
 
 // NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
 // same command means something different on each side. `position` is a RED section for the chair
@@ -957,33 +980,36 @@ func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, 
 // differs by role — and register's and friction's were byte-identical at every call site but one,
 // where the difference was the word "seat" against "sitting". Four hand-kept copies of one
 // paragraph, which is the shape that goes stale in three places and nobody notices.
-func NewKeyed(name, key string, run Handler) *cobra.Command {
-	c := newVerb(name, key, "")
+//
+// result is the value whose type the handler returns: the page states its --json success from it
+// (Returns), so a seat reads the key names before it runs the verb.
+func NewKeyed(name, key string, result Result, run Handler) *cobra.Command {
+	c := newVerb(name, key, result)
 	annotate(c, recordsKey, name)
 	c.RunE = HandlerRunE(run)
 	return c
 }
 
-// NewRead is New for a verb that only reads: its page also states the --json success it emits,
-// generated from the verb's result type, because a seat that does not know the key names guesses
-// them — and a guessed key that misses reads as output that was never JSON.
+// NewRead is New for a verb that only reads. Its page states the --json success it emits, as every
+// verb's does (Returns), because a seat that does not know the key names guesses them — and a
+// guessed key that misses reads as output that was never JSON.
 //
 // A READ RECORDS NOTHING, SO IT CARRIES NO RECORD TYPE AND REGISTERS NO ONE. Only an act that
 // records registers a seat, as register's page says. A read that went through Begin registered
 // its seat as a side effect, and the seat's own register later in the sitting was then refused as
 // a repeat — universe-m33's voice lens met exactly that after a read.
 func NewRead(name string, result Result, run Handler) *cobra.Command {
-	c := newVerb(name, name, readOutput(result))
+	c := newVerb(name, name, result)
 	c.RunE = readRunE(run)
 	return c
 }
 
-func newVerb(name, key, output string) *cobra.Command {
+func newVerb(name, key string, result Result) *cobra.Command {
 	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
 		Short:        d.menu,
-		Long:         d.menu + "\n\n" + d.detail + output + "\n" + LogFooter,
+		Long:         d.menu + "\n\n" + d.detail,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 	}
@@ -999,7 +1025,8 @@ func newVerb(name, key, output string) *cobra.Command {
 	// prose put there was lost to the reader — a junk drawer that taught seats to record
 	// substance where nothing could read it. A missing field is now a log entry, filed as a
 	// request, rather than text dropped into an unqueryable channel.
-
+	Returns(c, result)
+	c.Long += "\n" + LogFooter
 	return c
 }
 

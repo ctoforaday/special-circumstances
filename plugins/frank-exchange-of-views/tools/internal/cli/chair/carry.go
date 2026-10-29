@@ -14,7 +14,7 @@ import (
 // not double-counted), which is a chair's account of the board and not a closure of a gap — the
 // originator closes (plans/roundless.md §III.B.3); the chair carries.
 func newCarry() *cobra.Command {
-	c := seat.Records(seat.New("carry", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Records(seat.New("carry", seat.CloseResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		p, err := seat.ClosurePayload(cmd)
 		if err != nil {
 			return nil, err

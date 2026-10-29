@@ -15,7 +15,7 @@ import (
 // grade of ruling — and capture relays the written opinion VERBATIM, never
 // smoothed, so a halt reaches the human in the words the bench chose.
 func newHalt() *cobra.Command {
-	return seat.Prose(seat.New("halt", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.Prose(seat.New("halt", seat.Msg{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

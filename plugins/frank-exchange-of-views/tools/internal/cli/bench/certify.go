@@ -15,7 +15,7 @@ import (
 // continuity, which is why the certification is an event rather than a closing
 // remark in prose that capture might or might not carry forward.
 func newCertify() *cobra.Command {
-	return seat.Prose(seat.New("certify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.Prose(seat.New("certify", seat.Msg{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

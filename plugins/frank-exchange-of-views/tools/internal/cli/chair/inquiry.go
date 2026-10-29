@@ -53,7 +53,7 @@ func newInquiry() *cobra.Command {
 }
 
 func newInquiryReview() *cobra.Command {
-	c := seat.Prose(seat.New("review", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("review", inquiryReviewResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

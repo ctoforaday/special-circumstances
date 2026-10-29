@@ -31,7 +31,7 @@ import (
 // HOW the run ended is the verdict's to say: CEILING is derived from the board, a halt is on the
 // record, and deadlock is per gap. The `--ended` modifier that restated it is retired.
 func newOutcome() *cobra.Command {
-	c := seat.New("outcome", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("outcome", outcomeResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

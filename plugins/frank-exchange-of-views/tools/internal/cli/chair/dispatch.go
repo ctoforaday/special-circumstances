@@ -23,7 +23,7 @@ import (
 // "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap
 // and the bench. An empty party list is the termination signal, not an error.
 func newDispatch() *cobra.Command {
-	c := seat.New("dispatch", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("dispatch", dispatchResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		if _, err := s.Run(); err != nil {
 			return nil, err
 		}

@@ -56,7 +56,7 @@ import (
 func newDeclare() *cobra.Command {
 	// The handler above refuses an empty holding; the marker says so where the seat reads.
 	var ids flags.CSV
-	c := seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.SaysRequired(seat.Prose(seat.New("declare", seat.Msg{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

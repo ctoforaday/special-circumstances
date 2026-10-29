@@ -27,7 +27,7 @@ import (
 func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
-	c := seat.Prose(seat.New("finding", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("finding", findingResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// One resolution, at the door. Reading the path off the context is what let a refused
 		// run reach a verb as if it had resolved.
 		run, err := s.Run()

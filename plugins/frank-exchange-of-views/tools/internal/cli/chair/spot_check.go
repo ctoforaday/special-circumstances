@@ -21,7 +21,7 @@ import (
 func newSpotCheck() *cobra.Command {
 	var ids, areas flags.CSV
 
-	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("spot-check", spotCheckResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// THE CHANNEL, NOT THE FLAG. seat.Reason is the one resolver: it refuses a read of a
 		// channel the verb never registered and trims what a captured heredoc leaves behind.
 		// Reading the flag directly skips both — this verb once shipped doing exactly that, with

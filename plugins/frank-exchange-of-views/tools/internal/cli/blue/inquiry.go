@@ -71,7 +71,7 @@ func newInquiry() *cobra.Command {
 // sitting is exactly the one a later run needs. --hypothesis exists so the fate is judged against a
 // stated prediction: checkable, where a fate with none is a shrug.
 func newInquiryPropose() *cobra.Command {
-	c := seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Records(seat.New("propose", inquiryResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func newInquiryPropose() *cobra.Command {
 // against its own stated hypothesis is evidence of choosing, and one set down on a shrug is not —
 // which is why the reason is required where the record requires it and printed in the report.
 func newInquiryRecord() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("record", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.Records(seat.New("record", inquiryResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

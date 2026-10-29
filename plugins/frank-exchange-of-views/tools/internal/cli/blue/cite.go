@@ -35,7 +35,7 @@ import (
 // appends, and the report is replayed from the record — a crash before them leaves nothing, and a
 // --key retry is idempotent and places the Anchor a crash between them left owed.
 func newCite() *cobra.Command {
-	c := seat.Prose(seat.New("cite", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.Prose(seat.New("cite", citeResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
