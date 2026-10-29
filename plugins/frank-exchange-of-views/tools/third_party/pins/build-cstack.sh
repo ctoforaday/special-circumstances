@@ -204,8 +204,15 @@ CROSS=(
 	-DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON
 	# mingw headers hide M_PI under strict-ANSI C++17 (baseapi.cpp:2280); harmless on
 	# the other targets, so it is set once for all of them.
-	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES -DCMAKE_CXX_FLAGS=-D_USE_MATH_DEFINES
+	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES
 )
+CXXFLAGS_ALL=-D_USE_MATH_DEFINES
+# Under -std=c++20 clang reports __has_feature(modules), so the macOS SDK's math.h includes
+# <float.h> asking only for INFINITY/NAN; libc++'s float.h wrapper latches its include guard
+# on that partial include, and the later <cfloat> in tesseract's ratngs.h defines no FLT_MAX.
+# Tesseract uses no C++ modules, so turning the feature off restores the whole header.
+[ "$SYSNAME" = Darwin ] && CXXFLAGS_ALL="$CXXFLAGS_ALL -fno-cxx-modules"
+CROSS+=(-DCMAKE_CXX_FLAGS="$CXXFLAGS_ALL")
 
 phase() { echo "=== PHASE $1 ($TARGET) : $(date -u +%H:%M:%S) ==="; }
 reached=false
