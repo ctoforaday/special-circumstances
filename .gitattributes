@@ -11,6 +11,11 @@
 # testdata/schema.sql` with no change to the schema. Same reason the five above are pinned.
 *.sql text eol=lf
 *.golden text eol=lf
+# report.html's skeleton and style are EMBEDDED and ship byte for byte, as site.js does under the
+# *.js rule above: a Windows checkout would otherwise build a page whose skeleton ends lines in CRLF
+# around bodies that end them in LF.
+*.tmpl text eol=lf
+*.css text eol=lf
 # The corpus pages are compressed scans: bytes, not text. Git's auto-detection has carried the
 # repository's one other binary fixture, but a corpus page mangled by an eol rule would be invisible
 # to the default build — only the tagged Linux leg reads them.

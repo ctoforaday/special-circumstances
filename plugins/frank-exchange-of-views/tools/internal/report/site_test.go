@@ -185,3 +185,14 @@ func TestACountedIdIsNotGivenOutTwice(t *testing.T) {
 		}
 	}
 }
+
+// The page's skeleton, style and script ship byte for byte inside every report.html, so a carriage
+// return in one is a page that differs by the platform that built it — and every reader that cuts
+// the page at a line end reads the wrong span. .gitattributes pins the three to LF.
+func TestThePageAssetsCarryNoCarriageReturn(t *testing.T) {
+	for name, src := range map[string]string{"site.html.tmpl": siteHTML, "site.css": siteCSS, "site.js": siteJS} {
+		if i := strings.IndexByte(src, '\r'); i >= 0 {
+			t.Errorf("%s carries a carriage return at byte %d: check it out with LF line endings", name, i)
+		}
+	}
+}
