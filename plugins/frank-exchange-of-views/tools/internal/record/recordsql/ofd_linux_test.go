@@ -44,8 +44,10 @@ var lockShapes = map[string]struct {
 	holderInWriteTx bool   // the holder sits inside an immediate transaction rather than idle
 	proberAct       string // the statement the prober issues
 }{
-	// The record's write lock. In WAL mode it is a lock in -shm, POSIX in every binary.
-	"wal-write": {journal: "WAL", holderInWriteTx: true, proberAct: "BEGIN IMMEDIATE"},
+	// The record's write lock. In WAL mode it is a lock in -shm, which is POSIX whatever mode the
+	// binary sets: this case measures POSIX against POSIX, and proves the -shm write lock excludes
+	// across binaries of either mode.
+	"shm-write-posix-in-both": {journal: "WAL", holderInWriteTx: true, proberAct: "BEGIN IMMEDIATE"},
 	// The last-closer check. An idle WAL connection holds SHARED on the database file; a connection
 	// deciding it is the last one, or opening in exclusive mode, needs EXCLUSIVE on it. This is the
 	// lock whose loss lets another process reset a log this one still writes to.
@@ -217,7 +219,7 @@ func hold(t *testing.T, kind, shape, path string) {
 func requireOFD(t *testing.T, dir string) {
 	t.Helper()
 	path := filepath.Join(dir, "probe.db")
-	out, err := lockChild("probe", "ofd", "wal-write", path).CombinedOutput()
+	out, err := lockChild("probe", "ofd", "shm-write-posix-in-both", path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("OFD probe: %v\n%s", err, out)
 	}
@@ -229,14 +231,15 @@ func requireOFD(t *testing.T, dir string) {
 // A BINARY THAT LOCKS POSIX AND ONE THAT LOCKS OFD EXCLUDE EACH OTHER ON ONE RECORD. During an
 // upgrade an old binary's seat and a new binary's seat share a record; the kernel resolves a POSIX
 // and an OFD lock on one file range against each other, so neither kind can take a lock the other
-// holds. Each case is first run with no holder, so a BUSY below is the holder's and not a probe
+// holds. A subtest names the lock shape and the mode each binary sets; the shape says which file
+// the lock lives in, and the -shm shape is POSIX in both binaries. Each case is first run with no holder, so a BUSY below is the holder's and not a probe
 // that cannot succeed.
 func TestPosixAndOFDLocksExcludeEachOther(t *testing.T) {
 	requireOFD(t, t.TempDir())
 	for shape := range lockShapes {
 		for _, pair := range [][2]string{{"posix", "ofd"}, {"ofd", "posix"}} {
 			holder, prober := pair[0], pair[1]
-			t.Run(fmt.Sprintf("%s/%s-holds-%s-probes", shape, holder, prober), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s-binary-holds-%s-binary-probes", shape, holder, prober), func(t *testing.T) {
 				path := filepath.Join(t.TempDir(), "record.db")
 				seed, err := sql.Open("sqlite", lockDSN(path, lockShapes[shape].journal, 5000, false))
 				if err != nil {
@@ -309,5 +312,65 @@ func TestAStrayCloseOfTheRecordLeavesItLocked(t *testing.T) {
 	}
 	if got := probe(t, "posix", "wal-exclusive", path); got != "GOT" {
 		t.Errorf("with the record closed the probe answered %s — it cannot succeed, so the BUSY above proves nothing", got)
+	}
+}
+
+// lateChildEnv names the directory TestLateLockSwitchChild works in; set, the test binary is the child.
+const lateChildEnv = "RECORDSQL_LATE_SWITCH_CHILD"
+
+// TestLateLockSwitchChild is the child half of TestALockModeFixedBeforeTheSwitchRefusesEveryOpen;
+// run directly it does nothing. It is a process of its own because its first lock fixes the
+// locking mode for the rest of the process.
+func TestLateLockSwitchChild(t *testing.T) {
+	dir := os.Getenv(lateChildEnv)
+	if dir == "" {
+		return
+	}
+	// init set OFD locks and nothing has locked yet, so the mode can still be set back to POSIX —
+	// the mode a database opened ahead of recordsql's init fixes.
+	if _, err := sqlite.OFDLocking(false); err != nil {
+		t.Fatalf("setting POSIX locks: %v", err)
+	}
+	other, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: filepath.Join(dir, "other.db")}).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := other.Exec(`CREATE TABLE t (x)`); err != nil {
+		t.Fatal(err)
+	}
+	_ = other.Close()
+	recordsql.RerunLockSwitch()
+	db, err := recordsql.Open(filepath.Join(dir, "record.db"))
+	if err != nil {
+		fmt.Println(childMark, "REFUSED", err)
+		return
+	}
+	var n int
+	qerr := db.QueryRow(`SELECT count(*) FROM sqlite_master`).Scan(&n)
+	_ = recordsql.CloseUnder(dir)
+	fmt.Println(childMark, "OPENED", qerr)
+}
+
+// A LOCKING MODE FIXED BEFORE THE SWITCH REFUSES EVERY OPEN. A process that opened a database
+// before recordsql's init would lock the record POSIX while every reader of ofd.go believes it
+// locks OFD, so the record refuses to open there, and says the cause is the build.
+func TestALockModeFixedBeforeTheSwitchRefusesEveryOpen(t *testing.T) {
+	dir := t.TempDir()
+	requireOFD(t, dir)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestLateLockSwitchChild$", "-test.count=1")
+	cmd.Env = append(os.Environ(), lateChildEnv+"="+dir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("the child failed: %v\n%s", err, out)
+	}
+	verdict, _ := childLine(t, string(out))
+	if verdict != "REFUSED" {
+		t.Fatalf("with the locking mode fixed POSIX before the switch, the record opened (%s):\n%s", verdict, out)
+	}
+	for _, want := range []string{"already fixed by an earlier database open in this process", "build defect",
+		sqlite.ErrOFDLockingTooLate.Error()} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("the refusal does not say %q:\n%s", want, out)
+		}
 	}
 }

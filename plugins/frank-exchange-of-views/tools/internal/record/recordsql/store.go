@@ -267,18 +267,17 @@ func SealedSize(path string) (int64, error) {
 	return st.Size(), nil
 }
 
-// A RECORD FILE IS NEVER OPENED BESIDE ITS OWN CONNECTION. Under POSIX fcntl locking — Linux,
-// macOS and the BSDs alike — closing ANY descriptor to a file drops EVERY POSIX lock the process
-// holds on it: the advisory locks SQLite's unix VFS places are per process and per inode, not per
-// descriptor. An idle WAL connection holds a SHARED
-// lock on the database and the dead-man-switch lock on its -shm, both visible in Linux's /proc/locks; one
-// os.Open/Close of record.db by the same process releases them while the connection still
-// believes it holds them, and SQLite does not re-take a lock it believes it has. Another seat can
-// then judge itself the last connection and recover or truncate a log this process is using.
-// SQLite defers closing its OWN descriptors while a lock is held on the inode; a Go descriptor
-// gets no such care, which is why the two acts below exist instead of a file copy. On Linux the
-// database file's locks are OFD locks (ofd.go) and survive such a close; the -shm locks, and every
-// lock on the other unix platforms, are POSIX locks and do not.
+// A RECORD FILE IS NEVER OPENED BESIDE ITS OWN CONNECTION. A POSIX fcntl lock belongs to the
+// process and the inode, not to the descriptor: closing ANY descriptor to a file drops EVERY POSIX
+// lock the process holds on it. An idle WAL connection holds a SHARED lock on the database and the
+// dead-man-switch lock on its -shm. On Linux the database file's locks are OFD locks (ofd.go),
+// owned by SQLite's own descriptor, and survive any other close; the -shm locks on Linux, and every
+// lock on the other unix platforms, are POSIX locks. One os.Open/Close of a record file whose locks
+// are POSIX releases them while the connection still believes it holds them, and SQLite does not
+// re-take a lock it believes it has. Another seat can then judge itself the last connection and
+// recover or truncate a log this process is using. SQLite defers closing its OWN descriptors while
+// a lock is held on the inode; a Go descriptor gets no such care, which is why the two acts below
+// exist instead of a file copy.
 
 // SnapshotInto writes a consistent copy of the record at path to dst, through the record's own
 // connection: `VACUUM INTO` reads inside one read transaction, so the copy is one committed state

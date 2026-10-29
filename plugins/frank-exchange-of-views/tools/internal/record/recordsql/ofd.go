@@ -49,5 +49,9 @@ func useOFDLocks() error {
 	if err == nil || errors.Is(err, sqlite.ErrOFDLockingUnavailable) {
 		return nil
 	}
-	return fmt.Errorf("opening the record: SQLite's lock mode could not be set to OFD locks: %w", err)
+	return fmt.Errorf("opening the record: SQLite's locking mode was already fixed by an earlier database "+
+		"open in this process, before recordsql set it to OFD locks, so the record would lock POSIX and a "+
+		"stray close of record.db would drop its locks. This is a build defect, not a fault of the run: a "+
+		"package initialised ahead of recordsql opened a database; move that open out of package "+
+		"initialisation (recordsql's ofd.go): %w", err)
 }
