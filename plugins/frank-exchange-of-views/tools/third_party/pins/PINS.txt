@@ -8,7 +8,7 @@
 # build-cstack.sh and TestIdentityMatchesPins each refuse a drift between the two.
 
 # Toolchain (linux-x86_64 HOST binaries; the cross targets all build from this one host).
-70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00  zig-0.16.0.tar.xz  https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz
+1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026  zig-0.17.0.tar.xz  https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
 d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc  cmake-4.4.3.tar.gz  https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-linux-x86_64.tar.gz
 
 # The C stack, built in this order.
