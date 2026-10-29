@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // AN ANCHORED CLAIM LEAVES THROUGH RETIRE, AND ITS ANCHOR LEAVES WITH IT.
@@ -165,6 +167,78 @@ func TestACitedSentenceIsNotCutToItsAnchor(t *testing.T) {
 	}
 	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
 		t.Errorf("%d edit(s) recorded by a refused edit", n-edits)
+	}
+}
+
+// A CITATION RETIRE ANSWERING A GAP IS IN THE GAP'S CHANGE LOG. The retire takes the key an edit
+// carries, so `show changes --id <gap>` lists it beside what red asked for in both forms, the
+// unscoped log lists it among the changes, and the report's retirements name the gap. A claim retire
+// takes no gap — the edit that cut the claim names it — and is refused one.
+func TestACitationRetireAnsweringAGapIsInItsChangeLog(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	gap := mintGap(t, runDir, "dead-source", "spec_underspecification")
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", label,
+		"--answers", gap, "--reason", "the source cannot be read"); err != nil {
+		t.Fatalf("retire --anchor %s --answers %s: %v", label, gap, err)
+	}
+	if ev := lastBody(t, runDir, &recordpb.Retire{}); ev.GetAnswers() != gap {
+		t.Fatalf("the retire recorded answers %q, want %s", ev.GetAnswers(), gap)
+	}
+
+	md, err := run(t, "show", "changes", "--id", gap, "--run", runDir, "--seat-id", lensSeat)
+	if err != nil {
+		t.Fatalf("show changes --id %s: %v", gap, err)
+	}
+	for _, want := range []string{"## Changes blue recorded against it (1)", "retired citation " + label + ", its sentence kept", "the source cannot be read", "The sky is blue."} {
+		if !strings.Contains(md, want) {
+			t.Errorf("show changes --id %s does not say %q:\n%s", gap, want, md)
+		}
+	}
+	js, err := run(t, "show", "changes", "--id", gap, "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatalf("show changes --id %s --json: %v", gap, err)
+	}
+	var page record.ChangesJSON
+	if err := json.Unmarshal([]byte(js), &page); err != nil {
+		t.Fatalf("show changes --json is not valid JSON (%v):\n%s", err, js)
+	}
+	if len(page.Edits) != 1 || page.Edits[0].Retired != label || page.Edits[0].Answers != gap || page.Edits[0].Old != "The sky is blue." {
+		t.Errorf("show changes --id %s --json holds %+v, want the one citation retire of %s answering it", gap, page.Edits, label)
+	}
+	if all, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat); err != nil || !strings.Contains(all, "answers **"+gap+"** · retired citation "+label) {
+		t.Errorf("the unscoped change log does not list the retire answering %s (%v):\n%s", gap, err, all)
+	}
+	a, err := report.Assemble(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changelog, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), report.FileChangelog)); err != nil ||
+		!strings.Contains(string(changelog), "a source it cited was retired from it, answering **"+gap+"**") {
+		t.Errorf("the changelog's retirements do not name the gap the retire answers (%v):\n%s", err, changelog)
+	}
+
+	proof := proveSentence(t, runDir, "The grass is green.")
+	gutToAnchor(t, runDir, "The grass is green.", anchor.Token(proof))
+	_, err = run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The grass is green.",
+		"--answers", gap, "--reason", "refuted")
+	if err == nil || !strings.Contains(err.Error(), "the edit that cut it") {
+		t.Errorf("a claim retire naming a gap was not refused for it: %v", err)
+	}
+}
+
+// THE BARE-CITATION REFUSAL SENDS BLUE TO A RETIRE THAT ANSWERS THE SAME GAP. An edit answering a gap
+// that would leave a citation bare names the retire with that gap, so the first half of the repair
+// joins the gap as the edit would have.
+func TestTheBareCitationRefusalNamesTheGapTheEditAnswers(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	gap := mintGap(t, runDir, "dead-source", "spec_underspecification")
+	tok := anchor.Token(label)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--answers", gap,
+		"--quote", "The sky is blue"+tok+".", "--new", tok, "--reason", "the claim cannot stand")
+	if err == nil || !strings.Contains(err.Error(), "`retire --anchor <its id> --answers "+gap+"`") {
+		t.Errorf("the bare-citation refusal does not name the retire answering %s: %v", gap, err)
 	}
 }
 

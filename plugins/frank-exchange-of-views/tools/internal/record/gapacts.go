@@ -54,6 +54,8 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 			}
 		case *recordpb.BlueEdit:
 			on = []string{b.GetAnswers()}
+		case *recordpb.Retire:
+			on = []string{retireAnswers(e)}
 		case *recordpb.Proof:
 			proofGap[b.GetProofId()] = b.GetAnswers()
 			on = []string{b.GetAnswers()}

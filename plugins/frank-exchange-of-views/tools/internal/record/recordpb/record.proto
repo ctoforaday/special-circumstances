@@ -1641,6 +1641,14 @@ message Retire {
   // citation retired and the sentence kept rather than listing a claim that never left, and the
   // anchor ledger, where the citation is retired and owes nothing.
   optional bool claim_kept = 6;
+
+  // answers is the gap a citation retire responds to — BlueEdit.answers's key on the other act that
+  // changes the report's text, checked against the board at the write the same way. A citation blue
+  // retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
+  // blue's answers (`show changes --id`, the lens's answered list, the manifest's owed rows) reads it
+  // here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
+  // carries the gap it answers.
+  optional string answers = 7;
 }
 
 message ManifestRow {

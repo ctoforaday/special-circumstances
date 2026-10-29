@@ -45,8 +45,9 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out := []string{
 		"# blue changes — RENDERED PROJECTION (source of truth: the record, records/record.db)",
 		"",
-		"Every recorded edit to the report, in record order, grouped by the sitting that made",
-		"it (`seat #N` is that seat's Nth sitting). This is a navigation hint, not",
+		"Every recorded change to the report — each edit, and each citation retired from a sentence",
+		"the report keeps — in record order, grouped by the sitting that made it (`seat #N` is that",
+		"seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
 		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",
 		"side, scope it — `show changes --id <gap>`.",
@@ -70,7 +71,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 			answers = "answers **" + id + "**"
 		}
 		out = append(out, fmt.Sprintf("- **#%d** `%s` %s · %s — %s",
-			n, ed.Seat, answers, delta(ed.Old, ed.New), ed.Reason))
+			n, ed.Seat, answers, what(ed), ed.Reason))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
@@ -79,7 +80,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a finding:",
 			"either blue answered nothing, or the report moved outside blue's `edit`._", "")
 	} else {
-		out = append(out, "", fmt.Sprintf("_%d recorded edit(s)._", total), "")
+		out = append(out, "", fmt.Sprintf("_%d recorded change(s)._", total), "")
 	}
 
 	// THE TWO NUMBERS THAT FALSIFY THE DESIGN, in opposite directions (#267 stage 4).
@@ -151,16 +152,27 @@ func changesForGap(sel record.ChangesJSON) []byte {
 
 	if len(sel.Edits) == 0 {
 		out = append(out,
-			"## Edits blue recorded against it: NONE",
+			"## Changes blue recorded against it: NONE",
 			"",
-			"_Blue recorded no edit answering this gap. That is not proof nothing changed — an edit",
-			"that omitted `--answers` is invisible here — but it is the honest state of the join, and",
-			"the unscoped `show changes` lists every edit including the unattributed ones._", "")
+			"_Blue recorded no edit and no citation retire answering this gap. That is not proof nothing",
+			"changed — an edit or a citation retire that omitted `--answers` is invisible here — but it is",
+			"the honest state of the join, and the unscoped `show changes` lists every change including",
+			"the unattributed ones._", "")
 		return []byte(strings.Join(out, "\n"))
 	}
 
-	out = append(out, fmt.Sprintf("## Edits blue recorded against it (%d)", len(sel.Edits)), "")
+	out = append(out, fmt.Sprintf("## Changes blue recorded against it (%d)", len(sel.Edits)), "")
 	for i, e := range sel.Edits {
+		if e.Retired != "" {
+			out = append(out,
+				fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, what(e)),
+				"",
+				"**Blue's reason**: "+e.Reason,
+				"",
+				"The sentence it stood on stays word for word: "+oneLine(e.Old),
+				"")
+			continue
+		}
 		out = append(out,
 			fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, delta(e.Old, e.New)),
 			"",
@@ -173,6 +185,15 @@ func changesForGap(sel record.ChangesJSON) []byte {
 			"")
 	}
 	return []byte(strings.Join(out, "\n"))
+}
+
+// what names a change: a citation retire by the citation it took off a kept sentence, an edit by
+// its size change.
+func what(e record.EditJSON) string {
+	if e.Retired != "" {
+		return "retired citation " + e.Retired + ", its sentence kept"
+	}
+	return delta(e.Old, e.New)
 }
 
 // delta reports the size change in CHARACTERS (runes, not bytes) — the unit a seat reading

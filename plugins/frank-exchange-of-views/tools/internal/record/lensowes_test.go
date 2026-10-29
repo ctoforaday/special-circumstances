@@ -237,6 +237,15 @@ func blueAnswersGap(b *stage, gap string) *stage {
 	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).edit(gap, "a", "b").stop(agent)
 }
 
+// blueRetiresCitationFor is a blue sitting dispatched on gap that retires a citation answering it,
+// keeping its sentence: the other act that changes the report's text and names the gap it answers.
+func blueRetiresCitationFor(b *stage, gap string) *stage {
+	agent := fmt.Sprintf("blue-agent-%d", b.n+1)
+	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).
+		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("the source cannot be read"),
+			Anchors: []string{"C-1"}, ClaimKept: proto.Bool(true), Answers: proto.String(gap)}).stop(agent)
+}
+
 // A GAP A LENS HOLDS WITH NOTHING NEW ON IT OWES NOTHING (gblock, 2026-10-18). universe-m28's
 // architecture and voice lenses each held a gap of their own that is not material, which readies
 // nobody and which blue never answered, and sat after every edit to the epoch limit: lens sittings
@@ -289,7 +298,8 @@ func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
 		owes string
 		item string // the work list's item it is owed for
 	}{
-		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by an edit"},
+		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
+		{"blue retired a citation answering it", never, func(b *stage) { blueRetiresCitationFor(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
 		{"a grade motion on it was accepted", never, func(b *stage) {
 			b.add("blue-respond", gradeMotionFiled(b.t, "M1", "G1").GetMotion())
 			b.add("red-chair", gradeMotionRuled(b.t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule())

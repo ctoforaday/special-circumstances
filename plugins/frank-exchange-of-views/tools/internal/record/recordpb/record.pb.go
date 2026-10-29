@@ -5245,7 +5245,14 @@ type Retire struct {
 	// anchor's `remove` row leaves the sentence), the report's list of retirements, which names the
 	// citation retired and the sentence kept rather than listing a claim that never left, and the
 	// anchor ledger, where the citation is retired and owes nothing.
-	ClaimKept     *bool `protobuf:"varint,6,opt,name=claim_kept,json=claimKept,proto3,oneof" json:"claim_kept,omitempty"`
+	ClaimKept *bool `protobuf:"varint,6,opt,name=claim_kept,json=claimKept,proto3,oneof" json:"claim_kept,omitempty"`
+	// answers is the gap a citation retire responds to — BlueEdit.answers's key on the other act that
+	// changes the report's text, checked against the board at the write the same way. A citation blue
+	// retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
+	// blue's answers (`show changes --id`, the lens's answered list, the manifest's owed rows) reads it
+	// here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
+	// carries the gap it answers.
+	Answers       *string `protobuf:"bytes,7,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5320,6 +5327,13 @@ func (x *Retire) GetClaimKept() bool {
 		return *x.ClaimKept
 	}
 	return false
+}
+
+func (x *Retire) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
+	}
+	return ""
 }
 
 type ManifestRow struct {
@@ -7899,7 +7913,7 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\x13\n" +
 	"\x11_applied_verbatimB\v\n" +
 	"\t_acceptedB\r\n" +
-	"\v_exact_span\"\xef\x03\n" +
+	"\v_exact_span\"\x9a\x04\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
@@ -7907,12 +7921,15 @@ const file_record_proto_rawDesc = "" +
 	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01\x12\x18\n" +
 	"\aanchors\x18\x05 \x03(\tR\aanchors\x12\"\n" +
 	"\n" +
-	"claim_kept\x18\x06 \x01(\bH\x04R\tclaimKept\x88\x01\x01B\b\n" +
+	"claim_kept\x18\x06 \x01(\bH\x04R\tclaimKept\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\a \x01(\tH\x05R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_claimB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_superseded_byB\x10\n" +
 	"\x0e_removal_basisB\r\n" +
-	"\v_claim_kept\"x\n" +
+	"\v_claim_keptB\n" +
+	"\n" +
+	"\b_answers\"x\n" +
 	"\vManifestRow\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12'\n" +
 	"\x03row\x18\x02 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x01R\x03row\x88\x01\x01B\t\n" +

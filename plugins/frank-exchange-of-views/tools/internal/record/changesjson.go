@@ -27,7 +27,8 @@ type ChangesJSON struct {
 	// prescribed, beside the edits answering it. null on the unscoped form, which is about no one gap —
 	// NOT omitempty, so the key a seat read on the page is in every document, and null says "unscoped".
 	Gap *ChangesGapJSON `json:"gap"`
-	// Edits is every recorded edit in record order — on the scoped form, every edit answering the gap. NOT omitempty: an empty list is "blue recorded
+	// Edits is every recorded change in record order — each edit, and each citation retire, which takes a
+	// citation off a sentence the report keeps — and on the scoped form every one answering the gap. NOT omitempty: an empty list is "blue recorded
 	// no edit", which on a run past epoch 0 is itself a finding, and an absent key would read as a
 	// projection that does not carry edits.
 	Edits  []EditJSON `json:"edits"`
@@ -51,7 +52,7 @@ type ChangesGapJSON struct {
 	FixBasis string `json:"fix_basis"`
 }
 
-// EditJSON is one recorded edit, with the text on both sides.
+// EditJSON is one recorded change, with the text on both sides: an edit, or a citation retire (Retired).
 type EditJSON struct {
 	Seat    string `json:"seat"`
 	Sitting int    `json:"sitting"`
@@ -73,6 +74,9 @@ type EditJSON struct {
 	// given, and taken through the accept path. Estoppel is enforced on the first.
 	AppliedVerbatim bool `json:"applied_verbatim"`
 	Accepted        bool `json:"accepted"`
+	// Retired is the citation a retire took off a sentence it kept, whose words are Old and New alike;
+	// empty on an edit.
+	Retired string `json:"retired"`
 }
 
 // ChangesOf is `show changes`'s ONE SELECTION, and both its renderings read it: the JSON marshals it
@@ -115,7 +119,7 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 		// THE SCOPE IS ONE PREDICATE ON THE ROWS, "" selecting them all, so the scoped form is the
 		// unscoped one narrowed and never a second query that could read the rows differently.
 		rows, err := q.Query(`SELECT "seat_id", "sitting", "epoch", "answers", "old", "new",
-		    "delta", "reason", "applied_verbatim", "accepted"
+		    "delta", "reason", "applied_verbatim", "accepted", "retired"
 		  FROM "change" WHERE ? = '' OR "answers" = ? ORDER BY "event_id"`, gapID, gapID)
 		if err != nil {
 			return fmt.Errorf("asking the change view: %w", err)
@@ -127,7 +131,7 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 			// silently and put one edit's text under another's heading, so the two lists are kept
 			// literally adjacent above and below.
 			if err := rows.Scan(&ed.Seat, &ed.Sitting, &ed.Epoch, &ed.Answers, &ed.Old, &ed.New,
-				&ed.Delta, &ed.Reason, &ed.AppliedVerbatim, &ed.Accepted); err != nil {
+				&ed.Delta, &ed.Reason, &ed.AppliedVerbatim, &ed.Accepted, &ed.Retired); err != nil {
 				return err
 			}
 			out.Edits = append(out.Edits, ed)

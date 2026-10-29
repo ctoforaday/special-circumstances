@@ -123,6 +123,9 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 				answered[id] = true
 			}
 		}
+		if id := retireAnswers(e); id != "" {
+			answered[id] = true
+		}
 	}
 	for id, g := range gaps {
 		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {

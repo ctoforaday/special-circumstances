@@ -937,7 +937,11 @@ func withdrawnClaims(fam record.Family) string {
 		// A CITATION RETIRED FROM A SENTENCE THAT STAYS is not a claim that left: the row says the
 		// sentence stays and its source went, so a reader never takes the sentence for one withdrawn.
 		if r.GetClaimKept() {
-			rows = append(rows, fmt.Sprintf("- **%s** — stays in the report; a source it cited was retired from it: %s (%s #%d)", concise(claim), oneLine(r.GetReason()), e.GetSeatId(), w.Sitting))
+			answering := ""
+			if g := r.GetAnswers(); g != "" {
+				answering = ", answering **" + g + "**"
+			}
+			rows = append(rows, fmt.Sprintf("- **%s** — stays in the report; a source it cited was retired from it%s: %s (%s #%d)", concise(claim), answering, oneLine(r.GetReason()), e.GetSeatId(), w.Sitting))
 			continue
 		}
 		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), oneLine(r.GetReason()), e.GetSeatId(), w.Sitting)

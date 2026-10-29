@@ -188,6 +188,11 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() {
 				movement[g] = append(movement[g], id)
 			}
+		case *recordpb.Retire:
+			// A citation retire moves the report as an edit does: the citation leaves its sentence.
+			if g := retireAnswers(e); g != "" {
+				movement[g] = append(movement[g], id)
+			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)
 		}

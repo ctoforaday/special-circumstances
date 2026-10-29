@@ -261,7 +261,11 @@ func blueFailedItem(b Blocker) string {
 	if b.Detail != "" {
 		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the script shows, which leaves the proof unchecked for a fresh judgement, or a new proof with this one retired — or retire the claim it backs", failedFact(b), carried)
 	}
-	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. Retire the citation — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; an edit of its sentence leaves it unchecked, owed a fresh check", failedFact(b), carried)
+	retire := "Retire the citation"
+	if b.answeredBy != "" {
+		retire = "Retire the citation, answering gap " + b.answeredBy + ","
+	}
+	return fmt.Sprintf("%s — PASS is refused while it stands, and %s. %s — its sentence may stay word for word, backed by whatever else backs it — or cite a source a lens can read and retire this one; an edit of its sentence leaves it unchecked, owed a fresh check", failedFact(b), carried, retire)
 }
 
 // planHold is the plan's verdict on a blocker, by its owner: the chair's own is cleared in its

@@ -179,7 +179,7 @@ func newEdit() *cobra.Command {
 			//
 			// Computed from the render the validation used, which is the report the edit lands on.
 			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
-			if err := refuseBaredCitations(peek, planned); err != nil {
+			if err := refuseBaredCitations(peek, planned, gapID); err != nil {
 				return err
 			}
 			// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
@@ -256,7 +256,9 @@ func newEdit() *cobra.Command {
 // the sentence leaves, so the edit is refused, naming the anchor and the two ways out: keep a
 // sentence before it, or retire the citation while its sentence still stands (the retire keeps the
 // sentence word for word and takes the anchor out), then edit the sentence as freely as any prose.
-func refuseBaredCitations(before, after string) error {
+// An edit answering a gap names that gap on the retire it sends blue to, because the retire is the
+// first half of the repair and joins the gap by the same key the edit does.
+func refuseBaredCitations(before, after, gapID string) error {
 	was := map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(before) {
 		was[id] = true
@@ -274,10 +276,14 @@ func refuseBaredCitations(before, after string) error {
 	if len(bared) > 1 {
 		what, it, its = "citations "+strings.Join(bared, ", "), "them", "their"
 	}
+	retire := "`retire --anchor <its id>`"
+	if gapID != "" {
+		retire = "`retire --anchor <its id> --answers " + gapID + "`"
+	}
 	return feov.Errorf(feov.Validation,
 		"this edit would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against. Nothing is recorded. "+
-			"Keep the sentence in --new; or, where the sentence is to go, first retire the citation with `retire --anchor <its id>` while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
-		what, it, its, it)
+			"Keep the sentence in --new; or, where the sentence is to go, first retire the citation with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
+		what, it, its, it, retire)
 }
 
 // repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the
