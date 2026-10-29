@@ -127,7 +127,7 @@ func TestTheAgentBindingReturnsItsDispatch(t *testing.T) {
 // accept (endsWithoutEnvelope), so the close lands with no admission and the record reads the sitting
 // as failed. Driven through driveDebate, without the release gate.
 func TestADispatchEndedWithoutItsEnvelopeThrowsAndReadsFailed(t *testing.T) {
-	r := givenUpDispatch(t, `{type: "object"}`, func(r *runner) { r.endWithoutEnvelope = true })
+	r := givenUpDispatch(t, `{type: "object"}`, func(r *runner) { r.endWithoutEnvelope = 2 })
 	if refused := r.distinctSchemaRefusals(); len(refused) != 0 {
 		t.Errorf("the schema refused an envelope it accepts: %v", refused)
 	}
@@ -200,6 +200,53 @@ func givenUpDispatch(t *testing.T, schema string, arrange func(*runner)) *runner
 		t.Errorf("the record reads %+v as failed and the harness counted %d, want both sittings on both", failed, r.failedSittings)
 	}
 	return r
+}
+
+// A RESUMED ASSEMBLY SITTING FINDS THE OUTCOME ITS FAILED ONE STAMPED and goes on to assemble, as
+// debate.js sits the assembly again in place: the second sitting drives no outcome the record,
+// closed to seat acts once the outcome stands, would refuse.
+func TestAnAssemblySatAgainAfterAGiveUpAssemblesOnTheStampedOutcome(t *testing.T) {
+	r := stagedRunner(t)
+	r.openUnderAgent = true
+	r.endWithoutEnvelope = 1
+	r.register("blue", "blue-synthesize")
+	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
+		t.Fatalf("ingest the report: %v", err)
+	}
+	result, settledErr := driveDebate(r, `globalThis.__result = (async function () {
+		var opts = {label: "judge", model: "haiku", schema: {type: "object"}};
+		var prompt = "SEAT_ID: judge OCCASION: assemble Debate outcome: UNVERIFIED";
+		var first = "fulfilled";
+		try { await agent(prompt, opts); } catch (e) { first = "threw"; }
+		var second = await agent(prompt, opts);
+		return {first: first, second: second ? "fulfilled" : "null"};
+	})();`)
+	if settledErr != "" {
+		t.Fatal(settledErr)
+	}
+	if result["first"] != "threw" || result["second"] != "fulfilled" {
+		t.Errorf("the assembly sittings settled %v then %v, want a throw and then the envelope", result["first"], result["second"])
+	}
+	if got, err := record.RecordedOutcome(r.run()); err != nil || got != "unverified" {
+		t.Errorf("the recorded outcome = %q (%v), want unverified", got, err)
+	}
+	requireEveryDispatchReturned(t, r)
+}
+
+// A RECEIVED ENVELOPE'S SUCCESSORS ARE WHAT THE HARNESS EXPECTS THE ENGINE TO SIT BLUE ON NEXT, read
+// off the envelope debate.js was handed (envelopeReceived). The binding calls it for no envelope it
+// gave up on; the sweep holds that call, since a blue-respond sitting engaged on a successor needs a
+// whole debate behind it.
+func TestAReceivedEnvelopeReadiesItsSuccessorSitting(t *testing.T) {
+	r := &runner{}
+	r.envelopeReceived(map[string]any{"manifest": []any{}})
+	if r.againOn != nil {
+		t.Fatalf("an envelope naming no successor readied %v", r.againOn)
+	}
+	r.envelopeReceived(map[string]any{"successors": []any{"G-00000001"}})
+	if len(r.againOn) != 1 || r.againOn[0] != "G-00000001" {
+		t.Fatalf("a received envelope's successors readied %v, want G-00000001", r.againOn)
+	}
 }
 
 // A RETURN WITH NO DISPATCH OPEN IS A HARNESS DEFECT, and it is loud: it fails the run's dispatch

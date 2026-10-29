@@ -335,9 +335,9 @@ type runner struct {
 	// openUnderAgent makes every sitting sit opens carry an agent (registerTwice), for a test that
 	// needs a close to join on no draw.
 	openUnderAgent bool
-	// endWithoutEnvelope makes every agent-bearing sitting's dispatch end without its envelope
-	// (endsWithoutEnvelope), for a test that drives that shape on no draw.
-	endWithoutEnvelope bool
+	// endWithoutEnvelope is how many of the next agent-bearing sittings' dispatches end without their
+	// envelope (endsWithoutEnvelope), for a test that drives that shape on no draw.
+	endWithoutEnvelope int
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
 	// seat whose work arrives as items: the sittings the record must read as failed
 	// (record.FailedSittingsOf), which runOne compares with what the record does read.
@@ -365,7 +365,9 @@ type runner struct {
 	// engaged (gblock's ruling R2): the cost the second sitting adds, and how often it is driven.
 	blueSittings, blueAgain int
 	// againOn is the successors blue engaged its next sitting on, which the engine sits it on next:
-	// the plan's party names the chair's gaps, so the second sitting reads its own here.
+	// the plan's party names the chair's gaps, so the second sitting reads its own here. It is set
+	// from an envelope the ENGINE RECEIVED (envelopeReceived): one the harness gave up on names
+	// nothing debate.js reads, so the engine sits blue on no successor.
 	againOn []string
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
@@ -1740,12 +1742,16 @@ func (r *runner) unreturnedDispatches() string {
 // carried an agent, whose close the record can read as failed, and never in a forced run.
 func (r *runner) endsWithoutEnvelope(seatID string) bool {
 	r.mu.Lock()
-	agent, always := r.sittingAgent[seatID], r.endWithoutEnvelope
+	agent := r.sittingAgent[seatID]
+	arranged := agent != "" && r.endWithoutEnvelope > 0
+	if arranged {
+		r.endWithoutEnvelope--
+	}
 	r.mu.Unlock()
 	if agent == "" {
 		return false
 	}
-	return always || !r.forcedVerdict() && r.coin(endedWithoutEnvelopePct)
+	return arranged || !r.forcedVerdict() && r.coin(endedWithoutEnvelopePct)
 }
 
 // envelopeOutcome is how a dispatch carrying a schema ends: admitted, when the record and the schema
@@ -4575,10 +4581,19 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		//
 		// A PETITION FILED AFTER THE LAST PLAN has had no sitting, and `bench outcome` refuses while
 		// it stands; the assembling bench holds the gavel, so it rules it first, as the refusal says.
-		if !r.forceHalt {
-			r.rulePending(seatID, "assemble")
+		// A RESUMED ASSEMBLY SITTING FINDS THE OUTCOME ITS FAILED ONE STAMPED, and goes on to
+		// assemble: the record is closed to seat acts once the outcome stands, so neither the ruling
+		// nor the outcome is driven again.
+		stamped, err := record.RecordedOutcome(r.run())
+		if err != nil {
+			r.noteActErr("the assembly could not read whether the outcome stands: " + err.Error())
 		}
-		r.admit(oargs...)
+		if stamped == "" {
+			if !r.forceHalt {
+				r.rulePending(seatID, "assemble")
+			}
+			r.admit(oargs...)
+		}
 		// THE ASSEMBLY IS THE BENCH. `--seat-id assemble` was the seat that ran this verb; the bench
 		// is one seat now and `assemble` is refused at the surface, so the call recorded nothing and
 		// every fuzzed run failed on the missing assembly.
@@ -5213,6 +5228,9 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 			// as live hands it one: the harness gave up, and agent() throws.
 			admitted, gaveUp := r.envelopeOutcome(seatID, schema, env)
 			r.dispatchReturns(seatID, admitted)
+			if env != nil && !gaveUp {
+				r.envelopeReceived(env)
+			}
 			loop.RunOnLoop(func(vm *goja.Runtime) {
 				if env == nil {
 					// A seat that produced nothing is a rejection, not a silent fulfilment with
@@ -8403,6 +8421,20 @@ func (r *runner) engageSuccessors(seatID string, env map[string]any) {
 		out = append(out, g)
 	}
 	env["successors"] = out
+}
+
+// envelopeReceived is what the harness expects of the engine once debate.js receives env: blue's
+// successors are the gaps the engine sits it on next (againOn). Called only for an envelope the
+// engine is handed, never for one the harness gave up on (envelopeOutcome).
+func (r *runner) envelopeReceived(env map[string]any) {
+	named, _ := env["successors"].([]any)
+	if len(named) == 0 {
+		return
+	}
+	succ := make([]string, 0, len(named))
+	for _, g := range named {
+		succ = append(succ, g.(string))
+	}
 	r.mu.Lock()
 	r.againOn = succ
 	r.mu.Unlock()
