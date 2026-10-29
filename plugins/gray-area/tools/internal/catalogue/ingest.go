@@ -80,7 +80,8 @@ func attributeFile(projectsRoot, p string) (TranscriptFile, bool) {
 // counts whatever its type unless it is a directory. <project>/<sid>/ is walked by WalkDir itself,
 // each file classified by the shared rule, and visited before <sid>.jsonl, where the full walk's
 // lexical order puts it. An id that names a path element, `.` or `..` takes the full walk, so even
-// that answer is the full walk's. TestSessionScopedEnumerationIsTheFilteredWalk holds the two equal.
+// that answer is the full walk's. TestSessionScopedEnumerationIsTheFilteredWalk and
+// TestSessionScopedEnumerationJudgesSymlinksAsTheWalk hold the two equal.
 func SessionTranscriptFiles(projectsRoot, sessionID string) ([]TranscriptFile, error) {
 	if sessionID == "." || sessionID == ".." || filepath.Base(sessionID) != sessionID {
 		all, err := TranscriptFiles(projectsRoot)

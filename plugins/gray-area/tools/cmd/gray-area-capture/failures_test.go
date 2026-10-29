@@ -32,9 +32,9 @@ import (
 //
 // NOT REACHED BY ANY FIXTURE, and why: catalogue-enumerate's failure (catalogue.TranscriptFiles and
 // SessionTranscriptFiles walk with callbacks that swallow every error, so no filesystem state makes
-// either return one — their success is tested instead), and three manifest failures no filesystem produces on demand: a row that does
-// not encode, an fsync that fails after a write that did not, and a torn tail whose closing newline
-// cannot be written onto a file that just accepted a read.
+// either return one — their success is tested instead), and three manifest failures no filesystem
+// produces on demand: a row that does not encode, an fsync that fails after a write that did not,
+// and a torn tail whose closing newline cannot be written onto a file that just accepted a read.
 
 // hookEnv is one isolated machine: a home with one session's transcript, its own state directory,
 // and a project directory.

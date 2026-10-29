@@ -916,8 +916,8 @@ func schemaVersion(t *testing.T, p string) int {
 	return v
 }
 
-// OPENING A SETTLED STORE WRITES NOTHING. Every turn end opens the store; before this, each open
-// dropped and re-created two views and rewrote the stamp inside an exclusive transaction. The
+// OPENING A SETTLED STORE WRITES NOTHING. Every turn end opens the store, so a settled store is
+// handed over without settle's exclusive transaction, its view re-creation or its stamp write. The
 // DDL counter, the stamp, the database file and its WAL are all unchanged across a second Open,
 // and the WAL holds no frame while that open is live — a write the close checkpointed away would
 // leave the first three equal and still have taken the lock.
@@ -959,7 +959,7 @@ func TestOpeningASettledStoreWritesNothing(t *testing.T) {
 
 // A CURRENT STAMP IS NOT A SETTLED SHAPE. A store at UserVersion missing an object Schema makes —
 // as a Schema edit that adds an index without moving the stamp leaves every existing store — is
-// still brought to Schema by Open, as it was when every open applied Schema.
+// still brought to Schema, by Open's settle path.
 func TestACurrentStampWithADriftedShapeIsSettled(t *testing.T) {
 	p, db := newStore(t)
 	mustExec(t, db, `DROP INDEX act_ts`, `DROP VIEW v_session`,
@@ -983,6 +983,66 @@ func TestACurrentStampWithADriftedShapeIsSettled(t *testing.T) {
 	}
 	if ok, err := settledShape(db2); err != nil || !ok {
 		t.Errorf("after Open the store is not settled (%v, %v)", ok, err)
+	}
+}
+
+// A REFERENCE BUILD THAT FAILS IS NOT SETTLED. With no reference to compare against, Open takes
+// settle's path — which applies Schema itself — rather than refusing every open for the life of
+// the process.
+func TestAFailedReferenceBuildTakesSettle(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('KEEP','/p',1,1)`)
+	db.Close()
+	sv := schemaVersion(t, p)
+	reference := schemaObjects
+	t.Cleanup(func() { schemaObjects = reference })
+	schemaObjects = func() ([]string, error) { return nil, errors.New("no reference") }
+
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatalf("Open with a failed reference build: %v", err)
+	}
+	var n int
+	if err := db2.QueryRow(`SELECT count(*) FROM session WHERE session_id='KEEP'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("KEEP rows after Open: %d (%v), want 1", n, err)
+	}
+	db2.Close()
+	if got := schemaVersion(t, p); got == sv {
+		t.Errorf("schema_version stayed %d: the open did not take settle's path", sv)
+	}
+}
+
+// schemaPin is the sha256 of the schema objects Schema builds — each object's type, name, table
+// and stored CREATE text, as objectsOf lists them — beside the UserVersion that text belongs to.
+var schemaPin = struct {
+	userVersion int
+	sha256      string
+}{6, "a24fe614ce8b1592c69f3dcb29b7dc1b2b41a5cc0146f1f2d3663fcfd97d0183"}
+
+// THE STORED SCHEMA TEXT MOVES WITH USERVERSION. settledShape compares each object's stored CREATE
+// text, comments included, and `CREATE ... IF NOT EXISTS` never rewrites it — so an edit to that
+// text at an unchanged stamp leaves every existing store failing the comparison at every open, and
+// paying settle's full cost each time. A bumped stamp sends each store through the Older rebuild,
+// which stores the new text.
+func TestSchemaTextMovesWithUserVersion(t *testing.T) {
+	objs, err := schemaObjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := sha256.New()
+	for _, o := range objs {
+		h.Write([]byte(o))
+		h.Write([]byte{'\n'})
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	switch {
+	case UserVersion == schemaPin.userVersion && got != schemaPin.sha256:
+		t.Errorf("Schema's stored text changed while UserVersion stayed %d: existing stores keep the old "+
+			"text and never compare settled. Bump UserVersion (with its WHY note), then set schemaPin to "+
+			"{%d, %q}", UserVersion, UserVersion+1, got)
+	case UserVersion != schemaPin.userVersion || got != schemaPin.sha256:
+		t.Errorf("schemaPin = {%d, %q}, but Schema is at UserVersion %d with hash %q: set schemaPin to {%d, %q}",
+			schemaPin.userVersion, schemaPin.sha256, UserVersion, got, UserVersion, got)
 	}
 }
 

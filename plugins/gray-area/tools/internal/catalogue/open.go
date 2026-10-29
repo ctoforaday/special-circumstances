@@ -280,7 +280,7 @@ func newerRefusal(path string, v int) error {
 // classified AGAIN inside a `BEGIN IMMEDIATE` transaction — the authoritative one, since a
 // concurrent opener may have rebuilt the file in between; that is what makes N concurrent openers
 // of one old catalogue produce exactly one rebuild. The schema, the rebuild markers and the stamp
-// commit together or not at all, so an interrupted open can no longer leave a prefix of the tables
+// commit together or not at all, so an interrupted open cannot leave a prefix of the tables
 // behind.
 //
 // The window between the two classifications is the only place a foreign file could meet the
@@ -346,8 +346,8 @@ var openBusyBudget = 60 * time.Second
 // A STORE ALREADY SETTLED IS HANDED OVER UNTOUCHED. When preclassify finds it Current and its
 // schema exactly what Schema makes (settledShape), applying Schema would change nothing and the
 // stamp is already UserVersion — so no write transaction is begun, no DDL runs and the stamp is
-// not rewritten. This is the path every turn end takes, and the one before it re-created two views
-// and rewrote the stamp under an exclusive lock each time. The connection is still opened here
+// not rewritten. This is the path every turn end takes, so a turn end neither re-creates a view nor
+// takes the exclusive lock settle's transaction holds. The connection is still opened here
 // (Ping), so its pragmas run and a busy error meets Open's retry rather than the first caller.
 func openOnce(path string) (*sql.DB, int, bool, error) {
 	settled := false
@@ -428,12 +428,21 @@ func preclassify(path string) (settled bool, err error) {
 // settledShape reports whether the store's schema is, object for object, what Schema makes of an
 // empty database — the only state in which applying Schema again is a no-op. Compared, not
 // assumed: a Schema edit that adds an index, or changes a view it drops and re-creates, without
-// moving UserVersion still reaches every store through settle, exactly as it did when settle ran
-// at every open. A mismatch is not an error; it sends the open down settle's path.
+// moving UserVersion still reaches every store through settle. A mismatch is not an error; it
+// sends the open down settle's path.
+//
+// The comparison includes each object's stored CREATE text, comments and all, and `CREATE ...
+// IF NOT EXISTS` never rewrites that text — so an edit to the text of an object Schema keeps
+// would leave every existing store unsettled at every open. TestSchemaTextMovesWithUserVersion
+// refuses such an edit without a stamp bump, which rebuilds the store from the new text.
+//
+// A reference build that fails is also not settled: settle applies Schema itself, so a Schema
+// that cannot be built fails there, at the open that met it, rather than being cached here for
+// the life of the process.
 func settledShape(q querier) (bool, error) {
 	want, err := schemaObjects()
 	if err != nil {
-		return false, err
+		return false, nil //nolint:nilerr // settle re-applies Schema and reports its own failure
 	}
 	got, err := objectsOf(q)
 	if err != nil {
