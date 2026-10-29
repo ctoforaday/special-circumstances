@@ -1704,6 +1704,9 @@ jobs:
       - name: The record binary and the plugin read the same event schema
         run: go run ./schemagen -check
         working-directory: scripts
+      - name: The record's generated Go matches its schema (a stale body switch reads an arm's events as bodiless)
+        run: go run ./protogen -check
+        working-directory: scripts
       - name: The vocabulary page is generated from the terms registry (a hand-kept copy drifts)
         run: go run ./vocabdoc -check
         working-directory: scripts
