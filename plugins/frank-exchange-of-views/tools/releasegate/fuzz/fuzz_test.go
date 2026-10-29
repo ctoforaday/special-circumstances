@@ -483,6 +483,11 @@ type runner struct {
 	// raised.
 	ownAnswers      int
 	answerBudgetErr string
+	// answersAtBudget counts the answers among ownAnswers minted while the lens's work list read no
+	// mint left to it, and answersOverOpen those that landed while an earlier gap of their class stood
+	// open on their subject: the budget exemption and the one-gap exemption, each reached. The sweep
+	// gates both at zero.
+	answersAtBudget, answersOverOpen int
 	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
@@ -2131,6 +2136,26 @@ func (r *runner) gradeOtherThan(cur string) string {
 	return grades[0] // unreachable while len(grades) > 1; a stated fallback beats a silent loop
 }
 
+// readingOutcome draws what a source did for the claim at a reading by lens seatID.
+//
+// A CONTRADICTION OWES A GAP, AND A GAP IS A MINT, so a contradicting reading draws on the lens's
+// stock as a fresh mint does. The engine exempts the gap answering a contradiction from the mint
+// budget and from one gap per class, and blue never edits the anchor sentence, so every new source
+// can contradict it again: a lens drawing refutes or absent at every sitting raises and answers
+// without end, each answer re-readies the lenses, and the run never converges. MEASURED on run
+// 40872228665: 37 of 37 drawn runs ended CEILING at the epoch limit, 22 of their 45 mints a run
+// answering a contradiction and 15 gaps still open at the limit. A lens with stock left reads
+// contradictions on its early sittings, which keeps the raise, the answer and both exemptions
+// driven; past its stock, or past a forced run's first sitting (findsFresh), it reads the source as
+// supporting.
+func (r *runner) readingOutcome(seatID string) string {
+	outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+	if (outcome == "refutes" || outcome == "absent") && (!r.findsFresh() || r.landedMints(seatID) >= fuzzLensStock) {
+		return "supports"
+	}
+	return outcome
+}
+
 // verifyOutcomes is the value space of `lens verify --as` — what a source DID for the claim.
 //
 // It was `--trust high|medium|low`, all three of which mean the source SUPPORTS the claim. The
@@ -3171,10 +3196,22 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
 		r.freeClass(args)
 	}
+	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
+	// THE ONE-GAP EXEMPTION, DRIVEN. A gap answering its lens's own raise is admitted over an open gap
+	// of its class on its subject; half such answers take a class the subject already holds, so the
+	// exemption is reached by construction rather than by a contradiction the stock now bounds.
+	if own && driven == "" && !unclassified && !r.forcedVerdict() && !r.forceEstoppel && r.coin(50) {
+		r.heldClass(args)
+	}
+	// THE BUDGET EXEMPTION, READ BEFORE THE WRITE: the standing the lens's work list states.
+	atBudget := false
+	if own {
+		left, measured := r.mintsLeft(seatID)
+		atBudget = measured && left == 0
+	}
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
-	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
 	// A GAP NO CLASS FITS SAYS WHY. Tried without --reason, the catch-all is refused by the record's
 	// own check, naming the duty; the refusal is counted only when it says so.
 	if unclassified && r.coin(50) {
@@ -3216,6 +3253,9 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if own {
 		r.mu.Lock()
 		r.ownAnswers++
+		if atBudget {
+			r.answersAtBudget++
+		}
 		r.mu.Unlock()
 	}
 	var env struct {
@@ -3225,6 +3265,11 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	}
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
 		return ""
+	}
+	if own && env.Result.GapID != "" && r.openBefore(env.Result.GapID, args) != nil {
+		r.mu.Lock()
+		r.answersOverOpen++
+		r.mu.Unlock()
 	}
 	if env.Result.GapID != "" && keyed && r.coin(30) {
 		r.retryKeyed(args, "--check", "acc, restated")
@@ -3357,6 +3402,55 @@ func (r *runner) freeClass(args []string) {
 	}
 }
 
+// planBlockersAndParties is a relayed plan's blockers counted by kind and the seats it readies, in
+// the order it names them.
+func planBlockersAndParties(plan map[string]any) (map[string]int, []string) {
+	blockers, parties := map[string]int{}, []string{}
+	bs, _ := plan["blockers"].([]any)
+	for _, b := range bs {
+		if m, _ := b.(map[string]any); m != nil {
+			kind, _ := m["kind"].(string)
+			blockers[kind]++
+		}
+	}
+	ps, _ := plan["parties"].([]any)
+	for _, p := range ps {
+		if m, _ := p.(map[string]any); m != nil {
+			if id, ok := m["seat_id"].(string); ok {
+				parties = append(parties, id)
+			}
+		}
+	}
+	return blockers, parties
+}
+
+// heldClass sets args' --class to a pool class an open gap holds on the mint's subject, drawn from
+// a random start; args are left as they are where no open gap of a pool class stands there.
+func (r *runner) heldClass(args []string) {
+	at := slices.Index(args, "--class") + 1
+	if at == 0 || at >= len(args) {
+		return
+	}
+	start := r.rng.Intn(len(mintPoolClasses))
+	for i := range mintPoolClasses {
+		c := mintPoolClasses[(start+i)%len(mintPoolClasses)]
+		if open, _ := r.sameClassAndSubject(c, args); len(open) > 0 {
+			args[at] = c
+			return
+		}
+	}
+}
+
+// mintsLeft is what lens seatID's work list states is left of its mint budget, and whether its
+// standing read.
+func (r *runner) mintsLeft(seatID string) (int, bool) {
+	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
+	if err != nil || w.Sitting.MintBudget == nil || !w.Sitting.MintBudget.Measured {
+		return 0, false
+	}
+	return w.Sitting.MintBudget.Left, true
+}
+
 // lensesCast is how many lens seats the run's cast holds.
 func (r *runner) lensesCast() int {
 	cast, err := record.CastOf(r.run())
@@ -3379,14 +3473,23 @@ func (r *runner) checkOneGap(gapID string, args []string) {
 	if argOf(args, "--found-by") != "" {
 		return
 	}
+	if g := r.openBefore(gapID, args); g != nil {
+		r.noteActErr(fmt.Sprintf("mint admitted %s while %s, of its class %s, stood open on its subject", gapID, g.ID, g.Class))
+	}
+}
+
+// openBefore is an earlier gap of the class of gapID, minted with args, still open on its subject
+// and not named in its --supersedes, or nil: one still open now was open at the write, since a
+// closed gap does not reopen.
+func (r *runner) openBefore(gapID string, args []string) *record.GapJSON {
 	open, _ := r.sameClassAndSubject(argOf(args, "--class"), args)
 	order := r.mintOrder()
-	for _, g := range open {
+	for i, g := range open {
 		if g.ID != gapID && order[g.ID] < order[gapID] && !strings.Contains(argOf(args, "--supersedes"), g.ID) {
-			r.noteActErr(fmt.Sprintf("mint admitted %s while %s, of its class %s, stood open on its subject", gapID, g.ID, g.Class))
-			return
+			return &open[i]
 		}
 	}
+	return nil
 }
 
 // mintOrder is each gap's place in mint order on the record.
@@ -3663,8 +3766,11 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// forwarded to a gap the board already holds open — which is what a successor is: a real,
 		// still-open gap, and the record refuses a dead-end forwarding address either way.
 		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
+		// So does a lens past its stock: a successor is a defect the lens found, and a regression
+		// close that minted at every close would reset the closer's convergence as a contradiction
+		// does (readingOutcome).
 		succ := ""
-		if r.findsFresh() {
+		if r.findsFresh() && r.landedMints(closer) < fuzzLensStock {
 			succ = r.mint(closer)
 		}
 		if succ == "" {
@@ -4673,6 +4779,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		// THE FIRST WAVE'S RACE: parallel lenses each read the board before their siblings minted.
 		// Half the first-epoch lens sittings mint a gap of a class already open on a subject.
+		// OUTSIDE THE STOCK, AND BOUNDED BY THE EPOCH: it is driven in the first epoch only, and the
+		// record refuses it unless the gap it is minted over closed under it, so it cannot reset a run's
+		// convergence past the first wave.
 		if !r.forceUnverified && !r.forceVerified && !r.forceEstoppel && r.firstEpoch() && r.coin(50) {
 			r.mintOverOpen(seatID)
 		}
@@ -4806,13 +4915,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 				r.sourceQuoteRefused(seatID)
 				claim := "A § fuzz sentence to anchor findings."
-				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
-				// A CONTRADICTION OWES A GAP, AND A GAP IS A MINT. A forced run mints at its first
-				// sitting only (findsFresh), which is its bound; a contradicting reading after it would
-				// owe a mint the bound forbids, so it reads the source as supporting instead.
-				if (outcome == "refutes" || outcome == "absent") && !r.findsFresh() {
-					outcome = "supports"
-				}
+				outcome := r.readingOutcome(seatID)
 				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
 				kindless := outcome == "supports_with_bridge" && r.coin(10)
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
@@ -5142,6 +5245,22 @@ type outcome struct {
 	oneGapRefused, oneGapFindings int
 	// ownAnswers is the mints that answered the minting lens's own raise (runner.ownAnswers).
 	ownAnswers int
+	// answersAtBudget and answersOverOpen are the runner's.
+	answersAtBudget, answersOverOpen int
+	// contradictionsRaised is the findings on the record raising a contradiction, and
+	// contradictionAnswers the mints whose found_by names one: the raise and the answer, read off the
+	// record.
+	contradictionsRaised, contradictionAnswers int
+	// WHAT HELD THE RUN OPEN, said by the run itself. finalBlockers is the last relayed plan's
+	// blockers by kind and finalParties the seats it readied; openByFoundBy is the gaps open at the
+	// end by what their found_by names — a raising finding (contradiction), another finding
+	// (finding), nothing on a gap carrying an unsound judgement of a proof (unsound_proof), or nothing
+	// (none); mintsByEpoch and closesByEpoch are the gaps minted and closed in
+	// each epoch. A CEILING arrives with its cause rather than inviting one.
+	finalBlockers               map[string]int
+	finalParties                []string
+	openByFoundBy               map[string]int
+	mintsByEpoch, closesByEpoch map[int]int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
@@ -6408,6 +6527,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.budgetRefused = r.budgetRefused
 	res.oneGapRefused, res.oneGapFindings = r.oneGapRefused, r.oneGapFindings
 	res.ownAnswers = r.ownAnswers
+	res.answersAtBudget, res.answersOverOpen = r.answersAtBudget, r.answersOverOpen
+	res.finalBlockers, res.finalParties = planBlockersAndParties(r.planThisSitting)
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
@@ -6419,9 +6540,34 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
 	minter := map[string]string{}
+	raising := map[string]bool{}
 	for _, e := range board.Events {
 		if m := e.GetMint(); m != nil {
 			minter[m.GetGapId()] = e.GetSeatId()
+		}
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
+			raising[f.GetId()] = true
+		}
+	}
+	res.contradictionsRaised = len(raising)
+	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
+	for _, g := range board.Gaps {
+		res.mintsByEpoch[g.Epoch]++
+		if g.HasClosed {
+			res.closesByEpoch[g.ClosedEpoch]++
+		}
+		if !g.Open {
+			continue
+		}
+		switch fb := g.Mint.GetFoundBy(); {
+		case slices.ContainsFunc(fb, func(id string) bool { return raising[id] }):
+			res.openByFoundBy["contradiction"]++
+		case len(fb) > 0:
+			res.openByFoundBy["finding"]++
+		case g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_PROOF:
+			res.openByFoundBy["unsound_proof"]++
+		default:
+			res.openByFoundBy["none"]++
 		}
 	}
 	for _, e := range board.Events {
@@ -6454,6 +6600,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 			if len(t.GetFoundBy()) > 0 {
 				res.foundByMints++
+			}
+			if slices.ContainsFunc(t.GetFoundBy(), func(id string) bool { return raising[id] }) {
+				res.contradictionAnswers++
 			}
 		case *recordpb.Log:
 			// SOURCE IS CHECKED, NOT JUST TYPE. An estoppel entry a SEAT filed is a seat claiming
