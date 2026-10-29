@@ -134,14 +134,8 @@ func TestARunWithAnOutcomeRefusesSeatActsAndLogsEach(t *testing.T) {
 			if n := countType(t, ended, a.typ); n != before {
 				t.Errorf("the refused act recorded %d event(s) of its type after the outcome", n-before)
 			}
+			// A seat that never sat is logged too, in no sitting (noteRefusal).
 			got := seatToolRefusals(t, ended, a.seat)
-			if a.typ == recordpb.EventType_EVENT_TYPE_REGISTER {
-				// A seat that never sat has no sitting for the entry to belong to (noteRefusal).
-				if len(got) != 0 {
-					t.Errorf("a seat with no sitting had a refusal logged under it: %q", got)
-				}
-				return
-			}
 			if len(got) != 1 || !strings.Contains(got[0], "the run has its outcome, UNVERIFIED") {
 				t.Errorf("the refusal is not the tool's one log entry under %s: %q", a.seat, got)
 			}
