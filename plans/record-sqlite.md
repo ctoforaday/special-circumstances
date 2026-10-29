@@ -266,7 +266,7 @@ batching replaces one-fsync-per-statement with a single fsync at COMMIT.
 `renameWithRetry`, a Windows rename workaround with LINEAR backoff and no jitter. Everything else
 relies on `busy_timeout`, and SQLite's default busy handler is a FIXED schedule with no jitter —
 `{1,2,5,10,15,20,25,25,25,50,50,100}`ms, 100ms thereafter — so contending waiters wake in
-lockstep. Past five seconds it is a hard failure and the seat is told its write failed.
+lockstep. Past the 60-second budget it is a hard failure and the seat is told its write failed.
 
 `SetMaxOpenConns(1)` removes the in-process half of that surface entirely, so what remains is
 seat-vs-seat across processes, which the 8-process test exercises and currently passes. Adding

@@ -145,7 +145,8 @@ func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 // the busy budget: the read fails loudly, prints nothing, and nothing is on the record. The budget is
 // shortened so the test waits a fraction of a second, not the production minute.
 func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
-	t.Cleanup(recordsql.SetBusyBudgetForTest(300 * time.Millisecond))
+	const budget = 300 * time.Millisecond
+	t.Cleanup(recordsql.SetBusyBudgetForTest(budget))
 	runDir := newRun(t)
 	writeReport(t, runDir, servedReport)
 	if err := recordsql.CloseUnder(runDir); err != nil {
@@ -160,13 +161,18 @@ func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	started := time.Now()
 	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat)
+	took := time.Since(started)
 	_ = tx.Rollback()
 	if err == nil || out != "" {
 		t.Fatalf("a read under another writer's lock = %q, %v; want a refusal and no text", out, err)
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "lock") && !strings.Contains(strings.ToLower(err.Error()), "busy") {
 		t.Errorf("the refusal does not say the record was locked: %v", err)
+	}
+	if took < budget {
+		t.Errorf("the refusal came after %v, before the %v budget ran out — it was not the lock wait that refused", took, budget)
 	}
 	if got := readsOf(t, runDir); len(got) != 0 {
 		t.Errorf("a refused read recorded %+v", got)

@@ -195,7 +195,7 @@ func TestTheHeldLockCommitsPastAReader(t *testing.T) {
 
 // TestOpenGivesUpWhenTheLockOutlivesTheBudget is the deadline half of connect's contract: a lock
 // held past openBusyBudget comes back as the busy error, never as a hang. The budget is shortened so
-// the test proves the expiry rather than waiting five seconds for it.
+// the test proves the expiry rather than waiting out the production minute.
 func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
 	was := openBusyBudget
 	openBusyBudget = 150 * time.Millisecond
@@ -324,6 +324,10 @@ func TestOpenFailsAtOnceOnAnUnreadableDatabase(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not a database, and long enough to be read as one"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// A short budget, so a refusal that wrongly waited as if busy shows as a wait the bound catches.
+	was := openBusyBudget
+	openBusyBudget = 2 * time.Second
+	defer func() { openBusyBudget = was }()
 	started := time.Now()
 	db, err := openUncached(path)
 	if db != nil {
