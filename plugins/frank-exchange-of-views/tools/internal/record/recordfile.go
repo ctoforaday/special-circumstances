@@ -15,7 +15,9 @@ import (
 // locking, closing any descriptor to a file drops every lock the process holds on it
 // (recordsql.SnapshotInto's note), and the connection carries on as if it held them: the act that
 // read the file then writes through a record another seat may judge unused, recover, or truncate.
-// The record is never a program or a report, so the refusal costs a seat nothing it could mean.
+// On Linux the database file's own locks are OFD locks and survive the close (recordsql's ofd.go);
+// the -shm locks, and every lock on macOS and the BSDs, stay POSIX, so the refusal covers all
+// three files on every platform. The record is never a program or a report, so the refusal costs a seat nothing it could mean.
 //
 // The check compares files, not names: os.SameFile on the stat of each, so every spelling of the
 // path is the same answer. A path that does not exist is not refused here — the act's own read

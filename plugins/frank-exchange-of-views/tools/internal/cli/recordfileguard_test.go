@@ -50,8 +50,8 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "this run's record") {
 				t.Errorf("prove --script %s was not refused as the record: err=%v\n%s", script, err, out)
 			}
-			if n, measured := recordtest.PosixLocksHeld(t, db); measured && n == 0 {
-				t.Errorf("after the refused prove, this process holds no POSIX lock on record.db — the script was read")
+			if n, measured := recordtest.LocksHeld(t, db); measured && n == 0 {
+				t.Errorf("after the refused prove, this process holds no lock on record.db — the script was read")
 			}
 			if after := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); after != before {
 				t.Errorf("a refused prove recorded %d proof(s)", after-before)
@@ -76,7 +76,7 @@ func TestIngestRefusesAReportThatIsTheRecord(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "this run's record") {
 		t.Errorf("ingest of a report linked to the record was not refused as the record: err=%v\n%s", err, out)
 	}
-	if n, measured := recordtest.PosixLocksHeld(t, db); measured && n == 0 {
-		t.Errorf("after the refused ingest, this process holds no POSIX lock on record.db — the report was read")
+	if n, measured := recordtest.LocksHeld(t, db); measured && n == 0 {
+		t.Errorf("after the refused ingest, this process holds no lock on record.db — the report was read")
 	}
 }

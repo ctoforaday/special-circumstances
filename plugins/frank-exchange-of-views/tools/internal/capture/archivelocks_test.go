@@ -59,8 +59,8 @@ func TestArchivingTheRecordLeavesTheNextReadHoldingItsLock(t *testing.T) {
 	if err := after.QueryRow(`SELECT COUNT(*) FROM ev`).Scan(&live); err != nil {
 		t.Fatal(err)
 	}
-	if n, measured := recordtest.PosixLocksHeld(t, dbPath); measured && n == 0 {
-		t.Errorf("a read through the record after archiving holds no POSIX lock on record.db — the archive " +
+	if n, measured := recordtest.LocksHeld(t, dbPath); measured && n == 0 {
+		t.Errorf("a read through the record after archiving holds no lock on record.db — the archive " +
 			"closed a descriptor on the database beside this process's open connection")
 	}
 

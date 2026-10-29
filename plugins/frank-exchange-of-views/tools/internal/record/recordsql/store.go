@@ -276,7 +276,9 @@ func SealedSize(path string) (int64, error) {
 // believes it holds them, and SQLite does not re-take a lock it believes it has. Another seat can
 // then judge itself the last connection and recover or truncate a log this process is using.
 // SQLite defers closing its OWN descriptors while a lock is held on the inode; a Go descriptor
-// gets no such care, which is why the two acts below exist instead of a file copy.
+// gets no such care, which is why the two acts below exist instead of a file copy. On Linux the
+// database file's locks are OFD locks (ofd.go) and survive such a close; the -shm locks, and every
+// lock on the other unix platforms, are POSIX locks and do not.
 
 // SnapshotInto writes a consistent copy of the record at path to dst, through the record's own
 // connection: `VACUUM INTO` reads inside one read transaction, so the copy is one committed state
@@ -449,6 +451,9 @@ func Open(path string) (*sql.DB, error) {
 func OpenSeparate(path string) (*sql.DB, error) { return openUncached(path) }
 
 func openUncached(path string) (*sql.DB, error) {
+	if lockingErr != nil {
+		return nil, lockingErr
+	}
 	// _txlock=immediate IS NOT A TUNING KNOB. IT IS THE DIFFERENCE BETWEEN WORKING AND NOT.
 	//
 	// A default `BEGIN` is DEFERRED: it takes no lock, acquires a READ lock at the first SELECT, and
