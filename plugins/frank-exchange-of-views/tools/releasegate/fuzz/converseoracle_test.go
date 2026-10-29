@@ -73,10 +73,10 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 
 	// EACH SITTING ENDS AT ITS RETURN, as a dispatched seat's does (dispatchReturns). These seats put
 	// no envelope to the record, so none is admitted.
-	r.sit("chair", "red-chair")
+	r.dispatchSits("chair", "red-chair")
 	must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	r.dispatchReturns("red-chair", false)
-	r.sit("lens", converseLens)
+	r.dispatchSits("lens", converseLens)
 	must("--json", "--seat-id", converseLens, "show", "report")
 	must("--json", "--seat-id", converseLens, "mint", "--quote", sentence,
 		"--class", "false_universal", "--check-kind", "document", "--check", "acc", "--problem", "fuzz problem",
@@ -98,10 +98,10 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchReturns(converseLens, false)
 		r.register("blue", "blue-respond")
 		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
-		r.sit("chair", "red-chair")
+		r.dispatchSits("chair", "red-chair")
 		must("--json", "dispatch", "next", "--seat-id", "red-chair")
 		r.dispatchReturns("red-chair", false)
-		r.sit("bench", "judge", "docket")
+		r.dispatchSits("bench", "judge", "docket")
 		r.benchDisposes("judge", open[0], "not_a_defect", "--reason", "fuzz: the argument held", "--final")
 		if r.actErr != "" {
 			t.Fatalf("the bench's ruling: %s", r.actErr)
@@ -109,9 +109,10 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchReturns("judge", false)
 	}
 
-	r.sit("chair", "red-chair")
+	r.dispatchSits("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	r.dispatchReturns("red-chair", false)
+	requireEveryDispatchReturned(t, r)
 	var plan record.Plan
 	if err := json.Unmarshal([]byte(out), &plan); err != nil {
 		t.Fatalf("the plan of the last chair sitting does not read: %v\n%s", err, out)
@@ -139,12 +140,13 @@ func TestTheConverseVerdictOracleJudgesThePlanTheDebateEndedOn(t *testing.T) {
 		if !last.EpochLimitReached || !last.Ceiling || petitionID == "" {
 			t.Fatalf("the last chair sitting's plan = %+v, want the epoch limit reached over the bench readied for the petition", last)
 		}
-		r.sit("bench", "judge", "terminal")
+		r.dispatchSits("bench", "judge", "terminal")
 		if _, err := r.exec("motion", "petition", "rule", "--seat-id", "judge", "--id", petitionID,
 			"--as", "denied", "--reason", "fuzz: denied on its merits"); err != nil {
 			t.Fatal(err)
 		}
 		r.dispatchReturns("judge", false)
+		requireEveryDispatchReturned(t, r)
 		if got, why, ok, err := record.DeriveVerdict(r.run()); err != nil || !ok || got != "CEILING" {
 			t.Fatalf("derived (%q, %q, %v, %v), want CEILING: the limit held the bench", got, why, ok, err)
 		}
