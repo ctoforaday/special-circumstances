@@ -67,6 +67,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	if _, err := r.exec("--json", "dispatch", "next", "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("the chair's dispatch: %v", err)
 	}
+	r.dispatchReturns("red-chair", false) // its sitting ends at its return; it put no envelope to the record
 	r.sit("bench", "judge", "docket")
 	// ITS ENVELOPE IS REFUSED WHILE EITHER TWIN STANDS, naming each.
 	var refusal string
@@ -87,7 +88,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	if left := r.unruledDocketMotions(gapID); len(left) > 0 {
 		t.Errorf("the bench sat for %s and left docket motion(s) %v standing — the plan never readies it for them again", gapID, left)
 	}
-	r.envelopeEnds("judge")
+	r.dispatchReturns("judge", r.envelopeEnds("judge"))
 	if r.actErr != "" {
 		t.Errorf("the bench's envelope after ruling both: %s", r.actErr)
 	}
