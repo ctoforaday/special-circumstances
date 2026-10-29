@@ -8,13 +8,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// A RECORD AT AN EPOCH THIS BINARY HAS WRITTEN CAN STILL HOLD A VIEW IT NO LONGER DEFINES THAT WAY,
-// because a view-only change does not move the epoch. The archived m20 run states epoch 24 and its
-// `gap` view takes the EARLIEST closing act of each arm; this binary's takes the LAST and names it
-// (`close_event`, `bench_close_event`), with the arm whose act ended the gap (`closed_by_bench`)
-// and the arm that acted last (`bench_closed_last`). Such a record is refused at the open by
-// the view it holds, and migrate is the whole way out: the fresh run states this binary's epoch,
-// holds this binary's views, and reads.
+// A RECORD FROM AN OLDER EPOCH IS REFUSED AT THE OPEN, AND MIGRATE IS THE WHOLE WAY OUT TO THIS
+// BINARY'S VIEWS. The archived m20 run states epoch 24 and its `gap` view takes the EARLIEST closing
+// act of each arm; this binary's takes the LAST and names it (`close_event`, `bench_close_event`),
+// with the arm whose act ended the gap (`closed_by_bench`) and the arm that acted last
+// (`bench_closed_last`). The fresh run states this binary's epoch, holds this binary's views, and
+// reads.
 func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 	const archive = "2026-10-11_is-91-prime-m20.tar.gz"
 	src := recordtest.RequireArchive(t, archive)
@@ -22,20 +21,19 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 	if !stated {
 		t.Fatalf("%s states no epoch", archive)
 	}
+	if epoch == record.EventSchema {
+		t.Fatalf("%s states this binary's epoch (%d), so the open trusts it and nothing here is refused", archive, epoch)
+	}
 	run, err := record.NewRun(src)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = record.FamilyOf(run)
 	if err == nil {
-		t.Fatalf("%s was read unmigrated: its gap view is the one its creating binary wrote", archive)
+		t.Fatalf("%s was read unmigrated at epoch %d", archive, epoch)
 	}
 	if !strings.Contains(err.Error(), "`feov-migrate --from <runDir> --to <freshDir>`") {
 		t.Errorf("the refusal does not name the way out: %v", err)
-	}
-	// While the archive's epoch is this binary's, the view is the ONLY thing the open can refuse on.
-	if epoch == record.EventSchema && !strings.Contains(err.Error(), `"gap"`) {
-		t.Errorf("the record states this binary's epoch (%d) and the refusal does not name the gap view: %v", epoch, err)
 	}
 
 	res, dst := migrateArchive(t, archive)

@@ -959,6 +959,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireMintSubject(b); err != nil {
 			return err
 		}
+		if err := requireOneGapPerClassAndSubject(w, b); err != nil {
+			return err
+		}
 		if err := requireMintWithinBudget(w, seatID, b); err != nil {
 			return err
 		}

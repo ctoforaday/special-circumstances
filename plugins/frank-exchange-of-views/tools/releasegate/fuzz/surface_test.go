@@ -11,7 +11,7 @@ import (
 
 // THE COVERAGE GATE'S OWN GATE.
 //
-// TestFuzzDebate asserts that every verb in verbsWithEvents fires. That is only as good as
+// The sweep's judgement (judgeSweep) asserts that every verb in verbsWithEvents fires. That is only as good as
 // the LIST, and the list is hand-maintained — so a new verb ships, nobody adds it, and the
 // sweep stays green while the verb is never driven. Measured 2026-08-04: three event types
 // (`anchor`, `class-new`, `outcome`) were appendable by the tool and absent from the list,
