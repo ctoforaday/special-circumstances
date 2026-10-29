@@ -627,8 +627,8 @@ jobs:
           engine_tests="$(grep -l '^//go:build tessocr' internal/fetchcache/*_test.go \
             | xargs grep -ho '^func Test[A-Za-z0-9_]*' | sed 's/^func //' | paste -sd '|' -)"
           test -n "$engine_tests"
-          # The engine's own suite, whole.
-          go test "${tagged[@]}" ./internal/tessocr/ >"$RUNNER_TEMP/tessocr.txt" 2>&1 &
+          # The engine's own suite, whole, and the probe of the libc it links (#1598).
+          go test "${tagged[@]}" ./internal/tessocr/ ./internal/libcprobe/ >"$RUNNER_TEMP/tessocr.txt" 2>&1 &
           engine=$!
           # Its two callers in the shipped graph, each narrowed to what needs the real engine.
           # The seat-probe board that cites OCR text builds only with the engine: the tagged
