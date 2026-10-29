@@ -87,7 +87,7 @@ func keptGradeItems(evs []*Event, win WindowIndex, gaps []WorkGapState) []string
 			open[g.ID] = true
 		}
 	}
-	answers := blueAnswersOf(evs, win, open)
+	answers := blueAnswersOf(evs, win, open, motionsAt(evs, win.IDs(evs), win))
 	latest := map[string]gradeKeep{}
 	var order []string
 	for _, k := range gradeKeepsOf(evs, win) {

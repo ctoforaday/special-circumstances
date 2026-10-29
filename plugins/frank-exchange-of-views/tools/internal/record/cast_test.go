@@ -178,14 +178,18 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 // pass — which is how #1162 shipped a field that reached no seat.
 func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 	dir := newRun(t)
-	// Two DIFFERENT defects: the mint screens the open board, and one defect minted twice is refused.
+	// Two DIFFERENT defects, of two classes: one class on one sentence is one gap.
 	problem := map[string]string{
 		"G-00000001": "the retention figure contradicts the stated universal",
 		"G-00000002": "the survey sample is too small for the precision claimed",
 	}
+	class := map[string]recordpb.GapClass{
+		"G-00000001": recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION,
+		"G-00000002": recordpb.GapClass_GAP_CLASS_INVALID_INFERENCE,
+	}
 	mint := func(seat, gap string) {
 		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: seat}, &recordpb.Mint{
-			GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+			GapId: proto.String(gap), Class: class[gap].Enum(),
 			Problem:     proto.String(problem[gap]),
 			Location:    proto.String("A sentence"),
 			RequiredFix: proto.String("qualify it"), AcceptanceCheck: proto.String("the sentence names the range"),

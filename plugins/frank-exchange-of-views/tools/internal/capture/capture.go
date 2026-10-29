@@ -1825,7 +1825,14 @@ func ingestSeatTurns(run record.Run, transcripts []record.Transcript) string {
 		seats++
 		rows += n
 	}
-	line := fmt.Sprintf("seat turns: %d row(s) from %d transcript(s)", rows, seats)
+	// THE RECORD'S COUNT, NOT THIS INGEST'S. A sitting's close already files its turns, so by
+	// capture nearly every row is on the record and an ingest adds none: printing what this pass
+	// added read "0 row(s)" on a record holding 596 (universe-m33, m34).
+	held, err := record.CountSeatTurns(run)
+	if err != nil {
+		return fmt.Sprintf("seat turns: NOT MEASURED — the record's rows could not be counted (%v); this capture added %d from %d transcript(s)", err, rows, seats)
+	}
+	line := fmt.Sprintf("seat turns: %d row(s) on the record, %d of them added by this capture from %d transcript(s)", held, rows, seats)
 	if failed > 0 {
 		// NAMED, because the alternative is a smaller number that looks like a smaller run.
 		line += fmt.Sprintf(" — %d NOT INGESTED (unreadable or refused)", failed)

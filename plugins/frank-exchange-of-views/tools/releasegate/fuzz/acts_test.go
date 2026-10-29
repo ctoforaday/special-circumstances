@@ -115,18 +115,16 @@ func noteEither(args []string, why string, admitted bool) {
 }
 
 // eitherReport renders the either tally for the sweep's log.
-func eitherReport() string {
-	eitherMu.Lock()
-	defer eitherMu.Unlock()
-	keys := make([]string, 0, len(eitherRow))
-	for k := range eitherRow {
+func eitherReport(p processTally) string {
+	keys := make([]string, 0, len(p.Either))
+	for k := range p.Either {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	var b strings.Builder
 	b.WriteString("acts whose outcome is the draw's (admitted/refused):")
 	for _, k := range keys {
-		fmt.Fprintf(&b, "\n  %s: %d/%d", k, eitherRow[k][0], eitherRow[k][1])
+		fmt.Fprintf(&b, "\n  %s: %d/%d", k, p.Either[k][0], p.Either[k][1])
 	}
 	return b.String()
 }
@@ -229,8 +227,13 @@ func (r *runner) retryCorroboration(args []string, first string) {
 // refusal is that one only when it is a conflict AND the record gained a Stale event of this seat
 // on this gap; then the act is recorded again, up to twice. Any other refusal fails the run.
 func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
+	return r.admitFreshWithin(3, gapID, args...)
+}
+
+// admitFreshWithin is admitFresh recording the act at most tries times.
+func (r *runner) admitFreshWithin(tries int, gapID string, args ...string) (string, bool) {
 	seatID := seatOfArgs(args)
-	for range 3 {
+	for range tries {
 		before := r.staleReads(seatID, gapID)
 		out, err := r.exec(append(append([]string(nil), args...), "--json")...)
 		if err == nil {
@@ -243,7 +246,7 @@ func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
 		}
 		noteEither(args[:1], "an act on a gap another seat changed since this seat's read point, recorded again", false)
 	}
-	r.noteActErr(strings.Join(args, " ") + ": refused as a stale read three times running")
+	r.noteActErr(fmt.Sprintf("%s: refused as a stale read %d times running", strings.Join(args, " "), tries))
 	return "", false
 }
 
@@ -373,18 +376,16 @@ func noteEnvelope(seatID, class string) {
 }
 
 // envelopeReport renders the envelope tally for the sweep's log.
-func envelopeReport() string {
-	envelopeMu.Lock()
-	defer envelopeMu.Unlock()
-	keys := make([]string, 0, len(envelopeRow))
-	for k := range envelopeRow {
+func envelopeReport(p processTally) string {
+	keys := make([]string, 0, len(p.Envelope))
+	for k := range p.Envelope {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	var b strings.Builder
 	b.WriteString("every seat's envelope, by what the record answered:")
 	for _, k := range keys {
-		fmt.Fprintf(&b, "\n  %s: %d", k, envelopeRow[k])
+		fmt.Fprintf(&b, "\n  %s: %d", k, p.Envelope[k])
 	}
 	return b.String()
 }
@@ -402,18 +403,16 @@ func noteFail(class string) {
 }
 
 // failReport renders the chair's FAIL tally for the sweep's log.
-func failReport() string {
-	failMu.Lock()
-	defer failMu.Unlock()
-	keys := make([]string, 0, len(failRow))
-	for k := range failRow {
+func failReport(p processTally) string {
+	keys := make([]string, 0, len(p.Fail))
+	for k := range p.Fail {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	var b strings.Builder
 	b.WriteString("the chair's FAIL, by what the board said the gate would answer:")
 	for _, k := range keys {
-		fmt.Fprintf(&b, "\n  %s: %d", k, failRow[k])
+		fmt.Fprintf(&b, "\n  %s: %d", k, p.Fail[k])
 	}
 	return b.String()
 }

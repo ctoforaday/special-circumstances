@@ -690,9 +690,9 @@ jobs:
       # -timeout=100m ON THE NIGHTLY, where the debate sweep runs: TestFuzzDebate alone took
       # 4271s (71 min) on a runner to itself (release-fuzz, run 40178244370), and a 40-minute
       # bound killed it mid-sweep on main's nightly (run 40181045085), the leg failing on the clock
-      # with the sweep's own verdict unprinted. The release-fuzz job and the release job's sweep
-      # step carry the same bound for the same reason; every other event keeps Go's default ten
-      # minutes, where no package runs that long. Both arms are workflow literals, like the -short arms.
+      # with the sweep's own verdict unprinted. The release job's sweep step carries the same bound
+      # for the same reason, and each release-fuzz part, a quarter of the seeds, carries -timeout=60m;
+      # every other event keeps Go's default ten minutes, where no package runs that long. Both arms are workflow literals, like the -short arms.
       - run: go test ${{ github.event_name == 'schedule' && '-timeout=100m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
@@ -779,21 +779,34 @@ jobs:
     # LINUX ONLY: the sweeps are statistics on debate semantics, which are platform-independent;
     # what the platform contributes, feov-record's Windows leg proves without them.
     #
+    # FOUR PARTS, JUDGED TOGETHER (#1616). Each part runs the whole package with FUZZ_PART=k/4, so
+    # TestFuzzDebate runs the seeds where (seed-1)%4 == k, fails on its own failed runs, and writes
+    # what it measured to its tally; the once-per-sweep drives arm in part 0 alone. No part judges
+    # the sweep's gates: release-fuzz-tally reads the four tallies and judges them over the whole
+    # sweep. fail-fast is off so one red part leaves the others' tallies standing. The nightly and
+    # the release job run the sweep whole, in one process.
+    #
     # NO BUILD CACHE: this job runs on pull requests only, and a pull request's cache lives on its
     # merge ref, where no other pull request can restore it. Sharing feov-record's key instead
     # would race it for the save (see that job's setup-go comment). The compile is a minute or two
     # against a sweep of about seventy.
     #
-    # timeout-minutes 115: TestFuzzDebate alone measured 4271s (71 min), the package 4311s, on this
-    # job's runner (run 40178244370). The test's own -timeout=100m fires first, with ~28 minutes of
-    # headroom over that, and names the running test; this bound is for a runner that never
-    # reaches it.
+    # timeout-minutes 75: the whole sweep measured 4271s (71 min) on one runner (run 40178244370),
+    # and a part runs a quarter of its seeds. The test's own -timeout=60m fires first and names the
+    # running test; this bound is for a runner that never reaches it.
     #
     # NO CONCURRENCY GROUP, here or anywhere in this workflow: a new push to the branch starts a
     # new run and the old one finishes and reports against its own commit.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 115
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3]
+    # Every part reads the same diff, so the scope is one value whichever part writes it last.
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
     env:
       GOTOOLCHAIN: local
     defaults:
@@ -839,14 +852,16 @@ jobs:
       # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE, as in the release job: the sweeps
       # skip when FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
       # nothing. The full log is kept and uploaded when the step fails.
-      - name: The debate sweeps hold on this pull request
+      - name: This part of the debate sweeps holds on this pull request
         if: steps.scope.outputs.run == 'true'
         shell: bash
         env:
           FEOV_RELEASE_GATE: "1"
+          FUZZ_PART: ${{ matrix.part }}/4
+          FUZZ_TALLY: ${{ runner.temp }}/release-fuzz-tally-${{ matrix.part }}.json
         run: |
           log="$RUNNER_TEMP/release-fuzz.log"
-          go test -v -count=1 -timeout=100m ./releasegate/fuzz/ >"$log" 2>&1 || {
+          go test -v -count=1 -timeout=60m ./releasegate/fuzz/ >"$log" 2>&1 || {
             # The verdict lines, not the goroutine dump a timeout ends with: the dump is in the
             # uploaded log.
             grep -E '^(--- |panic:|FAIL|ok)|RUNSTAT|running tests:|^[[:space:]]+Test[A-Za-z]+ \(' "$log" | tail -60
@@ -857,12 +872,77 @@ jobs:
             echo "::error::the sweep did not run TestFuzzDebate; the gate guarded nothing"
             exit 1
           }
+      # THE TALLY IS KEPT WHETHER THE PART PASSED OR FAILED: a part with failed runs still measured
+      # the rest, and release-fuzz-tally refuses a sweep with a part's tally missing.
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.scope.outputs.run == 'true'
+        with:
+          name: release-fuzz-tally-${{ matrix.part }}
+          path: ${{ runner.temp }}/release-fuzz-tally-${{ matrix.part }}.json
+          retention-days: 14
+          # A re-run part replaces its own tally rather than failing on the name.
+          overwrite: true
       - uses: actions/upload-artifact@v7
         if: (failure() || cancelled()) && steps.scope.outputs.run == 'true'
         with:
-          name: release-fuzz-log
+          name: release-fuzz-log-${{ matrix.part }}
           path: ${{ runner.temp }}/release-fuzz.log
           retention-days: 14
+          overwrite: true
+
+  release-fuzz-tally:
+    # THE SWEEP'S GATES, OVER EVERY PART (#1616). The release-fuzz parts each measure a quarter of
+    # the seeds and judge none of the sweep's gates; this job downloads their four tallies and runs
+    # TestFuzzSweepTally, which refuses a set that is not one whole sweep — a part missing, a part
+    # twice, parts that disagree, seeds other than 1..N once each — and then judges the gates over
+    # the merge. It runs after the parts whatever they ended as, so a red part still has its
+    # sweep judged, and a part that wrote no tally reads as that refusal.
+    #
+    # THE PASS IS ASSERTED, as in the parts: the test skips without FUZZ_TALLIES.
+    needs: release-fuzz
+    if: always() && github.event_name == 'pull_request' && needs.release-fuzz.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: false
+          go-version: "1.27"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-fuzz-tally-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-fuzz-tallies
+      - name: The debate sweeps hold on this pull request
+        shell: bash
+        env:
+          FUZZ_TALLIES: ${{ runner.temp }}/release-fuzz-tallies
+        run: |
+          log="$RUNNER_TEMP/release-fuzz-tally.log"
+          go test -v -count=1 -run '^TestFuzzSweepTally$' ./releasegate/fuzz/ >"$log" 2>&1 || {
+            grep -E '^(--- |panic:|FAIL|ok)|^[[:space:]]+[a-z_]+_test\.go:[0-9]+:' "$log" | tail -80
+            exit 1
+          }
+          grep -E "^(--- |ok)" "$log" | tail -30
+          grep -qE '^--- PASS: TestFuzzSweepTally \(' "$log" || {
+            echo "::error::TestFuzzSweepTally did not run; the sweep's gates judged nothing"
+            exit 1
+          }
+      - uses: actions/upload-artifact@v7
+        if: failure() || cancelled()
+        with:
+          name: release-fuzz-sweep-log
+          path: ${{ runner.temp }}/release-fuzz-tally.log
+          retention-days: 14
+          overwrite: true
 
   gray-area:
     # The trajectory-capture runtime. Its own Go module, so neither the

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -429,8 +430,9 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 
 // A RUN OLDER THAN THE TABLE IS REFUSED WITH ITS CAUSE, AT THE OPEN. A record's schema is fixed
 // when its database is created, so one made before retires carried anchors has neither the
-// retire_anchors table nor the report_op branch that replays it. The process that opens it is told
-// so, with the way out, before any verb reads or writes — and records nothing.
+// retire_anchors table nor the report_op branch that replays it, and it states the older epoch it was
+// written at. The process that opens it is told so, with the way out, before any verb reads or
+// writes — and records nothing.
 func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1")
 	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
@@ -443,7 +445,8 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 		t.Fatal("cannot find the report_op view's remove branch to rebuild the pre-change view")
 	}
 	db := openRunDB(t, runDir)
-	for _, q := range []string{`DROP VIEW "report_op"`, `DROP TABLE "retire_anchors"`, recordsql.ViewsDDL[i:i+j] + ";"} {
+	for _, q := range []string{`DROP VIEW "report_op"`, `DROP TABLE "retire_anchors"`, recordsql.ViewsDDL[i:i+j] + ";",
+		fmt.Sprintf(`UPDATE "schema_epoch" SET "epoch" = %d WHERE "id" = 1`, recordpb.EventSchema-1)} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatalf("building the pre-change schema: %v", err)
 		}
@@ -459,7 +462,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	if err == nil {
 		t.Fatal("a retire naming an anchor was recorded on a record with no table to hold it")
 	}
-	for _, want := range []string{"older binary", "retire_anchors", "`feov-migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"older binary", fmt.Sprintf("epoch %d", recordpb.EventSchema-1), "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %s:\n%v", want, err)
 		}
