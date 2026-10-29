@@ -39,7 +39,7 @@ type GapExchanges struct {
 	// the work lists and the chair's row read it from here, so no reader re-derives it.
 	Remand remandStage
 	// rounds is each counted exchange in order — where it began (its minting lens's sitting), where
-	// it ended (blue's), whether it moved the gap and whether a party acted on it — so "was the gap at
+	// it ended (blue's), whether it moved the gap and whether blue acted on it — so "was the gap at
 	// impasse when the bench ruled" and "has the remand's exchange been had" are asked of the same
 	// fold that counts.
 	rounds []exchangeRound
@@ -47,7 +47,7 @@ type GapExchanges struct {
 	// the gap while it was at impasse, keyed on the latest remand ruling in that sitting.
 	remandSittings []int64
 	// latestRemandOwed is the latest remand the bench ruled on the gap, counted or not, with no
-	// exchange since its ruling in which a party acted on the gap (latestRemandOwed): what routes a
+	// exchange since its ruling in which blue acted on the gap (latestRemandOwed): what routes a
 	// remand of a gap that is not material (routeOf).
 	latestRemandOwed bool
 	// latestRemand is the place of that ruling (the latest of remandSittingsOf), 0 where the bench
@@ -57,8 +57,8 @@ type GapExchanges struct {
 }
 
 // exchangeRound is one counted exchange: the places its red and blue sittings began and ended,
-// whether anything moved the gap between them, and whether either party recorded an act on the gap
-// there (gapActsOf) — the exchange a remand grants is had only by a round that acted.
+// whether anything moved the gap between them, and whether blue recorded an act on the gap there
+// (gapActsOf) — the exchange a remand grants begins only in a round in which blue acted.
 type exchangeRound struct {
 	start, end int64
 	moved      bool
@@ -248,7 +248,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			} else {
 				x.Stalled++
 			}
-			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved, acted: partyActed(acts[g], minted[g], pendingRed, s.end)})
+			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved, acted: blueActed(acts[g], pendingRed, s.end)})
 			pendingRed = math.MinInt64
 		}
 	}

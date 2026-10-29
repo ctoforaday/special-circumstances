@@ -307,7 +307,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	}
 }
 
-// THE ANOMALY HALF OF THIS TEST IS GONE; the uncredited-findings half is what it was really for.
+// THE ANOMALY HALF OF THIS TEST IS GONE; the unminted-findings half is what it was really for.
 //
 // It asserted a "multi-nonce seat" anomaly and a `## render anomalies` footer, produced when one
 // seat had two shard files. There are no shards and no nonce: both dispatches are rows, nothing
@@ -315,8 +315,8 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 // footer that printed it is deleted rather than left permanently empty.
 //
 // What survives is the question that still has an answer: does the ledger name lens findings that
-// no gap credits? That footer is a live work list, and it is the half that was ever load-bearing.
-func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
+// no gap names? That footer is a live work list, and it is the half that was ever load-bearing.
+func TestMarkdownSurfacesUnmintedFindings(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*record.Event{
@@ -324,7 +324,7 @@ func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
 		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("short")}),
 	})
 	ledger := md(t, runDir, "ledger")
-	if !strings.Contains(ledger, "## lens findings credited by no gap") {
+	if !strings.Contains(ledger, "## lens findings no gap was minted from") {
 		t.Errorf("the undisposed footer is missing:\n%s", ledger)
 	}
 	// EACH LINE NAMES ITS FINDING BY ID AND AREA, exactly: the id alone does not say which lens's.
@@ -338,13 +338,13 @@ func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
 		if strings.HasPrefix(line, "- "+lens+" F") {
 			prose := line[strings.Index(line, ": ")+2:]
 			if len(utf16.Encode([]rune(prose))) > 120 {
-				t.Errorf("uncredited-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
+				t.Errorf("unminted-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
 			}
 		}
 	}
 }
 
-// A GAP'S found_by NAMES EACH FINDING BY ID AND AREA, exactly, and a credited finding leaves the
+// A GAP'S found_by NAMES EACH FINDING BY ID AND AREA, exactly, and a finding a gap names leaves the
 // footer. Two findings from two lenses: the area is each finding's own lens's, and never the minting
 // seat's.
 func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
@@ -353,26 +353,26 @@ func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
 		chairSits(t, 1),
 		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:1", &recordpb.Finding{Id: proto.String("F-7cdcd115"), Text: proto.String("the bound is loose")}),
 		recordtest.At(t, "red-lens-dark-side", "red-lens-dark-side:finding:1", &recordpb.Finding{Id: proto.String("F-0badf00d"), Text: proto.String("the misuse is unaddressed")}),
-		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody credited this")}),
+		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody minted this")}),
 		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
-			// The last credit names no finding on the record: it prints bare, never as nothing.
+			// The last found_by names no finding on the record: it prints bare, never as nothing.
 			FoundBy: []string{"F-7cdcd115", "F-0badf00d", "F-0000dead"}}),
 	})
 	ledger := md(t, runDir, "ledger")
 	if want := " | found_by F-7cdcd115 (adversary),F-0badf00d (dark-side),F-0000dead\n"; !strings.Contains(ledger, want) {
 		t.Errorf("the gap's found_by is not %q:\n%s", want, ledger)
 	}
-	_, footer, ok := strings.Cut(ledger, "## lens findings credited by no gap")
+	_, footer, ok := strings.Cut(ledger, "## lens findings no gap was minted from")
 	if !ok {
-		t.Fatalf("the uncredited footer is missing:\n%s", ledger)
+		t.Fatalf("the unminted footer is missing:\n%s", ledger)
 	}
-	if want := "\n- red-lens-logic F-0000aaa1 (logic): nobody credited this\n"; !strings.Contains(footer, want) {
+	if want := "\n- red-lens-logic F-0000aaa1 (logic): nobody minted this\n"; !strings.Contains(footer, want) {
 		t.Errorf("the footer line is not %q:\n%s", want, footer)
 	}
 	if strings.Contains(footer, "F-7cdcd115") || strings.Contains(footer, "F-0badf00d") {
-		t.Errorf("a finding a gap credits is listed as credited by none:\n%s", footer)
+		t.Errorf("a finding a gap names is listed as minted from by none:\n%s", footer)
 	}
 }
 

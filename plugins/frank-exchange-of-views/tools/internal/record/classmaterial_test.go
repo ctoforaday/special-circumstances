@@ -159,8 +159,8 @@ func TestSeverityRefusalWhyIsClassAware(t *testing.T) {
 	}
 }
 
-// A PRE-CHANGE RUN — its database written before the field — is refused at the first write, naming
-// what the database lacks and `migrate`.
+// A PRE-CHANGE RUN — its database written before the field, and before the record stated its epoch —
+// is refused at the first write as an older run, naming `migrate`.
 func TestPreChangeRunRefusedNamingMigrate(t *testing.T) {
 	dir := recordtest.ExtractArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
 	run, err := NewRun(dir)
@@ -171,7 +171,7 @@ func TestPreChangeRunRefusedNamingMigrate(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mint into a pre-change run landed")
 	}
-	for _, want := range []string{`"mint" table has no "class_material" column`, "`feov-migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"states no event-schema epoch", "older binary", "`feov-migrate --from <runDir> --to <freshDir>`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q: %v", want, err)
 		}

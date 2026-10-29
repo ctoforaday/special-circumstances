@@ -38,7 +38,7 @@ import (
 // raise one and never answer it, and the contradiction held the PASS until a slot freed — a CEILING
 // made by the bound, not by the report. The link is the mint's own found_by, so no field marks the
 // gap: the fold says which gap answered which raise, and whose. Every other mint counts — one
-// crediting another seat's raising finding, or a finding that raised nothing.
+// naming another seat's raising finding in found_by, or a finding that raised nothing.
 //
 // ONE TABLE. The check, the refusal and the tests all read mintScales; an area with no row is an
 // error, never a default — a default would size an unknown lens by some other lens's unit.
@@ -192,12 +192,18 @@ func renderFrom(q recordsql.Querier) func() (string, error) {
 }
 
 // validationReadsReport is whether the write path's validation of body, written by seatID, reads
-// the report: a mint by a lens whose budget is measured on it (requireMintWithinBudget). The
+// the report: a mint with a quote, whose sentence the one-gap rule reads
+// (requireOneGapPerClassAndSubject), or a mint by a lens whose budget is measured on it
+// (requireMintWithinBudget). The
 // write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
 // away before the measure renders for nothing.
 func validationReadsReport(seatID string, body proto.Message) bool {
-	if _, ok := body.(*recordpb.Mint); !ok {
+	m, ok := body.(*recordpb.Mint)
+	if !ok {
 		return false
+	}
+	if strings.TrimSpace(m.GetLocation()) != "" {
+		return true
 	}
 	s, ok := mintScales[AreaOf(seatID)]
 	return ok && s.measure.readsReport
@@ -329,7 +335,7 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 }
 
 // mintRefusedNext is what a lens refused for budget does with what it found, on both refusals: the
-// defect is recorded as a finding, and the finding is what the later mint credits.
+// defect is recorded as a finding, and the finding is what the later mint names in found_by.
 const mintRefusedNext = "Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by. " +
 	"You can still verify, record findings, and regrade or close the gaps you minted. " +
 	mintAnswerOutsideBudget
@@ -338,7 +344,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 // work list, the PASS blocker and the help say one sentence.
 const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about a proof whose sentence your standing judgement calls unsound, answers it and takes no mint — it is admitted at the cap, and does not count while it is open"
 
-// answersOwnRaiseAt is the contradiction a mint by seatID crediting foundBy would answer that seatID's
+// answersOwnRaiseAt is the contradiction a mint by seatID naming foundBy would answer that seatID's
 // own finding raised — its id, or "" where it answers none. It is the fold's own question asked of
 // the record before the mint (contradictionsOf), so the mint it admits is the gap the count then
 // leaves out (ownAnswersAt). A raise another seat recorded, or one already answered, is none.

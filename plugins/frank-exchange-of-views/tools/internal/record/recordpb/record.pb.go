@@ -1317,7 +1317,7 @@ func (InquiryRuling) EnumDescriptor() ([]byte, []int) {
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
-// finding can never be credited in a gap's found_by and its work is lost.
+// finding can never be named in a gap's found_by and its work is lost.
 // FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
 //
 // A defect about an ABSENCE has no sentence to quote, and a quote borrowed as a handle points a
@@ -3926,7 +3926,7 @@ func (x *SpotCheck) GetAreas() []string {
 
 type Finding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// id is the finding's one name: the tool mints it, a gap's found_by credits it by it, and the
+	// id is the finding's one name: the tool mints it, a gap's found_by names it by it, and the
 	// finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
 	//
 	// A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
@@ -5207,7 +5207,7 @@ type Retire struct {
 	// leaves its anchor BARE: the anchor alone in its segment, backing no prose. Before this field
 	// nothing could take that anchor out, so it stood forever — a `[^N]` orphan with a live
 	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
-	// counter still counted, which let a retire credit a claim that had never left the count.
+	// counter still counted, which let a retire count a claim that had never left the count.
 	//
 	// Filled with the anchors that stood on the retired claim in the edit that took it out — the
 	// claim being the whole of that edit's old span or a run of its whole sentences, across the anchor
@@ -8105,7 +8105,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xaf\x02\x8a\xb5\x18\xa1\x01a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xcd\x02\n" +
 	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xa7\x02\x8a\xb5\x18\x9d\x01an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x89\x03\n" +
 	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xe9\x02\x8a\xb5\x18\xcb\x01a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never namesص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18ois a source recorded against the claim that says something else, or is there no source behind the claim at all?\x12\x86\x01\n" +
-	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03*\xd6\r\n" +
+	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03*\xf4\r\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
 	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
@@ -8113,8 +8113,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a\xb9\x01\x8a\xb5\x18\xb0\x01a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it\x98\xb5\x18\x01\x12\x90\x01\n" +
 	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
-	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x96\x04\n" +
-	"\x14DISPOSITION_REMANDED\x10\a\x1a\xfb\x03\x8a\xb5\x18\xf2\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange is had once its minting lens or blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xb4\x04\n" +
+	"\x14DISPOSITION_REMANDED\x10\a\x1a\x99\x04\x8a\xb5\x18\x90\x04NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap; its minting lens's act alone begins nothing. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
 	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc6\b\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +

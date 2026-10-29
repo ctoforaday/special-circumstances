@@ -295,8 +295,8 @@ func GradeOf(word string) (recordpb.Grade, bool) {
 // findings and `observe` notes, and carried the chair's `dispose` fate for each.
 //
 // Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
-// addressed by being credited in some gap's found_by — so there is no Disposition to carry and
-// no second kind to distinguish. A finding credited nowhere is the report's "Lens findings not
+// addressed by being named in some gap's found_by — so there is no Disposition to carry and
+// no second kind to distinguish. A finding named nowhere is the report's "Lens findings not
 // raised to a gap", which is where that work reaches the reader.
 type Observation struct {
 	SeatID string

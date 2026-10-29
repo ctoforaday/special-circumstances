@@ -480,7 +480,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 			if err := seat.PlaceOwed(s, prior.GetLabel(), ""); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior.GetLabel(), Source: prior.GetTitle(), Outcome: recordpb.Word(prior.GetOutcome()), Bridge: bridgeWord(prior), Claim: prior.GetClaim(),
+			return verifyResult{Label: prior.GetLabel(), Source: prior.GetTitle(), Outcome: recordpb.Word(prior.GetOutcome()), Bridge: bridgeWord(prior), Confidence: recordpb.Word(prior.GetConfidence()), Claim: prior.GetClaim(),
 				CopySubstitution: recordpb.Word(prior.GetCopySubstitution()), CopyURL: prior.GetCopyUrl(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
@@ -532,6 +532,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 		Source:        body.GetTitle(),
 		Outcome:       recordpb.Word(body.GetOutcome()),
 		Bridge:        bridgeWord(body),
+		Confidence:    recordpb.Word(stored.GetConfidence()),
 		Claim:         body.GetClaim(),
 		VoiceTells:    tells,
 
@@ -597,6 +598,8 @@ type verifyResult struct {
 	Outcome    string `json:"outcome"`
 	// Bridge is what a supports_with_bridge reading bridged; absent on every other outcome.
 	Bridge string `json:"bridge,omitempty"`
+	// Confidence is the confidence the reading records, read off the stored event.
+	Confidence string `json:"confidence"`
 	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
 	// anchor, which a contradiction the reading opens names as its claim.
 	Claim string `json:"claim"`

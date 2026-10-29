@@ -50,6 +50,12 @@ type Input struct {
 	// (plans/hook-surface-spike.md §7a: 19 seats and 50 turn ends, zero exceptions either way).
 	AgentType string `json:"agent_type"`
 
+	// SessionID is the session the call is made in — the dispatching session's for every subagent,
+	// the Workflow tool's seats included (gray-area's capture of 24 universe runs: every seat's
+	// SubagentStop session_id is its lead's). It decides which run, if any, the call belongs to
+	// (runlive.InferRunDir): a run's members are its lead session's agents.
+	SessionID string `json:"session_id"`
+
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
 }

@@ -20,10 +20,11 @@ import (
 // early, ruled while the gap was below its limits, sends nothing anywhere the debate was not already
 // going, so it spends nothing; two motions remanded in one sitting are one hearing of the gap.
 //
-// THE REMAND'S EXCHANGE IS THE FIRST ONE IN WHICH A PARTY ACTS ON THE GAP (gblock, 2026-10-25). A
-// round after the ruling in which neither the minting lens nor blue recorded an act on the gap
-// (gapActsOf) is a null turn, and it spends nothing: the remand stays owed, the dispatch readies
-// both again, and the item on each one's work list blocks its envelope until that seat has acted.
+// THE REMAND'S EXCHANGE IS THE FIRST ONE IN WHICH BLUE ACTS ON THE GAP (gblock, 2026-10-25; blue's
+// act alone, ruled by gblock 2026-10-27). A round after the ruling in which blue recorded no act on
+// the gap (gapActsOf) spends nothing, whatever the minting lens did in it: the lens sits first, so
+// its act audits an answer that does not exist yet. The remand stays owed, the dispatch readies both
+// again, and the item on each one's work list blocks its envelope until that seat has acted.
 //
 // WHAT THE REMAND'S EXCHANGE DECIDES. The exchange count stays monotone. After a counted remand the
 // gap stays at impasse until its remand's exchange: if that exchange leaves it unmoved it is still
@@ -92,7 +93,7 @@ func countedRemands(rounds []exchangeRound, sittings []int64, p Params) []int64 
 
 // impasseOf is the run's terms applied to the exchanges that ended before upto, under the remands
 // counted before it. With no remand it is Stalled >= K or Exchanges >= KMax. After one, it is the
-// remand's exchange first — the first round since the ruling in which a party acted on the gap: none
+// remand's exchange first — the first round since the ruling in which blue acted on the gap: none
 // had, or it left the gap unmoved, and the gap is still at impasse; it moved the gap, and the terms
 // are counted from it.
 func impasseOf(rounds []exchangeRound, remands []int64, p Params, upto int64) bool {
@@ -124,7 +125,7 @@ func impasseOf(rounds []exchangeRound, remands []int64, p Params, upto int64) bo
 }
 
 // latestRemandOwed reports whether the latest of a gap's remand sittings has had no exchange since
-// its ruling in which a party acted on the gap: the one statement of "its remand's exchange is
+// its ruling in which blue acted on the gap: the one statement of "its remand's exchange is
 // owed", which the counted stage (remandStageOf), a remand of a gap that is not material (routeOf)
 // and the PASS gate's list (remandsOwedOf) all read.
 func latestRemandOwed(rounds []exchangeRound, sittings []int64) bool {
@@ -142,7 +143,7 @@ func latestRemandOwed(rounds []exchangeRound, sittings []int64) bool {
 
 // remandsOwedOf is each gap whose latest remand's exchange is owed (latestRemandOwed), off the
 // stream's exchanges and the "remand" view's rows — what the PASS gate's list reads where it holds
-// no run terms, which the question does not need: whether a party has acted in an exchange since a
+// no run terms, which the question does not need: whether blue has acted in an exchange since a
 // ruling is the same under every k.
 func remandsOwedOf(evs []*Event, ids []int64, win WindowIndex, remands map[string][]remandRow) map[string]bool {
 	out := map[string]bool{}
@@ -268,7 +269,7 @@ type remandStage int
 
 const (
 	notRemanded remandStage = iota
-	remandOwed              // remanded at impasse, and no party has acted on it in an exchange since the ruling
+	remandOwed              // remanded at impasse, and blue has not acted on it in an exchange since the ruling
 	remandSpent             // remanded at impasse, and its exchange has been had: another remand is refused
 )
 

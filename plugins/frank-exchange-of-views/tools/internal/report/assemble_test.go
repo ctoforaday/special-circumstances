@@ -935,7 +935,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 		},
 	}
 	got := boardSection(board.famT(t))
-	if !strings.Contains(got, "Lens findings credited by no gap (1)") {
+	if !strings.Contains(got, "Lens findings no gap was minted from (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
 	}
 	// THE SECTION STATES THE JOIN AND NOT A DELIBERATION. It used to say the merge "weighed but
@@ -953,13 +953,13 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	if !strings.Contains(got, "\n### F-f0000003 (logic) — §H1\n") || !strings.Contains(got, "un-minted red reasoning kept") {
 		t.Errorf("the un-minted finding's substance must be surfaced under `### F-f0000003 (logic) — §H1`:\n%s", got)
 	}
-	// A credited finding's text renders ONCE, under the gap that claimed it (surfaced by) —
-	// and never again in the credited-by-no-gap section. The fixture used to leave GapOrder
+	// A minted finding's text renders ONCE, under the gap that claimed it (surfaced by) —
+	// and never again in the no-gap-minted section. The fixture used to leave GapOrder
 	// empty so the gap itself vanished from the render; a fold-built board cannot produce that
 	// shape, so the assertion now splits the section instead.
-	_, unminted, _ := strings.Cut(got, "Lens findings credited by no gap")
+	_, unminted, _ := strings.Cut(got, "Lens findings no gap was minted from")
 	if strings.Contains(unminted, "minted — omit") || strings.Contains(unminted, "also minted") {
-		t.Errorf("a finding credited by a gap's found_by must NOT be re-listed in the unminted section:\n%s", got)
+		t.Errorf("a finding named by a gap's found_by must NOT be re-listed in the unminted section:\n%s", got)
 	}
 }
 

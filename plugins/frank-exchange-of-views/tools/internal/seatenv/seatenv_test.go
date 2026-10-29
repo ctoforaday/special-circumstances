@@ -1,6 +1,8 @@
 package seatenv
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,9 +49,49 @@ func TestAnAgreeingFlagIsFine(t *testing.T) {
 	}
 }
 
-// Nothing else is normalised. Case and separator STYLE can be genuinely different paths, and
-// a guess attaches a seat's events to the wrong run — the exact outcome this prevents.
-func TestOnlyTrailingSeparatorsAreForgiven(t *testing.T) {
+// A RELATIVE --run NAMING THE DISPATCHED RUN IS THAT RUN (m35: the lead typed the relative path its
+// own setup printed, `engine-stopped` refused it as "disagrees", and the lead retried bare). The
+// flag is resolved against the working directory and cleaned, so `.` and `..` segments agree too.
+func TestARelativeRunNamingTheDispatchedRunIsThatRun(t *testing.T) {
+	root := t.TempDir()
+	run := filepath.Join(root, "research", "2026-10-27_is-91-prime")
+	if err := os.MkdirAll(run, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv(Var, run)
+	for _, flag := range []string{"research/2026-10-27_is-91-prime", "./research/../research/2026-10-27_is-91-prime/"} {
+		if got, err := Resolve(flag, nil); err != nil || got != run {
+			t.Errorf("--run %q from %s: got %q, %v — want the dispatched run %q", flag, root, got, err, run)
+		}
+	}
+	// A relative path naming ANOTHER directory is still refused.
+	if _, err := Resolve("research/2026-10-27_is-7-prime", nil); err == nil {
+		t.Error("a relative --run naming another directory was obeyed")
+	}
+}
+
+// A SYMLINK TO THE RUN IS NOT RESOLVED: a link can name a different run, and the tool does not
+// guess which directory was meant.
+func TestASymlinkToTheRunIsNotTheRun(t *testing.T) {
+	root := t.TempDir()
+	run := filepath.Join(root, "run")
+	if err := os.MkdirAll(run, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(run, link); err != nil {
+		t.Skipf("no symlinks here: %v", err)
+	}
+	t.Setenv(Var, run)
+	if _, err := Resolve(link, nil); err == nil {
+		t.Error("a symlink to the run was taken for the run")
+	}
+}
+
+// Case is not normalised. Case can be a genuinely different path, and a guess attaches a seat's
+// events to the wrong run — the exact outcome this prevents.
+func TestACaseDifferenceIsRefused(t *testing.T) {
 	t.Setenv(Var, "/runs/Live")
 	if _, err := Resolve("/runs/live", nil); err == nil {
 		t.Error("a case difference was smoothed over; this tool does not guess which path was meant")

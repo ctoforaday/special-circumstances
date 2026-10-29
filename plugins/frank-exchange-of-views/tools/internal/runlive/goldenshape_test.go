@@ -35,10 +35,10 @@ func TestWriterProducesTheGoldenShape(t *testing.T) {
 	// Two runs, because the list shape is the whole point of #529 and a one-element list
 	// hides the separator; the second omits runId/scriptPath so the `omitempty` fields are
 	// exercised in both directions.
-	if _, err := WriteRunLiveMarker(dir, "research/2026-07-18_alpha", []string{"ideas/backlog.md", "research/old"}, t0, "run-alpha", "scripts/run.mjs"); err != nil {
+	if _, err := WriteRunLiveMarker(dir, "research/2026-07-18_alpha", []string{"ideas/backlog.md", "research/old"}, t0, "run-alpha", "scripts/run.mjs", testLead); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteRunLiveMarker(dir, "research/2026-07-18_beta", []string{"research/old", "ideas/other.md"}, t0.Add(90*time.Minute), "", ""); err != nil {
+	if _, err := WriteRunLiveMarker(dir, "research/2026-07-18_beta", []string{"research/old", "ideas/other.md"}, t0.Add(90*time.Minute), "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 
@@ -67,10 +67,10 @@ func TestWriterProducesTheGoldenShape(t *testing.T) {
 func TestWritingTheSameRunTwiceReplacesItsRow(t *testing.T) {
 	dir := t.TempDir()
 	t0 := time.Date(2026, 7, 18, 9, 0, 0, 0, time.UTC)
-	if _, err := WriteRunLiveMarker(dir, "research/x", []string{"a"}, t0, "", ""); err != nil {
+	if _, err := WriteRunLiveMarker(dir, "research/x", []string{"a"}, t0, "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteRunLiveMarker(dir, "research/x", []string{"a", "b"}, t0.Add(time.Hour), "", ""); err != nil {
+	if _, err := WriteRunLiveMarker(dir, "research/x", []string{"a", "b"}, t0.Add(time.Hour), "", "", testLead); err != nil {
 		t.Fatal(err)
 	}
 

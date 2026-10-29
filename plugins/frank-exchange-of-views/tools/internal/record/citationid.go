@@ -462,7 +462,7 @@ func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify
 //     --about <id>`), and nothing else: a finding whose quote contains the claim raises nothing.
 //     The raise covers every reading joined so far. A reading of the claim after the finding opens
 //     a NEW contradiction with its own id: the raise was of what had been read.
-//   - A GAP ANSWERS what a finding raised: a mint whose found_by credits the raising finding.
+//   - A GAP ANSWERS what a finding raised: a mint whose found_by names the raising finding.
 //     A source that contradicts or is silent on a claim is a citation defect, and citation classes
 //     are material whatever the lens judges (gblock, 2026-10-19: the class default wins), so the
 //     finding alone — which holds no gate and obliges nobody — does not discharge it. The gap's

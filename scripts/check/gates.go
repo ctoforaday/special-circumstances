@@ -340,8 +340,14 @@ func gateSet() []gate {
 		// pointing at CI's result rather than running forty debates.
 		gate{id: "release-fuzz", kind: kindTest, dir: "plugins/frank-exchange-of-views/tools", ciJob: "release-fuzz",
 			args: []string{"test", noCache, "-v", "-timeout=100m", "./releasegate/fuzz/"},
-			skip: "the release-fuzz CI job runs it on a pull request that changes what the sweeps drive; read that job's result, and run one fuzz invocation by hand at most once per PR, on the final head, only when CI cannot: FEOV_RELEASE_GATE=1 go test -v -count=1 -timeout=100m ./releasegate/fuzz/ in plugins/frank-exchange-of-views/tools",
+			skip: "the release-fuzz CI job runs it in four parts (FUZZ_PART=k/4) on a pull request that changes what the sweeps drive, and release-fuzz-tally judges the sweep's gates over them; read both jobs' results, and run one whole-sweep invocation by hand at most once per PR, on the final head, only when CI cannot: FEOV_RELEASE_GATE=1 go test -v -count=1 -timeout=100m ./releasegate/fuzz/ in plugins/frank-exchange-of-views/tools",
 			why:  "the debate sweeps hold on the branch that could break them"},
+		// The split sweep's gates, judged over the parts' tallies. Declared so the report names
+		// the job; it reads tallies only the release-fuzz parts write.
+		gate{id: "release-fuzz-tally", kind: kindTest, dir: "plugins/frank-exchange-of-views/tools", ciJob: "release-fuzz-tally",
+			args: []string{"test", noCache, "-v", "-run", "^TestFuzzSweepTally$", "./releasegate/fuzz/"},
+			skip: "reads the four tallies the release-fuzz parts write in CI (FUZZ_TALLIES=<dir>); a local whole-sweep run judges the same gates in one process",
+			why:  "a sweep split into parts is judged as one sweep, and refused when a part is missing"},
 		// The feov sweeps' release leg. Declared for the reason every release gate is: a
 		// gate that cannot run here must still appear in the report. Locally the same
 		// sweeps run with FEOV_RELEASE_GATE=1 against releasegate/fuzz.

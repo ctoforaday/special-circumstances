@@ -240,7 +240,7 @@ func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, 
 				// A READ IS WHERE A REDIRECTED MANUAL ARRIVES. The prompt tells a seat to send the
 				// manual to a file and read the file, so the Bash call's own result is empty and the
 				// pages reach the seat here. Kept in order with the invocations so the pages are
-				// credited at the moment they were read, and counted as nothing else.
+				// counted at the moment they were read, and as nothing else.
 				if blk.Name == "Read" && blk.Input.FilePath != "" {
 					byID[blk.ID] = pending{idx: len(calls)}
 					calls = append(calls, call{read: true, isHelp: true, readPath: blk.Input.FilePath})

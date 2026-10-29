@@ -140,7 +140,7 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 		if err := os.WriteFile(marker, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		payload := `{"tool_name":"Bash","tool_input":{"command":"ls"},"cwd":` + jsonString(proj) + `}`
+		payload := `{"session_id":"session-lead-under-test","tool_name":"Bash","tool_input":{"command":"ls"},"cwd":` + jsonString(proj) + `}`
 		var out bytes.Buffer
 		Run("feov-pretooluse", "PreToolUse", Pre, strings.NewReader(payload), &out)
 		return out.String()
@@ -153,7 +153,7 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(proj, "run"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	pre(`{"runs":[{"runDir":"run"}]}`)
+	pre(`{"runs":[{"runDir":"run","leadSession":"session-lead-under-test"}]}`)
 	if onRecord(t, stage, proj) {
 		t.Error("a usable marker left the entry")
 	}
@@ -162,7 +162,7 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, msg := messageOf(t, pre(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`))
+	_, msg := messageOf(t, pre(`{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"b","leadSession":"session-lead-under-test"}]}`))
 	if !onRecord(t, stage, proj) {
 		t.Fatal("two live runs were not recorded — every seat of both runs acts uninjected, and nothing says so")
 	}
@@ -177,7 +177,7 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(proj, "b", runlive.OutcomeMark), []byte(`{"agentId":"a-bench"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out := pre(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`)
+	out := pre(`{"runs":[{"runDir":"a","leadSession":"session-lead-under-test"},{"runDir":"b","leadSession":"session-lead-under-test"}]}`)
 	if onRecord(t, stage, proj) {
 		t.Error("a run whose outcome is recorded still made the live run ambiguous")
 	}
@@ -241,7 +241,7 @@ func TestATurnLimitTheRecordCannotHoldIsSaid(t *testing.T) {
 	pre := func() (map[string]any, string) {
 		p, _ := json.Marshal(map[string]any{
 			"tool_name": "Read", "tool_input": map[string]string{"file_path": "/x"}, "cwd": cwd,
-			"agent_id": "agent_x", "agent_type": "frank-exchange-of-views:red-lens-evidence",
+			"session_id": testLead, "agent_id": "agent_x", "agent_type": "frank-exchange-of-views:red-lens-evidence",
 		})
 		var out bytes.Buffer
 		Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(p), &out)
@@ -301,7 +301,7 @@ func TestAnUnreadablePreToolUsePayloadIsSaidAndClears(t *testing.T) {
 func TestAnUnparsableToolInputIsRecordedWithoutADecision(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	cwd, _, _ := limitRun(t, 100)
-	payload := `{"tool_name":"Bash","tool_input":"not an object","cwd":` + jsonString(cwd) + `}`
+	payload := `{"session_id":"session-lead-under-test","tool_name":"Bash","tool_input":"not an object","cwd":` + jsonString(cwd) + `}`
 	var out bytes.Buffer
 	Run("feov-pretooluse", "PreToolUse", Pre, strings.NewReader(payload), &out)
 	doc, msg := messageOf(t, out.String())
@@ -363,7 +363,7 @@ func TestAnUncreatableLimitMarkerIsRecordedAndTheSeatIsStillRefused(t *testing.T
 
 	p, _ := json.Marshal(map[string]any{
 		"tool_name": "Read", "tool_input": map[string]string{"file_path": "/x"}, "cwd": cwd,
-		"agent_id": "agent_m", "agent_type": "frank-exchange-of-views:red-lens-evidence",
+		"session_id": testLead, "agent_id": "agent_m", "agent_type": "frank-exchange-of-views:red-lens-evidence",
 	})
 	var out bytes.Buffer
 	Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(p), &out)
@@ -406,7 +406,7 @@ func TestEachOutcomeClearsAToolInputFailure(t *testing.T) {
 			if tc.tool == "Bash" {
 				ti = map[string]string{"command": tc.command}
 			}
-			p, _ := json.Marshal(map[string]any{"tool_name": tc.tool, "tool_input": ti, "cwd": cwd})
+			p, _ := json.Marshal(map[string]any{"session_id": testLead, "tool_name": tc.tool, "tool_input": ti, "cwd": cwd})
 			var out bytes.Buffer
 			Run("feov-pretooluse", "PreToolUse", Pre, bytes.NewReader(p), &out)
 			doc, _ := messageOf(t, out.String())

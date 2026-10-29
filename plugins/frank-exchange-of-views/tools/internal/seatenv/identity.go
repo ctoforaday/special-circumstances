@@ -85,6 +85,16 @@ const (
 // context the hook did not rewrite.
 func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
 
+// SessionVar is the CLIENT's variable naming the session a process runs under: Claude Code sets it
+// in every Bash call, a subagent's included, to the session_id its hook payloads carry — which is
+// the dispatching session's for every subagent, so a seat and its lead read the same value. It is
+// what a verb, which has no payload, takes a run's membership from (runlive.Caller.Session), and
+// what `setup` records as the run's lead.
+const SessionVar = "CLAUDE_CODE_SESSION_ID"
+
+// Session is the client session this process runs under, or "" outside Claude Code.
+func Session() string { return strings.TrimSpace(os.Getenv(SessionVar)) }
+
 // AgentType is the harness's name for this process's agent configuration, or "" in a main session,
 // an operator shell, or any context the hook did not rewrite.
 //
@@ -103,7 +113,7 @@ type Seat struct {
 // Order mirrors Resolve: injected → flag → inference. The DISAGREEMENT is again the point — a
 // --seat-id that contradicts the injected identity is REFUSED rather than obeyed or silently
 // overridden. Attribution is the one fact a seat must not be able to get wrong: an event filed
-// under the wrong seat is credited to the wrong party, and every found_by, estoppel and parity
+// under the wrong seat is attributed to the wrong party, and every found_by, estoppel and parity
 // check reads it.
 func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) {
 	// THE BOUND SEAT IS THE ONE THE RECORD BINDS THIS AGENT TO — its latest register, else its latest

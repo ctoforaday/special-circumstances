@@ -64,7 +64,7 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	// TWO AXES, AND THEY ARE NOT THE SAME QUESTION. `motionsFiled`/`motionsRuled` ask WAS THIS
 	// CHALLENGE ANSWERED — the unanswered-challenge detector below reads them. `dispositions`
 	// asks DID THE BENCH SETTLE THE GAP, which only a docket ruling does: counting a grade or
-	// petition ruling there would credit a gap with a disposition nobody wrote.
+	// petition ruling there would give a gap a disposition nobody wrote.
 	//
 	// A DOCKET MOTION COUNTS ON BOTH, and it used to count on neither until ruled. That made the
 	// one shape this detector exists for invisible: a gap escalated to the bench and never

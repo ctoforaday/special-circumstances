@@ -263,36 +263,34 @@ func ledgerMD(in Input) []byte {
 	// happen to a database. An always-empty footer would say "nothing was dropped" on every render
 	// whether or not anything was, which is the shape it was built to prevent.
 	anomalyFooter := ""
-	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
-	// addressed by being named in some gap's found_by, and that is the only way. This footer
-	// is the chair's live work list of lens work it has neither minted nor credited — the same
-	// question the old "undisposed" footer asked, against the channel that still exists.
-	credited := map[string]bool{}
+	// UNMINTED: a finding is addressed by being named in some gap's found_by, and that is the only
+	// way. This footer is the chair's live work list of lens work it has not minted a gap from.
+	minted := map[string]bool{}
 	for _, g := range in.Gaps {
 		if g == nil || g.Mint == nil {
 			continue
 		}
 		for _, lbl := range g.Mint.GetFoundBy() {
-			credited[lbl] = true
+			minted[lbl] = true
 		}
 	}
-	var uncredited []*record.Observation
+	var unminted []*record.Observation
 	findingRef := map[string]string{} // finding id -> how text names it, with its lens's area
 	for _, o := range record.ObservationsOf(in.Events) {
 		findingRef[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
-		if !credited[o.Finding.GetId()] {
-			uncredited = append(uncredited, o)
+		if !minted[o.Finding.GetId()] {
+			unminted = append(unminted, o)
 		}
 	}
 	notesFooter := ""
-	if len(uncredited) > 0 {
-		lines := make([]string, len(uncredited))
-		for i, o := range uncredited {
+	if len(unminted) > 0 {
+		lines := make([]string, len(unminted))
+		for i, o := range unminted {
 			// `reason` WAS THE PAYLOAD KEY; `text` is the field (lens/finding.go writes the
 			// prose under it). Finding carries no `reason`.
 			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, findingRef[o.Finding.GetId()], truncate(o.Finding.GetText(), 120))
 		}
-		notesFooter = "\n## lens findings credited by no gap (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
+		notesFooter = "\n## lens findings no gap was minted from (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
 
 	ledgerParts := []string{
@@ -308,7 +306,7 @@ func ledgerMD(in Input) []byte {
 		}
 		foundBy := ""
 		for i, id := range g.Mint.GetFoundBy() {
-			// a credit naming no finding on the record stays visible, bare
+			// a found_by naming no finding on the record stays visible, bare
 			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}
 		regraded := ""

@@ -51,14 +51,15 @@ type CountsJSON struct {
 	Open          int `json:"open"`
 	Closed        int `json:"closed"`
 	ClosedByBench int `json:"closed_by_bench"`
-	// UncreditedFindings counts lens findings whose id is named in NO gap's found_by.
+	// UnmintedFindings counts lens findings whose id is named in NO gap's found_by.
 	//
-	// A finding's fate is COALESCENCE, so the honest question is whether it was ever credited.
+	// A finding's fate is COALESCENCE, so the honest question is whether a gap
+	// was ever minted from it.
 	// Counting an explicit disposal instead would be permanently zero — the plausible zero this
 	// codebase keeps finding, where a clean board and a dead detector print the same number.
-	UncreditedFindings int `json:"uncredited_findings"`
-	Anomalies          int `json:"anomalies"`
-	TotalObservations  int `json:"total_observations"`
+	UnmintedFindings  int `json:"unminted_findings"`
+	Anomalies         int `json:"anomalies"`
+	TotalObservations int `json:"total_observations"`
 	// Citations counts VERIFY events — red's leaf reads — and is the canonical source for the
 	// envelope's citations_checked, which red reads from its native board view instead of
 	// self-reporting (a number fabricated on haiku).
@@ -191,11 +192,11 @@ type ObservationJSON struct {
 	Kind   string `json:"kind"`
 	Text   string `json:"text"`
 
-	// Credited says the finding's id is named in some gap's found_by — the ONLY way a
+	// Minted says the finding's id is named in some gap's found_by — the ONLY way a
 	// finding is addressed. It is explicit rather than left for the consumer to re-derive by
 	// scanning every gap, because that re-derivation is a second definition free to disagree
 	// with this one.
-	Credited bool `json:"credited"`
+	Minted bool `json:"minted"`
 }
 
 // strs normalizes a nil string slice to an empty one.
@@ -383,6 +384,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
 	report, renderErr := RenderAt(q)
+	located := newLocatedReport(report, renderErr)
 
 	verified := backingOf(evs)
 	// THE CLOSURE IS THE GAP VIEW'S (the last act of each arm, by its events.id, with the body
@@ -419,7 +421,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		return out, fmt.Errorf("asking the record for its board: %w", err)
 	}
 	defer rows.Close()
-	credited, unrendered := map[string]bool{}, false
+	minted, unrendered := map[string]bool{}, false
 	for rows.Next() {
 		var id string
 		var round int
@@ -448,7 +450,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			Backing: []GapBackingJSON{},
 		}
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
-		locateGap(report, renderErr, &g)
+		locateGap(located, &g)
 		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
 		// THE BOARD SERVES THE PAIR `--accept` SENDS, AND THE WORK ITEM SERVES THE BOARD'S: locateGap
 		// reads it for both over the one render.
@@ -463,7 +465,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			gj.Backing = gapBacking(g, verified)
 		}
 		for _, l := range foundBy[mintedEvent] {
-			credited[l] = true
+			minted[l] = true
 		}
 		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, benchClosedLast, byID, win)
 		if err != nil {
@@ -507,9 +509,9 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
 		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
 			ID: f.GetId(), Area: AreaOf(e.GetSeatId()), Text: f.GetText()}
-		oj.Credited = credited[oj.ID]
-		if !oj.Credited {
-			out.Counts.UncreditedFindings++
+		oj.Minted = minted[oj.ID]
+		if !oj.Minted {
+			out.Counts.UnmintedFindings++
 		}
 		out.Observations = append(out.Observations, oj)
 	}
@@ -842,9 +844,9 @@ type WorkGapJSON struct {
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
 	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
-	// impasse or not), "spent" (that exchange has been had: one in which either seat acted on the
-	// gap). "" when the bench has ruled no remand while the gap was at impasse — a remand of a
-	// material gap's docket filed before impasse spends nothing.
+	// impasse or not), "spent" (that exchange has been had: one in which blue acted on the gap).
+	// "" when the bench has ruled no remand while the gap was at impasse — a remand of a material
+	// gap's docket filed before impasse spends nothing.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -1095,12 +1097,12 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	}
 	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	report, renderErr := renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+	located := newLocatedReport(renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr))
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
 		g.Edits = r.edits[g.ID]
-		locateGap(report, renderErr, &g)
+		locateGap(located, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
 		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, g.benchClosedLast, byID, r.win)
 		if err != nil {
@@ -1459,7 +1461,7 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 // attribute per role/epoch from. It replaces the red/candidates/*.md file the chair used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
-	// ID is the finding's one name: what a gap's found_by credits, and the id inside its anchor in
+	// ID is the finding's one name: what a gap's found_by names, and the id inside its anchor in
 	// the report, so a seat holding either resolves it here. Area is the lens that filed it.
 	ID         string `json:"id"`
 	Area       string `json:"area"`
@@ -1491,7 +1493,7 @@ type FindingJSON struct {
 	// TestNoProjectionListIsOmitEmpty holds every list on this projection to it.
 	Backing []GapBackingJSON `json:"backing"`
 	Text    string           `json:"text"`
-	// MintedAs is the gap ids whose `found_by` credits this finding — the join the record
+	// MintedAs is the gap ids whose `found_by` names this finding — the join the record
 	// already holds, read from the side that could not reach it.
 	//
 	// It is the same defect `Anchor` above was: a join key living where nothing can reach it
@@ -1501,7 +1503,7 @@ type FindingJSON struct {
 	// sixteen gap rows by hand.
 	//
 	// Measured on 2026-08-23_research-loop-counterparts (#747): 20 findings, 16 gaps, and three
-	// findings — L2-F1, L6-F8, L6-F11 — that no gap credits. One of them alleged a fabricated
+	// findings — L2-F1, L6-F8, L6-F11 — that no gap names. One of them alleged a fabricated
 	// verbatim quote in the very text the chair closed a gap on in that same sitting. Nothing on
 	// the docket said so, because the docket is gap-shaped and this fact is finding-shaped.
 	//
@@ -1528,7 +1530,7 @@ type FindingsJSON struct {
 // run path (FindingsJSONBytes) fetches exactly the finding family.
 func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
-	// WHICH GAPS CREDIT WHICH FINDING, indexed once. A mint's found_by is the record's own
+	// WHICH GAPS NAME WHICH FINDING, indexed once. A mint's found_by is the record's own
 	// statement that a finding became a gap; read here so the finding side can state it too.
 	mintedBy := map[string][]string{}
 	for _, e := range evs {
@@ -1581,7 +1583,7 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 
 // findingsView is the findings read from the record. MINT is not optional company for FINDING:
 // minted_as is computed from the mint bodies in the same slice, so a stream without them reports
-// every finding as credited by nothing — the same bytes the view uses for a finding genuinely dropped.
+// every finding as named by nothing — the same bytes the view uses for a finding genuinely dropped.
 var findingsView = declareNarrowedView("findings", rendersEvents(FindingsJSONOf),
 	recordpb.EventType_EVENT_TYPE_FINDING,
 	recordpb.EventType_EVENT_TYPE_MINT)
@@ -1972,27 +1974,65 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 // IT READS THE GAP'S PRESCRIBED PAIR FIRST, over the same report: FixNew comes in as recorded, and
 // the pair is located from the location AS MINTED, which the marking below replaces. The board and
 // the work item both take the pair from here, so neither can serve one the other does not.
-func locateGap(report string, err error, g *WorkGapState) {
+func locateGap(l *locatedReport, g *WorkGapState) {
+	report := l.text
 	g.FixOld, g.FixNew = ProposalOver(report, g.ID, g.Location, g.FixNew)
 	if g.Location == "" {
 		return
 	}
-	if err != nil {
+	if l.err != nil {
 		g.LocationState = LocationUnrendered
 		return
 	}
 	g.LocationState = LocationGone
-	tok := anchor.Token(g.ID)
-	at := strings.Index(report, tok)
-	if at < 0 || slices.Contains(claimcount.BareAnchorIDs(report), g.ID) {
+	bare, sentences := l.spans()
+	sp, ok := gapSentenceIn(report, sentences, bare, g.ID)
+	if !ok {
 		return
 	}
-	for _, sp := range anchor.Sentences(report) {
+	g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
+	g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
+	g.Passage = PassageAround(report, strings.Index(report, anchor.Token(g.ID)))
+}
+
+// gapSentenceIn is the bounds of the sentence holding gap id's anchor in report, whose sentences
+// are spans and whose bare anchors are bare: the sentence the board shows as a quote gap's
+// location. ok is false where the anchor is not in report, stands bare, or sits in no sentence —
+// the board's `gone`. It is the one reading of "the sentence a gap is on": the board marks a gap
+// with it, and a mint is refused on it (requireOneGapPerClassAndSubject).
+func gapSentenceIn(report string, spans [][2]int, bare []string, id string) ([2]int, bool) {
+	tok := anchor.Token(id)
+	at := strings.Index(report, tok)
+	if at < 0 || slices.Contains(bare, id) {
+		return [2]int{}, false
+	}
+	for _, sp := range spans {
 		if sp[0] <= at && at+len(tok) <= sp[1] {
-			g.LocationState, g.sentence = LocationMarked, report[sp[0]:sp[1]]
-			g.Location = strings.TrimSpace(claimcount.StripAnchors(g.sentence))
-			g.Passage = PassageAround(report, at)
-			return
+			return sp, true
 		}
 	}
+	return [2]int{}, false
+}
+
+// locatedReport is one render of the report with what locateGap reads of it besides the text: the
+// anchors standing bare and the sentence spans. Both are a pass over the whole report and neither
+// depends on the gap, so they are read once per render, on the first gap that needs them, rather
+// than once per gap.
+type locatedReport struct {
+	text      string
+	err       error
+	read      bool
+	bare      []string
+	sentences [][2]int
+}
+
+func newLocatedReport(text string, err error) *locatedReport {
+	return &locatedReport{text: text, err: err}
+}
+
+func (l *locatedReport) spans() ([]string, [][2]int) {
+	if !l.read {
+		l.bare, l.sentences, l.read = claimcount.BareAnchorIDs(l.text), anchor.Sentences(l.text), true
+	}
+	return l.bare, l.sentences
 }

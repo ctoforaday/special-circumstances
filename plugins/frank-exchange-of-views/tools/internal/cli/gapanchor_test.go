@@ -34,6 +34,10 @@ func mintQuote(t *testing.T, runDir, key, quote string, extra ...string) (string
 	return gapID(out), err
 }
 
+// otherClass is a class besides mintQuote's own, for a second gap on one sentence: one class on one
+// sentence is one gap.
+const otherClass = "invalid_inference"
+
 // openGap is gap id's entry on the board a seat reads.
 func openGap(t *testing.T, runDir, id string) record.GapJSON {
 	t.Helper()
