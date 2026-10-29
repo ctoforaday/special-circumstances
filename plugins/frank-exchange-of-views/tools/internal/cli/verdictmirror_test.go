@@ -44,8 +44,8 @@ func TestTheVerdictCheckpointKeepsTheRecordLockedAndMirrorsOneConsistentDatabase
 
 	live := filepath.Join(runDir, "records", "record.db")
 	for _, f := range []string{live, live + "-shm"} {
-		if n, measured := recordtest.PosixLocksHeld(t, f); measured && n == 0 {
-			t.Errorf("after the verdict, this process holds no POSIX lock on %s while its connection is still open — "+
+		if n, measured := recordtest.LocksHeld(t, f); measured && n == 0 {
+			t.Errorf("after the verdict, this process holds no lock on %s while its connection is still open — "+
 				"something opened and closed a descriptor on the live record beside it", filepath.Base(f))
 		}
 	}

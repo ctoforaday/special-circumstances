@@ -16,12 +16,13 @@ import (
 
 // ARCHIVING READS THE RECORD'S BYTES WITHOUT TAKING THE PROCESS'S LOCKS WITH THEM.
 //
-// Capture keeps reading the record after it archives it — the seat-turn ingest, the audits. Under
-// POSIX fcntl locking, os.ReadFile of record.db while this process's connection is open closes a
-// descriptor on the file and with it every POSIX lock the process holds there; the connection
-// keeps answering and never re-takes the SHARED lock it believes it holds. So the act after the
-// archive is read through the record path and the kernel's table is asked whether that read is
-// covered.
+// Capture keeps reading the record after it archives it — the seat-turn ingest, the audits. A read
+// of a record file while this process's connection is open closes a descriptor on it and with it
+// every POSIX lock the process holds on that file; the connection keeps answering and never
+// re-takes a lock it believes it holds. The -shm locks are POSIX on every platform, so the
+// dead-man-switch lock there is the one such a read drops; the SHARED lock on record.db is an OFD
+// lock on Linux, which no stray close drops, and POSIX elsewhere. So the act after the archive is
+// read through the record path and the kernel's table is asked whether that read holds both.
 //
 // And the archived database is the whole record on its own: the rows the connection wrote, with
 // no log beside it.
@@ -59,9 +60,11 @@ func TestArchivingTheRecordLeavesTheNextReadHoldingItsLock(t *testing.T) {
 	if err := after.QueryRow(`SELECT COUNT(*) FROM ev`).Scan(&live); err != nil {
 		t.Fatal(err)
 	}
-	if n, measured := recordtest.PosixLocksHeld(t, dbPath); measured && n == 0 {
-		t.Errorf("a read through the record after archiving holds no POSIX lock on record.db — the archive " +
-			"closed a descriptor on the database beside this process's open connection")
+	for _, f := range []string{dbPath, dbPath + "-shm"} {
+		if n, measured := recordtest.LocksHeld(t, f); measured && n == 0 {
+			t.Errorf("a read through the record after archiving holds no lock on %s — the archive closed a "+
+				"descriptor on it beside this process's open connection", filepath.Base(f))
+		}
 	}
 
 	got := archivedRows(t, filepath.Join(repo, "run-archive", "2026-10-25_locks.tar.gz"))

@@ -107,7 +107,8 @@ func countVia(t *testing.T, dsn string) int {
 
 // A LEASED CONNECTION IS REFUSED, NOT WAITED ON OR CLOSED UNDER. The pool's one connection, leased,
 // would leave the seal waiting forever; and database/sql closes an in-use connection only when it is
-// returned, so its descriptor would stay open across the byte read whose close then drops its locks.
+// returned, so its descriptor would stay open across the byte read, whose close drops its locks on
+// record.db wherever they are POSIX (every platform but Linux).
 // The refusal leaves the handle cached and usable; once the lease ends the read goes through. The
 // call runs under a deadline, so a missing refusal fails here rather than at the suite's timeout.
 func TestSealedBytesRefusesWhileAConnectionIsLeased(t *testing.T) {

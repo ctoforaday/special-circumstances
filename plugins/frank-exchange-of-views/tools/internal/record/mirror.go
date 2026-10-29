@@ -60,8 +60,9 @@ func MirrorDir(runDir string) (string, error) {
 // THE MIRROR IS ONE DATABASE FILE, taken through the record's own connection
 // (recordsql.SnapshotInto), and nothing else. A file copy of records/ is the wrong instrument
 // twice over: the database, its log and its shared memory are copied at three different moments
-// from a run whose other seats are still writing, and under POSIX fcntl locking closing the copy's
-// descriptor drops the SHARED lock this process's connection holds on the live record. The
+// from a run whose other seats are still writing, and closing the copy's descriptors drops every
+// POSIX lock this process's connection holds on those files: the dead-man-switch lock on -shm, and
+// off Linux the SHARED lock on record.db too (on Linux that one is an OFD lock and survives). The
 // snapshot is a committed state with the log folded in, so the mirror opens on its own.
 //
 // THE OLD MIRROR STANDS UNTIL THE NEW ONE EXISTS: the snapshot is staged and synced beside it,
