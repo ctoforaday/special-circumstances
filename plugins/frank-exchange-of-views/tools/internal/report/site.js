@@ -94,6 +94,9 @@
     if (!a) { return; }
     var doc = a.dataset.doc;
     var frag = a.getAttribute('href').slice(1);
+    // A link to a document, not a place in it, names the document's own article: the tab opens at
+    // its top, as a tab does.
+    if (docs.some(function (d) { return d.id === frag; })) { frag = ''; }
     if (doc) { e.preventDefault(); show(doc, frag); }
   });
 

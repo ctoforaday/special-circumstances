@@ -6,7 +6,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -50,18 +49,20 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 				t.Fatal(err)
 			}
-			docs, err := AssembleAll(run)
+			set, err := AssembleShipped(run)
 			if err != nil {
 				t.Fatal(err)
 			}
-			shipped := render(docs[0], Title(run), docs)
+			shipped := set.md[0]
 			have := map[string]int{}
 			for _, ln := range strings.Split(shipped, "\n") {
 				have[strings.TrimSpace(ln)]++
 			}
 			want := map[string]int{}
-			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln != "" {
+			// The text is stripped whole, as assembly strips it: a token in code stays (stripTokens).
+			stripped := stdReaders().stripTokens(blue, true)
+			for _, ln := range strings.Split(stripped, "\n") {
+				if ln = strings.TrimSpace(ln); ln != "" {
 					want[ln]++
 				}
 			}
@@ -72,9 +73,9 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			}
 			// AND NONE MOVES PAST ANOTHER: but for the title line, which opens the document, the
 			// text's lines stand in report.md in the order written, whatever order that is.
-			at, title := 0, part(blue).title
-			for _, ln := range strings.Split(blue, "\n") {
-				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln == "" {
+			at, title := 0, part(ParseText(blue)).title
+			for _, ln := range strings.Split(stripped, "\n") {
+				if ln = strings.TrimSpace(ln); ln == "" {
 					continue
 				}
 				if ln == title {

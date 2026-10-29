@@ -145,10 +145,10 @@ func holdFresh(t *testing.T, path string) *sql.Tx {
 	return tx
 }
 
-// holderQuery is holdFresh's connection settings: the busy wait every connection to a record has,
-// and nothing that would take the file out of rollback mode. A fixed figure rather than
-// openBusyBudget, which a test shortens to prove the OPEN's expiry — the holder's patience is not
-// what that test measures.
+// holderQuery is holdFresh's connection settings: a busy wait, as every connection to a record has,
+// and nothing that would take the file out of rollback mode. A fixed 5s rather than openBusyBudget,
+// which a test shortens to prove the OPEN's expiry — the holder's patience is not what that test
+// measures, and a holder that never gets its lock fails in seconds rather than a minute.
 const holderQuery = "_pragma=busy_timeout(5000)"
 
 // TestTheHeldLockCommitsPastAReader pins the stand-in to the one property of a real writer the
@@ -195,7 +195,7 @@ func TestTheHeldLockCommitsPastAReader(t *testing.T) {
 
 // TestOpenGivesUpWhenTheLockOutlivesTheBudget is the deadline half of connect's contract: a lock
 // held past openBusyBudget comes back as the busy error, never as a hang. The budget is shortened so
-// the test proves the expiry rather than waiting five seconds for it.
+// the test proves the expiry rather than waiting out the production minute.
 func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
 	was := openBusyBudget
 	openBusyBudget = 150 * time.Millisecond
@@ -324,6 +324,10 @@ func TestOpenFailsAtOnceOnAnUnreadableDatabase(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not a database, and long enough to be read as one"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// A short budget, so a refusal that wrongly waited as if busy shows as a wait the bound catches.
+	was := openBusyBudget
+	openBusyBudget = 2 * time.Second
+	defer func() { openBusyBudget = was }()
 	started := time.Now()
 	db, err := openUncached(path)
 	if db != nil {

@@ -38,7 +38,7 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 	)
 	run := runtest.Open(t, dir)
 
-	docs, err := AssembleAll(run)
+	docs, err := shippedDocs(run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestASpotChecksReasonReachesTheReportAndTheTranscript(t *testing.T) {
 	// THE REPORT'S DOCUMENTS ESCAPE A SEAT'S `[^`, so nothing a seat wrote opens a footnote.
 	for _, file := range []string{FileDocket, FileDebate} {
 		for _, want := range []string{
-			"#2 (red-chair): read stale area(s) red-lens-logic — " + EscapeNotes(areasOnly),
+			"#2 (red-chair): read stale area(s) red-lens-logic — " + stdReaders().escapeNotes(areasOnly),
 			"#3 (red-chair): read stale area(s) red-lens-logic; re-verified G1 of 1 archived closure(s) — " + withIDs,
 		} {
 			if !strings.Contains(body[file], want) {

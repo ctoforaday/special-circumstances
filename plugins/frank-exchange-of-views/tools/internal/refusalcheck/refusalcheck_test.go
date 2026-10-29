@@ -47,7 +47,7 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		{"show report", "render: no base has been ingested for this run — there is nothing to render", true},
 		{"show report", "no base has been ingested for this run — there is nothing to render", false},
 		{"show report", "replaying edit 3 of 5: the quote is gone", false},
-		{"show board", "connecting: still busy after 5s", true},
+		{"show board", "connecting: still busy after 1m0s", true},
 		{"carry", "asking the record for its open gaps: no such table", false},
 		{"carry", "record: asking the record for its open gaps: no such table", true},
 		{"show report", "recordsql: opening the record: no such file", true},

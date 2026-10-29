@@ -65,7 +65,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
 	for _, want := range []string{
 		"## Proofs",                      // the section
-		"<a id=\"P-deadbeef\">",          // the anchor the footnote links to
+		proofAnchorMark("P-deadbeef"),    // where the anchor the footnote links to ships
 		"### P1 — trial division",        // a HEADING, not a second dangling reference (#590)
 		"console.log('divisors",          // THE SCRIPT — a computation's source IS its evidence
 		"divisors of 9: 3",               // and its output
@@ -266,5 +266,43 @@ func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
 	}
 	if strings.Contains(out, "[^P2]") {
 		t.Errorf("the same proof was numbered twice:\n%s", out)
+	}
+}
+
+// AN EMPTY OUTPUT IS SAID TO BE EMPTY. A re-run that printed nothing was shown as two backticks with
+// nothing between them, which are no code span: a reader saw two stray characters where the record
+// holds no output at all.
+func TestAnEmptyReRunOutputSaysSo(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(1)", "1\n")
+	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "s.py",
+		Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Recorded: "1", Observed: " \n"}}}
+	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+	if !strings.Contains(ev, "  - on re-run: _(empty)_\n") || strings.Contains(ev, "on re-run: ``") {
+		t.Errorf("the empty re-run output is not said to be empty:\n%s", ev)
+	}
+}
+
+// A NOTE IS READ WHERE IT STANDS: the first, and every note of one line, after the judgement on its
+// item's line, so its first line is prose behind the tool's text, and a "```" opening it opens no
+// fence whose info string would keep a token. A token in a code span it holds stays, and a note that
+// is a paragraph of its own keeps one in its fence's info string.
+func TestAJudgementNoteIsStrippedWhereItShips(t *testing.T) {
+	for _, c := range []struct {
+		notes []string
+		keep  int // tokens that are code where they ship
+	}{
+		{[]string{"```x <!--gap:G-00000001-->"}, 0},
+		{[]string{"```x <!--gap:G-00000001-->\nmore"}, 0},
+		{[]string{"```x <!--gap:G-00000001-->", "second"}, 0},
+		{[]string{"first", "```x <!--gap:G-00000001-->"}, 0},
+		{[]string{"a `<!--gap:G-00000001-->` b\nmore"}, 1},
+		{[]string{"first\nline", "```x <!--gap:G-00000001-->\ny\n```"}, 1},
+	} {
+		got := judgementNotes(append([]string(nil), c.notes...))
+		if n := strings.Count(got, "<!--gap:"); n != c.keep {
+			t.Errorf("judgementNotes(%q) keeps %d tokens, want %d:\n%s", c.notes, n, c.keep, got)
+		}
 	}
 }

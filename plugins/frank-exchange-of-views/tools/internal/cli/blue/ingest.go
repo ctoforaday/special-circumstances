@@ -147,7 +147,10 @@ func init() {
 // composes these sections itself; text filed under one has no place of its own in the set, and
 // its author learns that from no later act. The row's Path is the way in: the act that puts
 // content of that kind on the record, or that no act of blue's does and whose does.
-func composedRefusal(was, doc string) error {
+//
+// Each text is parsed once (report.ParseText) and every refusal reads that one parse.
+func composedRefusal(wasText, docText string) error {
+	was, doc := report.ParseText(wasText), report.ParseText(docText)
 	line, s, found := report.ComposedIn(was, doc)
 	if !found {
 		return wovenNoteRefusal(was, doc)
@@ -164,7 +167,7 @@ func composedRefusal(was, doc string) error {
 // and the tool's ship under one label and a reader's renderer shows one of them, so the other is
 // lost with nothing on the record to say so; the write is the last place its author can be told.
 // The way in is the Bibliography row's Path, as it is for the section itself.
-func wovenNoteRefusal(was, doc string) error {
+func wovenNoteRefusal(was, doc report.ParsedText) error {
 	label, s, found := report.WovenNoteIn(was, doc)
 	if !found {
 		return orderRefusal(was, doc)
@@ -183,7 +186,7 @@ func wovenNoteRefusal(was, doc string) error {
 // refusals above it is for what the write adds (report.added): a record migrated with its text as
 // written can hold a section out of place, and an edit that leaves it there, or moves it to its
 // place, is not the one that put it there.
-func orderRefusal(was, doc string) error {
+func orderRefusal(was, doc report.ParsedText) error {
 	m, found := report.OutOfOrderIn(was, doc)
 	if !found {
 		return nil

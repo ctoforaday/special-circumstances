@@ -20,12 +20,12 @@ import (
 // Each of the three anchor classes has a DEFINED FATE at assembly, and they are three different
 // fates decided in three different places:
 //
-//	<!--fx:F-…-->     STRIPPED           (anchor.StripAssembled, docs.go)
+//	<!--fx:F-…-->     STRIPPED           (stripTokens, docs.go)
 //	<!--cite:C-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
 //	<!--proof:P-…--> -> [^PN] + definitions    (weaveProofRefs, proofs.go)
 //
 // What was tested was each fate ALONE: FuzzWeaveCitations drives weaveCitations over one string,
-// kinds_test drives anchor.StripAssembled over one string, and TestNoDocumentInTheSetShipsA
+// TestStripTokens drives stripTokens over one string, and TestNoDocumentInTheSetShipsA
 // DanglingFootnote asks the set a different question — whether every footnote REFERENCE is
 // defined. A raw anchor is not a footnote reference, so that scan cannot see one.
 //

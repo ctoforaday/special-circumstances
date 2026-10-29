@@ -82,7 +82,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			proofNote(num[label]), EscapeNotes(strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, storedScript(p))))), FileEvidence, label)
+			proofNote(num[label]), escapeNotesInLine(firstNonEmpty(plain(p.Reason), plain(storedScript(p)))), FileEvidence, label)
 	}
 	return b.String(), order
 }
@@ -117,19 +117,17 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 	for _, p := range proofs {
 		label := p.Label
 		n := num[label]
-		// An explicit anchor, because a heading's generated id is a function of its whole text
-		// and the footnotes in six other files link here by LABEL, which is stable.
-		fmt.Fprintf(&b, "<a id=\"%s\"></a>\n\n", label)
-		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, storedScript(p))))
+		b.WriteString(proofAnchorMark(label) + "\n\n")
+		fmt.Fprintf(&b, "### P%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), storedScript(p)))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
 		}
 		fmt.Fprintf(&b, "- **basis**: %s", p.Basis)
 		if p.Drift != "" {
-			fmt.Fprintf(&b, " — %s", p.Drift)
+			fmt.Fprintf(&b, " — %s", plain(p.Drift))
 		}
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", storedScript(p), shortSHA(p.SHA))
+		fmt.Fprintf(&b, "- **script**: %s (sha256 %s)\n", codeSpanOf(storedScript(p)), codeSpanOf(shortSHA(p.SHA)))
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
 		// RED'S INDEPENDENT AUDIT (#343), IN ITS TWO HALVES. The strongest audit the engine has is
 		// worth the reader knowing about, and its absence is worth knowing about too: a proof nobody
@@ -149,7 +147,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		default:
 			b.WriteString("- **re-run by red**: it DID NOT REPRODUCE — the stored script no longer produces the recorded output\n")
 			if r.Recorded != "" || r.Observed != "" {
-				fmt.Fprintf(&b, "  - recorded: `%s`\n  - on re-run: `%s`\n", oneLine(r.Recorded), oneLine(r.Observed))
+				fmt.Fprintf(&b, "  - recorded: %s\n  - on re-run: %s\n", codeSpanOf(oneLine(r.Recorded)), codeSpanOf(oneLine(r.Observed)))
 			}
 		}
 		var notes []string
@@ -160,7 +158,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		}
 		note := ""
 		if len(notes) > 0 {
-			note = " — " + strings.Join(notes, " / ")
+			note = " — " + judgementNotes(notes)
 		}
 		switch p.Soundness {
 		case record.SoundnessSound:
@@ -180,9 +178,9 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		b.WriteString("\n")
 
 		script, output := readArtifact(run, p.SHA)
-		b.WriteString("```" + fenceLang(p.Script) + "\n" + strings.TrimRight(script, "\n") + "\n```\n\n")
+		b.WriteString(fenced(fenceLang(p.Script), strings.TrimRight(script, "\n")) + "\n")
 		b.WriteString("Output:\n\n")
-		b.WriteString("```\n" + strings.TrimRight(output, "\n") + "\n```\n\n")
+		b.WriteString(fenced("", strings.TrimRight(output, "\n")) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
@@ -195,7 +193,77 @@ func storedScript(p record.Proof) string {
 	return filepath.ToSlash(proof.StoredScript(p.SHA, p.Script))
 }
 
-// oneLine keeps a captured output on a single markdown line.
+// fenced is content in a fenced code block no line of it can close or lengthen into prose: a fence of
+// backticks one longer than the longest run of them in the content, and never fewer than three. A
+// fence of three closed at an output's own "```" line, and the rest of the output shipped as prose.
+func fenced(lang, content string) string {
+	f := strings.Repeat("`", max(3, longestRun(content, '`')+1))
+	return f + lang + "\n" + content + "\n" + f + "\n"
+}
+
+// codeSpanOf is s as a code span that shows it exactly: delimited by backticks one longer than the
+// longest run of them in s, and padded with a space where s would otherwise touch a delimiter with a
+// backtick or lose an edge space to the span's stripping. An empty s has no code to show and is
+// said to be empty, as the documents mark a value the record does not hold: two backticks with
+// nothing between them are no code span, and print as typed.
+func codeSpanOf(s string) string {
+	if s == "" {
+		return "_(empty)_"
+	}
+	d := strings.Repeat("`", longestRun(s, '`')+1)
+	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") || len(s) > 1 && s[0] == ' ' && s[len(s)-1] == ' ' && strings.TrimSpace(s) != "" {
+		s = " " + s + " "
+	}
+	return d + s + d
+}
+
+// longestRun is the length of the longest run of c in s.
+func longestRun(s string, c byte) int {
+	most, n := 0, 0
+	for i := 0; i < len(s); i++ {
+		if s[i] != c {
+			n = 0
+			continue
+		}
+		n++
+		most = max(most, n)
+	}
+	return most
+}
+
+// judgementNotes is red's notes on a proof, written after the judgement on its list item's line, each
+// without its tokens as it reads where it ships. Notes of one line each are joined on that line, so
+// each is read behind the judgement (stripTokensAfter). Where one runs to several lines each note is
+// the item's own paragraph, its fences closed where it ends (ownBlock, reading the first as text after
+// the tool's, and each after it as a block of its own, as its tokens are read: stripTokensAfter, then
+// StripTokens), and the whole the rest of the item (itemLines).
+func judgementNotes(notes []string) string {
+	multi := false
+	inline := make([]string, len(notes))
+	for i, n := range notes {
+		inline[i] = strings.TrimSpace(lineEnds.Replace(stripTokensAfter(n)))
+		multi = multi || strings.Contains(inline[i], "\n")
+	}
+	if !multi {
+		return strings.Join(inline, " / ")
+	}
+	notes[0] = inline[0]
+	for i := 1; i < len(notes); i++ {
+		notes[i] = strings.TrimSpace(lineEnds.Replace(StripTokens(notes[i])))
+	}
+	notes[0] = ownBlock("x" + notes[0])[1:]
+	for i := 1; i < len(notes); i++ {
+		notes[i] = ownBlock(notes[i])
+	}
+	return itemLines(strings.Join(notes, "\n\n"), "  ")
+}
+
+// oneLine is s as one line of markdown, its runs of whitespace one space: the form of every value the
+// tool splices into a line it composes — a heading, a list item, a note, a table cell, a labelled
+// line. A value of several lines spliced raw leaves the line: a fence on its second line opens code
+// that runs to the end of the document and takes every heading, note and anchor after it, and a `#`
+// line is a heading the tool did not write. On one line, behind the tool's own text, a value opens and
+// closes no block. strings.Fields splits at every line ending CommonMark has, a lone `\r` included.
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }

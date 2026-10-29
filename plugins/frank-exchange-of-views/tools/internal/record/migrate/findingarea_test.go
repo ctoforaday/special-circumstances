@@ -1,6 +1,8 @@
 package migrate
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -50,12 +52,15 @@ func TestEveryFindingIdPrintsItsArea(t *testing.T) {
 			}
 			texts["view "+v] = string(md)
 		}
-		docs, err := report.AssembleAll(run)
-		if err != nil {
+		if _, err := report.Assemble(run); err != nil {
 			t.Fatalf("%s: assemble: %v", name, err)
 		}
-		for _, d := range docs {
-			texts[d.File] = d.Body
+		for _, f := range report.Files() {
+			if b, err := os.ReadFile(filepath.Join(run.Dir(), f)); err == nil {
+				texts[f] = string(b)
+			} else if !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
 		}
 		for where, text := range texts {
 			text = anchor.Replace(text, func(_, _ string) string { return "" })

@@ -214,6 +214,39 @@ func EachWritten(s string, visit func(start, end int, held string)) {
 	}
 }
 
+// StripWritten is s with every token as written (EachWritten) taken out but each keep reports true
+// for, given the token's span in s — keep nil takes every one — and each line the strip leaves a husk
+// (Husk) taken out whole. Lines are matched by position: a token is one line's, so the strip takes no
+// newline.
+func StripWritten(s string, keep func(start, end int) bool) string {
+	var spans [][2]int
+	EachWritten(s, func(start, end int, _ string) {
+		if keep != nil && keep(start, end) {
+			return
+		}
+		spans = append(spans, [2]int{start, end})
+	})
+	if len(spans) == 0 {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for _, sp := range spans {
+		b.WriteString(s[last:sp[0]])
+		last = sp[1]
+	}
+	b.WriteString(s[last:])
+	stripped, was := strings.Split(b.String(), "\n"), strings.Split(s, "\n")
+	kept := stripped[:0]
+	for i, ln := range stripped {
+		if ln != was[i] && Husk(ln) {
+			continue
+		}
+		kept = append(kept, ln)
+	}
+	return strings.Join(kept, "\n")
+}
+
 // husk is no more than block-quote and list markers and sentence punctuation.
 var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 
@@ -241,30 +274,6 @@ func Husk(s string) bool {
 		s = t
 	}
 	return husk.MatchString(s)
-}
-
-// StripAssembled removes every token of a kind the assembly strips, whatever it holds (writtenAt): the
-// assembled report ships no such token, an elided one included.
-func StripAssembled(md string) string {
-	var b strings.Builder
-	last := 0
-	for i := 0; i < len(md); {
-		n, k, _ := writtenAt(md, i)
-		if n == 0 {
-			i++
-			continue
-		}
-		if k.assembly == Strip {
-			b.WriteString(md[last:i])
-			last = i + n
-		}
-		i += n
-	}
-	if last == 0 {
-		return md
-	}
-	b.WriteString(md[last:])
-	return b.String()
 }
 
 // idAt is the id inside the token of length n beginning at i.

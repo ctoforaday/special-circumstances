@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -38,13 +37,14 @@ func citationsSection(fam record.Family) string {
 	b.WriteString("Each source the report cites, with the sentence it backs and every reading of the source against that sentence. ")
 	b.WriteString("A reading's outcome is what the source does for the sentence — `supports`, `supports_with_bridge` (it supports the sentence through a step the source does not state), `weak`, `refutes`, `absent` (the source says nothing on it) or `unreachable` — and its confidence is how sure the reading is.\n\n")
 	for _, s := range ev.Sources {
-		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), s.URL))
-		fmt.Fprintf(&b, "- **source**: %s", s.URL)
+		loc := plain(s.Location)
+		fmt.Fprintf(&b, "### %s\n\n", firstNonEmpty(plain(s.Title), plainURL(s.URL)))
+		fmt.Fprintf(&b, "- **source**: %s", plainURL(s.URL))
 		if s.AccessDate != "" {
 			fmt.Fprintf(&b, ", accessed %s", s.AccessDate)
 		}
 		b.WriteString("\n")
-		if loc := plain(s.Location); loc != "" {
+		if loc != "" {
 			fmt.Fprintf(&b, "- **backs**: %s\n", loc)
 		}
 		if s.CorroboratedBy != "" {
@@ -53,16 +53,17 @@ func citationsSection(fam record.Family) string {
 		if len(s.Verified) == 0 {
 			b.WriteString("- **not read against its sentence** — no reading of this source is on the record\n")
 		}
-		b.WriteString(readings(s.Verified, plain(s.Location)))
+		b.WriteString(readings(s.Verified, loc))
 		b.WriteString("\n")
 	}
 	if len(others) > 0 {
 		fmt.Fprintf(&b, "### Sources the report does not cite (%d)\n\n", len(others))
 		b.WriteString("Sources red found and read against a sentence of the report that place no citation in it: a reading that does not support its sentence places none.\n\n")
 		for _, v := range others {
-			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(plain(v.Title), v.URL, "(no source named)"))
-			if v.URL != "" && plain(v.Title) != "" {
-				fmt.Fprintf(&b, " — %s", v.URL)
+			title := plain(v.Title)
+			fmt.Fprintf(&b, "- **%s**", firstNonEmpty(title, plainURL(v.URL), "(no source named)"))
+			if v.URL != "" && title != "" {
+				fmt.Fprintf(&b, " — %s", plainURL(v.URL))
 			}
 			b.WriteString("\n")
 			b.WriteString(indent(readings([]record.EvidenceVerificationJSON{v}, ""), "  "))
@@ -96,23 +97,28 @@ func readings(vs []record.EvidenceVerificationJSON, backs string) string {
 		}
 		prev = text
 		b.WriteString("\n")
-		switch claim := plain(v.Claim); {
+		claim := plain(v.Claim)
+		switch {
 		case claim == "" || claim == backs:
 		case claim == prevClaim:
 			b.WriteString("  - of the same sentence as the reading above\n")
 		default:
 			fmt.Fprintf(&b, "  - of the sentence: %s\n", claim)
 		}
-		prevClaim = plain(v.Claim)
+		prevClaim = claim
 	}
 	return b.String()
 }
 
-// plain is a seat's text on one line with no anchor token in it: the evidence document is composed
-// after the weave, so a token copied into record prose would otherwise ship raw.
-func plain(s string) string {
-	return oneLine(anchor.StripAssembled(anchor.Replace(s, func(string, string) string { return "" })))
-}
+// plain is a record field as the tool writes it into a line it composes after the weave — a field of
+// evidence.md, a note's text, a Bibliography entry — on one line, with no anchor token in it
+// (stripTokensInLine): no weave follows to take one, and no strip.
+//
+// THE FIELD IS MADE ONE LINE, THEN STRIPPED: the strip keeps a token in code, and what is code is read
+// from the line that ships. A token on an indented line is code in the field and prose on the one
+// line, where it would ship as typed. The line is made one line again after: a token's removal leaves
+// the spaces either side of it, and outside code a run of them is one space.
+func plain(s string) string { return oneLine(stripTokensInLine(oneLine(s))) }
 
 // indent prefixes every non-empty line of s.
 func indent(s, by string) string {

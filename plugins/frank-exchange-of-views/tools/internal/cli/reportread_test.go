@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -141,11 +142,11 @@ func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 }
 
 // A READ THE RECORD CANNOT TAKE IS REFUSED, NOT SERVED UNRECORDED. Another writer holds the lock past
-// the busy budget: the read fails loudly, prints nothing, and nothing is on the record.
+// the busy budget: the read fails loudly, prints nothing, and nothing is on the record. The budget is
+// shortened so the test waits a fraction of a second, not the production minute.
 func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
-	if testing.Short() {
-		t.Skip("waits out the record's busy budget")
-	}
+	const budget = 300 * time.Millisecond
+	t.Cleanup(recordsql.SetBusyBudgetForTest(budget))
 	runDir := newRun(t)
 	writeReport(t, runDir, servedReport)
 	if err := recordsql.CloseUnder(runDir); err != nil {
@@ -160,13 +161,18 @@ func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	started := time.Now()
 	out, err := run(t, "show", "report", "--run", runDir, "--seat-id", lensSeat)
+	took := time.Since(started)
 	_ = tx.Rollback()
 	if err == nil || out != "" {
 		t.Fatalf("a read under another writer's lock = %q, %v; want a refusal and no text", out, err)
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "lock") && !strings.Contains(strings.ToLower(err.Error()), "busy") {
 		t.Errorf("the refusal does not say the record was locked: %v", err)
+	}
+	if took < budget {
+		t.Errorf("the refusal came after %v, before the %v budget ran out — it was not the lock wait that refused", took, budget)
 	}
 	if got := readsOf(t, runDir); len(got) != 0 {
 		t.Errorf("a refused read recorded %+v", got)

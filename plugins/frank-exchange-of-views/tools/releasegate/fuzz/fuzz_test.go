@@ -5832,16 +5832,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
-	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		if line, _, found := reportdoc.ComposedIn("", string(text)); found {
+	if out, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		none, text := reportdoc.ParseText(""), reportdoc.ParseText(string(out))
+		if line, _, found := reportdoc.ComposedIn(none, text); found {
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
 			return res
 		}
-		if label, _, found := reportdoc.WovenNoteIn("", string(text)); found {
+		if label, _, found := reportdoc.WovenNoteIn(none, text); found {
 			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
 			return res
 		}
-		if m, found := reportdoc.OutOfOrderIn("", string(text)); found {
+		if m, found := reportdoc.OutOfOrderIn(none, text); found {
 			res.err = "the report's text carries " + m.Line + " out of the order it ships in, past the refusal at the write"
 			return res
 		}
@@ -6241,25 +6242,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				}
 			}
 		}
-		// THE CONVERSE NEEDS A CARVE-OUT, and finding out why is the point of running it.
-		//
-		// It fired 2 of 60 on "CEILING with every gap closed", which looked like a verdict
-		// contradicting its board — and is not. The BENCH closes gaps at the terminal sitting,
-		// AFTER the ceiling has already been determined: the verdict describes the debate's
-		// exit, not the post-adjudication board. That is why Gap.ClosedByBench exists.
-		//
-		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
-		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
-		// the contradiction worth catching — and only where no blocker another seat owns stands
-		// (unfinishedOverRedsWork).
-		benchClosed := 0
-		for _, gOrd := range board.Gaps {
-			if g := board.Gap(gOrd.ID); g != nil && g.ClosedByBench {
-				benchClosed++
-			}
-		}
-		if unfinishedOverRedsWork(recorded, len(board.Gaps), openCount, benchClosed, plan.Blockers) {
-			res.err = "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED — an unfinished verdict over work red itself finished"
+		if m := converseVerdictOracle(recorded, board); m != "" {
+			res.err = m
 			return res
 		}
 	}
@@ -6806,6 +6790,16 @@ func gapIsOpen(board record.Family, id string) bool {
 	return g != nil && g.Open
 }
 
+// flat is s with each run of whitespace one space.
+func flat(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<`
+// outside code written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison are
+// read so, so a seat's own `&lt;` reads the same on each.
+func asRead(s string) string {
+	return strings.NewReplacer("&lt;", "<", `\[^`, "[^").Replace(s)
+}
+
 // assembledSet is EVERY document the assembler wrote, concatenated.
 //
 // The deliverable is a set, and "did this prose reach the reader" is a question about the set:
@@ -6833,6 +6827,7 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 	if err != nil {
 		return err.Error()
 	}
+	flatRpt := flat(asRead(rpt))
 	var missing, unclassified []string
 	seen := map[string]bool{}
 	for _, e := range board.Events {
@@ -6848,10 +6843,13 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 			}
 			continue
 		}
-		// The reader gets the prose as assembly ships it: the tokens of every kind it strips are
-		// gone — a gap anchor a seat quoted into its retire or a prescription carried is not prose.
-		prose := strings.TrimSpace(anchor.StripAssembled(fieldStr(t, e, key)))
-		if prose == "" || strings.Contains(rpt, prose) {
+		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
+		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
+		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
+		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
+		// space, and as a reader reads them (asRead).
+		prose := flat(asRead(reportdoc.StripTokens(fieldStr(t, e, key))))
+		if prose == "" || strings.Contains(flatRpt, prose) {
 			continue
 		}
 		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.GetSeatId(), w, prose))
@@ -8221,9 +8219,55 @@ func maxSittings(m map[string]int) (n int) {
 	return n
 }
 
+// converseVerdictOracle is the verdict oracle's converse over a finished run: recorded is the
+// outcome's word, uppercase. "" when it holds.
+//
+// THE BOARD IT JUDGES IS THE ONE THE DEBATE ENDED ON. The verdict describes the debate's exit, and
+// the bench sits after it: the terminal sitting closes gaps and rules the motions still standing,
+// so the board read after the exit has lost what held the run. Two things carry the exit:
+//
+//   - the gaps the BENCH closed (Gap.ClosedByBench). A non-passing verdict over a board the bench
+//     cleaned is correct; one over a board red itself emptied is the contradiction worth catching.
+//   - the BLOCKERS of the plan the chair's last sitting stored — the plan the engine ended on, as
+//     capture holds every relayed plan to the stored one. A petition the bench was ready for at the
+//     final sitting holds the run at its ceiling (record's epochLimitHeldTheBench), and the bench
+//     rules it at the exit; the plan recomputed afterwards names no blocker, and the run reads as
+//     a CEILING nothing explains. Seed 3 of a 40-run sweep (2026-10-28) ended so: M-45df62f4,
+//     filed by red-lens-voice in epoch 11, readied the bench at epoch 12 of 12.
+func converseVerdictOracle(recorded string, board record.Family) string {
+	open, benchClosed := 0, 0
+	for _, gOrd := range board.Gaps {
+		g := board.Gap(gOrd.ID)
+		if g == nil {
+			continue
+		}
+		if g.Open {
+			open++
+		}
+		if g.ClosedByBench {
+			benchClosed++
+		}
+	}
+	stored, err := record.StoredPlans(board.Events)
+	if err != nil {
+		return "verdict oracle: the plans the record stored do not read: " + err.Error()
+	}
+	var blockers []record.PlanBlocker
+	if n := len(stored); n > 0 {
+		blockers = stored[n-1].Plan.Blockers
+	}
+	if !unfinishedOverRedsWork(recorded, len(board.Gaps), open, benchClosed, blockers) {
+		return ""
+	}
+	if len(stored) == 0 {
+		return "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED and no plan stored — the board the debate ended on is not on the record"
+	}
+	return "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED and no blocker another seat owns on the plan it ended on — an unfinished verdict over work red itself finished"
+}
+
 // unfinishedOverRedsWork is the verdict oracle's converse check: a run that ended neither VERIFIED nor
 // HALTED over a board red itself emptied — every gap closed, none by the bench — while nothing on the
-// record's plan holds the PASS that another seat must clear.
+// plan the debate ended on holds the PASS that another seat must clear (converseVerdictOracle).
 //
 // ONLY WHERE NO BLOCKER ANOTHER SEAT OWNS STANDS. A blocker the chair cannot clear is work red has not
 // finished, whatever the gaps say: a reopened citation or proof its owner sat for and left, and a lens

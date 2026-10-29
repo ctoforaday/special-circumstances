@@ -139,27 +139,14 @@ func TestIDAndIDPatternAgreeForEveryKind(t *testing.T) {
 	ID("label", [4]byte{})
 }
 
-// Replace and StripAssembled. The assembly strips a stripped kind's token whatever stands inside
-// it — a seat may copy one into record prose with its id elided — and leaves every other kind.
-func TestReplaceAndStripAssembled(t *testing.T) {
+// Replace rewrites each token of a real id, of every kind, and nothing else.
+func TestReplace(t *testing.T) {
 	in := "A<!--fx:F-00000001--> b<!--cite:C-00000002-->. C<!--proof:P-00000003--><!--gap:G-00000004-->."
 	if got, want := Replace(in, func(_, id string) string { return "[" + id + "]" }), "A[F-00000001] b[C-00000002]. C[P-00000003][G-00000004]."; got != want {
 		t.Errorf("Replace = %q, want %q", got, want)
 	}
 	if got := Replace("no anchors", func(string, string) string { return "x" }); got != "no anchors" {
 		t.Errorf("Replace with no token = %q", got)
-	}
-	if got, want := StripAssembled("A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->."), "A b<!--cite:C-00000002-->."; got != want {
-		t.Errorf("StripAssembled = %q, want %q", got, want)
-	}
-	// An opener with no close on its line takes nothing after it.
-	// A PLACEHOLDER IS STRIPPED WITH ITS KIND, and a woven kind's stays for the weave: the shape is
-	// read off the tag, whatever the token holds.
-	if got, want := StripAssembled("a `<!--fx:F-…-->`, `<!--gap:G-…-->` or `<!--cite:C-…-->` token"), "a ``, `` or `<!--cite:C-…-->` token"; got != want {
-		t.Errorf("StripAssembled = %q, want %q", got, want)
-	}
-	if in := "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"; StripAssembled(in) != in {
-		t.Errorf("StripAssembled took text across a line end: %q", StripAssembled(in))
 	}
 }
 

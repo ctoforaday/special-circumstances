@@ -19,7 +19,8 @@ func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, evs...)
 	run := runtest.Open(t, dir)
-	docs, err := AssembleAll(run)
+	// The document as composed, under no masthead: it is compared with the view whole.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +33,7 @@ func inquiriesDoc(t *testing.T, evs ...*record.Event) (doc, seatView string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return doc, view.InquiryBody(fam.Events, fam.At, false)
+	return doc, view.InquiryBody(fam.Events, fam.At, false, view.AsWritten)
 }
 
 // EACH REVIEW THE CHAIR RECORDED SHIPS WITH ITS REASON, in the inquiries' own document, after the
@@ -78,7 +79,28 @@ func TestARunWithNoReviewShipsTheInquiriesAlone(t *testing.T) {
 	if strings.Contains(doc, "Inquiry reviews") {
 		t.Errorf("a run with no review ships a heading for them:\n%s", doc)
 	}
-	if strings.TrimSpace(doc) != strings.TrimSpace(EscapeNotes(seatView)) {
+	if strings.TrimSpace(doc) != strings.TrimSpace(stdReaders().escapeNotes(seatView)) {
 		t.Errorf("with no review, inquiries.md is not the inquiries view whole:\n%s\nview:\n%s", doc, seatView)
+	}
+}
+
+// THE DOCUMENT KEEPS A VALUE'S PARAGRAPHS INSIDE ITS ITEM, AND THE VIEW PRINTS IT AS WRITTEN. One
+// rendering serves both: inquiries.md indents each later line of a value to its item's content
+// column (inItem), so a blank line or a fence stays in the row, and `show inquiries` prints the
+// record's text, which a seat quotes back.
+func TestAnInquiryValueKeepsItsParagraphsInTheDocument(t *testing.T) {
+	doc, seatView := inquiriesDoc(t,
+		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("census the plan.\n\nThen argue.")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), SupersedesStatus: proto.String("1"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Reason: proto.String("none.\n\nThe plan names no function."), Method: proto.String("read it\n```\ngrep x")}))
+	for _, want := range []string{"census the plan.\n\n  Then argue.", "none.\n\n  The plan names no function.", "  - method: read it\n    ```\n    grep x\n    ```"} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("inquiries.md does not keep %q inside its item:\n%s", want, doc)
+		}
+	}
+	for _, want := range []string{"census the plan.\n\nThen argue.", "none.\n\nThe plan names no function.", "  - method: read it\n```\ngrep x"} {
+		if !strings.Contains(seatView, want) {
+			t.Errorf("the seat's view does not print %q as written:\n%s", want, seatView)
+		}
 	}
 }

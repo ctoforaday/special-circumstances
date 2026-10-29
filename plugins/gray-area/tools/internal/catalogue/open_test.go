@@ -325,7 +325,7 @@ const shape1Session = `CREATE TABLE session (session_id TEXT PRIMARY KEY, projec
 // asserted separately, because an unescaped `%41` would decode to `A` and still parse.
 func TestURIsNameThePathGiven(t *testing.T) {
 	const wantRead = "mode=ro&_pragma=query_only(1)&_defensive=1&_pragma=busy_timeout(2000)"
-	const wantWrite = "_txlock=immediate&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
+	const wantWrite = "_txlock=immediate&_pragma=busy_timeout(60000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
 	rooted := func(p string) string {
 		s := filepath.ToSlash(p)
 		if !strings.HasPrefix(s, "/") {
@@ -1034,7 +1034,7 @@ func BenchmarkOpen(b *testing.B) {
 // differently from an immediate refusal — with the package's prefix once, not twice. The holder is
 // a plain rollback-journal connection with a write transaction open: its RESERVED lock denies the
 // write URI's `journal_mode(WAL)` conversion, which is the BUSY Open retries. The budget is
-// shortened so the test proves the expiry rather than waiting five seconds for it.
+// shortened so the test proves the expiry rather than waiting the production minute for it.
 func TestOpenGivesUpWhenTheLockOutlivesTheBudget(t *testing.T) {
 	was := openBusyBudget
 	openBusyBudget = 150 * time.Millisecond

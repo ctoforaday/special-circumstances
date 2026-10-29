@@ -81,7 +81,8 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if s := by["Open questions"]; !s.Ships || s.Text != "## Open questions\n\nWhether 13 is prime." {
 		t.Errorf("the section that closes the report's text is not the Open questions row's: %+v", s)
 	}
-	docs, err := AssembleAll(run)
+	// The set as composed for shipping, its masthead not yet on it: the layout's text is that.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +146,44 @@ func TestTheReportTemplateListsTheLayoutsSections(t *testing.T) {
 	}
 }
 
+// A FENCE OF FOUR HOLDS A LINE OF THREE, for every reader of the report's lines: read as a close,
+// the inner line made the code after it prose, and a "# " line in the code the report's title.
+func TestALongerFenceHoldsAShorterOne(t *testing.T) {
+	got := part(ParseText("````\n```\n# Not a title\n## Not a section\n````\n# The title\n\nBody.\n"))
+	if got.title != "# The title" {
+		t.Errorf("the title is %q, want the line after the fence", got.title)
+	}
+	var fenced []bool
+	for _, l := range ParseText("~~~~\n~~~\nin\n~~~~ x\n~~~~\nout").lines {
+		fenced = append(fenced, l.code)
+	}
+	if want := []bool{true, true, true, true, true, false}; !slices.Equal(fenced, want) {
+		t.Errorf("fenced lines %v, want %v", fenced, want)
+	}
+}
+
+// WHAT IS CODE, AND WHAT IS A HEADING, IS THE PARSER'S ANSWER for every reader of the report's lines
+// (#1580). A line of backticks indented into a code block opens no fence, and neither does a line of
+// prose that opens with a code span — a backtick fence's info string holds no backtick — so the
+// sections after either are sections; a "## " line indented into code, or carried on as a paragraph's
+// continuation, opens none, and a "# " line indented into code is no title.
+func TestCodeAndHeadingsAreTheParsersReading(t *testing.T) {
+	for _, c := range []struct{ name, text, title, body, close string }{
+		{"a fence line indented into code", "    ```\n    x\n\n# Title\n\n## Open questions\n\nq\n", "# Title", "```\n    x", "## Open questions\n\nq"},
+		{"prose opening with a code span", "```x``` is code.\n\n# Title\n\n## Open questions\n\nq\n", "# Title", "```x``` is code.", "## Open questions\n\nq"},
+		{"a heading indented into code", "# Title\n\n    ## Open questions\n\nbody\n", "# Title", "## Open questions\n\nbody", ""},
+		{"a title line indented into code", "Intro.\n\n    # Not a title\n\n# Title\n\nbody\n", "# Title", "    # Not a title\n\n\nbody", ""},
+		{"a heading carried on as a paragraph's continuation", "# Title\n\npara\n    ## Open questions\n", "# Title", "para\n    ## Open questions", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := part(ParseText(c.text))
+			if got.title != c.title || !strings.HasSuffix(got.body, c.body) || got.close != c.close {
+				t.Errorf("parted %q as title %q, body %q, close %q; want %q, a body ending %q, close %q", c.text, got.title, got.body, got.close, c.title, c.body, c.close)
+			}
+		})
+	}
+}
+
 // EVERY ROW OF THE JSON CARRIES ITS TEXT AS A STRING, AND A ROW WITH NONE SAYS WHY.
 //
 // A row that did not ship used to omit `text`, so a seat's `jq '.sections[] | select(.text |
@@ -195,5 +234,32 @@ func TestEveryLayoutRowCarriesTextOrSaysWhyItHasNone(t *testing.T) {
 	}
 	if shipping == 0 || absent == 0 {
 		t.Fatalf("the run measured %d shipping and %d absent rows; both kinds are needed for this to test anything", shipping, absent)
+	}
+}
+
+// ONE PARSE PER TEXT. The layout reads each composed document once, however many rows it looks for in
+// it. Counted, not timed. (The write's refusals take ParsedText, which holds the one parse of a text.)
+func TestEachTextIsParsedOnce(t *testing.T) {
+	const title = "# On 91 parsed once"
+	run := runtest.Open(t, newRun(t))
+	id := record.Identity{Run: run, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	blue := title + "\n\n## TL;DR\n\nIt is not.\n\n## Appendix\n\n91 / 7 = 13.\n\n## Open questions\n\nWhether 13 is prime.\n"
+	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+		t.Fatal(err)
+	}
+	docs, err := shippedDocs(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every composed document opens with the title, and so does the report's text, read once to part it.
+	rd, _, marked := countParses(title)
+	if _, err := rd.layoutOf(run); err != nil {
+		t.Fatal(err)
+	}
+	if want := len(docs) + 1; *marked != want {
+		t.Errorf("the layout parsed %d text(s) holding the title, want %d: each of the %d documents once, and the report's text once", *marked, want, len(docs))
 	}
 }

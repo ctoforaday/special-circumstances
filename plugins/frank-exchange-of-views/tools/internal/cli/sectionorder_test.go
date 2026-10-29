@@ -159,7 +159,7 @@ func TestARecordHoldingASectionOutOfOrderStillTakesEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, found := report.OutOfOrderIn("", got); found {
+	if _, found := report.OutOfOrderIn(report.ParseText(""), report.ParseText(got)); found {
 		t.Errorf("the report is still out of order after the move:\n%s", got)
 	}
 	if ed := lastBody(t, runDir, &recordpb.BlueEdit{}); len(ed.GetReopened()) != 0 {

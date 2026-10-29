@@ -33,8 +33,8 @@ func TestWeaveCitationsNumbersInOrderAndComposesBibliography(t *testing.T) {
 	}
 	// The bibliography is composed, one line per distinct source, in [^N] order.
 	if !strings.Contains(got, "## Bibliography") ||
-		!strings.Contains(got, "[^1]: Source A. https://a (accessed 2026-08-03)") ||
-		!strings.Contains(got, "[^2]: Source B. https://b (accessed 2026-08-03)") {
+		!strings.Contains(got, "[^1]: Source A. [https://a](https://a) (accessed 2026-08-03)") ||
+		!strings.Contains(got, "[^2]: Source B. [https://b](https://b) (accessed 2026-08-03)") {
 		t.Errorf("bibliography not composed as expected:\n%s", got)
 	}
 }
@@ -85,7 +85,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	// The report is the record projection (#709): ingest the body so AssembleAll can render it. The
+	// The report is the record projection (#709): ingest the body so AssembleShipped can render it. The
 	// markers are already in `blue`, so the cite event below replays as a no-op (skip-if-present).
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if !strings.Contains(got, "The cache is coherent[^1].") {
 		t.Errorf("citation not woven into the TL;DR:\n%s", got)
 	}
-	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. https://ex/coherence (accessed 2026-08-03)") {
+	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)") {
 		t.Errorf("composed bibliography missing:\n%s", got)
 	}
 }
@@ -154,8 +154,8 @@ func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 	}
 	got := weaveCitations("Claim one<!--cite:C-00000001-->. Claim two<!--cite:C-00000002-->.", sources)
 	for _, want := range []string{
-		"[^1]: The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
-		"- The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
+		"[^1]: The Withdrawn Study. [https://ex/withdrawn](https://ex/withdrawn) (accessed 2026-08-03) **[RETRACTED]**",
+		"- The Withdrawn Study. [https://ex/withdrawn](https://ex/withdrawn) (accessed 2026-08-03) **[RETRACTED]**",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the reader is not told the work was retracted — missing %q:\n%s", want, got)
@@ -164,7 +164,7 @@ func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 	// AND A SOUND SOURCE CARRIES NO WORD. `standing` is the ordinary case; annotating it would
 	// spend the reader's attention on the tool rather than on the literature, and a warning that
 	// prints everywhere is one nobody reads.
-	if strings.Contains(got, "A Sound Study. https://ex/sound (accessed 2026-08-03) **") {
+	if strings.Contains(got, "A Sound Study. [https://ex/sound](https://ex/sound) (accessed 2026-08-03) **") {
 		t.Errorf("a standing work is annotated:\n%s", got)
 	}
 }
@@ -183,7 +183,7 @@ func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) 
 			Corroborated: true, WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. The same source again<!--cite:C-00000002-->.", sources)
-	if !strings.Contains(got, "- Blue's Title. https://ex/p (accessed 2026-08-03) **[RETRACTED]**") {
+	if !strings.Contains(got, "- Blue's Title. [https://ex/p](https://ex/p) (accessed 2026-08-03) **[RETRACTED]**") {
 		t.Errorf("the Bibliography line drops a retraction recorded on another citation of the same url:\n%s", got)
 	}
 }
@@ -203,16 +203,16 @@ func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testin
 	}
 	got := weaveCitations("One<!--cite:C-00000001-->. Two<!--cite:C-00000002-->. Three<!--cite:C-00000003-->.", sources)
 	for _, want := range []string{
-		"[^1]: Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
-		"- Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
-		"[^3]: Withdrawn. https://ex/both (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
-		"- Withdrawn. https://ex/both (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
+		"[^1]: Read As An Abstract. [https://ex/abs](https://ex/abs) (accessed 2026-08-03) **[ABSTRACT ONLY]**",
+		"- Read As An Abstract. [https://ex/abs](https://ex/abs) (accessed 2026-08-03) **[ABSTRACT ONLY]**",
+		"[^3]: Withdrawn. [https://ex/both](https://ex/both) (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
+		"- Withdrawn. [https://ex/both](https://ex/both) (accessed 2026-08-03) **[RETRACTED]** **[ABSTRACT ONLY]**",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "https://ex/full (accessed 2026-08-03) **") {
+	if strings.Contains(got, "[https://ex/full](https://ex/full) (accessed 2026-08-03) **") {
 		t.Errorf("a citation read in full is annotated:\n%s", got)
 	}
 }
@@ -227,10 +227,10 @@ func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *test
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED},
 	}
 	got := weaveCitations("A claim<!--cite:C-00000001-->. Another<!--cite:C-00000002-->.", sources)
-	if !strings.Contains(got, "[^1]: The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
+	if !strings.Contains(got, "[^1]: The Study. [https://ex/p](https://ex/p) (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
 		t.Errorf("the abstract citation's own note is not marked:\n%s", got)
 	}
-	if strings.Contains(got, "- The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
+	if strings.Contains(got, "- The Study. [https://ex/p](https://ex/p) (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
 		t.Errorf("the work is marked abstract-only though another citation's copy may have been the paper:\n%s", got)
 	}
 }
@@ -258,20 +258,94 @@ func TestASubstitutedCopyIsNamedInBothTheNoteAndTheBibliography(t *testing.T) {
 	got := weaveCitations("1<!--cite:C-00000001-->. 2<!--cite:C-00000002-->. 3<!--cite:C-00000003-->. "+
 		"4<!--cite:C-00000004-->. 5<!--cite:C-00000005-->. 6<!--cite:C-00000006-->. 7<!--cite:C-00000007-->.", sources)
 	for _, want := range []string{
-		"[^1]: Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
-		"- Followed. https://ex/landing (accessed 2026-08-03) (full text read at https://ex/landing/full)",
-		"[^2]: Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
-		"- Recovered. https://ex/refused (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: https://web.archive.org/web/2019id_/https://ex/refused]**",
-		"[^3]: Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
-		"- Fuller. https://ex/abs (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://repo.example/open.pdf]**",
-		"[^4]: Named. https://ex/named (accessed 2026-08-03) **[READ FROM ANOTHER COPY: https://arxiv.org/pdf/2101.00001]**",
-		"[^5]: Statement. https://ex/statement (accessed 2026-08-03) **[NO DOCUMENT READ]**",
-		"[^6]: Own. https://ex/own (accessed 2026-08-03)\n",
-		"- Own. https://ex/own (accessed 2026-08-03)\n",
-		"[^7]: Old. https://ex/old (accessed 2026-08-03)\n",
+		"[^1]: Followed. [https://ex/landing](https://ex/landing) (accessed 2026-08-03) (full text read at [https://ex/landing/full](https://ex/landing/full))",
+		"- Followed. [https://ex/landing](https://ex/landing) (accessed 2026-08-03) (full text read at [https://ex/landing/full](https://ex/landing/full))",
+		"[^2]: Recovered. [https://ex/refused](https://ex/refused) (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: [https://web.archive.org/web/2019id\\_/https://ex/refused](https://web.archive.org/web/2019id_/https://ex/refused)]**",
+		"- Recovered. [https://ex/refused](https://ex/refused) (accessed 2026-08-03) **[READ FROM A RECOVERED COPY: [https://web.archive.org/web/2019id\\_/https://ex/refused](https://web.archive.org/web/2019id_/https://ex/refused)]**",
+		"[^3]: Fuller. [https://ex/abs](https://ex/abs) (accessed 2026-08-03) **[READ FROM ANOTHER COPY: [https://repo.example/open.pdf](https://repo.example/open.pdf)]**",
+		"- Fuller. [https://ex/abs](https://ex/abs) (accessed 2026-08-03) **[READ FROM ANOTHER COPY: [https://repo.example/open.pdf](https://repo.example/open.pdf)]**",
+		"[^4]: Named. [https://ex/named](https://ex/named) (accessed 2026-08-03) **[READ FROM ANOTHER COPY: [https://arxiv.org/pdf/2101.00001](https://arxiv.org/pdf/2101.00001)]**",
+		"[^5]: Statement. [https://ex/statement](https://ex/statement) (accessed 2026-08-03) **[NO DOCUMENT READ]**",
+		"[^6]: Own. [https://ex/own](https://ex/own) (accessed 2026-08-03)\n",
+		"- Own. [https://ex/own](https://ex/own) (accessed 2026-08-03)\n",
+		"[^7]: Old. [https://ex/old](https://ex/old) (accessed 2026-08-03)\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// A TITLE'S CITATION IS WOVEN WHERE THE TITLE IS COMPOSED INTO A SECTION. A title past titleLimit
+// ships whole as the Question line, which the weave reads, so a citation token in it becomes a note
+// there and its source is listed; only the H1, which no weave reads, ships without it. Through real
+// assembly.
+func TestALongTitlesCitationIsWovenIntoTheQuestionLine(t *testing.T) {
+	runDir := newRun(t)
+	blue := "# Does the cache stay coherent under every interleaving the protocol permits<!--cite:C-00000001-->, and at what cost to the write path — research report\n\n## TL;DR\nIt does.\n"
+	id := record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []proto.Message{
+		&recordpb.BaseIngest{Text: proto.String(blue)},
+		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
+			Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"), Sha256: proto.String("deadbeef"),
+			Title: proto.String("Coherence Proof"), AccessDate: proto.String("2026-08-03")},
+	} {
+		if _, err := record.Append(id, body); err != nil {
+			t.Fatalf("append %T: %v", body, err)
+		}
+	}
+	a, err := Assemble(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatalf("Assemble: %v", err)
+	}
+	b, err := os.ReadFile(a.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	for _, want := range []string{
+		"# Does the cache stay coherent under every interleaving the protocol permits, and…\n",
+		"**Question:** Does the cache stay coherent under every interleaving the protocol permits[^1], and at what cost to the write path\n",
+		"## Bibliography",
+		"[^1]: Coherence Proof. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report.md does not carry %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "<!--cite:") {
+		t.Errorf("a citation token shipped:\n%s", got)
+	}
+}
+
+// A URL IS LINKED ONLY WHERE IT NAMES A SCHEME THE REPORT LINKS, AND ITS TEXT IS THE URL AS RECORDED.
+// The destination carries the URL's own bytes, encoded where a URL cannot hold one raw; the text a
+// reader sees is the URL as the record holds it, with only markdown's own bytes escaped. A value
+// with no scheme is no URL a reader can follow from the report — linked, "example.org/paper.pdf" is a
+// file beside the report — and one whose scheme report.html does not link ships as its text, as it
+// renders there.
+func TestACitationsURLIsLinkedOnlyByItsSchemeAndShowsAsRecorded(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://example.org/Straße":  "[https://example.org/Straße](https://example.org/Stra%C3%9Fe)",
+		"https://example.org/a b":     "[https://example.org/a b](https://example.org/a%20b)",
+		"https://example.org/a|b":     `[https://example.org/a\|b](https://example.org/a%7Cb)`,
+		"https://example.org/a^b":     "[https://example.org/a^b](https://example.org/a%5Eb)",
+		"https://example.org/?q=[^1]": `[https://example.org/?q=\[^1\]](https://example.org/?q=%5B%5E1%5D)`,
+		"https://example.org/a`b":     "[https://example.org/a&#96;b](https://example.org/a%60b)",
+		"HTTP://example.org/x":        "[HTTP://example.org/x](HTTP://example.org/x)",
+		"mailto:someone@example.org":  "[mailto:someone@example.org](mailto:someone@example.org)",
+		"example.org/paper_v2.pdf":    `example.org/paper\_v2.pdf`,
+		"10.1234/abc":                 "10.1234/abc",
+		"doi:10.1234/abc":             "doi:10.1234/abc",
+		"javascript:alert(1)":         "javascript:alert(1)",
+		"/relative/path":              "/relative/path",
+		"":                            "",
+	} {
+		if got := plainURL(in); got != want {
+			t.Errorf("plainURL(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

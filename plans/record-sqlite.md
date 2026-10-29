@@ -238,7 +238,7 @@ missing and one was actively expensive.
 | setting | why | measured |
 |---|---|---|
 | `journal_mode(WAL)` | concurrent readers across processes | — |
-| `busy_timeout(5000)` | SQLite resolves cross-process races internally before Go sees an error | — |
+| `busy_timeout(60000)` | SQLite resolves cross-process races internally before Go sees an error; sixty seconds because a seat holds the write lock through its validation and fold | a few seconds runs out under concurrent seats at load ~280 |
 | `_txlock=immediate` | a deferred BEGIN upgrades read→write, and SQLite deliberately will NOT apply busy_timeout to an upgrade | 8 processes lost ~half their writes without it |
 | `SetMaxOpenConns(1)` | **was missing.** Two goroutines on two pooled connections collide in SQLITE_BUSY; with one they queue on a Go mutex | — |
 | schema in ONE transaction | **was 171 implicit transactions, each fsyncing** | **525ms → 39ms per fresh database** |
@@ -266,7 +266,7 @@ batching replaces one-fsync-per-statement with a single fsync at COMMIT.
 `renameWithRetry`, a Windows rename workaround with LINEAR backoff and no jitter. Everything else
 relies on `busy_timeout`, and SQLite's default busy handler is a FIXED schedule with no jitter —
 `{1,2,5,10,15,20,25,25,25,50,50,100}`ms, 100ms thereafter — so contending waiters wake in
-lockstep. Past five seconds it is a hard failure and the seat is told its write failed.
+lockstep. Past the 60-second budget it is a hard failure and the seat is told its write failed.
 
 `SetMaxOpenConns(1)` removes the in-process half of that surface entirely, so what remains is
 seat-vs-seat across processes, which the 8-process test exercises and currently passes. Adding
