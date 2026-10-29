@@ -112,6 +112,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	r.sit("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	r.dispatchReturns("red-chair", false)
+	requireEverySittingReturned(t, r)
 	var plan record.Plan
 	if err := json.Unmarshal([]byte(out), &plan); err != nil {
 		t.Fatalf("the plan of the last chair sitting does not read: %v\n%s", err, out)
@@ -145,6 +146,7 @@ func TestTheConverseVerdictOracleJudgesThePlanTheDebateEndedOn(t *testing.T) {
 			t.Fatal(err)
 		}
 		r.dispatchReturns("judge", false)
+		requireEverySittingReturned(t, r)
 		if got, why, ok, err := record.DeriveVerdict(r.run()); err != nil || !ok || got != "CEILING" {
 			t.Fatalf("derived (%q, %q, %v, %v), want CEILING: the limit held the bench", got, why, ok, err)
 		}

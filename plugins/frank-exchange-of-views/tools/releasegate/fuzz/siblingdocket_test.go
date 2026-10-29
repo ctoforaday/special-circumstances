@@ -89,6 +89,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 		t.Errorf("the bench sat for %s and left docket motion(s) %v standing — the plan never readies it for them again", gapID, left)
 	}
 	r.dispatchReturns("judge", r.envelopeEnds("judge"))
+	requireEverySittingReturned(t, r)
 	if r.actErr != "" {
 		t.Errorf("the bench's envelope after ruling both: %s", r.actErr)
 	}

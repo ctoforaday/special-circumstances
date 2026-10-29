@@ -323,6 +323,14 @@ type runner struct {
 	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
 	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
 	sittingAgent map[string]string
+	// unreturned counts, per seat, the sittings sit opened whose dispatch has not yet returned
+	// (dispatchReturns), whether or not the opening carried an agent: a test that drives sittings
+	// asserts it is zero (requireEverySittingReturned), so a dispatch that skips its return fails it.
+	unreturned map[string]int
+	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
+	// seat whose work arrives as items: the sittings the record must read as failed
+	// (record.FailedSittingsOf), which runOne compares with what the record does read.
+	failedSittings int
 	// runHandle is runDir RESOLVED, filled by the constructor and never written again. It is
 	// the one field mu does not guard, and deliberately so: it is immutable after construction,
 	// which is what makes it safe to read from the concurrent seats above.
@@ -1618,6 +1626,10 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	done := make(chan struct{})
 	r.registering[seatID] = done
 	r.registered[seatID] = true
+	if r.unreturned == nil {
+		r.unreturned = map[string]int{}
+	}
+	r.unreturned[seatID]++
 	delete(r.judged, seatID)
 	delete(r.closedNow, seatID)
 	if strings.HasPrefix(seatID, "red-lens-") {
@@ -1661,16 +1673,31 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 // seat sits again (record.satThroughOf), and moves no pin and counts nothing toward retirement.
 const neverClosedPct = 5
 
-// sittingsClosed counts the sittings dispatchReturns closed, and sittingsLeftOpen those it left
-// open by the neverClosedPct draw, so the sweep can say when either stopped being reached.
-var sittingsClosed, sittingsLeftOpen atomic.Int64
+// diedAfterAdmissionPct is the chance a drawn run's sitting whose envelope was admitted is left open
+// after the admission, as a live subagent's is when it dies between the envelope call's PostToolUse
+// and SubagentStop: the record holds the admission and no close, so the sitting reads never closed,
+// and not failed (record.FailedSittingsOf reads closed sittings only).
+const diedAfterAdmissionPct = 3
+
+// harnessGaveUpPct is the chance a drawn run's sitting whose envelope the record and the schema
+// accept returns with no admission written, as a live one does when the harness gives up on the
+// envelope call before it succeeds, and SubagentStop still closes it: the record reads the sitting
+// as failed (record.FailedSittingsOf). No seat's envelope is refused in a green sweep, so without
+// this draw runOne's failed-sitting check would compare zero with zero on every run.
+const harnessGaveUpPct = 3
+
+// sittingsClosed counts the closes dispatchReturns wrote; sittingsLeftOpen the sittings it left open
+// by the neverClosedPct draw; admittedNeverClosed those it left open after their admission by the
+// diedAfterAdmissionPct draw; and failedSittingsClosed the closes it wrote with no admission, for a
+// seat whose work arrives as items. The sweep can then say when any of them stopped being reached.
+var sittingsClosed, sittingsLeftOpen, admittedNeverClosed, failedSittingsClosed atomic.Int64
 
 // dispatchReturns is what the hooks write when a dispatched seat returns, for a sitting whose
 // opening carried an agent: the PostToolUse hook's admission of its envelope, when the envelope was
-// put to the record and admitted, and then the SubagentStop hook's sitting_close. Each is the
-// shipped hook's own call on the writer it spawns (sittinghook.Admission, sittinghook's spawn), so
-// the record holds what a live return leaves on it. A sitting whose opening carried no agent has no
-// stop to join; it is sat through at its opening.
+// put to the record and admitted, and then the SubagentStop hook's sitting_close, naming the agent's
+// transcript as the hook's spawn does. Each is the shipped hook's own call on the writer it spawns
+// (sittinghook.Admission, sittinghook's spawn), so the record holds what a live return leaves on it.
+// A sitting whose opening carried no agent has no stop to join; it is sat through at its opening.
 //
 // A FORCED RUN CLOSES EVERY SITTING, because its bound (findsFresh) is counted in sittings: one left
 // open moves no pin, so its lens sits again at the same head and draws again from the shared
@@ -1679,27 +1706,84 @@ func (r *runner) dispatchReturns(seatID string, admitted bool) {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
 	delete(r.sittingAgent, seatID)
+	if r.unreturned[seatID] > 0 {
+		r.unreturned[seatID]--
+	}
 	r.mu.Unlock()
 	if agent == "" {
 		return
 	}
-	if !r.forcedVerdict() && r.coin(neverClosedPct) {
+	drawn := !r.forcedVerdict()
+	if drawn && r.coin(neverClosedPct) {
 		sittingsLeftOpen.Add(1)
 		return
 	}
-	if admitted {
-		r.hookWrites("-phase", "admission", "-agent-id", agent)
+	if admitted && drawn && r.coin(harnessGaveUpPct) {
+		admitted = false
 	}
-	r.hookWrites("-phase", "close", "-agent-id", agent, "-agent-type", agentTypeOf(seatID))
+	if admitted {
+		admitted = r.hookWrites("-phase", "admission", "-agent-id", agent)
+		if admitted && drawn && r.coin(diedAfterAdmissionPct) {
+			admittedNeverClosed.Add(1)
+			return
+		}
+	}
+	transcript, ok := r.transcriptOf(agent)
+	if !ok {
+		return
+	}
+	if !r.hookWrites("-phase", "close", "-agent-id", agent, "-agent-type", agentTypeOf(seatID), "-transcript", transcript) {
+		return
+	}
 	sittingsClosed.Add(1)
+	if !admitted && record.WorkArrivesAsItems(seatclass.RoleOfSeat(seatID), seatID) {
+		failedSittingsClosed.Add(1)
+		r.mu.Lock()
+		r.failedSittings++
+		r.mu.Unlock()
+	}
 }
 
-// hookWrites runs the sitting writer as the hooks spawn it, against this run.
-func (r *runner) hookWrites(args ...string) {
+// transcriptOf is the transcript the close names for agent, as SubagentStop names the subagent's
+// own. The harness's seats take no model turn, so the file it writes is EMPTY: the record names a
+// readable transcript, and servedmodel reads it NOT MEASURED because it carries no assistant turn
+// naming a model, which is what happened. A missing file would read as a transcript left on another
+// box, and a parseable turn would claim a model nothing served.
+func (r *runner) transcriptOf(agent string) (string, bool) {
+	path := filepath.Join(r.runDir, "transcripts", "agent-"+agent+".jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		r.noteActErr("the transcript the close names: " + err.Error())
+		return "", false
+	}
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		r.noteActErr("the transcript the close names: " + err.Error())
+		return "", false
+	}
+	return path, true
+}
+
+// hookWrites runs the sitting writer as the hooks spawn it, against this run, and says whether the
+// write succeeded.
+func (r *runner) hookWrites(args ...string) bool {
 	out, err := exec.Command(r.writer, append([]string{"-run", r.runDir}, args...)...).CombinedOutput()
 	r.progress.Store(time.Now().UnixNano())
 	if err != nil {
 		r.noteActErr(fmt.Sprintf("%s %s: %v: %s", sittingWriterName, strings.Join(args, " "), err, strings.TrimSpace(string(out))))
+		return false
+	}
+	return true
+}
+
+// requireEverySittingReturned fails t when a sitting sit opened has not returned through
+// dispatchReturns: a dispatch that skips its return leaves its agent's sitting never closed.
+func requireEverySittingReturned(t *testing.T, r *runner) {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for seat, n := range r.unreturned {
+		if n != 0 {
+			t.Errorf("%d sitting(s) of %s opened and never returned through dispatchReturns", n, seat)
+		}
 	}
 }
 
@@ -5464,6 +5548,20 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = settledErr
 		return res
 	}
+	// THE RECORD READS AS FAILED EXACTLY THE SITTINGS THE HARNESS CLOSED UNADMITTED: every close
+	// dispatchReturns wrote with no admission, for a seat whose work arrives as items, and no other.
+	r.mu.Lock()
+	closedUnadmitted := r.failedSittings
+	r.mu.Unlock()
+	failed, ferr := record.FailedSittings(r.run())
+	if ferr != nil {
+		res.err = "failed sittings: " + ferr.Error()
+		return res
+	}
+	if len(failed) != closedUnadmitted {
+		res.err = fmt.Sprintf("failed sittings: the record reads %d sitting(s) as failed, and the harness closed %d with no admission: %+v", len(failed), closedUnadmitted, failed)
+		return res
+	}
 	verdict, verr := readVerdict(result)
 	if verr != nil {
 		res.err = verr.Error()
@@ -6567,8 +6665,8 @@ var reportExemptions = map[string]string{
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
-	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting) and record.TranscriptOf, carrying no prose, never rendered",
-	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, carrying no prose, never rendered",
+	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics) and record.TranscriptsOf (capture's transcript list), carrying no prose, never rendered",
+	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, and record.OneAdmissionASitting (its own write guard), carrying no prose, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
