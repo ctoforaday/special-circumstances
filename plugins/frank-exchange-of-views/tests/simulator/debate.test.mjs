@@ -57,13 +57,109 @@ test('maxRounds is refused as an argument, with the terms that replaced it', asy
   assert.equal(world.calls.length, 0, 'refused before anything was dispatched')
 })
 
-test('null chair, blue synthesis, blue response and bench abort cleanly, each naming its seat', async () => {
-  const nullFor = (prefix, chair) => makeWorld((p, o) => (o.label.startsWith(prefix) ? null : makeResponder({ chair })(p, o)))
-  await assert.rejects(nullFor('red-chair').run(script, ARGS), /red-chair sitting 1 returned null/)
-  await assert.rejects(nullFor('blue-synthesize').run(script, ARGS), /blue synthesis returned null/)
-  await assert.rejects(nullFor('blue-respond').run(script, ARGS), /blue response \(epoch 1\) returned null/)
-  const benchPlan = chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) })
-  await assert.rejects(nullFor('judge', [benchPlan, passChair()]).run(script, ARGS), /bench sitting \(epoch 1\) returned null/)
+// ── a seat's failed sitting ─────────────────────────────────────────────────────────────────
+
+// A SEAT'S FAILED SITTING DOES NOT STOP THE RUN (ruled by gblock 2026-10-27/28; universe-m35 died of
+// one at epoch 6). Two failures reach the engine: the harness THROWS when a seat dispatched with a
+// schema ends without its envelope, and agent() returns NULL when the agent dies on an API error.
+// failing(prefix, n, how) fails the first n sittings whose label starts with prefix, then serves the
+// responder's envelopes.
+const NUDGE_ERROR = 'agent({schema}): subagent completed without calling StructuredOutput (after in-conversation nudge)'
+const failing = (prefix, n, how, seats) => {
+  let left = n
+  return (p, o) => {
+    if (o.label.startsWith(prefix) && left > 0) {
+      left--
+      if (how === 'throws') throw new Error(NUDGE_ERROR)
+      return null
+    }
+    return seats(p, o)
+  }
+}
+const engaged = () => chairEnv() // the evidence lens and blue on G-00000001
+const docketed = () => chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) })
+const petitioned = () => chairEnv({ plan: plan([petitionBench()], { blockers: [blocker('M-00000001', 'judge')] }) })
+
+// EACH SINGLE DISPATCH IN THE LOOP: the seat fails once, the run goes on, the next plan readies it
+// again (the record still lists what it owes), it sits, and the run reaches its outcome.
+for (const how of ['throws', 'returns null']) {
+  for (const [name, prefix, owes] of [
+    ['blue', 'blue-respond', engaged],
+    ['the bench on its docket', 'judge #', docketed],
+    ['the bench hearing a petition', 'judge · petition', petitioned],
+  ]) {
+    test(`${name}: a sitting that ${how} is dispatched again in the next epoch, and the run reaches its outcome`, async () => {
+      const world = makeWorld(failing(prefix, 1, how, makeResponder({ chair: [owes(), owes(), passChair()] })))
+      const out = await world.run(script, ARGS)
+      assert.equal(out.verdict, 'VERIFIED')
+      assert.equal(labelsOf(world, prefix).length, 2, `${prefix} sat in epoch 1, failed, and sat again in epoch 2`)
+      assert.ok(world.logs.some((l) => l.includes(prefix) && (how === 'throws' ? l.includes(NUDGE_ERROR) : l.includes('returned nothing'))), 'the failure is logged with what the harness said')
+      assert.equal(labelsOf(world, 'judge · assemble').length, 1, 'the assembly sitting records the outcome')
+    })
+  }
+}
+
+// THE CHAIR RELAYS THE PLAN, so a chair sitting that fails dispatches nobody that epoch and the chair
+// sits again; failures that are not in a row stop nothing.
+test('a chair sitting that fails is sat again in the next epoch, and failures not in a row stop nothing', async () => {
+  const seats = makeResponder({ chair: [engaged(), engaged(), passChair()] })
+  let n = 0
+  const world = makeWorld((p, o) => {
+    if (o.label.startsWith('red-chair')) {
+      n++
+      if (n === 1 || n === 3 || n === 4) throw new Error(NUDGE_ERROR)
+    }
+    return seats(p, o)
+  })
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(labelsOf(world, 'red-chair').length, 6, 'fail, plan, fail, fail, plan, PASS')
+  assert.equal(labelsOf(world, 'blue-respond').length, 2, 'nobody sits in an epoch whose chair relayed no plan')
+})
+
+// NO_PROGRESS_EPOCHS CHAIR FAILURES IN A ROW STOP THE DEBATE UNVERIFIED, naming the chair, and the
+// assembly sitting stamps UNVERIFIED with that reason.
+test('three chair failures in a row stop the run UNVERIFIED, naming the chair', async () => {
+  const world = makeWorld(failing('red-chair', 3, 'throws', makeResponder()))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.equal(labelsOf(world, 'red-chair').length, NO_PROGRESS_EPOCHS)
+  assert.deepEqual(out.termination, { seat_stop: { seat: 'red-chair', failures: NO_PROGRESS_EPOCHS } })
+  const assembly = firstPrompt(world, 'judge · assemble')
+  assert.ok(/it is UNVERIFIED, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: seat failure: red-chair failed 3 sittings in a row/.test(assembly), `the stamp names the chair: ${assembly.slice(0, 600)}`)
+})
+
+// THE SYNTHESIS AND THE ASSEMBLY HAVE NO EPOCH TO BE RE-DISPATCHED IN, so each is sat again in place.
+test('a failed synthesis is sat again in place; three in a row stop the debate before it opens, UNVERIFIED', async () => {
+  const once = makeWorld(failing('blue-synthesize', 1, 'returns null', makeResponder()))
+  assert.equal((await once.run(script, ARGS)).verdict, 'VERIFIED')
+  assert.equal(labelsOf(once, 'blue-synthesize').length, 2)
+  const thrice = makeWorld(failing('blue-synthesize', 3, 'throws', makeResponder()))
+  const out = await thrice.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.equal(labelsOf(thrice, 'red-chair').length, 0, 'the debate does not open')
+  assert.deepEqual(out.termination, { seat_stop: { seat: 'blue-synthesize', failures: NO_PROGRESS_EPOCHS } })
+})
+
+test('a failed assembly sitting is sat again in place; three in a row stop the run naming the verdict it could not record', async () => {
+  const once = makeWorld(failing('judge · assemble', 2, 'throws', makeResponder({ chair: [passChair()] })))
+  const out = await once.run(script, ARGS)
+  assert.equal(out.gaps_outstanding, 0)
+  assert.equal(labelsOf(once, 'judge · assemble').length, 3)
+  const thrice = makeWorld(failing('judge · assemble', 3, 'returns null', makeResponder({ chair: [passChair()] })))
+  await assert.rejects(thrice.run(script, ARGS), (e) => /^the assembly sitting failed 3 sittings in a row/.test(e.message) && /the debate had ended VERIFIED/.test(e.message))
+})
+
+// THE FRONTIER AND THE TERMINAL SITTING: a failure is logged and the run goes on.
+test('a failed frontier or terminal sitting is logged and the run goes on', async () => {
+  const frontier = makeWorld(failing('frontier', 1, 'throws', makeResponder({ chair: [passChair()] })))
+  assert.equal((await frontier.run(script, ARGS)).verdict, 'VERIFIED')
+  const held = chairEnv({ plan: plan([], { blockers: [blocker('M-00000001', 'judge')], why: ['nobody ready'] }) })
+  const terminal = makeWorld(failing('judge · terminal', 1, 'throws', makeResponder({ chair: [held] })))
+  const out = await terminal.run(script, ARGS)
+  assert.equal(labelsOf(terminal, 'judge · terminal').length, 1)
+  assert.equal(labelsOf(terminal, 'judge · assemble').length, 1)
+  assert.equal(out.verdict, 'UNVERIFIED')
 })
 
 test('a chair envelope without the plan\'s fields aborts: the envelope is the verb\'s JSON, relayed verbatim', async () => {
@@ -144,7 +240,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   const out = await world.run(script, ARGS)
   assert.deepEqual({ verdict: out.verdict, epochs: out.epochs, gaps: out.gaps_outstanding, term: out.termination },
-    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, why: [], no_progress: null } })
+    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, why: [], no_progress: null, seat_stop: null } })
   assert.deepEqual(world.phases, ['Frontier', 'Blue', 'Red', 'Assemble'])
   assert.equal(labelsOf(world, 'blue-lane').length, 3)
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
@@ -183,7 +279,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], blockers: [blocker('M-00000001', 'judge')] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
-  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null })
+  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null, seat_stop: null })
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
 })
@@ -1327,12 +1423,6 @@ test('an engine stop convenes nobody: no party of the plan it stopped on, no ter
   assert.equal(world.calls[world.calls.length - 1].opts.label, 'red-chair #2 · test', 'the sitting the engine stopped on is the last one dispatched')
   assert.equal(labelsOf(world, 'judge · terminal').length, 0, 'the plan the engine stopped on convenes no terminal sitting, whatever blockers it lists')
   assert.equal(labelsOf(world, 'judge · assemble').length, 0, 'the assembly sitting records the outcome, and a stopped run has none')
-})
-
-test('an assembly sitting that returns nothing stops the run: no envelope states a verdict the seat that records it never confirmed', async () => {
-  const seats = makeResponder()
-  const world = makeWorld((p, o) => (/^judge · assemble/.test(o.label) ? null : seats(p, o)))
-  await assert.rejects(world.run(script, ARGS), (e) => /^the assembly sitting returned null/.test(e.message) && /the debate had ended VERIFIED/.test(e.message))
 })
 
 // A RESUME REPLAYS THE SITTINGS THAT COMPLETED AND RUNS THE REST. The Workflow tool's resume hands a

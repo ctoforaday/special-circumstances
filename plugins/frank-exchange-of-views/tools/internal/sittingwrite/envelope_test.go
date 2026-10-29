@@ -67,4 +67,7 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "motion M2 ") {
 		t.Errorf("the entry is not the tool's refusal naming the twins: %v", l)
 	}
+	if got := admissions(t, runDir); len(got) != 0 {
+		t.Errorf("a refused envelope was recorded as admitted: %v", got)
+	}
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // planKindRenames is each blocker kind word an archived plan prints that the live table spells
-// otherwise (EventSchema 46): a citation or proof nobody has checked as it stands is one kind,
+// otherwise (EventSchema 47): a citation or proof nobody has checked as it stands is one kind,
 // whether an edit reopened it or nobody ever checked it, and a proof judged unsound is one failed
 // check beside a citation nobody could read. These describe ARCHIVED bytes, so they are migrate's
 // own table, and the live table never holds the old words.

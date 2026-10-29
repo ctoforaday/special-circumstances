@@ -23,7 +23,7 @@ var valueRenames = map[protoreflect.FullName]map[string]string{
 	// same value. (A motion's subject is its arm, which inquiryArm respells.)
 	"feov.record.v1.AboutKind": {"avenue": "inquiry",
 		// ONE KIND FOR EVERY ANCHOR WHOSE CHECK FAILED: a gap about a proof judged unsound is a gap
-		// about its anchor, as one about a citation nobody could read is (EventSchema 46).
+		// about its anchor, as one about a citation nobody could read is (EventSchema 47).
 		"proof": "anchor"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
 	// A GAP'S CLASS: every archived slug the closed set merged, dropped or never had (gapclass.go).

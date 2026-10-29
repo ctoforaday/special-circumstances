@@ -38,6 +38,8 @@ type SQLiteSource struct {
 	unclassified []string
 	// lists are the list tables the schema has, as "word.field" (HoldsList).
 	lists map[string]bool
+	// words are the event types the source's vocabulary declares, read by Events (HoldsWord).
+	words map[string]bool
 }
 
 // OpenSQLite copies the record's file set from recordsDir into scratchDir and opens the copy.
@@ -105,6 +107,7 @@ func (s *SQLiteSource) Events() ([]OldEvent, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.words = words
 	evs, err := s.envelopes()
 	if err != nil {
 		return nil, err
@@ -434,6 +437,10 @@ func (s *SQLiteSource) Unclassified() []string {
 // HoldsList is whether the source's schema has the table of word's list field, empty or not: a
 // source without it predates the field, and one with it states the field's value, none included.
 func (s *SQLiteSource) HoldsList(word, field string) bool { return s.lists[word+"."+field] }
+
+// HoldsWord is whether the source's vocabulary declares the event type word, written or not: a source
+// that does not predates it. Read once Events has read the vocabulary.
+func (s *SQLiteSource) HoldsWord(word string) bool { return s.words[word] }
 
 // SourceEpoch is the event-schema epoch the source record states, and whether it states one.
 //
