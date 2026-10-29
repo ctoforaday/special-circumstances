@@ -33,18 +33,21 @@ func DefaultDir() (string, error) {
 	return filepath.Join(home, ".local", "state", "special-circumstances", "catalogue"), nil
 }
 
-// writeDSN carries the pragmas in the order that matters. busy_timeout is set BEFORE
+// writeQuery carries the pragmas in the order that matters, and is read at each open so that the
+// busy_timeout it carries is openBusyBudget, the budget Open retries with. busy_timeout is set BEFORE
 // journal_mode(WAL), because converting to WAL takes an exclusive lock and a concurrent opener
 // with no timeout yet fails instantly rather than waiting — the defect fixed in #814, on the same
 // engine, which this store would otherwise reproduce.
 //
 // It reaches SQLite only as the query of writeURI's `file:` URI, never appended to a bare path:
 // see uriFor for why.
-const writeDSN = "?_txlock=immediate" +
-	"&_pragma=busy_timeout(5000)" +
-	"&_pragma=journal_mode(WAL)" +
-	"&_pragma=synchronous(NORMAL)" +
-	"&_pragma=foreign_keys(1)"
+func writeQuery() string {
+	return fmt.Sprintf("_txlock=immediate"+
+		"&_pragma=busy_timeout(%d)"+
+		"&_pragma=journal_mode(WAL)"+
+		"&_pragma=synchronous(NORMAL)"+
+		"&_pragma=foreign_keys(1)", openBusyBudget.Milliseconds())
+}
 
 // readDSN is the query path's own. `_defensive=1` makes `PRAGMA writable_schema=1` a silent
 // no-op — measured: it reads back 0 with the flag and 1 without, on the same connection — and
@@ -61,7 +64,7 @@ const writeDSN = "?_txlock=immediate" +
 const readDSN = "?mode=ro&_pragma=query_only(1)&_defensive=1&_pragma=busy_timeout(2000)"
 
 // uriFor renders path as the `file:` URI every connection this package opens is given, with
-// rawQuery written verbatim (which is what keeps `busy_timeout(5000)`'s parentheses intact).
+// rawQuery written verbatim (which is what keeps `busy_timeout(60000)`'s parentheses intact).
 //
 // A BARE PATH NAMES A DIFFERENT FILE. modernc truncates a non-`file:` DSN at its first `?`, so a
 // store at `…/a?b/catalogue.db` opened `…/a` — created it, 8192 bytes — and a `#` or `%` in a URI
@@ -97,7 +100,7 @@ func readURI(path string) (string, error) {
 
 // writeURI is Open's connection, and the only one that can write.
 func writeURI(path string) (string, error) {
-	return uriFor(path, strings.TrimPrefix(writeDSN, "?"))
+	return uriFor(path, writeQuery())
 }
 
 // Class is what recognise makes of a file.
@@ -295,7 +298,7 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 	// pragma reads the header under a shared lock, then needs an exclusive one to convert. N
 	// independent openers of a fresh store — N hook processes at a session start — do exactly
 	// that at once. MEASURED on the Windows CI leg: TestConcurrentOpenersRebuildOnce/fresh failed
-	// in 0.17s with `database is locked (5) (SQLITE_BUSY)`, the 5-second busy_timeout never
+	// in 0.17s with `database is locked (5) (SQLITE_BUSY)`, the busy_timeout never
 	// engaged. recordsql escapes it by caching one connection per path in-process; hooks are
 	// separate processes, so here the whole classify-and-write phase is retried instead. Once one
 	// opener has converted the file, the others' pragma is a no-op and their IMMEDIATE BEGIN
@@ -323,9 +326,13 @@ func Open(path string, notice io.Writer) (*sql.DB, error) {
 	}
 }
 
-// openBusyBudget is how long Open keeps retrying SQLITE_BUSY: the same 5s as the write DSN's
-// busy_timeout. A variable so a test can shorten it.
-var openBusyBudget = 5 * time.Second
+// openBusyBudget is how long Open keeps retrying SQLITE_BUSY, and the write URI's busy_timeout
+// (writeQuery) — one figure. A variable so a test can shorten it.
+//
+// SIBLING COPY: frank-exchange-of-views' recordsql/store.go carries the same mechanism under the
+// same names — openBusyBudget and isBusy — on the same 60s budget. It is a separate module and
+// cannot import this one, so the value is set by hand in both and a change here is swept there.
+var openBusyBudget = 60 * time.Second
 
 // openOnce is one attempt at Open's classify-and-write phase. It closes whatever it opened on
 // failure, so a retry starts clean.

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -141,11 +142,10 @@ func TestAReadAfterTheOutcomeRecordsNothing(t *testing.T) {
 }
 
 // A READ THE RECORD CANNOT TAKE IS REFUSED, NOT SERVED UNRECORDED. Another writer holds the lock past
-// the busy budget: the read fails loudly, prints nothing, and nothing is on the record.
+// the busy budget: the read fails loudly, prints nothing, and nothing is on the record. The budget is
+// shortened so the test waits a fraction of a second, not the production minute.
 func TestAReadTheRecordCannotTakeIsRefusedAndServesNothing(t *testing.T) {
-	if testing.Short() {
-		t.Skip("waits out the record's busy budget")
-	}
+	t.Cleanup(recordsql.SetBusyBudgetForTest(300 * time.Millisecond))
 	runDir := newRun(t)
 	writeReport(t, runDir, servedReport)
 	if err := recordsql.CloseUnder(runDir); err != nil {

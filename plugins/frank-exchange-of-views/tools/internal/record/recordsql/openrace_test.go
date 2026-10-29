@@ -145,10 +145,10 @@ func holdFresh(t *testing.T, path string) *sql.Tx {
 	return tx
 }
 
-// holderQuery is holdFresh's connection settings: the busy wait every connection to a record has,
-// and nothing that would take the file out of rollback mode. A fixed figure rather than
-// openBusyBudget, which a test shortens to prove the OPEN's expiry — the holder's patience is not
-// what that test measures.
+// holderQuery is holdFresh's connection settings: a busy wait, as every connection to a record has,
+// and nothing that would take the file out of rollback mode. A fixed 5s rather than openBusyBudget,
+// which a test shortens to prove the OPEN's expiry — the holder's patience is not what that test
+// measures, and a holder that never gets its lock fails in seconds rather than a minute.
 const holderQuery = "_pragma=busy_timeout(5000)"
 
 // TestTheHeldLockCommitsPastAReader pins the stand-in to the one property of a real writer the

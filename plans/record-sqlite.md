@@ -238,7 +238,7 @@ missing and one was actively expensive.
 | setting | why | measured |
 |---|---|---|
 | `journal_mode(WAL)` | concurrent readers across processes | — |
-| `busy_timeout(5000)` | SQLite resolves cross-process races internally before Go sees an error | — |
+| `busy_timeout(60000)` | SQLite resolves cross-process races internally before Go sees an error; sixty seconds because a seat holds the write lock through its validation and fold | a few seconds runs out under concurrent seats at load ~280 |
 | `_txlock=immediate` | a deferred BEGIN upgrades read→write, and SQLite deliberately will NOT apply busy_timeout to an upgrade | 8 processes lost ~half their writes without it |
 | `SetMaxOpenConns(1)` | **was missing.** Two goroutines on two pooled connections collide in SQLITE_BUSY; with one they queue on a Go mutex | — |
 | schema in ONE transaction | **was 171 implicit transactions, each fsyncing** | **525ms → 39ms per fresh database** |
