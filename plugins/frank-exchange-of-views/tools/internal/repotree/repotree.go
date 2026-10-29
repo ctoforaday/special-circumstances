@@ -85,7 +85,13 @@ func Glob(pattern ...string) ([]string, error) {
 
 // GoSources returns every non-test .go file under a directory relative to the repository root,
 // erroring when it finds none.
-func GoSources(dir ...string) ([]string, error) {
+func GoSources(dir ...string) ([]string, error) { return goFiles(false, dir...) }
+
+// GoTestSources returns every _test.go file under a directory relative to the repository root,
+// erroring when it finds none.
+func GoTestSources(dir ...string) ([]string, error) { return goFiles(true, dir...) }
+
+func goFiles(tests bool, dir ...string) ([]string, error) {
 	root, err := Root()
 	if err != nil {
 		return nil, err
@@ -96,7 +102,7 @@ func GoSources(dir ...string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+		if info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") != tests {
 			return nil
 		}
 		out = append(out, p)

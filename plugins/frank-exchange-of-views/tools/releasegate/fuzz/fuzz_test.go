@@ -275,7 +275,10 @@ func (r *runner) run() record.Run { return r.runHandle }
 // newRunner resolves the run once and hands back a runner whose handle is immutable.
 func newRunner(bin, runDir string, rng *lockedRand) *runner {
 	run, _ := record.NewRun(runDir)
-	return &runner{bin: bin, runDir: runDir, runHandle: run, rng: rng, registered: map[string]bool{}}
+	// THE WRITER IS FOUND BESIDE THE BINARY, as the hooks find it beside themselves
+	// (sittinghook.writerPath): buildBinary builds both into one directory.
+	writer := filepath.Join(filepath.Dir(bin), testbuild.ExeName(sittingWriterName))
+	return &runner{bin: bin, writer: writer, runDir: runDir, runHandle: run, rng: rng, registered: map[string]bool{}}
 }
 
 // gapSet is a set of gap ids that concurrent seats mark and read. Each carries its OWN lock rather
@@ -314,6 +317,12 @@ type runner struct {
 	// back one layer down and buy nothing but a slower version of the old behaviour.
 	mu          sync.Mutex
 	bin, runDir string
+	// writer is the feov-sitting-write binary the hooks hand a sitting's harness-observed facts to:
+	// its envelope's admission at PostToolUse and its close at SubagentStop (dispatchReturns).
+	writer string
+	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
+	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
+	sittingAgent map[string]string
 	// runHandle is runDir RESOLVED, filled by the constructor and never written again. It is
 	// the one field mu does not guard, and deliberately so: it is immutable after construction,
 	// which is what makes it safe to read from the concurrent seats above.
@@ -1679,41 +1688,109 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.chairRegisters++
 	}
 	r.mu.Unlock()
+	// Both drawn openings register under an agent id, and an opening that carries an agent is sat
+	// through once its agent's sitting_close lands (record.satThroughOf), which dispatchReturns
+	// writes when the dispatch returns.
+	agent := ""
 	switch {
-	// A FORCED RUN'S SITTINGS ALL COUNT, because its bound (findsFresh) is counted in them. Both
-	// drawn openings below register under an agent id, and an opening that carries an agent is sat
-	// through only once its sitting_close lands — which SubagentStop writes in a live run and
-	// nothing writes here (record.satThroughOf). Such a sitting moves no pin and counts nothing
-	// toward retirement, so a lens drawing it sits again at the same head, drawing again from the
-	// shared stream in scheduler order: the forced run's tail is a geometric draw per lens, and on
-	// the forced-UNVERIFIED test it outran the epoch limit and ended CEILING. A forced run opens by
-	// a plain register, sat through at its next opening; the drawn runs keep both shapes. So does
-	// owedProofSeed's proof owner: a sitting it does not sit through counts nothing toward its
-	// three barren sittings, and drawn openings left it short of three in a forced run of twelve
-	// epochs, kept by an unchecked proof zero times.
-	case r.forcedVerdict() || r.forceOwedProof && seatID == proofOwner:
+	// OWEDPROOFSEED'S PROOF OWNER OPENS BY A PLAIN REGISTER, sat through at its next opening. A drawn
+	// opening's sitting is sat through only once dispatchReturns closes it, and a drawn run leaves
+	// some open (neverClosedPct): such a sitting counts nothing toward the owner's three barren
+	// sittings, and the fold this run exists to reach — an unchecked proof keeping a barren owner
+	// from retiring — needs all three.
+	case r.forceOwedProof && seatID == proofOwner:
 		r.admit(registerArgs(seatID, occ)...)
 	case r.coin(25):
-		r.registerTwice(seatID, occ)
+		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
-		r.lookThenRegister(seatID)
+		agent = r.lookThenRegister(seatID)
 	default:
 		r.admit(registerArgs(seatID, occ)...)
 	}
+	if agent != "" {
+		r.mu.Lock()
+		if r.sittingAgent == nil {
+			r.sittingAgent = map[string]string{}
+		}
+		r.sittingAgent[seatID] = agent
+		r.mu.Unlock()
+	}
 	close(done)
+}
+
+// neverClosedPct is the chance a drawn run's agent-bearing sitting is left open at its return, as a
+// live subagent's is when it dies before SubagentStop fires: the sitting reads never closed once the
+// seat sits again (record.satThroughOf), and moves no pin and counts nothing toward retirement.
+const neverClosedPct = 5
+
+// sittingsClosed counts the sittings dispatchReturns closed, and sittingsLeftOpen those it left
+// open by the neverClosedPct draw, so the sweep can say when either stopped being reached.
+var sittingsClosed, sittingsLeftOpen atomic.Int64
+
+// dispatchReturns is what the hooks write when a dispatched seat returns, for a sitting whose
+// opening carried an agent: the PostToolUse hook's admission of its envelope, when the envelope was
+// put to the record and admitted, and then the SubagentStop hook's sitting_close. Each is the
+// shipped hook's own call on the writer it spawns (sittinghook.Admission, sittinghook's spawn), so
+// the record holds what a live return leaves on it. A sitting whose opening carried no agent has no
+// stop to join; it is sat through at its opening.
+//
+// A FORCED RUN CLOSES EVERY SITTING, because its bound (findsFresh) is counted in sittings: one left
+// open moves no pin, so its lens sits again at the same head and draws again from the shared
+// stream, and the run's tail becomes a geometric draw that outruns the epoch limit.
+func (r *runner) dispatchReturns(seatID string, admitted bool) {
+	r.mu.Lock()
+	agent := r.sittingAgent[seatID]
+	delete(r.sittingAgent, seatID)
+	r.mu.Unlock()
+	if agent == "" {
+		return
+	}
+	if !r.forcedVerdict() && r.coin(neverClosedPct) {
+		sittingsLeftOpen.Add(1)
+		return
+	}
+	if admitted {
+		r.hookWrites("-phase", "admission", "-agent-id", agent)
+	}
+	r.hookWrites("-phase", "close", "-agent-id", agent, "-agent-type", agentTypeOf(seatID))
+	sittingsClosed.Add(1)
+}
+
+// hookWrites runs the sitting writer as the hooks spawn it, against this run.
+func (r *runner) hookWrites(args ...string) {
+	out, err := exec.Command(r.writer, append([]string{"-run", r.runDir}, args...)...).CombinedOutput()
+	r.progress.Store(time.Now().UnixNano())
+	if err != nil {
+		r.noteActErr(fmt.Sprintf("%s %s: %v: %s", sittingWriterName, strings.Join(args, " "), err, strings.TrimSpace(string(out))))
+	}
+}
+
+// agentTypeOf is the agent configuration the engine dispatches seatID under, as SubagentStop
+// delivers it: the roster's, and the lanes' for a lane seat.
+func agentTypeOf(seatID string) string {
+	if s, ok := seatclass.Seats[seatID]; ok {
+		return s.AgentType
+	}
+	return seatclass.Lane.AgentType
 }
 
 // dispatchAgents numbers the agent ids registerTwice gives the dispatches it drives.
 var dispatchAgents atomic.Int64
 
+// registeredTwice counts the sittings registerTwice opened, so the sweep can say when the drive
+// stopped being reached.
+var registeredTwice atomic.Int64
+
 // registerTwice is a dispatch whose seat registers twice under one agent id — its first act
 // registered it, then it ran `register` itself, as four m31 sittings did. The repeat is refused as a
-// conflict, under the same occasion or another, and writes no second register.
-func (r *runner) registerTwice(seatID, occ string) {
+// conflict, under the same occasion or another, and writes no second register. It returns the agent
+// id of the sitting it opened, or "" when the register was refused.
+func (r *runner) registerTwice(seatID, occ string) string {
 	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
 	if _, ok := r.admitAs(agent, registerArgs(seatID, occ)...); !ok {
-		return
+		return ""
 	}
+	registeredTwice.Add(1)
 	again := occ
 	if occ != "" && r.coin(50) {
 		again = "petition"
@@ -1733,6 +1810,7 @@ func (r *runner) registerTwice(seatID, occ string) {
 			r.noteActErr(fmt.Sprintf("%s registered under one agent id holds %d registers; a repeat writes none", seatID, n))
 		}
 	}
+	return agent
 }
 
 // lookedFirst counts the lens sittings lookThenRegister drove to the end, so the sweep can say
@@ -1742,17 +1820,19 @@ var lookedFirst atomic.Int64
 // lookThenRegister is a lens dispatch whose first act is a look: under a fresh agent id it reads the
 // board, which records nothing and so registers no one, and then runs `register` itself, which is
 // admitted. A repeat is still refused. universe-m33's voice lens had
-// its own register refused because the look had registered it.
-func (r *runner) lookThenRegister(seatID string) {
+// its own register refused because the look had registered it. It returns the agent id of the
+// sitting its register opened, or "" when nothing opened one.
+func (r *runner) lookThenRegister(seatID string) string {
 	agent := fmt.Sprintf("agent_fuzz_%d", dispatchAgents.Add(1))
 	if _, ok := r.admitAs(agent, "show", "board", "--seat-id", seatID); !ok {
-		return
+		return ""
 	}
 	if _, ok := r.admitAs(agent, registerArgs(seatID, "")...); !ok {
-		return
+		return ""
 	}
 	r.refuseAs(agent, feov.Conflict, registerArgs(seatID, "")...)
 	lookedFirst.Add(1)
+	return agent
 }
 
 // register is the ONCE-PER-RUN register a helper makes for a seat it needs on the record before
@@ -1884,7 +1964,7 @@ func (r *runner) mintsFresh(seatID string) bool {
 }
 
 // forcedVerdict is whether this run is forced to a terminal verdict, UNVERIFIED or VERIFIED: the
-// runs findsFresh bounds, and whose every sitting counts (sit, and the lens's whole read).
+// runs findsFresh bounds, and whose every sitting counts (dispatchReturns, and the lens's whole read).
 func (r *runner) forcedVerdict() bool { return r.forceUnverified || r.forceVerified }
 
 // landedMints is the mints of seatID that landed in this run.
@@ -5227,13 +5307,17 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
 			// ONLY A DISPATCH CARRYING A SCHEMA ENDS THROUGH THE ENVELOPE CALL, so only its envelope
-			// is put to the record — as the hook puts it in a live run.
+			// is put to the record — as the hook puts it in a live run — and only one the record and
+			// the schema both accept is admitted.
+			admitted := false
 			if env != nil && schema != nil {
-				r.envelopeEnds(seatID)
+				admitted = r.envelopeEnds(seatID)
 				if why := r.schemas.refusal(schema, env); why != "" {
 					r.noteSchemaRefusal(seatID, why)
+					admitted = false
 				}
 			}
+			r.dispatchReturns(seatID, admitted)
 			loop.RunOnLoop(func(vm *goja.Runtime) {
 				if env == nil {
 					// A seat that produced nothing is a rejection, not a silent fulfilment with
@@ -6596,16 +6680,16 @@ var verbsWithEvents = []string{
 	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
 	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
 	"base_ingest",
-	// The sitting span (#265), and the first types here that NO VERB WRITES: they are appended by
-	// the SubagentStart/SubagentStop hook binaries, about a seat, and the goja harness execs the
-	// binary directly without a harness to fire hooks. Listed so the census is complete and
-	// exempted below from the random sweep, which cannot reach them.
+	// The sitting span (#265), and the first types here that NO VERB WRITES: feov-sitting-write
+	// appends them, about a seat, spawned by the SubagentStart/SubagentStop hooks. The sweep writes
+	// the close through the same writer at a dispatch's return (dispatchReturns); the opening is
+	// exempted below, because the drive opens a sitting by register.
 	"sitting_open", "sitting_close",
 	// A sitting stopped at the tool-call limit: written by feov-sitting-write when the PreToolUse
 	// hook first refuses a call past the limit. No verb writes it either.
 	"sitting_limit",
-	// The envelope gate's admission: written by feov-sitting-write when the PreToolUse hook finds the
-	// record refuses nothing on the envelope a seat returns. No verb writes it either.
+	// The envelope's admission: written by feov-sitting-write when the PostToolUse hook sees the
+	// call returning a seat's envelope succeed, and by the sweep at a dispatch's return.
 	"envelope_admitted",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
@@ -6625,23 +6709,16 @@ var verbsWithEvents = []string{
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
 var coverExempt = map[string]bool{
 	"halt": true, // terminal — covered by TestFuzzHaltPath
-	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS. These two have a real writer the FUZZ
-	// cannot invoke — the harness execs the binary with no client to fire SubagentStart or
-	// SubagentStop, so no seed could ever produce them however long it ran.
-	//
-	// They are driven, just not here: internal/hookcmd/sitting_test.go asserts both ends land,
-	// that a main-agent turn end does not, and that neither hook writes to stdout. Named rather
-	// than dropped, so "the sweep does not cover this" stays a line somebody reads.
-	"sitting_open":  true,
-	"sitting_close": true,
+	// THE SITTING'S OPENING IS THE SUBAGENTSTART HOOK'S. The drive opens a sitting by register, as
+	// a seat no hook bracketed does, so no seed writes a bracket. Driven in
+	// internal/hookcmd/sitting_test.go, which asserts both ends land, that a main-agent turn end
+	// does not, and that neither hook writes to stdout. Named rather than dropped, so "the sweep
+	// does not cover this" stays a line somebody reads.
+	"sitting_open": true,
 	// Written by the hook-spawned writer when a sitting passes the tool-call limit, which no seed
 	// reaches. Driven in internal/hookcmd/limit_test.go (the handoff) and
 	// internal/sittingwrite/write_test.go (the event).
 	"sitting_limit": true,
-	// Written by the hook-spawned writer when the envelope gate admits a seat's envelope, which the
-	// harness-less drive never returns through StructuredOutput. Driven in
-	// internal/sittingwrite/admission_test.go (the event) and read by record.FailedSittings.
-	"envelope_admitted": true,
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
@@ -6801,6 +6878,10 @@ var reportExemptions = map[string]string{
 	"plan":        "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
 	"stale":       "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
+	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
+	// and not by it, and carry no prose; their readers are the record's own folds.
+	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting) and record.TranscriptOf, carrying no prose, never rendered",
+	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, carrying no prose, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
@@ -7259,8 +7340,13 @@ func TestFuzzDebate(t *testing.T) {
 // named by the platform convention rather than an unconditional ".exe".
 func buildBinary(t *testing.T) string {
 	t.Helper()
+	// The sitting writer is built beside it: a dispatch's return writes through it (newRunner).
+	testbuild.Binary(t, sittingWriterName)
 	return testbuild.Binary(t, "feov-record")
 }
+
+// sittingWriterName is the binary the sitting hooks spawn to write a sitting's harness-observed facts.
+const sittingWriterName = "feov-sitting-write"
 
 // mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about
 // something real rather than about a shape the fuzz happened not to produce this seed.
@@ -8183,14 +8269,15 @@ func (r *runner) envelopeRefusedEarly(seatID, standing string) {
 
 // envelopeEnds is every seat's envelope at the end of its drive: a seat's sitting ends only once
 // nothing it owes stands (record.EnvelopeRefusal), so a drive that returns its envelope with an item
-// standing is a drive that leaves undone what the record would refuse the seat for.
+// standing is a drive that leaves undone what the record would refuse the seat for. It reports
+// whether the record admitted the envelope.
 //
 // AN ENVELOPE THE RECORD REFUSES IS ANSWERED AND OFFERED AGAIN, as the hook makes a live seat do:
 // another seat's act can land after the drive's last pass — blue's cite or proof while the anchor's
 // owner sits is that sitting's to check — so a lens clears what it now owes and offers the envelope
 // again, at most four times, as a parallel blue can place more than once. The check that decides is
 // the last one, with nothing of the seat's own between it and the envelope.
-func (r *runner) envelopeEnds(seatID string) {
+func (r *runner) envelopeEnds(seatID string) bool {
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID)
 	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
 		r.answerContradictions(seatID)
@@ -8212,7 +8299,9 @@ func (r *runner) envelopeEnds(seatID string) {
 		r.noteActErr(seatID + " ended its drive with an item it owes standing, and its envelope was refused: " + refusal + " [drive: " + why + "]")
 	default:
 		noteEnvelope(seatID, "admitted")
+		return true
 	}
+	return false
 }
 
 // ruleStandingDockets is the terminal bench ruling every docket motion that stands unruled at the

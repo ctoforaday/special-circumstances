@@ -66,7 +66,8 @@ func OpenSQLite(recordsDir, scratchDir string) (*SQLiteSource, error) {
 		s.files = append(s.files, migration.SourceFile{Name: name, SHA256: sum, Bytes: st.Size()})
 	}
 	// A plain open, read-write ON THE COPY: SQLite needs write access to replay the WAL, and
-	// replaying it is the point.
+	// replaying it is the point. Its locks are OFD locks like the record's: the lock mode is
+	// process-wide and recordsql's init sets it, which this package's import of recordsql links.
 	db, err := sql.Open("sqlite", filepath.Join(scratchDir, dbSiblings[0]))
 	if err != nil {
 		return nil, err

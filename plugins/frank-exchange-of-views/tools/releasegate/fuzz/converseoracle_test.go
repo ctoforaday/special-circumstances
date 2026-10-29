@@ -71,8 +71,11 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		t.Fatalf("ingest the report: %v", err)
 	}
 
+	// EACH SITTING ENDS AT ITS RETURN, as a dispatched seat's does (dispatchReturns). These seats put
+	// no envelope to the record, so none is admitted.
 	r.sit("chair", "red-chair")
 	must("--json", "dispatch", "next", "--seat-id", "red-chair")
+	r.dispatchReturns("red-chair", false)
 	r.sit("lens", converseLens)
 	must("--json", "--seat-id", converseLens, "show", "report")
 	must("--json", "--seat-id", converseLens, "mint", "--quote", sentence,
@@ -90,20 +93,25 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 			must("--json", "motion", "petition", "file", "--seat-id", converseLens, "--class", "safety",
 				"--relief", "fuzz relief", "--reason", "fuzz petition basis")
 		}
+		r.dispatchReturns(converseLens, false)
 	case benchCloses:
+		r.dispatchReturns(converseLens, false)
 		r.register("blue", "blue-respond")
 		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
 		r.sit("chair", "red-chair")
 		must("--json", "dispatch", "next", "--seat-id", "red-chair")
+		r.dispatchReturns("red-chair", false)
 		r.sit("bench", "judge", "docket")
 		r.benchDisposes("judge", open[0], "not_a_defect", "--reason", "fuzz: the argument held", "--final")
 		if r.actErr != "" {
 			t.Fatalf("the bench's ruling: %s", r.actErr)
 		}
+		r.dispatchReturns("judge", false)
 	}
 
 	r.sit("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
+	r.dispatchReturns("red-chair", false)
 	var plan record.Plan
 	if err := json.Unmarshal([]byte(out), &plan); err != nil {
 		t.Fatalf("the plan of the last chair sitting does not read: %v\n%s", err, out)
@@ -136,6 +144,7 @@ func TestTheConverseVerdictOracleJudgesThePlanTheDebateEndedOn(t *testing.T) {
 			"--as", "denied", "--reason", "fuzz: denied on its merits"); err != nil {
 			t.Fatal(err)
 		}
+		r.dispatchReturns("judge", false)
 		if got, why, ok, err := record.DeriveVerdict(r.run()); err != nil || !ok || got != "CEILING" {
 			t.Fatalf("derived (%q, %q, %v, %v), want CEILING: the limit held the bench", got, why, ok, err)
 		}

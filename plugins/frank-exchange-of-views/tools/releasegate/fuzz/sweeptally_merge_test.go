@@ -87,7 +87,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		ExecFlags:    map[string]map[string]bool{"lens mint": {"class": true}},
 		ExecValues:   map[string]map[string]bool{"lens mint --class": {"false_universal": true}},
 		NamingWalked: 2, NamingWrong: map[string]string{"line": "a"},
-		DrivenView: map[string]bool{"board": true}, MootSpent: true, LookedFirst: 1,
+		DrivenView: map[string]bool{"board": true}, MootSpent: true, LookedFirst: 1, RegisteredTwice: 2, SittingsClosed: 7, SittingsLeftOpen: 1,
 		ClassLanded: map[string]bool{"false_universal": true},
 		Either:      map[string][2]int{"close — why": {1, 2}}, Envelope: map[string]int{"blue: ok": 1}, Fail: map[string]int{"x": 1},
 	}
@@ -98,7 +98,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		ExecFlags:    map[string]map[string]bool{"lens mint": {"severity": true}},
 		ExecValues:   map[string]map[string]bool{"lens mint --class": {"self_attestation": true}},
 		NamingWalked: 3, NamingWrong: map[string]string{"line": "b", "other": "c"},
-		DrivenView: map[string]bool{"gaps": true}, LookedFirst: 4,
+		DrivenView: map[string]bool{"gaps": true}, LookedFirst: 4, RegisteredTwice: 3, SittingsClosed: 5, SittingsLeftOpen: 2,
 		ClassLanded: map[string]bool{"self_attestation": true},
 		Either:      map[string][2]int{"close — why": {3, 4}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 2}, Fail: map[string]int{"y": 1},
 	}
@@ -109,7 +109,7 @@ func TestProcessTallyAddMergesEachKindByItsRule(t *testing.T) {
 		ExecFlags:    map[string]map[string]bool{"lens mint": {"class": true, "severity": true}},
 		ExecValues:   map[string]map[string]bool{"lens mint --class": {"false_universal": true, "self_attestation": true}},
 		NamingWalked: 5, NamingWrong: map[string]string{"line": "a", "other": "c"},
-		DrivenView: map[string]bool{"board": true, "gaps": true}, MootSpent: true, LookedFirst: 5,
+		DrivenView: map[string]bool{"board": true, "gaps": true}, MootSpent: true, LookedFirst: 5, RegisteredTwice: 5, SittingsClosed: 12, SittingsLeftOpen: 3,
 		ClassLanded: map[string]bool{"false_universal": true, "self_attestation": true},
 		Either:      map[string][2]int{"close — why": {4, 6}, "edit — w": {0, 1}}, Envelope: map[string]int{"blue: ok": 3}, Fail: map[string]int{"x": 1, "y": 1},
 	}

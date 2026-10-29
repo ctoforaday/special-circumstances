@@ -2106,7 +2106,8 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// takes only the database — the natural thing to do with a tarball — gets a run that is
 	// smaller, self-consistent and wrong. recordsql.SealedBytes folds the log in, refuses where it
 	// did not take, and reads the database with this process's connection RELEASED: a descriptor
-	// opened beside a live connection drops that connection's locks when it closes. So the
+	// opened beside a live connection drops that connection's POSIX locks on the file when it
+	// closes — the -shm locks everywhere, the database file's off Linux. So the
 	// database's bytes come from there, and the walk below never opens a database file itself —
 	// the sealed log is empty and the shared memory is process scratch, so neither is shipped.
 	dbPath := filepath.Join(recs, "record.db")
