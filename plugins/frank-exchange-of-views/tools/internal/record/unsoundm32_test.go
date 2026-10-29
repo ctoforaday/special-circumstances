@@ -10,22 +10,22 @@ import (
 const m32Archive = "2026-10-24_is-91-prime-m32.tar.gz"
 
 // M32 ENDED UNVERIFIED OVER A PROOF ITS RECORD CALLED UNSOUND. The computation lens judged
-// P-5ba8edea's sentence unsound at event 343 — it names a sieve, and the script does trial division —
+// P-5ba8edea's sentence unsound at event 365 — it names a sieve, and the script does trial division —
 // minted no gap, and retired; the plan said pass_permitted with no blockers, and the final chair
-// (event 512) withheld its verdict because the gate would have admitted a PASS over that sentence.
+// (event 556) withheld its verdict because the gate would have admitted a PASS over that sentence.
 // Under the rule the judgement holds the PASS, names the proof and its judge, and readies the lens to
 // mint its gap and blue to fix or retire the proof.
 func TestM32UnsoundProofHoldsThePassAndReadies(t *testing.T) {
 	whole := archivedEvents(t, m32Archive)
-	r := whole[342].GetReproduce()
-	if r.GetProofId() != "P-5ba8edea" || r.GetSoundness() != recordpb.Soundness_SOUNDNESS_UNSOUND || whole[342].GetSeatId() != compLens {
-		t.Fatalf("event 343 is not the computation lens's unsound judgement of P-5ba8edea: %v", whole[342])
+	r := whole[364].GetReproduce()
+	if r.GetProofId() != "P-5ba8edea" || r.GetSoundness() != recordpb.Soundness_SOUNDNESS_UNSOUND || whole[364].GetSeatId() != compLens {
+		t.Fatalf("event 365 is not the computation lens's unsound judgement of P-5ba8edea: %v", whole[364])
 	}
-	if whole[511].GetSeatId() != "red-chair" {
-		t.Fatalf("event 512 is not the final chair's: %v", whole[511])
+	if whole[555].GetSeatId() != "red-chair" {
+		t.Fatalf("event 556 is not the final chair's: %v", whole[555])
 	}
 	// THE CHAIR'S LAST SITTING: the record as the final chair read it, before its position.
-	run := archiveAt(t, m32Archive, whole, 511)
+	run := archiveAt(t, m32Archive, whole, 555)
 	got := unsoundOf(t, run)
 	if len(got) != 1 || got[0].Subject != "P-5ba8edea" || got[0].Owner != compLens || got[0].AnsweredBy() != "" {
 		t.Fatalf("unsound blockers = %+v, want P-5ba8edea judged by %s and carried by no gap", got, compLens)
@@ -51,17 +51,17 @@ func TestM32UnsoundProofHoldsThePassAndReadies(t *testing.T) {
 	}
 
 	// THE FIRST PLAN AFTER THE JUDGEMENT readies the lens to mint its gap. Blue sat between the
-	// judgement and that plan — its edits at 371 to 380 — with the fix-or-retire item on its work list,
+	// judgement and that plan — its edits at 396 to 405 — with the fix-or-retire item on its work list,
 	// so its reason is that it sat since; it is a party all the same, for G-ae1849d4.
 	first := 0
-	for i := 343; i < len(whole); i++ {
+	for i := 365; i < len(whole); i++ {
 		if whole[i].GetType() == recordpb.EventType_EVENT_TYPE_PLAN {
 			first = i
 			break
 		}
 	}
 	if first == 0 {
-		t.Fatal("no plan follows the judgement at event 343")
+		t.Fatal("no plan follows the judgement at event 365")
 	}
 	plan, err = PlanDispatch(archiveAt(t, m32Archive, whole, first))
 	if err != nil {

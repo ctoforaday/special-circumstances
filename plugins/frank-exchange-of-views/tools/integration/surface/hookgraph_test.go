@@ -36,6 +36,7 @@ var hookBinaries = []string{
 	"./cmd/feov-subagentstart",
 	"./cmd/feov-subagentstop",
 	"./cmd/feov-posttoolusefailure",
+	"./cmd/feov-posttooluse",
 }
 
 // hookLocalPackages is the module-local import graph each registered hook binary is ALLOWED to
@@ -100,6 +101,13 @@ var hookLocalPackages = map[string][]string{
 	// same graph as the tool-call hook. It hands a seat's failure to feov-sitting-write, which carries
 	// the record, through sittinghook; everything else is what hookcmd.Run already links.
 	"./cmd/feov-posttoolusefailure": {
+		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+		"internal/sittinghook", "internal/buildid", "internal/sittingcap", "internal/hookfailures",
+	},
+	// feov-posttooluse is matched to the envelope tool alone, so it fires once a sitting, not on every
+	// call; it is held to the failure hook's graph all the same, and for the same reason: it hands the
+	// admission to feov-sitting-write, which carries the record, through sittinghook.
+	"./cmd/feov-posttooluse": {
 		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
 		"internal/sittinghook", "internal/buildid", "internal/sittingcap", "internal/hookfailures",
 	},

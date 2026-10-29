@@ -838,6 +838,36 @@ const reliefFor = (party) => {
   if (!mine.length) return ''
   return ` BENCH RELIEF IN EFFECT, BINDING ON YOU (granted on a petition and operative this sitting — it is an order, not advice): ${JSON.stringify(mine.map((r) => r.relief))}.`
 }
+// A SEAT'S FAILED SITTING DOES NOT STOP THE RUN (ruled by gblock 2026-10-27/28). A seat dispatched
+// with an envelope schema can end without one: the harness throws when it ends with text after its
+// nudge — the envelope gate refused it until it stopped — and agent() returns null when the agent
+// dies on an API error. Either is one seat's failed sitting, and universe-m35 died of one at epoch 6.
+// sit() is every awaited single dispatch, and it turns both into a logged null: the record still
+// holds what the seat owes, so the plan readies it again in the next epoch with its items listed, and
+// the run reaches its outcome or its ceiling. Repetition is bounded by the record's epoch limit, the
+// no-progress valve, and — for the chair, which relays the plan — NO_PROGRESS_EPOCHS failures in a
+// row. A lens or a lane already sits under parallel(), where a throw is a null.
+//
+// THE RECORD HOLDS THE FAILURE, NOT THIS LOG: a sitting that closed with no admitted envelope is a
+// failed sitting on the record (record.FailedSittings), which capture reads. This sandbox writes
+// nothing; the log is the operator's account of what the engine did about it.
+// NO_PROGRESS_EPOCHS is the no-progress valve's bound (the debate loop below), and the bound on a
+// seat's failed sittings in a row: three sittings that moved nothing.
+const NO_PROGRESS_EPOCHS = 3
+//
+// THE agent() CALL STAYS AT ITS SITE: sit takes the dispatch as a function of its options, so the
+// call that builds the prompt is on the line that names it, and a reader of the script — and
+// debatejs.Sites — finds every builder where it is.
+async function sit(dispatch, opts) {
+  try {
+    const env = await dispatch(opts)
+    if (env) return env
+    log(`${opts.label}: the sitting returned nothing (the agent failed)`)
+  } catch (e) {
+    log(`${opts.label}: the sitting failed — ${e && e.message ? e.message : e}`)
+  }
+  return null
+}
 let halted = false
 let haltOpinion = null
 // THE BENCH IS ONE SEAT, AND A PETITION IS A QUESTION PUT TO IT.
@@ -891,18 +921,22 @@ function takePetitionRulings(sitting) {
 async function hearPetitions() {
   const seatID = 'judge'
   log(`epoch ${epoch}: the plan convenes the bench to hear the petitions on the record — before any party of this epoch sits`)
-  const sitting = await agent(
-    `Petition sitting, topic "${topic}". The record holds petitions no petition sitting has heard: your work list names each unruled motion whose gavel is yours, and the motions projection carries each petition's filer, class, basis and relief. Rule EVERY PETITION among them; a docket motion there waits for the sitting its docket convenes. Petitions are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES: your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it belongs on the record beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion. A denied ruling carries no relief. Read the transcript for context. ${haltClause('stops the engine')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.petition)} Return the petition-ruling envelope.`,
+  const sitting = await sit((o) => agent(
+    `Petition sitting, topic "${topic}". The record holds petitions no petition sitting has heard: your work list names each unruled motion whose gavel is yours, and the motions projection carries each petition's filer, class, basis and relief. Rule EVERY PETITION among them; a docket motion there waits for the sitting its docket convenes. Petitions are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES: your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it belongs on the record beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion. A denied ruling carries no relief. Read the transcript for context. ${haltClause('stops the engine')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.petition)} Return the petition-ruling envelope.`, o),
     // The label heads with the seat and carries which question this sitting was, for a human
     // reading a dashboard.
     { ...dispatchAs(seatID), label: `judge · ${OCCASION.petition} · ${slug}`, phase: 'Debate', schema: PETITION_RULING })
-  if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
+  // A FILED PETITION IS NEVER DROPPED: it stands on the record unheard, and the next plan convenes
+  // the bench for it again.
+  if (!sitting) return false
   return takePetitionRulings(sitting)
 }
 // ---- Frontier ----
 phase('Frontier')
-await agent(
-  `Research debate opening for topic: "${topic}". Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help. ITS QUESTION IS WHAT the inquiry asks and the approach that would answer it, with no answer in it: the report prints it as the question, and it stands as you write it. ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the inquiry paid off — printed as a hypothesis beside what the research then finds. A result you expect goes in the hypothesis, never in the question. ONE inquiry per hypothesis, and the tool assigns each an id. THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts. On the record it has an id, a fate, and an argument, and the hypotheses opening a run are the ones that shape everything downstream.${speedClause}${recordClause('frontier')}`,
+// THE FRONTIER RETURNS NO ENVELOPE, so its failure is off the record; the lanes sit on whatever
+// inquiries it recorded, and the synthesis carries the rest.
+await sit((o) => agent(
+  `Research debate opening for topic: "${topic}". Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help. ITS QUESTION IS WHAT the inquiry asks and the approach that would answer it, with no answer in it: the report prints it as the question, and it stands as you write it. ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the inquiry paid off — printed as a hypothesis beside what the research then finds. A result you expect goes in the hypothesis, never in the question. ONE inquiry per hypothesis, and the tool assigns each an id. THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts. On the record it has an id, a fate, and an argument, and the hypotheses opening a run are the ones that shape everything downstream.${speedClause}${recordClause('frontier')}`, o),
   { ...dispatchAs('frontier'), label: `frontier · ${slug}` })
 
 // ---- Blue: best-of-N lanes with method diversity, then additive synthesis ----
@@ -911,7 +945,10 @@ await parallel(Array.from({ length: lanes }, (_, i) => () => agent(
   `Blue lane ${i + 1} of ${lanes} for topic: "${topic}". Read the frontier hypotheses from the RECORD — the \`inquiries\` projection — where each carries an id and its hypothesis. Research your assigned slice to saturation per your constitution (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date). Your assigned METHOD: ${LANE_METHODS[i % LANE_METHODS.length]} — work primarily through this method's source class; take hypothesis ${i + 1} first, then breadth. YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool. Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing. Write your part of the report, in full, to ${runDir}/blue/candidates/lane-${i + 1}.md.${inquiryClause}${speedClause}${recordClause(laneSeat(i + 1))}`,
   { ...laneDispatch(), label: `${laneSeat(i + 1)} · ${slug}`, phase: 'Blue' })))
 
-let blueEnv = await agent(
+// THE SYNTHESIS IS SAT AGAIN, IN PLACE, WHEN IT FAILS — there is no epoch before the debate to
+// re-dispatch it in, and nothing can be audited until the report is frozen. A synthesis that fails
+// NO_PROGRESS_EPOCHS sittings in a row stops the debate before it opens (seatStop), UNVERIFIED.
+const synthesisPrompt = () =>
   `Blue synthesis for topic: "${topic}". Read every draft in ${runDir}/blue/candidates/ and synthesize ${runDir}/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers. Compacting and reorganizing prose is not subtraction — rewriting for density is encouraged; losing a claim in the rewrite is the failure, and substance leaves only by being retired on the record, which names the claim, why it goes, and what replaces it.
 THE CATECHISM IS YOURS (W2g — synthesis surfaces belong inside the audited document): write "## The Catechism" INTO ${runDir}/blue/report.md at synthesis per the research-protocol skill's references/catechism_template.md (relative to that skill's base directory, not the run directory) — the seven answers, the case against at FULL strength (include every risk-accepted residual; the audit found against-cases silently drop their strongest items), all figures copied from your own sourced sections never recomputed inline. THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title \`# ${topic} — research report\`, then \`## TL;DR\` (3-6 sentences — the answer, the confidence, the sharpest caveat), then \`## The Catechism\`, then the sections of your argument in the order you choose, and CLOSES with \`## Open questions\` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise). The report ships in the order you write it, and one with any of those out of its place — the Catechism after a section of your argument, a section after the open questions, text between the title and the TL;DR — is refused when you freeze it. You write each of them once, HERE, inside the document red audits every sitting.
 
@@ -919,10 +956,18 @@ YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, the 
 
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source. An unlocatable quote is graded LOW through no fault of the source. Two claims resting on the same url are one source and two anchors, not two sources.
 
-REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft it in ${runDir}/scratch/ under a name that starts with your seat id and lacks that word, then bash cp it to ${runDir}/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip. FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base. Do this ONCE; if it refuses, the tool records the refusal — log what you expected. Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze. THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts. ${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
-  { ...dispatchAs('blue-synthesize'), label: `blue-synthesize · ${slug}`, phase: 'Blue', schema: SYNTHESIS_ENVELOPE })
+REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft it in ${runDir}/scratch/ under a name that starts with your seat id and lacks that word, then bash cp it to ${runDir}/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip. FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base. Do this ONCE; if it refuses, the tool records the refusal — log what you expected. Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze. THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts. ${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`
 
-if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
+let seatStop = null // { seat, failures } when a seat failed NO_PROGRESS_EPOCHS sittings in a row and the debate stopped
+let blueEnv = null
+for (let failures = 0; !blueEnv;) {
+  blueEnv = await sit((o) => agent(synthesisPrompt(), o), { ...dispatchAs('blue-synthesize'), label: `blue-synthesize · ${slug}`, phase: 'Blue', schema: SYNTHESIS_ENVELOPE })
+  if (!blueEnv && ++failures >= NO_PROGRESS_EPOCHS) {
+    seatStop = { seat: 'blue-synthesize', failures }
+    log(`the synthesis failed ${failures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) — the debate does not open`)
+    break
+  }
+}
 // ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
 // ─── THE DEBATE: chair sits → the record says who sits → they sit → the chair sits again ───────────
 //
@@ -953,7 +998,6 @@ if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — a
 // while its exchange count advances — progress the run's terms (k, k-max) bound, which a valve
 // blind to the counts would cut short under any k of 3 or more. A seat that is dispatched and opens
 // no sitting moves no count, so its plan repeats exactly: the loop this valve exists for.
-const NO_PROGRESS_EPOCHS = 3
 const partyList = (ps) => ps.map((p) => `${p.seat_id}${p.gap_ids && p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')
 const sortedStrings = (xs) => (Array.isArray(xs) ? xs : []).map(String).sort()
 let samePlan = { key: null, epochs: 0 }
@@ -1019,10 +1063,24 @@ Every docketed gap gets a written ruling — the docket ruling: its fate, the pr
 phase('Red')
 const sittings = {} // seat -> how many times this loop has dispatched it, for the labels
 const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return `${seat} #${sittings[seat]} · ${slug}` }
-while (!halted) {
+// A CHAIR SITTING THAT FAILS RELAYS NO PLAN, so nobody else sits that epoch and the chair sits again in
+// the next. NO_PROGRESS_EPOCHS failures in a row stop the debate (seatStop) UNVERIFIED, naming the chair:
+// without the chair nothing is dispatched, so the loop would only spend.
+let chairFailures = 0
+while (!halted && !seatStop) {
   epoch++
-  const chairEnv = await agent(chairPrompt(), { ...dispatchAs('red-chair'), label: labelFor('red-chair'), phase: 'Red', schema: CHAIR_ENVELOPE })
-  if (!chairEnv) throw new Error(`red-chair sitting ${epoch} returned null (agent failed) — aborting cleanly`)
+  const chairEnv = await sit((o) => agent(chairPrompt(), o), { ...dispatchAs('red-chair'), label: labelFor('red-chair'), phase: 'Red', schema: CHAIR_ENVELOPE })
+  if (!chairEnv) {
+    chairFailures++
+    if (chairFailures >= NO_PROGRESS_EPOCHS) {
+      seatStop = { seat: 'red-chair', failures: chairFailures }
+      log(`epoch ${epoch}: the chair failed ${chairFailures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) — the debate stops rather than dispatch it again`)
+      break
+    }
+    log(`epoch ${epoch}: the chair relayed no plan (${chairFailures} failed sitting(s) in a row) — nobody else sits this epoch, and the chair sits again`)
+    continue
+  }
+  chairFailures = 0
   const plan = chairEnv
   requirePlan(plan, epoch)
   lastPlan = plan
@@ -1076,8 +1134,13 @@ while (!halted) {
   for (const p of blueSittings) {
     phase('Debate')
     const closings = p.again ? [] : closingsOwedBy(plan, 'blue-respond') // owed once, at the sitting the plan dispatched
-    const blueEnv2 = await agent(bluePrompt(p.gap_ids, closings), { ...dispatchAs('blue-respond'), label: labelFor('blue-respond'), phase: 'Debate', schema: BLUE_ENVELOPE })
-    if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
+    const blueEnv2 = await sit((o) => agent(bluePrompt(p.gap_ids, closings), o), { ...dispatchAs('blue-respond'), label: labelFor('blue-respond'), phase: 'Debate', schema: BLUE_ENVELOPE })
+    // A FAILED BLUE SITTING ANSWERED NOTHING the engine can read; what it owes stays on its work list,
+    // and the plan readies it again in the next epoch.
+    if (!blueEnv2) {
+      log(`epoch ${epoch}: blue's sitting failed${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''} — the plan readies it again while it owes them`)
+      continue
+    }
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
     const successors = [...new Set(Array.isArray(blueEnv2.successors) ? blueEnv2.successors : [])]
@@ -1111,8 +1174,13 @@ while (!halted) {
   }
   for (const p of benches.filter((b) => b.occasions.includes(OCCASION.docket))) {
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)
-    const judge = await agent(benchPrompt(p.gap_ids), { ...dispatchAs('judge'), label: labelFor('judge'), phase: 'Debate', schema: JUDGE_ENVELOPE })
-    if (!judge) throw new Error(`bench sitting (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
+    const judge = await sit((o) => agent(benchPrompt(p.gap_ids), o), { ...dispatchAs('judge'), label: labelFor('judge'), phase: 'Debate', schema: JUDGE_ENVELOPE })
+    // A FAILED BENCH SITTING RULED NOTHING the engine can read: the docket stands on the record, and
+    // the plan convenes the bench on it again in the next epoch.
+    if (!judge) {
+      log(`epoch ${epoch}: the bench's sitting on ${p.gap_ids.join(', ')} failed — the docket stands, and the plan convenes it again`)
+      continue
+    }
     for (const r of judge.dispositions || []) {
       // AN EMPTY `settled` BARS NOTHING, so it carries no proposition: rendered, it would hand red
       // "ESTOPPED on each settled proposition" over a blank, an estoppel nobody ruled. The record
@@ -1146,7 +1214,7 @@ const outcomeWord = (w) => {
 // The outcome is read twice: at the end of the debate, and again if the terminal sitting halts.
 const verdictNow = () => halted ? outcomeWord('HALTED')
   : (lastPlan && lastPlan.verdict === 'PASS') ? outcomeWord('VERIFIED')
-  : noProgress ? outcomeWord('UNVERIFIED')
+  : (noProgress || seatStop) ? outcomeWord('UNVERIFIED')
   : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')
 // A CEILING OVER A REOPENED CITATION OR PROOF NAMES IT, as the record's own derived reason does
@@ -1158,6 +1226,7 @@ const reopenedClause = (plan) => {
 }
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
+  : seatStop ? `seat failure: ${seatStop.seat} failed ${seatStop.failures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}), each ending without its envelope — the engine stopped the debate rather than dispatch it again`
   : noProgress ? `no progress: the dispatch plan was the same for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head}, its parties, docket, exchange counts and standing blockers unchanged — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
   : verdict === 'CEILING' ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` + reopenedClause(lastPlan)
   : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}` : 'the run ended before any dispatch')
@@ -1177,8 +1246,8 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // do (takePetitionRulings): a halt stamps the run HALTED.
 const benchBlockers = lastPlan ? lastPlan.blockers.filter((b) => b.kind === 'unruled_motion' && roleOfSeat(b.owner) === 'bench') : []
 if (!halted && benchBlockers.length) {
-  const terminalJudge = await agent(
-    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, and each petition ruling also returns on the envelope's \`rulings\` — its petitioner and class, your ruling and opinion, and on a grant the relief and whom it binds. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`,
+  const terminalJudge = await sit((o) => agent(
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, and each petition ruling also returns on the envelope's \`rulings\` — its petitioner and class, your ruling and opinion, and on a grant the relief and whom it binds. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`, o),
     { ...dispatchAs('judge'), label: `judge · ${OCCASION.terminal} · ${slug}`, phase: 'Assemble', schema: TERMINAL_ENVELOPE })
   if (terminalJudge) {
     if (takePetitionRulings(terminalJudge)) {
@@ -1198,26 +1267,33 @@ const ASSEMBLE_ENVELOPE = {
   },
 }
 phase('Assemble')
-const assembleEnv = await agent(
+const assemblyPrompt = () =>
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ''}${verdict === 'UNVERIFIED' ? (noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it. A RESUMED ASSEMBLY SITTING — one sat again after an earlier one stamped the outcome and stopped before it assembled — finds that outcome already on the record, and the record refuses a second: the stamp is done, so go on to what follows.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ''}${verdict === 'UNVERIFIED' ? (seatStop ? `, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: ${terminationWhy}. It is not CEILING: no term ran out` : noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it. A RESUMED ASSEMBLY SITTING — one sat again after an earlier one stamped the outcome and stopped before it assembled — finds that outcome already on the record, and the record refuses a second: the stamp is done, so go on to what follows.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the inquiries, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}.${lawClause}${speedClause}${recordClause('judge', OCCASION.assemble)} Return your envelope: open_gaps from the board.`,
-  { ...dispatchAs('judge'), label: `judge · ${OCCASION.assemble} · ${slug}`, schema: ASSEMBLE_ENVELOPE })
-// AN ASSEMBLY SITTING THAT RETURNS NOTHING STOPS THE RUN, as a null from any other seat does. The
-// assembly seat is the one that records the outcome and writes the documents; an envelope returned
-// without its word states a verdict nobody confirmed is on the record, with `gaps_outstanding`
-// null beside it — VERIFIED over a record that may hold no outcome row.
-if (!assembleEnv) throw new Error(`the assembly sitting returned null — it records the run's outcome and assembles the report, and neither is confirmed; the debate had ended ${verdict} (${terminationWhy})`)
+THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the inquiries, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}.${lawClause}${speedClause}${recordClause('judge', OCCASION.assemble)} Return your envelope: open_gaps from the board.`
+// THE ASSEMBLY SITTING IS SAT AGAIN, IN PLACE, WHEN IT FAILS: it is the run's last sitting, and a
+// resumed assembly sitting finds an outcome its failed one stamped and goes on to assemble.
+// NO_PROGRESS_EPOCHS FAILURES IN A ROW STOP THE RUN — the one stop left to the engine: the assembly
+// seat is the one that records the outcome and writes the documents, so an envelope returned without
+// its word would state a verdict nobody confirmed is on the record, with `gaps_outstanding` null
+// beside it. The lead records the error, and capture reads a run the engine stopped.
+let assembleEnv = null
+for (let failures = 0; !assembleEnv;) {
+  assembleEnv = await sit((o) => agent(assemblyPrompt(), o), { ...dispatchAs('judge'), label: `judge · ${OCCASION.assemble} · ${slug}`, schema: ASSEMBLE_ENVELOPE })
+  if (!assembleEnv && ++failures >= NO_PROGRESS_EPOCHS) {
+    throw new Error(`the assembly sitting failed ${failures} sittings in a row — it records the run's outcome and assembles the report, and neither is confirmed; the debate had ended ${verdict} (${terminationWhy})`)
+  }
+}
 return {
   runDir,
   verdict,
   epochs: epoch,
   lanes,
-  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress } : null,
+  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress, seat_stop: seatStop } : seatStop ? { seat_stop: seatStop } : null,
   gaps_outstanding: Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   infra_debts: infraDebts,
   petitions: petitionLog,

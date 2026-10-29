@@ -75,6 +75,14 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 			}
 			want := map[string]int{}
 			wantIndependent := 0
+			// A SOURCE WRITTEN AFTER THE BOOL WAS CUT carries none: its corroboration is its empty
+			// anchor already, and that is what it migrates as.
+			carriesBool := false
+			for _, old := range evs {
+				if _, ok := old.Fields["independent"]; ok && old.Word == "verify" {
+					carriesBool = true
+				}
+			}
 			for _, old := range evs {
 				switch old.Word {
 				case "verify", "cite", "sitting_open", "sitting_close", "sitting_limit":
@@ -93,6 +101,9 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					ind = v
 				}
 				anchor, _ := old.Fields["anchor"].(string)
+				if !carriesBool {
+					ind = anchor == ""
+				}
 				if ind != (anchor == "") {
 					t.Errorf("source verify %d: independent=%v with anchor %q — the bool carries a fact the anchor does not", old.ID, ind, anchor)
 				}

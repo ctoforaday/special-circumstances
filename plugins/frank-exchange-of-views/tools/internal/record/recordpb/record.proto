@@ -292,6 +292,7 @@ enum EventType {
   EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
   EVENT_TYPE_STALE = 41 [(means) = "the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here"];
   EVENT_TYPE_REPORT_READ = 43 [(means) = "the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin"];
+  EVENT_TYPE_ENVELOPE_ADMITTED = 44 [(means) = "the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -733,15 +734,16 @@ message Event {
     Plan plan = 59;
     Stale stale = 60;
     ReportRead report_read = 62;
+    EnvelopeAdmitted envelope_admitted = 63;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
-  // plan, 60 for the stale refusal, 62 for the report read, which is what the reserve is for — the
-  // block shrinks and nothing is renumbered.
-  reserved 63 to 80;
+  // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, which is
+  // what the reserve is for — the block shrinks and nothing is renumbered.
+  reserved 64 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
@@ -2356,6 +2358,28 @@ message ReportRead {
     required: true
     references: "events.id"
     why: "the events.id of the report head the text was served at — the latest blue_edit or base_ingest when the read's transaction ran"
+  }];
+}
+
+// EnvelopeAdmitted is the envelope an agent returned, admitted: the call that ends its sitting
+// SUCCEEDED. The PreToolUse gate asked the record whether the seat's work list refuses that call
+// (EnvelopeRefusal) and it refused nothing, and the harness then accepted the envelope against its
+// schema. Written by feov-sitting-write under `harness` from the PostToolUse hook, which fires on a
+// call that succeeded, as the span ends are: the harness observed the call; the seat asserted nothing.
+//
+// IT IS WHAT TELLS A FAILED SITTING FROM A FINISHED ONE. A seat dispatched with an envelope schema
+// ends its sitting only through that call, so a sitting of a seat whose work arrives as items
+// (WorkArrivesAsItems) that closed with no admission ended some other way: its envelope refused
+// or rejected by its schema until the harness gave up, or its agent died (FailedSittings). Without
+// it, the record held the same close for both.
+//
+// THE AGENT IS THE KEY, as it is on the close. An agent id names one subagent invocation, so the
+// admission joins the sitting that agent opened; a nudged seat's admission lands after its first
+// close and still joins it. One per sitting: the same sitting admitted again writes nothing.
+message EnvelopeAdmitted {
+  optional string agent_id = 1 [(sql) = {
+    required: true
+    why: "the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended with"
   }];
 }
 

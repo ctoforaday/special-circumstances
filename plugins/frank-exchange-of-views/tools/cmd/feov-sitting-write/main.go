@@ -1,10 +1,11 @@
 // Command feov-sitting-write appends a harness-observed fact about a sitting to a run's record:
-// one end of its span, that it reached the run's tool-call limit, or a call of its that a hook saw
-// denied or failing.
+// one end of its span, that it reached the run's tool-call limit, a call of its that a hook saw
+// denied or failing, or the call returning its envelope succeeding.
 //
 // NOT A HOOK AND NOT A SEAT VERB. It is spawned by the SubagentStart/SubagentStop hooks once they
-// have established there is a live run and a real seat, and by the PreToolUse hook once per sitting
-// that reaches the limit — see internal/sittingwrite for why the write is a separate process, which
+// have established there is a live run and a real seat, by the PreToolUse hook once per sitting
+// that reaches the limit and for each envelope it checks, by the PostToolUseFailure hook for a
+// seat's failed call, and by the PostToolUse hook for a seat's envelope the harness accepted — see internal/sittingwrite for why the write is a separate process, which
 // is a frequency argument rather than a structural one.
 package main
 
@@ -18,7 +19,7 @@ import (
 
 func main() {
 	run := flag.String("run", "", "the run directory whose record to append to")
-	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed) or envelope (the record's refusal of the seat's envelope, printed)")
+	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call), failure (a call failed) envelope (the record's refusal of the seat's envelope, printed) or admission (the call returning the seat's envelope succeeded, recorded as admitted)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open and close)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
@@ -33,6 +34,8 @@ func main() {
 		err = sittingwrite.WriteLimit(*run, *agentID, *sitting, *limit)
 	case sittingwrite.Envelope:
 		err = sittingwrite.WriteEnvelopeRefusal(*run, *agentID, os.Stdout)
+	case sittingwrite.Admission:
+		err = sittingwrite.WriteAdmission(*run, *agentID)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:

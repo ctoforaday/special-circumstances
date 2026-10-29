@@ -21,7 +21,7 @@ import (
 //
 // # Why the lead writes it
 //
-// The engine stops a run by throwing — a seat that returned nothing, a relay it refuses. It runs
+// The engine stops a run by throwing — a relay it refuses, an assembly sitting that kept failing. It runs
 // in the Workflow sandbox, which reaches no file and no process, so it cannot write the stop
 // itself; and the workflow runs in the background, so its failure reaches the lead as a task
 // notification and no PostToolUseFailure hook fires for it. The lead holds the error and is the

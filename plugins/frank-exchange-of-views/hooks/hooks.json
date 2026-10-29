@@ -1,5 +1,5 @@
 {
-  "description": "Run and identity injection, the per-sitting turn limit and the sitting span for frank-exchange-of-views; why each is wired this way is in hooks/README.md.",
+  "description": "Run and identity injection, the per-sitting turn limit, the envelope gate and its admission, and the sitting span for frank-exchange-of-views; why each is wired this way is in hooks/README.md.",
   "hooks": {
     "PreToolUse": [
       {
@@ -37,6 +37,17 @@
           {
             "type": "command",
             "command": "F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" ensure SessionStart; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "StructuredOutput",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/feov-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; F=\"${CLAUDE_PLUGIN_ROOT}/hooks/fetch-bin.sh\"; if [ -f \"$F\" ]; then exec sh \"$F\" hook PostToolUse; fi; echo 'frank-exchange-of-views: hook binaries missing — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

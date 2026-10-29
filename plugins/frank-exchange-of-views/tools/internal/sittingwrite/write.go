@@ -60,11 +60,14 @@ const (
 	// asked whether the record refuses it (WriteEnvelopeRefusal). The refusal is printed for the
 	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry.
 	Envelope Phase = "envelope"
+	// Admission is that call having SUCCEEDED, from the PostToolUse hook: the gate let it through and
+	// the harness accepted the envelope against its schema. WriteAdmission records it.
+	Admission Phase = "admission"
 )
 
 // WriteEnvelopeRefusal prints the record's refusal of the envelope the agent's seat is returning
 // (record.AgentEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
-// Nothing is printed or written when the record refuses nothing, and for an agent bound to no seat.
+// When the record refuses nothing, or the agent is bound to no seat, nothing is printed or written.
 // A record that cannot be read is the error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
@@ -85,6 +88,30 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 		return err
 	}
 	return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
+}
+
+// WriteAdmission records the agent's envelope as admitted (recordpb.EnvelopeAdmitted), under the
+// harness as the span ends are. The PostToolUse hook hands it over when the call returning the
+// envelope SUCCEEDED: the PreToolUse gate refused nothing and the harness accepted the envelope
+// against its schema, so the admission is the fact a finished sitting holds and a failed one does
+// not (record.FailedSittings). An agent bound to no seat is no seat's envelope, and nothing is
+// written. The same sitting admitted again writes nothing (record.OneAdmissionASitting).
+func WriteAdmission(runDir, agentID string) error {
+	if agentID == "" {
+		return fmt.Errorf("sittingwrite: an admission needs the agent whose envelope was accepted")
+	}
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return err
+	}
+	if _, found, err := record.SeatOfAgent(run, agentID); err != nil || !found {
+		return err // no seat for this agent
+	}
+	a := &recordpb.EnvelopeAdmitted{AgentId: proto.String(agentID)}
+	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, a, record.OneAdmissionASitting(a)); err != nil && !errors.Is(err, record.ErrWritesNothing) {
+		return fmt.Errorf("the envelope was accepted and its admission could not be recorded: %w", err)
+	}
+	return nil
 }
 
 // WriteToolEntry records what a hook saw happen to a seat's call — a denial or a failure — as the

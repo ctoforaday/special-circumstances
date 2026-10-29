@@ -244,6 +244,20 @@
       ]
     },
     {
+      "term": "failed sitting",
+      "definition": "A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the call returning its envelope never succeeded, because the envelope gate refused it or its schema rejected it until the harness gave up, or its agent died; the engine dispatches the seat again while it owes its items, and capture names each one.",
+      "seats": [
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "FAIL (a verdict)",
+          "resolution": "the chair's FAIL is a judgement on the board; a failed sitting is a sitting that ended without its envelope admitted, and judges nothing"
+        }
+      ]
+    },
+    {
       "term": "exchange",
       "definition": "An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.",
       "seats": [
