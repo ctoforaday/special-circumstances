@@ -63,12 +63,12 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 
 	// THE CHAIR CONVENES THE BENCH ON THE GAP, so the record holds the dispatch row the bench's
 	// docket sitting answers — the row its envelope is held to.
-	r.sit("chair", "red-chair")
+	r.dispatchSits("chair", "red-chair")
 	if _, err := r.exec("--json", "dispatch", "next", "--seat-id", "red-chair"); err != nil {
 		t.Fatalf("the chair's dispatch: %v", err)
 	}
 	r.dispatchReturns("red-chair", false) // its sitting ends at its return; it put no envelope to the record
-	r.sit("bench", "judge", "docket")
+	r.dispatchSits("bench", "judge", "docket")
 	// ITS ENVELOPE IS REFUSED WHILE EITHER TWIN STANDS, naming each.
 	var refusal string
 	refusal, err = record.EnvelopeRefusal(r.run(), "judge")
@@ -89,6 +89,7 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 		t.Errorf("the bench sat for %s and left docket motion(s) %v standing — the plan never readies it for them again", gapID, left)
 	}
 	r.dispatchReturns("judge", r.envelopeEnds("judge"))
+	requireEveryDispatchReturned(t, r)
 	if r.actErr != "" {
 		t.Errorf("the bench's envelope after ruling both: %s", r.actErr)
 	}
