@@ -1687,8 +1687,11 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// toward retirement, so a lens drawing it sits again at the same head, drawing again from the
 	// shared stream in scheduler order: the forced run's tail is a geometric draw per lens, and on
 	// the forced-UNVERIFIED test it outran the epoch limit and ended CEILING. A forced run opens by
-	// a plain register, sat through at its next opening; the drawn runs keep both shapes.
-	case r.forcedVerdict():
+	// a plain register, sat through at its next opening; the drawn runs keep both shapes. So does
+	// owedProofSeed's proof owner: a sitting it does not sit through counts nothing toward its
+	// three barren sittings, and drawn openings left it short of three in a forced run of twelve
+	// epochs, kept by an unchecked proof zero times.
+	case r.forcedVerdict() || r.forceOwedProof && seatID == proofOwner:
 		r.admit(registerArgs(seatID, occ)...)
 	case r.coin(25):
 		r.registerTwice(seatID, occ)
@@ -1871,11 +1874,11 @@ func (r *runner) findsFresh() bool {
 }
 
 // mintsFresh is whether seatID mints a fresh gap at this sitting: findsFresh, except that
-// owedProofSeed's run keeps its proof owner barren. A gap the owner mints fresh — a find, or the gap
-// carrying an unsound judgement — resets its count of barren sittings, and only a lens barren three
-// sittings running is kept from retiring by the unchecked proof each blue sitting leaves it: in the
-// sweep where the owner minted as any lens does, the forced run kept it that way zero times, and the
-// one fold the sweep counted was another run's draw.
+// owedProofSeed's run keeps its proof owner barren. A gap the owner mints fresh — a find, the gap
+// carrying an unsound judgement, the answer to a contradicting reading — resets its count of barren
+// sittings, and only a lens barren three sittings running is kept from retiring by the unchecked
+// proof each blue sitting leaves it: in the sweep where the owner minted as any lens does, the forced
+// run kept it that way zero times, and the one fold the sweep counted was another run's draw.
 func (r *runner) mintsFresh(seatID string) bool {
 	return r.findsFresh() && (!r.forceOwedProof || seatID != proofOwner)
 }
@@ -4807,8 +4810,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				// A CONTRADICTION OWES A GAP, AND A GAP IS A MINT. A forced run mints at its first
 				// sitting only (findsFresh), which is its bound; a contradicting reading after it would
-				// owe a mint the bound forbids, so it reads the source as supporting instead.
-				if (outcome == "refutes" || outcome == "absent") && !r.findsFresh() {
+				// owe a mint the bound forbids, so it reads the source as supporting instead — as does
+				// owedProofSeed's proof owner, which mints nothing (mintsFresh).
+				if (outcome == "refutes" || outcome == "absent") && !r.mintsFresh(seatID) {
 					outcome = "supports"
 				}
 				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
