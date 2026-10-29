@@ -11,8 +11,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"modernc.org/sqlite"
@@ -273,15 +275,19 @@ func newerRefusal(path string, v int) error {
 // had no sidecars gains an empty `-wal` and a `-shm`. Its database bytes do not change, and a
 // rollback-journal file gains nothing.
 //
-// Only Fresh, Older or Current reach the write URI, and there the answer is taken AGAIN inside a
-// `BEGIN IMMEDIATE` transaction — the authoritative one, since a concurrent opener may have
-// rebuilt the file in between; that is what makes N concurrent openers of one old catalogue
-// produce exactly one rebuild. The schema, the rebuild markers and the stamp commit together or
-// not at all, so an interrupted open can no longer leave a prefix of the tables behind.
+// Only Fresh, Older or Current reach the write URI. A Current store whose schema is already
+// exactly Schema's is handed over there with nothing written (openOnce). Every other file is
+// classified AGAIN inside a `BEGIN IMMEDIATE` transaction — the authoritative one, since a
+// concurrent opener may have rebuilt the file in between; that is what makes N concurrent openers
+// of one old catalogue produce exactly one rebuild. The schema, the rebuild markers and the stamp
+// commit together or not at all, so an interrupted open cannot leave a prefix of the tables
+// behind.
 //
 // The window between the two classifications is the only place a foreign file could meet the
-// write connection: a catalogue replaced by a foreign file between two opens of one path. The
-// in-transaction check still refuses it before any DDL, but the WAL pragma will have run.
+// write connection: a catalogue replaced by a foreign file between two opens of one path. For a
+// file that takes settle's path, the in-transaction check still refuses it before any DDL, but
+// the WAL pragma will have run; a settled store has no second check, which is the same exposure
+// every write after Open has always had.
 func Open(path string, notice io.Writer) (*sql.DB, error) {
 	if notice == nil {
 		notice = io.Discard
@@ -336,12 +342,22 @@ var openBusyBudget = 60 * time.Second
 
 // openOnce is one attempt at Open's classify-and-write phase. It closes whatever it opened on
 // failure, so a retry starts clean.
+//
+// A STORE ALREADY SETTLED IS HANDED OVER UNTOUCHED. When preclassify finds it Current and its
+// schema exactly what Schema makes (settledShape), applying Schema would change nothing and the
+// stamp is already UserVersion — so no write transaction is begun, no DDL runs and the stamp is
+// not rewritten. This is the path every turn end takes, so a turn end neither re-creates a view nor
+// takes the exclusive lock settle's transaction holds. The connection is still opened here
+// (Ping), so its pragmas run and a busy error meets Open's retry rather than the first caller.
 func openOnce(path string) (*sql.DB, int, bool, error) {
+	settled := false
 	switch _, err := os.Stat(path); {
 	case err == nil:
-		if err := preclassify(path); err != nil {
+		s, err := preclassify(path)
+		if err != nil {
 			return nil, 0, false, err
 		}
+		settled = s
 	case !errors.Is(err, fs.ErrNotExist):
 		return nil, 0, false, fmt.Errorf("catalogue: %w", err)
 	}
@@ -352,6 +368,13 @@ func openOnce(path string) (*sql.DB, int, bool, error) {
 	db, err := sql.Open("sqlite", uri)
 	if err != nil {
 		return nil, 0, false, fmt.Errorf("catalogue: open %s: %w", path, err)
+	}
+	if settled {
+		if err := db.Ping(); err != nil {
+			db.Close()
+			return nil, 0, false, fmt.Errorf("catalogue: opening %s: %w", path, err)
+		}
+		return db, UserVersion, false, nil
 	}
 	from, rebuilt, err := settle(db, path)
 	if err != nil {
@@ -374,29 +397,79 @@ func busyBackoff(attempt int) time.Duration {
 	return base + rand.N(base)
 }
 
-// preclassify is Open's read-only look at an existing file. It returns nil only for a class Open
-// may write: Fresh, Older or Current.
-func preclassify(path string) error {
+// preclassify is Open's read-only look at an existing file. It returns a nil error only for a
+// class Open may write: Fresh, Older or Current — and reports settled when the file is Current
+// with exactly Schema's objects, which Open then leaves as it is.
+func preclassify(path string) (settled bool, err error) {
 	uri, err := readURI(path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	ro, err := sql.Open("sqlite", uri)
 	if err != nil {
-		return fmt.Errorf("catalogue: open read-only %s: %w", path, err)
+		return false, fmt.Errorf("catalogue: open read-only %s: %w", path, err)
 	}
 	defer ro.Close()
 	v, class, tables, err := recognise(ro)
 	if err != nil {
-		return fmt.Errorf("catalogue: classifying %s: %w", path, err)
+		return false, fmt.Errorf("catalogue: classifying %s: %w", path, err)
 	}
 	switch class {
 	case Foreign:
-		return foreignRefusal(path, tables)
+		return false, foreignRefusal(path, tables)
 	case Newer:
-		return newerRefusal(path, v)
+		return false, newerRefusal(path, v)
+	case Current:
+		return settledShape(ro)
 	}
-	return nil
+	return false, nil
+}
+
+// settledShape reports whether the store's schema is, object for object, what Schema makes of an
+// empty database — the only state in which applying Schema again is a no-op. Compared, not
+// assumed: a Schema edit that adds an index, or changes a view it drops and re-creates, without
+// moving UserVersion still reaches every store through settle. A mismatch is not an error; it
+// sends the open down settle's path.
+//
+// The comparison includes each object's stored CREATE text, comments and all, and `CREATE ...
+// IF NOT EXISTS` never rewrites that text — so an edit to the text of an object Schema keeps
+// would leave every existing store unsettled at every open. TestSchemaTextMovesWithUserVersion
+// refuses such an edit without a stamp bump, which rebuilds the store from the new text.
+//
+// A reference build that fails is also not settled: settle applies Schema itself, so a Schema
+// that cannot be built fails there, at the open that met it, rather than being cached here for
+// the life of the process.
+func settledShape(q querier) (bool, error) {
+	want, err := schemaObjects()
+	if err != nil {
+		return false, nil //nolint:nilerr // settle re-applies Schema and reports its own failure
+	}
+	got, err := objectsOf(q)
+	if err != nil {
+		return false, fmt.Errorf("catalogue: reading the schema: %w", err)
+	}
+	return slices.Equal(got, want), nil
+}
+
+// schemaObjects is objectsOf an empty in-memory database after Schema, computed once a process.
+var schemaObjects = sync.OnceValues(func() ([]string, error) {
+	mem, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		return nil, fmt.Errorf("catalogue: reference schema: %w", err)
+	}
+	defer mem.Close()
+	mem.SetMaxOpenConns(1) // each connection to :memory: is a database of its own
+	if _, err := mem.Exec(Schema); err != nil {
+		return nil, fmt.Errorf("catalogue: reference schema: %w", err)
+	}
+	return objectsOf(mem)
+})
+
+// objectsOf lists every schema object that is not SQLite's own, as type, name, table and the
+// stored CREATE text, in a fixed order.
+func objectsOf(q querier) ([]string, error) {
+	return names(q, `SELECT type || char(0) || name || char(0) || tbl_name || char(0) || COALESCE(sql, '')
+		FROM sqlite_master WHERE name NOT LIKE 'sqlite\_%' ESCAPE '\' ORDER BY type, name`)
 }
 
 // settle takes the authoritative classification inside one IMMEDIATE transaction and brings the

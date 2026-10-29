@@ -30,11 +30,11 @@ import (
 // and the hook is driven through run() with its real paths. A test that injected a failing function
 // would prove the record works and not that any call site reaches it.
 //
-// NOT REACHED BY ANY FIXTURE, and why: catalogue-enumerate's failure (catalogue.TranscriptFiles walks
-// with a callback that swallows every error, so no filesystem state makes it return one — its success
-// is tested instead), and three manifest failures no filesystem produces on demand: a row that does
-// not encode, an fsync that fails after a write that did not, and a torn tail whose closing newline
-// cannot be written onto a file that just accepted a read.
+// NOT REACHED BY ANY FIXTURE, and why: catalogue-enumerate's failure (catalogue.TranscriptFiles and
+// SessionTranscriptFiles walk with callbacks that swallow every error, so no filesystem state makes
+// either return one — their success is tested instead), and three manifest failures no filesystem
+// produces on demand: a row that does not encode, an fsync that fails after a write that did not,
+// and a torn tail whose closing newline cannot be written onto a file that just accepted a read.
 
 // hookEnv is one isolated machine: a home with one session's transcript, its own state directory,
 // and a project directory.

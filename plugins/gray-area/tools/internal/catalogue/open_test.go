@@ -896,6 +896,156 @@ func TestACurrentStoreKeepsItsRows(t *testing.T) {
 	}
 }
 
+// schemaVersion reads the counter SQLite bumps on every DDL statement, through a read-only
+// connection that cannot itself change it.
+func schemaVersion(t *testing.T, p string) int {
+	t.Helper()
+	uri, err := readURI(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ro, err := sql.Open("sqlite", uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ro.Close()
+	var v int
+	if err := ro.QueryRow(`PRAGMA schema_version`).Scan(&v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// OPENING A SETTLED STORE WRITES NOTHING. Every turn end opens the store, so a settled store is
+// handed over without settle's exclusive transaction, its view re-creation or its stamp write. The
+// DDL counter, the stamp, the database file and its WAL are all unchanged across a second Open,
+// and the WAL holds no frame while that open is live — a write the close checkpointed away would
+// leave the first three equal and still have taken the lock.
+func TestOpeningASettledStoreWritesNothing(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('KEEP','/p',1,1)`)
+	db.Close()
+	before, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sv := schemaVersion(t, p)
+
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(p + "-wal"); err == nil && st.Size() != 0 {
+		t.Errorf("opening a settled store wrote %d bytes of WAL", st.Size())
+	}
+	var uv int
+	if err := db2.QueryRow(`PRAGMA user_version`).Scan(&uv); err != nil || uv != UserVersion {
+		t.Errorf("user_version = %d (%v), want %d", uv, err, UserVersion)
+	}
+	db2.Close()
+
+	after, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := schemaVersion(t, p); got != sv {
+		t.Errorf("schema_version moved %d → %d: the open ran DDL against a settled store", sv, got)
+	}
+	if after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {
+		t.Errorf("the database file changed: size %d → %d, mtime %v → %v",
+			before.Size(), after.Size(), before.ModTime(), after.ModTime())
+	}
+}
+
+// A CURRENT STAMP IS NOT A SETTLED SHAPE. A store at UserVersion missing an object Schema makes —
+// as a Schema edit that adds an index without moving the stamp leaves every existing store — is
+// still brought to Schema, by Open's settle path.
+func TestACurrentStampWithADriftedShapeIsSettled(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `DROP INDEX act_ts`, `DROP VIEW v_session`,
+		`CREATE VIEW v_session AS SELECT session_id FROM session`)
+	db.Close()
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db2.Close()
+	var n int
+	if err := db2.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='index' AND name='act_ts'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("act_ts after Open: %d (%v), want 1", n, err)
+	}
+	cols, err := names(db2, `SELECT name FROM pragma_table_info('v_session')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(cols, ",") != strings.Join(ViewColumns["v_session"], ",") {
+		t.Errorf("v_session after Open = %v, want %v", cols, ViewColumns["v_session"])
+	}
+	if ok, err := settledShape(db2); err != nil || !ok {
+		t.Errorf("after Open the store is not settled (%v, %v)", ok, err)
+	}
+}
+
+// A REFERENCE BUILD THAT FAILS IS NOT SETTLED. With no reference to compare against, Open takes
+// settle's path — which applies Schema itself — rather than refusing every open for the life of
+// the process.
+func TestAFailedReferenceBuildTakesSettle(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('KEEP','/p',1,1)`)
+	db.Close()
+	sv := schemaVersion(t, p)
+	reference := schemaObjects
+	t.Cleanup(func() { schemaObjects = reference })
+	schemaObjects = func() ([]string, error) { return nil, errors.New("no reference") }
+
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatalf("Open with a failed reference build: %v", err)
+	}
+	var n int
+	if err := db2.QueryRow(`SELECT count(*) FROM session WHERE session_id='KEEP'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("KEEP rows after Open: %d (%v), want 1", n, err)
+	}
+	db2.Close()
+	if got := schemaVersion(t, p); got == sv {
+		t.Errorf("schema_version stayed %d: the open did not take settle's path", sv)
+	}
+}
+
+// schemaPin is the sha256 of the schema objects Schema builds — each object's type, name, table
+// and stored CREATE text, as objectsOf lists them — beside the UserVersion that text belongs to.
+var schemaPin = struct {
+	userVersion int
+	sha256      string
+}{6, "a24fe614ce8b1592c69f3dcb29b7dc1b2b41a5cc0146f1f2d3663fcfd97d0183"}
+
+// THE STORED SCHEMA TEXT MOVES WITH USERVERSION. settledShape compares each object's stored CREATE
+// text, comments included, and `CREATE ... IF NOT EXISTS` never rewrites it — so an edit to that
+// text at an unchanged stamp leaves every existing store failing the comparison at every open, and
+// paying settle's full cost each time. A bumped stamp sends each store through the Older rebuild,
+// which stores the new text.
+func TestSchemaTextMovesWithUserVersion(t *testing.T) {
+	objs, err := schemaObjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := sha256.New()
+	for _, o := range objs {
+		h.Write([]byte(o))
+		h.Write([]byte{'\n'})
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	switch {
+	case UserVersion == schemaPin.userVersion && got != schemaPin.sha256:
+		t.Errorf("Schema's stored text changed while UserVersion stayed %d: existing stores keep the old "+
+			"text and never compare settled. Bump UserVersion (with its WHY note), then set schemaPin to "+
+			"{%d, %q}", UserVersion, UserVersion+1, got)
+	case UserVersion != schemaPin.userVersion || got != schemaPin.sha256:
+		t.Errorf("schemaPin = {%d, %q}, but Schema is at UserVersion %d with hash %q: set schemaPin to {%d, %q}",
+			schemaPin.userVersion, schemaPin.sha256, UserVersion, got, UserVersion, got)
+	}
+}
+
 // EXACTLY ONE REBUILD UNDER CONCURRENT OPENERS, because the decision is re-taken inside one
 // IMMEDIATE transaction. A second rebuild would wipe the rows the first opener has already
 // written — so the first to return writes one, and it must survive every other opener.
