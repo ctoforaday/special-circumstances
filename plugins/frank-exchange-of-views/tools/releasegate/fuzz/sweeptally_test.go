@@ -174,22 +174,25 @@ func tallyOf(o outcome) runTally {
 // left outside its own outcome. Counts add across parts, sets union, MootSpent ORs, and a
 // first-refusal row keeps the earlier part's.
 type processTally struct {
-	ExecRuns     map[string]int             `json:"exec_runs"`
-	ExecFail     map[string]int             `json:"exec_fail"`
-	ExecFailWhy  map[string]string          `json:"exec_fail_why"`
-	ExecInProc   map[string]int             `json:"exec_in_proc"`
-	ExecEdges    map[string]map[string]int  `json:"exec_edges"`
-	ExecFlags    map[string]map[string]bool `json:"exec_flags"`
-	ExecValues   map[string]map[string]bool `json:"exec_values"`
-	NamingWalked int                        `json:"naming_walked"`
-	NamingWrong  map[string]string          `json:"naming_wrong"`
-	DrivenView   map[string]bool            `json:"driven_view"`
-	MootSpent    bool                       `json:"moot_spent"`
-	LookedFirst  int64                      `json:"looked_first"`
-	ClassLanded  map[string]bool            `json:"class_landed"`
-	Either       map[string][2]int          `json:"either"`
-	Envelope     map[string]int             `json:"envelope"`
-	Fail         map[string]int             `json:"fail"`
+	ExecRuns         map[string]int             `json:"exec_runs"`
+	ExecFail         map[string]int             `json:"exec_fail"`
+	ExecFailWhy      map[string]string          `json:"exec_fail_why"`
+	ExecInProc       map[string]int             `json:"exec_in_proc"`
+	ExecEdges        map[string]map[string]int  `json:"exec_edges"`
+	ExecFlags        map[string]map[string]bool `json:"exec_flags"`
+	ExecValues       map[string]map[string]bool `json:"exec_values"`
+	NamingWalked     int                        `json:"naming_walked"`
+	NamingWrong      map[string]string          `json:"naming_wrong"`
+	DrivenView       map[string]bool            `json:"driven_view"`
+	MootSpent        bool                       `json:"moot_spent"`
+	LookedFirst      int64                      `json:"looked_first"`
+	RegisteredTwice  int64                      `json:"registered_twice"`
+	SittingsClosed   int64                      `json:"sittings_closed"`
+	SittingsLeftOpen int64                      `json:"sittings_left_open"`
+	ClassLanded      map[string]bool            `json:"class_landed"`
+	Either           map[string][2]int          `json:"either"`
+	Envelope         map[string]int             `json:"envelope"`
+	Fail             map[string]int             `json:"fail"`
 }
 
 // add folds q into p.
@@ -211,6 +214,9 @@ func (p *processTally) add(q processTally) {
 	p.DrivenView = addSet(p.DrivenView, q.DrivenView)
 	p.MootSpent = p.MootSpent || q.MootSpent
 	p.LookedFirst += q.LookedFirst
+	p.RegisteredTwice += q.RegisteredTwice
+	p.SittingsClosed += q.SittingsClosed
+	p.SittingsLeftOpen += q.SittingsLeftOpen
 	p.ClassLanded = addSet(p.ClassLanded, q.ClassLanded)
 	if p.Either == nil {
 		p.Either = map[string][2]int{}
@@ -298,6 +304,9 @@ func snapshotProcess() processTally {
 	failMu.Unlock()
 	p.MootSpent = mootSpent.Load()
 	p.LookedFirst = lookedFirst.Load()
+	p.RegisteredTwice = registeredTwice.Load()
+	p.SittingsClosed = sittingsClosed.Load()
+	p.SittingsLeftOpen = sittingsLeftOpen.Load()
 	return p
 }
 
@@ -986,6 +995,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if p.LookedFirst == 0 {
 			t.Error("no lens sitting opened with a look before its register: the drive that holds a board read to registering no one never completed")
 		}
+		if p.RegisteredTwice == 0 {
+			t.Error("no sitting opened by registerTwice: the drive that holds a repeat register under one agent id to a refusal that writes nothing never completed")
+		}
+		// AND BOTH ENDS OF AN AGENT-BEARING SITTING: closed at its return, as SubagentStop closes it,
+		// and left open by the deliberate draw, as a subagent that dies before SubagentStop leaves it.
+		if p.SittingsClosed == 0 {
+			t.Error("no agent-bearing sitting was closed at its return: every such sitting the sweep opened reads never closed, a state no live run with working hooks produces")
+		}
+		if p.SittingsLeftOpen == 0 {
+			t.Error("no agent-bearing sitting was left open by the never-closed draw: the record's never-closed sitting went unexercised")
+		}
 		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
 		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.
 		if un := unlandedClassDrive(p.ClassLanded); len(un) > 0 {
@@ -1004,6 +1024,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	// print; withholding it under quorum hid the evidence for the gate below on exactly the runs
 	// most likely to need it. And a path that never succeeded is a coverage hole at ANY N — it
 	// needs no quorum, because one refusal per invocation is not a sampling accident.
+	t.Logf("agent-bearing sittings: %d closed at their return, %d left open by the never-closed draw; %d opened by registerTwice, %d by lookThenRegister",
+		p.SittingsClosed, p.SittingsLeftOpen, p.RegisteredTwice, p.LookedFirst)
 	t.Log(execReport(p))
 	t.Log(eitherReport(p))
 	t.Log(failReport(p))
