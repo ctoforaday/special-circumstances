@@ -146,22 +146,29 @@ done
 
 # Toolchain: the pinned zig and cmake are linux-x86_64 host binaries. On another host,
 # point ZIG/CMAKE at your own installs of the same versions.
+# Each tool unpacks into a directory named for its pinned tarball, so a workdir that
+# holds an older pin's toolchain builds with the new one rather than reusing the old.
+tool_pin() { # tool_pin <name> — the pinned tarball file name for a toolchain
+	awk -v n="$1" '$0 !~ /^#/ && $2 ~ "^"n"-" { print $2 }' "$PINS"
+}
+unpack_tool() { # unpack_tool <tarball> — fetch, verify, unpack once; print the directory
+	local file="$1" dir="$WORK/tools/${1%.tar.*}"
+	if [ ! -d "$dir" ]; then
+		fetch_pinned "$file" "$WORK/src" >&2
+		mkdir -p "$dir.part"
+		tar -C "$dir.part" --strip-components=1 -xf "$WORK/src/$file"
+		mv "$dir.part" "$dir"
+	fi
+	echo "$dir"
+}
 if [ -z "${ZIG:-}" ]; then
 	[ "$(uname -sm)" = "Linux x86_64" ] || die "pinned zig/cmake are linux-x86_64; set ZIG and CMAKE"
-	if [ ! -x "$WORK/tools/zig/zig" ]; then
-		fetch_pinned zig-0.16.0.tar.xz "$WORK/src"
-		mkdir -p "$WORK/tools/zig"
-		tar -C "$WORK/tools/zig" --strip-components=1 -xJf "$WORK/src/zig-0.16.0.tar.xz"
-	fi
-	ZIG="$WORK/tools/zig/zig"
+	f="$(tool_pin zig)"; [ -n "$f" ] || die "PINS.txt pins no zig"
+	ZIG="$(unpack_tool "$f")/zig"
 fi
 if [ -z "${CMAKE:-}" ]; then
-	if [ ! -x "$WORK/tools/cmake/bin/cmake" ]; then
-		fetch_pinned cmake-4.4.3.tar.gz "$WORK/src"
-		mkdir -p "$WORK/tools/cmake"
-		tar -C "$WORK/tools/cmake" --strip-components=1 -xzf "$WORK/src/cmake-4.4.3.tar.gz"
-	fi
-	CMAKE="$WORK/tools/cmake/bin/cmake"
+	f="$(tool_pin cmake)"; [ -n "$f" ] || die "PINS.txt pins no cmake"
+	CMAKE="$(unpack_tool "$f")/bin/cmake"
 fi
 
 for f in zlib-1.3.2.tar.gz libpng-1.6.58.tar.gz leptonica-1.87.0.tar.gz tesseract-5.5.3.tar.gz; do
@@ -197,8 +204,15 @@ CROSS=(
 	-DCMAKE_NO_SYSTEM_FROM_IMPORTED=ON
 	# mingw headers hide M_PI under strict-ANSI C++17 (baseapi.cpp:2280); harmless on
 	# the other targets, so it is set once for all of them.
-	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES -DCMAKE_CXX_FLAGS=-D_USE_MATH_DEFINES
+	-DCMAKE_C_FLAGS=-D_USE_MATH_DEFINES
 )
+CXXFLAGS_ALL=-D_USE_MATH_DEFINES
+# Under -std=c++20 clang reports __has_feature(modules), so the macOS SDK's math.h includes
+# <float.h> asking only for INFINITY/NAN; libc++'s float.h wrapper latches its include guard
+# on that partial include, and the later <cfloat> in tesseract's ratngs.h defines no FLT_MAX.
+# Tesseract uses no C++ modules, so turning the feature off restores the whole header.
+[ "$SYSNAME" = Darwin ] && CXXFLAGS_ALL="$CXXFLAGS_ALL -fno-cxx-modules"
+CROSS+=(-DCMAKE_CXX_FLAGS="$CXXFLAGS_ALL")
 
 phase() { echo "=== PHASE $1 ($TARGET) : $(date -u +%H:%M:%S) ==="; }
 reached=false
