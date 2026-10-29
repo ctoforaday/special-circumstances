@@ -75,7 +75,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
@@ -287,16 +287,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 		if err != nil || f == FileInquiries {
 			continue
 		}
-		eachLine(string(b), func(ln, tr string, fenced bool) {
-			key, ok := headingKey(tr)
-			if !ok || fenced {
-				return
+		for _, l := range ParseText(string(b)).lines {
+			ln := l.text
+			key, ok := headingKey(l)
+			if !ok || l.code {
+				continue
 			}
 			shipped[f+"\x00"+key] = true
 			if !rows[f+"\x00"+key] && !strings.Contains(blue, ln) {
 				t.Errorf("%s ships %q and the layout has no row for it: the write does not refuse it, the layout view does not list it, and no help page names it", f, ln)
 			}
-		})
+		}
 	}
 	for _, s := range layout {
 		// The fixture runs no computation, cites and retires nothing, certifies once, and its title
@@ -310,11 +311,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 	}
 	// In the row's place: report.md's headings are the table's, in the table's order.
 	var order, wantOrder []string
-	eachLine(got, func(_, tr string, fenced bool) {
-		if key, ok := headingKey(tr); ok && !fenced && rows[FileReport+"\x00"+key] {
+	for _, l := range ParseText(got).lines {
+		if key, ok := headingKey(l); ok && !l.code && rows[FileReport+"\x00"+key] {
 			order = append(order, key)
 		}
-	})
+	}
 	for _, s := range layout {
 		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
 			for _, h := range s.first {
@@ -400,7 +401,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		}
 	}
 
-	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
@@ -512,7 +513,8 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	docs, err := AssembleAll(run)
+	// The sections as composed, under no masthead: the masthead's title says the report has none.
+	docs, _, _, err := stdReaders().assemble(run, "")
 	if err != nil {
 		t.Fatalf("a run with no report ingested does not assemble: %v", err)
 	}
@@ -532,7 +534,7 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 		New: proto.String("another"), Text: proto.String("a reason")}); err != nil {
 		t.Fatal(err)
 	}
-	if docs, err := AssembleAll(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
+	if docs, err := shippedDocs(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report that does not replay: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 
@@ -547,7 +549,7 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if docs, err := AssembleAll(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
+	if docs, err := shippedDocs(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 }

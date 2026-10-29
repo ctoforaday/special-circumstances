@@ -24,9 +24,9 @@
 <div class="layout">
 <nav id="toc" aria-label="Contents" hidden></nav>
 <main>
-{{range .Docs}}<article id="doc-{{.Slug}}" data-doc="{{.File}}"{{if not .Selected}} hidden{{end}}>
+{{range .Docs}}<article id="{{.Element}}" data-doc="{{.File}}"{{if not .Selected}} hidden{{end}}>
 <p class="blurb">{{.Blurb}}</p>
-{{.Body}}</article>
+{{.Chart}}{{.Body}}</article>
 {{end}}</main>
 </div>
 <footer>

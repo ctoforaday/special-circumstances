@@ -62,7 +62,7 @@ func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 		t.Fatalf("corroborate: %v", err)
 	}
 	out := assembled(t, runDir)
-	entry := title + ". " + url + " (accessed 2026-09-01)"
+	entry := title + ". [" + url + "](" + url + ") (accessed 2026-09-01)"
 	notes := regexp.MustCompile(`(?m)^\[\^\d+\]:.*$`).FindAllString(out, -1)
 	if len(notes) != 1 || notes[0] != "[^1]: "+entry {
 		t.Fatalf("the source's note is not exactly title, url and date:\n got %q\nwant %q", notes, "[^1]: "+entry)

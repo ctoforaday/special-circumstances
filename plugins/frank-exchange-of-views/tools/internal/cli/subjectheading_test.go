@@ -53,7 +53,7 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	}
 
 	open := runtest.Open(t, runDir)
-	docs, err := report.AssembleAll(open)
+	docs, err := shippedDocs(open)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,11 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	// ONE PAGE, ONE ELEMENT PER ID. report.html holds every document as a tab, and a fragment
 	// resolves to the first element of that id on the page: the report's own "Proofs" and
 	// evidence.md's are two ids.
-	html := report.RenderSite(report.Title(open), docs, record.Family{})
+	set, err := report.AssembleShipped(open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := report.RenderSite(set, record.Family{})
 	seen := map[string]bool{}
 	for _, m := range regexp.MustCompile(` id="([^"]+)"`).FindAllStringSubmatch(html, -1) {
 		if seen[m[1]] {

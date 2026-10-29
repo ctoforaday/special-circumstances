@@ -27,9 +27,19 @@ var sectionHeading = regexp.MustCompile(`(?m)^## (.+)$`)
 
 func headingsOf(text string) (out []string) {
 	for _, m := range sectionHeading.FindAllStringSubmatch(text, -1) {
-		out = append(out, anchor.StripAssembled(m[1]))
+		out = append(out, withoutStripped(m[1]))
 	}
 	return out
+}
+
+// withoutStripped is s with every token of a kind assembly strips taken out.
+func withoutStripped(s string) string {
+	return anchor.Replace(s, func(tok, id string) string {
+		if anchor.AssemblyOf(id) == anchor.Strip {
+			return ""
+		}
+		return tok
+	})
 }
 
 // anchorLines is each anchor in text with the line it stands on, anchors taken out.
@@ -37,7 +47,7 @@ func anchorLines(text string) map[string]string {
 	out := map[string]string{}
 	for _, ln := range strings.Split(text, "\n") {
 		for _, id := range anchor.IDs(ln) {
-			out[id] = strings.TrimSpace(anchor.StripAssembled(ln))
+			out[id] = strings.TrimSpace(withoutStripped(ln))
 		}
 	}
 	return out
@@ -66,7 +76,7 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 	if got := headingsOf(text); !slices.Equal(got, want) {
 		t.Errorf("the migrated m20's sections stand as\n  %q\nwant\n  %q", got, want)
 	}
-	if mis, out := report.OutOfOrderIn("", text); out {
+	if mis, out := report.OutOfOrderIn(report.ParseText(""), report.ParseText(text)); out {
 		t.Errorf("the migrated m20's text is out of order: %+v", mis)
 	}
 
@@ -109,7 +119,7 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 
 	// AND THE SET SHIPS AS IT DID: the Catechism ahead of the report's own sections, Open questions
 	// after the tool's.
-	docs, err := report.AssembleAll(dst)
+	docs, err := shippedDocs(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +225,7 @@ func TestMigrateReordersTheBaseOnlyWhereEveryActReplays(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, out := report.OutOfOrderIn("", got)
+			_, out := report.OutOfOrderIn(report.ParseText(""), report.ParseText(got))
 			switch tc.want {
 			case migrate.OrderReordered:
 				if got != report.Ordered(was) || out {
@@ -316,4 +326,24 @@ func TestAMigrationRestoresTheClock(t *testing.T) {
 	if got := record.Now(); !got.Equal(fixed) {
 		t.Errorf("after a migration record.Now answers %v, want the caller's %v — a pass left its pinned stamp behind", got, fixed)
 	}
+}
+
+// shippedDocs is the run's report set as it ships: the run assembled, and each document it wrote — its
+// name, and its .md, masthead and all, in Body — in reading order.
+func shippedDocs(run record.Run) ([]report.Doc, error) {
+	if _, err := report.Assemble(run); err != nil {
+		return nil, err
+	}
+	var docs []report.Doc
+	for _, f := range report.Files() {
+		b, err := os.ReadFile(filepath.Join(run.Dir(), f))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, report.Doc{File: f, Body: string(b)})
+	}
+	return docs, nil
 }

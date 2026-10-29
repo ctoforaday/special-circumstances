@@ -45,7 +45,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"[^1]: the source. https://example.invalid/a",
 	}, "\n")
 
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
+	got := renderOne(md, FileReport, anchors{}, map[string]int{}, nil).html
 	for _, want := range []string{
 		`<h1 id="title">Title</h1>`,
 		"<strong>bold</strong>", "<em>italic</em>", "<code>code</code>",
@@ -55,8 +55,8 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"<ul><li>first</li>", "<ol><li>one</li>",
 		// A list that starts at 3 shows 3: the number is the list's start, not a count of the items.
 		`<ol start="3"><li>three</li>`,
-		// A destination that would run script links nowhere.
-		`<a href="">script link</a>`,
+		// A destination that would run script is no link: its text stands alone.
+		`<p>A script link does nothing.</p>`,
 		`<pre><code class="language-bash">## not a heading`,
 		"echo &#39;x&#39; &gt; y", // escaped, and NOT parsed as a heading or a quote
 		"<hr>",
@@ -67,7 +67,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		// slug plus the entry's opening text.
 		`<a class="cite" id="fnref-1" href="#fn-1" title="1 — the source. https://example.invalid/a">[1]</a>`,
 		`<li id="fn-1">`,
-		`<span class="fnlabel" data-nolink>1</span>`,
+		`<span class="fnlabel" data-nolink="">1</span>`,
 		`<a class="fnback" href="#fnref-1"`,
 		`<h2>References</h2>`,
 		`<a href="https://example.invalid/a">`,
@@ -82,7 +82,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {
-	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{}, nil).html
+	got := renderOne("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{}, nil).html
 	if strings.Contains(got, "<script>") {
 		t.Errorf("a tag in prose reached the document unescaped:\n%s", got)
 	}
@@ -95,8 +95,8 @@ func TestMarkupInProseIsEscaped(t *testing.T) {
 // link to it. This is the join a seven-file markdown set cannot express.
 func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 	anchor := anchors{}
-	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor, map[string]int{}, nil)
-	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor, map[string]int{}, nil)
+	docket := renderOne("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor, map[string]int{}, nil)
+	report := renderOne("The board still carries G-00000001 at close.\n", FileReport, anchor, map[string]int{}, nil)
 
 	if anchor["G-00000001"] == "" {
 		t.Fatalf("the defining heading did not register an anchor: %v", anchor)
@@ -117,13 +117,13 @@ func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 // HTML rewrites hrefs and produces a document that links every id to itself.
 func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 	anchor := anchors{"G-00000001": "docket.md#r1-1"}
-	got := linkIDs(mdToHTML("`grep G-00000001` and [G-00000001](x)\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport)
+	got := linkIDs(renderOne("`grep G-00000001` and [G-00000001](x)\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport)
 	if strings.Count(got, "idref") != 0 {
 		t.Errorf("an id was rewritten inside code or an existing link:\n%s", got)
 	}
 	// THE SAME ID IN PLAIN TEXT IS LINKED, so the zero above is the code span and the link holding
 	// it back and not an id the pattern does not read.
-	if got := linkIDs(mdToHTML("see G-00000001\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport); strings.Count(got, "idref") != 1 {
+	if got := linkIDs(renderOne("see G-00000001\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport); strings.Count(got, "idref") != 1 {
 		t.Errorf("the id in plain text was not linked:\n%s", got)
 	}
 }
@@ -131,7 +131,7 @@ func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 // Hard breaks survive. The composers use them to keep a gap's four facts on four lines; a
 // renderer that drops them re-fuses exactly what they were added to separate.
 func TestHardBreaksSurvive(t *testing.T) {
-	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{}, nil).html
+	got := renderOne("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{}, nil).html
 	if strings.Count(got, "<br>") != 2 {
 		t.Errorf("hard breaks were dropped, so four facts render as one sentence:\n%s", got)
 	}
@@ -144,7 +144,7 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	md := "First claim[^zulu]. Second claim[^alpha], and zulu again[^zulu].\n\n" +
 		"[^alpha]: A, defined first. https://example.invalid/a\n" +
 		"[^zulu]: Z, defined second. https://example.invalid/z\n"
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
+	got := renderOne(md, FileReport, anchors{}, map[string]int{}, nil).html
 	for _, want := range []string{
 		`<a class="cite" id="fnref-zulu" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
 		`<a class="cite" id="fnref-alpha" href="#fn-alpha" title="alpha — A, defined first. https://example.invalid/a">[2]</a>`,
@@ -176,8 +176,8 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 		for form, md := range map[string]string{"heading": "### " + tc.definedAs + "\n\nsomething\n", "list item": "- " + tc.definedAs + "\n"} {
 			t.Run(tc.id+" in a "+form, func(t *testing.T) {
 				anchor := anchors{}
-				mdToHTML(md, FileDocket, anchor, map[string]int{}, nil)
-				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor, map[string]int{}, nil)
+				renderOne(md, FileDocket, anchor, map[string]int{}, nil)
+				report := renderOne("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor, map[string]int{}, nil)
 
 				if !strings.HasPrefix(anchor[tc.id], FileDocket+"#") {
 					t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", tc.id, anchor)
@@ -192,20 +192,19 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	// stands in an anchor, and a word that begins like an id is a word.
 	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine"} {
 		anchor := anchors{}
-		mdToHTML("### "+text+"\n", FileDocket, anchor, map[string]int{}, nil)
+		renderOne("### "+text+"\n", FileDocket, anchor, map[string]int{}, nil)
 		if len(anchor) != 0 {
 			t.Errorf("%q defined an anchor: %v", text, anchor)
 		}
 	}
 }
 
-// HTML ALONE ON ITS LINE IS HTML; HTML IN A LINE OF PROSE IS TEXT. The bare tag is the composer's
-// (evidence.md, one per proof), and markdown reads it as inline HTML because its closing tag shares
-// the line, so it passes through as written. The same tag opening a line of the report's own prose
-// is the prose's, and is shown as typed beside the words after it.
-func TestAnAnchorTagAloneIsHTMLAndInProseIsText(t *testing.T) {
-	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil).html
-	for _, want := range []string{"<a id=\"P-deadbeef\"></a>\n", `<p>&lt;a id=&quot;here&quot;&gt;&lt;/a&gt;the words after the tag.</p>`} {
+// A PROOF'S ANCHOR IS HTML WHERE THE TOOL WROTE IT, AND TEXT WHEREVER IT IS TYPED. evidence.md's
+// composer writes a mark for each proof, and shipping makes it the anchor; the same tag typed alone on
+// a line, or opening a line of prose, is a seat's, and is shown as typed.
+func TestAnAnchorTagIsHTMLOnlyWhereTheToolWroteIt(t *testing.T) {
+	html := renderOne(proofAnchorMark("P-deadbeef")+"\n\n<a id=\"P-0000beef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil).html
+	for _, want := range []string{"<a id=\"P-deadbeef\"></a>\n", `<p>&lt;a id=&quot;P-0000beef&quot;&gt;&lt;/a&gt;</p>`, `<p>&lt;a id=&quot;here&quot;&gt;&lt;/a&gt;the words after the tag.</p>`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendering does not carry %q:\n%s", want, html)
 		}
@@ -216,15 +215,15 @@ func TestAnAnchorTagAloneIsHTMLAndInProseIsText(t *testing.T) {
 // the HTML this file had just written, so anything in that shape was read as the tool's own: a raw
 // HTML line carrying a reference's markup was numbered as a citation, and a note's entry was
 // whatever matched an entry's tag. They are rendered from the references and definitions the
-// document holds; text in their shape is text.
+// document holds; text in their shape is text, and a seat's HTML line in their shape is shown as typed.
 func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T) {
 	raw := `<p>as rendered: <sup class="fnref"><a href="#fn-zz">zz</a></sup> and <li id="fn-yy">an entry</li></p>`
 	md := "A claim[^b] in prose.\n\n" + raw + "\n\n| col |\n|---|\n| a cell[^a] |\n\n" +
 		"- an item[^b]\n\n> a quote[^c]\n\nA control \x01 character.\n\n" +
 		"[^a]: The a source, which cites[^c].\n[^b]: The b source.\n[^c]: The c source.\n[^d]: Uncited.\n"
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
-	if !strings.Contains(got, raw) {
-		t.Errorf("a raw HTML line in the shape of the tool's markup was rewritten:\n%s", got)
+	got := renderOne(md, FileReport, anchors{}, map[string]int{}, nil).html
+	if !strings.Contains(got, "<p>"+escape(raw)+"</p>") {
+		t.Errorf("a raw HTML line in the shape of the tool's markup was not shown as typed:\n%s", got)
 	}
 	for _, want := range []string{
 		`<a class="cite" id="fnref-b" href="#fn-b" title="b — The b source.">[1]</a>`,
@@ -249,4 +248,9 @@ func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T
 	if strings.ContainsRune(got, '\x01') || !strings.Contains(got, "A control � character.") {
 		t.Errorf("a control character in the text was not shown as the replacement character:\n%q", got)
 	}
+}
+
+// renderOne renders md as one document of a set: shipSet's parse, rendered by RenderSite's first pass.
+func renderOne(md, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
+	return renderDoc(stdReaders().shipSet("# T", []Doc{{File: file, Body: md}}).html[0], file, anchor, seen, files)
 }

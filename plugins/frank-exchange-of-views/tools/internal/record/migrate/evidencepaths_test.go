@@ -35,7 +35,7 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsProofs(t *testing.T) {
 	if homed == 0 {
 		t.Fatal("the archived record holds no proof run from a home-directory path, so this measures nothing")
 	}
-	docs, err := report.AssembleAll(dst)
+	docs, err := shippedDocs(dst)
 	if err != nil {
 		t.Fatal(err)
 	}

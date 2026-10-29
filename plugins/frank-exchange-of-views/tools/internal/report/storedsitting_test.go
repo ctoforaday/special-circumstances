@@ -173,7 +173,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 
 	// THE CHANGELOG lists what left the report.
 	t.Run("the changelog document", func(t *testing.T) {
-		docs, err := AssembleAll(run)
+		docs, err := shippedDocs(run)
 		if err != nil {
 			t.Fatal(err)
 		}

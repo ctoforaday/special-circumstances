@@ -101,30 +101,38 @@ func AssemblyWritten(run record.Run) (bool, error) {
 	}
 }
 
-// AssembleAll composes the run's whole report set from the record and blue's audited report.
-// It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
-// with no motions has no judgments.md, and no empty heading standing in for one.
-func AssembleAll(run record.Run) ([]Doc, error) {
-	docs, _, err := assemble(run, "")
-	return docs, err
+// AssembleShipped is the run's report set as it ships (shipSet), under the run's title. It writes
+// nothing; Write does that. A document with an empty body is not in the set — a run with no motions
+// has no judgments.md, and no empty heading standing in for one.
+func AssembleShipped(run record.Run) (Shipped, error) {
+	rd := stdReaders()
+	docs, _, title, err := rd.assemble(run, "")
+	if err != nil {
+		return Shipped{}, err
+	}
+	return rd.shipSet(title, docs), nil
 }
 
-// assemble is AssembleAll, with the headings of the rows it composed a section for: what the
-// assembled layout reads to tell a section the table placed from a line of the report's text
-// that opens as one does. The layout passes a mark line to stand above each block composed, which
-// is how it finds where each stands; the set that ships is assembled with none.
-func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
+// assemble composes the run's report set from the record and the report's text, before it ships:
+// each document's body, with the proofs' marks in evidence.md where their anchors go (proofanchor.go)
+// and the record's text as written, no `<` escaped. It returns the headings of the rows it composed a
+// section for too: what the assembled layout reads to tell a section the table placed from a line of
+// the report's text that opens as one does. The layout passes a mark line to stand above each block
+// composed, which is how it finds where each stands; the set that ships is assembled with none. And
+// it returns the run's short title — the H1 every document in the set opens with — read from the same
+// parse of the report's text as the rest.
+func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool, string, error) {
 	blue, err := blueReport(run)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading the board: %w", err)
+		return nil, nil, "", fmt.Errorf("reading the board: %w", err)
 	}
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("encoding the board: %w", err)
+		return nil, nil, "", fmt.Errorf("encoding the board: %w", err)
 	}
 	evs := fam.Events
 
@@ -133,7 +141,14 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// run only the stamp — the outcome's word and its basis as state. Every sentence explaining a
 	// verdict, what answered the seats, the board in full and the transcript are envelope, and
 	// their rows put them in the documents behind it.
-	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(blue)}
+	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(rd.text(blue)), rd: rd}
+	// The title enters composition here, so its tokens leave here (stripTokens), by the weave's rule:
+	// the Question line composes the title into a section the weave reads, so a citation's or a
+	// proof's token stays for the weave to make a note of. The H1 is read by no weave, so it is cut
+	// from the title with no token in it: a token's bytes are no part of the length a reader sees,
+	// and the cut is at a boundary in what ships.
+	a.blue.title = rd.stripTokens(a.blue.title, true)
+	title, _ := heading(rd.stripTokens(a.blue.title, false))
 	body := map[string]*sections{}
 	composed := map[string]bool{}
 	for _, s := range layout {
@@ -151,17 +166,17 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
 	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
 	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
-	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it — not a
-	// section of the table and not a second account — followed by the chair's reviews of the report
-	// against those inquiries (inquiryReviews).
-	inq := view.InquiryBody(evs, fam.At, true)
+	// (view.InquiryBody), whole, with each superseded record of an inquiry's path under it and each
+	// value's paragraphs kept inside its item (inItem) — not a section of the table and not a second
+	// account — followed by the chair's reviews of the report against those inquiries (inquiryReviews).
+	inq := view.InquiryBody(evs, fam.At, true, inItem)
 	if reviews := inquiryReviews(evs, fam.At); reviews != "" {
 		if inq != "" {
 			inq = strings.TrimRight(inq, "\n") + "\n\n"
 		}
 		inq += reviews
 	}
-	inq = EscapeNotes(inq)
+	inq = rd.escapeNotesRead(rd.stripTokensCode(inq, true))
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -196,11 +211,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cited sources: %w", err)
+		return nil, nil, "", fmt.Errorf("cited sources: %w", err)
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("recorded proofs: %w", err)
+		return nil, nil, "", fmt.Errorf("recorded proofs: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -208,21 +223,8 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		if docs[i].Body == "" {
 			continue
 		}
-		// Strip finding-markers from the WHOLE composed document, not just the report's own
-		// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
-		// the record-derived findings/transcript sections, and only a final-output strip
-		// catches those. No raw marker ships (the leak fix).
-		//
-		// A LINE THE STRIP EMPTIES GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
-		// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ."
-		// in universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker
-		// at most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that held a token is content — a
-		// table's delimiter row, a row of marks, a rule, a line of code — and ships without the token.
-		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
-			s := anchor.StripAssembled(ln)
-			return s != ln && anchor.Husk(s)
-		})
-		body := anchor.StripAssembled(strings.Join(lines, "\n"))
+		// Every token the weave does not take left the text as it entered composition (stripTokens).
+		body := collapseBlanks(docs[i].Body)
 		woven := weaveCitations(body, sources)
 		// The weave writes the notes and the bibliography when the document cites, and returns
 		// it as it came when it does not.
@@ -243,25 +245,103 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		if docs[i].File == FileEvidence {
 			proofSec, citeSec := evidenceDoc(run, proofs, used), citationsSection(fam)
 			composed[evidenceHeading], composed[citationsHeading] = proofSec != "", citeSec != ""
-			docs[i].Body = EscapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{proofSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
+			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{proofSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}
 	}
 
-	var out []Doc
-	for _, d := range docs {
-		if strings.TrimSpace(d.Body) == "" {
-			continue
-		}
-		out = append(out, d)
-	}
-	return out, composed, nil
+	out := slices.DeleteFunc(docs, func(d Doc) bool { return strings.TrimSpace(d.Body) == "" })
+	return out, composed, title, nil
 }
 
-// Title returns the run's short title — the H1 every document in the set opens with.
-func Title(run record.Run) string {
-	blue, _ := blueReport(run)
-	t, _ := heading(part(blue).title)
-	return t
+// NO TOKEN SHIPS IN PROSE, AND IT IS MADE SO WHERE TEXT ENTERS COMPOSITION. A seat copies a token into
+// record prose — a finding's location, a proof's reason, a citation's title — and the report's text
+// carries the ones the tool placed. Every such text passes stripTokens as it enters a document: each
+// section a row composes, before its notes are escaped (Section.block); the inquiries document; and
+// each field the tool writes into a line after the weave — a note's text, a Bibliography entry, a
+// field of evidence.md (plain). Stripped later, a token's removal joined the bytes either side of it
+// into syntax nothing had escaped: `[<!--gap:G-00000001-->^1]` became a live `[^1]`. A token in a
+// seat's code ships as typed: code is the bytes a seat quotes, a script as it ran, and the proofs'
+// scripts and outputs in evidence.md are no field at all.
+
+// stripTokens is md with every anchor token as written (anchor.StripWritten) taken out but those in
+// code and, where weave is set, a token of a real id the weave turns into a note (a citation's or a
+// proof's): the text a woven document is composed from keeps those for the weave, and every other
+// text keeps none. Code is what both tiers read as code (bothTierCode), the reading the note escape takes:
+// a token one tier reads as prose would ship there as prose.
+//
+// A LINE THE STRIP LEAVES A HUSK GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
+// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ." in
+// universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker at
+// most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that
+// held a token is content — a table's delimiter row, a row of marks, a rule — and ships without the
+// token; a line of code keeps its token, so the strip leaves it no husk.
+func (rd readers) stripTokens(md string, weave bool) string {
+	out, _, _ := rd.stripTokensCode(md, weave)
+	return out
+}
+
+// stripTokensCode is stripTokens, with the stretches of code it read md's tokens in when it took none
+// out: the text is md then, and its code is the code escapeNotesRead asks for. read is false where
+// nothing was read, or where the strip changed the text and with it what is code.
+func (rd readers) stripTokensCode(md string, weave bool) (out string, code [][2]int, read bool) {
+	if !holdsToken(md) {
+		return md, nil, false
+	}
+	code = rd.bothTierCode([]byte(md))
+	out = stripOutside(md, code, weave)
+	return out, code, out == md
+}
+
+// stripTokensInLine is stripTokens for a fragment the tool writes on one line after its own text
+// (plain), with no token woven: in place the fragment is inline text of that line, so the code in it
+// is what each tier reads as code in one line of a paragraph (lineReader, codeLineReader), as
+// escapeNotesInLine reads it. Read as a document of its own, "```x <!--gap:G-00000001-->" is a fence
+// whose info string holds the token, which in place is prose.
+func stripTokensInLine(s string) string { return lineReaders.stripTokens(s, false) }
+
+// stripTokensAfter is stripTokens, with no token woven, for text the tool writes after its own on a
+// line, which may run on to lines of its own: in place its first line is inline text behind the
+// tool's, so its code is what both tiers read as code in the text behind a character of prose — a
+// first line opening "```" opens no fence there, and a token in what alone would be its info string is
+// prose. The husk rule reads the text itself.
+func stripTokensAfter(s string) string {
+	if !holdsToken(s) {
+		return s
+	}
+	code := stdReaders().bothTierCode([]byte("x" + s))
+	for i := range code {
+		code[i] = [2]int{code[i][0] - 1, code[i][1] - 1}
+	}
+	return stripOutside(s, code, false)
+}
+
+// holdsToken reports whether md holds an anchor token as written.
+func holdsToken(md string) bool {
+	held := false
+	anchor.EachWritten(md, func(int, int, string) { held = true })
+	return held
+}
+
+// stripOutside is md with each token as written taken out but those inside code, the stretches in
+// order, and where weave is set the woven ones.
+func stripOutside(md string, code [][2]int, weave bool) string {
+	return anchor.StripWritten(md, func(start, end int) bool {
+		return inSpan(code, start, end) || weave && wovenToken(md[start:end])
+	})
+}
+
+// StripTokens is a record field with its tokens taken out as assembly takes them from a field it
+// writes: the release gate's prose oracle reads a seat's field with it.
+func StripTokens(s string) string { return stdReaders().stripTokens(s, false) }
+
+// wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a
+// note: a citation's or a proof's.
+func wovenToken(tok string) bool {
+	woven := false
+	anchor.Each(tok, func(start, end int, id string) {
+		woven = start == 0 && end == len(tok) && anchor.AssemblyOf(id) != anchor.Strip
+	})
+	return woven
 }
 
 // blueReport renders the report's text from the record. A run with no base ingested has none, and
@@ -295,17 +375,47 @@ func (s *sections) add(block string) bool {
 
 func (s *sections) String() string { return strings.Join(s.parts, "\n\n") }
 
-// render puts the document's own head on it: the run's short title, this document's name, the
-// link bar across the set, and a rule. Every file in the set opens identically, so a reader who
-// lands in the middle of one knows what run they are in and how to reach the rest.
-func render(d Doc, title string, set []Doc) string {
+// masthead is what the document opens with: the run's short title, this document's name, the link bar
+// across the set, and a rule. Every file in the set opens identically, so a reader who lands in the
+// middle of one knows what run they are in and how to reach the rest.
+func masthead(d Doc, title string, set []Doc) string {
 	h1 := title
 	if d.Title != "" {
 		// The siblings drop the template's "research report" suffix rather than stack a second
 		// noun on it: "<topic> — research report — the docket" names two documents.
 		h1 = strings.TrimSuffix(title, " — research report") + " — " + d.Title
 	}
-	return h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n" + strings.TrimRight(d.Body, "\n") + "\n"
+	return h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n"
+}
+
+// composedText is the document as assembly composed it, its masthead on it and its proofs' anchors in
+// place, with the record's text as written: what a seat reads of the set (Layout).
+func composedText(d Doc, title string, set []Doc) string {
+	return masthead(d, title, set) + resolveMarks(strings.TrimRight(d.Body, "\n")+"\n")
+}
+
+// Shipped is a report set as it ships, each document read once per tier: its .md text, masthead and
+// body shipped whole (ship), and its body as report.html reads it, which the page renders under its
+// own header. It is made only by shipSet, so neither tier can be handed a text the decision was not
+// taken on.
+type Shipped struct {
+	title string
+	docs  []Doc
+	md    []string     // each document as report.md and its siblings ship it
+	html  []ParsedText // and its body as report.html renders it: the tree alone (tree)
+}
+
+// shipSet takes each tier's reading of each document of the set, under the run's title, reading with rd.
+func (rd readers) shipSet(title string, docs []Doc) Shipped {
+	set := Shipped{title: title, docs: docs}
+	for _, d := range docs {
+		body := strings.TrimRight(d.Body, "\n") + "\n"
+		set.md = append(set.md, rd.ship(masthead(d, title, docs)+body))
+		// The reading tier shows a marker byte as the replacement character; the durable tier ships
+		// the text as written.
+		set.html = append(set.html, rd.tree(unmarked(body)))
+	}
+	return set
 }
 
 // navBar is the closest thing markdown has to a tab strip: a row of sibling links with the
@@ -408,7 +518,7 @@ func supersededAsks(evs []*record.Event) string {
 	var b strings.Builder
 	b.WriteString("The LAST statement is the one the report carries; these are the ones it replaced, in the order they were made.\n\n")
 	for i, s := range rows {
-		fmt.Fprintf(&b, "%d. %s\n\n", i+1, s)
+		fmt.Fprintf(&b, "%d. %s\n\n", i+1, oneLine(s))
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -416,18 +526,18 @@ func supersededAsks(evs []*record.Event) string {
 // Write renders the set to disk and returns report.md's path. Files in the set that this run
 // produced no content for are REMOVED rather than left stale: a run re-assembled after its
 // motions were withdrawn must not keep yesterday's judgments.md next to today's report.
-func Write(run record.Run, title string, docs []Doc, index string) (string, error) {
+func Write(run record.Run, set Shipped, index string) (string, error) {
 	want := map[string]bool{FileIndex: true}
-	for _, d := range docs {
+	for i, d := range set.docs {
 		want[d.File] = true
 		path := filepath.Join(run.Dir(), d.File)
-		// The link bar is applied HERE, over the set that actually exists, so it can never
-		// link a file nobody wrote.
-		if err := os.WriteFile(path, []byte(render(d, title, docs)), 0o644); err != nil {
+		// Each document's link bar is over the set shipSet was given, which is the set written here,
+		// so it can never link a file nobody wrote.
+		if err := os.WriteFile(path, []byte(set.md[i]), 0o644); err != nil {
 			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(index), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(ship(index)), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", FileIndex, err)
 	}
 	for _, name := range docOrder {

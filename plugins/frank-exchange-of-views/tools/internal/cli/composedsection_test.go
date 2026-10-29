@@ -188,7 +188,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("--assembled --json is not the layout: %v\n%s", err, out)
 	}
-	docs, err := report.AssembleAll(runtest.Open(t, runDir))
+	docs, err := shippedDocs(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if line, s, found := report.ComposedIn("", blue); !found || line != "## Alternatives considered" || s.Heading != "Alternatives considered" {
+	if line, s, found := report.ComposedIn(report.ParseText(""), report.ParseText(blue)); !found || line != "## Alternatives considered" || s.Heading != "Alternatives considered" {
 		t.Fatalf("the migrated m20's report carries %q (found %v), want \"## Alternatives considered\" — this archive is the case", line, found)
 	}
 	proofs := 0
@@ -297,7 +297,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if proofs != 9 {
 		t.Fatalf("the migrated m20's report carries %d proof anchors, want 9", proofs)
 	}
-	docs, err := report.AssembleAll(dst)
+	docs, err := shippedDocs(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -378,4 +378,24 @@ func TestTheBareAssembledLayoutSaysItCarriesNoText(t *testing.T) {
 	if strings.Contains(seen, report.LayoutHasNoText) {
 		t.Errorf("the form that carries the text says it carries none:\n%q", seen)
 	}
+}
+
+// shippedDocs is the run's report set as it ships: the run assembled, and each document it wrote — its
+// name, and its .md, masthead and all, in Body — in reading order.
+func shippedDocs(run record.Run) ([]report.Doc, error) {
+	if _, err := report.Assemble(run); err != nil {
+		return nil, err
+	}
+	var docs []report.Doc
+	for _, f := range report.Files() {
+		b, err := os.ReadFile(filepath.Join(run.Dir(), f))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, report.Doc{File: f, Body: string(b)})
+	}
+	return docs, nil
 }

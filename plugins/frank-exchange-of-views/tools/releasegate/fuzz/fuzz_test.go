@@ -5646,16 +5646,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
-	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		if line, _, found := reportdoc.ComposedIn("", string(text)); found {
+	if out, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		none, text := reportdoc.ParseText(""), reportdoc.ParseText(string(out))
+		if line, _, found := reportdoc.ComposedIn(none, text); found {
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
 			return res
 		}
-		if label, _, found := reportdoc.WovenNoteIn("", string(text)); found {
+		if label, _, found := reportdoc.WovenNoteIn(none, text); found {
 			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
 			return res
 		}
-		if m, found := reportdoc.OutOfOrderIn("", string(text)); found {
+		if m, found := reportdoc.OutOfOrderIn(none, text); found {
 			res.err = "the report's text carries " + m.Line + " out of the order it ships in, past the refusal at the write"
 			return res
 		}
@@ -6593,6 +6594,16 @@ func gapIsOpen(board record.Family, id string) bool {
 	return g != nil && g.Open
 }
 
+// flat is s with each run of whitespace one space.
+func flat(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// asRead is s as a markdown reader prints the two edits a shipped .md makes to a seat's text: a `<`
+// outside code written `&lt;`, and a footnote opener written `\[^`. Both sides of a comparison are
+// read so, so a seat's own `&lt;` reads the same on each.
+func asRead(s string) string {
+	return strings.NewReplacer("&lt;", "<", `\[^`, "[^").Replace(s)
+}
+
 // assembledSet is EVERY document the assembler wrote, concatenated.
 //
 // The deliverable is a set, and "did this prose reach the reader" is a question about the set:
@@ -6620,6 +6631,7 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 	if err != nil {
 		return err.Error()
 	}
+	flatRpt := flat(asRead(rpt))
 	var missing, unclassified []string
 	seen := map[string]bool{}
 	for _, e := range board.Events {
@@ -6635,10 +6647,13 @@ func proseRenders(t *testing.T, board record.Family, runDir string) string {
 			}
 			continue
 		}
-		// The reader gets the prose as assembly ships it: the tokens of every kind it strips are
-		// gone — a gap anchor a seat quoted into its retire or a prescription carried is not prose.
-		prose := strings.TrimSpace(anchor.StripAssembled(fieldStr(t, e, key)))
-		if prose == "" || strings.Contains(rpt, prose) {
+		// The reader gets the prose as assembly ships it: its tokens taken out as assembly takes them
+		// (reportdoc.StripTokens: a token in code stays, and a line left a husk goes with them) — a gap
+		// anchor a seat quoted into its retire or a prescription carried is not prose — and, where the
+		// tool places it in a line, on one line; so both sides are read with their whitespace runs one
+		// space, and as a reader reads them (asRead).
+		prose := flat(asRead(reportdoc.StripTokens(fieldStr(t, e, key))))
+		if prose == "" || strings.Contains(flatRpt, prose) {
 			continue
 		}
 		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.GetSeatId(), w, prose))
