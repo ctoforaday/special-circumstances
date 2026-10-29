@@ -278,13 +278,13 @@ func lineEndAt(text string, i int) int {
 // THE SENTENCE RULE IS A JUDGEMENT ABOUT PROSE, and it is the one thing here the markdown parser
 // does not decide. A terminator run (. ! ?) with the closers right after it ends a sentence when
 // followed by the end of its block; by whitespace — a soft wrap is whitespace — and then an
-// uppercase letter, an opener, an HTML comment, or a digit after a word of five letters or more
-// (wordBefore) when the number is whole (decimalAt); or, with no closer, by a comment flush, which then opens the next sentence (the
-// shape a cut leaves). A comment flush after a closer belongs to the sentence the closer ends, and
-// the same test runs again after the comment run. An HTML comment — every anchor token — and a code
-// span are opaque. There is no abbreviation list: a hand-kept table stops covering its case, so
-// "3.5", "e.g. foo", "Fig. 3", "approx. 0.99" and "is 7. 13" join, and "Dr. Smith" and "approx. 10"
-// split.
+// uppercase letter, an opener, an HTML comment, or a digit after a word that is no abbreviation
+// (endsBeforeDigit) when the number is whole (decimalAt); or, with no closer, by a comment flush,
+// which then opens the next sentence (the shape a cut leaves). A comment flush after a closer
+// belongs to the sentence the closer ends, and the same test runs again after the comment run. An
+// HTML comment — every anchor token — and a code span are opaque. There is no abbreviation list: a
+// hand-kept table stops covering its case, so "3.5", "e.g. foo", "Fig. 3", "No. 5" and
+// "approx. 0.99" join, and "Dr. Smith", "is 7. 13" and "approx. 10" split.
 func Sentences(text string) [][2]int {
 	var out [][2]int
 	for _, b := range Blocks(text) {
@@ -354,14 +354,14 @@ func sentenceEnd(m string, from, e, hi int, closed bool) int {
 	}
 	j := skip(m, r, hi, spaces)
 	c, _ := utf8.DecodeRuneInString(m[j:hi])
-	if j == hi || j > r && (commentLen(m, j, hi) > 0 || unicode.IsUpper(c) || strings.ContainsRune(openers, c) || unicode.IsDigit(c) && wordBefore(m, from, e) >= minWordBeforeDigit && !decimalAt(m, j, hi)) {
+	if j == hi || j > r && (commentLen(m, j, hi) > 0 || unicode.IsUpper(c) || strings.ContainsRune(openers, c) || unicode.IsDigit(c) && endsBeforeDigit(m, from, e) && !decimalAt(m, j, hi)) {
 		return r
 	}
 	return -1
 }
 
-// minWordBeforeDigit is the shortest word that, ending a sentence, lets the next one open with a
-// digit. The abbreviations a number follows — "Fig. 3", "No. 5", "p. 12", "Def. 11", "e.g. 3",
+// minWordBeforeDigit is the shortest word of letters that, ending a sentence, lets the next one
+// open with a digit. The abbreviations a number follows — "Fig. 3", "No. 5", "p. 12", "Def. 11",
 // "vol. 2" — are shorter; a word that ends a sentence mostly is not.
 const minWordBeforeDigit = 5
 
@@ -369,17 +369,20 @@ const minWordBeforeDigit = 5
 // "3,215" — the shape a number after an abbreviation such as "approx." takes.
 func decimalAt(m string, j, hi int) bool {
 	k := j
-	for k < hi && m[k] >= '0' && m[k] <= '9' {
+	for k < hi && isDigit(m[k]) {
 		k++
 	}
-	return k+1 < hi && (m[k] == '.' || m[k] == ',') && m[k+1] >= '0' && m[k+1] <= '9'
+	return k+1 < hi && (m[k] == '.' || m[k] == ',') && isDigit(m[k+1])
 }
 
-// wordBefore is the length in letters of the word the terminator run that ends at e follows, in a
-// sentence from from: the terminators, the comments and the closers before them are passed over,
-// so "composite<!--cite:C-1-->." and "(mod 91)." read their word; a word holding anything but
-// letters — "3.", "e.g." — is no word.
-func wordBefore(m string, from, e int) int {
+// endsBeforeDigit reports whether the word the terminator run that ends at e follows, in a
+// sentence from from, ends a sentence before one that opens with a digit: the terminators, the
+// comments and the closers before them are passed over, so "composite<!--cite:C-1-->." and
+// "(mod 91)." read their word. An abbreviation is letters, so a word holding a digit — "91",
+// "2–9", "3rd", "v2.0" — is none, unless a point in it sits beside a letter ("verify_91.py"). A
+// word of letters ends one at minWordBeforeDigit letters; a word with any other mark — "e.g.",
+// "U.S." — never does.
+func endsBeforeDigit(m string, from, e int) bool {
 	i := e
 	for i > from && strings.IndexByte(terminators+closers, m[i-1]) >= 0 {
 		i--
@@ -394,20 +397,31 @@ func wordBefore(m string, from, e int) int {
 			i--
 		}
 	}
-	n := 0
-	for i > from {
-		c, size := utf8.DecodeLastRuneInString(m[from:i])
-		if !unicode.IsLetter(c) {
-			if strings.IndexByte(spaces, m[i-1]) < 0 && strings.IndexByte(openers, m[i-1]) < 0 {
-				return 0
-			}
-			break
-		}
-		n++
+	end := i
+	for i > from && strings.IndexByte(spaces, m[i-1]) < 0 && strings.IndexByte(openers, m[i-1]) < 0 {
+		_, size := utf8.DecodeLastRuneInString(m[from:i])
 		i -= size
 	}
-	return n
+	word := m[i:end]
+	if strings.ContainsFunc(word, unicode.IsDigit) {
+		for k := 0; k < len(word); k++ {
+			if (word[k] == '.' || word[k] == ',') && !(k > 0 && isDigit(word[k-1]) && k+1 < len(word) && isDigit(word[k+1])) {
+				return false
+			}
+		}
+		return true
+	}
+	letters := 0
+	for _, c := range word {
+		if !unicode.IsLetter(c) {
+			return false
+		}
+		letters++
+	}
+	return letters >= minWordBeforeDigit
 }
+
+func isDigit(b byte) bool { return b >= '0' && b <= '9' }
 
 // skip is the index past the run of set's characters starting at i, before hi.
 func skip(m string, i, hi int, set string) int { return hi - len(strings.TrimLeft(m[i:hi], set)) }

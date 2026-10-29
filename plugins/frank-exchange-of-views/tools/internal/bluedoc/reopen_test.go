@@ -89,3 +89,15 @@ func TestTheQuoteDecidesWhichAnchorsTheSpanHolds(t *testing.T) {
 		}
 	}
 }
+
+// A SENTENCE THAT ENDS ON A NUMBER IS ITS OWN, so an edit to the next one does not reopen its anchor
+// (#1601 smoke: "…settles 91<proof>. 91 is the smallest…" read as one sentence, and edit 243 of the
+// second reopened the first's proof).
+func TestAnEditAfterASentenceEndingOnANumberReopensOnlyItsOwnSentence(t *testing.T) {
+	const proof, cite = "<!--proof:P-9b3eb3b7-->", "<!--cite:C-00d7ffcc-->"
+	before := "Of the 70 bases, 34 pass, so no single base settles 91" + proof + ". 91 is the smallest Fermat pseudoprime to base 3" + cite + ".\n"
+	after := "Of the 70 bases, 34 pass, so no single base settles 91" + proof + ". 91 is the least Fermat pseudoprime to base 3" + cite + ".\n"
+	if got := ReopenedAnchors(before, after); len(got) != 1 || got[0] != "C-00d7ffcc" {
+		t.Errorf("ReopenedAnchors = %v, want [C-00d7ffcc] — the proof's sentence ends at \"91.\" and did not change", got)
+	}
+}
