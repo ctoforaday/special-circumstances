@@ -145,12 +145,18 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   the edit and its last check. Its owning lens — the evidence lens for a citation, the computation
   lens for a proof — owes the check and is not retired while it does, and a PASS waits until a lens
   — that one or another — has checked it, from a sitting opened after the edit where there is one.
+  A cite or a proof moves no report head, so dispatch readies the owner for the anchor itself, once
+  per cause — the act that placed it, or the edit that reopened it: a citation blue places after its
+  owner has sat is not left for a head move that may never come.
 - **A check that reads nothing is a failed check.** A verify `unreachable`, or any verdict on a
   copy stamped `not_the_work`, leaves the citation unread: a `failed_check` PASS blocker, which no
   bench ruling clears. The first lens whose reading read nothing since the sentence last changed
   owes a gap about the anchor (`--about-kind anchor`), outside its mint budget, and that gap cannot
-  close while the citation stays unread. It clears when a reading reads the work, an edit changes
-  the sentence, or blue retires the citation. A proof judged unsound is the same blocker.
+  close while the citation stays unread — the close is refused, unless it names a successor with
+  `--superseded-by`. A second reading by the same lens that again reads nothing, while its gap is
+  open and the sentence unchanged, is refused. It clears when a reading reads the work, an edit
+  changes the sentence, or blue retires the citation. A proof judged unsound is the same blocker,
+  and its gap does not close while the judgement stands.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it

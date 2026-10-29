@@ -131,7 +131,8 @@ type runTally struct {
 	UnreadAnswers           int                       `json:"unread_answers"`
 	UnreadRepeats           int                       `json:"unread_repeats"`
 	UnreadRetires           int                       `json:"unread_retires"`
-	FailedCloseRefused      int                       `json:"failed_close_refused"`
+	UnreadClosesRefused     int                       `json:"unread_closes_refused"`
+	UnsoundClosesRefused    int                       `json:"unsound_closes_refused"`
 	RepeatsRefused          int                       `json:"repeats_refused"`
 	BudgetRefused           int                       `json:"budget_refused"`
 	OneGapRefused           int                       `json:"one_gap_refused"`
@@ -166,7 +167,7 @@ func tallyOf(o outcome) runTally {
 		ProofReopenedReadied: o.proofReopenedReadied, OwedKept: o.owedKept, ProofOwedKept: o.proofOwedKept,
 		OwedKeptBy: o.owedKeptBy, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires,
-		FailedCloseRefused: o.failedCloseRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused, OwnAnswers: o.ownAnswers,
+		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused, OwnAnswers: o.ownAnswers,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
@@ -488,11 +489,12 @@ type sweepFold struct {
 	owedKept, proofOwedKept                         int
 	ownerOfferedRuns, citationOfferedRuns           int
 	unreadAnswers, unreadRepeats                    int
-	unreadRetires, failedCloseRefused               int
+	unreadRetires                                   int
+	unreadClosesRefused, unsoundClosesRefused       int
 	repeatsRefused, budgetRefused, ownAnswers       int
 	oneGapRefused, oneGapFindings                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
-	forcedUnsoundReadied                            int
+	forcedUnsoundReadied, forcedProofOwedKept       int
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
 	rulerFilingsRefused                             int
@@ -581,6 +583,9 @@ func foldRuns(runs []runTally) sweepFold {
 		}
 		f.owedKept += r.OwedKept
 		f.proofOwedKept += r.ProofOwedKept
+		if r.Seed == owedProofSeed {
+			f.forcedProofOwedKept += r.ProofOwedKept
+		}
 		for k, v := range r.OwedKeptBy {
 			f.owedKeptBy[k] += v
 		}
@@ -593,7 +598,8 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unreadAnswers += r.UnreadAnswers
 		f.unreadRepeats += r.UnreadRepeats
 		f.unreadRetires += r.UnreadRetires
-		f.failedCloseRefused += r.FailedCloseRefused
+		f.unreadClosesRefused += r.UnreadClosesRefused
+		f.unsoundClosesRefused += r.UnsoundClosesRefused
 		f.repeatsRefused += r.RepeatsRefused
 		f.budgetRefused += r.BudgetRefused
 		f.oneGapRefused += r.OneGapRefused
@@ -654,8 +660,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Errorf("fuzz drew no repeat unsound judgement over an open gap across %d runs — the refusal is unexercised (false green)", f.completed)
 	}
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.proofReopenedReadied)
-	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", f.owedKept, f.proofOwedKept, f.owedKeptBy)
-	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it, %d close(s) refused over a standing failed check", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.failedCloseRefused)
+	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof (%d in seed %d's forced run); by kind %v", f.owedKept, f.proofOwedKept, f.forcedProofOwedKept, owedProofSeed, f.owedKeptBy)
+	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it, %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadClosesRefused)
+	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
@@ -745,7 +752,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// THE UNJUDGED-PROOF DEBT IS FED BY CONSTRUCTION, not left to the draw (gblock, 2026-10-25): the
 		// draw rarely holds it, since the owner checks every proof it owes in the sitting it is offered
 		// one, and a sweep of 40 drew it zero times (#1604). owedProofSeed's run proves a fresh sentence
-		// in every blue sitting while the owner is barren, so a fold holds the owner for a proof it has
+		// in every blue sitting while the owner, which mints nothing in that run (mintsFresh), is barren, so a fold holds the owner for a proof it has
 		// not yet sat to judge. TestALensThatOwesIsNotRetired (internal/record) proves the rule itself.
 		if f.owedKept == 0 || f.proofOwedKept == 0 {
 			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged proof, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", f.owedKept, f.proofOwedKept, f.completed)
@@ -756,6 +763,13 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// citation-only retire unexercised.
 		if f.unreadAnswers == 0 || f.unreadRetires == 0 {
 			t.Errorf("fuzz minted %d gap(s) about an unread citation and retired %d such citation(s) off its sentence, across %d runs — the failed-check path for a citation is unexercised (false green)", f.unreadAnswers, f.unreadRetires, f.completed)
+		}
+		// THE STANDING-FAILED-CHECK CLOSE GATE. A gap that carries a failed check does not close while
+		// the check stands (record.requireFailedCheckAnswered); answerFailed drives the close of the gap
+		// it has just minted, once a run for each kind, so a sweep that refused none of either kind has
+		// lost the drive or the refusal.
+		if f.unreadClosesRefused == 0 || f.unsoundClosesRefused == 0 {
+			t.Errorf("fuzz had %d close(s) refused over an unread citation and %d over an unsound proof, across %d runs — the refusal of a close over a failed check that still stands is unexercised (false green)", f.unreadClosesRefused, f.unsoundClosesRefused, f.completed)
 		}
 		// THE ANCHOR-OWNER GATE. checkAnchorOffers reads each lens's list at each of its sittings, and
 		// anchorOffersAgree every lens's at each run's end; a sweep in which no owner was offered an
