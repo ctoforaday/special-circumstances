@@ -157,6 +157,10 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.ReportRead, true
 		}
+	case *Event_EnvelopeAdmitted:
+		if b != nil {
+			return b.EnvelopeAdmitted, true
+		}
 	}
 	return nil, false
 }
