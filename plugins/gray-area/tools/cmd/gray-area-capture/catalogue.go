@@ -141,18 +141,17 @@ func bridgeIDFor(sessionsDir string, ppid int, sessionID string) string {
 	return sf.BridgeSessionID
 }
 
-// ingestInto reads every transcript file of one session into an open store.
+// ingestInto reads every transcript file of one session into an open store. It enumerates that
+// session's files only (catalogue.SessionTranscriptFiles): this runs at every turn end, and the
+// sweep's walk of the whole tree belongs to SessionStart.
 func ingestInto(db *sql.DB, root, sessionID string, r *report) {
-	files, err := catalogue.TranscriptFiles(root)
+	files, err := catalogue.SessionTranscriptFiles(root, sessionID)
 	if err != nil {
 		r.fail(stageEnumerate, fmt.Sprintf("catalogue: enumerating transcripts: %v (capture unaffected)", err))
 		return
 	}
 	r.ok(stageEnumerate)
 	for _, f := range files {
-		if f.SessionID != sessionID {
-			continue
-		}
 		if _, err := catalogue.IngestFile(db, f); err != nil {
 			r.fail(stageIngest, fmt.Sprintf("catalogue: %v (capture unaffected)", err))
 			return

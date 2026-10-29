@@ -896,6 +896,96 @@ func TestACurrentStoreKeepsItsRows(t *testing.T) {
 	}
 }
 
+// schemaVersion reads the counter SQLite bumps on every DDL statement, through a read-only
+// connection that cannot itself change it.
+func schemaVersion(t *testing.T, p string) int {
+	t.Helper()
+	uri, err := readURI(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ro, err := sql.Open("sqlite", uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ro.Close()
+	var v int
+	if err := ro.QueryRow(`PRAGMA schema_version`).Scan(&v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// OPENING A SETTLED STORE WRITES NOTHING. Every turn end opens the store; before this, each open
+// dropped and re-created two views and rewrote the stamp inside an exclusive transaction. The
+// DDL counter, the stamp, the database file and its WAL are all unchanged across a second Open,
+// and the WAL holds no frame while that open is live — a write the close checkpointed away would
+// leave the first three equal and still have taken the lock.
+func TestOpeningASettledStoreWritesNothing(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('KEEP','/p',1,1)`)
+	db.Close()
+	before, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sv := schemaVersion(t, p)
+
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(p + "-wal"); err == nil && st.Size() != 0 {
+		t.Errorf("opening a settled store wrote %d bytes of WAL", st.Size())
+	}
+	var uv int
+	if err := db2.QueryRow(`PRAGMA user_version`).Scan(&uv); err != nil || uv != UserVersion {
+		t.Errorf("user_version = %d (%v), want %d", uv, err, UserVersion)
+	}
+	db2.Close()
+
+	after, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := schemaVersion(t, p); got != sv {
+		t.Errorf("schema_version moved %d → %d: the open ran DDL against a settled store", sv, got)
+	}
+	if after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {
+		t.Errorf("the database file changed: size %d → %d, mtime %v → %v",
+			before.Size(), after.Size(), before.ModTime(), after.ModTime())
+	}
+}
+
+// A CURRENT STAMP IS NOT A SETTLED SHAPE. A store at UserVersion missing an object Schema makes —
+// as a Schema edit that adds an index without moving the stamp leaves every existing store — is
+// still brought to Schema by Open, as it was when every open applied Schema.
+func TestACurrentStampWithADriftedShapeIsSettled(t *testing.T) {
+	p, db := newStore(t)
+	mustExec(t, db, `DROP INDEX act_ts`, `DROP VIEW v_session`,
+		`CREATE VIEW v_session AS SELECT session_id FROM session`)
+	db.Close()
+	db2, err := Open(p, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db2.Close()
+	var n int
+	if err := db2.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='index' AND name='act_ts'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("act_ts after Open: %d (%v), want 1", n, err)
+	}
+	cols, err := names(db2, `SELECT name FROM pragma_table_info('v_session')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(cols, ",") != strings.Join(ViewColumns["v_session"], ",") {
+		t.Errorf("v_session after Open = %v, want %v", cols, ViewColumns["v_session"])
+	}
+	if ok, err := settledShape(db2); err != nil || !ok {
+		t.Errorf("after Open the store is not settled (%v, %v)", ok, err)
+	}
+}
+
 // EXACTLY ONE REBUILD UNDER CONCURRENT OPENERS, because the decision is re-taken inside one
 // IMMEDIATE transaction. A second rebuild would wipe the rows the first opener has already
 // written — so the first to return writes one, and it must survive every other opener.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 )
@@ -54,6 +55,61 @@ func TestAttributionCoversAllThreeTiers(t *testing.T) {
 		if agents[i] != want[i] {
 			t.Fatalf("agent ids = %v, want %v — the workflow seat is the one a two-tier rule drops", agents, want)
 		}
+	}
+}
+
+// THE SCOPED ENUMERATION IS THE FILTERED WALK, file for file and in order. The fixture holds
+// several projects and sessions across all three tiers, one session filed under TWO projects (so
+// a scope taken from the payload's one directory would miss half of it), a session whose id is a
+// prefix of another's, stray files at depths the rule does not attribute, and — where the platform
+// allows — a symlinked session directory, which the full walk does not descend.
+func TestSessionScopedEnumerationIsTheFilteredWalk(t *testing.T) {
+	root := t.TempDir()
+	mk := func(rel string) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, rel := range []string{
+		"-p1/A.jsonl", "-p1/A/subagents/agent-a1.jsonl", "-p1/A/subagents/workflows/wf/agent-a2.jsonl",
+		"-p1/B.jsonl", "-p1/B/subagents/agent-b1.jsonl",
+		"-p2/A/subagents/agent-a3.jsonl", "-p2/A.jsonl", // A again, in another project
+		"-p2/AB.jsonl", "-p2/AB/subagents/agent-ab1.jsonl", // A is a prefix of AB
+		"-p2/C/subagents/workflows/wf/agent-c1.jsonl",                                          // a session with no own transcript
+		"-p3/A/notes.jsonl", "-p3/A/subagents/x/agent-z.jsonl", "-p3/A/subagents/agent-a4.txt", // unattributed depths
+		"A.jsonl", // at the root: no project
+	} {
+		mk(rel)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "-p4"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Symlink(filepath.Join(root, "-p1", "A"), filepath.Join(root, "-p4", "A")) // Windows may refuse; the rest still holds
+	all, err := TranscriptFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sid := range []string{"A", "B", "AB", "C", "absent", "..", "."} {
+		var want []TranscriptFile
+		for _, f := range all {
+			if f.SessionID == sid {
+				want = append(want, f)
+			}
+		}
+		got, err := SessionTranscriptFiles(root, sid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("session %q: scoped enumeration = %v\nthe filtered full walk = %v", sid, got, want)
+		}
+	}
+	if got, _ := SessionTranscriptFiles(root, "A"); len(got) != 5 {
+		t.Errorf("session A: %d files, want 5 across two projects — the fixture no longer exercises the spread", len(got))
 	}
 }
 

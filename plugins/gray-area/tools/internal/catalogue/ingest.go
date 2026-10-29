@@ -36,25 +36,87 @@ type TranscriptFile struct {
 func TranscriptFiles(projectsRoot string) ([]TranscriptFile, error) {
 	var out []TranscriptFile
 	err := filepath.WalkDir(projectsRoot, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".jsonl") {
+		if err != nil || d.IsDir() {
 			return nil //nolint:nilerr // an unreadable subtree is not a reason to abandon the rest
 		}
-		rel, rerr := filepath.Rel(projectsRoot, p)
-		if rerr != nil {
-			return nil
-		}
-		parts := strings.Split(rel, string(os.PathSeparator))
-		switch {
-		case len(parts) == 2:
-			out = append(out, TranscriptFile{Path: p, SessionID: strings.TrimSuffix(parts[1], ".jsonl")})
-		case len(parts) == 4 && parts[2] == "subagents":
-			out = append(out, TranscriptFile{Path: p, SessionID: parts[1], AgentID: agentIDOf(parts[3])})
-		case len(parts) == 6 && parts[2] == "subagents" && parts[3] == "workflows":
-			out = append(out, TranscriptFile{Path: p, SessionID: parts[1], AgentID: agentIDOf(parts[5])})
+		if tf, ok := attributeFile(projectsRoot, p); ok {
+			out = append(out, tf)
 		}
 		return nil
 	})
 	return out, err
+}
+
+// attributeFile attributes one file by the three-tier rule TranscriptFiles documents.
+func attributeFile(projectsRoot, p string) (TranscriptFile, bool) {
+	if !strings.HasSuffix(p, ".jsonl") {
+		return TranscriptFile{}, false
+	}
+	rel, err := filepath.Rel(projectsRoot, p)
+	if err != nil {
+		return TranscriptFile{}, false
+	}
+	parts := strings.Split(rel, string(os.PathSeparator))
+	switch {
+	case len(parts) == 2:
+		return TranscriptFile{Path: p, SessionID: strings.TrimSuffix(parts[1], ".jsonl")}, true
+	case len(parts) == 4 && parts[2] == "subagents":
+		return TranscriptFile{Path: p, SessionID: parts[1], AgentID: agentIDOf(parts[3])}, true
+	case len(parts) == 6 && parts[2] == "subagents" && parts[3] == "workflows":
+		return TranscriptFile{Path: p, SessionID: parts[1], AgentID: agentIDOf(parts[5])}, true
+	}
+	return TranscriptFile{}, false
+}
+
+// SessionTranscriptFiles is TranscriptFiles filtered to one session, in the same order, without
+// walking any other session's files. A hook pays for it at every turn end, and the projects tree
+// is never pruned: the full walk grows with every session the machine has ever run.
+//
+// THE SAME SET, BY CONSTRUCTION. Every file the three-tier rule gives sessionID lies at
+// <project>/<sid>.jsonl or under <project>/<sid>/ for SOME project — not only the one the
+// payload's transcript_path names — so every project directory is listed rather than trusting the
+// payload to name the only one. Each entry is judged as WalkDir judges it: the root and a project
+// are descended only when they are real directories (a symlink is not followed), and <sid>.jsonl
+// counts whatever its type unless it is a directory. <project>/<sid>/ is walked by WalkDir itself,
+// each file classified by the shared rule, and visited before <sid>.jsonl, where the full walk's
+// lexical order puts it. An id that names a path element, `.` or `..` takes the full walk, so even
+// that answer is the full walk's. TestSessionScopedEnumerationIsTheFilteredWalk holds the two equal.
+func SessionTranscriptFiles(projectsRoot, sessionID string) ([]TranscriptFile, error) {
+	if sessionID == "." || sessionID == ".." || filepath.Base(sessionID) != sessionID {
+		all, err := TranscriptFiles(projectsRoot)
+		var out []TranscriptFile
+		for _, f := range all {
+			if f.SessionID == sessionID {
+				out = append(out, f)
+			}
+		}
+		return out, err
+	}
+	if st, err := os.Lstat(projectsRoot); err != nil || !st.IsDir() {
+		return nil, nil // the full walk descends neither a missing root nor a symlinked one
+	}
+	projects, _ := os.ReadDir(projectsRoot) // the entries it could read, as the full walk keeps them
+	var out []TranscriptFile
+	for _, proj := range projects {
+		if !proj.IsDir() {
+			continue
+		}
+		dir := filepath.Join(projectsRoot, proj.Name())
+		_ = filepath.WalkDir(filepath.Join(dir, sessionID), func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil //nolint:nilerr // as TranscriptFiles: an unreadable subtree is skipped
+			}
+			if tf, ok := attributeFile(projectsRoot, p); ok && tf.SessionID == sessionID {
+				out = append(out, tf)
+			}
+			return nil
+		})
+		own := filepath.Join(dir, sessionID+".jsonl")
+		if st, err := os.Lstat(own); err == nil && !st.IsDir() {
+			out = append(out, TranscriptFile{Path: own, SessionID: sessionID})
+		}
+	}
+	return out, nil
 }
 
 func agentIDOf(base string) string {
@@ -133,13 +195,14 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 			offset, res.Reprojected = 0, true
 		}
 	}
-	// The fingerprint STORED covers the prefix this pass will have consumed.
+	if st.Size() == offset {
+		return res, nil
+	}
+	// The fingerprint STORED covers the prefix this pass will have consumed. Taken only past the
+	// unchanged-file return, which writes nothing and so stores no fingerprint.
 	head, err := headSHA(f, st.Size())
 	if err != nil {
 		return res, fmt.Errorf("catalogue: fingerprinting %s: %w", tf.Path, err)
-	}
-	if st.Size() == offset {
-		return res, nil
 	}
 	if _, err := f.Seek(offset, io.SeekStart); err != nil {
 		return res, fmt.Errorf("catalogue: seeking %s: %w", tf.Path, err)
