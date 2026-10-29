@@ -970,7 +970,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if k := b.GetAboutKind(); k != recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED && !slices.Contains(Names(gapAboutKinds()), recordpb.Word(k)) {
 			return fmt.Errorf("a gap is not about a %s: raise it with a finding (`--about-kind %s --about <its id>`), and mint the gap from that finding with --found-by", recordpb.Word(k), recordpb.Word(k))
 		}
-		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
@@ -1052,7 +1052,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
-		if err := requireNotARepeatUnsound(q, seatID, b); err != nil {
+		if err := requireNotARepeatFailedCheck(q, seatID, b.GetProofId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
 			return err
 		}
 	case *recordpb.Finding:
@@ -1061,7 +1061,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
-		if err := requireAboutProof(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -1100,6 +1100,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Close:
 		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
+			return err
+		}
+		if err := requireFailedCheckAnswered(q, b); err != nil {
 			return err
 		}
 		if b.CarriedFrom == nil {
@@ -1421,17 +1424,21 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return fmt.Errorf("%q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
 				w, recordpb.Word(b.Subject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.Subject())]), " | "))
 		}
-	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
-	//
-	// `claim` and `reason` both carry `required: true` with the very `why` text these arms
-	// printed, so the annotation sweep refused first and neither line could run. The claim arm
-	// said `--claim`, the FIELD name, while the annotation declares the flag as `--quote` — so
-	// the copy that could never execute was also the copy that named a flag no verb accepts.
-	// A test asserted the dead spelling and passed, because it called validate directly.
-	//
-	// This is the argument for deriving the refusal rather than writing it beside the schema: two
-	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
-	// reads.
+	case *recordpb.Retire:
+		// THE CLAIM AND THE REASON ARE THE ANNOTATIONS' TO REFUSE: both carry `required: true` with
+		// their `why`, and the annotation sweep refuses before this arm runs, so a copy of either
+		// refusal here could never execute and would drift unread.
+		//
+		// --answers is blue_edit's key on the other act that changes the report's text, and is
+		// checked against the board the same way. A claim retire takes none: the edit that cut the
+		// claim answers the gap, and a second answer from the retire would join one repair to the gap
+		// twice.
+		if b.GetAnswers() != "" && !b.GetClaimKept() {
+			return fmt.Errorf("--answers names the gap a citation retire answers — a retire naming one citation and no claim. A claim leaves through the edit that cut it, and that edit names the gap it answers")
+		}
+		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+			return err
+		}
 	case *recordpb.Cast:
 		if len(b.GetSeatIds()) == 0 {
 			return fmt.Errorf("a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
@@ -1720,6 +1727,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// WHOSE BYTES THE READING WAS MADE AGAINST is the tool's to stamp, as on a cite.
 		if err := copyProvenance("verify", b.GetCopySubstitution(), b.CopyUrl); err != nil {
 			return err
+		}
+		if b.GetAnchor() != "" {
+			if err := requireNotARepeatFailedCheck(q, seatID, b.GetAnchor(), !VerifyReads(b)); err != nil {
+				return err
+			}
 		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err

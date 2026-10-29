@@ -42,13 +42,13 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 		owes string
 	}{
 		{"a proof it owns that nobody judged", compLens, []string{compLens, evLens},
-			func(b *stage) { b.proof("P-1", "s1") }, "unjudged proof P-1"},
+			func(b *stage) { b.proof("P-1", "s1") }, "unchecked P-1"},
 		{"a citation it owns reopened since its check", evLens, []string{evLens},
-			func(b *stage) { b.cite("C-1").supports(evLens, "C-1").reopen("C-1") }, "reopened C-1"},
+			func(b *stage) { b.cite("C-1").supports(evLens, "C-1").reopen("C-1") }, "unchecked C-1"},
 		{"a proof it owns reopened since its judgement", compLens, []string{compLens, evLens},
 			func(b *stage) {
 				b.proof("P-1", "s1").reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
-			}, "reopened P-1"},
+			}, "unchecked P-1"},
 		{"a contradiction it read that nothing answers", evLens, []string{evLens},
 			func(b *stage) { b.add(evLens, contradictingVerify("the sky is green")) }, "contradiction "},
 	} {
@@ -181,7 +181,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				// The edit moved the head, so every lens is ready to audit it; owing the anchor's check
 				// is the owner's reason alone.
 				readied := slices.ContainsFunc(plan.Why, func(w string) bool {
-					return strings.HasPrefix(w, l+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it owes reopened "+c.anchor)
+					return strings.HasPrefix(w, l+": ") && strings.Contains(w, ", behind head ") && strings.Contains(w, "it owes unchecked "+c.anchor)
 				})
 				if readied != (l == c.owner) || (l == c.owner && !ready) {
 					t.Errorf("%s readied for the reopened anchor = %v (party %v), want %v: %q", l, readied, ready, l == c.owner, plan.Why)
@@ -237,6 +237,15 @@ func blueAnswersGap(b *stage, gap string) *stage {
 	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).edit(gap, "a", "b").stop(agent)
 }
 
+// blueRetiresCitationFor is a blue sitting dispatched on gap that retires a citation answering it,
+// keeping its sentence: the other act that changes the report's text and names the gap it answers.
+func blueRetiresCitationFor(b *stage, gap string) *stage {
+	agent := fmt.Sprintf("blue-agent-%d", b.n+1)
+	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).
+		add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("the source cannot be read"),
+			Anchors: []string{"C-1"}, ClaimKept: proto.Bool(true), Answers: proto.String(gap)}).stop(agent)
+}
+
 // A GAP A LENS HOLDS WITH NOTHING NEW ON IT OWES NOTHING (gblock, 2026-10-18). universe-m28's
 // architecture and voice lenses each held a gap of their own that is not material, which readies
 // nobody and which blue never answered, and sat after every edit to the epoch limit: lens sittings
@@ -289,7 +298,8 @@ func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
 		owes string
 		item string // the work list's item it is owed for
 	}{
-		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by an edit"},
+		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
+		{"blue retired a citation answering it", never, func(b *stage) { blueRetiresCitationFor(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by a change to the report"},
 		{"a grade motion on it was accepted", never, func(b *stage) {
 			b.add("blue-respond", gradeMotionFiled(b.t, "M1", "G1").GetMotion())
 			b.add("red-chair", gradeMotionRuled(b.t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule())

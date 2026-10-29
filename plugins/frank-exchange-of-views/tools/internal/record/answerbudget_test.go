@@ -40,7 +40,7 @@ func TestALensCanAlwaysAnswerWhatItRaised(t *testing.T) {
 		if got == nil || got.Open != open || got.Answering != answering || got.Left != left {
 			t.Fatalf("%s's mint_budget = %+v, want open %d, answering %d, left %d", id.SeatID, got, open, answering, left)
 		}
-		if answering > 0 && !mentions(w.Sitting.Open, "more that answer a contradiction you raised or a proof you judged unsound") {
+		if answering > 0 && !mentions(w.Sitting.Open, "more that answer a contradiction you raised or a check of yours that failed") {
 			t.Errorf("%s's work list does not say what its answering gaps cost: %v", id.SeatID, hows(w.Sitting.Open))
 		}
 	}

@@ -68,7 +68,7 @@ func reopenedOf(t *testing.T, run Run) []Blocker {
 	}
 	var out []Blocker
 	for _, b := range all {
-		if b.Kind == BlockerReopened {
+		if b.Kind == BlockerUnchecked {
 			out = append(out, b)
 		}
 	}
@@ -76,7 +76,7 @@ func reopenedOf(t *testing.T, run Run) []Blocker {
 }
 
 // standingOf is `show evidence`'s reopened rows, read the way the verb reads them.
-func standingOf(t *testing.T, run Run) []EvidenceReopenedJSON {
+func standingOf(t *testing.T, run Run) []EvidenceUncheckedJSON {
 	t.Helper()
 	raw, err := EvidenceJSONBytes(run)
 	if err != nil {
@@ -86,7 +86,7 @@ func standingOf(t *testing.T, run Run) []EvidenceReopenedJSON {
 	if err := json.Unmarshal(raw, &ej); err != nil {
 		t.Fatal(err)
 	}
-	return ej.Reopened
+	return ej.Unchecked
 }
 
 // A CITATION WHOSE SENTENCE CHANGED HOLDS THE PASS UNTIL A SITTING OPENED AFTER THE EDIT CHECKS IT.
@@ -106,7 +106,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "C-1's sentence changed at edit") || !strings.Contains(err.Error(), "show evidence --anchor") {
 		t.Fatalf("PASS over a reopened citation = %v, want a refusal naming it and where it is read", err)
 	}
-	if rows := standingOf(t, held); len(rows) != 1 || rows[0] != (EvidenceReopenedJSON{Anchor: "C-1", Edit: edit, LastCheck: check}) {
+	if rows := standingOf(t, held); len(rows) != 1 || rows[0] != (EvidenceUncheckedJSON{Anchor: "C-1", Edit: edit, LastCheck: check}) {
 		t.Errorf("show evidence reopened = %+v, want C-1 at edit %d, last check %d", rows, edit, check)
 	}
 
@@ -125,23 +125,26 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	d.sit(d.at(), evLens).supports(evLens, "C-1")
 	check = d.at()
 	d.reopen("C-1")
-	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (reopened{anchor: "C-1", edit: d.at(), lastCheck: check}) {
+	if got := reopenedRows(t, d); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: d.at(), lastCheck: check, placed: boardCite}) {
 		t.Errorf("rows after a second edit = %+v, want C-1 reopened at edit %d, last check %d", got, d.at(), check)
 	}
 }
 
+// boardCite is the events.id of reopenedBoard's cite of C-1, which placed it.
+const boardCite = 6
+
 // reopenedRows is the fold over a staged record.
-func reopenedRows(t *testing.T, b *stage) []reopened {
+func reopenedRows(t *testing.T, b *stage) []unchecked {
 	t.Helper()
 	m := loadedT(t, b.evs...)
-	return reopenedEvidence(m.Events, m.At)
+	return uncheckedAnchors(m.Events, m.At)
 }
 
 func TestACheckBeforeTheEditDoesNotClear(t *testing.T) {
 	b := reopenedBoard(t)
 	check := b.at()
 	b.reopen("C-1")
-	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (reopened{anchor: "C-1", edit: b.at(), lastCheck: check}) {
+	if got := reopenedRows(t, b); len(got) != 1 || got[0] != (unchecked{anchor: "C-1", edit: b.at(), lastCheck: check, placed: boardCite}) {
 		t.Errorf("rows = %+v, want C-1 at edit %d with its earlier check %d", got, b.at(), check)
 	}
 }
@@ -163,20 +166,28 @@ func TestACheckWithNoSittingDoesNotClear(t *testing.T) {
 	if s := m.At.Of(m.Events[len(m.Events)-1]).SittingID; s != 0 {
 		t.Fatalf("fixture: the verify sits in sitting %d, want none", s)
 	}
-	if got := reopenedEvidence(m.Events, m.At); len(got) != 1 || got[0].lastCheck != b.at() {
+	if got := uncheckedAnchors(m.Events, m.At); len(got) != 1 || got[0].lastCheck != b.at() {
 		t.Errorf("rows = %+v, want C-1 still reopened: a check in no sitting says nothing about when the sentence was read", got)
 	}
 }
 
+// AN UNREACHABLE VERIFY READS NOTHING: it takes the citation out of the unchecked rows and leaves it
+// on a failed check of the seat that read it, which holds the PASS as the row did. A reading in the
+// same sitting clears both.
 func TestAnUnreachableVerifyDoesNotClear(t *testing.T) {
 	b := reopenedBoard(t).reopen("C-1")
 	b.sit(b.at(), evLens).verify(evLens, "C-1", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
-	if got := reopenedRows(t, b); len(got) != 1 || got[0].lastCheck != b.at() {
-		t.Fatalf("rows after a later sitting's `unreachable` = %+v, want C-1 still reopened — nothing was verified", got)
+	if got := reopenedRows(t, b); len(got) != 0 {
+		t.Fatalf("rows after a later sitting's `unreachable` = %+v, want none: the citation was checked, and the check read nothing", got)
+	}
+	m := loadedT(t, b.evs...)
+	if got := failedChecksOf(m.Events, m.At); len(got) != 1 || got[0].anchor != "C-1" || got[0].owner != evLens || got[0].proof {
+		t.Fatalf("failed checks after a later sitting's `unreachable` = %+v, want C-1's, owned by %s", got, evLens)
 	}
 	b.supports(evLens, "C-1")
-	if got := reopenedRows(t, b); len(got) != 0 {
-		t.Errorf("rows after the same sitting then reads the source = %+v, want none", got)
+	m = loadedT(t, b.evs...)
+	if got, failed := reopenedRows(t, b), failedChecksOf(m.Events, m.At); len(got) != 0 || len(failed) != 0 {
+		t.Errorf("rows %+v and failed checks %+v after the same sitting then reads the source, want none", got, failed)
 	}
 }
 
@@ -198,21 +209,37 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 		o := recordpb.SourceOutcome(vs.Get(i).Number())
 		want, stated := outcomes[o]
 		if !stated {
-			t.Errorf("verify outcome %s has no clearing disposition — say whether a later sitting's verify carrying it clears a reopened citation", o)
+			t.Errorf("verify outcome %s has no clearing disposition — say whether a later sitting's verify carrying it reads the citation's source", o)
 			continue
 		}
 		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			// The store holds no verify with the zero outcome, so the rule is held where it is written.
-			if verifyClears(o) != want {
+			if VerifyReads(&recordpb.Verify{Outcome: &o}) != want {
 				t.Errorf("a verify with no outcome clears = %v, want %v", !want, want)
 			}
 			continue
 		}
+		// EVERY CHECK TAKES THE CITATION OUT OF THE UNCHECKED ROWS; one that read nothing leaves it on
+		// a failed check, which holds the PASS as the row did.
 		b := reopenedBoard(t).reopen("C-1")
 		b.sit(b.at(), evLens).verify(evLens, "C-1", o)
-		if cleared := len(reopenedRows(t, b)) == 0; cleared != want {
-			t.Errorf("a later sitting's verify %s clears = %v, want %v", o, cleared, want)
+		m := loadedT(t, b.evs...)
+		if rows := reopenedRows(t, b); len(rows) != 0 {
+			t.Errorf("a later sitting's verify %s leaves C-1 unchecked: %+v", o, rows)
 		}
+		if read := len(failedChecksOf(m.Events, m.At)) == 0; read != want {
+			t.Errorf("a later sitting's verify %s reads the source = %v, want %v", o, read, want)
+		}
+	}
+	// A READING OF A COPY THE TOOL STAMPED not_the_work reads nothing, whatever it found there.
+	b := reopenedBoard(t).reopen("C-1")
+	b.sit(b.at(), evLens).add(evLens, &recordpb.Verify{
+		Anchor: proto.String("C-1"), Claim: proto.String("c"), Text: proto.String("read a sign-in page"),
+		Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
+		SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK.Enum(),
+	})
+	if m := loadedT(t, b.evs...); len(failedChecksOf(m.Events, m.At)) != 1 {
+		t.Errorf("a `supports` of a copy stamped not_the_work reads the source: failed checks %+v", failedChecksOf(m.Events, m.At))
 	}
 
 	// A judgement clears whatever it found: a lens judged the sentence as it stands. The zero
@@ -301,34 +328,49 @@ func TestAnyLensesLaterSittingClears(t *testing.T) {
 	}
 }
 
-// F4: a citation nobody ever checked has no check for an edit to outdate. It stays the available
-// item it already is, and holds nothing.
-func TestANeverCheckedCitationStaysAvailableNotOwed(t *testing.T) {
+// F4: A CITATION NOBODY EVER CHECKED IS UNCHECKED, edited or not (gblock, 2026-10-25: "Citation
+// checking isn't optional. Ever."). It holds the PASS, its owner owes it, and the item blocks.
+func TestANeverCheckedCitationIsOwedAndHoldsThePass(t *testing.T) {
 	b := reopenedBoard(t).cite("C-2").reopen("C-2")
+	edit := b.at()
 	run := b.sit(b.at(), evLens).seed()
-	if got := reopenedOf(t, run); len(got) != 0 {
-		t.Fatalf("blockers = %+v, want none: C-2 was never checked", got)
+	got := reopenedOf(t, run)
+	if len(got) != 1 || got[0].Subject != "C-2" || got[0].Owner != evLens || got[0].since != edit || got[0].lastCheck != 0 {
+		t.Fatalf("blockers = %+v, want C-2 unchecked since edit %d, owned by %s, with no check", got, edit, evLens)
 	}
-	it, listed := itemNaming(sittingOfRunT(t, run, "lens", evLens), "citation C-2 is on the record and nobody has verified it")
-	if !listed || it.Blocks {
-		t.Errorf("the lens's item for C-2 = %+v (listed %v), want it available and not owed", it, listed)
+	// The fixture's report carries no C-2 token, so the item is listed as one no verify of this
+	// sitting can reach; envelope_test holds a reachable one to the lens's envelope.
+	if it, listed := itemNaming(sittingOfRunT(t, run, "lens", evLens), "C-2's sentence changed at edit"); !listed {
+		t.Errorf("the lens's item for C-2 = %+v (listed %v), want it listed", it, listed)
 	}
 }
 
-// A CITATION NOBODY CHECKED BEFORE THE EDIT IS NOT REOPENED BY A LATER CHECK THAT READ NOTHING. The
-// edit answered no check, so the citation is still the work item that offers its first check; an
-// `unreachable` from a sitting opened after the edit does not make it owed. As a blocker it arose
-// after the evidence lens had sat at that head, so nobody was readied for it and the release fuzz's
-// forced-VERIFIED run ended UNVERIFIED on it.
-func TestAnUnreachableFirstCheckAfterTheEditDoesNotReopen(t *testing.T) {
+// A CITATION WHOSE ONLY CHECK SINCE THE EDIT READ NOTHING IS ON A FAILED CHECK, whoever made it and
+// whether or not anybody checked it before. The blocker's owner is the seat that read nothing, in
+// its own sitting — the reading that left it is that seat's to carry by a gap — so the hole where a
+// blocker raised by another lens's unreachable verify readied nobody is closed.
+func TestAnUnreachableFirstCheckAfterTheEditFailsTheCheck(t *testing.T) {
 	b := reopenedBoard(t, outsideLens).cite("C-2").reopen("C-2")
 	b.sit(b.at(), outsideLens).verify(outsideLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE)
 	run := b.seed()
 	if got := reopenedOf(t, run); len(got) != 0 {
-		t.Fatalf("blockers = %+v, want none: C-2 was never checked before the edit, and the check after it read nothing", got)
+		t.Fatalf("unchecked blockers = %+v, want none: C-2 was checked after the edit", got)
+	}
+	all, err := PassBlockers(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failed []Blocker
+	for _, bl := range all {
+		if bl.Kind == BlockerFailedCheck {
+			failed = append(failed, bl)
+		}
+	}
+	if len(failed) != 1 || failed[0].Subject != "C-2" || failed[0].Owner != outsideLens || failed[0].Detail != "" {
+		t.Fatalf("failed-check blockers = %+v, want C-2's, owned by %s", failed, outsideLens)
 	}
 	if got := standingOf(t, run); len(got) != 0 {
-		t.Errorf("show evidence's reopened rows = %+v, want none", got)
+		t.Errorf("show evidence's unchecked rows = %+v, want none", got)
 	}
 }
 
@@ -383,12 +425,44 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 	}
 	b := board()
 	edit := b.at()
-	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), "it owes reopened C-1") {
+	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), "it owes unchecked C-1") {
 		t.Fatalf("the plan after the edit does not ready the lens for it: parties %+v, why %q", plan.Parties, plan.Why)
 	}
 	next := b.register("red-chair").sit(edit, evLens).logEntry(evLens).seed()
 	if it, listed := itemNaming(sittingOfRunT(t, next, "lens", evLens), "C-1's sentence changed"); !listed || !it.Blocks {
 		t.Errorf("the sitting the plan readied does not hold the item as owed: %+v (listed %v)", it, listed)
+	}
+}
+
+// A CITATION PLACED WHILE ITS OWNER SITS IS THAT SITTING'S TO CHECK, unlike an edited one. A check
+// from a sitting opened before the cite reads the sentence the report carries (anchorStanding.sinceEdit
+// holds with no edit), so the sitting can clear it and is held by it; and a cite does not move the
+// report head, so a sitting released from it would leave the owner unreadied and the PASS held with
+// nobody to clear it.
+func TestACitationPlacedWhileItsOwnerSitsIsThatSittingsToCheck(t *testing.T) {
+	board := func() *stage { return reopenedBoard(t).logEntry(evLens).cite("C-2") }
+	if _, listed := itemNaming(sittingOfRunT(t, board().seed(), "lens", evLens), "citation C-2 is on the record"); !listed {
+		t.Fatal("the owner's open sitting does not list C-2, cited while it sat")
+	}
+	if got := reopenedOf(t, board().supports(evLens, "C-2").seed()); len(got) != 0 {
+		t.Errorf("a check of C-2 from the sitting open when it was cited leaves it unchecked: %+v", got)
+	}
+}
+
+// A CITATION BLUE PLACES AFTER ITS OWNER SAT READIES THE OWNER, once. A cite moves no report head, so
+// the owner's pin stays at the head and nothing else readies it, while the never-checked citation
+// holds the PASS: the plan readies it until it sits through a sitting opened after the cite.
+func TestACitationPlacedAfterItsOwnerSatReadiesItOnce(t *testing.T) {
+	board := func() *stage { return reopenedBoard(t).register("red-chair").cite("C-2") }
+	plan := planOf(t, board().register("red-chair"))
+	if !lensReady(plan) || !strings.Contains(whyOf(plan), evLens+" owns C-2, placed or changed since the last sitting it sat through") {
+		t.Fatalf("the plan after the cite does not ready the owner for C-2: parties %+v, why %q", plan.Parties, plan.Why)
+	}
+	b := board()
+	cite := b.at()
+	again := planOf(t, b.register("red-chair").sit(cite, evLens).logEntry(evLens).register("red-chair"))
+	if strings.Contains(whyOf(again), "owns C-2, placed") {
+		t.Errorf("the owner sat through a sitting opened after the cite and is readied for C-2 again: why %q", again.Why)
 	}
 }
 
@@ -411,7 +485,7 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	// base is the reason with nothing reopened: today's sentence, then the cast's coverage note.
 	base := func(got, want string) string {
 		t.Helper()
-		if !strings.HasPrefix(got, want) || strings.Contains(got, "reopened") {
+		if !strings.HasPrefix(got, want) || strings.Contains(got, "unchecked") {
 			t.Fatalf("with nothing reopened the reason is %q, want %q and the coverage note", got, want)
 		}
 		return strings.TrimPrefix(got, want)
@@ -421,10 +495,9 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	withReopened := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").cite("C-1").supports(evLens, "C-1").
 		reopen("C-1").register("red-chair")
-	if got := why(withReopened, "2"); got != term+"; reopened and unchecked: C-1"+coverage {
+	if got := why(withReopened, "2"); got != term+"; unchecked: C-1"+coverage {
 		t.Errorf("reason = %q, want the term's reason naming C-1 and not the material gap", got)
 	}
-
 }
 
 // F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting, the report is served to it
@@ -481,11 +554,11 @@ func TestAFailIsAdmittedOnAConvergedBoardUnderAReopenedBlocker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.ContainsFunc(all, func(b Blocker) bool { return b.Kind == BlockerReopened }) {
+	if !slices.ContainsFunc(all, func(b Blocker) bool { return b.Kind == BlockerUnchecked }) {
 		t.Fatalf("fixture: blockers = %+v, want the reopened anchor among them", all)
 	}
 	for _, bl := range all {
-		if bl.Kind != BlockerReopened && !bl.ChairOwned() {
+		if bl.Kind != BlockerUnchecked && !bl.ChairOwned() {
 			t.Fatalf("fixture: %s holds the PASS for another seat as well", bl.Kind)
 		}
 	}

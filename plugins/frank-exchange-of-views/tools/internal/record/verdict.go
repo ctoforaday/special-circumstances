@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -113,26 +114,19 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	// CEILING IS THE DISPATCH PLAN'S (plans/roundless.md §III.B.2): the chair has sat for the run's
 	// last epoch under its epoch limit, a term setup records. A gap at its own limit is closed by the
 	// bench, never left open (requireRemandWithinLimit). A record with no cast cannot reach it.
+	standing := ""
 	if cast != nil {
 		params, err := files.params()
 		if err != nil {
 			return "", "", false, err
 		}
 		plan := foldPlan(params, *r.plan)
-		// A CEILING OVER A REOPENED ANCHOR NAMES IT. The run ends on its term or its limits with a
-		// citation or proof nobody read against the sentence the report carries, and the reason is
-		// where a reader of the outcome learns which. No other blocker kind is named: the reason
-		// states why the run stopped, and the board states what else is open.
-		var named []string
-		for _, b := range plan.Blockers {
-			if b.Kind == BlockerReopened {
-				named = append(named, b.Subject)
-			}
-		}
-		standing := ""
-		if len(named) > 0 {
-			standing = "; reopened and unchecked: " + strings.Join(named, ", ")
-		}
+		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term or with
+		// no terminal state over a citation or proof nobody has read against the sentence the report
+		// carries, or one whose check failed, and the reason is where a reader of the outcome
+		// learns which. No other blocker kind is named: the reason states why the run stopped, and the
+		// board states what else is open.
+		standing = anchorsStanding(plan.Blockers)
 		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
 		// undispatched, its ruling leaves nobody ready (epochLimitHeldTheBench).
@@ -140,7 +134,31 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing, true, nil
 		}
 	}
-	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil
+	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil
+}
+
+// anchorsStanding is the outcome reason's clause naming each citation or proof that holds the PASS by
+// its own state — unchecked, or on a failed check — or "" where none does.
+func anchorsStanding(bs []PlanBlocker) string {
+	var unchecked, failed []string
+	for _, b := range bs {
+		switch b.Kind {
+		case BlockerUnchecked:
+			unchecked = append(unchecked, b.Subject)
+		case BlockerFailedCheck:
+			if !slices.Contains(failed, b.Subject) {
+				failed = append(failed, b.Subject)
+			}
+		}
+	}
+	out := ""
+	if len(unchecked) > 0 {
+		out += "; unchecked: " + strings.Join(unchecked, ", ")
+	}
+	if len(failed) > 0 {
+		out += "; on a failed check: " + strings.Join(failed, ", ")
+	}
+	return out
 }
 
 // RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict

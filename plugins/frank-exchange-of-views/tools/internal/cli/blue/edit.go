@@ -179,6 +179,9 @@ func newEdit() *cobra.Command {
 			//
 			// Computed from the render the validation used, which is the report the edit lands on.
 			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
+			if err := refuseBaredCitations(peek, planned, gapID); err != nil {
+				return err
+			}
 			// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
 			// the field existed, whose trimmed span was a no-op, must still replay as one — so the event
 			// says which span it replaced. Absent, not false, on every ordinary edit.
@@ -242,6 +245,45 @@ func newEdit() *cobra.Command {
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// refuseBaredCitations refuses an edit that would leave a citation's anchor BARE — no prose before it
+// in its sentence — where it stood on prose before (claimcount.BareAnchorIDs).
+//
+// A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25), and a bare one cannot be
+// checked: `verify` reads the sentence holding the anchor, and a bare anchor backs none, so the
+// citation would hold the PASS unchecked with no act any lens could make on it. The edit is where
+// the sentence leaves, so the edit is refused, naming the anchor and the two ways out: keep a
+// sentence before it, or retire the citation while its sentence still stands (the retire keeps the
+// sentence word for word and takes the anchor out), then edit the sentence as freely as any prose.
+// An edit answering a gap names that gap on the retire it sends blue to, because the retire is the
+// first half of the repair and joins the gap by the same key the edit does.
+func refuseBaredCitations(before, after, gapID string) error {
+	was := map[string]bool{}
+	for _, id := range claimcount.BareAnchorIDs(before) {
+		was[id] = true
+	}
+	var bared []string
+	for _, id := range claimcount.BareAnchorIDs(after) {
+		if anchor.Kind(id) == "citation" && !was[id] {
+			bared = append(bared, id)
+		}
+	}
+	if len(bared) == 0 {
+		return nil
+	}
+	what, it, its := "citation "+bared[0], "it", "its"
+	if len(bared) > 1 {
+		what, it, its = "citations "+strings.Join(bared, ", "), "them", "their"
+	}
+	retire := "`retire --anchor <its id>`"
+	if gapID != "" {
+		retire = "`retire --anchor <its id> --answers " + gapID + "`"
+	}
+	return feov.Errorf(feov.Validation,
+		"this edit would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against. Nothing is recorded. "+
+			"Keep the sentence in --new; or, where the sentence is to go, first retire the citation with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
+		what, it, its, it, retire)
 }
 
 // repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the

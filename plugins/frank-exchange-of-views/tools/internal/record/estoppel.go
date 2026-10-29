@@ -123,6 +123,9 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 				answered[id] = true
 			}
 		}
+		if id := retireAnswers(e); id != "" {
+			answered[id] = true
+		}
 	}
 	for id, g := range gaps {
 		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
@@ -325,12 +328,14 @@ func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
 }
 
 // AnchorRetiredAt answers where an anchor went when it is no longer in the report: the retire
-// event that took it out with its claim. found is false for an anchor no retire named — then it
-// is a stale reference or another run's id, and the caller says so.
-func AnchorRetiredAt(run Run, id string) (event int64, claim string, found bool, err error) {
+// event that took it out — with its claim, or, kept true, off a claim that stayed (a citation
+// retired from its sentence). found is false for an anchor no retire named — then it is a stale
+// reference or another run's id, and the caller says so.
+func AnchorRetiredAt(run Run, id string) (event int64, claim string, kept, found bool, err error) {
 	var c sql.NullString
-	found, err = queryRow(run, []any{&event, &c},
-		`SELECT r."event_id", r."claim" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
+	var k sql.NullBool
+	found, err = queryRow(run, []any{&event, &c, &k},
+		`SELECT r."event_id", r."claim", r."claim_kept" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
-	return event, c.String, found, err
+	return event, c.String, k.Bool, found, err
 }

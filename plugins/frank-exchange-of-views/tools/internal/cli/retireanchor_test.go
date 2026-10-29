@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,12 +17,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // AN ANCHORED CLAIM LEAVES THROUGH RETIRE, AND ITS ANCHOR LEAVES WITH IT.
 //
-// An edit may carry an anchor but never drop one, so the only way to delete an anchored sentence
-// is to edit it down to the bare anchor and retire it. Before the retire named the anchors that
+// An edit may carry an anchor but never drop one, so the way to delete a sentence a finding, proof
+// or gap marks is to edit it down to the bare anchor and retire it; a citation never stands bare,
+// so a cited sentence loses its citation to a retire first and is then prose an edit may cut. Before the retire named the anchors that
 // exit with the claim, that bare anchor stood forever: an orphan [^N] with a live bibliography
 // entry in the assembled report, an empty `- ?` bullet, and a segment the claim counter still
 // counted — so the retire credited a claim that had never left the count and cancelled some
@@ -46,7 +49,8 @@ func citeSentence(t *testing.T, runDir, sentence, url string) string {
 }
 
 // gutToAnchor edits an anchored sentence down to its bare anchor — the only edit that removes
-// the sentence, because an edit may not drop the anchor.
+// the sentence, because an edit may not drop the anchor. A citation's anchor is never left bare
+// (TestACitedSentenceIsNotCutToItsAnchor), so the anchor gutted is a proof's.
 func gutToAnchor(t *testing.T, runDir, sentence, tok string) {
 	t.Helper()
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -64,6 +68,28 @@ func retireClaim(t *testing.T, runDir, claim string) *recordpb.Retire {
 	return lastBody(t, runDir, &recordpb.Retire{})
 }
 
+// proveSentence backs one sentence with a proof and returns its anchor id: a marker an edit may
+// leave bare, for the retire to take out with its claim.
+func proveSentence(t *testing.T, runDir, sentence string) string {
+	t.Helper()
+	s := script(t, runDir, "prove-"+strings.Trim(strings.Fields(sentence)[0], ".")+".js", "console.log('it holds');")
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+		"--script", s, "--reason", "the computation settles it"); err != nil {
+		t.Fatalf("prove %q: %v", sentence, err)
+	}
+	return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+}
+
+// countEvents is how many events of one type the record holds.
+func countEvents(t *testing.T, runDir string, typ recordpb.EventType) int {
+	t.Helper()
+	var n int
+	if err := openRunDB(t, runDir).QueryRow(`SELECT count(*) FROM "events" WHERE "type" = ?`, recordpb.Word(typ)).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
 func citedRun(t *testing.T, urls ...string) string {
 	t.Helper()
 	runDir := newRun(t)
@@ -77,46 +103,147 @@ func citedRun(t *testing.T, urls ...string) string {
 	return runDir
 }
 
-func TestRetireTakesABareCiteAnchorOutOfTheReport(t *testing.T) {
+// A CITED SENTENCE LEAVES IN TWO ACTS: the retire takes the citation off it, keeping it word for
+// word, and the edit then cuts plain prose. The retire names the citation and says the claim
+// stayed, the count falls by it, and the assembled report neither numbers nor lists its source.
+func TestACitationRetiresOffItsSentenceAndAnEditThenCutsIt(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1")
 	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
-	tok := "<!--cite:" + label + "-->"
 	before := claimcount.Count(readReport(t, runDir))
 
-	gutToAnchor(t, runDir, "The sky is blue.", tok)
-	// THE BUG'S SHAPE, before the retire: the bare anchor still weaves into an orphan footnote.
-	if asm := assembled(t, runDir); !strings.Contains(asm, "https://sky/1") {
-		t.Fatalf("precondition: the gutted-but-unretired cite should still reach the bibliography:\n%s", asm)
+	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", label, "--reason", "the source cannot be read")
+	if err != nil {
+		t.Fatalf("retire --anchor %s alone: %v", label, err)
 	}
-	// And the gutting edit does not send red to re-verify a sentence that no longer exists.
-	if ed := lastBody(t, runDir, &recordpb.BlueEdit{}); slices.Contains(ed.GetReopened(), label) {
-		t.Errorf("the edit that left %s bare marked it reopened — there is no sentence to re-verify", label)
+	ev := lastBody(t, runDir, &recordpb.Retire{})
+	if !slices.Equal(ev.GetAnchors(), []string{label}) || !ev.GetClaimKept() || ev.GetClaim() != "The sky is blue." {
+		t.Errorf("the retire recorded anchors %v, claim_kept %v, claim %q — want [%s], kept, the sentence it stood on",
+			ev.GetAnchors(), ev.GetClaimKept(), ev.GetClaim(), label)
+	}
+	if !strings.Contains(out, label) {
+		t.Errorf("the retire's answer does not name %s:\n%s", label, out)
+	}
+	if rep := readReport(t, runDir); !strings.HasPrefix(rep, "# Findings\n\nThe sky is blue. The grass is green.\n") {
+		t.Errorf("the citation's sentence did not stay word for word:\n%s", rep)
+	}
+	if got := claimcount.Count(readReport(t, runDir)); got != before-1 {
+		t.Errorf("the claim count = %d after retiring one of %d citations, want %d", got, before, before-1)
+	}
+	if asm := assembled(t, runDir); strings.Contains(asm, "https://sky/1") || strings.Contains(asm, "[^1]") {
+		t.Errorf("the assembled report still numbers or lists the retired citation:\n%s", asm)
 	}
 
-	ev := retireClaim(t, runDir, "The sky is blue.")
-	if got := ev.GetAnchors(); !slices.Equal(got, []string{label}) {
-		t.Errorf("retire named anchors %v, want [%s] — the bare anchor must exit with its claim", got, label)
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", "The sky is blue. ", "--new", "", "--reason", "the claim cannot stand"); err != nil {
+		t.Fatalf("editing out the sentence its citation left: %v", err)
 	}
-	if ev.GetRemovalBasis() != record.RemovalVerified {
-		t.Errorf("removal_basis = %q, want verified", ev.GetRemovalBasis())
-	}
-
-	rep := readReport(t, runDir)
 	want := "# Findings\n\nThe grass is green.\n\n- Water is wet.\n- Fire is hot.\n\nClosing paragraph stays.\n"
-	if rep != want {
-		t.Errorf("rendered report after the retire:\n got %q\nwant %q", rep, want)
-	}
-	if got := claimcount.Count(rep); got != before-1 {
-		t.Errorf("the claim count = %d after retiring one of %d cited claims, want %d", got, before, before-1)
-	}
-	asm := assembled(t, runDir)
-	if strings.Contains(asm, "https://sky/1") || strings.Contains(asm, "[^1]") {
-		t.Errorf("the assembled report still numbers or lists the withdrawn citation:\n%s", asm)
+	if rep := readReport(t, runDir); rep != want {
+		t.Errorf("rendered report after the edit:\n got %q\nwant %q", rep, want)
 	}
 }
 
-// ONE LIFECYCLE: an anchor of every kind, cut to bare and named to the retire, leaves with its
-// claim — a finding's while a gap crediting it is open, a gap's while the gap itself is open. The
+// A CITED SENTENCE IS NOT CUT TO ITS ANCHOR. A bare citation backs no sentence, so no lens could
+// check it: the edit is refused, naming the citation and the retire that takes it off first, and
+// nothing is recorded.
+func TestACitedSentenceIsNotCutToItsAnchor(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	tok := anchor.Token(label)
+	before := readReport(t, runDir)
+	edits := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", "The sky is blue"+tok+".", "--new", tok, "--reason", "the claim cannot stand")
+	if err == nil {
+		t.Fatal("an edit leaving a citation bare was recorded")
+	}
+	for _, want := range []string{"citation " + label + " standing bare", "Nothing is recorded", "`retire --anchor <its id>`", "keeps the sentence word for word"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q:\n%v", want, err)
+		}
+	}
+	if after := readReport(t, runDir); after != before {
+		t.Errorf("the refused edit changed the report:\n got %q\nwant %q", after, before)
+	}
+	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
+		t.Errorf("%d edit(s) recorded by a refused edit", n-edits)
+	}
+}
+
+// A CITATION RETIRE ANSWERING A GAP IS IN THE GAP'S CHANGE LOG. The retire takes the key an edit
+// carries, so `show changes --id <gap>` lists it beside what red asked for in both forms, the
+// unscoped log lists it among the changes, and the report's retirements name the gap. A claim retire
+// takes no gap — the edit that cut the claim names it — and is refused one.
+func TestACitationRetireAnsweringAGapIsInItsChangeLog(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	gap := mintGap(t, runDir, "dead-source", "spec_underspecification")
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", label,
+		"--answers", gap, "--reason", "the source cannot be read"); err != nil {
+		t.Fatalf("retire --anchor %s --answers %s: %v", label, gap, err)
+	}
+	if ev := lastBody(t, runDir, &recordpb.Retire{}); ev.GetAnswers() != gap {
+		t.Fatalf("the retire recorded answers %q, want %s", ev.GetAnswers(), gap)
+	}
+
+	md, err := run(t, "show", "changes", "--id", gap, "--run", runDir, "--seat-id", lensSeat)
+	if err != nil {
+		t.Fatalf("show changes --id %s: %v", gap, err)
+	}
+	for _, want := range []string{"## Changes blue recorded against it (1)", "retired citation " + label + ", its sentence kept", "the source cannot be read", "The sky is blue."} {
+		if !strings.Contains(md, want) {
+			t.Errorf("show changes --id %s does not say %q:\n%s", gap, want, md)
+		}
+	}
+	js, err := run(t, "show", "changes", "--id", gap, "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatalf("show changes --id %s --json: %v", gap, err)
+	}
+	var page record.ChangesJSON
+	if err := json.Unmarshal([]byte(js), &page); err != nil {
+		t.Fatalf("show changes --json is not valid JSON (%v):\n%s", err, js)
+	}
+	if len(page.Edits) != 1 || page.Edits[0].Retired != label || page.Edits[0].Answers != gap || page.Edits[0].Old != "The sky is blue." {
+		t.Errorf("show changes --id %s --json holds %+v, want the one citation retire of %s answering it", gap, page.Edits, label)
+	}
+	if all, err := run(t, "show", "changes", "--run", runDir, "--seat-id", lensSeat); err != nil || !strings.Contains(all, "answers **"+gap+"** · retired citation "+label) {
+		t.Errorf("the unscoped change log does not list the retire answering %s (%v):\n%s", gap, err, all)
+	}
+	a, err := report.Assemble(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changelog, err := os.ReadFile(filepath.Join(filepath.Dir(a.Report), report.FileChangelog)); err != nil ||
+		!strings.Contains(string(changelog), "a source it cited was retired from it, answering **"+gap+"**") {
+		t.Errorf("the changelog's retirements do not name the gap the retire answers (%v):\n%s", err, changelog)
+	}
+
+	proof := proveSentence(t, runDir, "The grass is green.")
+	gutToAnchor(t, runDir, "The grass is green.", anchor.Token(proof))
+	_, err = run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The grass is green.",
+		"--answers", gap, "--reason", "refuted")
+	if err == nil || !strings.Contains(err.Error(), "the edit that cut it") {
+		t.Errorf("a claim retire naming a gap was not refused for it: %v", err)
+	}
+}
+
+// THE BARE-CITATION REFUSAL SENDS BLUE TO A RETIRE THAT ANSWERS THE SAME GAP. An edit answering a gap
+// that would leave a citation bare names the retire with that gap, so the first half of the repair
+// joins the gap as the edit would have.
+func TestTheBareCitationRefusalNamesTheGapTheEditAnswers(t *testing.T) {
+	runDir := citedRun(t, "https://sky/1")
+	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
+	gap := mintGap(t, runDir, "dead-source", "spec_underspecification")
+	tok := anchor.Token(label)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--answers", gap,
+		"--quote", "The sky is blue"+tok+".", "--new", tok, "--reason", "the claim cannot stand")
+	if err == nil || !strings.Contains(err.Error(), "`retire --anchor <its id> --answers "+gap+"`") {
+		t.Errorf("the bare-citation refusal does not name the retire answering %s: %v", gap, err)
+	}
+}
+
+// ONE LIFECYCLE: an anchor of every kind but a citation, cut to bare and named to the retire, leaves
+// with its claim; a citation, named alone, leaves its sentence standing — a finding's while a gap crediting it is open, a gap's while the gap itself is open. The
 // retire names it, reading the report at it names the retire, and the gap reads gone. A hold on
 // any kind fails its row.
 func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
@@ -166,9 +293,12 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 			if !strings.Contains(readReport(t, runDir), "Water is wet"+tok) {
 				t.Fatalf("no %s anchor on the bullet:\n%s", kind, readReport(t, runDir))
 			}
-			gutToAnchor(t, runDir, sentence, tok)
-			out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat,
-				"--quote", sentence, "--reason", "refuted", "--anchor", id)
+			args := []string{"retire", "--run", runDir, "--seat-id", blueSeat, "--reason", "refuted", "--anchor", id}
+			if kind != "citation" { // a citation never stands bare: it retires alone, its sentence kept
+				gutToAnchor(t, runDir, sentence, tok)
+				args = append(args, "--quote", sentence)
+			}
+			out, err := run(t, args...)
 			if err != nil {
 				t.Fatalf("retire --anchor %s: %v", id, err)
 			}
@@ -241,9 +371,9 @@ func TestRetireWithoutABareAnchorNamesNone(t *testing.T) {
 // A SECOND RETIRE OF THE SAME CLAIM NAMES NOTHING: the anchor is already gone, and naming it
 // again would be a remove op replay cannot apply.
 func TestRetiringTwiceNamesTheAnchorOnce(t *testing.T) {
-	runDir := citedRun(t, "https://sky/1")
-	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
-	gutToAnchor(t, runDir, "The sky is blue.", "<!--cite:"+label+"-->")
+	runDir := citedRun(t)
+	id := proveSentence(t, runDir, "The sky is blue.")
+	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(id))
 	retireClaim(t, runDir, "The sky is blue.")
 	if ev := retireClaim(t, runDir, "The sky is blue."); len(ev.GetAnchors()) != 0 {
 		t.Errorf("the second retire named %v — the anchor had already left", ev.GetAnchors())
@@ -266,11 +396,10 @@ func TestDroppingAnAnchorTeachesRetire(t *testing.T) {
 	}
 }
 
-// WHAT MOVES THE COUNT: two retires of gutted cited claims, a retire of uncited prose, one cited
-// sentence gutted with no retire, and a merge of two cited sentences into one. Each gut takes a
-// citation out of the count, retired or not, so three leave. The merge carries both anchors and
-// moves nothing — the count is of attached citations, not sentences — and the uncited retire
-// takes out nothing the count held.
+// WHAT MOVES THE COUNT: two citations retired off their sentences, a retire of uncited prose, and
+// a merge of two cited sentences into one. Each citation retired leaves the count; the merge carries
+// both anchors and moves nothing — the count is of attached citations, not sentences — and the
+// uncited retire takes out nothing the count held.
 func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Gamma holds. Delta holds. Epsilon holds. Plain prose here.\n")
@@ -282,14 +411,14 @@ func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	b := citeSentence(t, runDir, "Beta holds.", "https://b/1")
 	g := citeSentence(t, runDir, "Gamma holds.", "https://g/1")
 	d := citeSentence(t, runDir, "Delta holds.", "https://d/1")
-	e := citeSentence(t, runDir, "Epsilon holds.", "https://e/1")
+	citeSentence(t, runDir, "Epsilon holds.", "https://e/1")
 	start := claimcount.Count(readReport(t, runDir))
-	gutToAnchor(t, runDir, "Epsilon holds.", "<!--cite:"+e+"-->") // the real loss: no retire follows
 
-	gutToAnchor(t, runDir, "Alpha holds.", "<!--cite:"+a+"-->")
-	retireClaim(t, runDir, "Alpha holds.")
-	gutToAnchor(t, runDir, "Beta holds.", "<!--cite:"+b+"-->")
-	retireClaim(t, runDir, "Beta holds.")
+	for _, id := range []string{a, b} {
+		if _, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", id, "--reason", "refuted"); err != nil {
+			t.Fatalf("retire --anchor %s: %v", id, err)
+		}
+	}
 	// A retire of UNCITED prose removes nothing the count held, and must credit nothing.
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", " Plain prose here.", "--new", "", "--reason", "cut"); err != nil {
@@ -303,29 +432,36 @@ func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 		t.Fatalf("merge edit: %v", err)
 	}
 	end := claimcount.Count(readReport(t, runDir))
-	if start != 5 || end != 2 {
-		t.Fatalf("the claim count %d → %d, want 5 → 2 — the merge keeps both citations (report %q)", start, end, readReport(t, runDir))
+	if start != 5 || end != 3 {
+		t.Fatalf("the claim count %d → %d, want 5 → 3 — the merge keeps both citations (report %q)", start, end, readReport(t, runDir))
 	}
 }
 
-// SEVERAL ANCHORS EXIT ON ONE RETIRE. Two cited sentences are cut down to their anchors in one edit —
+// SEVERAL ANCHORS EXIT ON ONE RETIRE. Two proved sentences are cut down to their anchors in one edit —
 // whose replacement carries them in DESCENDING id order, so the retire names them in an order replay
 // must not depend on. A fragment of what left is refused, naming both; the whole quote takes both,
 // the count falls by both, the retire credits both, and the report_op view hands replay the two
 // removes in its documented order.
-func TestRetireTakesTwoCitedSentencesOutAtOnce(t *testing.T) {
+func TestRetireTakesTwoProvedSentencesOutAtOnce(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Plain prose here.\n")
+	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Gamma stands. Delta stands. Plain prose here.\n")
 	registerBlue(t, runDir)
-	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://a/1": []byte("a"), "https://b/1": []byte("b")}})
-	a := citeSentence(t, runDir, "Alpha holds.", "https://a/1")
-	b := citeSentence(t, runDir, "Beta holds.", "https://b/1")
-	start := claimcount.Count(readReport(t, runDir))
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://g/1": []byte("g"), "https://d/1": []byte("d")}})
+	// Two CITED sentences cut in one edit are refused, the refusal naming both citations.
+	g := citeSentence(t, runDir, "Gamma stands.", "https://g/1")
+	d := citeSentence(t, runDir, "Delta stands.", "https://d/1")
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", "Gamma stands"+anchor.Token(g)+". Delta stands"+anchor.Token(d)+".", "--new", anchor.Token(g)+anchor.Token(d), "--reason", "both refuted")
+	if err == nil || !strings.Contains(err.Error(), "citations "+g+", "+d+" standing bare") || !strings.Contains(err.Error(), "before them in their sentence") {
+		t.Errorf("cutting two cited sentences to their anchors = %v, want a refusal naming both", err)
+	}
+	a := proveSentence(t, runDir, "Alpha holds.")
+	b := proveSentence(t, runDir, "Beta holds.")
 	hi, lo := a, b
 	if hi < lo {
 		hi, lo = lo, hi
 	}
-	tok := func(id string) string { return "<!--cite:" + id + "-->" }
+	tok := anchor.Token
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "Alpha holds"+tok(a)+". Beta holds"+tok(b)+".", "--new", tok(hi)+tok(lo), "--reason", "both refuted"); err != nil {
 		t.Fatalf("edit both down to their anchors: %v", err)
@@ -344,12 +480,8 @@ func TestRetireTakesTwoCitedSentencesOutAtOnce(t *testing.T) {
 		t.Fatalf("retire named %v, want [%s %s] — both, in the order the edit left them", ev.GetAnchors(), hi, lo)
 	}
 	rep := readReport(t, runDir)
-	if rep != "# Findings\n\nPlain prose here.\n" {
+	if rep != "# Findings\n\nGamma stands"+tok(g)+". Delta stands"+tok(d)+". Plain prose here.\n" {
 		t.Errorf("rendered report after retiring both:\n got %q", rep)
-	}
-	end := claimcount.Count(rep)
-	if start != 2 || end != 0 {
-		t.Errorf("the claim count %d → %d, want 2 → 0", start, end)
 	}
 
 	_, _, ops, err := record.ReportProjection(runtest.Open(t, runDir))
@@ -408,8 +540,8 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 	writeReport(t, runDir, retireBase)
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": []byte("<html>sky</html>")}})
-	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
-	gutToAnchor(t, runDir, "The sky is blue.", "<!--cite:"+label+"-->")
+	id := proveSentence(t, runDir, "The sky is blue.")
+	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(id))
 	if ev := retireClaim(t, runDir, "The sky is blue."); len(ev.GetAnchors()) != 1 {
 		t.Fatalf("precondition: the retire named %v, want the one anchor", ev.GetAnchors())
 	}
@@ -434,10 +566,8 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 // written at. The process that opens it is told so, with the way out, before any verb reads or
 // writes — and records nothing.
 func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
-	runDir := citedRun(t, "https://sky/1")
-	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
-	tok := "<!--cite:" + label + "-->"
-	gutToAnchor(t, runDir, "The sky is blue.", tok)
+	runDir := citedRun(t)
+	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(proveSentence(t, runDir, "The sky is blue.")))
 
 	i := strings.Index(recordsql.ViewsDDL, `CREATE VIEW "report_op" AS`)
 	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT e.\"id\", 'remove'")
@@ -473,19 +603,6 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("%d retire event(s) recorded — the refused open must leave nothing behind", n)
-	}
-}
-
-// A GUTTED CITED SENTENCE IS NOT COUNTED: the bare anchor is not a claim, so the count falls
-// whether or not a retire follows.
-func TestAGuttedCitedSentenceLeavesTheCount(t *testing.T) {
-	runDir := citedRun(t, "https://sky/1")
-	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
-	before := claimcount.Count(readReport(t, runDir))
-	gutToAnchor(t, runDir, "The sky is blue.", "<!--cite:"+label+"-->")
-	after := claimcount.Count(readReport(t, runDir))
-	if after != before-1 {
-		t.Fatalf("the claim count %d → %d after gutting a cited sentence, want a fall of 1", before, after)
 	}
 }
 

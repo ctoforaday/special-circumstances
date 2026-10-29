@@ -508,7 +508,7 @@ enum SourceOutcome {
   SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
   SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise"];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
-  SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
+  SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
 }
 
 // BridgeKind is WHAT a `supports_with_bridge` reading bridged — the three things that outcome's own
@@ -1125,7 +1125,7 @@ enum AboutKind {
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
   ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
-  ABOUT_KIND_PROOF = 5 [(means) = "a proof, by its anchor, whose sentence was judged unsound", (gap_may_name) = true];
+  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or proof, by its anchor, whose check failed: a proof judged unsound, or a citation whose cited work was not read", (gap_may_name) = true];
 }
 
 message Finding {
@@ -1213,7 +1213,7 @@ enum SourceCompleteness {
   SOURCE_COMPLETENESS_FULL = 1 [(means) = "the copy carries the work's body: its platform marks the body sections, or it is a pdf covering the page span the work declares"];
   SOURCE_COMPLETENESS_ABSTRACT = 2 [(means) = "the copy is the work's ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows, and the footnote and the Bibliography mark it ABSTRACT ONLY for the reader"];
   SOURCE_COMPLETENESS_UNVERIFIED = 3 [(means) = "nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf"];
-  SOURCE_COMPLETENESS_NOT_THE_WORK = 4 [(means) = "the copy is not the work at all: a sign-in page, a book's sales page"];
+  SOURCE_COMPLETENESS_NOT_THE_WORK = 4 [(means) = "the copy is not the work at all: a sign-in page, a book's sales page. A reading of it is no reading of the cited work, whatever it found there: it leaves the citation unread"];
   SOURCE_COMPLETENESS_NOT_ASKED = 5 [(means) = "the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run's cache. It says NOTHING about whether the copy is complete"];
   SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
 }
@@ -1632,6 +1632,23 @@ message Retire {
   // this event's position (the report_op view's `remove` rows). A record written before this field
   // carries none, and replays exactly as it did.
   repeated string anchors = 5;
+
+  // claim_kept is a retire of a CITATION, not of its claim: the citation's anchor leaves the report
+  // and its sentence stays word for word, standing on whatever else backs it — another citation, or
+  // nothing, when it is prose a lens audits like any other. The verb sets it and fills claim with the
+  // sentence as the report holds it at the write, never typed by a seat. Its readers: replay (the
+  // anchor's `remove` row leaves the sentence), the report's list of retirements, which names the
+  // citation retired and the sentence kept rather than listing a claim that never left, and the
+  // anchor ledger, where the citation is retired and owes nothing.
+  optional bool claim_kept = 6;
+
+  // answers is the gap a citation retire responds to — BlueEdit.answers's key on the other act that
+  // changes the report's text, checked against the board at the write the same way. A citation blue
+  // retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
+  // blue's answers (`show changes --id`, the lens's answered list, the manifest's owed rows) reads it
+  // here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
+  // carries the gap it answers.
+  optional string answers = 7;
 }
 
 message ManifestRow {

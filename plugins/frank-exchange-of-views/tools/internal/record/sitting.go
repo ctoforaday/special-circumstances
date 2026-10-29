@@ -46,7 +46,7 @@ import (
 // COPY of a surface the tool already generates, and it drifted exactly as a second copy does —
 // the lens affordance told a seat to run `verify --key <k>`, a flag `lens verify` does not have,
 // so the only instruction that duty ever handed over could not run. Nobody caught it because the
-// affordance that produces it never fires (see citedClaimsWithoutVerify): a dead path holding a
+// affordance that produced it never fired — its join key was on no event: a dead path holding a
 // wrong instruction, each hiding the other.
 //
 // A duty is STATE — this is owed, and here is why. `<verb> --help` is where the flags,
@@ -306,15 +306,14 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// list and that audit cannot disagree about which closing is short. A lane, the frontier and
 		// the synthesizer are party to no dispute and owe none.
 		//
-		// IT OWES THE FIX OR RETIRE OF A PROOF A LENS'S STANDING JUDGEMENT CALLS UNSOUND (unsoundproof.go):
-		// the PASS gate's blocker, cleared by blue's retire, or by the fresh sound judgement blue's edit
-		// of the sentence reopens it for.
+		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
+		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				add(b.WorkItem())
-			case b.Kind == BlockerUnsoundProof && seatID == blueRespondSeat:
-				add(blueUnsoundItem(b))
+			case b.Kind == BlockerFailedCheck && seatID == blueRespondSeat:
+				add(blueFailedItem(b))
 			}
 		}
 	case "chair":
@@ -359,30 +358,30 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
-	// REOPENED CITATION OR PROOF IT OWNS (anchorOwnerOf), AND ITS CLOSING ON A GAP OF ITS OWN THAT
-	// IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above
-	// this switch (the log channel, and the sitting it was dispatched for), each is a PASS blocker
-	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it — so it
-	// qualifies under the rule at the top of this file, and it is the kind table's own sentence.
+	// CITATION OR PROOF IT OWNS (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS
+	// REACHED, THE GAP ABOUT A CHECK OF ITS THAT FAILED, AND ITS CLOSING ON A GAP OF ITS OWN THAT IS
+	// DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
+	// channel, and the sitting it was dispatched for), each is a PASS blocker whose owner is that lens
+	// (passBlockersOf), and dispatch readies the lens for it — so it qualifies under the rule at the
+	// top of this file, and it is the kind table's own sentence.
 	//
-	// A REOPENED ITEM IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS EDIT. A sitting already open
-	// when the edit landed cannot clear the item (reopenedEvidence), so holding that sitting open
-	// on it would hold it on work it cannot do; the next plan readies the lens, and that sitting
-	// lists it.
+	// AN ITEM OF AN EDITED SENTENCE IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS EDIT. A sitting
+	// already open when the edit landed cannot clear the item (anchorStanding.sinceEdit), so holding
+	// that sitting open on it would hold it on work it cannot do; the next plan readies the lens, and
+	// that sitting lists it.
 	//
 	// Nothing else blocks a lens. The acts a lens genuinely has open to it — corroborating a source
-	// blue never cited and, for the lens that owns the anchor (anchorOwnerOf), verifying a citation
-	// nobody checked or re-running a proof nobody re-ran — come from availableOf and land on this same list carrying Blocks:false: available work, none of
-	// it owed.
+	// blue never cited, among others — come from availableOf and land on this same list carrying
+	// Blocks:false: available work, none of it owed.
 	case "lens":
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			// A PROOF IT JUDGED UNSOUND IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
-			// the list as not owed — blue's fix or retire clears it, or the lens's own sound judgement
-			// if it judges the sentence again.
-			if b.Kind == BlockerUnsoundProof && b.Owner == seatID {
+			// A CHECK OF ITS THAT FAILED IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
+			// the list as not owed — blue's remedy clears it, or the lens's own check of the sentence
+			// that holds, if it checks it again.
+			if b.Kind == BlockerFailedCheck && b.Owner == seatID {
 				if b.answeredBy == "" {
 					add(b.WorkItem())
 				} else {
@@ -390,23 +389,16 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				}
 				continue
 			}
-			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
+			if (b.Kind != BlockerContradiction && b.Kind != BlockerUnchecked && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
-			if b.Kind == BlockerReopened && win.LatestSittingOf(seatID) <= b.since {
-				continue
-			}
-			// A CITATION THIS SITTING READ AS UNREACHABLE IS NOT ITS TO CLEAR: its verify read nothing,
-			// so it stands reopened, and no act of this sitting's reads it. A later sitting's verify,
-			// or blue's retire of the citation, clears it; the PASS stays held meanwhile.
-			if b.Kind == BlockerReopened && unreachableThisSitting(evs, win, seatID)[b.Subject] {
-				may(b.WorkItem() + " — your verify this sitting found its source unreachable, so this sitting cannot clear it")
+			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
 				continue
 			}
 			// A CITATION NO VERIFY CAN REACH is not its to clear either: `verify` refuses every
 			// outcome on it (cli/lens/verify.go citedSentence), and blue's retire of its claim, or a
 			// report that renders again, is what moves it.
-			if b.Kind == BlockerReopened && b.Detail == "" && reads.unverifiable != nil {
+			if b.Kind == BlockerUnchecked && b.Detail == "" && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
 					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
 					continue
@@ -672,17 +664,6 @@ func answeredByActThisSitting(evs []*Event, win WindowIndex, seatID string) (mov
 		}
 	}
 	return moved, retired
-}
-
-// unreachableThisSitting is the anchors the seat verified as unreachable in its current sitting.
-func unreachableThisSitting(evs []*Event, win WindowIndex, seatID string) map[string]bool {
-	out := map[string]bool{}
-	for _, e := range thisSitting(evs, win, seatID) {
-		if v, ok := recordpb.BodyAs[*recordpb.Verify](e); ok && v.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE {
-			out[v.GetAnchor()] = true
-		}
-	}
-	return out
 }
 
 // logsThisSitting splits the sitting's log entries by who wrote them: the seat's own, and the

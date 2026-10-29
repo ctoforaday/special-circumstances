@@ -223,3 +223,32 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 		t.Errorf("the board holds %d open gap(s), want the concurrent one alone", len(b.Open))
 	}
 }
+
+// THE GAP A FAILED CHECK OBLIGES IS NOT A SECOND GAP. A lens whose reading of a citation read nothing
+// owes a gap about it, outside its budget; another lens's open gap of the same class on the cited
+// sentence does not refuse it, since the gap is about the anchor, and the finding the refusal would
+// point to does not answer the check. A quote gap of that class on that sentence is refused as ever.
+func TestTheGapAFailedCheckObligesIsNotRefusedAsASecondGap(t *testing.T) {
+	runDir, label := citedClause(t)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-logic"); err != nil {
+		t.Fatal(err)
+	}
+	mint := func(seat string, subject ...string) (string, error) {
+		return run(t, append([]string{"mint", "--run", runDir, "--seat-id", seat,
+			"--class", "spec_underspecification", "--problem", "the source cannot be read",
+			"--fix", "retire the citation or cite a readable source", "--check-kind", "document",
+			"--check", "a lens reads the cited source", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"}, subject...)...)
+	}
+	if out, err := mint("red-lens-logic", "--quote", "the sky is blue"); err != nil {
+		t.Fatalf("the other lens's gap on the sentence: %v\n%s", err, out)
+	}
+	if _, err := verifyAs(t, runDir, label, "unreachable"); err != nil {
+		t.Fatalf("verify --as unreachable: %v", err)
+	}
+	if out, err := mint(lensSeat, "--about-kind", "anchor", "--about", label); err != nil {
+		t.Fatalf("the gap the failed check obliges was refused: %v\n%s", err, out)
+	}
+	if out, err := mint(lensSeat, "--quote", "the sky is blue"); err == nil || !strings.Contains(err.Error(), "Two defects of one class on one subject are one gap") {
+		t.Fatalf("a quote gap of the held class on the cited sentence was not refused as a second gap: %v\n%s", err, out)
+	}
+}

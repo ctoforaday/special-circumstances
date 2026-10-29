@@ -1346,7 +1346,7 @@ const (
 	AboutKind_ABOUT_KIND_INQUIRY       AboutKind = 2
 	AboutKind_ABOUT_KIND_GAP           AboutKind = 3
 	AboutKind_ABOUT_KIND_CONTRADICTION AboutKind = 4
-	AboutKind_ABOUT_KIND_PROOF         AboutKind = 5
+	AboutKind_ABOUT_KIND_ANCHOR        AboutKind = 5
 )
 
 // Enum value maps for AboutKind.
@@ -1357,7 +1357,7 @@ var (
 		2: "ABOUT_KIND_INQUIRY",
 		3: "ABOUT_KIND_GAP",
 		4: "ABOUT_KIND_CONTRADICTION",
-		5: "ABOUT_KIND_PROOF",
+		5: "ABOUT_KIND_ANCHOR",
 	}
 	AboutKind_value = map[string]int32{
 		"ABOUT_KIND_UNSPECIFIED":   0,
@@ -1365,7 +1365,7 @@ var (
 		"ABOUT_KIND_INQUIRY":       2,
 		"ABOUT_KIND_GAP":           3,
 		"ABOUT_KIND_CONTRADICTION": 4,
-		"ABOUT_KIND_PROOF":         5,
+		"ABOUT_KIND_ANCHOR":        5,
 	}
 )
 
@@ -5237,7 +5237,22 @@ type Retire struct {
 	// leaving the report. Replay removes each named anchor at
 	// this event's position (the report_op view's `remove` rows). A record written before this field
 	// carries none, and replays exactly as it did.
-	Anchors       []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
+	Anchors []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
+	// claim_kept is a retire of a CITATION, not of its claim: the citation's anchor leaves the report
+	// and its sentence stays word for word, standing on whatever else backs it — another citation, or
+	// nothing, when it is prose a lens audits like any other. The verb sets it and fills claim with the
+	// sentence as the report holds it at the write, never typed by a seat. Its readers: replay (the
+	// anchor's `remove` row leaves the sentence), the report's list of retirements, which names the
+	// citation retired and the sentence kept rather than listing a claim that never left, and the
+	// anchor ledger, where the citation is retired and owes nothing.
+	ClaimKept *bool `protobuf:"varint,6,opt,name=claim_kept,json=claimKept,proto3,oneof" json:"claim_kept,omitempty"`
+	// answers is the gap a citation retire responds to — BlueEdit.answers's key on the other act that
+	// changes the report's text, checked against the board at the write the same way. A citation blue
+	// retires because a gap asked for it is blue's answer to that gap, and a reader joining the gap to
+	// blue's answers (`show changes --id`, the lens's answered list, the manifest's owed rows) reads it
+	// here. Empty for a retire answering no gap, and on every claim retire: the edit that cut the claim
+	// carries the gap it answers.
+	Answers       *string `protobuf:"bytes,7,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5305,6 +5320,20 @@ func (x *Retire) GetAnchors() []string {
 		return x.Anchors
 	}
 	return nil
+}
+
+func (x *Retire) GetClaimKept() bool {
+	if x != nil && x.ClaimKept != nil {
+		return *x.ClaimKept
+	}
+	return false
+}
+
+func (x *Retire) GetAnswers() string {
+	if x != nil && x.Answers != nil {
+		return *x.Answers
+	}
+	return ""
 }
 
 type ManifestRow struct {
@@ -7884,17 +7913,23 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\x13\n" +
 	"\x11_applied_verbatimB\v\n" +
 	"\t_acceptedB\r\n" +
-	"\v_exact_span\"\xbc\x03\n" +
+	"\v_exact_span\"\x9a\x04\n" +
 	"\x06Retire\x12|\n" +
 	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
 	"\rsuperseded_by\x18\x03 \x01(\tH\x02R\fsupersededBy\x88\x01\x01\x12(\n" +
 	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01\x12\x18\n" +
-	"\aanchors\x18\x05 \x03(\tR\aanchorsB\b\n" +
+	"\aanchors\x18\x05 \x03(\tR\aanchors\x12\"\n" +
+	"\n" +
+	"claim_kept\x18\x06 \x01(\bH\x04R\tclaimKept\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\a \x01(\tH\x05R\aanswers\x88\x01\x01B\b\n" +
 	"\x06_claimB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_superseded_byB\x10\n" +
-	"\x0e_removal_basis\"x\n" +
+	"\x0e_removal_basisB\r\n" +
+	"\v_claim_keptB\n" +
+	"\n" +
+	"\b_answers\"x\n" +
 	"\vManifestRow\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12'\n" +
 	"\x03row\x18\x02 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x01R\x03row\x88\x01\x01B\t\n" +
@@ -8198,15 +8233,16 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xb4\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x99\x04\x8a\xb5\x18\x90\x04NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap; its minting lens's act alone begins nothing. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc6\b\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc1\n" +
+	"\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\xda\x01\x8a\xb5\x18\xd5\x01you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows\x12\x9a\x01\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
 	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12~\n" +
 	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\xc0\x01\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xa4\x01\x8a\xb5\x18\x9f\x01you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise\x12\xcd\x01\n" +
-	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xac\x01\x8a\xb5\x18\xa7\x01you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit*\xc6\x04\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xa4\x01\x8a\xb5\x18\x9f\x01you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise\x12\xc8\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xa7\x03\x8a\xb5\x18\xa2\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
 	"\x17BRIDGE_KIND_UNSPECIFIED\x10\x00\x12\xa3\x01\n" +
@@ -8256,14 +8292,14 @@ const file_record_proto_rawDesc = "" +
 	"\x1aINQUIRY_RULING_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x17INQUIRY_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12K\n" +
 	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12|\n" +
-	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xee\b\n" +
+	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xb3\t\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xae\x02\n" +
 	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x95\x02\x8a\xb5\x18\x8c\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\x8a\x03\n" +
-	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xeb\x02\x8a\xb5\x18\xe2\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12W\n" +
-	"\x10ABOUT_KIND_PROOF\x10\x05\x1aA\x8a\xb5\x189a proof, by its anchor, whose sentence was judged unsoundе\x18\x01*\xb3\x04\n" +
+	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xeb\x02\x8a\xb5\x18\xe2\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12\x9b\x01\n" +
+	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x83\x01\x8a\xb5\x18{a citation or proof, by its anchor, whose check failed: a proof judged unsound, or a citation whose cited work was not readе\x18\x01*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x1bSOURCE_TEXT_ORIGIN_EMBEDDED\x10\x01\x1aU\x8a\xb5\x18Qthe retrieved bytes carry the text: markup, plain text, or a PDF's own text layer\x12\xb1\x01\n" +
@@ -8276,13 +8312,14 @@ const file_record_proto_rawDesc = "" +
 	"\x17WORK_STATUS_NOT_CHECKED\x10\x01\x1a\xb2\x01\x8a\xb5\x18\xad\x01no index was consulted about this work — it carries no doi, or the index did not answer. It says NOTHING about whether the work stands, and must not be read as reassurance\x12z\n" +
 	"\x14WORK_STATUS_STANDING\x10\x02\x1a`\x8a\xb5\x18\\an index was asked and reports no retraction: the work stands in the literature as published\x12\x9b\x02\n" +
 	"\x15WORK_STATUS_RETRACTED\x10\x03\x1a\xff\x01\x8a\xb5\x18\xfa\x01an index reports the work RETRACTED. It may still be cited — as retracted, which the footnote and the Bibliography say for you — and its findings support no claim: a quotation from it is evidence of what the withdrawn paper said, and nothing more\x12[\n" +
-	"\x18WORK_STATUS_NOT_RECORDED\x10\x04\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\x97\t\n" +
+	"\x18WORK_STATUS_NOT_RECORDED\x10\x04\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\x83\n" +
+	"\n" +
 	"\x12SourceCompleteness\x12#\n" +
 	"\x1fSOURCE_COMPLETENESS_UNSPECIFIED\x10\x00\x12\xa2\x01\n" +
 	"\x18SOURCE_COMPLETENESS_FULL\x10\x01\x1a\x83\x01\x8a\xb5\x18\x7fthe copy carries the work's body: its platform marks the body sections, or it is a pdf covering the page span the work declares\x12\xa2\x02\n" +
 	"\x1cSOURCE_COMPLETENESS_ABSTRACT\x10\x02\x1a\xff\x01\x8a\xb5\x18\xfa\x01the copy is the work's ABSTRACT page: its platform printed a paywall or page images in place of the body. What it confirms is what the abstract says, not what the study shows, and the footnote and the Bibliography mark it ABSTRACT ONLY for the reader\x12\xc1\x01\n" +
-	"\x1eSOURCE_COMPLETENESS_UNVERIFIED\x10\x03\x1a\x9c\x01\x8a\xb5\x18\x97\x01nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf\x12n\n" +
-	" SOURCE_COMPLETENESS_NOT_THE_WORK\x10\x04\x1aH\x8a\xb5\x18Dthe copy is not the work at all: a sign-in page, a book's sales page\x12\xf8\x01\n" +
+	"\x1eSOURCE_COMPLETENESS_UNVERIFIED\x10\x03\x1a\x9c\x01\x8a\xb5\x18\x97\x01nothing the tool knows could tell whether the copy carries the body — a platform with no known marker, a pdf much shorter than the work, a book's pdf\x12\xd9\x01\n" +
+	" SOURCE_COMPLETENESS_NOT_THE_WORK\x10\x04\x1a\xb2\x01\x8a\xb5\x18\xad\x01the copy is not the work at all: a sign-in page, a book's sales page. A reading of it is no reading of the cited work, whatever it found there: it leaves the citation unread\x12\xf8\x01\n" +
 	"\x1dSOURCE_COMPLETENESS_NOT_ASKED\x10\x05\x1a\xd4\x01\x8a\xb5\x18\xcf\x01the question did not apply or could not be put: a page that is not about a scholarly work, a pdf with no declared span, or a source outside the run's cache. It says NOTHING about whether the copy is complete\x12c\n" +
 	" SOURCE_COMPLETENESS_NOT_RECORDED\x10\x06\x1a=\x8a\xb5\x189this citation predates the field; written only by migrate*\x93\r\n" +
 	"\x10CopySubstitution\x12!\n" +

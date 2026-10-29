@@ -1,6 +1,7 @@
 package record
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,12 +38,13 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	run := archiveAt(t, m20Archive, whole, 463)
 	var owners []string
 	for _, b := range mustBlockers(t, run) {
-		if b.Kind == BlockerReopened {
+		if b.Kind == BlockerUnchecked {
 			owners = append(owners, b.Subject+" "+b.Owner)
 		}
 	}
-	if len(owners) != 1 || owners[0] != "P-9e198e9a "+computationSeat {
-		t.Fatalf("before any re-run the reopened blockers are %q, want P-9e198e9a owned by %s", owners, computationSeat)
+	// P-337c380d is a proof nobody has judged yet, and is unchecked as well (gblock, 2026-10-25).
+	if !slices.Equal(owners, []string{"P-9e198e9a " + computationSeat, "P-337c380d " + computationSeat}) {
+		t.Fatalf("before any re-run the unchecked blockers are %q, want P-9e198e9a and P-337c380d owned by %s", owners, computationSeat)
 	}
 	// The plan readies the owner, and the chair's item says, in the words a seat reads, who owes the
 	// check and that the owner is not the only seat whose check clears.
@@ -54,8 +56,8 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 		t.Errorf("the plan readies %+v, want %s for the proof it owns", plan.Parties, computationSeat)
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
-	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its script establishes the sentence as it now stands (`reproduce --anchor P-9e198e9a`",
-		computationSeat + " owes that check and is the seat readied for it", "another lens's check from such a sitting clears it as well"} {
+	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its script establishes THIS sentence",
+		computationSeat + " owes that check and is the seat readied for it", "another lens's check clears it as well"} {
 		if !strings.Contains(chair, want) {
 			t.Errorf("the chair's work list does not say %q:\n%s", want, chair)
 		}
@@ -70,7 +72,7 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	// The dark-side lens's judgement, event 464: the anchor is checked, four events before the
 	// evidence lens's own.
 	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 464)) {
-		if b.Kind == BlockerReopened {
+		if b.Kind == BlockerUnchecked && b.Subject == "P-9e198e9a" {
 			t.Errorf("%s still holds the PASS after the dark-side lens re-ran it from a sitting opened after the edit", b.Subject)
 		}
 	}

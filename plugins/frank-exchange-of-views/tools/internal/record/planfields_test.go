@@ -37,7 +37,7 @@ func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 		Exchanges:  []ExchangeCount{{GapID: "G-1"}},
 		ToFile:     []string{"G-1"},
 		StaleAreas: []StaleArea{{SeatID: "red-lens-voice"}},
-		Blockers:   []PlanBlocker{{Kind: BlockerReopened}},
+		Blockers:   []PlanBlocker{{Kind: BlockerUnchecked}},
 		Why:        []string{"w"},
 		Verdict:    "PASS",
 	}

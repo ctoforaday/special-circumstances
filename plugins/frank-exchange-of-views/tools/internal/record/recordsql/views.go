@@ -303,6 +303,12 @@ GROUP BY "agent_id", "bucket";
 --
 -- "delta" is in CHARACTERS because SQLite's length() counts code points on TEXT, which is what Go's
 -- len([]rune(s)) counted. length() on a BLOB would count bytes, and these columns are TEXT.
+--
+-- A CITATION RETIRE IS A CHANGE TOO. It takes a citation's anchor off a sentence the report keeps
+-- word for word, and it names the gap it answers with the key an edit carries — so the gap's change
+-- log lists it beside the edits, or a citation blue took off a sentence because a gap asked for it
+-- reads as no answer at all. Its row holds the sentence on both sides (the words did not move) and
+-- "retired" names the citation that left; "retired" is '' on an edit.
 CREATE VIEW "change" AS
 SELECT
   e."seat_id"                                                   AS "seat_id",
@@ -315,9 +321,20 @@ SELECT
   COALESCE(b."text", '')                                        AS "reason",
   COALESCE(b."applied_verbatim", 0)                             AS "applied_verbatim",
   COALESCE(b."accepted", 0)                                     AS "accepted",
+  ''                                                            AS "retired",
   b."event_id"                                                  AS "event_id"
 FROM "blue_edit" b
-JOIN "events_w" e ON e."id" = b."event_id";
+JOIN "events_w" e ON e."id" = b."event_id"
+UNION ALL
+SELECT
+  e."seat_id", e."sitting", e."epoch",
+  COALESCE(r."answers", ''), r."claim", r."claim", 0, r."reason", 0, 0,
+  ra."value",
+  r."event_id"
+FROM "retire" r
+JOIN "retire_anchors" ra ON ra."event_id" = r."event_id"
+JOIN "events_w" e ON e."id" = r."event_id"
+WHERE r."claim_kept" = 1;
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,

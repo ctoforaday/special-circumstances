@@ -101,7 +101,7 @@ var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
 		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
-		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
+		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id`)

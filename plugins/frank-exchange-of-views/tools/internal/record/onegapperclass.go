@@ -23,9 +23,11 @@ import (
 //     in one sentence span are on one sentence whatever span of it each quoted;
 //   - an inquiry gap's subject is the inquiry id it names (about_kind inquiry, about_ref).
 //
-// A section, a gap or a proof named by --about is not such a subject: a section holds many
-// sentences, and a gap about a gap or a proof is a dispute the record answers in its own terms. The
-// rule does not apply there.
+// A section, a gap or an anchor named by --about is not such a subject: a section holds many
+// sentences, and a gap about a gap or an anchor is a dispute the record answers in its own terms. The
+// rule does not apply there — so never to the gap a failed check obliges (answersOwnFailedCheck),
+// which is about the anchor and, at the CLI, names no quote: refused here, the lens would owe a gap
+// the record turns away, and a finding does not answer the check.
 //
 // MEASURED (universe-m35): the parallel first-wave lenses minted five pairs, each pair 25 s to 2 min
 // apart, each second minter having read the board before its sibling minted. Four of the five are

@@ -144,7 +144,7 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "proof " + anchors[1] + "'s script was re-run and REPRODUCED, and nobody has judged whether it establishes THIS sentence"
+		want := "proof " + anchors[1] + " is on the record and nobody has judged whether its script establishes the sentence it backs — PASS is refused until a lens checks it, by judging whether its script establishes THIS sentence — the script was re-run and REPRODUCED"
 		if owner := lens == "red-lens-computation"; strings.Contains(work, want) != owner {
 			t.Errorf("%s's work list offers the second sentence's judgement = %v, want %v:\n%s", lens, !owner, owner, work)
 		}
@@ -286,7 +286,7 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "proof " + anchors[1] + "'s script was re-run and did not reproduce (differs)"; !strings.Contains(work, want) || !strings.Contains(work, "without re-running it") {
+	if want := "the script was re-run and did not reproduce (differs)"; !strings.Contains(work, want) || !strings.Contains(work, "without re-running it") {
 		t.Errorf("the owner's work list does not offer the sentence's judgement on the standing re-run:\n%s", work)
 	}
 

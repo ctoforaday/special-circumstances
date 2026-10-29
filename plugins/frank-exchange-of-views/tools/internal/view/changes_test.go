@@ -62,7 +62,7 @@ func TestChangesListsEveryEditAndSaysWhichAnswerNoGap(t *testing.T) {
 	out := md(t, runDir, "changes")
 	for _, want := range []string{
 		"drop the independence claim", "name the shared definition", "punctuation repair",
-		"answers **G1**", "no gap", "3 recorded edit(s)",
+		"answers **G1**", "no gap", "3 recorded change(s)",
 		"## `blue-respond` #1", // grouped by the sitting that made them, not a round
 	} {
 		if !strings.Contains(out, want) {
@@ -88,7 +88,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 		"independence is overclaimed",               // the defect
 		"- five independent approaches",             // blue's actual old span
 		"+ five approaches",                         // and its replacement
-		"Edits blue recorded against it (2)",        // both, and only both
+		"Changes blue recorded against it (2)",      // both, and only both
 		"### 1. `blue-respond` #1 ·",                // the seat and its sitting, no round
 	} {
 		if !strings.Contains(out, want) {

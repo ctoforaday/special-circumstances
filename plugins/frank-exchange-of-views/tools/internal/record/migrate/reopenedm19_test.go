@@ -27,7 +27,7 @@ func TestTheMigratedM19HoldsTheSameReopenedAnchors(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	for _, r := range ev.Reopened {
+	for _, r := range ev.Unchecked {
 		got = append(got, r.Anchor)
 		t.Logf("%s: edit %d, last check %d", r.Anchor, r.Edit, r.LastCheck)
 	}

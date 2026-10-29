@@ -525,6 +525,21 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 	if !ok {
 		return nil, feov.Errorf(feov.Internal, "the reading was written as %T, not a verification", ev.GetBody())
 	}
+	// WHAT THE RECORD NOW HOLDS OF THE CITATION, read back after the write: a reading that read
+	// nothing leaves it on a failed check, and the seat is told whose gap it owes here rather than
+	// left to find it in its work list.
+	var failed *failedCheckWords
+	if body.GetAnchor() != "" && !record.VerifyReads(stored) {
+		bs, err := record.PassBlockers(run)
+		if err != nil {
+			return nil, err
+		}
+		for _, b := range bs {
+			if b.Kind == record.BlockerFailedCheck && b.Subject == body.GetAnchor() {
+				failed = &failedCheckWords{Owner: b.Owner, AnsweredBy: b.AnsweredBy(), seat: s.Identity().SeatID}
+			}
+		}
+	}
 	return verifyResult{
 		Contradiction: contradictionOf(c),
 		Anchor:        body.GetAnchor(),
@@ -538,6 +553,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 
 		CopySubstitution: recordpb.Word(stored.GetCopySubstitution()),
 		CopyURL:          stored.GetCopyUrl(),
+		FailedCheck:      failed,
 	}, nil
 }
 
@@ -612,6 +628,33 @@ type verifyResult struct {
 	// CopyURL where that copy was read, when a copy stood in for the url.
 	CopySubstitution string `json:"copy_substitution"`
 	CopyURL          string `json:"copy_url,omitempty"`
+	// FailedCheck is the citation's failed check as the record holds it after a verification that
+	// read nothing — whose check it is and the gap that carries it, "" until one does; absent on a
+	// reading, and on a corroboration, which names no citation.
+	FailedCheck *failedCheckWords `json:"failed_check,omitempty"`
+}
+
+// failedCheckWords is record.Blocker's failed check as the verb prints it.
+type failedCheckWords struct {
+	Owner      string `json:"owner"`
+	AnsweredBy string `json:"answered_by,omitempty"`
+	seat       string
+}
+
+// words is the sentence the verb prints for a verification that left its citation unread: what the
+// record now holds, and what is owed. "" where there is none.
+func (f *failedCheckWords) words(anchor string) string {
+	if f == nil {
+		return ""
+	}
+	head := "\nthis reading read nothing of the source, so citation " + anchor + " stays unread: PASS is refused while the report cites it unread"
+	switch {
+	case f.AnsweredBy != "":
+		return head + ", and gap " + f.AnsweredBy + " carries it to blue, which retires the citation or cites a source a lens can read"
+	case f.Owner == f.seat:
+		return head + ", and you owe a gap about it (`mint --about-kind anchor --about " + anchor + "`, which takes no mint of your budget) asking blue to retire it or cite a source a lens can read"
+	}
+	return head + ", and the gap about it is " + f.Owner + "'s to mint, whose check of it read nothing first"
 }
 
 // readingContradiction is record.ReadingContradiction as the verb prints it: the id as every
@@ -642,7 +685,7 @@ func (c *readingContradiction) words() string {
 }
 
 func (r verifyResult) Human() string {
-	return r.human() + seat.CopyWords(r.CopySubstitution, r.CopyURL) + r.Contradiction.words() + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
+	return r.human() + seat.CopyWords(r.CopySubstitution, r.CopyURL) + r.Contradiction.words() + r.FailedCheck.words(r.Anchor) + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 }
 
 func (r verifyResult) human() string {

@@ -89,7 +89,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 			continue
 		}
 		for i := range srcPlans {
-			s, d := srcPlans[i].printed, dstPlans[i].printed
+			s, d := kindsTranslated(t, srcPlans[i].printed), dstPlans[i].printed
 			if !strings.Contains(s, `"verdict":`) {
 				for _, w := range []string{"PASS", "FAIL"} {
 					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {

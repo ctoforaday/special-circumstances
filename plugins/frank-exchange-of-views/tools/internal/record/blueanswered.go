@@ -54,7 +54,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		a := answers[g]
 		switch {
 		case a.edited:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a citation retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.fate != "":
 			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, a.inquiry))
 		case a.pending:
@@ -75,7 +75,7 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 // blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
 // gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
 type blueAnswer struct {
-	edited  bool   // an edit answered it, old != new
+	edited  bool   // a change to the report answered it: an edit, old != new, or a citation retire
 	fate    string // the latest fate blue recorded on the inquiry it is anchored on, while engaged on it
 	inquiry string // the inquiry it is anchored on; "" for a gap anchored on report text
 	pending bool   // a blue sitting engaged on it is open on the record
@@ -141,6 +141,13 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 				}
 				continue
 			}
+			if g := retireAnswers(e); g != "" && open[g] && after(g, e) {
+				a := out[g]
+				a.edited, a.inquiry = true, inquiryOf[g]
+				out[g] = a
+				at(g, e)
+				continue
+			}
 			be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
 			if !ok {
 				continue
@@ -156,6 +163,16 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 		}
 	}
 	return out
+}
+
+// retireAnswers is the gap a citation retire answers — the key BlueEdit.answers is on the other act
+// that changes the report's text, and every reader of blue's answers reads both. "" for any other
+// event, and for a retire answering no gap; a claim retire carries none (validate refuses one).
+func retireAnswers(e *Event) string {
+	if r, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && r.GetClaimKept() {
+		return r.GetAnswers()
+	}
+	return ""
 }
 
 // remandFloorsOf is the events.id of the latest remand ruling on each gap of open — the place after

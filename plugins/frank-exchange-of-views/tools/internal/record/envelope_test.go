@@ -284,13 +284,17 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 			t.Errorf("checked, the lens's envelope is refused: %q", r)
 		}
 	})
-	t.Run("found unreachable this sitting, admitted and still listed", func(t *testing.T) {
-		run := reopened(t, func(b *stage) { b.verify(evLens, "C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE) })
-		if r := refusalOf(t, run, evLens); r != "" {
-			t.Errorf("an unreachable source refuses the lens's envelope, which no act of its sitting can clear: %q", r)
+	t.Run("found unreachable this sitting, held until its gap is minted, then admitted and still listed", func(t *testing.T) {
+		unread := func(b *stage) { b.verify(evLens, "C-00000001", recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE) }
+		if r := refusalOf(t, reopened(t, unread), evLens); !strings.Contains(r, "check of citation C-00000001") || !strings.Contains(r, "mint --about-kind anchor --about C-00000001") {
+			t.Errorf("an unreachable source does not hold the lens's envelope on the gap it owes: %q", r)
 		}
-		if _, open := itemsOn(t, run, "lens", evLens, "C-00000001's sentence changed"); len(open) != 1 {
-			t.Errorf("the reopened citation is not listed: %+v", open)
+		run := reopened(t, func(b *stage) { unread(b); b.add(evLens, aboutProof("G-1", "C-00000001")) })
+		if r := refusalOf(t, run, evLens); r != "" {
+			t.Errorf("its gap minted, the lens's envelope is refused: %q", r)
+		}
+		if _, open := itemsOn(t, run, "lens", evLens, "check of citation C-00000001"); len(open) != 1 {
+			t.Errorf("the unread citation is not listed: %+v", open)
 		}
 	})
 	t.Run("one no verify can reach — its anchor bare, or not in the report — is listed and does not hold it", func(t *testing.T) {

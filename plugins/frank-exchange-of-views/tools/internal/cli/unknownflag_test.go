@@ -93,7 +93,7 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 			args: []string{"retire", "--key", "R1", "--quote", "a claim that is no longer in the report.", "--reason", "r"},
 			verb: "retire", role: "blue", writes: "retire",
 			says: []string{"unknown flag: --key", "On this surface `cite`, `edit` and `prove` take it.",
-				"This verb's flags: --anchor, --new, --quote, --reason.", "`" + InvokedAs() + " retire --help`"},
+				"This verb's flags: --anchor, --answers, --new, --quote, --reason.", "`" + InvokedAs() + " retire --help`"},
 			silent: []string{"`finding`", "`mint`"}}, // the lens's verbs take a handle too, and are not blue's
 		{name: "the neighbour's problem flag", seat: "red-lens-evidence",
 			args: []string{"finding", "--quote", "§1 first — a finding sits in sec 1 here.", "--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "r", "--problem", "p"},

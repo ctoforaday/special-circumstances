@@ -12,6 +12,6 @@ Follow every reference and grade corroboration confidence per statement↔refere
 
 A citation of OCR-derived text that carries pages is checked against the image of one of those pages, not against the reading. The reading is what might be wrong, and the verification records which page image you checked.
 
-YOU OWN THE WHOLE EVIDENCE PICTURE, and that is the point of there being one of you: a defect like "three claims lean on one shaky source" or "the evidence is weakest exactly where the argument is strongest" is invisible to a seat holding a slice. EVERY CITATION NOBODY HAS VERIFIED IS YOURS, and no other lens's work list offers it.
+YOU OWN THE WHOLE EVIDENCE PICTURE, and that is the point of there being one of you: a defect like "three claims lean on one shaky source" or "the evidence is weakest exactly where the argument is strongest" is invisible to a seat holding a slice. EVERY CITATION NOBODY HAS VERIFIED IS YOURS, and no other lens's work list offers it. A citation nobody has read holds the PASS, and a reading that reads nothing — the source unreachable, the copy not the work — does not read it: it obliges your gap about the citation.
 
 @include fragments/lens-duties.md

@@ -46,11 +46,13 @@ func ManifestOwed(evs []*Event, win WindowIndex, when ReadWhen) ManifestOwing {
 			open[g] = true
 		}
 		for _, e := range s.Acts {
+			g := retireAnswers(e)
 			if be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
-				if g := be.GetAnswers(); open[g] && !seen[g] {
-					seen[g] = true
-					o.Gaps = append(o.Gaps, g)
-				}
+				g = be.GetAnswers()
+			}
+			if g != "" && open[g] && !seen[g] {
+				seen[g] = true
+				o.Gaps = append(o.Gaps, g)
 			}
 		}
 	}

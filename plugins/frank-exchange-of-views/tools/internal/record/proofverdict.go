@@ -154,7 +154,7 @@ func proofVerdictOf(s *anchorStanding, reruns map[string]*scriptRerun) proofVerd
 		v.soundness = SoundnessSound
 	case len(v.judgements) > 0:
 		v.soundness = SoundnessUnsound
-	case s.reopened():
+	case s.edit != 0 && s.state() == stateUnchecked && s.checkedBefore(s.edit):
 		v.soundness = SoundnessReopened
 	}
 	return v

@@ -133,14 +133,30 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - `source_completeness`: full, abstract, unverified, not_the_work, or not_asked. Migrated runs
     carry `not_recorded` for the fields their epoch predates.
 - **The anchor leaves only by `retire`.** The report is a frozen base plus an ordered replay of edits and marker
-  inserts. `blue edit` refuses any span that would drop or split an anchor, so the set of `cite`
-  events and the anchors in the text stay in one-to-one correspondence; the scorecard's
-  `unbacked_citations` flags any divergence. When blue rewrites the sentence around an anchor, the
-  anchor stays. A citation or proof red has checked is then **reopened**: the evidence view lists it
-  under `reopened` with the edit and its last check, its owning lens — the evidence lens for a
-  citation, the computation lens for a proof — owes
-  the check and is not retired while it does, so the edit's head move readies it, and a PASS waits
-  until a lens — that one or another — has checked it from a sitting opened after the edit.
+  inserts. `blue edit` refuses any span that would drop or split an anchor, or leave a citation's
+  anchor bare with no prose before it in its sentence, so the set of `cite` events and the anchors
+  in the text stay in one-to-one correspondence; the scorecard's `unbacked_citations` flags any
+  divergence. A citation leaves by `blue retire --anchor` alone, which keeps its sentence word for
+  word — how a cited sentence goes (retire its citations, then edit it out) and how a dead source
+  gives way to a readable one. When blue rewrites the sentence around an anchor, the anchor stays.
+  A citation or proof red has checked is then **reopened** — unchecked again.
+- **A citation or proof is checked, or it holds the PASS.** The evidence view lists every one with
+  no check of the sentence the report carries under `unchecked` — never checked, or reopened, with
+  the edit and its last check. Its owning lens — the evidence lens for a citation, the computation
+  lens for a proof — owes the check and is not retired while it does, and a PASS waits until a lens
+  — that one or another — has checked it, from a sitting opened after the edit where there is one.
+  A cite or a proof moves no report head, so dispatch readies the owner for the anchor itself, once
+  per cause — the act that placed it, or the edit that reopened it: a citation blue places after its
+  owner has sat is not left for a head move that may never come.
+- **A check that reads nothing is a failed check.** A verify `unreachable`, or any verdict on a
+  copy stamped `not_the_work`, leaves the citation unread: a `failed_check` PASS blocker, which no
+  bench ruling clears. The first lens whose reading read nothing since the sentence last changed
+  owes a gap about the anchor (`--about-kind anchor`), outside its mint budget, and that gap cannot
+  close while the citation stays unread — the close is refused, unless it names a successor with
+  `--superseded-by`. A second reading by the same lens that again reads nothing, while its gap is
+  open and the sentence unchanged, is refused. It clears when a reading reads the work, an edit
+  changes the sentence, or blue retires the citation. A proof judged unsound is the same blocker,
+  and its gap does not close while the judgement stands.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
@@ -165,7 +181,7 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
 source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
-independent corroborations, the citations and proofs reopened and not yet checked again, and
+independent corroborations, the citations and proofs with no check of the sentence the report carries, and
 contradictions nobody has raised a finding about.
 
 ## 4. Assembly — what the reader sees
@@ -238,9 +254,9 @@ from here.**
   (#247).
 - A retraction is known only where OpenAlex knows it, and only for sources with a doi. Everything
   else is `not_checked`, which is not reassurance.
-- A reopened citation or proof is owed a check. The tool does not decide whether the rewritten
-  sentence is still what the source supports; red does, and a PASS waits for it. A citation or proof
-  nobody ever checked is not reopened by an edit: it stays available work.
+- An unchecked citation or proof is owed a check. The tool does not decide whether the rewritten
+  sentence is still what the source supports; red does, and a PASS waits for it, whether nobody ever
+  checked the anchor or an edit reopened it.
 
 **The bibliography itself.**
 - The title is whatever blue typed, and there is no verb to amend a wrong one (#551). Nor is there a

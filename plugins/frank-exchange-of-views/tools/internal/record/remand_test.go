@@ -745,7 +745,7 @@ func TestBlueRemandItemBlocksBeforeAndAfterRegister(t *testing.T) {
 // edit" beside the remand item while every answering edit predated the ruling. Once blue edits after
 // the ruling, the lens's list says it was answered.
 func TestAnEditBeforeTheRemandDoesNotAnswerIt(t *testing.T) {
-	answered := "gap G1 has been ANSWERED by an edit"
+	answered := "gap G1 has been ANSWERED by a change to the report"
 	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high")
 	st.movingExchangeOn("G1").exchangeOn("G1").exchangeOn("G1").docketAndRemand("M1", "G1")

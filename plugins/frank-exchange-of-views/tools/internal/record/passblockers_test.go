@@ -47,13 +47,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"unraised contradiction", BlockerContradiction, true, true, func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, false},
-		{"reopened citation", BlockerReopened, true, true, func(b *stage) {
+		{"reopened citation", BlockerUnchecked, true, true, func(b *stage) {
 			// checked in the lens's last sitting, then its sentence changes; its sitting at the
 			// moved head leaves it unchecked, so the lens has sat at the head.
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
-		{"proof judged unsound", BlockerUnsoundProof, true, true, func(b *stage) {
+		{"proof judged unsound", BlockerFailedCheck, true, true, func(b *stage) {
 			// judged in the lens's last sitting, at the head, with its gap minted, so nothing else holds.
 			b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
 				add(evLens, aboutProof("G-1", "P-1"))

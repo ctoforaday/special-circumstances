@@ -36,9 +36,9 @@ import (
 //     than the latest check.
 //
 // An edit answers every check of the anchor at once: they are of a sentence the report no longer
-// carries, so none stands, and the anchor is REOPENED — owed a fresh check from a sitting opened
-// after the edit. Blue cannot dissolve red's verdict by rewording: the reopened anchor is owed,
-// and holds a PASS (passBlockersOf).
+// carries, so none stands, and the anchor is REOPENED — unchecked again, owed a fresh check from a
+// sitting opened after the edit. Blue cannot dissolve red's verdict by rewording: the unchecked anchor
+// is owed, and holds a PASS (passBlockersOf).
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
 // `reproduce` naming a proof.
@@ -67,6 +67,9 @@ type anchorStanding struct {
 	proof bool
 	// sha is a proof's proof_sha — the script every proof anchor on it shares; "" for a citation.
 	sha string
+	// placed is the events.id of the act that put the anchor on the record: blue's cite or proof, or
+	// red's corroboration. Neither moves the report head, so dispatch readies the owner off it.
+	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
 	// the anchor was placed or last retired.
 	edit int64
@@ -77,7 +80,7 @@ type anchorStanding struct {
 
 // stands reports whether c is a standing check of this anchor (the rules above).
 func (s *anchorStanding) stands(c anchorCheck) bool {
-	if s.retired || !c.reads || s.edit != 0 && c.sitting <= s.edit {
+	if s.retired || !c.reads || !s.sinceEdit(c) {
 		return false
 	}
 	for _, later := range s.checks {
@@ -113,15 +116,66 @@ func (s *anchorStanding) holds() bool {
 	return len(standing) > 0
 }
 
-// reopened reports whether an edit changed this anchor's sentence after it was checked and no
-// check has stood since: the anchor is owed a check from a sitting opened after the edit. An
-// anchor nobody checked before the edit is not reopened: it is the work item that offers its first
-// check. A check from a sitting opened after the edit that read nothing (`unreachable`) leaves it
-// that work item. It makes no reopening: the edit answered no check, and a blocker that arose at
-// another lens's unreachable verify, after the owner had sat at that head, readied nobody (the
-// owner is readied for a reopened anchor by the head the edit moved), so the run ended UNVERIFIED.
-func (s *anchorStanding) reopened() bool {
-	return s.edit != 0 && !s.retired && s.checkedBefore(s.edit) && len(s.standing()) == 0
+// anchorState is the one answer to "what does the record say of this anchor's sentence now": each
+// citation and proof anchor is in exactly one (anchorStanding.state).
+//
+// A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25): "the doc is flawed, and red
+// should demand the citation withdrawn or text changed or *something. Blocks lens and pass. Citation
+// checking isn't optional. Ever." So every state but holding and retired holds the PASS: unchecked is
+// the owner lens's to check (the unchecked blocker), unread and unsound are the failed check its
+// reader or judge carries to blue by a gap (the failed_check blocker), and found against is the
+// contradiction's.
+type anchorState int
+
+const (
+	// stateHolds: a check of the sentence the report carries stands, and none stands against it.
+	stateHolds anchorState = iota
+	// stateRetired: the anchor left the report.
+	stateRetired
+	// stateUnchecked: no check of the sentence the report carries — none at all, or none from a
+	// sitting opened after the latest edit that changed it.
+	stateUnchecked
+	// stateUnread: a citation checked since that edit, and no check of it READ its source
+	// (`unreachable`, or a reading of a copy the tool stamped not_the_work).
+	stateUnread
+	// stateUnsound: a proof whose sentence a lens's standing judgement calls unsound.
+	stateUnsound
+	// stateFoundAgainst: a citation a standing `refutes` or `absent` reads against (the contradiction).
+	stateFoundAgainst
+)
+
+// sinceEdit reports whether c is of the sentence the report carries: from a sitting opened after the
+// latest edit that changed it, or any check at all when no edit has.
+func (s *anchorStanding) sinceEdit(c anchorCheck) bool { return s.edit == 0 || c.sitting > s.edit }
+
+// state is this anchor's one state (anchorState).
+func (s *anchorStanding) state() anchorState {
+	if s.retired {
+		return stateRetired
+	}
+	checked, read := false, false
+	for _, c := range s.checks {
+		if s.sinceEdit(c) {
+			checked = true
+			read = read || c.reads
+		}
+	}
+	switch {
+	case !checked:
+		return stateUnchecked
+	case !read:
+		return stateUnread
+	}
+	for _, c := range s.standing() {
+		if c.holds {
+			continue
+		}
+		if s.proof {
+			return stateUnsound
+		}
+		return stateFoundAgainst
+	}
+	return stateHolds
 }
 
 // checkedBefore reports whether a check of this anchor may be of the sentence before edit: one from
@@ -157,11 +211,11 @@ func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anc
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 	l := &anchorLedger{byAnchor: map[string]*anchorStanding{}}
-	hold := func(anchor string, proof bool, sha string) {
+	hold := func(e *Event, anchor string, proof bool, sha string) {
 		if anchor == "" || l.byAnchor[anchor] != nil {
 			return
 		}
-		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha}
+		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha, placed: win.Of(e).ID}
 		l.byAnchor[anchor] = s
 		l.order = append(l.order, s)
 	}
@@ -170,13 +224,13 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
 		case *recordpb.Cite:
-			hold(b.GetLabel(), false, "")
+			hold(e, b.GetLabel(), false, "")
 		case *recordpb.Verify:
 			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
-				hold(b.GetLabel(), false, "")
+				hold(e, b.GetLabel(), false, "")
 			}
 		case *recordpb.Proof:
-			hold(b.GetProofId(), true, b.GetProofSha())
+			hold(e, b.GetProofId(), true, b.GetProofSha())
 		}
 	}
 	for _, e := range evs {
@@ -203,7 +257,8 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 				}
 			}
 		case *recordpb.Verify:
-			c := anchorCheck{reads: verifyClears(b.GetOutcome()), holds: verifyHolds(b.GetOutcome())}
+			reads := VerifyReads(b)
+			c := anchorCheck{reads: reads, holds: reads && !contradicts(b.GetOutcome())}
 			check(l.byAnchor[b.GetAnchor()], c)
 			// A corroboration that minted its own footnote is a check of that footnote's sentence.
 			if b.GetClaim() != "" && b.GetLabel() != "" && b.GetLabel() != b.GetAnchor() {
@@ -220,19 +275,17 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 	return l
 }
 
-// verifyClears reports whether a verify of this outcome is a reading of the sentence against its
-// source. `refutes` and `absent` are: the sentence as it now stands was read, and what a finding
-// against it means for a PASS is the contradiction blocker's. `unreachable` is not — nothing was
-// verified — and neither is the zero, which no verb writes.
-func verifyClears(o recordpb.SourceOutcome) bool {
+// VerifyReads reports whether a verify is a reading of the sentence against its source: an outcome
+// that read it, of a copy that is the work. `refutes` and `absent` are readings: the sentence as it
+// now stands was read, and what a finding against it means for a PASS is the contradiction blocker's.
+// `unreachable` is not — nothing was verified — and neither is the zero, which no verb writes. Nor is
+// any outcome of a copy the tool stamped not_the_work (a sign-in page, a sales page): what was read
+// there is not the cited work, whatever the seat says it found in it.
+func VerifyReads(v *recordpb.Verify) bool {
+	o := v.GetOutcome()
 	return o != recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE &&
-		o != recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED
-}
-
-// verifyHolds reports whether a reading of this outcome backs the sentence: every reading that is
-// not a contradiction.
-func verifyHolds(o recordpb.SourceOutcome) bool {
-	return verifyClears(o) && !contradicts(o)
+		o != recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED &&
+		v.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK
 }
 
 // CitationsFoundAgainst is each citation red finds against NOW, in the order the record placed
@@ -247,14 +300,8 @@ func verifyHolds(o recordpb.SourceOutcome) bool {
 func CitationsFoundAgainst(evs []*Event, win WindowIndex) []string {
 	var out []string
 	for _, s := range anchorChecksOf(evs, win).order {
-		if s.proof {
-			continue
-		}
-		for _, c := range s.standing() {
-			if !c.holds {
-				out = append(out, s.anchor)
-				break
-			}
+		if s.state() == stateFoundAgainst {
+			out = append(out, s.anchor)
 		}
 	}
 	return out
