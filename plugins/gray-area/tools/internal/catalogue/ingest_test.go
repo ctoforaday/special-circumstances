@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 )
@@ -54,6 +55,107 @@ func TestAttributionCoversAllThreeTiers(t *testing.T) {
 		if agents[i] != want[i] {
 			t.Fatalf("agent ids = %v, want %v — the workflow seat is the one a two-tier rule drops", agents, want)
 		}
+	}
+}
+
+// THE SCOPED ENUMERATION IS THE FILTERED WALK, file for file and in order. The fixture holds
+// several projects and sessions across all three tiers, one session filed under TWO projects (so
+// a scope taken from the payload's one directory would miss half of it), a session whose id is a
+// prefix of another's, stray files at depths the rule does not attribute, and — where the platform
+// allows — a symlinked session directory, which the full walk does not descend.
+func TestSessionScopedEnumerationIsTheFilteredWalk(t *testing.T) {
+	root := t.TempDir()
+	mk := func(rel string) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, rel := range []string{
+		"-p1/A.jsonl", "-p1/A/subagents/agent-a1.jsonl", "-p1/A/subagents/workflows/wf/agent-a2.jsonl",
+		"-p1/B.jsonl", "-p1/B/subagents/agent-b1.jsonl",
+		"-p2/A/subagents/agent-a3.jsonl", "-p2/A.jsonl", // A again, in another project
+		"-p2/AB.jsonl", "-p2/AB/subagents/agent-ab1.jsonl", // A is a prefix of AB
+		"-p2/C/subagents/workflows/wf/agent-c1.jsonl",                                          // a session with no own transcript
+		"-p3/A/notes.jsonl", "-p3/A/subagents/x/agent-z.jsonl", "-p3/A/subagents/agent-a4.txt", // unattributed depths
+		"A.jsonl", // at the root: no project
+	} {
+		mk(rel)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "-p4"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Symlink(filepath.Join(root, "-p1", "A"), filepath.Join(root, "-p4", "A")) // Windows may refuse; the rest still holds
+	// "B.jsonl" names a FILE where a session directory would be: walking it attributes the file to
+	// session B, which only the session filter keeps out of B.jsonl's answer.
+	scopedIsFilteredWalk(t, root, "A", "B", "AB", "C", "absent", "..", ".", "B.jsonl")
+	if got, _ := SessionTranscriptFiles(root, "A"); len(got) != 5 {
+		t.Errorf("session A: %d files, want 5 across two projects — the fixture no longer exercises the spread", len(got))
+	}
+}
+
+// scopedIsFilteredWalk fails for each session whose scoped enumeration under root is not the full
+// walk's files for it, in the full walk's order. It returns the full walk's file count per session.
+func scopedIsFilteredWalk(t *testing.T, root string, sids ...string) map[string]int {
+	t.Helper()
+	all, err := TranscriptFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := map[string]int{}
+	for _, sid := range sids {
+		var want []TranscriptFile
+		for _, f := range all {
+			if f.SessionID == sid {
+				want = append(want, f)
+			}
+		}
+		n[sid] = len(want)
+		got, err := SessionTranscriptFiles(root, sid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("root %s, session %q: scoped enumeration = %v\nthe filtered full walk = %v", root, sid, got, want)
+		}
+	}
+	return n
+}
+
+// SYMLINKS ARE JUDGED AS THE FULL WALK JUDGES THEM, at each of the three places the scoped
+// enumeration looks: a symlinked projects root and a symlinked project are not descended, and a
+// <sid>.jsonl that is a symlink counts whatever it points at — a directory, or nothing.
+func TestSessionScopedEnumerationJudgesSymlinksAsTheWalk(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"-p1/A.jsonl", "-p1/A/subagents/agent-a1.jsonl", "-p6/keep.jsonl", "-p7/keep.jsonl"} {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := func(target, name string) {
+		if err := os.Symlink(target, name); err != nil {
+			t.Skipf("symlinks refused here: %v", err)
+		}
+	}
+	link(filepath.Join(root, "-p1"), filepath.Join(root, "-p5"))                       // a symlinked project
+	link(filepath.Join(root, "-p1", "A"), filepath.Join(root, "-p6", "A.jsonl"))       // own transcript → a directory
+	link(filepath.Join(root, "-p7", "missing"), filepath.Join(root, "-p7", "A.jsonl")) // own transcript → nothing
+	rootLink := filepath.Join(t.TempDir(), "projects")
+	link(root, rootLink) // a symlinked projects root
+
+	if n := scopedIsFilteredWalk(t, root, "A"); n["A"] != 4 {
+		t.Errorf("session A: the full walk finds %d files, want 4 — the fixture no longer puts a symlinked "+
+			"own transcript in the walk's answer", n["A"])
+	}
+	if n := scopedIsFilteredWalk(t, rootLink, "A"); n["A"] != 0 {
+		t.Errorf("through a symlinked root the full walk finds %d files, want 0", n["A"])
 	}
 }
 
