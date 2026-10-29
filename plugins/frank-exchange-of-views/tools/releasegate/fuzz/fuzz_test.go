@@ -609,6 +609,9 @@ type runner struct {
 	// owedProofs counts them, naming each script.
 	forceOwedProof bool
 	owedProofs     int
+	// ownerWhys is, in owedProofSeed's run, the proof owner's line of every plan, in order: what the
+	// sweep logs, so a forced run that keeps the owner fewer times than it plans says why.
+	ownerWhys []string
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
@@ -2752,6 +2755,15 @@ func (r *runner) tallyOwed(plan map[string]any) {
 		}
 	}
 	whys, _ := plan["why"].([]any)
+	if r.forceOwedProof {
+		line := proofOwner + ": not in the plan's why"
+		for _, w := range whys {
+			if s := fmt.Sprint(w); strings.HasPrefix(s, proofOwner+": ") {
+				line = s
+			}
+		}
+		r.ownerWhys = append(r.ownerWhys, line)
+	}
 	for _, w := range whys {
 		g := keptByDebt.FindStringSubmatch(fmt.Sprint(w))
 		if g == nil {
@@ -5108,6 +5120,7 @@ type outcome struct {
 	proofReopenedReadied                         map[string]int
 	owedKept, proofOwedKept                      int
 	owedKeptBy                                   map[string]int
+	ownerWhys                                    []string
 	// unreadAnswers, unreadRepeats, unreadRetires, unreadClosesRefused and unsoundClosesRefused are
 	// the runner's.
 	unreadAnswers, unreadRepeats, unreadRetires int
@@ -6377,6 +6390,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.proofReopenedReadied, res.owedKept, res.proofOwedKept, res.owedKeptBy = r.proofReopenedReadied, r.owedKept, r.proofOwedKept, r.owedKeptBy
+	res.ownerWhys = r.ownerWhys
 	res.unreadAnswers, res.unreadRepeats, res.unreadRetires = r.unreadAnswers, r.unreadRepeats, r.unreadRetires
 	res.unreadClosesRefused, res.unsoundClosesRefused = r.unreadClosesRefused, r.unsoundClosesRefused
 	if r.unsoundReadyErr != "" && res.err == "" {

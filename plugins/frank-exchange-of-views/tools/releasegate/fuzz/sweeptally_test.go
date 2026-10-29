@@ -126,6 +126,7 @@ type runTally struct {
 	OwedKept                int                       `json:"owed_kept"`
 	ProofOwedKept           int                       `json:"proof_owed_kept"`
 	OwedKeptBy              map[string]int            `json:"owed_kept_by"`
+	OwnerWhys               []string                  `json:"owner_whys,omitempty"`
 	OwnerOffered            int                       `json:"owner_offered"`
 	CitationsOffered        int                       `json:"citations_offered"`
 	UnreadAnswers           int                       `json:"unread_answers"`
@@ -165,7 +166,7 @@ func tallyOf(o outcome) runTally {
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
 		UnsoundAnswers: o.unsoundAnswers, UnsoundRepeats: o.unsoundRepeats, UnsoundOverOpen: o.unsoundOverOpen,
 		ProofReopenedReadied: o.proofReopenedReadied, OwedKept: o.owedKept, ProofOwedKept: o.proofOwedKept,
-		OwedKeptBy: o.owedKeptBy, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
+		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused, OwnAnswers: o.ownAnswers,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
@@ -495,6 +496,7 @@ type sweepFold struct {
 	oneGapRefused, oneGapFindings                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
 	forcedUnsoundReadied, forcedProofOwedKept       int
+	forcedOwnerWhys                                 []string
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
 	rulerFilingsRefused                             int
@@ -585,6 +587,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.proofOwedKept += r.ProofOwedKept
 		if r.Seed == owedProofSeed {
 			f.forcedProofOwedKept += r.ProofOwedKept
+			f.forcedOwnerWhys = r.OwnerWhys
 		}
 		for k, v := range r.OwedKeptBy {
 			f.owedKeptBy[k] += v
@@ -661,6 +664,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	}
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.proofReopenedReadied)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof (%d in seed %d's forced run); by kind %v", f.owedKept, f.proofOwedKept, f.forcedProofOwedKept, owedProofSeed, f.owedKeptBy)
+	for i, w := range f.forcedOwnerWhys {
+		t.Logf("  seed %d's plan %d: %s", owedProofSeed, i+1, w)
+	}
 	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it, %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadClosesRefused)
 	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
