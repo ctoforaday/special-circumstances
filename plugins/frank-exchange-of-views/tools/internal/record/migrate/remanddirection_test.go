@@ -38,10 +38,12 @@ func TestEveryArchivedRemandMigratesWithItsDirection(t *testing.T) {
 				if _, final := f["final"]; old.Word == "opinion" && r == "" && !final {
 					r = "not stated"
 				}
+				// A source written after the remand gained its own direction states it there.
+				dir, _ := f["direction"].(string)
 				switch {
-				case r == "":
-				case d == "remanded" || d == "carried":
+				case (d == "remanded" || d == "carried") && (r != "" || dir != ""):
 					wantRemand++
+				case r == "":
 				default:
 					wantReopens++
 				}

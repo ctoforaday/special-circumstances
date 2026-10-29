@@ -6311,6 +6311,9 @@ var verbsWithEvents = []string{
 	// A sitting stopped at the tool-call limit: written by feov-sitting-write when the PreToolUse
 	// hook first refuses a call past the limit. No verb writes it either.
 	"sitting_limit",
+	// The envelope gate's admission: written by feov-sitting-write when the PreToolUse hook finds the
+	// record refuses nothing on the envelope a seat returns. No verb writes it either.
+	"envelope_admitted",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
@@ -6342,6 +6345,10 @@ var coverExempt = map[string]bool{
 	// reaches. Driven in internal/hookcmd/limit_test.go (the handoff) and
 	// internal/sittingwrite/write_test.go (the event).
 	"sitting_limit": true,
+	// Written by the hook-spawned writer when the envelope gate admits a seat's envelope, which the
+	// harness-less drive never returns through StructuredOutput. Driven in
+	// internal/sittingwrite/admission_test.go (the event) and read by record.FailedSittings.
+	"envelope_admitted": true,
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,

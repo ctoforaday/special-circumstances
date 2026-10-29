@@ -196,6 +196,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// The learning pass writes nothing, so what it rewrote is not what the record holds.
 	rm.prose = nil
 	place := newPlacer(batch.Querier(), evs, rm.ids)
+	admits := predatesAdmission(source) // its closed sittings are admitted at their close
 	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
 	// placed after an act and a source event that writes nothing each move every later row, so a
 	// pin carried as written names whatever the migrated record holds at that number. A pin names
@@ -384,6 +385,21 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if err != nil {
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
+			}
+			// A SITTING CLOSED BEFORE ENVELOPES WERE RECORDED AS ADMITTED IS ADMITTED AT ITS CLOSE
+			// (admissionBefore), so no past sitting reads as failed.
+			if cl, ok := body.(*recordpb.SittingClose); ok && admits {
+				a, err := admissionBefore(batch.Querier(), cl)
+				if err != nil {
+					return nil, err
+				}
+				if a != nil {
+					if _, err := batch.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a); err != nil {
+						res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: "admitting the sitting this close ends: " + err.Error()})
+						continue
+					}
+					res.Out[admissionWord]++
+				}
 			}
 			ev, err := batch.Append(id, body)
 			if err != nil {
