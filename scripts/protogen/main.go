@@ -100,17 +100,30 @@ func run(root string, checkOnly bool) error {
 	sum := sha256.Sum256(src)
 	want := hex.EncodeToString(sum[:])
 
+	req, err := compileRequest(schema)
+	if err != nil {
+		return err
+	}
+	bodySrc, err := bodySwitch(req)
+	if err != nil {
+		return err
+	}
+
 	if checkOnly {
-		return verify(root, want)
+		if err := verify(root, want); err != nil {
+			return err
+		}
+		return verifyBodySwitch(root, bodySrc)
 	}
 	if err := checkVersionAgreement(root); err != nil {
 		return err
 	}
 
-	files, err := generate(root, schema)
+	files, err := generate(root, req)
 	if err != nil {
 		return err
 	}
+	files = append(files, genFile{name: bodySwitchName, content: bodySrc})
 	for _, f := range files {
 		dest := filepath.Join(filepath.Dir(schema), filepath.Base(f.name))
 		if err := os.WriteFile(dest, f.content, 0o644); err != nil {
@@ -178,8 +191,9 @@ type genFile struct {
 	content []byte
 }
 
-// generate compiles the schema to a descriptor and drives protoc-gen-go over it.
-func generate(root, schema string) ([]genFile, error) {
+// compileRequest compiles the schema to a descriptor and wraps it as the request a protoc plugin
+// reads. protoc-gen-go and the body switch are both generated from this one request.
+func compileRequest(schema string) (*pluginpb.CodeGeneratorRequest, error) {
 	dir := filepath.Dir(schema)
 	base := filepath.Base(schema)
 
@@ -214,13 +228,17 @@ func generate(root, schema string) ([]genFile, error) {
 		add(f)
 	}
 
-	req := &pluginpb.CodeGeneratorRequest{
+	return &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{base},
 		ProtoFile:      protos,
 		CompilerVersion: &pluginpb.Version{
 			Major: proto.Int32(5), Minor: proto.Int32(29), Patch: proto.Int32(0),
 		},
-	}
+	}, nil
+}
+
+// generate drives protoc-gen-go over the compiled request.
+func generate(root string, req *pluginpb.CodeGeneratorRequest) ([]genFile, error) {
 	in, err := proto.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling the generator request: %w", err)

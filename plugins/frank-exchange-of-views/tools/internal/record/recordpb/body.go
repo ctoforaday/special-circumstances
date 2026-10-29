@@ -122,23 +122,3 @@ func BodyAs[T proto.Message](ev *Event) (T, bool) {
 	}
 	return typed, true
 }
-
-// Body returns the event's body message, and whether it had one.
-//
-// A no-match returns false rather than a zero-valued message: an event with no body and an event
-// whose body is empty are different facts, and the reader must be able to tell them apart.
-func Body(ev *Event) (proto.Message, bool) {
-	if ev == nil {
-		return nil, false
-	}
-	md := ev.ProtoReflect().Descriptor()
-	od := md.Oneofs().ByName("body")
-	if od == nil {
-		return nil, false
-	}
-	fd := ev.ProtoReflect().WhichOneof(od)
-	if fd == nil {
-		return nil, false
-	}
-	return ev.ProtoReflect().Get(fd).Message().Interface(), true
-}
