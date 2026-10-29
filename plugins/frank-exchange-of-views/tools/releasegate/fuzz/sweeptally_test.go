@@ -132,6 +132,7 @@ type runTally struct {
 	UnreadAnswers           int                       `json:"unread_answers"`
 	UnreadRepeats           int                       `json:"unread_repeats"`
 	UnreadRetires           int                       `json:"unread_retires"`
+	UnreadRetiresJoined     int                       `json:"unread_retires_joined"`
 	UnreadClosesRefused     int                       `json:"unread_closes_refused"`
 	UnsoundClosesRefused    int                       `json:"unsound_closes_refused"`
 	RepeatsRefused          int                       `json:"repeats_refused"`
@@ -167,7 +168,7 @@ func tallyOf(o outcome) runTally {
 		UnsoundAnswers: o.unsoundAnswers, UnsoundRepeats: o.unsoundRepeats, UnsoundOverOpen: o.unsoundOverOpen,
 		ProofReopenedReadied: o.proofReopenedReadied, OwedKept: o.owedKept, ProofOwedKept: o.proofOwedKept,
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
-		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires,
+		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused, OwnAnswers: o.ownAnswers,
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
@@ -506,6 +507,7 @@ type sweepFold struct {
 	ownerOfferedRuns, citationOfferedRuns           int
 	unreadAnswers, unreadRepeats                    int
 	unreadRetires                                   int
+	unreadRetiresJoined                             int
 	unreadClosesRefused, unsoundClosesRefused       int
 	repeatsRefused, budgetRefused, ownAnswers       int
 	oneGapRefused, oneGapFindings                   int
@@ -616,6 +618,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unreadAnswers += r.UnreadAnswers
 		f.unreadRepeats += r.UnreadRepeats
 		f.unreadRetires += r.UnreadRetires
+		f.unreadRetiresJoined += r.UnreadRetiresJoined
 		f.unreadClosesRefused += r.UnreadClosesRefused
 		f.unsoundClosesRefused += r.UnsoundClosesRefused
 		f.repeatsRefused += r.RepeatsRefused
@@ -682,7 +685,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	for i, w := range f.forcedOwnerWhys {
 		t.Logf("  seed %d's plan %d: %s", owedProofSeed, i+1, w)
 	}
-	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it, %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadClosesRefused)
+	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it (%d of them answering that gap and listed in its change log), %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadRetiresJoined, f.unreadClosesRefused)
 	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
@@ -782,6 +785,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// the lens owes the gap about it, and blue's remedy is to retire the citation. A sweep where no
 		// lens minted that gap, or blue never retired such a citation, leaves the obligation and the
 		// citation-only retire unexercised.
+		if f.unreadRetiresJoined == 0 {
+			t.Errorf("no citation retire answering the gap about an unread citation was listed in that gap's change log, across %d runs — the retire's join to the gap it answers is unexercised (false green)", f.completed)
+		}
 		if f.unreadAnswers == 0 || f.unreadRetires == 0 {
 			t.Errorf("fuzz minted %d gap(s) about an unread citation and retired %d such citation(s) off its sentence, across %d runs — the failed-check path for a citation is unexercised (false green)", f.unreadAnswers, f.unreadRetires, f.completed)
 		}

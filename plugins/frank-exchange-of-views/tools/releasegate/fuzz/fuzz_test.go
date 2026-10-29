@@ -458,8 +458,10 @@ type runner struct {
 	// read, unreadRepeats the repeat unreadable readings the tool refused over that gap, unreadRetires
 	// blue's retires of such a citation, and unreadClosesRefused and unsoundClosesRefused the closes
 	// the tool refused of a gap carrying a failed check that still stood — an unread citation, an
-	// unsound proof (refuseStandingClose).
+	// unsound proof (refuseStandingClose). unreadRetiresJoined is the citation retires that named the
+	// gap about the citation and that the gap's change log lists (changeLogJoins).
 	unreadAnswers, unreadRepeats, unreadRetires int
+	unreadRetiresJoined                         int
 	unreadClosesRefused, unsoundClosesRefused   int
 	proofReopenedReadied                        map[string]int
 	owedKept, proofOwedKept                     int
@@ -1073,10 +1075,21 @@ func (r *runner) fixFailed(seatID string) {
 			if r.coin(10) {
 				r.envelopeRefusedEarly(seatID, "check of citation "+b.Subject)
 			}
-			r.do("retire", seatID).set("--anchor", b.Subject).
-				set("--reason", "fuzz: no lens could read the source of "+b.Subject+", so the sentence stands without it").admit()
+			// THE RETIRE NAMES THE GAP IT ANSWERS, the gap the unread reading's lens minted about the
+			// citation, so `show changes --id` joins it to that gap as an edit would be.
+			rt := r.do("retire", seatID).set("--anchor", b.Subject).
+				set("--reason", "fuzz: no lens could read the source of "+b.Subject+", so the sentence stands without it")
+			g := r.openGapAboutAnchor(b.Subject)
+			if g != "" {
+				rt = rt.set("--answers", g)
+			}
+			_, landed := rt.admit()
+			joined := landed && g != "" && r.changeLogJoins(g, b.Subject)
 			r.mu.Lock()
 			r.unreadRetires++
+			if joined {
+				r.unreadRetiresJoined++
+			}
 			r.mu.Unlock()
 			continue
 		}
@@ -3455,6 +3468,40 @@ func (r *runner) firstEpoch() bool {
 	return r.chairRegisters <= 1
 }
 
+// changeLogJoins is whether gap's change log (`show changes --id`, record.ChangesOf) lists the
+// citation retire of anchor that answered it. A retire that landed answering the gap and is missing
+// from the log is the join #1601's smoke found broken (G-3d5b2ee1), and fails the run.
+func (r *runner) changeLogJoins(gap, anchor string) bool {
+	sel, err := record.ChangesOf(r.runHandle, gap)
+	if err != nil {
+		r.noteActErr("the change log of " + gap + " could not be read after the retire of " + anchor + " answering it: " + err.Error())
+		return false
+	}
+	for _, e := range sel.Edits {
+		if e.Retired == anchor && e.Answers == gap {
+			return true
+		}
+	}
+	r.noteActErr("blue retired citation " + anchor + " answering " + gap + ", and the gap's change log lists no such retire")
+	return false
+}
+
+// openGapAboutAnchor is the open gap on the board about anchor (about_kind anchor), or "" when none
+// stands: the gap a failed check's lens minted to carry it to blue.
+func (r *runner) openGapAboutAnchor(anchor string) string {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		r.noteActErr("the board could not be read to find the gap about " + anchor + ": " + err.Error())
+		return ""
+	}
+	for _, g := range bj.Open {
+		if g.AboutKind == "anchor" && g.AboutRef == anchor {
+			return g.ID
+		}
+	}
+	return ""
+}
+
 // argOf is the value args give flag, or "".
 func argOf(args []string, flag string) string {
 	for i := 0; i+1 < len(args); i++ {
@@ -5392,8 +5439,9 @@ type outcome struct {
 	owedKeptBy                                   map[string]int
 	ownerWhys                                    []string
 	// unreadAnswers, unreadRepeats, unreadRetires, unreadClosesRefused and unsoundClosesRefused are
-	// the runner's.
+	// the runner's, and so is unreadRetiresJoined.
 	unreadAnswers, unreadRepeats, unreadRetires int
+	unreadRetiresJoined                         int
 	unreadClosesRefused, unsoundClosesRefused   int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
@@ -6688,6 +6736,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.proofReopenedReadied, res.owedKept, res.proofOwedKept, res.owedKeptBy = r.proofReopenedReadied, r.owedKept, r.proofOwedKept, r.owedKeptBy
 	res.ownerWhys = r.ownerWhys
 	res.unreadAnswers, res.unreadRepeats, res.unreadRetires = r.unreadAnswers, r.unreadRepeats, r.unreadRetires
+	res.unreadRetiresJoined = r.unreadRetiresJoined
 	res.unreadClosesRefused, res.unsoundClosesRefused = r.unreadClosesRefused, r.unsoundClosesRefused
 	if r.unsoundReadyErr != "" && res.err == "" {
 		res.err = r.unsoundReadyErr
