@@ -142,6 +142,15 @@ type runTally struct {
 	LensRemandActs          int                       `json:"lens_remand_acts"`
 	PastLimitRemandsRefused int                       `json:"past_limit_remands_refused"`
 	LensFirstHolds          int                       `json:"lens_first_holds"`
+	AnswersAtBudget         int                       `json:"answers_at_budget"`
+	AnswersOverOpen         int                       `json:"answers_over_open"`
+	ContradictionsRaised    int                       `json:"contradictions_raised"`
+	ContradictionAnswers    int                       `json:"contradiction_answers"`
+	FinalBlockers           map[string]int            `json:"final_blockers"`
+	FinalParties            []string                  `json:"final_parties"`
+	OpenByFoundBy           map[string]int            `json:"open_by_found_by"`
+	MintsByEpoch            map[int]int               `json:"mints_by_epoch"`
+	ClosesByEpoch           map[int]int               `json:"closes_by_epoch"`
 }
 
 // tallyOf is the run's tally.
@@ -167,6 +176,10 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs, LensRemandActs: o.lensRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, LensFirstHolds: o.lensFirstHolds,
+		AnswersAtBudget: o.answersAtBudget, AnswersOverOpen: o.answersOverOpen,
+		ContradictionsRaised: o.contradictionsRaised, ContradictionAnswers: o.contradictionAnswers,
+		FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy,
+		MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -508,6 +521,13 @@ type sweepFold struct {
 	blueRemandActs, lensRemandActs                  int
 	pastLimitRemandsRefused, lensFirstHolds         int
 	applyMisses, estoppelMisses                     map[string]int
+	answersAtBudget, answersOverOpen                int
+	contradictionsRaised, contradictionAnswers      int
+	// What held each run open, by its verdict: the final plans' blockers by kind, the seats they
+	// readied, and the gaps open at the end by what their found_by names, each summed over the runs
+	// of that verdict; and the gaps minted and closed in each epoch, summed over every run.
+	finalBlockers, finalParties, openByFoundBy map[string]map[string]int
+	mintsByEpoch, closesByEpoch                map[int]int
 }
 
 // foldRuns folds the sweep's runs, in any order.
@@ -516,6 +536,8 @@ func foldRuns(runs []runTally) sweepFold {
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, proofReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
 		applyMisses: map[string]int{}, estoppelMisses: map[string]int{},
+		finalBlockers: map[string]map[string]int{}, finalParties: map[string]map[string]int{}, openByFoundBy: map[string]map[string]int{},
+		mintsByEpoch: map[int]int{}, closesByEpoch: map[int]int{},
 	}
 	for _, r := range runs {
 		if r.Err != "" {
@@ -618,8 +640,38 @@ func foldRuns(runs []runTally) sweepFold {
 		for why, n := range r.ApplyMisses {
 			f.applyMisses[why] += n
 		}
+		f.answersAtBudget += r.AnswersAtBudget
+		f.answersOverOpen += r.AnswersOverOpen
+		f.contradictionsRaised += r.ContradictionsRaised
+		f.contradictionAnswers += r.ContradictionAnswers
+		addUnder(f.finalBlockers, r.Verdict, r.FinalBlockers)
+		parties := map[string]int{}
+		for _, s := range r.FinalParties {
+			parties[s]++
+		}
+		addUnder(f.finalParties, r.Verdict, parties)
+		addUnder(f.openByFoundBy, r.Verdict, r.OpenByFoundBy)
+		for ep, n := range r.MintsByEpoch {
+			f.mintsByEpoch[ep] += n
+		}
+		for ep, n := range r.ClosesByEpoch {
+			f.closesByEpoch[ep] += n
+		}
 	}
 	return f
+}
+
+// addUnder adds counts into m's row for key.
+func addUnder(m map[string]map[string]int, key string, counts map[string]int) {
+	if len(counts) == 0 {
+		return
+	}
+	if m[key] == nil {
+		m[key] = map[string]int{}
+	}
+	for k, n := range counts {
+		m[key][k] += n
+	}
 }
 
 // judgeSweep holds the sweep to its gates over the folded runs and the process state.
@@ -658,6 +710,8 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Errorf("fuzz drew no repeat unsound judgement over an open gap across %d runs — the refusal is unexercised (false green)", f.completed)
 	}
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.proofReopenedReadied)
+	t.Logf("what held the runs open, by verdict: final plans' blockers by kind %v; seats they readied %v; gaps open at the end by found_by %v", f.finalBlockers, f.finalParties, f.openByFoundBy)
+	t.Logf("gaps minted by epoch %v; closed by epoch %v", f.mintsByEpoch, f.closesByEpoch)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", f.owedKept, f.proofOwedKept, f.owedKeptBy)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", f.unclassifiedMinted, f.unclassifiedRefused)
 	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive(p.ClassLanded)))
@@ -847,6 +901,24 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("answering mints: %d landed outside the minting lens's budget, %d mint(s) refused for budget", f.ownAnswers, f.budgetRefused)
 		if f.ownAnswers == 0 {
 			t.Errorf("fuzz drove ZERO mints answering the minting lens's own raise across %d runs — the gap outside the budget is unexercised (false green)", f.completed)
+		}
+		// THE CONTRADICTION PATHS, EACH REACHED. A contradicting reading draws on its lens's stock
+		// (readingOutcome), so the raise, its answer, and the two rules the answer is exempt from are
+		// reached only on a lens's early sittings; a stock that stopped admitting them would leave
+		// each unexercised behind a green sweep.
+		t.Logf("contradictions: %d raised, %d answered by a mint naming the raise; %d answer(s) landed with no mint left to the lens, %d over an open gap of their class on their subject", f.contradictionsRaised, f.contradictionAnswers, f.answersAtBudget, f.answersOverOpen)
+		for _, c := range []struct {
+			n    int
+			what string
+		}{
+			{f.contradictionsRaised, "contradictions raised by a finding"},
+			{f.contradictionAnswers, "mints answering a raised contradiction"},
+			{f.answersAtBudget, "answering mints landed with no mint left to the lens (the budget exemption)"},
+			{f.answersOverOpen, "answering mints landed over an open gap of their class on their subject (the one-gap exemption)"},
+		} {
+			if c.n == 0 {
+				t.Errorf("fuzz drove ZERO %s across %d runs — the path is unexercised (false green)", c.what, f.completed)
+			}
 		}
 		// THE CATCH-ALL GATE. A gap no class fits is minted `unclassified` with a reason, and the
 		// record refuses one without. The `mint` verb gate is satisfied by every other class, so a
