@@ -3486,6 +3486,27 @@ func (r *runner) changeLogJoins(gap, anchor string) bool {
 	return false
 }
 
+// ownUnreadGapOpen is whether citation anchor stands on a failed check seatID's reading left — no
+// reading of the work since its sentence last changed — carried by the gap seatID minted about it,
+// still open: the state in which a second unreadable reading of seatID's is refused.
+func (r *runner) ownUnreadGapOpen(seatID, anchor string) bool {
+	bs, err := record.PassBlockers(r.run())
+	if err != nil {
+		r.noteActErr("the blockers could not be read to say whether " + anchor + " stands unread: " + err.Error())
+		return false
+	}
+	open := map[string]bool{}
+	for _, g := range r.openGaps() {
+		open[g] = true
+	}
+	for _, b := range bs {
+		if b.Kind == record.BlockerFailedCheck && b.Detail == "" && b.Subject == anchor && b.Owner == seatID && open[b.AnsweredBy()] {
+			return true
+		}
+	}
+	return false
+}
+
 // openGapAboutAnchor is the open gap on the board about anchor (about_kind anchor), or "" when none
 // stands: the gap a failed check's lens minted to carry it to blue.
 func (r *runner) openGapAboutAnchor(anchor string) string {
@@ -5155,6 +5176,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					printed = id
 				}
 				if anchor := r.citationToVerify(seatID); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
+					// A SECOND READING THAT READS NOTHING, while the gap carrying this seat's first is
+					// open and the sentence unchanged, is refused (answerFailed drives that refusal on
+					// its own coin); this drive expects its reading admitted, so it reads the source.
+					if outcome == "unreachable" && r.ownUnreadGapOpen(seatID, anchor) {
+						outcome = "weak"
+					}
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
 					// The claim is the one verify prints back, as a lens reads it.
