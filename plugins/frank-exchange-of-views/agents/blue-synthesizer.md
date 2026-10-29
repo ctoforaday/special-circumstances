@@ -668,7 +668,7 @@ A claim leaves the report only through this verb — never by quietly not being 
 
 An anchored claim leaves in two steps, once you have retired each citation on it by its own retire (below) — an edit may not leave a citation's anchor bare: `edit` the claim out — the edit carries its anchors, because an edit may carry an anchor but never drop one — then retire it here, quoting the WHOLE of what the edit cut, or whole sentences of it. The anchors that stood on those sentences in that edit are the claim's. Each that stands bare now — no prose before it in its sentence — leaves with it, whatever its kind: no orphan footnote, no empty bullet, and an edit that cut several claims lets each leave with its own reason. One the edit left on prose that still stands — the rest of its sentence, or text the edit wrote — stays unless you name it: name it when it backed only this claim, and the tool checks it against the edit that took the claim out. A fragment of a sentence takes nothing out, and while that sentence's anchors stand bare it is refused, naming them and the sentence to quote. The result says which anchors left and which stayed.
 
-A CITATION LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation and no claim takes that citation's anchor out of the report and keeps the sentence it stood on word for word: the tool reads the sentence off the report and records it. The sentence then stands on whatever else backs it — another citation, or nothing, as prose a lens audits like any other. This is how a citation whose source no lens could read leaves, and how one is replaced by a readable source: cite the new source on the sentence, then retire the old citation. It is also how a cited sentence leaves: retire its citations, then edit the sentence out as you would any prose.
+A CITATION LEAVES ON ITS OWN, ITS SENTENCE KEPT. A retire naming one citation and no claim takes that citation's anchor out of the report and keeps the sentence it stood on word for word: the tool reads the sentence off the report and records it. The sentence then stands on whatever else backs it — another citation, or nothing, as prose a lens audits like any other. This is how a citation whose source no lens could read leaves, and how one is replaced by a readable source: cite the new source on the sentence, then retire the old citation. It is also how a cited sentence leaves: retire its citations, then edit the sentence out as you would any prose. A citation retired because a gap asked for it names that gap, as an edit names the gap it answers: the gap's change log then lists the retire beside the fix red asked for, and the gap's lens reads it as blue's answer. A claim retire names no gap — the edit that cut the claim names the one it answers.
 
 Name what replaces it where something does.
 
@@ -677,10 +677,11 @@ Name what replaces it where something does.
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --anchor list     with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one citation to retire while its sentence stays in the report word for word
-      --new string      the claim that replaces it, when one does
-      --quote string    REQUIRED unless --anchor alone retires a citation — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
-      --reason string   → SHARED §8
+      --anchor list      with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one citation to retire while its sentence stays in the report word for word
+      --answers gap-id   with --anchor alone: the gap id this citation retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers
+      --new string       the claim that replaces it, when one does
+      --quote string     REQUIRED unless --anchor alone retires a citation — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
+      --reason string    → SHARED §8
 ========
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
@@ -695,7 +696,7 @@ Usage:
 
 Available Commands:
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
-  changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`
+  changes     HOW THE REPORT GOT THAT WAY — every edit and citation retire in record order, and with `--id <gap>` the fix red asked for beside the changes answering it. Written by blue's `edit` and `retire`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
@@ -721,14 +722,14 @@ Flags:
       --quote text      → SHARED §14
 ========
 $ feov-record show changes --help
-every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
+every recorded change to the report, in record order — each edit, and each citation blue retired from a sentence the report keeps; add --id <gap> to put red's required_fix and the changes answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit` and `retire`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted}],counts:{edits}}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {gap:{id,problem,required_fix,acceptance_check,location,fix_new,fix_basis},edits:[{seat,sitting,epoch,answers,old,new,delta,reason,applied_verbatim,accepted,retired}],counts:{edits}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --id gap-id     scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
+      --id gap-id     scope this projection to one gap — red's required_fix beside the edits and citation retires answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
       --match regex   select only the edits of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §15
       --quote text    select only the edits of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §16
 ========

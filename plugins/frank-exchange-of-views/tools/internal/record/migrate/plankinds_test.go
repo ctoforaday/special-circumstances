@@ -22,7 +22,7 @@ func kindsTranslated(t *testing.T, printed string) string {
 	return pl.GetPrinted()
 }
 
-// THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 47). Four archives
+// THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 48). Four archives
 // store plans printing the kind `reopened` (m28, m30, 1565, m32): every one migrates printing
 // `unchecked` in its place, re-keyed, with no archived kind word left on any migrated plan, and each
 // plan's other fields as the census tests hold them (TestAnArchivedRunStoresOnlyThePlansItStored).
@@ -60,7 +60,7 @@ func TestArchivedBlockerKindsAreTranslated(t *testing.T) {
 	}
 }
 
-// A GAP ABOUT A PROOF IS A GAP ABOUT ITS ANCHOR (EventSchema 47): 1565's gap about the proof its
+// A GAP ABOUT A PROOF IS A GAP ABOUT ITS ANCHOR (EventSchema 48): 1565's gap about the proof its
 // computation lens judged unsound migrates about the anchor.
 func TestTheArchivedAboutKindProofIsAnAnchor(t *testing.T) {
 	res, dst := migrateArchive(t, "2026-10-24_is-91-prime-1565.tar.gz")

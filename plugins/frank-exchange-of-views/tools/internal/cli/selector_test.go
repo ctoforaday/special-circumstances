@@ -217,7 +217,7 @@ func TestChangesScopedToAGapIsScopedInBothForms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("show changes --id: %v", err)
 	}
-	for _, want := range []string{"qualify it", "Edits blue recorded against it (1)", "the source gives a moderate figure"} {
+	for _, want := range []string{"qualify it", "Changes blue recorded against it (1)", "the source gives a moderate figure"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the scoped markdown is missing %q:\n%s", want, md)
 		}
