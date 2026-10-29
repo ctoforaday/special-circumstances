@@ -323,10 +323,21 @@ type runner struct {
 	// sittingAgent is the agent id of each seat's open sitting, where its opening carried one
 	// (registerTwice, lookThenRegister): the agent whose stop dispatchReturns writes.
 	sittingAgent map[string]string
-	// unreturned counts, per seat, the sittings sit opened whose dispatch has not yet returned
-	// (dispatchReturns), whether or not the opening carried an agent: a test that drives sittings
-	// asserts it is zero (requireEverySittingReturned), so a dispatch that skips its return fails it.
+	// unreturned counts, per seat, the dispatches opened (dispatchOpens) that have not yet returned
+	// (dispatchReturns), whether or not the sitting's opening carried an agent. It counts DISPATCHES,
+	// not registers: a seat a drive registers between dispatches (register, from closeGap or
+	// minterOf) opens none. runOne and every test that drives sittings assert it is zero at the end
+	// (unreturnedDispatches), so a dispatch that skips its return fails them, and dispatchReturns
+	// records a return with no open dispatch as a harness error.
 	unreturned map[string]int
+	// returnsUnopened counts the returns dispatchReturns saw with no dispatch of their seat open.
+	returnsUnopened int
+	// openUnderAgent makes every sitting sit opens carry an agent (registerTwice), for a test that
+	// needs a close to join on no draw.
+	openUnderAgent bool
+	// endWithoutEnvelope makes every agent-bearing sitting's dispatch end without its envelope
+	// (endsWithoutEnvelope), for a test that drives that shape on no draw.
+	endWithoutEnvelope bool
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
 	// seat whose work arrives as items: the sittings the record must read as failed
 	// (record.FailedSittingsOf), which runOne compares with what the record does read.
@@ -1626,10 +1637,6 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	done := make(chan struct{})
 	r.registering[seatID] = done
 	r.registered[seatID] = true
-	if r.unreturned == nil {
-		r.unreturned = map[string]int{}
-	}
-	r.unreturned[seatID]++
 	delete(r.judged, seatID)
 	delete(r.closedNow, seatID)
 	if strings.HasPrefix(seatID, "red-lens-") {
@@ -1650,7 +1657,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// writes when the dispatch returns.
 	agent := ""
 	switch {
-	case r.coin(25):
+	case r.openUnderAgent || r.coin(25):
 		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
 		agent = r.lookThenRegister(seatID)
@@ -1674,23 +1681,100 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 const neverClosedPct = 5
 
 // diedAfterAdmissionPct is the chance a drawn run's sitting whose envelope was admitted is left open
-// after the admission, as a live subagent's is when it dies between the envelope call's PostToolUse
-// and SubagentStop: the record holds the admission and no close, so the sitting reads never closed,
-// and not failed (record.FailedSittingsOf reads closed sittings only).
+// after the admission. Live, this shape exists only as a HOST CRASH between the envelope call's
+// PostToolUse and SubagentStop: the record holds the admission and no close, so the sitting reads
+// never closed, and not failed (record.FailedSittingsOf reads closed sittings only).
+//
+// THE RESIDUE, ACCEPTED: a crash kills the engine and every concurrent lane with it, and the resumed
+// engine replans without that envelope. This draw keeps the engine running and hands it the envelope,
+// so the sweep drives the record's side of a crash and not the engine's.
 const diedAfterAdmissionPct = 3
 
-// harnessGaveUpPct is the chance a drawn run's sitting whose envelope the record and the schema
-// accept returns with no admission written, as a live one does when the harness gives up on the
-// envelope call before it succeeds, and SubagentStop still closes it: the record reads the sitting
-// as failed (record.FailedSittingsOf). No seat's envelope is refused in a green sweep, so without
-// this draw runOne's failed-sitting check would compare zero with zero on every run.
-const harnessGaveUpPct = 3
+// endedWithoutEnvelopePct is the chance a drawn run's agent-bearing sitting, whose envelope the record
+// and the schema would accept, ends WITHOUT it: the seat ends with text and the Workflow harness gives
+// up on the envelope call. Live, agent() then throws (debate.js's sit() and the harness's parallel()
+// read the throw as a null sitting), the PostToolUse hook writes no admission, and SubagentStop still
+// closes the sitting, so the record reads it as failed (record.FailedSittingsOf). The binding rejects
+// the dispatch's promise and puts nothing from the envelope on the record (envelopeOutcome). No
+// seat's envelope is refused in a green sweep, so without this draw runOne's failed-sitting check
+// would compare zero with zero on every run.
+const endedWithoutEnvelopePct = 3
 
 // sittingsClosed counts the closes dispatchReturns wrote; sittingsLeftOpen the sittings it left open
 // by the neverClosedPct draw; admittedNeverClosed those it left open after their admission by the
 // diedAfterAdmissionPct draw; and failedSittingsClosed the closes it wrote with no admission, for a
 // seat whose work arrives as items. The sweep can then say when any of them stopped being reached.
 var sittingsClosed, sittingsLeftOpen, admittedNeverClosed, failedSittingsClosed atomic.Int64
+
+// dispatchOpens counts a dispatch of seatID as opened, at the agent() call that makes it: the open
+// dispatchReturns pairs with (unreturnedDispatches).
+func (r *runner) dispatchOpens(seatID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.unreturned == nil {
+		r.unreturned = map[string]int{}
+	}
+	r.unreturned[seatID]++
+}
+
+// unreturnedDispatches is "" when every dispatch opened has returned, and otherwise names each seat
+// whose dispatches have not.
+func (r *runner) unreturnedDispatches() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []string
+	for seat, n := range r.unreturned {
+		if n != 0 {
+			out = append(out, fmt.Sprintf("%d dispatch(es) of %s opened and never returned through dispatchReturns", n, seat))
+		}
+	}
+	sort.Strings(out)
+	if r.returnsUnopened > 0 {
+		out = append(out, fmt.Sprintf("%d dispatch(es) returned with none open", r.returnsUnopened))
+	}
+	return strings.Join(out, "; ")
+}
+
+// endsWithoutEnvelope reports whether seatID's dispatch, whose envelope the record and the schema
+// would accept, ends without it (endedWithoutEnvelopePct): drawn only for a sitting whose opening
+// carried an agent, whose close the record can read as failed, and never in a forced run.
+func (r *runner) endsWithoutEnvelope(seatID string) bool {
+	r.mu.Lock()
+	agent, always := r.sittingAgent[seatID], r.endWithoutEnvelope
+	r.mu.Unlock()
+	if agent == "" {
+		return false
+	}
+	return always || !r.forcedVerdict() && r.coin(endedWithoutEnvelopePct)
+}
+
+// envelopeOutcome is how a dispatch carrying a schema ends: admitted, when the record and the schema
+// accept its envelope and the seat returns it; and otherwise gaveUp, the Workflow harness giving up
+// on the envelope call. A schema-refused envelope never reaches the engine live (the tool enforces the
+// schema, and the seat retries until it ends without one), and neither does one the record refuses
+// (the PreToolUse hook denies the call) or one the seat never returns (endsWithoutEnvelope). Nothing
+// from a given-up envelope reaches the record: dispatchReturns writes no admission for it.
+func (r *runner) envelopeOutcome(seatID string, schema any, env map[string]any) (admitted, gaveUp bool) {
+	if env == nil || schema == nil {
+		return false, false
+	}
+	accepted := r.envelopeEnds(seatID)
+	if why := r.schemas.refusal(schema, env); why != "" {
+		r.noteSchemaRefusal(seatID, why)
+		accepted = false
+	}
+	if accepted && r.endsWithoutEnvelope(seatID) {
+		noteEnvelope(seatID, "accepted, and the seat ended without returning it")
+		accepted = false
+	}
+	return accepted, !accepted
+}
+
+// endedWithoutEnvelope is the rejection the binding settles a given-up dispatch with: the Workflow
+// harness throws when a seat dispatched with a schema ends without a valid envelope.
+func endedWithoutEnvelope(seatID string) string {
+	return "seat " + seatID + " ended without a valid envelope: the harness gave up on its envelope call"
+}
 
 // dispatchReturns is what the hooks write when a dispatched seat returns, for a sitting whose
 // opening carried an agent: the PostToolUse hook's admission of its envelope, when the envelope was
@@ -1706,10 +1790,16 @@ func (r *runner) dispatchReturns(seatID string, admitted bool) {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
 	delete(r.sittingAgent, seatID)
-	if r.unreturned[seatID] > 0 {
+	opened := r.unreturned[seatID] > 0
+	if opened {
 		r.unreturned[seatID]--
+	} else {
+		r.returnsUnopened++
 	}
 	r.mu.Unlock()
+	if !opened {
+		r.noteActErr(seatID + "'s dispatch returned with no dispatch of it open: a return the harness made without its dispatchOpens")
+	}
 	if agent == "" {
 		return
 	}
@@ -1717,9 +1807,6 @@ func (r *runner) dispatchReturns(seatID string, admitted bool) {
 	if drawn && r.coin(neverClosedPct) {
 		sittingsLeftOpen.Add(1)
 		return
-	}
-	if admitted && drawn && r.coin(harnessGaveUpPct) {
-		admitted = false
 	}
 	if admitted {
 		admitted = r.hookWrites("-phase", "admission", "-agent-id", agent)
@@ -1774,16 +1861,13 @@ func (r *runner) hookWrites(args ...string) bool {
 	return true
 }
 
-// requireEverySittingReturned fails t when a sitting sit opened has not returned through
-// dispatchReturns: a dispatch that skips its return leaves its agent's sitting never closed.
-func requireEverySittingReturned(t *testing.T, r *runner) {
+// requireEveryDispatchReturned fails t when a dispatch opened has not returned through
+// dispatchReturns, or one returned with none open: a dispatch that skips its return leaves its
+// agent's sitting never closed.
+func requireEveryDispatchReturned(t *testing.T, r *runner) {
 	t.Helper()
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for seat, n := range r.unreturned {
-		if n != 0 {
-			t.Errorf("%d sitting(s) of %s opened and never returned through dispatchReturns", n, seat)
-		}
+	if why := r.unreturnedDispatches(); why != "" {
+		t.Error(why)
 	}
 }
 
@@ -4917,10 +5001,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	}
 }
 
+// preamble stands in for the Workflow hooks debate.js calls. parallel is the Workflow's: a thunk that
+// throws resolves to null and the call never rejects, so a lens or a lane whose dispatch the harness
+// gave up on (endedWithoutEnvelope) is a null in its result, as debate.js reads it.
 const preamble = `
 globalThis.phase = function(){}; globalThis.log = function(){};
 globalThis.budget = { total:null, spent:function(){return 0;}, remaining:function(){return Infinity;} };
-globalThis.parallel = async function(t){ return Promise.all(t.map(function(x){return x();})); };
+globalThis.parallel = async function(t){ return Promise.all(t.map(function(x){ try { return Promise.resolve(x()).catch(function(){ return null; }); } catch(e) { return null; } })); };
 globalThis.pipeline = async function(items){ var st=Array.prototype.slice.call(arguments,1);
   return Promise.all(items.map(async function(it,i){ var v=it; for(var s=0;s<st.length;s++){ try{v=await st[s](v,it,i);}catch(e){return null;} } return v; })); };
 `
@@ -5117,19 +5204,14 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		// goja is single-threaded and the Runtime must not be touched from here: the envelope is
 		// built off-loop with no VM access, and vm.ToValue happens back ON the loop.
 		p, resolve, reject := vm.NewPromise()
+		r.dispatchOpens(seatID)
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
 			// ONLY A DISPATCH CARRYING A SCHEMA ENDS THROUGH THE ENVELOPE CALL, so only its envelope
 			// is put to the record — as the hook puts it in a live run — and only one the record and
-			// the schema both accept is admitted.
-			admitted := false
-			if env != nil && schema != nil {
-				admitted = r.envelopeEnds(seatID)
-				if why := r.schemas.refusal(schema, env); why != "" {
-					r.noteSchemaRefusal(seatID, why)
-					admitted = false
-				}
-			}
+			// the schema both accept, and the seat returns, is admitted. Any other reaches the engine
+			// as live hands it one: the harness gave up, and agent() throws.
+			admitted, gaveUp := r.envelopeOutcome(seatID, schema, env)
 			r.dispatchReturns(seatID, admitted)
 			loop.RunOnLoop(func(vm *goja.Runtime) {
 				if env == nil {
@@ -5137,6 +5219,10 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 					// an empty envelope — debate.js reads fields off it and would fail further
 					// from the cause.
 					_ = reject(vm.ToValue("seat " + seatID + " produced no envelope"))
+					return
+				}
+				if gaveUp {
+					_ = reject(vm.ToValue(endedWithoutEnvelope(seatID)))
 					return
 				}
 				_ = resolve(vm.ToValue(env))
@@ -5546,6 +5632,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if settledErr != "" {
 		res.err = settledErr
+		return res
+	}
+	// EVERY DISPATCH THE ENGINE MADE HAS RETURNED: debate.js awaits each agent() call, and the binding
+	// returns a dispatch before it settles its promise, so a fulfilled debate leaves none open.
+	if why := r.unreturnedDispatches(); why != "" {
+		res.err = "dispatches: " + why
 		return res
 	}
 	// THE RECORD READS AS FAILED EXACTLY THE SITTINGS THE HARNESS CLOSED UNADMITTED: every close
@@ -6665,8 +6757,8 @@ var reportExemptions = map[string]string{
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
-	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics) and record.TranscriptsOf (capture's transcript list), carrying no prose, never rendered",
-	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, and record.OneAdmissionASitting (its own write guard), carrying no prose, never rendered",
+	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics), record.TranscriptsOf (capture's transcript list), and migrate's replay (migrate/replay.go) and admissionBefore (migrate/admission.go: the sitting an older source's close ends, which it admits), carrying no prose, never rendered",
+	"envelope_admitted": "the PostToolUse hook's admission of a seat's envelope — read by record.FailedSittingsOf, which capture reports, record.OneAdmissionASitting (its own write guard) and migrate's admissionBefore (migrate/admission.go: whether a sitting an older source closed is admitted already), carrying no prose, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",

@@ -91,6 +91,7 @@ func TestARefusedCloseIsNotCountedClosed(t *testing.T) {
 		t.Fatalf("the agent-bearing register was refused: %s", r.actErr)
 	}
 	r.sittingAgent = map[string]string{"red-chair": agent}
+	r.dispatchOpens("red-chair")
 	r.writer = filepath.Join(t.TempDir(), "no-such-writer")
 	before := sittingsClosed.Load()
 	r.dispatchReturns("red-chair", false)
@@ -118,7 +119,104 @@ func TestTheAgentBindingReturnsItsDispatch(t *testing.T) {
 			t.Fatalf("dispatch %d: %s", i+1, settledErr)
 		}
 	}
-	requireEverySittingReturned(t, r)
+	requireEveryDispatchReturned(t, r)
+}
+
+// A DISPATCH THE HARNESS GAVE UP ON REACHES THE ENGINE AS A THROW, and nothing from its envelope
+// reaches the record: the seat ended without returning an envelope the record and the schema would
+// accept (endsWithoutEnvelope), so the close lands with no admission and the record reads the sitting
+// as failed. Driven through driveDebate, without the release gate.
+func TestADispatchEndedWithoutItsEnvelopeThrowsAndReadsFailed(t *testing.T) {
+	r := givenUpDispatch(t, `{type: "object"}`, func(r *runner) { r.endWithoutEnvelope = true })
+	if refused := r.distinctSchemaRefusals(); len(refused) != 0 {
+		t.Errorf("the schema refused an envelope it accepts: %v", refused)
+	}
+}
+
+// A SCHEMA-REFUSED ENVELOPE NEVER REACHES THE ENGINE: the Workflow tool enforces the seat's schema,
+// so live the seat retries until it ends without a valid envelope and agent() throws. The binding
+// settles the dispatch as it does any give-up, and the record reads the sitting as failed.
+func TestASchemaRefusedEnvelopeThrowsAndReadsFailed(t *testing.T) {
+	r := givenUpDispatch(t, `{type: "object", required: ["no_such_field"], properties: {no_such_field: {type: "string"}}}`, nil)
+	if refused := r.distinctSchemaRefusals(); len(refused) != 1 {
+		t.Errorf("the schema refused %v, want the one envelope it was handed", refused)
+	}
+}
+
+// givenUpDispatch drives one red-chair dispatch carrying schema, its sitting opened under an agent,
+// and asserts that debate.js received the give-up form both ways it awaits a dispatch — a throw
+// from an awaited agent() and a null from parallel() — and that the record holds each sitting
+// closed, unadmitted and failed.
+func givenUpDispatch(t *testing.T, schema string, arrange func(*runner)) *runner {
+	t.Helper()
+	r := stagedRunner(t)
+	r.openUnderAgent = true
+	if arrange != nil {
+		arrange(r)
+	}
+	r.register("blue", "blue-synthesize")
+	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
+		t.Fatalf("ingest the report: %v", err)
+	}
+	before := failedSittingsClosed.Load()
+	result, settledErr := driveDebate(r, `globalThis.__result = (async function () {
+		var opts = {label: "red-chair", model: "haiku", schema: `+schema+`};
+		var awaited = "fulfilled";
+		try { await agent("SEAT_ID: red-chair", opts); } catch (e) { awaited = "threw: " + (e && e.message ? e.message : e); }
+		var fanned = await parallel([function () { return agent("SEAT_ID: red-chair", opts); }]);
+		return {awaited: awaited, fanned: fanned[0] === null ? "null" : "fulfilled"};
+	})();`)
+	if settledErr != "" {
+		t.Fatal(settledErr)
+	}
+	if got, want := result["awaited"], "threw: "+endedWithoutEnvelope("red-chair"); got != want {
+		t.Errorf("an awaited dispatch the harness gave up on settled %q, want %q", got, want)
+	}
+	if got := result["fanned"]; got != "null" {
+		t.Errorf("a dispatch the harness gave up on under parallel() settled %v, want null", got)
+	}
+	requireEveryDispatchReturned(t, r)
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var admitted, closed int
+	for _, e := range fam.Events {
+		if _, ok := recordpb.BodyAs[*recordpb.EnvelopeAdmitted](e); ok {
+			admitted++
+		}
+		if _, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok {
+			closed++
+		}
+	}
+	if admitted != 0 || closed != 2 {
+		t.Errorf("the record holds %d admission(s) and %d close(s), want no admission and both closes", admitted, closed)
+	}
+	failed, err := record.FailedSittings(r.run())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failed) != 2 || r.failedSittings != 2 || failedSittingsClosed.Load()-before != 2 {
+		t.Errorf("the record reads %+v as failed and the harness counted %d, want both sittings on both", failed, r.failedSittings)
+	}
+	return r
+}
+
+// A RETURN WITH NO DISPATCH OPEN IS A HARNESS DEFECT, and it is loud: it fails the run's dispatch
+// check rather than folding into a count of zero.
+func TestAReturnWithNoDispatchOpenIsAHarnessError(t *testing.T) {
+	r := stagedRunner(t)
+	r.dispatchReturns("red-chair", false)
+	if r.actErr == "" || r.unreturnedDispatches() == "" {
+		t.Errorf("a return with no dispatch open was not recorded: actErr %q, dispatches %q", r.actErr, r.unreturnedDispatches())
+	}
+}
+
+// dispatchSits is a dispatch's opening as the agent binding makes it: the dispatch opens, and the
+// seat sits.
+func (r *runner) dispatchSits(role, seatID string, occasion ...string) {
+	r.dispatchOpens(seatID)
+	r.sit(role, seatID, occasion...)
 }
 
 // returnedRun is a run where seatID sat under an agent and its dispatch returned, admitted or not.
@@ -132,6 +230,7 @@ func returnedRun(t *testing.T, seatID string, admitted bool) (*runner, string) {
 		t.Fatalf("the agent-bearing register was refused: %s", r.actErr)
 	}
 	r.sittingAgent = map[string]string{seatID: agent}
+	r.dispatchOpens(seatID)
 	r.dispatchReturns(seatID, admitted)
 	if r.actErr != "" {
 		t.Fatalf("the return's writes: %s", r.actErr)
