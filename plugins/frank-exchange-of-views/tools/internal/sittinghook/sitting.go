@@ -55,12 +55,13 @@ const writerName = "feov-sitting-write"
 // The values cannot drift silently: TestThePhaseStringsMatchTheWriters asserts them against
 // sittingwrite's own, from the test binary, where the heavy import costs nothing.
 const (
-	phaseOpen     = "open"
-	phaseClose    = "close"
-	phaseLimit    = "limit"
-	phaseRefusal  = "refusal"
-	phaseFailure  = "failure"
-	phaseEnvelope = "envelope"
+	phaseOpen      = "open"
+	phaseClose     = "close"
+	phaseLimit     = "limit"
+	phaseRefusal   = "refusal"
+	phaseFailure   = "failure"
+	phaseEnvelope  = "envelope"
+	phaseAdmission = "admission"
 )
 
 // Limit hands a sitting that has reached the run's tool-call limit to the writer, which puts it on
@@ -108,6 +109,19 @@ func Envelope(runDir, agentID string) (string, error) {
 		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+// Admission hands the writer a seat's envelope the harness accepted: the PostToolUse hook calls it
+// when the call returning the envelope succeeded, and the writer records the admission.
+func Admission(runDir, agentID string) error {
+	writer := writerPath()
+	if writer == "" {
+		return fmt.Errorf("%s is not beside this hook, so %s's accepted envelope is not on the record as admitted", writerName, agentID)
+	}
+	if out, err := exec.Command(writer, "-run", runDir, "-phase", phaseAdmission, "-agent-id", agentID).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %v: %s", writerName, err, out)
+	}
+	return nil
 }
 
 func toolEntry(runDir, phase, agentID, text string) error {

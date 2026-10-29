@@ -65,6 +65,8 @@ const (
 	// StageEnvelope is the check of a seat's envelope against the record (refuseEnvelope): a check
 	// that could not run refuses the envelope naming why, and says so here as well.
 	StageEnvelope hookfailures.Stage = "envelope-check"
+	// StageAdmission is the PostToolUse hook's one job: a seat's accepted envelope recorded as admitted.
+	StageAdmission hookfailures.Stage = "envelope-admission"
 )
 
 // Entry is a hook entry point: it reads the payload, writes its decision document (if any) to
@@ -310,10 +312,11 @@ const envelopeTool = "StructuredOutput"
 
 // refuseEnvelope denies the call returning a seat's envelope when the record refuses it
 // (record.EnvelopeRefusal, asked through the writer): a seat's sitting cannot end while a blocking
-// item on its own work list stands. The writer logs the refusal, and records an envelope it does not
-// refuse as admitted — the fact a finished sitting holds and a failed one does not.
+// item on its own work list stands. The writer logs the refusal. An envelope it lets through is
+// admitted only once the call succeeds — by the PostToolUse hook (Post), after the harness has
+// checked the envelope against its schema.
 //
-// A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, and so does an admission the record does not take, naming the error (gblock's standing rule: an
+// A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, naming the error (gblock's standing rule: an
 // unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
 // check having failed. A call from no seat — no agent, no run — is no seat's envelope, and passes.
 func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
@@ -328,7 +331,7 @@ func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfa
 	}
 	refusal, err := envelopeRefusal(runDir, agentID)
 	if err != nil {
-		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record and its admission recorded, and was refused: "+err.Error())
+		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
 		if refusal == "" {
 			refusal = envelopeReadRefusal(err)
 		}
@@ -340,10 +343,10 @@ func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfa
 	}
 }
 
-// envelopeReadRefusal is the refusal of an envelope whose check against the record could not run, or
-// whose admission the record did not take, naming the error.
+// envelopeReadRefusal is the refusal of an envelope whose check against the record could not run,
+// naming the error.
 func envelopeReadRefusal(err error) string {
-	return "your envelope is refused: it could not be checked against your work list and its admission recorded — " + err.Error() +
+	return "your envelope is refused: it could not be checked against your work list — " + err.Error() +
 		". An envelope nothing checked is not admitted; return it again"
 }
 
@@ -353,10 +356,11 @@ var envelopeRefusal = sittinghook.Envelope
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit
 
-// recordRefusal and recordFailure are variables for the same reason.
+// recordRefusal, recordFailure and recordAdmission are variables for the same reason.
 var (
-	recordRefusal = sittinghook.Refusal
-	recordFailure = sittinghook.Failure
+	recordRefusal   = sittinghook.Refusal
+	recordFailure   = sittinghook.Failure
+	recordAdmission = sittinghook.Admission
 )
 
 // cwdOf pulls the seat's working directory out of the raw payload.

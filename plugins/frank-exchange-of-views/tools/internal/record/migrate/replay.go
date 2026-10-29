@@ -386,7 +386,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
-			// A SITTING CLOSED BEFORE THE GATE RECORDED ITS ADMISSIONS IS ADMITTED AT ITS CLOSE
+			// A SITTING CLOSED BEFORE ENVELOPES WERE RECORDED AS ADMITTED IS ADMITTED AT ITS CLOSE
 			// (admissionBefore), so no past sitting reads as failed.
 			if cl, ok := body.(*recordpb.SittingClose); ok && admits {
 				a, err := admissionBefore(batch.Querier(), cl)

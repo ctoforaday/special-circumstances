@@ -13,7 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// admissionWord is the event type of the envelope gate's admission (recordpb.EnvelopeAdmitted).
+// admissionWord is the event type of an envelope's admission (recordpb.EnvelopeAdmitted).
 var admissionWord = recordpb.Word(recordpb.EventType_EVENT_TYPE_ENVELOPE_ADMITTED)
 
 // wordHolder is a source that can say whether its vocabulary declares an event type.
@@ -21,7 +21,7 @@ type wordHolder interface {
 	HoldsWord(word string) bool
 }
 
-// predatesAdmission is whether src was written before the envelope gate recorded its admissions: its
+// predatesAdmission is whether src was written before envelopes were recorded as admitted: its
 // vocabulary does not declare the word. A shard-era source declares none of it.
 func predatesAdmission(src Source) bool {
 	wh, ok := src.(wordHolder)
@@ -31,15 +31,15 @@ func predatesAdmission(src Source) bool {
 // admissionBefore is the admission a source that predates it is given for the sitting a close ends,
 // or nil where none is owed.
 //
-// A RECORD WRITTEN BEFORE THE GATE RECORDED ITS ADMISSIONS HOLDS NONE, and every closed sitting of a
+// A RECORD WRITTEN BEFORE ENVELOPES WERE RECORDED AS ADMITTED HOLDS NONE, and every closed sitting of a
 // seat whose work arrives as items would read as failed (record.FailedSittingsOf). So each such
 // sitting is admitted at its close: the one the close's agent opened last on the migrated record, of
 // a seat whose work arrives as items, not yet admitted. It is written just before the close, under
 // the close's stamp, as the hook writes it — under the harness, keyed to the agent.
 //
-// THE RESIDUE, ACCEPTED: the source cannot tell a sitting that ended on an admitted envelope from
-// one whose envelope was refused until the harness gave up, so both read as finished. A sitting that
-// failed before the gate recorded admissions is not recoverable from its record.
+// THE RESIDUE, ACCEPTED: the source cannot tell a sitting whose envelope was accepted from one whose
+// envelope the record refused, or its schema rejected, until the harness gave up, so both read as
+// finished. A sitting that failed before admissions were recorded is not recoverable from its record.
 func admissionBefore(q recordsql.Querier, cl *recordpb.SittingClose) (*recordpb.EnvelopeAdmitted, error) {
 	agent := cl.GetAgentId()
 	if agent == "" {

@@ -6792,23 +6792,21 @@ func (x *ReportRead) GetHead() int64 {
 	return 0
 }
 
-// EnvelopeAdmitted is the envelope gate admitting the envelope an agent returned: the PreToolUse hook
-// asked the record whether the seat's work list refuses the call that ends its sitting
-// (EnvelopeRefusal), and it refused nothing. Written by feov-sitting-write under `harness`, as the
-// span ends are: the harness observed the call; the seat asserted nothing.
+// EnvelopeAdmitted is the envelope an agent returned, admitted: the call that ends its sitting
+// SUCCEEDED. The PreToolUse gate asked the record whether the seat's work list refuses that call
+// (EnvelopeRefusal) and it refused nothing, and the harness then accepted the envelope against its
+// schema. Written by feov-sitting-write under `harness` from the PostToolUse hook, which fires on a
+// call that succeeded, as the span ends are: the harness observed the call; the seat asserted nothing.
 //
 // IT IS WHAT TELLS A FAILED SITTING FROM A FINISHED ONE. A seat dispatched with an envelope schema
 // ends its sitting only through that call, so a sitting of a seat whose work arrives as items
 // (WorkArrivesAsItems) that closed with no admission ended some other way: its envelope refused
-// until the harness gave up, or its agent died (FailedSittings). Without it, the record held the
-// same close for both.
+// or rejected by its schema until the harness gave up, or its agent died (FailedSittings). Without
+// it, the record held the same close for both.
 //
 // THE AGENT IS THE KEY, as it is on the close. An agent id names one subagent invocation, so the
 // admission joins the sitting that agent opened; a nudged seat's admission lands after its first
-// close and still joins it. One per agent: the same agent admitted again writes nothing.
-//
-// IT IS THE GATE'S ADMISSION, NOT THE HARNESS'S ACCEPTANCE. The hook runs before the harness checks
-// the envelope against its schema, so an admitted envelope the schema then rejects stays admitted.
+// close and still joins it. One per sitting: the same sitting admitted again writes nothing.
 type EnvelopeAdmitted struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AgentId       *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
@@ -8086,7 +8084,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xd6%\n" +
+	"\b_holding*\xfa%\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8124,8 +8122,8 @@ const file_record_proto_rawDesc = "" +
 	"\x18EVENT_TYPE_SITTING_LIMIT\x10&\x1a\xae\x01\x8a\xb5\x18\xa9\x01a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit\x12\xa5\x01\n" +
 	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\x12\xd8\x01\n" +
 	"\x10EVENT_TYPE_STALE\x10)\x1a\xc1\x01\x8a\xb5\x18\xbc\x01the tool refusing a seat's act on a gap that changed since the seat's sitting opened, having shown the seat what changed — the seat's next act on that gap in this sitting reads from here\x12\xca\x01\n" +
-	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\x12\x9a\x02\n" +
-	"\x1cEVENT_TYPE_ENVELOPE_ADMITTED\x10,\x1a\xf7\x01\x8a\xb5\x18\xf2\x01the envelope gate admitting the envelope an agent returned: the record refused nothing on the seat's work list, so the call ending its sitting went through — a closed sitting of a seat whose work arrives as items, with none of these, failed\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b*\x10*\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
+	"\x16EVENT_TYPE_REPORT_READ\x10+\x1a\xad\x01\x8a\xb5\x18\xa8\x01the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin\x12\xbe\x02\n" +
+	"\x1cEVENT_TYPE_ENVELOPE_ADMITTED\x10,\x1a\x9b\x02\x8a\xb5\x18\x96\x02the envelope an agent returned, admitted: the record refused nothing on the seat's work list and the harness accepted the envelope against its schema, so the call ending its sitting succeeded — a closed sitting of a seat whose work arrives as items, with none of these, failed\"\x04\b\a\x10\a\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b*\x10*\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15*\x14EVENT_TYPE_CLASS_NEW*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
 	"\x05Grade\x12\"\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
 	"\rGRADE_TRIVIAL\x10\x01\x1aB\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xe0?\x12#\n" +

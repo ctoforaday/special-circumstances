@@ -158,7 +158,7 @@ A sitting is one seat's dispatch, from the prompt the engine hands it to the env
 
 ## failed sitting
 
-A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the envelope gate refused its envelope until the harness gave up, or its agent died; the engine dispatches the seat again while it owes its items, and capture names each one.
+A failed sitting is a sitting of a seat whose work arrives as items that closed with no envelope admitted: the call returning its envelope never succeeded, because the envelope gate refused it or its schema rejected it until the harness gave up, or its agent died; the engine dispatches the seat again while it owes its items, and capture names each one.
 
 **Delivered to:** operator
 

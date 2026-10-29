@@ -58,16 +58,17 @@ const (
 	Failure Phase = "failure"
 	// Envelope is not a write of the span either: it is the seat's call that returns its envelope,
 	// asked whether the record refuses it (WriteEnvelopeRefusal). The refusal is printed for the
-	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry; an envelope it
-	// does not refuse is recorded as admitted.
+	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry.
 	Envelope Phase = "envelope"
+	// Admission is that call having SUCCEEDED, from the PostToolUse hook: the gate let it through and
+	// the harness accepted the envelope against its schema. WriteAdmission records it.
+	Admission Phase = "admission"
 )
 
 // WriteEnvelopeRefusal prints the record's refusal of the envelope the agent's seat is returning
 // (record.AgentEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
-// When the record refuses nothing, nothing is printed and the admission is recorded (admit); for an
-// agent bound to no seat, nothing is printed or written. A record that cannot be read, or an
-// admission it does not take, is the error, and the hook refuses the envelope naming it.
+// When the record refuses nothing, or the agent is bound to no seat, nothing is printed or written.
+// A record that cannot be read is the error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
@@ -79,15 +80,9 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	refusal, seat, err := record.AgentEnvelopeRefusal(run, agentID)
-	if err != nil {
+	refusal, _, err := record.AgentEnvelopeRefusal(run, agentID)
+	if err != nil || refusal == "" {
 		return err
-	}
-	if refusal == "" {
-		if seat == "" {
-			return nil // no seat's envelope
-		}
-		return admit(run, agentID)
 	}
 	if _, err := io.WriteString(out, refusal); err != nil {
 		return err
@@ -95,15 +90,26 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 	return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
 }
 
-// admit records the gate admitting the agent's envelope (recordpb.EnvelopeAdmitted), under the
-// harness as the span ends are. It is what tells the sitting's close from a failure (record.FailedSittings),
-// so an admission the record does not take is the error, and the hook refuses the envelope naming it:
-// a sitting that ended on an admission nothing recorded would read as failed. The same agent admitted
-// again writes nothing.
-func admit(run record.Run, agentID string) error {
+// WriteAdmission records the agent's envelope as admitted (recordpb.EnvelopeAdmitted), under the
+// harness as the span ends are. The PostToolUse hook hands it over when the call returning the
+// envelope SUCCEEDED: the PreToolUse gate refused nothing and the harness accepted the envelope
+// against its schema, so the admission is the fact a finished sitting holds and a failed one does
+// not (record.FailedSittings). An agent bound to no seat is no seat's envelope, and nothing is
+// written. The same sitting admitted again writes nothing (record.OneAdmissionASitting).
+func WriteAdmission(runDir, agentID string) error {
+	if agentID == "" {
+		return fmt.Errorf("sittingwrite: an admission needs the agent whose envelope was accepted")
+	}
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return err
+	}
+	if _, found, err := record.SeatOfAgent(run, agentID); err != nil || !found {
+		return err // no seat for this agent
+	}
 	a := &recordpb.EnvelopeAdmitted{AgentId: proto.String(agentID)}
 	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, a, record.OneAdmissionASitting(a)); err != nil && !errors.Is(err, record.ErrWritesNothing) {
-		return fmt.Errorf("the envelope was admitted and the admission could not be recorded: %w", err)
+		return fmt.Errorf("the envelope was accepted and its admission could not be recorded: %w", err)
 	}
 	return nil
 }

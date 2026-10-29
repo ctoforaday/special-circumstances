@@ -151,9 +151,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		// The report read is the lens's whole read of the report: the tool stamps the head it served,
 		// and no flag supplies it.
 		"report_read": "written by a lens's whole `show report`, from the head it serves",
-		// The envelope admission is the harness's: feov-sitting-write records it when the PreToolUse
-		// envelope gate finds nothing to refuse, keyed to the agent the hook names.
-		"envelope_admitted": "written by feov-sitting-write when the envelope gate admits a seat's envelope; no verb records one",
+		// The envelope admission is the harness's: feov-sitting-write records it when the PostToolUse
+		// hook sees the call returning a seat's envelope succeed, keyed to the agent the hook names.
+		"envelope_admitted": "written by feov-sitting-write when the call returning a seat's envelope succeeds; no verb records one",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

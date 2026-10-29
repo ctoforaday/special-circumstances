@@ -87,8 +87,8 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// And one more for `report_read`: the tool serving a lens the whole report at a head, which is
 	// the lens's pin.
 	//
-	// And one more for `envelope_admitted`: the envelope gate admitting the call that ends an agent's
-	// sitting, which tells a finished sitting from a failed one.
+	// And one more for `envelope_admitted`: the call that ends an agent's sitting having succeeded,
+	// which tells a finished sitting from a failed one.
 	const wantBodies = 36
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+

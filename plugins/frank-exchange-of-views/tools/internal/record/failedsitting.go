@@ -12,9 +12,9 @@ import (
 // OneAdmissionASitting is the guard on an envelope_admitted: a sitting ends once, so its envelope is
 // admitted once.
 //
-// THE HARNESS CAN ASK TWICE. A seat whose admitted envelope the harness's schema check then rejects
-// calls again, and the gate admits that call too; an admission of this agent after its latest
-// bracket is the same fact, and the second writes nothing (ErrWritesNothing). The key is the
+// A SEAT CAN RETURN TWICE. The harness tells a seat to call the envelope tool exactly once, and
+// nothing stops a second call that also succeeds; an admission of this agent after its latest
+// opening is the same fact, and the second writes nothing (ErrWritesNothing). The key is the
 // sitting, as OneCloseASitting's is: an agent opened again after its close has a new sitting.
 func OneAdmissionASitting(a *recordpb.EnvelopeAdmitted) Guard {
 	return Check(func(l *Landing) error {
@@ -36,9 +36,9 @@ func OneAdmissionASitting(a *recordpb.EnvelopeAdmitted) Guard {
 }
 
 // FailedSitting is a sitting that closed with no admitted envelope, of a seat whose work arrives as
-// items: the seat was dispatched with an envelope schema, its sitting ends only through the call the
-// envelope gate admits, and its agent returned without one being admitted. Its envelope was refused
-// until the harness gave up, or its agent died.
+// items: the seat was dispatched with an envelope schema, its sitting ends only through the call that
+// returns its envelope, and its agent returned without that call succeeding. Its envelope was refused
+// by the record or rejected by its schema until the harness gave up, or its agent died.
 type FailedSitting struct {
 	SeatID string `json:"seat_id"`
 	// Sitting is the seat's own sitting number, and Epoch the chair sittings at or before its
@@ -62,7 +62,7 @@ func FailedSittings(run Run) ([]FailedSitting, error) {
 //   - the event that OPENED the sitting names the agent that sat it (recordpb.AgentOpening) — the
 //     hook's bracket, or a register no bracket preceded;
 //   - a sitting_close of that agent says the agent returned;
-//   - an envelope_admitted of that agent says the gate admitted the call that ends the sitting.
+//   - an envelope_admitted of that agent says the call that ends the sitting succeeded.
 //
 // A close and an admission belong to the agent's latest opening before them, whichever comes first:
 // a seat the harness nudged is closed at its first stop and admitted after it, and that is one

@@ -50,15 +50,14 @@ func write(t *testing.T, s Sitting) {
 	}
 }
 
-// AN ENVELOPE THE RECORD REFUSES NOTHING ON IS RECORDED AS ADMITTED, under the harness and keyed to
-// the agent; the same sitting admitted again writes nothing, and its close is then no failure.
+// AN ENVELOPE WHOSE CALL SUCCEEDED IS RECORDED AS ADMITTED, under the harness and keyed to the agent;
+// the same sitting admitted again writes nothing, and its close is then no failure.
 func TestAnAdmittedEnvelopeIsRecorded(t *testing.T) {
 	run := admissionRun(t)
 	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: chair})
 	for range 2 {
-		var out bytes.Buffer
-		if err := WriteEnvelopeRefusal(run, "AG", &out); err != nil || out.Len() != 0 {
-			t.Fatalf("the chair's envelope was refused (%v): %q", err, out.String())
+		if err := WriteAdmission(run, "AG"); err != nil {
+			t.Fatalf("the chair's accepted envelope was not admitted: %v", err)
 		}
 	}
 	if got := admissions(t, run); len(got) != 1 || got[0] != "AG" {
@@ -81,7 +80,7 @@ func TestAClosedSittingWithNoAdmissionReadsFailed(t *testing.T) {
 	// Its second: nudged — closed, then admitted.
 	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "C2", AgentType: chair})
 	write(t, Sitting{RunDir: run, Phase: Close, AgentID: "C2", AgentType: chair})
-	if err := WriteEnvelopeRefusal(run, "C2", &bytes.Buffer{}); err != nil {
+	if err := WriteAdmission(run, "C2"); err != nil {
 		t.Fatal(err)
 	}
 	// Its third: still open.
@@ -99,10 +98,29 @@ func TestAClosedSittingWithNoAdmissionReadsFailed(t *testing.T) {
 	}
 }
 
-// AN ENVELOPE THE RECORD REFUSES IS NOT ADMITTED.
-func TestARefusedEnvelopeIsNotAdmitted(t *testing.T) {
+// THE GATE ADMITS NOTHING. An envelope the record refuses nothing on is let through by the PreToolUse
+// gate and still faces the harness's schema check, so the gate's answer writes no admission: the
+// sitting is admitted only when the call succeeds (WriteAdmission, from PostToolUse).
+func TestTheGateAdmitsNothing(t *testing.T) {
 	run := admissionRun(t)
-	if err := WriteEnvelopeRefusal(run, "agent-of-no-seat", &bytes.Buffer{}); err != nil {
+	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: chair})
+	var out bytes.Buffer
+	if err := WriteEnvelopeRefusal(run, "AG", &out); err != nil || out.Len() != 0 {
+		t.Fatalf("the chair's envelope was refused (%v): %q", err, out.String())
+	}
+	if got := admissions(t, run); len(got) != 0 {
+		t.Fatalf("the gate's answer wrote admissions %v — an envelope the schema may still reject is not admitted", got)
+	}
+	write(t, Sitting{RunDir: run, Phase: Close, AgentID: "AG", AgentType: chair})
+	if f, err := record.FailedSittings(mustRun(t, run)); err != nil || len(f) != 1 {
+		t.Errorf("a sitting whose call never succeeded reads as finished (%v): %+v", err, f)
+	}
+}
+
+// AN AGENT BOUND TO NO SEAT IS NO SEAT'S ENVELOPE, and its successful call admits nothing.
+func TestAnAgentOfNoSeatIsNotAdmitted(t *testing.T) {
+	run := admissionRun(t)
+	if err := WriteAdmission(run, "agent-of-no-seat"); err != nil {
 		t.Fatal(err)
 	}
 	if got := admissions(t, run); len(got) != 0 {

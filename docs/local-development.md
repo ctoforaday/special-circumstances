@@ -241,7 +241,7 @@ env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u 
 **A run's members are its lead session's agents.** `setup` records the session it runs in
 (`CLAUDE_CODE_SESSION_ID`) on the run's `.claude/run-live.json` row as the run's lead session. While
 that row is live — the run's directory exists and its outcome is not yet recorded — the
-SubagentStart/Stop, PreToolUse and PostToolUseFailure hooks attribute a call to the run only when the
+SubagentStart/Stop, PreToolUse, PostToolUse and PostToolUseFailure hooks attribute a call to the run only when the
 payload's `session_id` is the run's lead session; every subagent, the Workflow tool's seats included,
 carries its dispatching session's id. A dev session in the same checkout or a worktree nested under
 it is not attributed and gets no `FEOV_RUN`. Between the outcome and the capture the run's lead session's

@@ -31,7 +31,7 @@ lockdown's; it is parsed here and nowhere else. THIS USED TO BE TWO JOBS: it als
 blue-report write-lockdown (a PreToolUse deny of a non-author raw write to blue/report.md, and a
 PostToolUse backstop for a dropped finding-marker). Under report-as-record (#709) there is no
 blue/report.md file — the report is the record, every change is an appended event, and a raw write
-cannot reach it — so the lockdown and its PostToolUse binary are gone; only this injection remains.
+cannot reach it — so the lockdown and its PostToolUse backstop are gone; only this injection remains.
 DEDICATED SINGLE-PURPOSE BINARY rather than a verb on feov-record: as `feov-record hook pretooluse`
 the invocation carried no --seat-id, the identity-scoped surface refused it, and the refusal's exit
 2 denied every mutating tool call in the session. The bootstrap guard mirrors prosthetic-conscience:
@@ -57,14 +57,24 @@ the environment the hook inherits.
 THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelope with and that ends
 its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
 a blocking item on the seat's own work list stands, the call is denied naming each item, and the
-refusal is logged under the seat. An envelope the record does not refuse is recorded as ADMITTED — an
-`envelope_admitted` event under `harness`, keyed to the agent — and that admission is what tells a
-finished sitting from a failed one: a closed sitting of a seat whose work arrives as items, with no
-admission, failed (its envelope was refused until the harness gave up, or its agent died), and
-capture names it. A check that cannot run, or an admission the record does not take, refuses the
-envelope naming the error. THE GATE RUNS BEFORE THE HARNESS'S SCHEMA CHECK: the harness validates the
-envelope against its schema inside the tool's own call, after every PreToolUse hook, so an admitted
-envelope the schema then rejects stays admitted.
+refusal is logged under the seat. A check that cannot run refuses the envelope naming the error. The
+gate admits nothing: an envelope it lets through still faces the harness's schema check, which runs
+inside the tool's own call, after every PreToolUse hook. The admission is PostToolUse's.
+
+## PostToolUse
+
+MATCHER `StructuredOutput`: the binary is spawned for the call that returns a seat's envelope and for
+no other. PostToolUse fires on a call that SUCCEEDED, so when it fires the envelope gate refused
+nothing and the harness accepted the envelope against its schema. The hook hands the call to
+feov-sitting-write (`-phase admission`), which records the envelope as ADMITTED — an
+`envelope_admitted` event under `harness`, keyed to the agent, one per sitting. That admission is what
+tells a finished sitting from a failed one: a closed sitting of a seat whose work arrives as items,
+with no admission, failed (its envelope was refused by the record or rejected by its schema until the
+harness gave up, or its agent died), and capture names it. A call the schema rejects fails, and
+reaches PostToolUseFailure, which logs it as the seat's `failure` entry. An admission the record does
+not take goes on the hook record (stage `envelope-admission`), and the sitting reads as failed. A call
+from no seat — the main session, an operator — writes nothing. The bootstrap guard mirrors every other
+hook here.
 
 ## SubagentStart
 
