@@ -85,7 +85,7 @@ func TestTheDSNIsBuiltByAURIBuilderRatherThanConcatenated(t *testing.T) {
 	// lock to convert a fresh database (#801). Sorting this string prettily, or moving
 	// busy_timeout back to the end where it reads as a trailing default, reopens a race
 	// whose symptom is a 0.04s "database is locked" on a concurrent open.
-	const q = "?_txlock=immediate&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)"
+	const q = "?_txlock=immediate&_pragma=busy_timeout(60000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)"
 	for _, c := range []struct{ path, want string }{
 		{"/runs/plain/record.db", "file:///runs/plain/record.db" + q},
 		{"/runs/hash#01/record.db", "file:///runs/hash%2301/record.db" + q},
@@ -111,9 +111,9 @@ func TestTheDSNIsBuiltByAURIBuilderRatherThanConcatenated(t *testing.T) {
 		}
 	}
 	// THE QUERY IS VERBATIM. Running it through url.Values would escape the parentheses in
-	// `busy_timeout(5000)`, and a pragma the driver cannot parse is a setting silently not applied
+	// `busy_timeout(60000)`, and a pragma the driver cannot parse is a setting silently not applied
 	// — _txlock in particular is the difference between working and not.
-	if got := dsnFor("/x/record.db"); !strings.Contains(got, "busy_timeout(5000)") {
+	if got := dsnFor("/x/record.db"); !strings.Contains(got, "busy_timeout(60000)") {
 		t.Errorf("the pragma parentheses were escaped out of the query: %s", got)
 	}
 }

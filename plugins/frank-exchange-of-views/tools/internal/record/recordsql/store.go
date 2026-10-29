@@ -58,7 +58,7 @@ import (
 // same three and everything else the grammar needs, in the right order, and it also handles the
 // one case percent-encoding cannot: a path beginning `//` would parse as an AUTHORITY, and
 // url.URL emits an explicit empty authority (`file:////server/share`) so the path survives whole.
-// RawQuery is written verbatim, which is what keeps `busy_timeout(5000)`'s parentheses intact.
+// RawQuery is written verbatim, which is what keeps `busy_timeout(60000)`'s parentheses intact.
 func dsnFor(path string) string { return dsnWithQuery(path, writeQuery()) }
 
 // writeQuery is the write connection's settings, read at each open so that the busy_timeout it
@@ -528,12 +528,27 @@ func openUncached(path string) (*sql.DB, error) {
 // retry alike — one figure, because connect exists to give the connect-time pragmas the wait the
 // pragma itself cannot give them. A variable so a test can shorten it.
 //
+// SIXTY SECONDS, BECAUSE A SEAT'S WRITE HOLDS THE LOCK THROUGH ITS VALIDATION AND FOLD. The write
+// transaction is open from seat.Places to Landing.Report (landing.go), so a waiter queues behind
+// the whole of another seat's check, not one INSERT; under concurrent seats on a loaded host
+// (load ~280, NumCPU×3 concurrent runs) that queue outlasts a budget of a few seconds, and the act
+// fails with SQLITE_BUSY.
+//
 // SIBLING COPY: gray-area's catalogue/open.go carries the same mechanism — openBusyBudget and
-// isBusy under the same names, and the same 5s budget. Its backoff is a named function,
+// isBusy under the same names — on the same 60s budget, set by hand there. Its backoff is a named function,
 // busyBackoff, on a different schedule (5ms doubling to 160ms); connect below inlines its own
 // (1ms doubling to 50ms). Both are jittered. It is a separate module and cannot import this one,
 // so a fix here is swept there by hand.
-var openBusyBudget = 5 * time.Second
+var openBusyBudget = 60 * time.Second
+
+// SetBusyBudgetForTest shortens openBusyBudget for a test outside this package that waits a held
+// lock out, and returns the restore. The next open reads it; a handle already cached keeps the
+// budget it was opened with, so close it first (CloseUnder).
+func SetBusyBudgetForTest(d time.Duration) (restore func()) {
+	was := openBusyBudget
+	openBusyBudget = d
+	return func() { openBusyBudget = was }
+}
 
 // connect opens the pool's one connection, waiting out SQLITE_BUSY for openBusyBudget and failing on
 // anything else at once.
@@ -543,7 +558,7 @@ var openBusyBudget = 5 * time.Second
 // `journal_mode(WAL)` is a conversion that takes an exclusive lock and returns SQLITE_BUSY
 // immediately when another connection holds the file, without consulting the busy handler that
 // was just installed. Six openers of one fresh database, released together: measured here, the
-// loser fails inside 0.1s against a 5s timeout, and the failing statement is the connect's pragma,
+// loser fails inside 0.1s, nowhere near the timeout, and the failing statement is the connect's pragma,
 // never the SELECT that follows it (600 openers probed, every failure at connect).
 //
 // This is the wait the swallow used to provide by accident. hasEvents answered "no" to a failed
