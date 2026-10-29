@@ -2297,7 +2297,7 @@ func (r *runner) judgeToReopen(seatID string) {
 }
 
 // proveOwed is blue-respond's act in owedProofSeed's run: a fresh proof of the seeded sentence, which
-// the computation lens owes a check of until it sits. It draws nothing.
+// the computation lens owes a check of until it sits, and an edit of the edit target. It draws nothing.
 func (r *runner) proveOwed(seatID string) {
 	if !r.forceOwedProof || seatID != "blue-respond" {
 		return
@@ -2311,6 +2311,27 @@ func (r *runner) proveOwed(seatID string) {
 		r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name,
 			"--reason", "fuzz: a proof its owner has not yet checked")
 	}
+	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A proof moves no head, and a fold names a debt that
+	// keeps a lens from retiring in the clause keptByDebt reads only while the lens is behind the
+	// head; at its pin the clause is another. Left to blue's drawn edits, the forced run kept the
+	// owner by an unchecked proof 2 times in 12 epochs. The edit rewrites the edit target, not the
+	// sentence the proof backs, so the proof stays unchecked rather than reopened.
+	cur, err := reportproj.RenderFromRecord(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered for owedProofSeed's edit: " + err.Error())
+		return
+	}
+	oldSpan, newSpan := "rising over time", "climbing sharply"
+	if !strings.Contains(string(cur), oldSpan) {
+		oldSpan, newSpan = newSpan, oldSpan
+	}
+	if !strings.Contains(string(cur), oldSpan) {
+		r.noteActErr("owedProofSeed's edit target is in neither phrasing: the report no longer holds the sentence the edit drives rewrite")
+		return
+	}
+	run := r.edgeRun(cur, oldSpan)
+	r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
+		set("--reason", "fuzz: blue sharpens its prose after a proof, moving the head past the owner's pin").admit()
 }
 
 // unsoundFed is whether a plan of this run has readied the judge or blue for every unsound proof it
