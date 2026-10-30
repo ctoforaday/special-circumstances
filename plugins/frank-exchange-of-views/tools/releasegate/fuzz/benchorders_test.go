@@ -178,7 +178,9 @@ func (r *runner) lensMovesBenchAxis(seatID string) string {
 
 // lensMovesFreeAxis is, on the forced seed, the minting lens moving an axis of gapID the bench does not
 // hold: movement, so the gap's limits count afresh and its next hearing may remand it again — the
-// hearing whose bench move releases the axis it holds.
+// hearing whose bench move releases the axis it holds. Where the bench has released an axis of the
+// gap it still holds another of, the lens moves the released one, and lockLifted counts it as
+// lensMovesReleasedAxis does: that gap reaches this arm first, so the other never meets it.
 func (r *runner) lensMovesFreeAxis(seatID, gapID string, held map[string]string) bool {
 	if !r.forceBenchOrders {
 		return false
@@ -187,9 +189,21 @@ func (r *runner) lensMovesFreeAxis(seatID, gapID string, held map[string]string)
 	if len(free) == 0 {
 		return false
 	}
+	r.mu.Lock()
+	released := slices.DeleteFunc(slices.Clone(free), func(d string) bool { return !r.benchLifted[gapID][d] })
+	r.mu.Unlock()
+	if len(released) > 0 {
+		free = released
+	}
 	dim := pick(r.rng, free)
 	_, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, r.gradeOtherThan(r.currentGrade(gapID, dim)),
 		"--reason", "fuzz: the lens moving an axis the bench does not hold")
+	if ok && len(released) > 0 {
+		r.mu.Lock()
+		delete(r.benchLifted[gapID], dim)
+		r.lockLifted++
+		r.mu.Unlock()
+	}
 	return ok
 }
 
