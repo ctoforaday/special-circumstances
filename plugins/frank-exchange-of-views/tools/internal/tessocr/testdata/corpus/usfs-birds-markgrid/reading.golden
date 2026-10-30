@@ -1,4 +1,4 @@
-usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@757c966a67b2 · rendered at 501.21 DPI (native 501.21), 1794x4351 px
+usfs-birds-markgrid · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@4214567013aa · rendered at 501.21 DPI (native 501.21), 1794x4351 px
 table: true · rules: detector · rotated: false · grid intersections: 1662 · repaired crossings: 0 · length: 1207 · ink: 16.126%
 text cells: 1 tables, 2 bands, 9 rows, 13 columns, 25 cells, 138 words placed, 138 read
 fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
