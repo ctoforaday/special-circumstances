@@ -166,6 +166,14 @@ func Jaccard(a, b map[string]bool) float64 {
 // trimmed. Internal punctuation survives as content. Returns "" for an empty/all-
 // punctuation quote (which locateEnd rejects — never a false match at offset 0).
 func normalizeQuote(q string) string {
+	s := strings.TrimRight(skeleton(q), trailingPunct)
+	return strings.TrimRight(s, " ")
+}
+
+// skeleton is q with its annotation spans dropped, its whitespace runs collapsed to one space and
+// its trailing whitespace trimmed — normalizeQuote before the trailing-punctuation trim, so the run
+// the trim drops is what follows normalizeQuote(q) in it.
+func skeleton(q string) string {
 	var out []byte
 	for i := 0; i < len(q); {
 		if n := annotationLen(q, i); n > 0 {
@@ -182,9 +190,7 @@ func normalizeQuote(q string) string {
 		out = append(out, q[i])
 		i++
 	}
-	s := strings.TrimRight(string(out), " ")
-	s = strings.TrimRight(s, trailingPunct)
-	return strings.TrimRight(s, " ")
+	return strings.TrimRight(string(out), " ")
 }
 
 // locateEnd returns the byte offset in report just past the last CONTENT char of the
@@ -342,6 +348,57 @@ func SpanBoundaryOK(s string, start, end int) bool {
 	return !splits(start) && !splits(end)
 }
 
+// placement is where an anchor on quote sits in doc, given end — just past the last content byte of
+// quote's match there: past each closing quotation mark the quote's own trailing punctuation carries,
+// where doc holds that punctuation in turn, the invisible layer skipped.
+//
+// AN ANCHOR NEVER SPLITS A QUOTATION THE QUOTE CLOSED. The trailing-punctuation trim lets a quote
+// carry or drop a full stop, and the anchor sits before it; the same trim also took the closing mark
+// off `for example "91 is not a Prime number"`, so the computation's anchor landed between "number" and the
+// mark the seat had quoted (universe-m36 ev339, K-f3354ca4). The quote names the mark, so the anchor
+// goes past it; a full stop after the mark still stands after the anchor.
+//
+// Only a mark that touches the content closes it: a space in the run ends the walk, so the opening
+// mark of `as defined in "` is never taken as the end of the quote.
+func placement(doc, quote string, end int) int {
+	nq, full := normalizeQuote(quote), skeleton(quote)
+	if !strings.HasPrefix(full, nq) {
+		return end
+	}
+	at, ri := end, end
+	for _, c := range []byte(full[len(nq):]) {
+		ri = skipAnnotations(doc, ri)
+		if c == ' ' || ri >= len(doc) || doc[ri] != c {
+			break
+		}
+		ri++
+		if c == '"' || c == '\'' {
+			at = ri
+		}
+	}
+	return at
+}
+
+// skipAnnotations is the offset of the first byte at or after i that no annotation span covers.
+func skipAnnotations(s string, i int) int {
+	for i < len(s) {
+		n := annotationLen(s, i)
+		if n == 0 {
+			break
+		}
+		i += n
+	}
+	return i
+}
+
+// closesQuotation reports whether the next visible character of doc at `at` closes a quotation: a
+// double quotation mark, straight or curly. A single mark is not read here — after a letter it is as
+// often an apostrophe ("the students' work") as the close of a quotation.
+func closesQuotation(doc string, at int) bool {
+	rest := doc[skipAnnotations(doc, at):]
+	return strings.HasPrefix(rest, "\"") || strings.HasPrefix(rest, "”")
+}
+
 // insertMarker splices marker into report at byte offset `at`.
 func insertMarker(report []byte, at int, marker string) []byte {
 	out := make([]byte, 0, len(report)+len(marker))
@@ -360,14 +417,17 @@ var (
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
 )
 
-// LocateOnce's refusals after ErrMisQuote, and Attach's ErrOnHeading. Refusal words each for a
-// placement.
+// LocateOnce's refusals after ErrMisQuote, and Attach's ErrOnHeading and ErrInQuotation. Refusal
+// words each for a placement.
 var (
 	ErrAmbiguous        = errors.New("the quote occurs more than once")
 	ErrCrossesParagraph = errors.New("the quote's one match in the report runs across a blank line")
 	ErrSplitsWord       = errors.New("your span starts or ends inside a word — quote whole words")
 	// A heading titles a section and states nothing, so no anchor of any kind sits on one.
 	ErrOnHeading = errors.New("the quote ends in a section heading")
+	// An anchor placed before a closing quotation mark sits inside the quotation, on the quoted words
+	// rather than the sentence that quotes them.
+	ErrInQuotation = errors.New("the quote ends inside a quotation, before its closing quotation mark")
 )
 
 // AmbiguousError is ErrAmbiguous with WHERE the quote stands: each occurrence's section and the
@@ -446,7 +506,7 @@ func occurrences(doc string, starts []int) string {
 }
 
 // Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
-// sentinels and for ErrOnHeading, so every placer teaches them in the same
+// sentinels and for ErrOnHeading and ErrInQuotation, so every placer teaches them in the same
 // words. ErrMisQuote and ErrInFence, which each verb words for its own quote, come back unchanged.
 //
 // None advises one placement per site: an anchor names one place, and a quote that occurs twice is
@@ -461,6 +521,8 @@ func Refusal(err error) error {
 		return err
 	case errors.Is(err, ErrOnHeading):
 		return fmt.Errorf("%w, and an anchor sits on prose, never on a heading: quote a sentence of the section's text", err)
+	case errors.Is(err, ErrInQuotation):
+		return fmt.Errorf("%w, and an anchor sits after the quotation it ends on: quote through the closing mark", err)
 	}
 	return err
 }
@@ -470,38 +532,51 @@ func Refusal(err error) error {
 // Attach admitted, because the one occurrence Attach counted is also the first; it does not re-check
 // uniqueness, because replay reproduces history rather than re-authorising it.
 func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
-	end := locateEnd(string(report), strings.TrimSpace(location))
+	location = strings.TrimSpace(location)
+	end := locateEnd(string(report), location)
 	if end < 0 {
 		return nil, ErrMisQuote
 	}
-	if InBlock(string(report), end, anchor.Fence) {
+	at := placement(string(report), location, end)
+	if InBlock(string(report), at, anchor.Fence) {
 		return nil, ErrInFence
 	}
-	return insertMarker(report, end, marker), nil
+	return insertMarker(report, at, marker), nil
 }
 
 // Attach is the one write-time placement: doc with the anchor id's token at the end of the quote's
-// one occurrence within one paragraph — LocateOnce's refusals, then ErrInFence, then ErrOnHeading.
+// one occurrence within one paragraph, past any closing quotation mark the quote carries (placement)
+// — LocateOnce's refusals, then ErrInFence, then ErrOnHeading, then ErrInQuotation where the quote
+// stops short of a closing double quotation mark the report holds there. The tool does not carry the
+// anchor past a mark the seat did not quote: it refuses, and the seat quotes through the mark.
 // Every placing verb validates its anchor through it and builds no token of its own; each words
 // ErrMisQuote and ErrInFence itself and the rest through Refusal.
 func Attach(doc, id, quote string) (string, error) {
 	_, end, err := LocateOnce(doc, quote, StopAtParagraph)
-	switch {
-	case err != nil:
+	if err != nil {
 		return "", err
-	case InBlock(doc, end, anchor.Fence):
-		return "", ErrInFence
-	case InBlock(doc, end, anchor.Heading):
-		return "", ErrOnHeading
 	}
-	return string(insertMarker([]byte(doc), end, anchor.Token(id))), nil
+	at := placement(doc, strings.TrimSpace(quote), end)
+	switch {
+	case InBlock(doc, at, anchor.Fence):
+		return "", ErrInFence
+	case InBlock(doc, at, anchor.Heading):
+		return "", ErrOnHeading
+	case closesQuotation(doc, at):
+		return "", ErrInQuotation
+	}
+	return string(insertMarker([]byte(doc), at, anchor.Token(id))), nil
 }
 
-// ContentEnd is the offset just past text's last content character — before its trailing
-// punctuation, whitespace and anchors — where Attach places an anchor on a quote ending there.
+// ContentEnd is where Attach places an anchor on a quote of all of text: just past its last content
+// character — before its trailing punctuation, whitespace and anchors — or past a closing quotation
+// mark that touches it (placement).
 func ContentEnd(text string) int {
 	_, end := locate(text, text, CrossParagraphs)
-	return max(end, 0)
+	if end < 0 {
+		return 0
+	}
+	return placement(text, strings.TrimSpace(text), end)
 }
 
 // InBlock reports whether byte offset `at` falls inside a block of kind k, its first and last lines
