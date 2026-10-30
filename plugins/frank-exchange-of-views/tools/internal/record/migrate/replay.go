@@ -294,9 +294,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// A RE-RUN'S DRIFT IS THE PROGRAM'S BYTES, which are not the debate's wording: an anchor
 			// token a program printed is what it printed, so it is kept through the respelling.
 			repro, _ := body.(*recordpb.Reproduce)
+			// The bytes are copied, not the pointer: the respelling sets a field through the
+			// pointer it already holds, so a kept pointer would read back the respelled bytes.
 			var drift *string
-			if repro != nil {
-				drift = repro.Drift
+			if repro != nil && repro.Drift != nil {
+				drift = proto.String(repro.GetDrift())
 			}
 			rm.apply(body, src.Fields["label"])
 			if repro != nil {
