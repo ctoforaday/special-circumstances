@@ -72,8 +72,8 @@ const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
 // Absent from every --help surface, like the other two: a seat never types it.
 const VarHookVersion = "FEOV_HOOK_VERSION"
 
-// VarProofRerun names a file, and its presence says the process is a proof's script running under
-// a re-run or under `prove`'s check from the proof store. feov-record refuses EVERY call made while
+// VarComputeRerun names a file, and its presence says the process is a proof's script running under
+// a re-run or under `compute`'s check from the proof store. feov-record refuses EVERY call made while
 // it is set and appends that call to the file, so the run that set it learns the script called the
 // tool whatever the script did with the refusal.
 //
@@ -85,7 +85,7 @@ const VarHookVersion = "FEOV_HOOK_VERSION"
 // and one that reads the debate's record is not.
 //
 // Absent from every --help surface: a seat never types it.
-const VarProofRerun = "FEOV_PROOF_RERUN"
+const VarComputeRerun = "FEOV_COMPUTE_RERUN"
 
 // Resolve returns the run directory for a seat verb.
 //

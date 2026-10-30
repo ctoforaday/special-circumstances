@@ -59,7 +59,7 @@ func newCite() *cobra.Command {
 		// nothing — a real source's own title can legitimately carry a tell.
 		tells := spanVoiceTells(title)
 
-		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `prove`
+		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `compute`
 		// resolve theirs: a retry is the same act, judged on the same inputs.
 		why, err := seat.Reason(cmd)
 		if err != nil {

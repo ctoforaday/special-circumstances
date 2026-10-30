@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// writeScript lays a proof script under the run directory, where `blue prove` resolves it.
+// writeScript lays a proof script under the run directory, where `blue compute` resolves it.
 func writeScript(t *testing.T, runDir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(runDir, name), []byte(body+"\n"), 0o644); err != nil {
@@ -55,8 +55,8 @@ func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 		t.Fatal("a computation gap closed with no proof — red accepted the one kind of evidence it declared insufficient")
 	}
 	// THE WAY OUT IS A PATH A SEAT CAN TYPE: the verb as blue's surface lists it, with the flag it
-	// registers. It said `blue prove --location`, and neither the role word nor the flag exists.
-	for _, want := range []string{"check-kind computation", "`prove --quote"} {
+	// registers. It said `blue compute --location`, and neither the role word nor the flag exists.
+	for _, want := range []string{"check-kind computation", "`compute --quote"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not mention %q, so nobody learns the way out:\n%v", want, err)
 		}
@@ -71,10 +71,10 @@ func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log([2,3,4,5,6].filter(n=>7%n===0).length===0);")
 
-	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G1",
 		"--reason", "trial division settles it"); err != nil {
-		t.Fatalf("prove refused: %v", err)
+		t.Fatalf("compute refused: %v", err)
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "lens reproduce",
@@ -93,10 +93,10 @@ func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
 	mintComputation(t, runDir, "G2")
 	writeScript(t, runDir, "nine.js", "console.log(9%3===0);")
 
-	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "Nine is composite.", "--script", "nine.js", "--answers", "G2",
 		"--reason", "settles the second claim"); err != nil {
-		t.Fatalf("prove refused: %v", err)
+		t.Fatalf("compute refused: %v", err)
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
@@ -121,16 +121,16 @@ func TestADocumentCheckStillClosesOnProse(t *testing.T) {
 
 // --answers is checked against the board like every other reference. A dangling one is
 // refused at the write, not accepted and dropped at replay.
-func TestProveRefusesAnUnknownGap(t *testing.T) {
+func TestComputeRefusesAnUnknownGap(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log(true);")
 
-	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G99",
 		"--reason", "x"); err == nil {
-		t.Error("prove --answers accepted a gap no mint created")
+		t.Error("compute --answers accepted a gap no mint created")
 	}
 }
 

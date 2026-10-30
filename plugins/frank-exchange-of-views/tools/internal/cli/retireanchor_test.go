@@ -68,14 +68,14 @@ func retireClaim(t *testing.T, runDir, claim string) *recordpb.Retire {
 	return lastBody(t, runDir, &recordpb.Retire{})
 }
 
-// proveSentence backs one sentence with a proof and returns its anchor id: a marker an edit may
+// computeSentence backs one sentence with a proof and returns its anchor id: a marker an edit may
 // leave bare, for the retire to take out with its claim.
-func proveSentence(t *testing.T, runDir, sentence string) string {
+func computeSentence(t *testing.T, runDir, sentence string) string {
 	t.Helper()
-	s := script(t, runDir, "prove-"+strings.Trim(strings.Fields(sentence)[0], ".")+".js", "console.log('it holds');")
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+	s := script(t, runDir, "compute-"+strings.Trim(strings.Fields(sentence)[0], ".")+".js", "console.log('it holds');")
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
 		"--script", s, "--reason", "the computation settles it"); err != nil {
-		t.Fatalf("prove %q: %v", sentence, err)
+		t.Fatalf("compute %q: %v", sentence, err)
 	}
 	return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
 }
@@ -218,7 +218,7 @@ func TestACitationRetireAnsweringAGapIsInItsChangeLog(t *testing.T) {
 		t.Errorf("the changelog's retirements do not name the gap the retire answers (%v):\n%s", err, changelog)
 	}
 
-	proof := proveSentence(t, runDir, "The grass is green.")
+	proof := computeSentence(t, runDir, "The grass is green.")
 	gutToAnchor(t, runDir, "The grass is green.", anchor.Token(proof))
 	_, err = run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The grass is green.",
 		"--answers", gap, "--reason", "refuted")
@@ -278,9 +278,9 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 				id = citeSentence(t, runDir, sentence, "https://water/1")
 			case "proof":
 				s := script(t, runDir, "wet.js", "console.log('wet');")
-				if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+				if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
 					"--script", s, "--reason", "the computation settles it"); err != nil {
-					t.Fatalf("prove: %v", err)
+					t.Fatalf("compute: %v", err)
 				}
 				id = lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
 			case "gap":
@@ -372,7 +372,7 @@ func TestRetireWithoutABareAnchorNamesNone(t *testing.T) {
 // again would be a remove op replay cannot apply.
 func TestRetiringTwiceNamesTheAnchorOnce(t *testing.T) {
 	runDir := citedRun(t)
-	id := proveSentence(t, runDir, "The sky is blue.")
+	id := computeSentence(t, runDir, "The sky is blue.")
 	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(id))
 	retireClaim(t, runDir, "The sky is blue.")
 	if ev := retireClaim(t, runDir, "The sky is blue."); len(ev.GetAnchors()) != 0 {
@@ -455,8 +455,8 @@ func TestRetireTakesTwoProvedSentencesOutAtOnce(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "citations "+g+", "+d+" standing bare") || !strings.Contains(err.Error(), "before them in their sentence") {
 		t.Errorf("cutting two cited sentences to their anchors = %v, want a refusal naming both", err)
 	}
-	a := proveSentence(t, runDir, "Alpha holds.")
-	b := proveSentence(t, runDir, "Beta holds.")
+	a := computeSentence(t, runDir, "Alpha holds.")
+	b := computeSentence(t, runDir, "Beta holds.")
 	hi, lo := a, b
 	if hi < lo {
 		hi, lo = lo, hi
@@ -540,7 +540,7 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 	writeReport(t, runDir, retireBase)
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://sky/1": []byte("<html>sky</html>")}})
-	id := proveSentence(t, runDir, "The sky is blue.")
+	id := computeSentence(t, runDir, "The sky is blue.")
 	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(id))
 	if ev := retireClaim(t, runDir, "The sky is blue."); len(ev.GetAnchors()) != 1 {
 		t.Fatalf("precondition: the retire named %v, want the one anchor", ev.GetAnchors())
@@ -567,7 +567,7 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 // writes — and records nothing.
 func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	runDir := citedRun(t)
-	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(proveSentence(t, runDir, "The sky is blue.")))
+	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(computeSentence(t, runDir, "The sky is blue.")))
 
 	i := strings.Index(recordsql.ViewsDDL, `CREATE VIEW "report_op" AS`)
 	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT e.\"id\", 'remove'")

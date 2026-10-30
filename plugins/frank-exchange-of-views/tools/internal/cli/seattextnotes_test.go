@@ -23,7 +23,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 	if err := os.WriteFile(script, []byte("echo 0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond", "--quote", sentence,
+	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", sentence,
 		"--script", script, "--reason", "an empty body parses to nothing, which the class [^\\s] never matches"); err != nil {
 		t.Fatal(err)
 	}

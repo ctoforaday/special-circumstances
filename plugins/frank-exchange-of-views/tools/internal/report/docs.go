@@ -231,7 +231,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		if docs[i].File == FileReport {
 			composed[bibliographyHeading] = woven != body
 		}
-		body, hit := weaveProofRefs(collapseBlanks(woven), proofs)
+		body, hit := weaveComputationRefs(collapseBlanks(woven), proofs)
 		for _, label := range hit {
 			used[label] = true
 		}

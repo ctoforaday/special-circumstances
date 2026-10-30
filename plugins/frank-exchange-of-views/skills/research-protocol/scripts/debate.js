@@ -553,7 +553,7 @@ const declareClause = ''
 // closure is authored too — all but the lens's, LENS_ENVELOPE, generated closed from its
 // declaration; the simulator holds every dispatched schema to it.
 //
-// The synthesizer's sitting returns nothing the engine threads: what it froze, cited, proved and
+// The synthesizer's sitting returns nothing the engine threads: what it froze, cited, computed and
 // re-voiced is on the record as events. Replaying synthesis sittings with and without each former
 // key (2026-10-20) changed no first return, so the envelope is empty and nothing restates the record.
 const SYNTHESIS_ENVELOPE = { type: 'object', additionalProperties: false, properties: {} }

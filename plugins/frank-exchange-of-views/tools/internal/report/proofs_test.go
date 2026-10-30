@@ -44,7 +44,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 		Script: "nine.js", Reason: "trial division settles it", Cites: "C-00001234",
 	}}
 	md := "Nine is composite by trial division<!--proof:P-deadbeef-->.\n"
-	out, used := weaveProofRefs(md, proofs)
+	out, used := weaveComputationRefs(md, proofs)
 
 	if strings.Contains(out, "<!--proof:") {
 		t.Error("a raw proof anchor shipped into the deliverable")
@@ -84,14 +84,14 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 }
 
 // A PROOF WITH NO REASON IS NAMED BY THE RUN'S COPY OF ITS SCRIPT, in the report's note and in the
-// evidence heading alike: `prove --reason` is optional, and the path the seat ran is a working file
+// evidence heading alike: `compute --reason` is optional, and the path the seat ran is a working file
 // in the operator's home directory on a real run.
 func TestAProofWithNoReasonIsNamedByItsStoredScript(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "abc123def4567890"
 	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
 	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "/home/someone/scratch/nine.py"}}
-	out, _ := weaveProofRefs("Seven divides 91<!--proof:P-deadbeef-->.\n", proofs)
+	out, _ := weaveComputationRefs("Seven divides 91<!--proof:P-deadbeef-->.\n", proofs)
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
 	const stored = "proofs/" + sha + "/script.py"
 	if !strings.Contains(out, "[^P1]: "+stored) {
@@ -170,7 +170,7 @@ func TestEveryProofReferenceHasADefinitionInTheSameDocument(t *testing.T) {
 		{Label: "P-0000000a", SHA: "s1", Basis: "reproducible", Script: "a.js", Reason: "first"},
 		{Label: "P-0000000b", SHA: "s2", Basis: "observed", Script: "b.js", Reason: "second"},
 	}
-	out, _ := weaveProofRefs("One<!--proof:P-0000000b-->. Two<!--proof:P-0000000a-->.\n", proofs)
+	out, _ := weaveComputationRefs("One<!--proof:P-0000000b-->. Two<!--proof:P-0000000a-->.\n", proofs)
 	for _, ref := range []string{"[^P1]", "[^P2]"} {
 		if !strings.Contains(out, ref+": ") {
 			t.Errorf("reference %s has no definition in the document that carries it:\n%s", ref, out)
@@ -186,7 +186,7 @@ func TestProofNumbersAreRunWideNotPerDocument(t *testing.T) {
 		{Label: "P-0000000b", SHA: "s2", Basis: "reproducible", Script: "b.js", Reason: "second"},
 	}
 	// A document that anchors ONLY the second proof still calls it P2.
-	out, _ := weaveProofRefs("Only the second<!--proof:P-0000000b-->.\n", proofs)
+	out, _ := weaveComputationRefs("Only the second<!--proof:P-0000000b-->.\n", proofs)
 	if !strings.Contains(out, "[^P2]") || strings.Contains(out, "[^P1]") {
 		t.Errorf("proof numbering is per-document, so the same computation has two names:\n%s", out)
 	}
@@ -239,7 +239,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 	// A VALID hex id with no event behind it. (An id-shaped-but-not-hex token like
 	// "p-nothing" is not an anchor at all — the regex correctly ignores it, which is a
 	// different case and not the one under test.)
-	out, _ := weaveProofRefs("A claim<!--proof:P-abcdef01-->.\n", nil)
+	out, _ := weaveComputationRefs("A claim<!--proof:P-abcdef01-->.\n", nil)
 	if !strings.Contains(out, "unresolved proof") {
 		t.Errorf("a dangling proof anchor vanished silently:\n%s", out)
 	}
@@ -248,7 +248,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 // With no proofs the document is returned unchanged — no empty section, no stray definitions.
 func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 	const md = "A report with no computations in it.\n"
-	got, used := weaveProofRefs(md, nil)
+	got, used := weaveComputationRefs(md, nil)
 	if got != md || used != nil {
 		t.Errorf("an empty proof layer was appended:\n%s", got)
 	}
@@ -259,7 +259,7 @@ func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 
 // One proof cited twice shares one number, like a citation reused.
 func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
-	out, _ := weaveProofRefs("First<!--proof:P-0000000a-->. Second<!--proof:P-0000000a-->.\n",
+	out, _ := weaveComputationRefs("First<!--proof:P-0000000a-->. Second<!--proof:P-0000000a-->.\n",
 		[]record.Proof{{Label: "P-0000000a", SHA: "s1", Basis: "reproducible", Script: "a.js"}})
 	if strings.Count(out, "[^P1]") != 3 { // two references plus the definition
 		t.Errorf("a proof used twice did not share one number:\n%s", out)

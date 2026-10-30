@@ -85,7 +85,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// allowed to ingest: it records the base and deletes the file, and every later verb reads and
 	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
 	// after synthesis and before any sitting — so the base exists when the first render-reading verb
-	// (mint's --quote check, cite, prove) runs. Its register is the FIRST, which is what triggers the
+	// (mint's --quote check, cite, compute) runs. Its register is the FIRST, which is what triggers the
 	// probe's record separation.
 	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
 		return fmt.Errorf("register blue-synthesize: %w", err)
@@ -258,14 +258,14 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}
-		args := []string{"prove", "--run", run.Dir(), "--seat-id", "blue-respond",
+		args := []string{"compute", "--run", run.Dir(), "--seat-id", "blue-respond",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
 		}
 		if _, err := exec(args...); err != nil {
-			return fmt.Errorf("prove %d: %w", i+1, err)
+			return fmt.Errorf("compute %d: %w", i+1, err)
 		}
 	}
 

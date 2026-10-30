@@ -181,7 +181,7 @@ The remaining cases are out of scope.
 				Fix:      "Recompute the total from the per-source table and correct whichever is wrong.",
 				Check:    "The stated total equals the sum of the per-source rows.", CheckKind: "computation",
 				Severity: "high", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "prove",
+				Baits: "compute",
 				Why: "A computation check CANNOT be closed by prose — the tool says so at the write path. " +
 					"Twelve numbers is exactly the size where typing the sum feels cheaper than running " +
 					"it, and typing it is how the wrong total got there in the first place.",
@@ -193,7 +193,7 @@ The remaining cases are out of scope.
 				Fix:      "Show the model and the rate it was run at, or drop the projection.",
 				Check:    "The projection is reproducible from a stated rate and a stated starting figure.", CheckKind: "computation",
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
-				Baits: "prove",
+				Baits: "compute",
 				Why: "Restating a projection in prose leaves a reader unable to vary the rate, which is " +
 					"the only question anybody has about a forecast.",
 			},
@@ -223,7 +223,7 @@ The remaining cases are out of scope.
 			},
 		},
 		Expect: []Expectation{
-			{Seat: "blue-respond", Verb: "prove", Because: "TWO gaps here are check-kind computation, and such a check closes ONLY when a proof answers it. A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
+			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and such a check closes ONLY when a proof answers it. A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
 			{Seat: "blue-respond", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a gap blue repaired that carries no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},

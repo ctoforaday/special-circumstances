@@ -139,7 +139,7 @@ already failed your own standard.
 - **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if the instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench — file it on the record as a petition motion (class, basis, relief sought); the chair's next plan convenes the bench to hear it, before any party of that epoch sits; never sanctioned, and it does not pause your other duties.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
-- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** You are its author, so this is yours first, and you write it as a file before any verb sees it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, the inquiry's propose and record, and prove and cite, whose proof note and source title the report prints.
+- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** You are its author, so this is yours first, and you write it as a file before any verb sees it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, the inquiry's propose and record, and compute and cite, whose proof note and source title the report prints.
 - In each log entry — your role's log act — YOU MUST say what it ASSERTS and name the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
 THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT: a refusal; a verb, flag or field you reached for that was not there; an output shape you misread; a harness guard; a workaround; an act the tooling made you set aside. Each entry's TYPE says which kind it is, and the log's own page defines each type. A MISTAKE THE SURFACE INVITED IS STILL FRICTION: the name you guessed is the operator's signal that something taught you to expect it, and absorbing it as your own error is what keeps this channel empty. The tool records by itself every refusal it gives you, with the flags you typed and never their values, and every tool call of yours that fails; your entry adds what only you know — what you expected, and where the expectation came from. A sitting where nothing cost you anything files nothing. YOU MUST NOT silently degrade, work around a missing capability, or force the material to fit: a silent workaround destroys the signal that would get you retooled.
 - **A DISPUTED FACT OR A THIN ASSUMPTION IS THE READER'S BUSINESS, AND IT BELONGS IN THE SENTENCE THAT MAKES THE CLAIM.** Not in a preamble, not in a section about the run, not in a note about who argued what: where a fact is contested, or an assumption is load-bearing on thin evidence, say so in the report's own voice, as a limit on the ANSWER. The reader who reaches that sentence is the one who needs the warning.
@@ -220,13 +220,13 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   … "$X"
 
 §5 (on 3 pages):
-Only cite, edit and prove take a handle: no other verb on this surface has this flag
+Only cite, compute and edit take a handle: no other verb on this surface has this flag
 
 §6 (on 2 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
 §7 (on 2 pages):
-NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `[^1]`, `[^2]` … for citations and `[^P1]`, `[^P2]` … for proofs. A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word. Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there.
+NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `[^1]`, `[^2]` … for citations and `[^P1]`, `[^P2]` … for proofs. A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word. Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there.
 
 §8 (on 2 pages):
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
@@ -277,6 +277,7 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  compute      settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -284,7 +285,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   retire       take a claim out of the report, when it cannot stand and no edit will save it
 
@@ -349,6 +349,38 @@ holds one per --id, and this sitting's stands).
 Flags:
       --id gap-id       REQUIRED — the gap id this closing argues
       --reason string   REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+========
+$ feov-record compute --help
+settle a claim by RUNNING something, when computing the answer beats arguing about it
+
+The tool runs the script TWICE, caches it and its output, and splices an invisible proof anchor at the sentence.
+
+(The sentence is found in the rep…) → SHARED §3
+
+Identical output twice is recorded as reproducible; output that moves, as observed — still evidence, of a system in motion, but a MEASUREMENT, not a proof. The tool says which you produced.
+
+A SCRIPT THAT CALLS THIS TOOL CAN BE CHECKED BY NOBODY. The tool runs it once more from the proof store as a lens's re-run will, and refuses every call it makes to the tool there; such a script is recorded `not_portable`, and a lens's re-run records it as one no checker can run. Compute the claim in the script itself.
+
+A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an error. Disproving your own claim is worth as much as confirming it.
+
+YOUR NOTE IS PRINTED IN THE REPORT, as this computation's footnote and as its heading in evidence.md. So write it for a reader of the SUBJECT: what the computation establishes, not what happened while you ran it. No "this sitting" or "this run", no "rather than trusting the lane draft", no gap ids (the gap it settles is recorded as its own field), no notes to another seat. That it was computed, and whether it reproduced, the tool already says beside your note. Where the kind of evidence still matters to the claim, say it in the subject's terms: "a reproducible computation shows 7 divides 91", "trial division by every prime up to 9 finds the divisor 7", "a second, independent implementation of modular exponentiation gives the same three residues". The tool flags a note that sounds like the run talking about itself; it refuses nothing.
+
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{proof_id,sha256,proof_basis,exit,drift,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
+(If you need a verb or a flag tha…) → SHARED §1
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
+
+IF WHAT YOU RECORDED WAS WRONG, say so in a new proof.
+
+Flags:
+      --answers gap-id          the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer
+      --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
+      --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
+      --key string              your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another program, --quote, --cites, --answers or --reason is refused: a handle names one proof. → SHARED §5
+      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
+      --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
+      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
 ========
 $ feov-record edit --help
 change the report — the only path into report.md, and how every repair lands
@@ -651,38 +683,6 @@ Enumerated values:
     ethical         proceeding would require acting against the interests of someone the run affects
     constitutional  the instruction itself conflicts with the rules the run is bound by
 ========
-$ feov-record prove --help
-settle a claim by RUNNING something, when computing the answer beats arguing about it
-
-The tool runs the script TWICE, caches it and its output, and splices an invisible proof anchor at the sentence.
-
-(The sentence is found in the rep…) → SHARED §3
-
-Identical output twice is recorded as reproducible; output that moves, as observed — still evidence, of a system in motion, but a MEASUREMENT, not a proof. The tool says which you produced.
-
-A SCRIPT THAT CALLS THIS TOOL CAN BE CHECKED BY NOBODY. The tool runs it once more from the proof store as a lens's re-run will, and refuses every call it makes to the tool there; such a script is recorded `not_portable`, and a lens's re-run records it as one no checker can run. Compute the claim in the script itself.
-
-A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an error. Disproving your own claim is worth as much as confirming it.
-
-YOUR NOTE IS PRINTED IN THE REPORT, as this computation's footnote and as its heading in evidence.md. So write it for a reader of the SUBJECT: what the computation establishes, not what happened while you ran it. No "this sitting" or "this run", no "rather than trusting the lane draft", no gap ids (the gap it settles is recorded as its own field), no notes to another seat. That it was computed, and whether it reproduced, the tool already says beside your note. Where the kind of evidence still matters to the claim, say it in the subject's terms: "a reproducible computation shows 7 divides 91", "trial division by every prime up to 9 finds the divisor 7", "a second, independent implementation of modular exponentiation gives the same three residues". The tool flags a note that sounds like the run talking about itself; it refuses nothing.
-
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{proof_id,sha256,proof_basis,exit,drift,idempotent,voice_tells:[string]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
-
-(If you need a verb or a flag tha…) → SHARED §1
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
-
-IF WHAT YOU RECORDED WAS WRONG, say so in a new proof.
-
-Flags:
-      --answers gap-id          the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer
-      --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
-      --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
-      --key string              your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another program, --quote, --cites, --answers or --reason is refused: a handle names one proof. → SHARED §5
-      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
-      --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
-      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
-========
 $ feov-record register --help
 NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
 
@@ -736,10 +736,10 @@ Usage:
 Available Commands:
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit and citation retire in record order, and with `--id <gap>` the fix red asked for beside the changes answering it. Written by blue's `edit` and `retire`
-  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `compute`, and the lens's `verify` and `reproduce`
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
-  report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`
+  report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `compute`
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
 (Global Flags:) → SHARED §2
@@ -785,7 +785,7 @@ An `unchecked` ROW IS A CITATION OR PROOF WITH NO CHECK OF THE SENTENCE THE REPO
 
 TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row. Either carries the anchor's `unchecked` row while one stands.
 
-THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `compute`, and the lens's `verify` and `reproduce`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 

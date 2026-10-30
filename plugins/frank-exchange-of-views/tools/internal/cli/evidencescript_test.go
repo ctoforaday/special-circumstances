@@ -33,9 +33,9 @@ func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)
 	}
-	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
+	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", body)
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}

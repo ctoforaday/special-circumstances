@@ -19,7 +19,7 @@ import (
 //   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
 //                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
-//                   Every placing verb — cite, prove, finding, mint, and a corroboration that
+//                   Every placing verb — cite, compute, finding, mint, and a corroboration that
 //                   backs its claim — appends one after its own event, which is metadata and
 //                   inserts nothing.
 //   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
@@ -72,7 +72,7 @@ func Render(base string, ops []Op) (string, error) {
 }
 
 // mutation is one recorded text change, applied to the running report during replay. The two
-// shapes are a splice (blue edit) and a marker insertion (cite/prove/finding); both locate against
+// shapes are a splice (blue edit) and a marker insertion (cite/compute/finding); both locate against
 // the running text exactly as the verb did, and both are loud when they cannot.
 type mutation interface {
 	apply(text string) (string, error)

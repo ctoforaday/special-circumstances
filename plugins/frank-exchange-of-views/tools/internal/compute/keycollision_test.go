@@ -1,4 +1,4 @@
-package proof
+package compute
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A KEY IS ONE PROGRAM'S NAME, AND ScriptSha IS WHAT LETS prove SAY SO.
+// A KEY IS ONE PROGRAM'S NAME, AND ScriptSha IS WHAT LETS compute SAY SO.
 //
 // Crash-retry and key collision are indistinguishable at the key and are opposite facts: one is
 // the same program arriving twice, the other a DIFFERENT program under a key an earlier dispatch

@@ -48,8 +48,8 @@ func (b *stage) exchangeOn(gap string) *stage {
 // when one is owed, because blue acted in it.
 func (b *stage) actingExchangeOn(gap string) *stage {
 	b.lensActs(gap)
-	agent := fmt.Sprintf("blue-proves-%d", b.n)
-	return b.registerAs("blue-respond", agent).blueProves(gap).stop(agent)
+	agent := fmt.Sprintf("blue-computes-%d", b.n)
+	return b.registerAs("blue-respond", agent).blueComputes(gap).stop(agent)
 }
 
 // lensOnlyExchangeOn is one exchange on gap in which only the minting lens acts: it sits first and
@@ -67,8 +67,8 @@ func (b *stage) lensActs(gap string) *stage {
 	return b.registerAs(evLens, agent).served(evLens, b.head()).keepGrade(evLens, gap, keptReason).stop(agent)
 }
 
-// blueProves is blue recording a proof answering gap: an act on it that moves nothing.
-func (b *stage) blueProves(gap string) *stage {
+// blueComputes is blue recording a proof answering gap: an act on it that moves nothing.
+func (b *stage) blueComputes(gap string) *stage {
 	return b.add("blue-respond", &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("P-%d", b.n+1)),
 		ProofSha: proto.String(fmt.Sprintf("sha-%d", b.n+1)), Answers: proto.String(gap)})
 }
@@ -530,7 +530,7 @@ func TestARemandedTrifleIsOwedItsExchange(t *testing.T) {
 			lensAgent := fmt.Sprintf("%s-agent-%d", evLens, more.n+1)
 			more.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").
 				registerAs(evLens, lensAgent).served(evLens, 2).keepGrade(evLens, "G1", keptReason).stop(lensAgent).
-				registerAs("blue-respond", "blue-proves-trifle").blueProves("G1").stop("blue-proves-trifle").
+				registerAs("blue-respond", "blue-computes-trifle").blueComputes("G1").stop("blue-computes-trifle").
 				register("red-chair").seed()
 			after, err := PlanDispatch(run)
 			if err != nil {
@@ -709,7 +709,7 @@ func TestBlueRemandItemBlocksBeforeAndAfterRegister(t *testing.T) {
 		{"registered", func(b *stage) { b.registerAs("blue-respond", "blue-m35") }, true},
 		{"its sitting closed without an act", func(b *stage) { b.stop("blue-m35") }, true},
 		{"dispatched again and acted", func(b *stage) {
-			b.register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-again").blueProves("G1")
+			b.register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-again").blueComputes("G1")
 		}, false},
 	}
 	for _, s := range steps {

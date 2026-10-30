@@ -334,6 +334,7 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  compute      settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit         change the report — the only path into report.md, and how every repair lands
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -341,7 +342,6 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   retire       take a claim out of the report, when it cannot stand and no edit will save it
 

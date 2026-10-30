@@ -131,10 +131,10 @@ type GapJSON struct {
 	AcceptanceGate string `json:"acceptance_check"`
 	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
 	// with teeth: `computation` means the gap cannot be closed on prose at all — only a
-	// `blue prove --answers <id>` settles it. It lived on the mint event and reached NO view,
+	// `blue compute --answers <id>` settles it. It lived on the mint event and reached NO view,
 	// so the one seat that can satisfy the demand could not see it existed.
 	//
-	// Measured: `prove` was invoked zero times across eighteen probed seat dispatches, on
+	// Measured: `compute` was invoked zero times across eighteen probed seat dispatches, on
 	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
 	// reasoning, wrote the answer into the report, and was satisfied — the exact failure the
 	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
@@ -142,7 +142,7 @@ type GapJSON struct {
 	CheckKind string `json:"check_kind"`
 	// AwaitingProof is check_kind stated as a DEBT rather than as a property.
 	//
-	// Projecting check_kind was necessary and not sufficient: with it visible, `prove` went
+	// Projecting check_kind was necessary and not sufficient: with it visible, `compute` went
 	// from 0 uses in eighteen sittings to 1 in nine. A seat reading `"check_kind":
 	// "computation"` learns a fact about the gap; it does not learn that IT owes a program,
 	// and the difference decides whether the sitting produces one.

@@ -283,7 +283,7 @@ func TestAResumedAssemblySittingTakesItsActsAfterTheOutcome(t *testing.T) {
 }
 
 // THE CLOSED RECORD IS THE FIRST REFUSAL A SEAT HEARS. `lens close` on a computation gap with no
-// proof refuses on a check of its own — "settled by blue's prove" — and after the outcome that is
+// proof refuses on a check of its own — "settled by blue's compute" — and after the outcome that is
 // advice about an act the run no longer takes: the seat is told the run ended.
 func TestAfterTheOutcomeTheClosedRecordIsTheFirstRefusal(t *testing.T) {
 	// The lens is bound before the outcome, so after it the verb reaches its own checks: what the

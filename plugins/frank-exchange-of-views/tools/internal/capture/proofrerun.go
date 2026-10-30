@@ -5,14 +5,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // AN UNAUDITED PROOF LOOKS EXACTLY LIKE A CLEAN ONE UNTIL SOMEBODY RUNS IT.
 //
-// The engine already holds every piece of this. `prove` runs a script twice and grades it
+// The engine already holds every piece of this. `compute` runs a script twice and grades it
 // reproducible or observed; `lens reproduce` lets red re-run one and records the comparison; the
 // seat's own affordance list surfaces "proofs nobody has re-run yet" as the place its next pass is
 // worth most. What has never existed is anything that re-runs one WITHOUT a seat choosing to.
@@ -38,7 +38,7 @@ import (
 // repo root", takes `root="${1:-.}"`, and resolves `./plugins/sleeper-service` against the RUN
 // directory instead; the `find` fails the same way on every execution, so the output carrying that
 // failure reproduces perfectly. A re-run cannot see it. That class is caught at the write, by the
-// error signature `blue prove` refuses on (#591 ask 1), and this audit would report those two
+// error signature `blue compute` refuses on (#591 ask 1), and this audit would report those two
 // proofs green all day.
 //
 // # Why an `observed` proof diverging is not a finding
@@ -50,8 +50,8 @@ import (
 //
 // # Re-running is not new reach
 //
-// `prove` executes these scripts twice at the write, so nothing here runs code the run has not
-// already run. It is bounded twice over: a sample rather than the whole set, and proof.Timeout per
+// `compute` executes these scripts twice at the write, so nothing here runs code the run has not
+// already run. It is bounded twice over: a sample rather than the whole set, and compute.Timeout per
 // execution.
 
 // proofRerunSample is how many proofs one capture re-runs. Small on purpose — the audit's job is
@@ -59,7 +59,7 @@ import (
 const proofRerunSample = 3
 
 // recordedProof is one distinct SCRIPT on the record, keyed by its sha. Several proofs can share
-// one: `prove` of a script already proved records a new proof anchor over the same sha, and a
+// one: `compute` of a script already proved records a new proof anchor over the same sha, and a
 // re-run of the script answers for every proof that holds it. proofs counts them.
 type recordedProof struct {
 	sha, basis, script string
@@ -137,7 +137,7 @@ func ProofRerunAudit(run record.Run, sample int) Audit {
 	var notes []string
 	for _, p := range proofs[:sample] {
 		ran++
-		rr, err := proof.Reproduce(run.Dir(), p.sha)
+		rr, err := compute.Reproduce(run.Dir(), p.sha)
 		got, want := rr.Got, rr.Want
 		switch {
 		case err != nil:
@@ -152,12 +152,12 @@ func ProofRerunAudit(run record.Run, sample int) Audit {
 			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", short(p.sha), rr.ToolCalls[0]))
 		case rr.Matches:
 			// Reproduced. Nothing to say per proof; the count says it.
-		case p.basis == proof.Observed || p.basis == proof.NotPortable:
+		case p.basis == compute.Observed || p.basis == compute.NotPortable:
 			// Recorded AS something that does not hold still: `observed` moves by nature, and
 			// `not_portable` was graded at deposit precisely because it says something else from
 			// the store. Divergence here is the recorded fact arriving on time, not a defect —
 			// and this audit becoming a REGRESSION detector rather than a discoverer of what
-			// prove already knew is the whole point of grading from the store.
+			// compute already knew is the whole point of grading from the store.
 			moved++
 			notes = append(notes, fmt.Sprintf("moved %s diverged, as its recorded `%s` basis says it may (%s)",
 				short(p.sha), orQ(p.basis), firstDifference(want, got)))

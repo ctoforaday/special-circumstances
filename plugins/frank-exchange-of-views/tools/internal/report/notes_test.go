@@ -173,7 +173,7 @@ func TestAFragmentIsEscapedAsItReadsInPlace(t *testing.T) {
 	if !strings.Contains(cited, "[^1]: ```\\[^9] spec. [https://example.invalid/a](https://example.invalid/a)") {
 		t.Errorf("the citation's note does not escape the title's [^9]:\n%s", cited)
 	}
-	proved, _ := weaveProofRefs("A claim<!--proof:P-00000001-->.\n", []record.Proof{{Label: "P-00000001", Reason: "```[^9] spec"}})
+	proved, _ := weaveComputationRefs("A claim<!--proof:P-00000001-->.\n", []record.Proof{{Label: "P-00000001", Reason: "```[^9] spec"}})
 	if !strings.Contains(proved, "[^P1]: ```\\[^9] spec — ") {
 		t.Errorf("the proof's note does not escape the reason's [^9] as it reads in place:\n%s", proved)
 	}

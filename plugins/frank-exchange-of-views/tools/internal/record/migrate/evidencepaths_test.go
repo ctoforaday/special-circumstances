@@ -11,7 +11,7 @@ import (
 
 // THE PROOF LAYER SHIPS THE RUN'S OWN COPY OF EACH SCRIPT, NEVER THE PATH A SEAT RAN IT FROM.
 //
-// A proof's script field is the path blue handed `prove`, and on a real run that is a scratch file
+// A proof's script field is the path blue handed `compute`, and on a real run that is a scratch file
 // in the operator's home directory: the archived m19 record holds eleven of them, and universe-m24
 // and m25 shipped nine and eleven in evidence.md (m24 dark-side ev548) beside a lead saying every
 // script is cached under proofs/<sha256>/. The record holds the sha, and the store keeps the script

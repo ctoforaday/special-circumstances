@@ -372,7 +372,7 @@ var (
 
 // AmbiguousError is ErrAmbiguous with WHERE the quote stands: each occurrence's section and the
 // sentence it begins in, so the seat can quote the one it means with the text before it instead of
-// searching the report for the copy it did not know was there (m35: two `prove` refusals, and
+// searching the report for the copy it did not know was there (m35: two `compute` refusals, and
 // blue's own check for a second copy was anchored and missed it).
 type AmbiguousError struct {
 	// Where names every occurrence, in report order.

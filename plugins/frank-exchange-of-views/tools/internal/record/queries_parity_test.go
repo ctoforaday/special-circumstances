@@ -150,8 +150,8 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if ok, _ := ProposalAppliedVerbatim(run, "G3", render, "", ""); ok {
 		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
 	}
-	if !proofAnswers(t, run, "G3") || proofAnswers(t, run, "G1") || proofAnswers(t, run, "") {
-		t.Error("ProofAnswers disagrees with the recorded proof join")
+	if !computationAnswers(t, run, "G3") || computationAnswers(t, run, "G1") || computationAnswers(t, run, "") {
+		t.Error("ComputationAnswers disagrees with the recorded proof join")
 	}
 
 	// The gaps the work list marks as awaiting a proof: G1 is the open computation gap with no proof; G3's proof discharges
@@ -212,12 +212,12 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	}
 }
 
-// proofAnswers is ProofAnswers with its read error failing the test rather than reading as false.
-func proofAnswers(t *testing.T, run Run, gapID string) bool {
+// computationAnswers is ComputationAnswers with its read error failing the test rather than reading as false.
+func computationAnswers(t *testing.T, run Run, gapID string) bool {
 	t.Helper()
-	ok, err := ProofAnswers(run, gapID)
+	ok, err := ComputationAnswers(run, gapID)
 	if err != nil {
-		t.Fatalf("ProofAnswers(%q): %v", gapID, err)
+		t.Fatalf("ComputationAnswers(%q): %v", gapID, err)
 	}
 	return ok
 }

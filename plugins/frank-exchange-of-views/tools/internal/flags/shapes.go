@@ -164,7 +164,7 @@ func ClosureAnchorID() *ShapedValue {
 
 // CitationAnchor refuses an anchor of the wrong CLASS, not merely the wrong form.
 //
-// `blue prove --cites` and `lens verify --anchor` both name a source, and the general anchor
+// `blue compute --cites` and `lens verify --anchor` both name a source, and the general anchor
 // shape would accept a finding or a computation — well-formed ids that cannot
 // possibly be citations. The prefix carries the class precisely so a reader never has to guess
 // which kind of thing an id is; a flag that accepts all three throws that away and defers the

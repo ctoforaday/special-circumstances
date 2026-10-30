@@ -10,8 +10,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -99,7 +99,7 @@ func newReproduce() *cobra.Command {
 		if p.Rerun != nil {
 			o = rerunOutcome{rerun: p.Rerun.Rerun, recorded: p.Rerun.Recorded, got: p.Rerun.Observed, by: p.Rerun.SeatID}
 		} else {
-			rr, err := proof.Reproduce(run.Dir(), p.SHA)
+			rr, err := compute.Reproduce(run.Dir(), p.SHA)
 			if err != nil {
 				return nil, err
 			}
@@ -186,7 +186,7 @@ func (o rerunOutcome) refuseSound(p record.Proof, snd recordpb.Soundness) error 
 		//
 		// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one
 		// whose output moves, and a re-run that differs is that proof behaving as recorded.
-		if p.Basis != proof.Reproducible {
+		if p.Basis != compute.Reproducible {
 			return nil
 		}
 		read := "Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "
@@ -197,7 +197,7 @@ func (o rerunOutcome) refuseSound(p record.Proof, snd recordpb.Soundness) error 
 			"  recorded: %s\n  re-run:   %s\n"+
 			"Nothing is recorded. "+read+
 			"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
-			p.Label, proof.Reproducible, ran, strings.TrimSpace(truncateOutput(o.recorded)), strings.TrimSpace(truncateOutput(o.got)))
+			p.Label, compute.Reproducible, ran, strings.TrimSpace(truncateOutput(o.recorded)), strings.TrimSpace(truncateOutput(o.got)))
 	}
 	return nil
 }

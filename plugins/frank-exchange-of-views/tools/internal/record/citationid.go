@@ -265,7 +265,7 @@ func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// ExistingProofByKey gives `blue prove` crash-retry idempotency: the proof this seat recorded under
+// ExistingProofByKey gives `blue compute` crash-retry idempotency: the proof this seat recorded under
 // key, or nil. A seat whose message died after the event landed re-runs the same key and is held to
 // the proof it repeats rather than executing the script a second time and splicing a second anchor.
 func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
@@ -291,7 +291,7 @@ func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
 	return nil, nil
 }
 
-// Proof is one recorded computation, drawn from a blue `prove` event — the composer input
+// Proof is one recorded computation, drawn from a blue `compute` event — the composer input
 // for the assembled report's Proofs section and the handle red re-runs.
 type Proof struct {
 	Label  string // the proof anchor id

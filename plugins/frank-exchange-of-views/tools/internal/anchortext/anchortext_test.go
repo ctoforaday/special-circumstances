@@ -421,7 +421,7 @@ func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {
 	}
 }
 
-// AN AMBIGUOUS QUOTE IS TOLD WHERE IT STANDS (m35: two `prove` refusals named no second location, and
+// AN AMBIGUOUS QUOTE IS TOLD WHERE IT STANDS (m35: two `compute` refusals named no second location, and
 // the seat's own search for the copy missed it). Every occurrence is named by its section and the
 // sentence it begins in, in report order, and the refusal a placing verb gives carries them.
 func TestAnAmbiguousQuoteNamesEveryOccurrence(t *testing.T) {

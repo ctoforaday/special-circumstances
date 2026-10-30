@@ -344,7 +344,7 @@ func seatRunForContracts(t *testing.T) string {
 		}
 	}
 	seedBlueReport(t, runDir)
-	// A REAL SCRIPT ON DISK, because `blue prove` RUNS what --script names.
+	// A REAL SCRIPT ON DISK, because `blue compute` RUNS what --script names.
 	scriptPath = filepath.Join(recordtest.TmpRun(t), "contract-proof.py")
 	if err := os.WriteFile(scriptPath, []byte("print('contract seed')\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -374,7 +374,7 @@ func seatRunForContracts(t *testing.T) string {
 	// interface, and reading a fact out of prose is the shape this suite exists to remove. The
 	// first draft regexed a 64-hex out of the message, found nothing, and the gate then reported
 	// `--as` as unnamed when the real refusal was a missing --id.
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "a quoted sentence", "--script", scriptPath,
 		"--reason", "the computation a probe re-runs"); err != nil {
 		t.Fatalf("seed proof: %v", err)

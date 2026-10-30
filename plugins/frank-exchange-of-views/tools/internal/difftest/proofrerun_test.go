@@ -17,7 +17,7 @@ import (
 // matched, and the proof was recorded as reproducing byte for byte while its check never ran. Here
 // the script calls the binary as blue and prints the same 0 whether the call succeeded or was
 // refused — the shape that turns any refusal into an ordinary-looking result. Under a checker's run the binary
-// refuses every call and writes it to the marker the run names, so `prove` grades the script
+// refuses every call and writes it to the marker the run names, so `compute` grades the script
 // `not_portable` and the lens's `reproduce` records `calls_the_tool`, whatever the script printed.
 func TestAProofThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
 	bin := buildBinary(t)
@@ -46,15 +46,15 @@ console.log("0");
 		t.Helper()
 		return runGo(bin, runDir, m, cmd{verb: verb, args: append([]string{"--run", "{RUN}"}, args...)})
 	}
-	prove := do("prove", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--script", script, "--reason", "reads the board", "--json")
-	if prove.code != 0 || !strings.Contains(prove.stdout, "not_portable") || !strings.Contains(prove.stdout, "calls feov-record") {
+	comp := do("compute", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--script", script, "--reason", "reads the board", "--json")
+	if comp.code != 0 || !strings.Contains(comp.stdout, "not_portable") || !strings.Contains(comp.stdout, "calls feov-record") {
 		printed, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "output"))
 		var out []string
 		for _, f := range printed {
 			b, _ := os.ReadFile(f)
 			out = append(out, strings.TrimSpace(string(b)))
 		}
-		t.Fatalf("prove of a script that calls the tool: exit %d, want not_portable naming the call\nstdout: %s\nstderr: %s\nthe script printed: %q", prove.code, prove.stdout, prove.stderr, out)
+		t.Fatalf("compute of a script that calls the tool: exit %d, want not_portable naming the call\nstdout: %s\nstderr: %s\nthe script printed: %q", comp.code, comp.stdout, comp.stderr, out)
 	}
 	var ev struct {
 		Proofs []struct {

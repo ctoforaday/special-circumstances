@@ -1,4 +1,4 @@
-package proof
+package compute
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ import (
 // duplicated here deliberately and narrowly, and this comment is the record of why.
 //
 // AND PROOFS ARE NOT DECLARED not-applicable IN A CLOUD SESSION, which is the tempting move
-// and the wrong one: `blue prove` anchors a claim to a computation, so excusing proofs where
+// and the wrong one: `blue compute` anchors a claim to a computation, so excusing proofs where
 // the interpreter is missing would silently thin every such run's evidence base while every
 // gate stayed green. That is the defect one level up. They stay required, and an absent
 // interpreter is LOUD.

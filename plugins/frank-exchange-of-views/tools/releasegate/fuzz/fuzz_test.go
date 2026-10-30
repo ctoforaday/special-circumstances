@@ -567,7 +567,7 @@ type runner struct {
 	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
 	// satisfied gap legitimately open, because red never sits again.
 	evaluated gapSet
-	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
+	// reproduced records the COMPUTE gaps whose proof a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced gapSet
 	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
@@ -623,7 +623,7 @@ type runner struct {
 	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
 	forceVerified bool
 	// forceReopenedProof drives one proof through judgement and reopening on a reopenedProofSeed
-	// run: blue proves the sentence the edit drive rewrites, the owner judges the proof when its
+	// run: blue computes on the sentence the edit drive rewrites, the owner judges the proof when its
 	// work list offers it, blue rewrites the sentence, and the next plan readies the owner for the
 	// reopened proof. Each step reads the record, never a count of sittings, so the chain holds on
 	// every interleaving. reopenStage is the last step it reached, which the run's error names
@@ -631,12 +631,12 @@ type runner struct {
 	forceReopenedProof bool
 	reopenStage        string
 	// forceUnsoundProof drives one proof to a standing unsound judgement on unsoundProofSeed's run:
-	// blue proves the seeded sentence, the owner judges it unsound when its work list offers it, the
+	// blue computes on the seeded sentence, the owner judges it unsound when its work list offers it, the
 	// owner's gap carries it, and the next plan readies the judge or blue. unsoundStage is the last
 	// step it reached, which the run's error names when no plan was readied for it.
 	forceUnsoundProof bool
 	unsoundStage      string
-	// forceOwedProof makes every blue-respond sitting of owedProofSeed's run prove the seeded sentence
+	// forceOwedProof makes every blue-respond sitting of owedProofSeed's run compute on the seeded sentence
 	// afresh, so each plan after one holds a proof nobody has checked, owed by the computation lens;
 	// owedProofs counts them, naming each script.
 	forceOwedProof bool
@@ -990,7 +990,7 @@ func (r *runner) dischargeOwed(seatID string) {
 			}
 			name := "fuzz-owed-" + g.ID + ".js"
 			if err := r.writeScript(name, "console.log('answers "+g.ID+"');"); err == nil {
-				r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
+				r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
 					"--reason", "fuzz: the computation its sitting owes")
 			}
 		}
@@ -2480,10 +2480,10 @@ func (r *runner) reachedStage(s string) {
 	r.reopenStage = s
 }
 
-// proveToReopen is blue's half of the forced chain: it proves the sentence the edit drive rewrites
+// computeToReopen is blue's half of the forced chain: it proves the sentence the edit drive rewrites
 // while no forced proof stands, and rewrites that sentence once the owner has judged one — a
 // forced proof its owner is no longer offered and that is not already reopened.
-func (r *runner) proveToReopen(seatID string) {
+func (r *runner) computeToReopen(seatID string) {
 	if !r.forceReopenedProof || r.reopenReadied() {
 		return
 	}
@@ -2494,9 +2494,9 @@ func (r *runner) proveToReopen(seatID string) {
 			r.reachedStage("could not write the script: " + err.Error())
 			return
 		}
-		if _, err := r.exec("prove", "--seat-id", seatID, "--quote", "across the whole sampled corpus",
+		if _, err := r.exec("compute", "--seat-id", seatID, "--quote", "across the whole sampled corpus",
 			"--script", name, "--reason", "fuzz: the computation a later edit reopens"); err != nil {
-			r.reachedStage("prove refused: " + firstLine(err.Error()))
+			r.reachedStage("compute refused: " + firstLine(err.Error()))
 			return
 		}
 		r.reachedStage("proved")
@@ -2569,9 +2569,9 @@ func (r *runner) judgeToReopen(seatID string) {
 	}
 }
 
-// proveOwed is blue-respond's act in owedProofSeed's run: a fresh proof of the seeded sentence, which
+// computeOwed is blue-respond's act in owedProofSeed's run: a fresh proof of the seeded sentence, which
 // the computation lens owes a check of until it sits, and an edit of the edit target. It draws nothing.
-func (r *runner) proveOwed(seatID string) {
+func (r *runner) computeOwed(seatID string) {
 	if !r.forceOwedProof || seatID != "blue-respond" {
 		return
 	}
@@ -2581,7 +2581,7 @@ func (r *runner) proveOwed(seatID string) {
 	r.mu.Unlock()
 	name := fmt.Sprintf("fuzz-owed-proof-%d.js", n)
 	if err := r.writeScript(name, fmt.Sprintf("console.log('fuzz: owed proof %d');", n)); err == nil {
-		r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name,
+		r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name,
 			"--reason", "fuzz: a proof its owner has not yet checked")
 	}
 	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A proof moves no head, and a fold names a debt that
@@ -2621,10 +2621,10 @@ func (r *runner) reachedUnsoundStage(s string) {
 	r.unsoundStage = s
 }
 
-// proveToJudgeUnsound is blue's half of the forced unsound chain: while no proof of
+// computeToJudgeUnsound is blue's half of the forced unsound chain: while no proof of
 // unsoundProofScript stands, it proves the seeded sentence no edit rewrites, so the judgement the
 // owner records stands until blue's fix (fixUnsound).
-func (r *runner) proveToJudgeUnsound(seatID string) {
+func (r *runner) computeToJudgeUnsound(seatID string) {
 	if !r.forceUnsoundProof || r.unsoundFed() || len(r.proofsOfScript(unsoundProofScript)) > 0 {
 		return
 	}
@@ -2633,9 +2633,9 @@ func (r *runner) proveToJudgeUnsound(seatID string) {
 		r.reachedUnsoundStage("could not write the script: " + err.Error())
 		return
 	}
-	if _, err := r.exec("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence",
+	if _, err := r.exec("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence",
 		"--script", name, "--reason", "fuzz: the computation its owner judges unsound"); err != nil {
-		r.reachedUnsoundStage("prove refused: " + firstLine(err.Error()))
+		r.reachedUnsoundStage("compute refused: " + firstLine(err.Error()))
 		return
 	}
 	r.reachedUnsoundStage("proved")
@@ -3232,7 +3232,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	// computation branch — a gap that CANNOT be closed without a proof answering it — driven by
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
 	// not exist, behind a green sweep). Both the refusal and the satisfied path run across a
-	// sweep, because the prove drive below answers a computation gap when one is open.
+	// sweep, because the compute drive below answers a computation gap when one is open.
 	// THE SCENARIO IS DRAWN HERE, ONCE, and travels in required_fix.
 	//
 	// The fake used to decide everything downstream by coin flip, and nothing read
@@ -3265,7 +3265,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		directive = pick(r.rng, []string{dirApply, dirCounter})
 	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
-	if directive == dirProve || directive == dirProveDrifts {
+	if directive == dirCompute || directive == dirComputeDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
 		// COMPUTATION check, so the tool's own close guard is in force alongside the scenario.
 		kind = "computation"
@@ -3863,13 +3863,13 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// The guard refuses a closure with no proof answering the gap, so leaving it to chance
 	// meant unclosable gaps piling up run after run — and every drive that iterates the open
 	// set grew with them. Answering it here drives the SATISFIED path on every computation
-	// gap, which is the branch a probabilistic prove would mostly skip, and the refusal is
+	// gap, which is the branch a probabilistic compute would mostly skip, and the refusal is
 	// still covered by the integration tests that assert it.
 	if r.computationGaps.has(id) {
 		// A SEAT REGISTERS BEFORE IT APPENDS, AND THIS ONE DID NOT (#664).
 		//
-		// closeGap is driven from the CHAIR's branch, and it proves as `blue-respond` —
-		// `blue prove` RECORDS a `prove` event, so that is an append. In round 1 red-chair
+		// closeGap is driven from the CHAIR's branch, and it computes as `blue-respond` —
+		// `blue compute` RECORDS a `compute` event, so that is an append. In round 1 red-chair
 		// runs BEFORE blue-respond ever registers, so a computation gap that becomes
 		// closable in round 1 appends as a seat the record has never seen, and `verify` refuses
 		// the run with `register-before-append`.
@@ -3884,10 +3884,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		r.register("blue", "blue-respond")
 		name := "fuzz-answer-" + id + ".js"
 		if err := r.writeScript(name, "console.log('answers "+id+"');"); err == nil {
-			r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+			r.admit("compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
 		}
-		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `prove` refuses a script that exits
+		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `compute` refuses a script that exits
 		// non-zero — correctly, because a broken proof usually means a broken script — UNLESS the
 		// seat says the failure is the finding, which is what --expect-error asserts. That is a
 		// second contract on the same verb and nothing had ever driven it; the flag gate could
@@ -3903,13 +3903,13 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			// that failed nothing is refused.
 			body := "console.error('ls: cannot access /fuzz-absent: No such file or directory'); process.exit(3);"
 			if err := r.writeScript(absent, body); err == nil {
-				r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+				r.admit("compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
 			}
 			clean := "fuzz-clean-" + id + ".js"
 			if err := r.writeScript(clean, "console.log(1)"); err == nil {
-				r.refuse(feov.Validation, "prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+				r.refuse(feov.Validation, "compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", clean, "--expect-error", "--reason", "fuzz: claims a failure the run does not have")
 			}
 		}
@@ -4145,20 +4145,20 @@ const (
 	dirDisputeWon  = "FUZZ-DISPUTE-WON: blue contests the grade and red accepts the regrade"
 	dirDisputeLost = "FUZZ-DISPUTE-LOST: blue contests the grade and red rejects it"
 	dirIgnore      = "FUZZ-IGNORE: blue does nothing; the gap stays open"
-	// dirProve is the COMPUTATION CHAIN, end to end. It is the only axis where the tool
+	// dirCompute is the COMPUTATION CHAIN, end to end. It is the only axis where the tool
 	// re-executes evidence rather than re-reading it, and it was the least represented: `blue
-	// prove` fired from a 35% probe, `lens reproduce` picked ANY proof on the record at 35%
+	// compute` fired from a 35% probe, `lens reproduce` picked ANY proof on the record at 35%
 	// with no connection to the gap being audited, and red closed the gap BEFORE any of that.
 	// The order was inverted — reproduction decorated a decision already taken, when it is the
 	// thing that should EARN it. Nothing would have noticed if reproduce returned garbage.
-	dirProve = "FUZZ-PROVE: blue settles it by computing; red re-runs the proof and closes only if it holds"
-	// dirProveDrifts is the case that makes the re-run MEAN something. A deterministic script
-	// always reproduces, so with only dirProve the scenario check and the tool's own
+	dirCompute = "FUZZ-COMPUTE: blue settles it by computing; red re-runs the proof and closes only if it holds"
+	// dirComputeDrifts is the case that makes the re-run MEAN something. A deterministic script
+	// always reproduces, so with only dirCompute the scenario check and the tool's own
 	// computation guard are indistinguishable — probing by deleting the check caught NOTHING.
 	// A drifting script (an unseeded random, a live sample) is graded `observed` rather than
 	// `reproducible`, and red must NOT close on it: that is the whole difference between a
 	// proof and a measurement, and it is the branch a fake with only tidy scripts never shows.
-	dirProveDrifts = "FUZZ-PROVE-DRIFTS: blue computes, but the output moves between runs; red cannot close on it"
+	dirComputeDrifts = "FUZZ-COMPUTE-DRIFTS: blue computes, but the output moves between runs; red cannot close on it"
 )
 
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
@@ -4168,13 +4168,13 @@ const (
 // after one, and the bench remands every docket but a lost dispute: the remand's one more exchange —
 // blue and the lens each held to an act on the gap — stalls the same way, the gap is docketed again,
 // and the bench, refused a second remand, rules a disposition that closes it.
-// MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (PROVE 70,
-// PROVE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
+// MEASURED over 80 runs at seven lenses: 153 of 558 minted gaps ended remanded (COMPUTE 70,
+// COMPUTE-DRIFTS 33, DISPUTE-WON 26, IGNORE 24), every one of the 71 CEILING runs held at least one,
 // and 8 runs reached VERIFIED. At four lenses 63 of 250 gaps ended remanded and 29 of 80 runs
 // reached VERIFIED: the share of gaps left at their limit did not move, the gaps per run did. The
 // draw keeps both terminal states in the sweep's distribution; verifiedSeed makes VERIFIED a fact
 // of every sweep.
-var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirProve, dirProve, dirProveDrifts}
+var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDisputeWon, dirDisputeLost, dirIgnore, dirCompute, dirCompute, dirComputeDrifts}
 
 // satisfied reports whether a directive means the gap is repaired and red should close it.
 func satisfied(directive string) bool { return directive == dirApply || directive == dirCounter }
@@ -4359,9 +4359,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.ruleOpenInquiries(seatID)
 	case "blue":
 		// Before any draw, so a run that is not forced draws exactly what it drew without it.
-		r.proveToReopen(seatID)
-		r.proveToJudgeUnsound(seatID)
-		r.proveOwed(seatID)
+		r.computeToReopen(seatID)
+		r.computeToJudgeUnsound(seatID)
+		r.computeOwed(seatID)
 		r.citeAbsentSpan(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
@@ -4490,7 +4490,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// SOME PROOFS BACK THE SENTENCE THE EDIT DRIVE REWRITES, as some citations do: anchored
 			// only in the sentence no edit touches, no judged proof is ever reopened, and the
 			// routing of a reopened proof to its owner (anchorOwnerOf) is unreached.
-			pv := r.do("prove", seatID).
+			pv := r.do("compute", seatID).
 				set("--quote", "§ fuzz sentence").
 				on(25, "--quote", "across the whole sampled corpus").
 				set("--script", name).
@@ -4956,7 +4956,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// ONE COIN, NOT TWO — see closeGap: the regression close is sampled in exactly
 				// one place, so it is driven rather than multiplied down to noise.
 				r.closeGap(seatID, id, true)
-			case d == dirProve && r.reproduced.has(id):
+			case d == dirCompute && r.reproduced.has(id):
 				r.closeGap(seatID, id, false)
 			case d == dirDisputeWon && r.presented.has(id):
 				r.closeGap(seatID, id, false)
@@ -5022,7 +5022,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// closes on. It used to pick ANY proof on the record at 35% with no connection to
 			// the gap, AFTER red had already closed it — reproduction decorating a decision
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
-			r.reproveOpenProofs(seatID)
+			r.recomputeOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
 				// AN UNCHECKED CITATION OR PROOF IS CHECKED, EVERY ONE THE OWNER'S SITTING OWES: its
 				// item blocks the owner's envelope. A citation is verified at its anchor — read, or
@@ -5883,7 +5883,7 @@ const forcedEpochLimit = 2
 // reopenedProofSeed is the seed whose run is FORCED through a reopened proof; the sweep gates a plan
 // readying the proof owner for one.
 //
-// Left to the draw it is a chain of coins: blue proves the sentence the edit drive rewrites (35%,
+// Left to the draw it is a chain of coins: blue computes on the sentence the edit drive rewrites (35%,
 // then 25%), the owner judges an offered proof (35%, picking one of several), blue rewrites that
 // sentence (45%), and a plan follows. MEASURED on main 61107ba4 across five interleaved sweeps, an
 // owner resting on eight runs was readied for a reopened proof 9, 0, 5, 6 and 11 times — red once —
@@ -6540,11 +6540,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					}
 					return res
 				}
-			case dirProve, dirProveDrifts:
+			case dirCompute, dirComputeDrifts:
 				// The chain must be VISIBLE ON THE RECORD, not merely to have happened: a proof
 				// answering this gap, and the gap closed only behind a reproduction that held.
 				if !proved[id] {
-					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
+					res.err = "scenario COMPUTE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
 					return res
 				}
 				// A gap ONLY the bench closed is not red accepting anything: the terminal bench rules
@@ -6552,7 +6552,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// red's own closing body, not ClosedByBench — that flag follows the last closing
 				// event, so a ruling on a gap red had already closed would hide red's closure here.
 				if r.evaluated.has(id) && !g.Open && g.Closure != nil && !r.reproduced.has(id) {
-					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
+					res.err = "scenario COMPUTE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
 					return res
 				}
 			case dirApply:
@@ -6774,14 +6774,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.forceReopenedProof && r.proofReopenedReadied[proofOwner] == 0 && res.err == "" {
 		stage := r.reopenStage
 		if stage == "" {
-			stage = "nothing: no blue sitting reached the prove"
+			stage = "nothing: no blue sitting reached the compute"
 		}
 		res.err = fmt.Sprintf("forced reopened proof: no plan readied %s for a reopened proof; the chain reached %s", proofOwner, stage)
 	}
 	if r.forceUnsoundProof && r.unsoundReadied == 0 && res.err == "" {
 		stage := r.unsoundStage
 		if stage == "" {
-			stage = "nothing: no blue sitting reached the prove"
+			stage = "nothing: no blue sitting reached the compute"
 		}
 		res.err = fmt.Sprintf("forced unsound proof: no plan readied %s or blue for an unsound proof; the chain reached %s", proofOwner, stage)
 	}
@@ -7843,12 +7843,12 @@ func (r *runner) answerInquiryRulings(seatID string) {
 	}
 }
 
-// reproveOpenProofs audits the proof answering each open PROVE gap, and the gap's minting lens
+// recomputeOpenProofs audits the proof answering each open COMPUTE gap, and the gap's minting lens
 // closes on the proof's standing re-run rather than on its own say-so. The proof's OWNER re-runs it
 // and judges its sentence — the one audit that does not end in believing bytes somebody else chose.
 // Every other lens reads the standing re-run off `show evidence` and re-runs nothing: a proof's
 // sentence is content to it.
-func (r *runner) reproveOpenProofs(seatID string) {
+func (r *runner) recomputeOpenProofs(seatID string) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
@@ -7864,7 +7864,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		standing[p.Anchor] = p.Rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED)
 	}
 	for _, id := range r.openGaps() {
-		if d := r.scenarioOf(id); d != dirProve && d != dirProveDrifts {
+		if d := r.scenarioOf(id); d != dirCompute && d != dirComputeDrifts {
 			continue
 		}
 		at := proofFor[id]
@@ -8005,18 +8005,18 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					r.raised = append(r.raised, ref)
 				}
 			}
-		case dirProve, dirProveDrifts:
+		case dirCompute, dirComputeDrifts:
 			// SETTLE IT BY COMPUTING. The script is written into the run dir and the tool runs
 			// it TWICE, so this drives the real interpreter, the cache, the anchor splice and
 			// the reproducible/observed grading — and --answers ties the execution to the gap
 			// it settles, which is what makes red's re-run targetable rather than arbitrary.
 			name := "fuzz-answer-" + id + ".js"
 			body := "console.log('settles " + id + "');"
-			if r.scenarioOf(id) == dirProveDrifts {
+			if r.scenarioOf(id) == dirComputeDrifts {
 				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
 			}
 			if err := r.writeScript(name, body); err == nil {
-				prove := r.do("prove", seatID).
+				comp := r.do("compute", seatID).
 					set("--quote", "§ fuzz sentence").
 					set("--script", name).
 					set("--answers", id).
@@ -8028,9 +8028,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				// a real anchor off the record — the same discipline someFinding and someCitation
 				// already impose everywhere else a label is passed.
 				if anchor := r.someCitation(); anchor != "" && r.coin(50) {
-					prove.set("--cites", anchor)
+					comp.set("--cites", anchor)
 				}
-				prove.admit()
+				comp.admit()
 			}
 		case dirIgnore:
 			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what

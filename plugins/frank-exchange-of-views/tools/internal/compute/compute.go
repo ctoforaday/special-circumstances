@@ -21,7 +21,7 @@
 // execution applies that method to this instance. Language is language; a proof in English
 // and a proof in Python are the same act of argument. What differs is how the auditor checks
 // it — prose is re-read, code is RE-RUN, and re-running is the stronger audit.
-package proof
+package compute
 
 import (
 	"bytes"
@@ -112,7 +112,7 @@ func ScriptPath(runDir, scriptPath string) string {
 
 // ScriptSha is the proof's identity — sha256 of the script's bytes — computed WITHOUT running it.
 //
-// It exists so `prove` can tell a crash-retry from a key collision before it decides to skip the
+// It exists so `compute` can tell a crash-retry from a key collision before it decides to skip the
 // work. Those two look identical at the key and are opposite facts: one is the same program
 // arriving twice, the other is a DIFFERENT program under a key an earlier dispatch already burned.
 func ScriptSha(runDir, scriptPath string) (string, error) {
@@ -212,7 +212,7 @@ func executeStored(runDir string, r *Result) (string, int, []string, error) {
 }
 
 // executeChecked is execute as a CHECKER runs it: the script's environment names a fresh marker
-// file under seatenv.VarProofRerun, feov-record refuses every call made under it and appends the
+// file under seatenv.VarComputeRerun, feov-record refuses every call made under it and appends the
 // call there, and the calls come back beside the output. A script that called the tool cannot run
 // in a checker's hands, whatever it then did with the refusal — a `jq` over the refusal turns it
 // into an ordinary-looking number.
@@ -224,7 +224,7 @@ func executeChecked(runDir string, argv []string, script string) (string, int, [
 	path := marker.Name()
 	marker.Close()
 	defer os.Remove(path)
-	out, code, err := executeIn(runDir, argv, script, append(os.Environ(), seatenv.VarProofRerun+"="+path))
+	out, code, err := executeIn(runDir, argv, script, append(os.Environ(), seatenv.VarComputeRerun+"="+path))
 	if err != nil {
 		return "", 0, nil, err
 	}
@@ -429,7 +429,7 @@ type Rerun struct {
 	Matches bool
 	// Got is what it printed; Want is what blue's run recorded.
 	Got, Want string
-	// ToolCalls is every feov-record call the script made, each one refused (seatenv.VarProofRerun).
+	// ToolCalls is every feov-record call the script made, each one refused (seatenv.VarComputeRerun).
 	// A script that made any cannot run in a checker's hands, and nothing it printed is a result.
 	ToolCalls []string
 }

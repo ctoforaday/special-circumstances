@@ -43,9 +43,9 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	}
 
 	// The tool's own sections of those names, with something under each.
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", "91 is 7 x 13.",
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "91 is 7 x 13.",
 		"--script", script(t, runDir, "factor.js", "console.log(7*13)"), "--reason", "the product of the two factors is computed"); err != nil {
-		t.Fatalf("prove: %v\n%s", err, out)
+		t.Fatalf("compute: %v\n%s", err, out)
 	}
 	if out, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "safety", "--relief", "stop and review", "--reason", "the report instructs a hazardous procedure"); err != nil {

@@ -39,7 +39,7 @@ func newMint() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// The argument is resolved BEFORE the retry check, as `edit` and `prove` resolve theirs: a
+		// The argument is resolved BEFORE the retry check, as `edit` and `compute` resolve theirs: a
 		// retry is the same act, judged on the same inputs, and the first call recorded them.
 		text, err := seat.Reason(cmd)
 		if err != nil {

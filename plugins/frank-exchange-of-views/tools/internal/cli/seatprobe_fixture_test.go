@@ -178,14 +178,14 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond",
+		args := []string{"compute", "--run", runDir, "--seat-id", "blue-respond",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
 		}
 		if _, err := run(t, args...); err != nil {
-			t.Fatalf("prove %d: %v", i+1, err)
+			t.Fatalf("compute %d: %v", i+1, err)
 		}
 	}
 

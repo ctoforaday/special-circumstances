@@ -25,7 +25,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 	return string(next)
 }
 
-// The marker verbs (cite/prove/finding) record their act and then an Anchor, and the projection
+// The marker verbs (cite/compute/finding) record their act and then an Anchor, and the projection
 // re-places the marker from the Anchor alone. This is the fidelity guard for that path: a base with
 // a citation, a proof and a finding replays to exactly what write-time InsertAnchor would have
 // produced, markers in record order — and an act recorded with no Anchor places nothing.

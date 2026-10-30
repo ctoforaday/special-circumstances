@@ -22,7 +22,7 @@
 //
 // # Why the expectations are per-BOARD, not per-seat
 //
-// "Blue should use `prove`" is false in general and true on a board carrying a computation-kind
+// "Blue should use `compute`" is false in general and true on a board carrying a computation-kind
 // gap. So an expectation names the board SHAPE that makes a verb the right move — which is also
 // the thing a constitution has to teach, and therefore the thing worth testing.
 //
@@ -157,7 +157,7 @@ var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE:    "motion rule",
-	recordpb.EventType_EVENT_TYPE_PROOF:          "prove",
+	recordpb.EventType_EVENT_TYPE_PROOF:          "compute",
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:     "spot-check",
 }
 
@@ -244,7 +244,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 // Expectation is one board-shaped claim about what a seat should reach for.
 //
 // `because` carries the argument. It is printed on every failure, because the useful half of
-// "blue did not use prove" is WHY that board demanded it — and that argument is what a
+// "blue did not use compute" is WHY that board demanded it — and that argument is what a
 // constitution has to make to a seat that has not read this file.
 type Expectation struct {
 	Seat    string

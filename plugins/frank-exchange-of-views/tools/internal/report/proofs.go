@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -36,7 +36,7 @@ func proofNumbers(proofs []record.Proof) (map[string]int, map[string]record.Proo
 	return num, byLabel
 }
 
-// weaveProofRefs resolves the invisible proof layer in ONE document: every "<!--proof:p-…-->"
+// weaveComputationRefs resolves the invisible proof layer in ONE document: every "<!--proof:p-…-->"
 // anchor becomes a visible [^PN] reference, and the definitions for exactly the proofs that
 // document anchors are appended. It returns the labels it hit so the caller can compose the
 // evidence document from the union.
@@ -46,7 +46,7 @@ func proofNumbers(proofs []record.Proof) (map[string]int, map[string]record.Proo
 // dangling reference rather than a heading — so every proof footnote in the shipped report
 // pointed at nothing, and a human repaired it by hand after the fact. A reference with no
 // definition is not a citation; it is a broken link that renders as one.
-func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
+func weaveComputationRefs(md string, proofs []record.Proof) (string, []string) {
 	num, byLabel := proofNumbers(proofs)
 	var order []string
 	seen := map[string]bool{}
@@ -190,7 +190,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 // and m25 shipped nine and eleven), and the store's copy under the proof's sha is the one a reader
 // of the run directory can open — the lead above says so.
 func storedScript(p record.Proof) string {
-	return filepath.ToSlash(proof.StoredScript(p.SHA, p.Script))
+	return filepath.ToSlash(compute.StoredScript(p.SHA, p.Script))
 }
 
 // fenced is content in a fenced code block no line of it can close or lengthen into prose: a fence of

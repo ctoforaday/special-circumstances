@@ -9,14 +9,14 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// provenProof runs a real script through `prove` so the fixture is a proof the engine actually
+// provenProof runs a real script through `compute` so the fixture is a proof the engine actually
 // recorded — cache layout, sha and basis included — rather than a hand-built imitation of one.
-func provenProof(t *testing.T, runDir, name, body string) *proof.Result {
+func provenProof(t *testing.T, runDir, name, body string) *compute.Result {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(runDir, "blue", "candidates"), 0o755); err != nil {
 		t.Fatal(err)
@@ -25,14 +25,14 @@ func provenProof(t *testing.T, runDir, name, body string) *proof.Result {
 	if err := os.WriteFile(filepath.Join(runDir, rel), []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, err := proof.Run(runDir, rel)
+	res, err := compute.Run(runDir, rel)
 	if err != nil {
 		t.Skipf("no interpreter for %s in this environment: %v", name, err)
 	}
 	return res
 }
 
-func seedProofEvents(t *testing.T, runDir string, rs ...*proof.Result) {
+func seedProofEvents(t *testing.T, runDir string, rs ...*compute.Result) {
 	t.Helper()
 	var evs []*recordpb.Event
 	for i, r := range rs {
@@ -58,7 +58,7 @@ func TestProofRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := provenProof(t, run, "count.sh", "#!/bin/sh\nwc -l < corpus.txt\n")
-	if res.Basis != proof.Reproducible {
+	if res.Basis != compute.Reproducible {
 		t.Fatalf("fixture must record as reproducible, got %s", res.Basis)
 	}
 	seedProofEvents(t, run, res)
@@ -92,9 +92,9 @@ func TestProofRerunDoesNotFailAProofRecordedAsObserved(t *testing.T) {
 	if err := os.WriteFile(counter, []byte("0"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// Each execution increments, so `prove`'s two runs disagree and the basis records as observed.
+	// Each execution increments, so `compute`'s two runs disagree and the basis records as observed.
 	res := provenProof(t, run, "tick.sh", "#!/bin/sh\nn=$(cat n)\nn=$((n+1))\necho $n > n\necho \"tick $n\"\n")
-	if res.Basis != proof.Observed {
+	if res.Basis != compute.Observed {
 		t.Skipf("fixture did not produce an observed basis (got %s)", res.Basis)
 	}
 	seedProofEvents(t, run, res)
@@ -157,7 +157,7 @@ func TestProofRerunSeparatesNoProofsFromNoRecord(t *testing.T) {
 // and the count of what it actually looked at always reaches the report.
 func TestProofRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.T) {
 	run := t.TempDir()
-	var rs []*proof.Result
+	var rs []*compute.Result
 	for _, n := range []string{"a", "b", "c", "d"} {
 		rs = append(rs, provenProof(t, run, n+".sh", "#!/bin/sh\necho "+n+"\n"))
 	}

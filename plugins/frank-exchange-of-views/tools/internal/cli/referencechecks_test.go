@@ -88,9 +88,9 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "endorsed", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
-	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "G2",
+	{verb: []string{"compute"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
-	{verb: []string{"prove"}, flag: "--cites", against: "the citations on the record", bogus: "C-deadbeef",
+	{verb: []string{"compute"}, flag: "--cites", against: "the citations on the record", bogus: "C-deadbeef",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
 	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "C-deadbeef",
 		extra: []string{"--as", "supports", "--confidence", "high", "--reason", "r"}},

@@ -4592,7 +4592,7 @@ type Proof struct {
 	// proof_key is typed --key: the flag word is declared so a refusal names what a seat can type.
 	ProofKey *string `protobuf:"bytes,2,opt,name=proof_key,json=proofKey,proto3,oneof" json:"proof_key,omitempty"`
 	ProofSha *string `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
-	// proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
+	// proof_basis is written by blue/compute.go and read at eight sites; found by the frozen key
 	// census for the same reason as Outcome's three.
 	ProofBasis *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
 	Answers    *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
@@ -4734,7 +4734,7 @@ func (x *Proof) GetLocation() string {
 // script establishes THIS anchor's sentence.
 //
 // THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). One
-// script can back several sentences — `prove` of a script already proved records a new anchor over
+// script can back several sentences — `compute` of a script already proved records a new anchor over
 // the same sha — so a re-run belongs to the script and answers for every anchor on it, while a
 // soundness verdict belongs to the one sentence it was judged against. Keyed by sha alone, a lens's
 // `unsound` on one sentence was overwritten by another lens's `sound` on another in 11 of 15

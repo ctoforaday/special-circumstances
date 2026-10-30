@@ -57,7 +57,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1", "https://grass/1")
 	sky := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	grass := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
-	proof := proveSentence(t, runDir, "Fire is hot.")
+	proof := computeSentence(t, runDir, "Fire is hot.")
 	retire := func(anchors string) error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", anchors, "--reason", "unreadable")
 		return err

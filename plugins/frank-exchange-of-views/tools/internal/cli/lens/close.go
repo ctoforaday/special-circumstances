@@ -68,7 +68,7 @@ func newClose() *cobra.Command {
 		// because the check could not be asked is a closure the tool vouched for on nothing.
 		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
 			func(id string) (bool, error) { return computationGapKind(run, id) },
-			func(id string) (bool, error) { return record.ProofAnswers(run, id) }); err != nil {
+			func(id string) (bool, error) { return record.ComputationAnswers(run, id) }); err != nil {
 			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {
@@ -113,7 +113,7 @@ func newClose() *cobra.Command {
 
 // requireComputationAnswered refuses a closure of a computation gap no proof answers, and refuses
 // any closure whose gap's check kind, or proof join, could not be read.
-func requireComputationAnswered(gapID string, isComputation, proofAnswers func(string) (bool, error)) error {
+func requireComputationAnswered(gapID string, isComputation, computationAnswers func(string) (bool, error)) error {
 	kind, err := isComputation(gapID)
 	if err != nil {
 		return unreadableRefusal("the check kind "+gapID+" was minted with", err)
@@ -121,12 +121,12 @@ func requireComputationAnswered(gapID string, isComputation, proofAnswers func(s
 	if !kind {
 		return nil
 	}
-	answered, err := proofAnswers(gapID)
+	answered, err := computationAnswers(gapID)
 	if err != nil {
 		return unreadableRefusal("whether a proof answers "+gapID, err)
 	}
 	if !answered {
-		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `compute --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 			gapID, gapID)
 	}
 	return nil

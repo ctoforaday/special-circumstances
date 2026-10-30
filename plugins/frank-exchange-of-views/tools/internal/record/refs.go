@@ -83,7 +83,7 @@ func recordOfDir(runDir string) (recordsql.Querier, error) {
 // reaches for into a leaf package, which breaks the cycle and lets Checker take a Run.
 // CitationExists resolves a citation anchor, and its refusal ends with the CALLER's advice, because
 // two verbs on two seats take a citation and want different words: a lens's `verify --anchor`
-// names the citation it adjudicated, blue's `prove --cites` the method a computation applies. A
+// names the citation it adjudicated, blue's `compute --cites` the method a computation applies. A
 // refusal naming --cites and blue's `cite` to the lens that typed --anchor sends it to a flag its
 // verb does not have.
 func CitationExists(advice string) func(runDir, flag, label string) error {
@@ -137,9 +137,9 @@ func requireAboutAnchor(q recordsql.Querier, kind recordpb.AboutKind, ref string
 	return nil
 }
 
-// ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
+// ComputeCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
 // copy of the same refusal alike: blue's own act, in blue's words.
-const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
+const ComputeCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
 
 // THE REFERENCE AND STATE CHECKS BELOW ASK q, which on the write path is the writing transaction
 // (writeView): a gap that closes, or is minted, between a check and the insert it admits is the
@@ -231,7 +231,7 @@ func requireFindings(q recordsql.Querier, ids []string, flag string) error {
 
 // requireCitation refuses a citation label that names no `blue cite` on the record.
 //
-// `blue prove --cites` names the METHOD a computation applies — "the source that says trial
+// `blue compute --cites` names the METHOD a computation applies — "the source that says trial
 // division decides primality". It was set into the payload and never checked, so a proof could
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same

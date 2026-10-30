@@ -10,12 +10,12 @@ import (
 
 // check_kind IS THE FIELD WITH TEETH, AND IT REACHED NO VIEW.
 //
-// `computation` means the gap cannot be closed on prose at all — only a `blue prove --answers`
+// `computation` means the gap cannot be closed on prose at all — only a `blue compute --answers`
 // settles it, and the chair is refused if it tries anything else. That gate works. But it fires
 // at the CHAIR, at close time, in the following round, and blue — the only seat that can satisfy
 // it — could not see which gaps carried it.
 //
-// Measured: `prove` was invoked zero times across eighteen probed seat dispatches on boards built
+// Measured: `compute` was invoked zero times across eighteen probed seat dispatches on boards built
 // to demand it. One seat summed twelve integers inside its own reasoning, wrote the answer, and
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
@@ -103,7 +103,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 
 // A PROPERTY IS NOT A DEBT.
 //
-// Projecting check_kind was necessary and not sufficient: with it visible, `prove` moved from
+// Projecting check_kind was necessary and not sufficient: with it visible, `compute` moved from
 // 0 uses across eighteen sittings to 1 across nine. A seat reading `"check_kind": "computation"`
 // learns something about the gap; it does not learn that IT owes a program, and only the second
 // changes what the sitting produces.

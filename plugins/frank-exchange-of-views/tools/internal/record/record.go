@@ -1032,11 +1032,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Proof:
 		// A PROOF NAMES ITS SCRIPT. The sha is the script's address in the proof store and the key
 		// every re-run and verdict joins on; a proof without one can never be re-run or judged, so
-		// the lens that owns proofs would owe it a check no act can record (lensOwesOf). `prove`
+		// the lens that owns proofs would owe it a check no act can record (lensOwesOf). `compute`
 		// derives it; a write that carries none is refused rather than held as an undischargeable
 		// debt.
 		if b.GetProofSha() == "" {
-			return fmt.Errorf("proof %s names no script: proof_sha is the sha256 `prove` derives from the script it ran, and a proof without one can never be re-run or judged", b.GetProofId())
+			return fmt.Errorf("proof %s names no script: proof_sha is the sha256 `compute` derives from the script it ran, and a proof without one can never be re-run or judged", b.GetProofId())
 		}
 		// The same key rule as blue_edit's --answers: a proof may name the gap it settles,
 		// and a dangling reference is refused HERE rather than accepted and dropped at
@@ -1045,7 +1045,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(q, b.GetCites(), "--cites", ProveCitesAdvice); err != nil {
+		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.Reproduce:

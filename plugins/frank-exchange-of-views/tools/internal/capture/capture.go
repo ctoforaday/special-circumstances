@@ -668,7 +668,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 // invisible; `(\S+)` captured `--seat-id "x"` with the quotes; FindStringSubmatch saw only the
 // first invocation in a batched command, which debate.js encourages; the event type is not the
 // verb for six types (friction-none, anchor, blue_edit, the two motion subcommands, and friction
-// when emitted as a side effect of mint/prove/cite); and `[\s\S]*?` spanned invocations, so one
+// when emitted as a side effect of mint/compute/cite); and `[\s\S]*?` spanned invocations, so one
 // call's verb could pair with another call's seat and MANUFACTURE an invocation that never
 // happened — masking a genuine orphan. Four modes fail loudly; the fifth fails silently, which is
 // the one that matters.

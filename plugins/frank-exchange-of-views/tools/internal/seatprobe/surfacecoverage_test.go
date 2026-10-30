@@ -110,9 +110,9 @@ func TestBoardsAreCoherentSittings(t *testing.T) {
 			if g.Baits == "" || g.Why == "" {
 				t.Errorf("board %q gap %q does not say what it baits or why — then it is scenery, and scenery is what makes a board look thorough", name, g.Key)
 			}
-			// A computation-kind gap that baits anything but `prove` contradicts the write path:
+			// A computation-kind gap that baits anything but `compute` contradicts the write path:
 			// such a check closes ONLY on a proof, so no other verb can discharge it.
-			if g.CheckKind == "computation" && g.Baits != "prove" {
+			if g.CheckKind == "computation" && g.Baits != "compute" {
 				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes only on a proof", name, g.Key, g.Baits)
 			}
 		}
@@ -204,7 +204,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		for _, e := range b.Expect {
 			n, tracked := needs[e.Verb]
 			if !tracked {
-				continue // verbs with no precondition: edit, cite, prove, log, mint, position …
+				continue // verbs with no precondition: edit, cite, compute, log, mint, position …
 			}
 			if !n.has(b) {
 				t.Errorf("board %q expects %q and does not carry %s.\n\n"+

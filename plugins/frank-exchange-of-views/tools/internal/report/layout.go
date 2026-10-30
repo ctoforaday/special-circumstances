@@ -159,7 +159,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return a.blue.close }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
-		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
+		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
@@ -177,7 +177,7 @@ var layout = []Section{
 	// (view.InquiryBody), whole, under headings that carry each fate's count.
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
-		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
+		Path: "Blue's `compute` records a computation and a lens's `reproduce` its re-run."},
 	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
 		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
 		Path: "Blue's `cite` records a citation, a lens's `verify` a reading of it, and a lens's `corroborate` a source of its own."},
@@ -667,7 +667,7 @@ func orderClaims(text ParsedText) (out []claim) {
 
 // THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
 // first appearance (weaveCitations) and a proof's as [^P1], [^P2] … in record order
-// (weaveProofRefs), into the text as it stands and beside whatever that text already holds. A
+// (weaveComputationRefs), into the text as it stands and beside whatever that text already holds. A
 // footnote typed by hand under a label of that shape ships next to the tool's note of the same
 // label: markdown resolves a label to one definition and report.html lists one entry for it, so
 // a reader gets one of the two notes and no sign of the other. A reference typed with no

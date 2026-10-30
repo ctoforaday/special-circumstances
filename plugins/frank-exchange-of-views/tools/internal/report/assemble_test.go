@@ -531,7 +531,7 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 		}
 	}
 	// The weave itself, over a citation and a proof: every label in what it returns is one.
-	woven, _ := weaveProofRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--proof:P-00000001-->.\n", nil), nil)
+	woven, _ := weaveComputationRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--proof:P-00000001-->.\n", nil), nil)
 	labels := regexp.MustCompile(`\[\^[^\]]*\]`).FindAllString(woven, -1)
 	if len(labels) != 4 {
 		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)

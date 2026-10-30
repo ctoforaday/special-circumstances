@@ -31,9 +31,9 @@ import (
 // this test exists to make visible rather than to paper over.
 var viewWriters = map[string][]string{
 	// The round-0 synthesis authors it; every later change is an `edit`. `cite`, `finding` and
-	// `prove` splice the anchor layer into it, which is why they are named here too — a seat
+	// `compute` splice the anchor layer into it, which is why they are named here too — a seat
 	// reading the report meets their tokens and has to carry them.
-	"report": {"edit", "cite", "finding", "prove"},
+	"report": {"edit", "cite", "finding", "compute"},
 	// The motion group fills it: the ask and the answer. Both, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
 	"motions":  {"motion", "rule"},
@@ -42,8 +42,8 @@ var viewWriters = map[string][]string{
 	"debate":   {"position"},
 	"changes":  {"edit"},
 	// All four, because the view answers two different questions with one table: what blue
-	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
-	"evidence":  {"cite", "prove", "verify", "reproduce"},
+	// offered as backing (`cite`, `compute`) and what red made of it (`verify`, `reproduce`).
+	"evidence":  {"cite", "compute", "verify", "reproduce"},
 	"inquiries": {"inquiry", "propose"},
 	"telemetry": {},
 	"board":     {"mint", "close", "regrade", "retire"},

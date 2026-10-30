@@ -13,9 +13,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -161,11 +161,11 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 			_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", "Method", "--url", "https://m/1", "--title", "M")
 			return err
 		}},
-		{"blue prove", false, func(t *testing.T, runDir string) error {
+		{"blue compute", false, func(t *testing.T, runDir string) error {
 			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-respond"); err != nil {
 				t.Fatal(err)
 			}
-			_, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond", "--quote", "Method",
+			_, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", "Method",
 				"--script", script(t, runDir, "m.js", "console.log(1)"), "--reason", "r")
 			return err
 		}},
@@ -269,7 +269,7 @@ func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
 	}{
 		{blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
 			func(e *record.Event) string { return e.GetCite().GetLabel() }},
-		{blueSeat, []string{"prove", "--script", "p.js", "--reason", "r"},
+		{blueSeat, []string{"compute", "--script", "p.js", "--reason", "r"},
 			func(e *record.Event) string { return e.GetProof().GetProofId() }},
 		{lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
 			func(e *record.Event) string { return e.GetVerify().GetLabel() }},
@@ -319,7 +319,7 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 			func(e *record.Event) string { return e.GetMint().GetGapId() }, func(e *record.Event) string { return e.GetMint().GetLocation() }},
 		{"cite", blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
 			func(e *record.Event) string { return e.GetCite().GetLabel() }, func(e *record.Event) string { return e.GetCite().GetLocation() }},
-		{"prove", blueSeat, []string{"prove", "--script", "p.js", "--reason", "r"},
+		{"compute", blueSeat, []string{"compute", "--script", "p.js", "--reason", "r"},
 			func(e *record.Event) string { return e.GetProof().GetProofId() }, func(e *record.Event) string { return e.GetProof().GetLocation() }},
 		{"corroborate", lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
 			func(e *record.Event) string { return e.GetVerify().GetLabel() }, func(e *record.Event) string { return e.GetVerify().GetClaim() }},
@@ -386,13 +386,13 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
 		}, []string{"cite", "--key", "K1", "--quote", stored, "--url", "https://example.org/s", "--title", "S"}},
 		{"proof", "P-0badf00d", blueSeat, func(runDir string) proto.Message {
-			sha, err := proof.ScriptSha(runDir, script(t, runDir, "p.js", "console.log(1)"))
+			sha, err := compute.ScriptSha(runDir, script(t, runDir, "p.js", "console.log(1)"))
 			if err != nil {
 				t.Fatal(err)
 			}
 			return &recordpb.Proof{ProofId: proto.String("P-0badf00d"), ProofKey: proto.String("K1"), ProofSha: proto.String(sha),
 				Location: proto.String(stored), Script: proto.String("p.js"), Text: proto.String("r")}
-		}, []string{"prove", "--key", "K1", "--quote", stored, "--script", "p.js", "--reason", "r"}},
+		}, []string{"compute", "--key", "K1", "--quote", stored, "--script", "p.js", "--reason", "r"}},
 		{"citation", "C-0badf00e", lensSeat, func(string) proto.Message {
 			return &recordpb.Verify{Label: proto.String("C-0badf00e"), Url: proto.String("https://example.org/r"), Title: proto.String("R"), Claim: proto.String(stored),
 				Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("r")}

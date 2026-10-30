@@ -732,7 +732,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
   // on every verb whose text the report prints (edit, ingest, the inquiry's propose and record, and
-  // prove's note and cite's title, which the Bibliography prints),
+  // compute's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
   // The pointer is the synthesizer constitution's, once: it holds at every synthesis.
   const synthMd = readFileSync(new URL('../../agents/blue-synthesizer.md', import.meta.url), 'utf8')

@@ -60,7 +60,7 @@ const (
 	Key   = "key"
 
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
-	// literally. Every verb that addresses a span of the report takes it: cite and prove
+	// literally. Every verb that addresses a span of the report takes it: cite and compute
 	// splice an anchor there, finding flags it, mint says the defect lives there, edit
 	// replaces it, retire says it left. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
@@ -130,7 +130,7 @@ const (
 	// through enumhelp.
 	As = "as"
 
-	// ExpectError says a proof's subject IS a failing command, so `blue prove` records the
+	// ExpectError says a proof's subject IS a failing command, so `blue compute` records the
 	// environment error rather than refusing it. Without it, an error signature in a proof's
 	// output is a refusal: two proofs shipped as evidence in the 2026-08-23 plan run had run
 	// from the wrong working directory, printed the shell's complaint, exited 0, and were cited

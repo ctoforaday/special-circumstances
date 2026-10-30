@@ -22,19 +22,19 @@ import (
 // lens filtered the envelope for `ok`, `reproduced` and `sound` and read `ok: true` beside two
 // nulls: the result's field was `matches`, and nothing carried the other.
 //
-// The script here reads a file beside the run and the file is removed after `prove`: recorded as
+// The script here reads a file beside the run and the file is removed after `compute`: recorded as
 // reproducible, and failing when the auditor runs it.
 func TestASoundVerdictOverAFailedReRunIsRefused(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
+	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	marker := filepath.Join(runDir, "marker.txt")
 	if err := os.WriteFile(marker, []byte("no divisors in 2..6\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	s := script(t, runDir, "seven.js", "console.log(require('fs').readFileSync('marker.txt','utf8').trim());")
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
-		t.Fatalf("prove did not record the script as reproducible: %v\n%s", err, out)
+		t.Fatalf("compute did not record the script as reproducible: %v\n%s", err, out)
 	}
 	proofAnchor := lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
 	if err := os.Remove(marker); err != nil {
@@ -81,11 +81,11 @@ func TestASoundVerdictOverAFailedReRunIsRefused(t *testing.T) {
 // recorded: `sound` is taken, and the result still says the bytes did not reproduce.
 func TestASoundVerdictOnAnObservedProofIsRecorded(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
+	seat := computeSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling"); err != nil || !strings.Contains(out, "observed") {
-		t.Fatalf("prove did not grade the moving script observed: %v\n%s", err, out)
+		t.Fatalf("compute did not grade the moving script observed: %v\n%s", err, out)
 	}
 	proofAnchor := lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
 	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-logic", "--anchor", proofAnchor, "--as", "sound",
@@ -112,13 +112,13 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)
 	}
-	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
+	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
 	counter := filepath.Join(runDir, "runs.txt")
 	// The script counts its own executions in a file beside the run, so the test can see whether
 	// the second judgement ran it. It prints the same line every time, so it reproduces.
 	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync('runs.txt','x');console.log('no divisors in 2..6');")
 	for _, q := range []string{"Seven has no divisor between two and six.", "Seven is the fourth prime."} {
-		if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil {
+		if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -184,12 +184,12 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 // difftest drives the real binary inside a re-run.
 func TestAScriptThatCallsTheToolCannotBeJudgedSound(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
+	seat := computeSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
 	s := script(t, runDir, "board.js", `const fs=require("fs");
-if (process.env.`+seatenv.VarProofRerun+`) fs.appendFileSync(process.env.`+seatenv.VarProofRerun+`, "feov-record show board --json\n");
+if (process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
 console.log("0");`)
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "not_portable") {
-		t.Fatalf("prove did not grade a script that calls the tool not_portable: %v\n%s", err, out)
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "not_portable") {
+		t.Fatalf("compute did not grade a script that calls the tool not_portable: %v\n%s", err, out)
 	}
 	proofAnchor := lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE)
@@ -250,7 +250,7 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
 		t.Fatalf("cast: %v", err)
 	}
-	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
+	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
 	marker := filepath.Join(runDir, "marker.txt")
 	if err := os.WriteFile(marker, []byte("no divisors in 2..6\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -260,8 +260,8 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync('runs.txt','x');console.log(fs.readFileSync('marker.txt','utf8').trim());")
 	var anchors []string
 	for _, q := range []string{"Seven has no divisor between two and six.", "Seven is the fourth prime."} {
-		if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
-			t.Fatalf("prove did not record the script as reproducible: %v\n%s", err, out)
+		if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
+			t.Fatalf("compute did not record the script as reproducible: %v\n%s", err, out)
 		}
 		anchors = append(anchors, lastBody(t, runDir, &recordpb.Proof{}).GetProofId())
 	}
@@ -331,13 +331,13 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 // stands on that re-run — from the verb, and from any writer that reaches the record without it.
 func TestASoundJudgementOnAScriptThatCalledTheToolIsRefusedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
+	seat := computeSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
 	s := script(t, runDir, "board.js", `const fs=require("fs");
 fs.appendFileSync("runs.txt","x");
-if (process.env.`+seatenv.VarProofRerun+`) fs.appendFileSync(process.env.`+seatenv.VarProofRerun+`, "feov-record show board --json\n");
+if (process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
 console.log("0");`)
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "not_portable") {
-		t.Fatalf("prove did not grade a script that calls the tool not_portable: %v\n%s", err, out)
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "not_portable") {
+		t.Fatalf("compute did not grade a script that calls the tool not_portable: %v\n%s", err, out)
 	}
 	p := lastBody(t, runDir, &recordpb.Proof{})
 	if out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-logic", "--anchor", p.GetProofId(), "--as", "unsound",

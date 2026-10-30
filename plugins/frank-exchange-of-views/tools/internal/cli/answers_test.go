@@ -428,7 +428,7 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "reproduce", row: rowReproduce, helps: []string{"lens reproduce"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
-			d.admitted("prove", "blue-respond", "prove", "--quote", quoteThree, "--script", s, "--reason", "the computation")
+			d.admitted("compute", "blue-respond", "compute", "--quote", quoteThree, "--script", s, "--reason", "the computation")
 			proofAnchor := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofId()
 			twice(lensSeat, "reproduce", "--anchor", proofAnchor, "--as", "sound")(d)
 		}},
@@ -438,9 +438,9 @@ func answerDrives() []answerDrive {
 				twice(s, "log", "--type", "defect")(d)
 			}
 		}},
-		{name: "proof", row: "a new proof", helps: []string{"blue prove"}, drive: func(d drive) {
+		{name: "proof", row: "a new proof", helps: []string{"blue compute"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
-			twice("blue-respond", "prove", "--quote", quoteThree, "--script", s)(d)
+			twice("blue-respond", "compute", "--quote", quoteThree, "--script", s)(d)
 		}},
 		{name: "cite", row: "a new citation", helps: []string{"blue cite"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{

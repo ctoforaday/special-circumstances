@@ -34,7 +34,7 @@ func refusesTheNote(t *testing.T, out string, err error, label string) {
 		"in report.md, from the citations and proofs anchored in the text",
 		"a reader is shown one of the two",
 		"NOTHING IS RECORDED",
-		"HOW CONTENT REACHES IT: Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word.",
+		"HOW CONTENT REACHES IT: Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word.",
 		"WHAT TO DO: take every reference of that shape this write adds, and the `[^…]:` line that defines it, out of the text. A source or a computation goes by the way above.",
 		"Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there",
 	} {
@@ -111,9 +111,9 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 		"--url", "https://tables/1", "--title", "Division tables", "--reason", "table two lists the quotient"); err != nil {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
-	if out, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", "Thirteen is prime.",
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Thirteen is prime.",
 		"--script", script(t, runDir, "prime.js", "console.log(13)"), "--reason", "thirteen has no divisor below four"); err != nil {
-		t.Fatalf("prove: %v\n%s", err, out)
+		t.Fatalf("compute: %v\n%s", err, out)
 	}
 	open := runtest.Open(t, runDir)
 	docs, err := shippedDocs(open)

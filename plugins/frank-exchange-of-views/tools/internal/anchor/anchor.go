@@ -10,7 +10,7 @@
 //
 // # Why it is a leaf
 //
-// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue prove`,
+// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue compute`,
 // `lens corroborate` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`

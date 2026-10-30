@@ -79,7 +79,7 @@ func (r *runner) closableNow(id string) bool {
 	switch d := r.scenarioOf(id); {
 	case satisfied(d):
 		return r.presented.has(id)
-	case d == dirProve:
+	case d == dirCompute:
 		return r.reproduced.has(id)
 	case d == dirDisputeWon:
 		return r.presented.has(id)
@@ -238,7 +238,7 @@ func (r *runner) answerRemands(seatID string) {
 				r.noteActErr("the remand's proof script could not be written: " + err.Error())
 				continue
 			}
-			_, ok = r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
+			_, ok = r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
 				"--reason", "fuzz: what the remand's direction found for "+g.ID)
 		} else {
 			_, ok = r.admitFresh(g.ID, "regrade", "--seat-id", seatID, "--id", g.ID,

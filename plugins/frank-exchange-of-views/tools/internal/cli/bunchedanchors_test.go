@@ -28,7 +28,7 @@ func TestABunchedRunIsRefusedWithWhatEachAnchorMarks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".",
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".",
 		"--script", script(t, runDir, "rise.js", "console.log(3-1)"), "--reason", "the difference of the two quarters is computed"); err != nil {
 		t.Fatal(err)
 	}

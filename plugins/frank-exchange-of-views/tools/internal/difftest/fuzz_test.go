@@ -237,7 +237,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		if err := os.WriteFile(filepath.Join(runDir, "fuzz-proof.js"), []byte("console.log('fuzz proof');\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		prologue = append(prologue, cmd{verb: "prove", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
+		prologue = append(prologue, cmd{verb: "compute", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
 			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", "the computation a lens re-runs"}})
 	}
 	for _, pre := range prologue {
@@ -452,7 +452,7 @@ var tourArms = []fuzzArm{
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--source-span", "a source the fuzz cites at /corr", "--title", t}
 		}, nil),
-	tourArm("blue prove", []string{"blue-respond"}, []string{"prove"},
+	tourArm("blue compute", []string{"blue-respond"}, []string{"compute"},
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
 		}, nil),

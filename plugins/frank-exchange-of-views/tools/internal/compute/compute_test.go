@@ -1,4 +1,4 @@
-package proof
+package compute
 
 import (
 	"os"
@@ -165,20 +165,20 @@ func TestEmptyScriptIsRefused(t *testing.T) {
 
 // A SCRIPT THAT CALLS THE TOOL NEVER REPRODUCES, AND IS GRADED AS ONE NO CHECKER CAN RUN. The
 // stand-in does what feov-record does under a checker's run — appends its call to the marker the
-// run names (seatenv.VarProofRerun) — and prints the same 0 either way, as a script piping the
+// run names (seatenv.VarComputeRerun) — and prints the same 0 either way, as a script piping the
 // tool's refusal through `jq` does. Its output alone could never tell the re-run anything.
 func TestAScriptThatCallsTheToolNeverReproduces(t *testing.T) {
 	hasNode(t)
 	runDir := t.TempDir()
 	s := write(t, runDir, "reads-the-record.js", `const fs = require("fs");
-if (process.env.`+seatenv.VarProofRerun+`) fs.appendFileSync(process.env.`+seatenv.VarProofRerun+`, "feov-record show board --json\n");
+if (process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
 console.log("0");`)
 	res, err := Run(runDir, s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Basis != NotPortable || !strings.Contains(res.Drift, "calls feov-record (feov-record show board --json)") {
-		t.Errorf("prove graded a script that calls the tool %q (%q), want not_portable naming the call", res.Basis, res.Drift)
+		t.Errorf("compute graded a script that calls the tool %q (%q), want not_portable naming the call", res.Basis, res.Drift)
 	}
 	rr, err := Reproduce(runDir, res.SHA)
 	if err != nil {
@@ -188,8 +188,8 @@ console.log("0");`)
 		t.Errorf("the re-run of a script that called the tool reads matches=%v calls=%q — its output %q equals the recorded %q, and that is the hiding this exists to end", rr.Matches, rr.ToolCalls, rr.Got, rr.Want)
 	}
 	// The marker is the run's own: the environment this test runs in never carries it.
-	if os.Getenv(seatenv.VarProofRerun) != "" {
-		t.Errorf("%s leaked into the caller's environment", seatenv.VarProofRerun)
+	if os.Getenv(seatenv.VarComputeRerun) != "" {
+		t.Errorf("%s leaked into the caller's environment", seatenv.VarComputeRerun)
 	}
 }
 

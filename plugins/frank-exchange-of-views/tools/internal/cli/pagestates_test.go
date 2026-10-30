@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 )
 
 // A PAGE STATES WHAT ITS FLAGS DO THERE, AND THE CALL AGREES. Each test below is a guess a seat
@@ -153,7 +153,7 @@ func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
 // A PROOF'S SCRIPT IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS PROOF STORE. The page names
 // the relative path a seat passes for a draft there, and the stored copy is the proof: the draft can
 // go and the proof still reads. An absolute path is still read where it lies.
-func TestProveTakesAScriptFromTheRunsScratch(t *testing.T) {
+func TestComputeTakesAScriptFromTheRunsScratch(t *testing.T) {
 	runDir := actFixture(t)
 	body := []byte("echo 0\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "scratch"), 0o755); err != nil {
@@ -162,16 +162,16 @@ func TestProveTakesAScriptFromTheRunsScratch(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(runDir, "scratch", "blue-respond-remainder.sh"), body, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	out, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "the parser accepts an empty body in this line.", "--script", "./scratch/blue-respond-remainder.sh", "--reason", "an empty body parses to nothing")
 	if err != nil || !strings.Contains(out, "recorded") {
-		t.Fatalf("a script drafted in the run's scratch/ was not proved (%v): %s", err, out)
+		t.Fatalf("a script drafted in the run's scratch/ was not computed (%v): %s", err, out)
 	}
 	if err := os.RemoveAll(filepath.Join(runDir, "scratch")); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
-	stored, err := os.ReadFile(filepath.Join(runDir, proof.StoredScript(hex.EncodeToString(sum[:]), "remainder.sh")))
+	stored, err := os.ReadFile(filepath.Join(runDir, compute.StoredScript(hex.EncodeToString(sum[:]), "remainder.sh")))
 	if err != nil || !bytes.Equal(stored, body) {
 		t.Fatalf("with scratch/ gone, the proof store does not hold the script's bytes (%v): %q", err, stored)
 	}
@@ -180,16 +180,16 @@ func TestProveTakesAScriptFromTheRunsScratch(t *testing.T) {
 	if err := os.WriteFile(pad, []byte("echo 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err = runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+	out, err = runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "the parser accepts an empty body in this line.", "--script", pad, "--reason", "an empty body parses to one")
 	if err != nil || !strings.Contains(out, "recorded") {
-		t.Fatalf("a script at an absolute path outside the run directory was not proved (%v): %s", err, out)
+		t.Fatalf("a script at an absolute path outside the run directory was not computed (%v): %s", err, out)
 	}
 
-	u := cmdAt(NewRootFor("blue-respond"), []string{"prove"}).Flags().Lookup("script").Usage
+	u := cmdAt(NewRootFor("blue-respond"), []string{"compute"}).Flags().Lookup("script").Usage
 	for _, says := range []string{"A relative path is read from the run directory", "drafted in the run's scratch/ is passed as scratch/", "an absolute path is read where it lies", "the proof does not depend on the draft"} {
 		if !strings.Contains(u, says) {
-			t.Errorf("prove --script does not say %q:\n%s", says, u)
+			t.Errorf("compute --script does not say %q:\n%s", says, u)
 		}
 	}
 }

@@ -268,7 +268,7 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
 // spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
 
-// ProofAnswers reports whether any recorded proof names this gap in its --answers.
+// ComputationAnswers reports whether any recorded proof names this gap in its --answers.
 //
 // It is the join a `computation` acceptance check closes on. The link is a FIELD checked
 // against the board at write time, never a gap id mentioned in prose — the convention
@@ -277,7 +277,7 @@ func EstoppelRejectionsOf(evs []*Event) int {
 //
 // A read error is returned, never folded into false: "no proof" and "could not look" are two
 // answers, and the caller refuses on the second naming it.
-func ProofAnswers(run Run, gapID string) (bool, error) {
+func ComputationAnswers(run Run, gapID string) (bool, error) {
 	if gapID == "" {
 		return false, nil
 	}

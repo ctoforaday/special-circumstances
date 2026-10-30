@@ -7,7 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE BIBLIOGRAPHY PRINTS SEAT TEXT, SO PROVE AND CITE MEET THE VOICE ADVISORY.
+// THE BIBLIOGRAPHY PRINTS SEAT TEXT, SO COMPUTE AND CITE MEET THE VOICE ADVISORY.
 //
 // A proof's --reason prints word for word as a [^PN] footnote, and a cite's --title prints the same
 // way as its entry, so both meet the voice advisory. These drive the real verbs, because a guard
@@ -15,11 +15,11 @@ import (
 
 const voicedProofNote = "Recomputed trial division from scratch this sitting rather than trusting the lane draft"
 
-func TestProveAdvisesOnAVoicedNote(t *testing.T) {
+func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
+	seat := computeSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
-	args := []string{"prove", "--run", runDir, "--seat-id", seat, "--key", "P1",
+	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--key", "P1",
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
 		"--script", s, "--reason", voicedProofNote}
 
@@ -48,13 +48,13 @@ func TestProveAdvisesOnAVoicedNote(t *testing.T) {
 
 func TestACleanProofNoteCarriesNoNote(t *testing.T) {
 	runDir := newRun(t)
-	seat := proveSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
+	seat := computeSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
-	out, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
 		"--script", s, "--reason", "a reproducible computation shows 3 divides 9")
 	if err != nil {
-		t.Fatalf("prove: %v\n%s", err, out)
+		t.Fatalf("compute: %v\n%s", err, out)
 	}
 	if strings.Contains(out, "NOTE") {
 		t.Errorf("a clean proof note carries an advisory:\n%s", out)

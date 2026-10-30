@@ -22,7 +22,7 @@ type Asserted struct {
 // `conflict` naming the stored values; nil where every asserted field repeats the stored one. id
 // is "" for an act the tool names by no id.
 //
-// A KEY IS ONE ACT'S NAME, as it is one program's for `prove` and one citation's for `cite`: a
+// A KEY IS ONE ACT'S NAME, as it is one program's for `compute` and one citation's for `cite`: a
 // retry that states a different grade, subject or text is a second act reusing the name, and
 // answering it with the first leaves the seat holding something other than what it asked for.
 // Every fact the act's verb records from a flag is listed by its caller, the location included: a

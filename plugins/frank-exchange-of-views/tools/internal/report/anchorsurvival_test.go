@@ -22,7 +22,7 @@ import (
 //
 //	<!--fx:F-…-->     STRIPPED           (stripTokens, docs.go)
 //	<!--cite:C-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
-//	<!--proof:P-…--> -> [^PN] + definitions    (weaveProofRefs, proofs.go)
+//	<!--proof:P-…--> -> [^PN] + definitions    (weaveComputationRefs, proofs.go)
 //
 // What was tested was each fate ALONE: FuzzWeaveCitations drives weaveCitations over one string,
 // TestStripTokens drives stripTokens over one string, and TestNoDocumentInTheSetShipsA

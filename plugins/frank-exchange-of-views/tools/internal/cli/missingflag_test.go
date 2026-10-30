@@ -102,7 +102,7 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 		says   string
 		absent string
 	}{
-		{"blue-respond", []string{"cite", "edit", "prove"}, "Only cite, edit and prove take a handle: no other verb on this surface has this flag", "retire"},
+		{"blue-respond", []string{"cite", "edit", "compute"}, "Only cite, compute and edit take a handle: no other verb on this surface has this flag", "retire"},
 		{"red-lens-evidence", []string{"finding", "mint"}, "Only finding and mint take a handle: no other verb on this surface has this flag", "close"},
 	} {
 		root := NewRootFor(tc.seat)

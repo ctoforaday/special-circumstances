@@ -11,7 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A PATH A SEAT NAMES IS NEVER THE RECORD. prove reads its --script and ingest its blue/report.md
+// A PATH A SEAT NAMES IS NEVER THE RECORD. compute reads its --script and ingest its blue/report.md
 // inside the process whose cached connection holds the record's locks; a read of a record file
 // there closes a descriptor on it and releases the POSIX locks the process holds on that file, and
 // the act then writes through a connection that believes it still holds them. The -shm locks are
@@ -41,7 +41,7 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 	for name, path := range cases {
 		t.Run(name, func(t *testing.T) {
 			runDir := newRun(t)
-			seat := proveSeat(t, runDir, "# H\n\n"+sentence+"\n")
+			seat := computeSeat(t, runDir, "# H\n\n"+sentence+"\n")
 			db := filepath.Join(runtest.Open(t, runDir).Records(), "record.db")
 			if _, err := os.Stat(db + "-wal"); err != nil {
 				t.Fatalf("the open record has no write-ahead log to name: %v", err)
@@ -49,14 +49,14 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 			script := path(t, runDir, db)
 			before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF)
 
-			out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", sentence,
+			out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", sentence,
 				"--script", script, "--reason", "trial division settles it")
 			if err == nil || !strings.Contains(err.Error(), "this run's record") {
-				t.Errorf("prove --script %s was not refused as the record: err=%v\n%s", script, err, out)
+				t.Errorf("compute --script %s was not refused as the record: err=%v\n%s", script, err, out)
 			}
-			requireRecordLocked(t, db, "the refused prove")
+			requireRecordLocked(t, db, "the refused compute")
 			if after := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); after != before {
-				t.Errorf("a refused prove recorded %d proof(s)", after-before)
+				t.Errorf("a refused compute recorded %d proof(s)", after-before)
 			}
 		})
 	}

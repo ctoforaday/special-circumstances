@@ -108,12 +108,12 @@ func actRows() map[string]actRow {
 				return []string{"cite", "--quote", "§2 the finding prose lands in a quoted sentence.", "--url", "https://src/corr", "--title", text,
 					"--reason", "it states the finding"}
 			}},
-		"blue prove": {seat: "blue-respond",
+		"blue compute": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) actVars {
 				return actVars{"script": script(t, runDir, "corr.js", "console.log(91 % 7)")}
 			},
 			act: func(v actVars, text string) []string {
-				return []string{"prove", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
+				return []string{"compute", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
 			}},
 		"blue inquiry propose": {seat: "blue-respond", act: func(_ actVars, text string) []string {
 			return []string{"inquiry", "propose", "--question", text, "--hypothesis", "it would settle something"}
@@ -140,7 +140,7 @@ func actRows() map[string]actRow {
 				if err := os.WriteFile(s, []byte("console.log(Math.random());"), 0o644); err != nil {
 					t.Fatal(err)
 				}
-				must(t, runDir, "prove", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
+				must(t, runDir, "compute", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
 					"--script", s, "--reason", "the computation a lens re-runs")
 				return actVars{"proof": lastBody(t, runDir, &recordpb.Proof{}).GetProofId()}
 			},

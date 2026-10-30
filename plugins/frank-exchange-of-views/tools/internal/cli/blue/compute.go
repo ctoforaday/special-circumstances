@@ -10,14 +10,14 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
-// prove: settle a claim by COMPUTING it, and leave the computation as the evidence.
+// compute: settle a claim by COMPUTING it, and leave the computation as the evidence.
 //
 // THE ENGINE COULD ALWAYS DO THIS AND NEVER DID. Every seat has Write, Edit and Bash; across
 // six runs of recorded events no seat ever wrote a program to settle a question. Nothing tied
@@ -31,15 +31,15 @@ import (
 //
 // IT IS THE CITATION MODEL WITH THE LAST MILE WALKED, not a new kind of evidence. Cite the
 // METHOD with `blue cite` (trial division, Miller-Rabin — someone else's proof, sourced), then
-// prove the INSTANCE by running it. Several methods on one claim is several anchors on one
+// compute the INSTANCE by running it. Several methods on one claim is several anchors on one
 // sentence, which is exactly how a mathematician argues.
 //
 // THE BASIS IS DERIVED, never claimed: the tool runs the script twice. Identical output is
 // `reproducible` — the auditor can reach the same bytes independently. Moving output is
 // `observed`, still evidence but of a system in motion (a live call measures what an API
 // actually does, which beats its documentation), and the report must not read the two alike.
-func newProve() *cobra.Command {
-	c := seat.Prose(seat.New("prove", proveResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+func newCompute() *cobra.Command {
+	c := seat.Prose(seat.New("compute", computeResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
@@ -51,7 +51,7 @@ func newProve() *cobra.Command {
 		if strings.TrimSpace(script) == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --script: the path of the program that settles it — absolute, or relative to the run directory")
 		}
-		if err := record.RefuseRecordFile(run, proof.ScriptPath(run.Dir(), script), "--script", "a program"); err != nil {
+		if err := record.RefuseRecordFile(run, compute.ScriptPath(run.Dir(), script), "--script", "a program"); err != nil {
 			return nil, err
 		}
 
@@ -79,7 +79,7 @@ func newProve() *cobra.Command {
 		if prior, err := record.ExistingProofByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != nil {
-			now, serr := proof.ScriptSha(run.Dir(), script)
+			now, serr := compute.ScriptSha(run.Dir(), script)
 			if serr != nil {
 				return nil, serr
 			}
@@ -93,8 +93,8 @@ func newProve() *cobra.Command {
 			// method it cites, the gap it answers and its note again, or it is a second proof reusing
 			// the name.
 			retry := &recordpb.Proof{}
-			proofFields(cmd, retry, why)
-			if err := seat.RepeatsKeyed(key, "proof", prior.GetProofId(), prior, retry, proveAsserted...); err != nil {
+			computeFields(cmd, retry, why)
+			if err := seat.RepeatsKeyed(key, "proof", prior.GetProofId(), prior, retry, computeAsserted...); err != nil {
 				return nil, err
 			}
 			// A proof on the record without its anchor — one migrate brought forward from an archive
@@ -102,10 +102,10 @@ func newProve() *cobra.Command {
 			if err := seat.PlaceOwed(s, prior.GetProofId(), key); err != nil {
 				return nil, err
 			}
-			return proveResult{SHA: prior.GetProofSha(), Idempotent: true, VoiceTells: tells}, nil
+			return computeResult{SHA: prior.GetProofSha(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
-		res, err := proof.Run(run.Dir(), script)
+		res, err := compute.Run(run.Dir(), script)
 		if err != nil {
 			// A proof that will not run is not evidence, and the failure is a capability
 			// signal — the same treatment `blue cite` gives an unreachable source.
@@ -117,7 +117,7 @@ func newProve() *cobra.Command {
 		}
 
 		// THE ENVIRONMENT FAILING IS NOT THE COMPUTATION ANSWERING, and exit 0 does not tell the
-		// two apart. `proof.Run` works in the RUN directory; a script authored against the repo
+		// two apart. `compute.Run` works in the RUN directory; a script authored against the repo
 		// root prints "No such file or directory", carries on, and ends clean — which is how a
 		// report came to cite an enumeration that enumerated nothing as re-runnable evidence.
 		// Refused rather than graded, because the artifact is otherwise indistinguishable from a
@@ -159,18 +159,18 @@ func newProve() *cobra.Command {
 		if res.Drift != "" {
 			body.Drift = proto.String(res.Drift)
 		}
-		proofFields(cmd, body, why)
-		if _, err := seat.AppendPlaced(s, body, label, location, proveRefusal); err != nil {
+		computeFields(cmd, body, why)
+		if _, err := seat.AppendPlaced(s, body, label, location, computeRefusal); err != nil {
 			return nil, err
 		}
-		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
+		return computeResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
 	}))
 
 	// DescQuoteAlone: this verb's --reason is the proof note the report prints, no place for a section name.
 	flags.Text(c, flags.Quote, flags.DescQuoteAlone)
 	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft")
 	seat.Require(c, flags.Quote, flags.Script)
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another program, --quote, --cites, --answers or --reason is refused: a handle names one proof")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
@@ -178,9 +178,9 @@ func newProve() *cobra.Command {
 	return c
 }
 
-// proofFields sets every field of a proof that the SEAT types. `script` is the flag's own value:
-// proof.Run records the path it was handed.
-func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
+// computeFields sets every field of a proof that the SEAT types. `script` is the flag's own value:
+// compute.Run records the path it was handed.
+func computeFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Location = proto.String(seat.Location(cmd))
 	body.Script = proto.String(seat.Str(cmd, flags.Script))
 	body.ProofKey = proto.String(seat.Str(cmd, flags.Key))
@@ -189,18 +189,18 @@ func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Text = proto.String(why)
 }
 
-// proveAsserted is what a proof states besides its program, and so what a retry under its key must
+// computeAsserted is what a proof states besides its program, and so what a retry under its key must
 // state again.
-var proveAsserted = []seat.Asserted{
+var computeAsserted = []seat.Asserted{
 	{Flag: flags.Quote, Field: "location"},
 	{Flag: flags.Cites, Field: "cites"},
 	{Flag: flags.Answers, Field: "answers"},
 	{Flag: flags.Reason, Field: "text"},
 }
 
-func proveRefusal(err error) error { return anchortext.Refusal(err) }
+func computeRefusal(err error) error { return anchortext.Refusal(err) }
 
-type proveResult struct {
+type computeResult struct {
 	Label      string `json:"proof_id,omitempty"`
 	SHA        string `json:"sha256"`
 	Basis      string `json:"proof_basis,omitempty"`
@@ -211,10 +211,10 @@ type proveResult struct {
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
-func (r proveResult) Human() string {
+func (r computeResult) Human() string {
 	note := reportvoice.Note("the proof's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return "blue prove (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
+		return "blue compute (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
 	}
 	out := fmt.Sprintf("proof %s recorded (%s, exit %d) — anchored, script and output cached", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {
