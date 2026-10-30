@@ -1148,7 +1148,9 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
   for (const area of LENS_AREAS) {
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
-    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on. Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on.') &&
+      md.includes('Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes("On a gap you minted, your turn comes with blue's: the record readies you on it once blue has acted on it since your own last act there, your mint included, and never before"), `red-lens-${area}: a lens's turn on its gap comes with blue's act`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)
     assert.ok(md.includes("a corroborating source's title ships in the source's note and Bibliography entry") && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
   }

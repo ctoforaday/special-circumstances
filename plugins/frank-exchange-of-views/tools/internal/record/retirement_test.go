@@ -82,16 +82,6 @@ func lensStateOf(t *testing.T, run Run) lensFold {
 	return g.lenses[0]
 }
 
-// gaplessParty reports whether the plan engages the lens with no gap: readied to audit the report.
-func gaplessParty(p Plan) bool {
-	for _, party := range p.Parties {
-		if party.SeatID == evLens {
-			return len(party.GapIDs) == 0
-		}
-	}
-	return false
-}
-
 // THE RULE: a lens with no gap engaged is readied when it has never sat or the report head has
 // moved since its last sitting, and not otherwise.
 func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
