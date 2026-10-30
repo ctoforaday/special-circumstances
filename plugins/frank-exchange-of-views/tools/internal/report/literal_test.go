@@ -1,6 +1,7 @@
 package report
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -84,6 +85,17 @@ func TestLiteralOpensNothingAndReadsAsTyped(t *testing.T) {
 	}
 }
 
+// hostileFile and hostileOut are a bundle file and an out/ file a program named. Both are written to
+// disk, so on Windows, which refuses `<`, `>`, `|`, `:`, `"`, `?`, `*` and control characters in a
+// file name, they are built from the Markdown-active bytes it allows — a backtick, brackets,
+// parentheses, `#`, `!`, `_`, `~`, `&`, `'` and spaces — and still pass through Literal there.
+var hostileFile, hostileOut = func() (string, string) {
+	if runtime.GOOS == "windows" {
+		return "p](x) `b` ## Y ![i](j) _e_ ~s~ &amp; 'q'.py", "o`ut ## X](y.png) [^K1] !"
+	}
+	return "p](x) `<b>`\n## Y.py", "o`ut\n## X](y.png)"
+}()
+
 // A NAME A PROGRAM CHOSE OPENS NOTHING IN evidence.md (T1). One computation whose command, toolchain
 // path, bundle file, out/ file, drifts and outputs each hold a backtick, a line break before `## X`,
 // a link, raw HTML and a fence, beside the same computation with plain names: the two documents
@@ -97,8 +109,8 @@ func TestAProgramsNamesOpenNothingInTheEvidenceDocument(t *testing.T) {
 			}
 			return plain
 		}
-		file := name("p](x) `<b>`\n## Y.py", "p.py")
-		outName := name("o`ut\n## X](y.png)", "out.png")
+		file := name(hostileFile, "p.py")
+		outName := name(hostileOut, "out.png")
 		argv := []string{"python3", file, name("a\n## Z <i>[^K1]", "arg")}
 		files := []compute.File{{Path: file, Body: []byte("print(1)\n")}}
 		bundle := compute.BundleSha(argv, compute.Sums(files))
