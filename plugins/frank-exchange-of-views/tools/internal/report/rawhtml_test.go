@@ -445,7 +445,7 @@ func TestAssembledSetCarriesNoSeatHTML(t *testing.T) {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)
 		}
 	}
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(blue)})
 	if _, err := Assemble(runtest.Open(t, runDir)); err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}
@@ -573,7 +573,7 @@ func TestTheLayoutShowsTheRecordsTextUnescaped(t *testing.T) {
 		t.Fatal(err)
 	}
 	blue := "# On lists\n\n## TL;DR\n\nA List<String> holds <b>names</b>.\n\n## Types of List<String>\n\nMore.\n\n## Open questions\n\nNone.\n"
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := Layout(run)

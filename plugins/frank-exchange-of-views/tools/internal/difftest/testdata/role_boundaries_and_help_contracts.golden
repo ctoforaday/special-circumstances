@@ -37,7 +37,7 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
+  ingest       record your part of the report — once per lane, before the report's first change
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
@@ -83,7 +83,7 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
+  ingest       record your part of the report — once per lane, before the report's first change
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
@@ -255,7 +255,7 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
+  ingest       record your part of the report — once per lane, before the report's first change
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
@@ -319,7 +319,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --about --about-kind --class: requires --check, --check-kind, --impact, --likelihood, --problem, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_LOG"}
 {"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused a verb this surface does not have: \"mint\" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_LOG"}
 {"key":"blue-respond:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused a verb this surface does not have: \"close\" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_LOG"}

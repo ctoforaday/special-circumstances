@@ -72,7 +72,7 @@ type Plan struct {
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
 	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
-	// Head is the events.id of the latest blue_edit or base_ingest — the report the parties audit.
+	// Head is the events.id of the latest blue_edit or report_part — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
 	Parties []Party `json:"parties"`

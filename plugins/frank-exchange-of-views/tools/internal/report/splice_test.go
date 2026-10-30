@@ -43,7 +43,7 @@ func computationEvent(t *testing.T, label, sha, reason string) *record.Event {
 func TestASeatsFenceLeavesEveryLaterComputationAnchorLive(t *testing.T) {
 	const first, second = "K-00000001", "K-00000002"
 	dir, run := seededRun(t,
-		recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
+		recordtest.Event(t, "blue-synthesize", &recordpb.ReportPart{Text: proto.String(
 			"# On 91 — research report\n\n## TL;DR\n\nOne<!--computation:" + first + "--> and two<!--computation:" + second + "-->.\n")}),
 		computationEvent(t, first, "aaaa0000aaaa0000", "checks X\n````\nand the rest"),
 		computationEvent(t, second, "bbbb0000bbbb0000", "checks Y"),
@@ -123,7 +123,7 @@ func TestATokensRemovalOpensNoNote(t *testing.T) {
 // finding's.
 func TestAHuskGoesWholeForEveryToken(t *testing.T) {
 	set := shipSeeded(t,
-		recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
+		recordtest.Event(t, "blue-synthesize", &recordpb.ReportPart{Text: proto.String(
 			"# On 91 — research report\n\n## TL;DR\n\nIt is not.\n\n- kept\n- <!--cite:C-…-->.\n- <!--fx:F-1-->.\n- also kept\n")}),
 	)
 	report, _ := set.textOf(FileReport)
@@ -292,7 +292,7 @@ func TestATokenInCodeShipsInReportMD(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
 	set, err := AssembleShipped(run)
@@ -319,7 +319,7 @@ func TestATitleIsMeasuredWithoutItsTokens(t *testing.T) {
 		{"# " + fits + "<!--gap:G-00000001-->", "# " + fits},
 		{"# <!--gap:G-00000001-->", titleOr("")},
 	} {
-		_, run := seededRun(t, recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(c.h1 + "\n\n## TL;DR\n\nA claim.\n")}))
+		_, run := seededRun(t, recordtest.Event(t, "blue-synthesize", &recordpb.ReportPart{Text: proto.String(c.h1 + "\n\n## TL;DR\n\nA claim.\n")}))
 		set, err := AssembleShipped(run)
 		if err != nil {
 			t.Fatal(err)

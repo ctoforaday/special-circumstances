@@ -115,3 +115,8 @@ func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
 
 // UnplacedLocation is record.UnplacedLocation asked of the landing record.
 func (l *Landing) UnplacedLocation(id string) (string, error) { return unplacedLocationAt(l.w.q, id) }
+
+// PartStanding is record.PartStanding asked of the landing record.
+func (l *Landing) PartStanding(seat string) (recorded, changed bool, err error) {
+	return partStandingAt(l.w.q, seat)
+}

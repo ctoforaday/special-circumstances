@@ -280,7 +280,7 @@ var views = []struct {
 	// that answer a question only the bench asks.
 	inquest bool
 }{
-	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `compute`", reportLong, "", false, record.ReportJSON{}, false},
+	{"report", "THE REPORT, as it stands now. `changes` says how it got that way. Written by blue's `ingest`, one part a lane, and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `compute`", reportLong, "", false, record.ReportJSON{}, false},
 	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. Each gap's `minted_by` is the seat that minted it, the one seat that may close it, and the one party that may regrade it — the bench regrades a gap it is hearing; its `found_by` is the findings it was minted from. `material` is whether the gap holds a PASS while it is open — its class's answer, else graded medium or above; `remanded` is whether the bench remanded it and it stands open with nothing pending, and `docket_direction` the direction the latest remand states, empty when the bench never remanded it. JSON by default; --format markdown gives the human-verification rendering. " + record.LocationStates + ". Written by the lens's `mint`, `close` and `regrade`, the bench's `regrade`, and blue's `retire`", "", true, record.BoardJSON{}, false},
 	{"findings", "THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`", "Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps", "", true, record.FindingsJSON{}, false},
 	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`", viewLong("work", "", ""), "*", true, record.WorkJSON{}, false},
@@ -938,8 +938,8 @@ func renderView(cmd *cobra.Command, want string) error {
 		asJSON, _ := cmd.Flags().GetBool(flags.JSON)
 		// THE ASSEMBLED SET, from the assembler itself: report.Layout assembles the record as it
 		// stands and slices what it made, so no second description of the report's shape exists
-		// to drift from the one that ships. It reads before any report is ingested, which is when
-		// the seat about to write one asks.
+		// to drift from the one that ships. It reads before any part is recorded, which is when a
+		// lane about to write one asks.
 		if assembled, _ := cmd.Flags().GetBool(flags.Assembled); assembled {
 			if Str(cmd, flags.Anchor) != "" || cmd.Flags().Changed(flags.Window) {
 				return feov.Errorf(feov.Validation, "--assembled reads the assembled set section by section, and --anchor reads the report's text at one anchor — pass one or the other")

@@ -35,7 +35,7 @@ func TestRiskMatrixCarriesOnlyWhatMintWrote(t *testing.T) {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)
 		}
 	}
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(
 		"# Whether the cache is coherent — research report\n\n## TL;DR\nThe cache is coherent.\n\n## Analysis\nReads never observe a torn value.\n")})
 	add(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
 		GapId:           proto.String("G1"),

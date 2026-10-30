@@ -67,7 +67,7 @@ func dispatchedRun(t *testing.T, sittings int, petition, sit bool) (record.Run, 
 		recordtest.Seed(t, dir, recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body))
 	}
 	seed("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}})
-	seed("harness", &recordpb.BaseIngest{Text: proto.String("# r\n\nA sentence.")})
+	seed("harness", &recordpb.ReportPart{Text: proto.String("# r\n\nA sentence.")})
 	run := runtest.Open(t, dir)
 	var plans []record.Plan
 	for k := range sittings {
@@ -206,7 +206,7 @@ func TestARelayWithNothingToCompareSaysSo(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "harness", "c", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		recordtest.At(t, "harness", "b", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		recordtest.At(t, "harness", "b", &recordpb.ReportPart{Text: proto.String("# r")}),
 		recordtest.At(t, "red-chair", "r1", &recordpb.Register{}),
 		recordtest.At(t, "red-chair", "d1", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
 		recordtest.At(t, "red-lens-evidence", "r2", &recordpb.Register{}))

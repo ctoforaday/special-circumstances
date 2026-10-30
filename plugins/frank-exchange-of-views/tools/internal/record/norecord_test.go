@@ -45,8 +45,8 @@ func TestEveryReaderAnswersARunWithNoRecordThroughItsNilHandle(t *testing.T) {
 	if epochs, err := epochsAt(q); err != nil || epochs != nil {
 		t.Errorf("epochsAt: %v, %v", epochs, err)
 	}
-	if _, have, ops, err := ReportProjectionAt(q); err != nil || have || ops != nil {
-		t.Errorf("ReportProjectionAt: base %v, %d ops, %v", have, len(ops), err)
+	if ops, err := ReportProjectionAt(q); err != nil || ops != nil {
+		t.Errorf("ReportProjectionAt: %d ops, %v", len(ops), err)
 	}
 	if v, err := recordedOutcomeAt(q); err != nil || v != "" {
 		t.Errorf("recordedOutcomeAt: %q, %v", v, err)

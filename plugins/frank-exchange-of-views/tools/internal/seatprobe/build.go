@@ -13,6 +13,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -75,24 +77,6 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
 	closingsOf := map[string][]struct{ seat, text string }{}
-	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(run.Dir(), "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
-		return err
-	}
-	// INGEST THE SYNTHESIZED REPORT, THEN THERE IS NO FILE (#709). blue-synthesize is the one seat
-	// allowed to ingest: it records the base and deletes the file, and every later verb reads and
-	// mutates the report THROUGH THE RECORD. This mirrors production, where the engine ingests right
-	// after synthesis and before any sitting — so the base exists when the first render-reading verb
-	// (mint's --quote check, cite, compute) runs. Its register is the FIRST, which is what triggers the
-	// probe's record separation.
-	if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
-		return fmt.Errorf("register blue-synthesize: %w", err)
-	}
-	if _, err := exec("ingest", "--run", run.Dir(), "--seat-id", "blue-synthesize"); err != nil {
-		return fmt.Errorf("ingest the synthesized report: %w", err)
-	}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
 	//
 	// Staging a board needs registered seats — a motion names its filer, a ruling names its ruler,
@@ -121,6 +105,10 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if _, err := exec(args...); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
+	}
+
+	if err := stageReport(run, b.Report, exec); err != nil {
+		return err
 	}
 
 	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
@@ -399,3 +387,67 @@ func minted(kind, out string) string {
 
 // handle is a board's positional name for a gap or a motion it stages.
 var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
+
+// stageReport puts the board's report on the record the way a run does: a lane records its part, and
+// the synthesizer writes the title and TL;DR before it with an edit. Every step after the cast goes
+// through the real verbs.
+//
+// THE CAST IS THE ONE EVENT WRITTEN DIRECTLY, as the harness, which is how setup writes it: no verb
+// writes a cast, and a lane is a seat only where the cast names it. It is written after the seats'
+// first registers, so the record already stands where the probe separated it, and the handle is
+// opened again to find it there.
+func stageReport(run record.Run, text string, exec Exec) error {
+	at, err := record.OpenRun(run.Dir())
+	if err != nil {
+		return err
+	}
+	seats, lanes := record.CastFor(1)
+	if _, err := record.Append(record.Identity{Run: at, SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: seats, LaneSeatIds: lanes}); err != nil {
+		return fmt.Errorf("write the cast: %w", err)
+	}
+	// The build holds no record handle past this write, as setup holds none: the seats open their own.
+	_ = recordsql.Close(filepath.Join(at.Records(), "record.db"))
+	frame, part, err := splitFrame(text)
+	if err != nil {
+		return err
+	}
+	lane := lanes[0]
+	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue", "candidates"), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(run.Dir(), "blue", "candidates", lane+".md"), []byte(part), 0o644); err != nil {
+		return err
+	}
+	for _, step := range [][]string{
+		{"register", "--run", run.Dir(), "--seat-id", lane},
+		{"ingest", "--run", run.Dir(), "--seat-id", lane},
+		{"register", "--run", run.Dir(), "--seat-id", "blue-synthesize"},
+	} {
+		if _, err := exec(step...); err != nil {
+			return fmt.Errorf("%s %s: %w", step[0], step[len(step)-1], err)
+		}
+	}
+	first := strings.SplitN(part, "\n", 2)[0]
+	if _, err := exec("edit", "--run", run.Dir(), "--seat-id", "blue-synthesize", "--key", "frame",
+		"--quote", first, "--new", frame+first, "--reason", "write the title and TL;DR"); err != nil {
+		return fmt.Errorf("edit the title and TL;DR onto the part: %w", err)
+	}
+	return nil
+}
+
+// splitFrame divides a board's report into its title and TL;DR, which are the synthesizer's, and the
+// report's own sections, which are the lane's part. Every board's report opens with the title, then
+// `## TL;DR`, then its own sections; one that does not is a fixture to fix, and says so.
+func splitFrame(text string) (frame, part string, err error) {
+	tldr := strings.Index(text, "\n## TL;DR\n")
+	if tldr < 0 {
+		return "", "", fmt.Errorf("the board's report has no `## TL;DR` after its title, so its part cannot be told from its frame")
+	}
+	next := strings.Index(text[tldr+1:], "\n## ")
+	if next < 0 {
+		return "", "", fmt.Errorf("the board's report has no section of its own after its TL;DR, so it has no part")
+	}
+	at := tldr + 1 + next + 1
+	return text[:at], text[at:], nil
+}

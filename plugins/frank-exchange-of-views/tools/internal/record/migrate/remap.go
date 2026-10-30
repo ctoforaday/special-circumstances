@@ -122,7 +122,7 @@ var (
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
-	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
+	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key Cite.copy_url
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id

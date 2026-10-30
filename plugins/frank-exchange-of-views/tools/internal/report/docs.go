@@ -344,11 +344,11 @@ func wovenToken(tok string) bool {
 	return woven
 }
 
-// blueReport renders the report's text from the record. A run with no base ingested has none, and
-// assembles with none of blue's sections. A report the record HOLDS and cannot replay is an error:
+// blueReport renders the report's text from the record. A run no lane recorded a part of has none,
+// and assembles with none of blue's sections. A report the record HOLDS and cannot replay is an error:
 // assembled as though blue wrote nothing, the set would ship without a word of the report.
 func blueReport(run record.Run) (string, error) {
-	have, err := reportproj.BaseIngested(run)
+	have, err := record.ReportHasParts(run)
 	if err == nil && have {
 		var md string
 		if md, err = reportproj.RenderFromRecord(run); err == nil {

@@ -662,7 +662,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // `[minority: lane-N]` tag on every single-lane claim — which blue's own constitution names
   // as the measured failure it exists to prevent, and which reportvoice flags. Six of them
   // shipped in a VERIFIED report before this was found. The fact is real and the record
-  // already holds it: the lane drafts, the frozen base and every recorded edit.
+  // already holds it: the lanes' parts and every recorded edit.
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
@@ -684,7 +684,20 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
     'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  // THE SYNTHESIZER RECORDS NO INQUIRY, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
+  // THE SYNTHESIZER WORKS ON THE LANES' PARTS THROUGH ITS ACTS. The lanes record their parts; the
+  // synthesizer reads the report they make and changes it on the record, so it is told of no draft
+  // directory, no file to write and nothing to freeze, and records no part of its own.
+  assert.ok(/The lanes have recorded their parts of the report/.test(synth) && /through your acts on the record/.test(synth),
+    'the synthesis prompt does not say the report is the lanes\' parts, changed through the synthesizer\'s acts')
+  assert.ok(!/candidates|report\.md|scratch\/|cp it|FREEZE|frozen/i.test(synth), 'the synthesis prompt names a draft, a file to write or a freeze')
+  assert.ok(/A part is a lane's, and your seat records none/.test(synth), 'the synthesis prompt does not say the synthesizer records no part')
+  // EACH LANE WRITES ITS PART TO THE PATH ITS SEAT NAMES AND RECORDS IT, holding only the report's own sections.
+  for (const lane of ['blue-lane-1', 'blue-lane-2', 'blue-lane-3']) {
+    const p = firstPrompt(world, lane)
+    assert.ok(p.includes(`/blue/candidates/${lane}.md, then record it`), `${lane}'s prompt does not name its part's path and the act that records it`)
+    assert.ok(/YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY/.test(p) && /no title, no TL;DR, Catechism or open questions/.test(p), `${lane}'s prompt does not say what a part holds`)
+  }
+  // THE SYNTHESIZER RECORDS NO INQUIRY, AND ITS PROMPT ASKS FOR NONE. It merges the lanes' parts; the
   // approaches are the frontier's and the lanes', who did the work. What it is told is what the
   // report holds of them: the tool composes the three sections, and the report carries no list of
   // approaches under any heading.

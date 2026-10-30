@@ -38,7 +38,7 @@ func membershipRun(t *testing.T) (cwd string, run record.Run) {
 	}
 	recordtest.Seed(t, runDir,
 		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{SeatIds: []string{"red-chair", "red-lens-evidence", "blue-respond", "judge"}}),
-		recordtest.At(t, record.HarnessSeat, "harness:ingest", &recordpb.BaseIngest{Text: proto.String("# report\n\nOne paragraph.\n")}))
+		recordtest.At(t, record.HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}))
 	run, err := record.NewRun(runDir)
 	if err != nil {
 		t.Fatal(err)

@@ -101,9 +101,9 @@ change under one is red-confirmed.
 Keeping the marker was prompt-hoped in slice 1b (blue was TOLD to grep `<!--fx:` and never delete one); a live
 run showed that is not enough. It was first enforced by a write-time **lockdown** (0.27.0) — `report.md`
 read-only to every seat but the author, guarded by a hook. Under **report-as-record (#709)** it is enforced
-by **construction** instead: there is no `blue/report.md` file to write. The round-0 author writes it once
-and **freezes it into the record** (`base_ingest`); from then the report is a PROJECTION replayed from
-events, and every seat changes it ONLY through the tool's edit path — **`feov-record edit --quote
+by **construction** instead: there is no `blue/report.md` file to write. Each lane writes its part once
+and **records it** (`report_part`); the report is a PROJECTION replayed from events — the parts in event
+order with every change folded over them — and every seat changes it ONLY through the tool's edit path — **`feov-record edit --quote
 <exact current span> --new <replacement> --reason <why> [--answers <gap-id>]`** — an exact-on-stripped span
 replace (reusing `lens.LocateSpan`, the finding-marker matcher) that appends a `blue_edit` event to an
 append-only diff-stack. A raw file write cannot reach the report because the report is not a file; a marker

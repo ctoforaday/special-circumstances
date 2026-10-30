@@ -48,38 +48,30 @@ var inquiryWay = []string{`"## Alternatives considered"`, "report.md", "the inqu
 	"`inquiry propose`", "`inquiry record`", "`declined` or `abandoned`"}
 
 func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
-	runDir := newRun(t)
-	path := filepath.Join(runDir, "blue", "report.md")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n"+composedSection), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+	runDir := laneRun(t, 1)
+	path := partFile(runDir, "blue-lane-1")
+	writePart(t, runDir, "blue-lane-1", "## The factors\n\n91 is 7 x 13.\n\n"+composedSection)
+	out, err := ingestPart(t, runDir, "blue-lane-1")
 	refusesTheSection(t, out, err, inquiryWay...)
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
-		t.Errorf("the refused ingest recorded %d base(s)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPORT_PART); n != 0 {
+		t.Errorf("the refused ingest recorded %d part(s)", n)
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("the refused ingest did not leave the file for its author to fix: %v", err)
 	}
 
 	// A section the refused seat has no way into says so, and whose act fills it.
-	if err := os.WriteFile(path, []byte("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Risk Matrix\n\n| a risk |\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("## The factors\n\n91 is 7 x 13.\n\n## Risk Matrix\n\n| a risk |\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err = run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+	out, err = run(t, "ingest", "--run", runDir, "--seat-id", "blue-lane-1")
 	refusesTheSection(t, out, err, `"## Risk Matrix"`, "the open gaps on the board", "No act of blue's adds a row", "A lens's `mint`")
 
-	// The file stands and the one ingest a run gets is unspent: the heading out, it freezes.
-	if err := os.WriteFile(path, []byte("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n"), 0o644); err != nil {
+	// The file stands and the lane's one part is unspent: the heading out, it is recorded.
+	if err := os.WriteFile(path, []byte("## The factors\n\n91 is 7 x 13.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+	if out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-lane-1"); err != nil {
 		t.Fatalf("ingest after the heading was taken out: %v\n%s", err, out)
 	}
 }
@@ -242,8 +234,8 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	}
 }
 
-// M20 IS THE CASE: THIS BINARY REFUSES ITS INGEST, AND MIGRATES AND ASSEMBLES ITS RECORD WITH
-// NOTHING LOST.
+// M20 IS THE CASE: THIS BINARY REFUSES ITS TEXT AS A PART, AND MIGRATES AND ASSEMBLES ITS RECORD
+// WITH NOTHING LOST.
 //
 // universe-m20 is the first archive whose report carries a heading the tool composes. The refusal
 // is the verbs'; migrate replays the record's events, so the archive comes forward with nothing
@@ -260,25 +252,18 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		t.Fatalf("%d event(s) refused migrating m20; the first: %+v", len(res.Refusals), res.Refusals[0])
 	}
 	dst := runtest.Open(t, to)
-	base, have, _, err := record.ReportProjection(dst)
-	if err != nil || !have {
-		t.Fatalf("the migrated m20 holds no ingested report: %v", err)
+	ops, err := record.ReportProjection(dst)
+	if err != nil || len(ops) == 0 || ops[0].Kind != "append" {
+		t.Fatalf("the migrated m20 holds no part of the report: %v", err)
 	}
 
-	// LIVE: the text m20's synthesizer froze, handed to this binary's ingest.
-	runDir := newRun(t)
-	path := filepath.Join(runDir, "blue", "report.md")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(base), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatal(err)
-	}
-	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-	refusesTheSection(t, out, err, inquiryWay...)
+	// LIVE: the text m20's synthesizer ingested, handed to this binary's ingest as a lane's part. It
+	// opens with the report's title, which is the synthesizer's to write, so it is refused before
+	// anything else is asked of it.
+	runDir := laneRun(t, 1)
+	writePart(t, runDir, "blue-lane-1", ops[0].A)
+	out, err := ingestPart(t, runDir, "blue-lane-1")
+	refusedWithNothingRecorded(t, runDir, "blue-lane-1", out, err, 0, "is the synthesizer's to write, not a lane's")
 
 	// MIGRATED: the record holds the heading, and everything under it ships.
 	blue, err := reportproj.RenderFromRecord(dst)

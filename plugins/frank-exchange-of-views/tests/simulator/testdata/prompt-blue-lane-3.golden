@@ -1,4 +1,4 @@
-prompt sha256: a816391add3c69cf88607c7a44b9424c5d3510275b1785fa4af4e2317e17e766
+prompt sha256: d2a2781c1dce270bfcfd3ef23b32228107162478c1e4b8ac259d9d9ead057e46
 
 Blue lane 3 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `inquiries` projection — where each carries an id and its hypothesis.
@@ -6,7 +6,10 @@ Research your assigned slice to saturation per your constitution (spend at least
 Your assigned METHOD: local-repo critical-stance (audit the subject artifacts/codebase directly; trust nothing secondhand) — work primarily through this method's source class; take hypothesis 3 first, then breadth.
 YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
-Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/lane-3.md.
+YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY, each under a `## ` heading of its own: no title, no TL;DR, Catechism or open questions, and no list of sources — the synthesizer writes those, and a part carrying one is refused.
+Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/blue-lane-3.md, then record it — the act your seat's help lists for your part of the report, which takes that file and no other.
+Record it ONCE; where it refuses, the file stands for you to fix and record again.
+What the synthesizer makes of it is the synthesizer's: once your part is recorded, your sitting is done.
 INQUIRIES: each approach the research took or weighed is on the record once, as an inquiry — the question it asks, with the hypothesis that would be true if it paid off kept apart from the question, and later with the fate it ACTUALLY had, what was done and what was found.
 Record the fate the approach really had; what each fate means is on the page of the act that records it.
 NO FATE IS OWED AN ENTRY.

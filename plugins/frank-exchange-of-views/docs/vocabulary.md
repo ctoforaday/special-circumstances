@@ -74,13 +74,12 @@ The report is the research prose written for a reader of the subject: one docume
 | document or artifact under audit | GATED | `(document\|artifact) under audit` |  |  |
 | synthesis (the document) | REGISTRY-ONLY |  |  |  |
 | deliverable | GATED | `deliverables?` |  |  |
-| frozen base, diff-stack | GATED | `frozen base\|diff stack` |  | `plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md` — ingest is the act that freezes the base, and its own help says what it builds<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest's own refusals and result describe the base it builds |
-| blue/report.md after ingest | GATED | `blue/report\.md` | `synthesize ${runDir}/blue/report.md by UNION` — the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it<br>`INTO ${runDir}/blue/report.md at synthesis` — the synthesizer's own prompt, as above<br>`bash cp it to ${runDir}/blue/report.md, the one path ingest reads` — the synthesizer's own prompt, at the write step: the path it copies its draft to before ingest | `plugins/frank-exchange-of-views/agents/blue-synthesizer.md` — the synthesizer writes blue/report.md before ingest; it is that seat's file<br>`plugins/frank-exchange-of-views/skills/research-protocol/references/run-directory.md` — the operator's run-directory map describes the synthesizer's file and its removal at ingest<br>`plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go` — ingest consumes blue/report.md and removes it; its refusal names the file it could not remove |
+| blue/report.md | GATED | `blue/report\.md` |  |  |
 
 **Collisions:**
 
 - **candidate** — a gap a lens is about to mint keeps the word; lane text is the report
-- **report.md** — blue/report.md is the synthesizer's file until ingest removes it; report.md at the run root is the assembled report
+- **report.md** — report.md at the run root is the assembled report; no seat writes blue/report.md
 
 ## run directory
 
@@ -219,7 +218,7 @@ The chair is red's running seat: it relays who sits, rules blue's motions, spot-
 
 **Collisions:**
 
-- **merge** — blue's union of the lane drafts is a merge; the chair is the chair
+- **merge** — blue's union of the lanes' parts is a merge; the chair is the chair
 
 ## bench
 
@@ -252,7 +251,7 @@ A lane is one of blue's parallel first passes at the report, written by one rese
 
 ## synthesizer
 
-The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
+The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.
 
 **Delivered to:** blue, bench, operator
 

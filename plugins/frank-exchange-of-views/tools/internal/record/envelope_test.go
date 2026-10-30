@@ -265,7 +265,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 	})
 	reopenedIn := func(t *testing.T, report string, build func(b *stage)) Run {
 		b := newStage(t).cast(evLens, "red-chair", blueSeatID, "judge").
-			add(HarnessSeat, &recordpb.BaseIngest{Text: proto.String(report)}).register("red-chair").
+			add(HarnessSeat, &recordpb.ReportPart{Text: proto.String(report)}).register("red-chair").
 			dispatch(2, evLens).bracket(evLens, "lens-a").cite("C-00000001").supports(evLens, "C-00000001").stop("lens-a").
 			reopen("C-00000001").register("red-chair").dispatch(3, evLens).bracket(evLens, "lens-b")
 		build(b)

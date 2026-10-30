@@ -607,6 +607,32 @@ func OutOfOrderIn(was, text ParsedText) (Misplaced, bool) {
 	return Misplaced{Line: c.text, Beside: c.beside, After: c.after, Belongs: belongs}, true
 }
 
+// PartSurfaceIn returns the first line by which a lane's part claims a row of the text other than
+// the report's own sections — the title line, or a section a row names — and that row's name. A part
+// holds only the report's own sections, so parts cannot contend for the title or the tail whatever
+// order the lanes record them in: the rest is the synthesizer's to write.
+func PartSurfaceIn(text ParsedText) (line, row string, found bool) {
+	all, rows, body := stands(text)
+	for _, s := range all {
+		if s.rank != body {
+			return s.line, orderName(rows[s.rank]), true
+		}
+	}
+	return "", "", false
+}
+
+// PartSurfaces names every row of the text a part may not hold (PartSurfaceIn), in the text's order.
+var PartSurfaces = func() string {
+	rows, body := textRows()
+	var names []string
+	for i, s := range rows {
+		if i != body {
+			names = append(names, orderName(s))
+		}
+	}
+	return strings.Join(names, ", ")
+}()
+
 // A stand is one thing the order places, where the text holds it: the title line, a section's
 // heading, or the first line of text before the first heading, which opens the body.
 type stand struct {

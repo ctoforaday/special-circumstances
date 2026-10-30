@@ -315,6 +315,18 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
+── a part from a seat that is no lane
+exit 2
+feov-record: ingest: blue-synthesize records no part of the report: a part is a lane's, and this run's lanes are blue-lane-1, blue-lane-2. NOTHING IS RECORDED. The report changes through edit, cite, compute and retire
+
+── a lane's second part
+exit 2
+feov-record: ingest: blue-lane-1 has already recorded its part of the report, and a lane records one. NOTHING IS RECORDED and the file stands. Your part is in the report as recorded; the synthesizer works on it from here, so end your sitting
+
+── a lane's part after the report changed
+exit 2
+feov-record: ingest: the report has already been changed, so a part recorded now would land after text the synthesis has reorganized. NOTHING IS RECORDED and the file stands. Your part is not in the report: say so in your log, with what it holds that the report lacks
+
 ── verb outside the blue role
 exit 2
 feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
@@ -339,7 +351,7 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
+  ingest       record your part of the report — once per lane, before the report's first change
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
@@ -581,7 +593,7 @@ feov-record: closing: GAP001 is not before the bench: no docket motion on it sta
 ── blue puts GAP001 before the bench, so its closing argues a docketing
 exit 2
 feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
-  event 44, red-lens-evidence: regraded GAP001
+  event 49, red-lens-evidence: regraded GAP001
 
 Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
 

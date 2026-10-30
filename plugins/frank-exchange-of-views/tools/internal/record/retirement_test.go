@@ -29,7 +29,7 @@ func (b *stage) sitUnserved(pin int64, lens string) *stage {
 func (b *stage) head() int64 {
 	for i := len(b.evs) - 1; i >= 0; i-- {
 		switch b.evs[i].GetType() {
-		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_BASE_INGEST:
+		case recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_REPORT_PART:
 			return int64(b.n - (len(b.evs) - 1 - i))
 		}
 	}

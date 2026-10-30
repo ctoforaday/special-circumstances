@@ -669,6 +669,13 @@ type runner struct {
 	// of the granted/denied the random path uses. A halt ends the run HALTED; kept out of the
 	// random oracle on purpose (it reshapes every downstream expectation).
 	forceHalt bool
+	// forceParts is partsSeed's run, which drives every part refusal (parts_test.go); partRefused
+	// counts each by kind, partsRecorded the lanes' parts the run recorded, and withheld the lane that
+	// records none.
+	forceParts    bool
+	partRefused   map[string]int
+	partsRecorded int
+	withheld      map[string]bool
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
@@ -767,10 +774,6 @@ func (r *runner) noteInquiryIDErr(msg string) {
 		r.inquiryIDErr = msg
 	}
 }
-
-// seedReport is the report every run freezes: text before the first heading, which is one of the
-// report's own sections, and the section that closes the text (reportdoc.TextOrder).
-const seedReport = "# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n\n## Open questions\n\nWhether the trend outlasts the sample.\n"
 
 // orderRefused drives an edit that would put a section out of the order the report ships in — one
 // written after the section that closes the text, or a TL;DR after text of the report's own — and
@@ -4661,6 +4664,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
+		r.synthesize(seatID)
 		r.extras("blue", seatID, nil)
 		// A forced run's seats file no petition: a petition readies the bench (see chairEnvelope).
 		if !r.forcedVerdict() {
@@ -5081,6 +5085,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				role = "blue"
 			}
 			r.register(role, seatID)
+			switch {
+			case strings.HasPrefix(seatID, seatclass.LaneSeatPrefix):
+				r.lanePart(seatID)
+			case strings.HasPrefix(seatID, "frontier"):
+				r.frontierReadsNoPart(seatID)
+			}
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
 			// citation lens records cite events, and every red lens records finding events
 			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
@@ -5570,6 +5580,9 @@ type outcome struct {
 	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
 	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
+	// partRefused and partsRecorded are runner's.
+	partRefused   map[string]int
+	partsRecorded int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -6024,15 +6037,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// it out is the expected failure here rather than an exotic one.
 		return outcome{seed: seed, err: "temp dir for the run: " + err.Error()}
 	}
-	// A lens finding anchors into blue/report.md and is rejected unless its --location
-	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
-	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
-	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
-	// phrasings, so every round has a valid unique span to replace whichever way the last
-	// edit left it, while the anchor quote above stays untouched for findings and cites.
-	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
-		return outcome{seed: seed, runDir: runDir, err: err.Error()}
-	}
+	// A lens finding anchors into the report and is rejected unless its --location quote is
+	// present (slice 1b). The lanes' parts carry the fuzzer's finding quote ("§ fuzz") so findings
+	// are accepted and the coverage gate sees them (lanePartText). The second lane's sentence is the
+	// EDIT TARGET: `blue edit` swaps it between two fixed phrasings, so every round has a valid
+	// unique span to replace whichever way the last edit left it, while the anchor quote stays
+	// untouched for findings and cites.
 	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
 	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
@@ -6061,19 +6071,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
+	r.forceParts = seed == partsSeed
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
 	}
 
-	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
-	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
-	// after synthesis and before any sitting. Every verb from here reads and mutates the report
-	// through the record — without this, mint/finding/cite/edit all refuse with "no base has been
-	// ingested". Driven at synthesis, so base_ingest is no longer exempt from the coverage gate.
-	r.register("blue", "blue-synthesize")
-	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
-		return outcome{seed: seed, runDir: runDir, err: "ingest the round-0 report: " + err.Error()}
-	}
+	// THE REPORT IS THE LANES' PARTS: each lane debate.js dispatches records its own, and the
+	// synthesizer frames them (parts_test.go). Every verb from there reads and mutates the report
+	// through the record.
 
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
@@ -6891,7 +6896,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
 	res.lensFirstHolds = r.lensFirstHolds
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
+	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()
+	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
+	if missed := r.partsMissed(); len(missed) > 0 && res.err == "" {
+		res.err = "forced parts: the run drove no " + strings.Join(missed, ", ") + " refusal"
+	}
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
 	minter := map[string]string{}
@@ -7048,9 +7058,9 @@ var verbsWithEvents = []string{
 	// sweep green. `anchor` is the finding-marker's own record (the immortal-marker detector's
 	// EXPECTED set is exactly these), `outcome` is the bench's.
 	"blue_edit", "anchor", "outcome", "computation",
-	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
-	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
-	"base_ingest",
+	// report_part is a lane's part of the report, written by `ingest` in every lane's sitting
+	// (parts_test.go) and so REQUIRED by the coverage gate like any other event-emitting verb.
+	"report_part",
 	// The sitting span (#265), and the first types here that NO VERB WRITES: feov-sitting-write
 	// appends them, about a seat, spawned by the SubagentStart/SubagentStop hooks. The sweep writes
 	// the close through the same writer at a dispatch's return (dispatchReturns); the opening is
@@ -7121,20 +7131,13 @@ func TestFuzzHaltPath(t *testing.T) {
 		_ = os.RemoveAll(runDir)
 	}()
 	// THE PETITION REACHES THE BENCH THROUGH THE CHAIR'S PLAN, so this run needs what `dispatch
-	// next` reads: the cast setup writes, and the report blue freezes. Without them the chair's
-	// dispatch is refused ("the record holds no cast"), the plan is empty, and the run ends
+	// next` reads: the cast setup writes, and the report the lanes' parts make. Without them the
+	// chair's dispatch is refused ("the record holds no cast"), the plan is empty, and the run ends
 	// UNVERIFIED with the petition never heard.
-	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
-		t.Fatal(err)
-	}
 	r := newRunner(bin, runDir, newLockedRand(1))
 	haltCast, haltLanes := record.CastFor(3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: haltCast, LaneSeatIds: haltLanes}); err != nil {
 		t.Fatalf("write the cast: %v", err)
-	}
-	r.register("blue", "blue-synthesize")
-	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 	r.forceHalt = true
 
@@ -7239,7 +7242,7 @@ var reportExemptions = map[string]string{
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly ships as written; rendering it as an entry of its own would duplicate the whole document",
+	"report_part": "a lane's part of the report — its text IS blue's report as the lanes recorded it, which every projection renders from and assembly ships as written; rendering it as an entry of its own would duplicate the document",
 	// THE DISPATCH MACHINERY (plans/roundless.md §III.B.1). A cast names who may sit; a dispatch
 	// records who the chair relayed for one epoch. Both are attribution and routing, and both
 	// reach the reader through what the dispatched seats then record — never as entries of
@@ -8377,15 +8380,10 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		_ = recordsql.CloseUnder(runDir)
 		_ = os.RemoveAll(runDir)
 	}()
-	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
-	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
+	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the lanes'
+	// parts a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
-	// which is correct and is not this path. And without INGESTING the report (#709) every verb that
-	// reads it is refused with "no base has been ingested". runOne does both before it drives; so
-	// does this.
-	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
-		t.Fatal(err)
-	}
+	// which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
 	r := newRunner(bin, runDir, newLockedRand(1))
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
@@ -8393,10 +8391,6 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	unverifiedCast, unverifiedLanes := record.CastFor(3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: unverifiedCast, LaneSeatIds: unverifiedLanes}); err != nil {
 		t.Fatalf("write the cast: %v", err)
-	}
-	r.register("blue", "blue-synthesize")
-	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 	r.forceUnverified = true
 

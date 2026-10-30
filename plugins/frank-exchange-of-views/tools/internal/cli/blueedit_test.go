@@ -2,8 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -16,34 +14,28 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// blue edit is the ONLY write path to blue/report.md for a response seat. These drive the
-// real command tree so the lockdown's write path is pinned where it is enforced: an exact
-// span replace that PRESERVES red's invisible finding-markers, rejects a marker-spanning
-// edit, records an append-only diff-stack op, and reconciles idempotently after a crash.
+// blue edit is the write path for the report's text once the parts are recorded. These drive the
+// real command tree: an exact span replace that PRESERVES red's invisible finding-markers, rejects
+// a marker-spanning edit, records a report op, and reconciles idempotently after a crash.
 
 func writeReport(t *testing.T, runDir, body string) {
 	t.Helper()
-	dir := filepath.Join(runDir, "blue")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ingestReport(t, runDir)
+	ingestReport(t, runDir, body)
 }
 
-// ingestReport freezes the just-written round-0 report into the record and removes the file
-// (#709): blue-synthesize is the one seat allowed to ingest, and every later verb reads and mutates
-// the report THROUGH THE RECORD. After this there is no file — read the current report with
-// readReport, which renders the projection.
-func ingestReport(t *testing.T, runDir string) {
+// ingestReport puts body on the record as the report: blue-synthesize registers, as the seat that
+// works on the report from here, and body is recorded as one part under the harness. A fixture
+// stands for a run whose lanes recorded their parts and whose synthesizer framed them; the ingest
+// verb's own rules, a lane's, are ingestpart_test.go's. Every later verb reads and mutates the report
+// THROUGH THE RECORD — read it with readReport, which renders the projection.
+func ingestReport(t *testing.T, runDir, body string) {
 	t.Helper()
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatalf("register blue-synthesize: %v", err)
 	}
-	if _, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.ReportPart{Text: proto.String(body)}); err != nil {
+		t.Fatalf("record the report's part: %v", err)
 	}
 }
 

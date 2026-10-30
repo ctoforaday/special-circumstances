@@ -29,7 +29,7 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{
 			SeatIds: []string{"red-chair", "red-lens-evidence", "blue-respond", "judge"}}),
 		recordtest.At(t, record.HarnessSeat, "harness:ingest",
-			&recordpb.BaseIngest{Text: proto.String("# report\n\nOne paragraph.\n")}),
+			&recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}),
 		// THE DISPATCH IS WHAT MAKES THE ORDERING OBSERVABLE. Without one the seat owes no sitting
 		// whichever order the render and the append run in, and the assertion below holds nothing.
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{

@@ -12,10 +12,12 @@ import (
 
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
 //
-// The current report is the frozen base with every text-mutating event replayed over it, in
-// record order. Three events mutate the report, and each replays through the SAME transform it
-// applied at write time, located by the SAME rule:
+// The current report is every text-mutating event folded from the empty text, in record order. Four
+// events mutate the report, and each replays through the SAME transform it applied at write time,
+// located by the SAME rule:
 //
+//   - a part      → appended (appendMut): on the empty text it is the text; otherwise the text, its
+//                   trailing newlines trimmed, a blank line, then the part. Each lane records one.
 //   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
 //                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
@@ -25,13 +27,13 @@ import (
 //   - a retire    → each anchor it names, taken out with the husk it leaves (removeMut).
 //
 // Because replay reproduces the identical running text each verb saw, the locators resolve the
-// identical offsets, so the bytes match what the file used to hold. Once the base is ingested and
-// the file deleted, this is the ONLY way the report exists: there is no file to raw-write,
-// chattr, or bypass, and a change that is not a recorded event cannot exist.
+// identical offsets. Once a part is ingested and its file deleted, this is the ONLY way the report
+// exists: there is no file to raw-write, chattr, or bypass, and a change that is not a recorded event
+// cannot exist.
 //
 // Every failure here is LOUD, never a plausible zero: an op that will not locate is a record that
-// no longer describes a real sequence over this base, and a silently skipped op would render a
-// report that never existed.
+// no longer describes a real sequence of text, and a silently skipped op would render a report that
+// never existed.
 
 // ApplySplice is the pure text transform blue edit and replay share: replace report[start:end]
 // with new, then tidy the two seams the splice created. NO legality guards — those (anchors
@@ -56,11 +58,10 @@ type Op struct {
 	Exact bool
 }
 
-// Render reproduces a report from a base and an ordered splice stack. It is the edit-only surface
+// Render reproduces a report from a text and an ordered splice stack. It is the edit-only surface
 // blue edit's fidelity tests drive against planEdit; RenderFromRecord composes the full event
 // stream (splices AND marker insertions).
-func Render(base string, ops []Op) (string, error) {
-	text := base
+func Render(text string, ops []Op) (string, error) {
 	for i, op := range ops {
 		next, err := (spliceMut{old: op.Old, new: op.New, exact: op.Exact}).apply(text)
 		if err != nil {
@@ -71,9 +72,9 @@ func Render(base string, ops []Op) (string, error) {
 	return text, nil
 }
 
-// mutation is one recorded text change, applied to the running report during replay. The two
-// shapes are a splice (blue edit) and a marker insertion (cite/compute/finding); both locate against
-// the running text exactly as the verb did, and both are loud when they cannot.
+// mutation is one recorded text change, applied to the running report during replay: a part's
+// append, a splice (blue edit), a marker insertion (cite/compute/finding) or a retire's removal. Each
+// locates against the running text exactly as the verb did, and is loud when it cannot.
 type mutation interface {
 	apply(text string) (string, error)
 	describe() string
@@ -242,47 +243,55 @@ func collapseNewlinesAt(s string, at int) string {
 	return s[:a] + strings.Repeat("\n", keep) + s[b:]
 }
 
-// RenderFromRecord is the record-aware render: it reads the run's frozen base and the ordered
-// stream of text mutations from the record — the report_op view SELECTS and orders them in SQL — and
-// folds them over the base. This is the ONLY way to obtain the current report once the file is
-// deleted; the former readers of blue/report.md call this instead.
+// RenderFromRecord is the record-aware render: it reads the run's ordered stream of text mutations
+// from the record — the report_op view SELECTS and orders them in SQL — and folds them from the empty
+// text. This is the ONLY way to obtain the current report.
 //
 // The FOLD is the irreducible sequential part: a splice must be located in the running text a prior
 // op left, which SQL cannot carry. Everything before it — which events mutate the text, and in what
-// order — is the record's own answer (record.RenderRun, over the report_op view), not a walk
-// of the whole event log rebuilt here. Two structural failures stay loud, never a plausible zero:
-// no base (nothing ingested) and two bases (the write-once rule broken) — both raised by the query.
+// order — is the record's own answer (record.RenderRun, over the report_op view), not a walk of the
+// whole event log rebuilt here. A record with no part has no report, and says so (Replay).
 func RenderFromRecord(run record.Run) (string, error) {
 	return record.RenderRun(run)
 }
 
-// Replay folds the ordered mutations over the frozen base. Each mutation reads only the running text,
-// so replaying ops[k:] over what ops[:k] left is replaying ops whole: the write path relies on it to
-// fold another write's ops onto a render it made before its lock (record.RegisterReportRenderer).
-func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
-	if !haveBase {
-		return "", fmt.Errorf("no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, computing, counting claims and editing all read the frozen report")
-	}
-	text := base
+// NoPart is the refusal of every read or change of a report no lane has recorded a part of.
+const NoPart = "no part of the report is recorded yet — there is nothing to read or change. The lanes record their parts first; citing, computing, editing and retiring all act on the report they make"
+
+// Replay folds the ordered mutations onto text. parted says whether text holds a part: a fold from
+// the empty text starts with none, and a mutation other than a part's, or the end of the fold, before
+// any part is NoPart. Each mutation reads only the running text, so replaying ops[k:] over what
+// ops[:k] left is replaying ops whole: the write path relies on it to fold another write's ops onto a
+// render it made before its lock (record.RegisterReportRenderer).
+func Replay(text string, parted bool, ops []record.ReportOp) (string, error) {
 	for i, op := range ops {
 		mut, err := mutationOf(op)
 		if err != nil {
 			return "", err
 		}
+		if _, isPart := mut.(appendMut); !isPart && !parted {
+			return "", fmt.Errorf("%s", NoPart)
+		}
+		parted = true
 		next, err := mut.apply(text)
 		if err != nil {
 			return "", fmt.Errorf("replaying mutation %d of %d (%s): %w", i+1, len(ops), mut.describe(), err)
 		}
 		text = next
 	}
+	if !parted {
+		return "", fmt.Errorf("%s", NoPart)
+	}
 	return text, nil
 }
 
-// mutationOf turns one report_op row into the transform that applies it. "edit" is a splice
-// (old→new); "insert" places Token(id) at the anchoring quote — the view already excluded a marker
-// event with no location, so an insert always names a real quote here.
+// mutationOf turns one report_op row into the transform that applies it. "append" adds a lane's part;
+// "edit" is a splice (old→new); "insert" places Token(id) at the anchoring quote — the view already
+// excluded a marker event with no location, so an insert always names a real quote here.
 func mutationOf(op record.ReportOp) (mutation, error) {
 	switch op.Kind {
+	case "append":
+		return appendMut{part: op.A}, nil
 	case "edit":
 		return spliceMut{old: op.A, new: op.B, exact: op.Exact}, nil
 	case "insert":
@@ -290,13 +299,22 @@ func mutationOf(op record.ReportOp) (mutation, error) {
 	case "remove":
 		return removeMut{id: op.A}, nil
 	default:
-		return nil, fmt.Errorf("unknown report_op kind %q — the report_op view emits only edit, insert and remove", op.Kind)
+		return nil, fmt.Errorf("unknown report_op kind %q — the report_op view emits only append, edit, insert and remove", op.Kind)
 	}
 }
 
-// BaseIngested reports whether this run already has a frozen base — the write-once state test that
-// makes `blue ingest` refuse a second ingest. An EXISTS query, not a walk; read from the record, so
-// it cannot drift from the truth.
-func BaseIngested(run record.Run) (bool, error) {
-	return record.ReportBaseExists(run)
+// JoinPart is the text with part appended: the part itself on the empty text, and otherwise the text
+// with its trailing newlines trimmed, a blank line, then the part. `ingest` states it on its page and
+// checks each part's render against it.
+func JoinPart(text, part string) string {
+	if text == "" {
+		return part
+	}
+	return strings.TrimRight(text, "\n") + "\n\n" + part
 }
+
+// appendMut adds a lane's part to the end of the text (JoinPart).
+type appendMut struct{ part string }
+
+func (m appendMut) apply(text string) (string, error) { return JoinPart(text, m.part), nil }
+func (m appendMut) describe() string                  { return fmt.Sprintf("append a part of %d bytes", len(m.part)) }

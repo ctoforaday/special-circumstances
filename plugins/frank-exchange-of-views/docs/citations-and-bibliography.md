@@ -132,7 +132,7 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - `work_status`: standing, retracted, or not_checked.
   - `source_completeness`: full, abstract, unverified, not_the_work, or not_asked. Migrated runs
     carry `not_recorded` for the fields their epoch predates.
-- **The anchor leaves only by `retire`.** The report is a frozen base plus an ordered replay of edits and marker
+- **The anchor leaves only by `retire`.** The report is the lanes' parts plus an ordered replay of edits and marker
   inserts. `blue edit` refuses any span that would drop or split an anchor, or leave a citation's
   anchor bare with no prose before it in its sentence, so the set of `cite` events and the anchors
   in the text stay in one-to-one correspondence; the scorecard's `unbacked_citations` flags any

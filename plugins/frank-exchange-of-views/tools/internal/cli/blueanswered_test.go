@@ -191,7 +191,7 @@ func answeredBoard(t *testing.T) (runDir, gapID string) {
 	}
 	recordtest.Seed(t, runDir,
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# Findings\n\nThe cost is high and rising.\n")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# Findings\n\nThe cost is high and rising.\n")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Mint{

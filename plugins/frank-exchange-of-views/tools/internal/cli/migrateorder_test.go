@@ -37,7 +37,7 @@ func TestMigrateSaysWhatBecameOfTheReportsOrder(t *testing.T) {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 			t.Fatalf("register: %v", err)
 		}
-		if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(orderHead + orderOwn1 + orderCat + orderOpen)}); err != nil {
+		if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(orderHead + orderOwn1 + orderCat + orderOpen)}); err != nil {
 			t.Fatal(err)
 		}
 		registerBlue(t, runDir)

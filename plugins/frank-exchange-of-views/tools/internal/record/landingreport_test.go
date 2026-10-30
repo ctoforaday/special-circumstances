@@ -16,22 +16,22 @@ import (
 
 // everyInput stands in for the renderer with one whose text is every input it is handed, so two
 // renders are equal exactly when their inputs are, and it counts the renders. It is a left fold of the
-// ops over the base, as the registered renderer is, and an op whose new text is "boom" does not apply,
-// refused with its position in the replay, as reportproj.Replay refuses.
+// ops from the empty text, as the registered renderer is, and an op whose new text is "boom" does not
+// apply, refused with its position in the replay, as reportproj.Replay refuses.
 func everyInput(t *testing.T) *int {
 	t.Helper()
 	calls := new(int)
-	withRenderer(t, func(base string, haveBase bool, ops []ReportOp) (string, error) {
+	withRenderer(t, func(text string, parted bool, ops []ReportOp) (string, error) {
 		*calls++
-		if !haveBase {
-			return "no base", nil
-		}
-		text := base
 		for i, op := range ops {
 			if op.B == "boom" {
 				return "", fmt.Errorf("replaying mutation %d of %d: it does not apply", i+1, len(ops))
 			}
+			parted = parted || op.Kind == "append"
 			text += fmt.Sprintf(" | %s %q %q %v", op.Kind, op.A, op.B, op.Exact)
+		}
+		if !parted {
+			return "no part", nil
 		}
 		return text, nil
 	})
@@ -66,15 +66,13 @@ func TestTheReportVersionMovesWithEveryInputOfTheRender(t *testing.T) {
 		change func(t *testing.T, dir string)
 		moves  bool
 	}{
-		{"the base is ingested", func(t *testing.T, dir string) {
+		{"a part is recorded", func(t *testing.T, dir string) {
+			recordtest.Seed(t, dir, recordtest.Event(t, HarnessSeat, &recordpb.ReportPart{Text: proto.String("## another part")}))
+		}, true},
+		{"a part's row removed", func(t *testing.T, dir string) {
 			db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
-			if _, err := db.Exec(`DELETE FROM "base_ingest"`); err != nil {
+			if _, err := db.Exec(`DELETE FROM "report_part"`); err != nil {
 				t.Fatal(err)
-			}
-			md0, v0 := renderAndVersion(t, mustRun(t, dir))
-			recordtest.Seed(t, dir, recordtest.Event(t, HarnessSeat, &recordpb.BaseIngest{Text: proto.String("# report, ingested again")}))
-			if md1, v1 := renderAndVersion(t, mustRun(t, dir)); md1 == md0 || v1 == v0 {
-				t.Errorf("ingesting the base moved the render %v and the version %v, want both", md1 != md0, v1 != v0)
 			}
 		}, true},
 		{"an edit", func(t *testing.T, dir string) {
@@ -115,7 +113,7 @@ func TestTheReportVersionMovesWithEveryInputOfTheRender(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			dir := newRun(t)
 			recordtest.Seed(t, dir,
-				recordtest.Event(t, HarnessSeat, &recordpb.BaseIngest{Text: proto.String("# report")}),
+				recordtest.Event(t, HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report")}),
 				recordtest.Event(t, evLens, &recordpb.Anchor{Id: proto.String("F-1"), Location: proto.String("# report")}),
 				recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: proto.String("# report"), New: proto.String("# the report")}))
 			run := mustRun(t, dir)
@@ -140,7 +138,7 @@ type landingWrite struct {
 	folded, rendered int
 }
 
-// reportStage is a run with a base, an anchor placed on it, and a lens in a sitting, and a write whose
+// reportStage is a run with a part, an anchor placed on it, and a lens in a sitting, and a write whose
 // one guard reads the report and writes nothing (ErrWritesNothing), so the question is only what the
 // guard was handed.
 func reportStage(t *testing.T) (Run, func() error, *landingWrite) {
@@ -160,7 +158,7 @@ func reportStage(t *testing.T) (Run, func() error, *landingWrite) {
 	return run, write, got
 }
 
-// fullRender is the report as RenderAt renders it from the base, and its failure.
+// fullRender is the report as RenderAt renders it whole, and its failure.
 func fullRender(t *testing.T, run Run) (string, error) {
 	t.Helper()
 	return RenderAt(recordOf(t, run))
@@ -169,7 +167,7 @@ func fullRender(t *testing.T, run Run) (string, error) {
 // A RENDER MADE BEFORE THE LOCK IS CARRIED TO THE REPORT THE WRITE LANDS ON. Another seat's edit and
 // anchor commit at the instant the write opens its transaction — after the render the write made
 // before the lock, before the guard reads it. The guard must read the report with both in it: their
-// ops folded onto that render under the lock, which is the report rendered from the base.
+// ops folded onto that render under the lock, which is the report rendered whole.
 func TestARenderBeforeTheLockIsFoldedOntoTheReportItLandsOn(t *testing.T) {
 	calls := everyInput(t)
 	run, write, got := reportStage(t)
@@ -186,7 +184,7 @@ func TestARenderBeforeTheLockIsFoldedOntoTheReportItLandsOn(t *testing.T) {
 	}
 	want, werr := fullRender(t, run)
 	if got.sawErr != nil || werr != nil || got.saw != want {
-		t.Errorf("the guard read %q (%v), want the report rendered from the base, %q (%v)", got.saw, got.sawErr, want, werr)
+		t.Errorf("the guard read %q (%v), want the report rendered whole, %q (%v)", got.saw, got.sawErr, want, werr)
 	}
 }
 
@@ -210,7 +208,7 @@ func TestARenderBeforeTheLockIsReusedWhereTheReportStayed(t *testing.T) {
 
 // A FOLD IS MADE ONLY OVER THE ROWS IT WAS RENDERED FROM. A row the render read is gone as another
 // write's edit lands — no write path does that, and the count is what says it happened — so the ops
-// above the render's newest id are not all that moved, and the write renders the report from the base.
+// above the render's newest id are not all that moved, and the write renders the report whole.
 func TestARenderBeforeTheLockIsNotFoldedWhereARowItReadMoved(t *testing.T) {
 	everyInput(t)
 	run, write, got := reportStage(t)
@@ -234,32 +232,32 @@ func TestARenderBeforeTheLockIsNotFoldedWhereARowItReadMoved(t *testing.T) {
 		t.Errorf("folds under the lock = %d, renders under it = %d; want 0 and 1", got.folded, got.rendered)
 	}
 	if want, _ := fullRender(t, run); got.saw != want || strings.Contains(got.saw, "F-1") {
-		t.Errorf("the guard read %q, want the report rendered from the base without F-1, %q", got.saw, want)
+		t.Errorf("the guard read %q, want the report rendered whole without F-1, %q", got.saw, want)
 	}
 }
 
-// A FOLD IS MADE ONLY OVER THE BASE IT WAS RENDERED FROM. A second base lands with another write's
-// edit — the write path refuses a second ingest, and the render refuses a record that holds two — so
-// the report does not render, and folding the edit onto the render made before the lock would hand the
-// guard a report the record does not have.
-func TestARenderBeforeTheLockIsNotFoldedWhereTheBaseMoved(t *testing.T) {
+// A PART IS AN OP LIKE ANY OTHER. A second lane's part lands with another write's edit after the render
+// the write made before the lock; both are folded onto that render, and the guard reads the report as
+// the full render gives it, the part joined after the text it found.
+func TestAPartThatLandsAfterTheRenderIsFoldedOntoIt(t *testing.T) {
 	everyInput(t)
 	run, write, got := reportStage(t)
 	if err := overtaken(t, run, []*Event{
-		recordtest.At(t, HarnessSeat, "race:base", &recordpb.BaseIngest{Text: proto.String("# another report")}),
+		recordtest.At(t, HarnessSeat, "race:part", &recordpb.ReportPart{Text: proto.String("## another part")}),
 		recordtest.At(t, "blue-respond", "race:edit", &recordpb.BlueEdit{Old: proto.String("report"), New: proto.String("account"), EditKey: proto.String("E1")}),
 	}, write); !errors.Is(err, ErrWritesNothing) {
 		t.Fatalf("the write = %v, want the guard's ErrWritesNothing", err)
 	}
-	if got.sawErr == nil || !strings.Contains(got.sawErr.Error(), "two base_ingest") || got.folded != 0 {
-		t.Errorf("the guard read %q (%v), %d folds; want the refusal of two bases and no fold", got.saw, got.sawErr, got.folded)
+	want, werr := fullRender(t, run)
+	if got.sawErr != nil || werr != nil || got.saw != want || got.folded != 1 || !strings.Contains(got.saw, "append \"## another part\"") {
+		t.Errorf("the guard read %q (%v), %d folds; want the full render %q (%v) by one fold", got.saw, got.sawErr, got.folded, want, werr)
 	}
 }
 
 // A FOLD THAT DOES NOT APPLY IS NOT THE REFUSAL. Another write's op does not replay; folded onto the
 // render, the failure would name its place among the ops folded, not among the report's. The write
-// renders from the base, and the guard reads the full render's failure in its own words.
-func TestAFoldThatDoesNotApplyIsRenderedFromTheBase(t *testing.T) {
+// renders the report whole, and the guard reads the full render's failure in its own words.
+func TestAFoldThatDoesNotApplyIsRenderedWhole(t *testing.T) {
 	everyInput(t)
 	run, write, got := reportStage(t)
 	if err := overtaken(t, run, []*Event{
@@ -271,8 +269,8 @@ func TestAFoldThatDoesNotApplyIsRenderedFromTheBase(t *testing.T) {
 	if want == nil || got.sawErr == nil || got.sawErr.Error() != want.Error() {
 		t.Fatalf("the guard read the failure %v, want the full render's, %v", got.sawErr, want)
 	}
-	if !strings.Contains(want.Error(), "mutation 2 of 2") || got.rendered != 1 || got.folded != 0 {
-		t.Errorf("the failure %q, renders under the lock %d, folds %d; want mutation 2 of 2, 1 and 0", want, got.rendered, got.folded)
+	if !strings.Contains(want.Error(), "mutation 3 of 3") || got.rendered != 1 || got.folded != 0 {
+		t.Errorf("the failure %q, renders under the lock %d, folds %d; want mutation 3 of 3, 1 and 0", want, got.rendered, got.folded)
 	}
 }
 

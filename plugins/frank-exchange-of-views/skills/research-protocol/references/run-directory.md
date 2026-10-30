@@ -35,10 +35,9 @@ research/<date>_<slug>/
 │                      #  them as the `inquiries` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
-│   ├── report.md      # written by the synthesizer at synthesis, then frozen into the record
-│   │                  #   by `ingest`, which deletes it. From then the report is read
-│   │                  #   through the tool, and every change goes through the `edit` verb
-│   └── candidates/    # best-of-N lane drafts, one method each, preserved (authored)
+│   └── candidates/    # <lane seat id>.md: each lane's part of the report, one method each,
+│                      #   until `ingest` records it and deletes the file. The record keeps
+│                      #   the part; the report is read through the tool
 ├── scratch/           # the seats' working files — drafts, programs, a needed spool — each name
 │                      #   starting with its seat id. Nothing composed or archived reads it
 └── cost.md            # measured tokens + dollars per seat-sitting (written by `capture`)
@@ -61,10 +60,10 @@ trajectories/       journal.jsonl (the HARNESS's lifecycle record, tracked)
 placeholder reads as the real thing. Anything under RECORD above has no file at all — read it
 with `show <name>`.
 
-`blue/report.md` is the file the synthesizer writes and then FREEZES: the freeze records its
-text as the base of the record and DELETES the file. From then it too is a projection —
-there is no `blue/report.md` to open; read the report through the tool and change it only
-through the tool's edit path, each change an event the report is replayed from. It cannot be
+A lane's part waits in `blue/candidates/<lane seat id>.md` until `ingest` records it and DELETES
+the file. The report is the lanes' parts, joined in the order they were recorded, with every
+change after them replayed on: it too is a projection, with no file to open. Read it through the
+tool and change it only through the tool's acts, each change an event the report is replayed from. It cannot be
 raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
 are the same bytes, by construction.
 

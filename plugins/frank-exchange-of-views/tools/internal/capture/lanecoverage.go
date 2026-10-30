@@ -2,9 +2,11 @@ package capture
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A RUN THAT LOST A LANE LOOKS EXACTLY LIKE A RUN THAT ASKED FOR FEWER.
@@ -56,7 +58,31 @@ func laneSeatsThatSat(evs []*record.Event, win record.WindowIndex, lanes []strin
 	return sat
 }
 
-// LaneCoverageAudit joins the declared lane count to the lane seats that actually registered.
+// lanesWithParts is the lane seat ids that recorded their part of the report.
+func lanesWithParts(evs []*record.Event, lanes []string) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range evs {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REPORT_PART && slices.Contains(lanes, e.GetSeatId()) {
+			out[e.GetSeatId()] = true
+		}
+	}
+	return out
+}
+
+// partless states each lane that took its seat and recorded no part (R7). Its work is not in the
+// report, whatever it did: the report is the parts and what was done to them.
+func partless(lanes []string, sat, parted map[string]bool) []string {
+	var out []string
+	for _, id := range lanes {
+		if sat[id] && !parted[id] {
+			out = append(out, fmt.Sprintf("%s is a lane of this run's cast and recorded no part of the report: the report holds nothing it wrote", id))
+		}
+	}
+	return out
+}
+
+// LaneCoverageAudit joins the declared lane count to the lane seats that actually registered, and
+// each lane that registered to the part it recorded.
 func LaneCoverageAudit(run record.Run) Audit {
 	want, declared := record.LanesDeclared(run)
 	if !declared {
@@ -83,6 +109,7 @@ func LaneCoverageAudit(run record.Run) Audit {
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record's cast names none, so there is nothing to hold them to — NOT a run whose lanes were checked", want)}
 	}
 	sat := laneSeatsThatSat(fam.Events, fam.At, lanes)
+	noPart := partless(lanes, sat, lanesWithParts(fam.Events, lanes))
 
 	var missing []string
 	for _, id := range lanes {
@@ -117,8 +144,17 @@ func LaneCoverageAudit(run record.Run) Audit {
 	case len(missing) > 0:
 		return Audit{Check: "lane-coverage", Verdict: "WARN",
 			Detail: detail + fmt.Sprintf("; %s never registered. TWO READINGS, and this record cannot separate them: a lane that died before its first act, or an operator narrowing deliberately on a resume (laneFloorOverride), which is a debate.js argument run-config does not carry. Synthesis was %d slices wide, not the %d the report will describe",
-				strings.Join(missing, ", "), len(got), want)}
+				strings.Join(missing, ", "), len(got), want) + partsDetail(noPart)}
+	case len(noPart) > 0:
+		return Audit{Check: "lane-coverage", Verdict: "WARN", Detail: detail + partsDetail(noPart)}
 	default:
-		return Audit{Check: "lane-coverage", Verdict: "PASS", Detail: detail + "; every declared lane took its seat"}
+		return Audit{Check: "lane-coverage", Verdict: "PASS", Detail: detail + "; every declared lane took its seat and recorded its part"}
 	}
+}
+
+func partsDetail(noPart []string) string {
+	if len(noPart) == 0 {
+		return ""
+	}
+	return "; " + strings.Join(noPart, "; ")
 }

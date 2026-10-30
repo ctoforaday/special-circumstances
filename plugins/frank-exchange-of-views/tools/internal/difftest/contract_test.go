@@ -88,10 +88,10 @@ func scrubRevision(s string) string {
 func TestGoldenErrorCatalogue(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := t.TempDir()
-	// The finding below anchors into blue/report.md (slice 1b) with --quote "somewhere",
-	// so the report must contain that quote or the finding is rejected as a mis-quote.
+	// The finding below anchors into the report (slice 1b) with --quote "somewhere", so the lane's
+	// part must contain that quote or the finding is rejected as a mis-quote.
 	seed(t, runDir, map[string]string{
-		"blue/report.md": "# H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:F-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
+		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed<!--fx:F-0000beef-->.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
 	})
 
 	// ONE MAPPER for the setup and every row: the rows name the gap the setup mints as GAP001, and
@@ -106,7 +106,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 
 	// THE CAST FIRST, as setup writes it before any seat sits: the chair's verdict rows fold the
 	// dispatch plan, and a plan is folded only on a record holding a cast.
-	seedCast(t, runDir, castOf("evidence"))
+	seedCast(t, runDir, append(castOf("evidence"), "blue-lane-2"))
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
@@ -115,13 +115,16 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	stage("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap")
-	// And a frozen report with an anchored sentence blue can edit, for the edit refusals below.
+	// And a lane's part with an anchored sentence blue can edit, for the edit refusals below. The
+	// second lane registers and records nothing, for the ingest refusals.
+	stage("register", "--run", runDir, "--seat-id", "blue-lane-1")
+	stage("ingest", "--run", runDir, "--seat-id", "blue-lane-1")
+	stage("register", "--run", runDir, "--seat-id", "blue-lane-2")
 	stage("register", "--run", runDir, "--seat-id", "blue-synthesize")
-	stage("ingest", "--run", runDir, "--seat-id", "blue-synthesize")
 	stage("register", "--run", runDir, "--seat-id", "blue-respond")
 	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. AFTER the ingest: a finding anchors into
-	// the frozen report, and one filed before it is refused — which this setup did, unread, for as
+	// the report, and one filed before it is refused — which this setup did, unread, for as
 	// long as its exit code went unchecked.
 	stage("finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
@@ -200,6 +203,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
 		// lens cannot reach. blue and the bench still cannot mint or close.
 		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
+		// THE PART IS A LANE'S, once, before the report changes. The finding above placed an anchor, so
+		// the report has changed by the time the second lane asks.
+		{"a part from a seat that is no lane", []string{"ingest", "--seat-id", "blue-synthesize"}},
+		{"a lane's second part", []string{"ingest", "--seat-id", "blue-lane-1"}},
+		{"a lane's part after the report changed", []string{"ingest", "--seat-id", "blue-lane-2"}},
 		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "GAP001"}},
 		{"verb outside the bench role", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "judge", "--class", "spec_underspecification"}},
 		// `merge frobnicate` refused the role word and never reached the verb it names.

@@ -330,7 +330,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	wrapper := WriteRunWrapper(run, recordBin)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
-	fmt.Fprintln(stdout, "  skeleton: directories only — blue/report.md is the synthesizer's to write, report.md the assembler's")
+	fmt.Fprintln(stdout, "  skeleton: directories only — blue/candidates/<lane>.md is each lane's to write, report.md the assembler's")
 	// "red-merge-born" was true when the chair wrote those files. It stopped being true, and the
 	// line went on implying a writer would arrive — the same promise the husk stubs made.
 	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")

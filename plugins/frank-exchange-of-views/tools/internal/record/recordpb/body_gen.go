@@ -121,9 +121,9 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.InquiryReview, true
 		}
-	case *Event_BaseIngest:
+	case *Event_ReportPart:
 		if b != nil {
-			return b.BaseIngest, true
+			return b.ReportPart, true
 		}
 	case *Event_SittingOpen:
 		if b != nil {

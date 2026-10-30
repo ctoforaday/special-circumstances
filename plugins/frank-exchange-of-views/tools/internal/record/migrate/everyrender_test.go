@@ -48,11 +48,11 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d event(s) refused migrating; the first: %+v", run, len(res.Refusals), res.Refusals[0])
 		}
-		_, haveBase, _, err := record.ReportProjection(dst)
+		haveParts, err := record.ReportHasParts(dst)
 		if err != nil {
 			t.Fatalf("%s: reading the report projection: %v", run, err)
 		}
-		if !haveBase {
+		if !haveParts {
 			lines = append(lines, run+" no-base - - - -")
 			continue
 		}

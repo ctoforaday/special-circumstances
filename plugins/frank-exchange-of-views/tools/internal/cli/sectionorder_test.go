@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,54 +40,25 @@ func refusesTheOrder(t *testing.T, out string, err error, want ...string) {
 	}
 }
 
-func TestIngestRefusesASectionOutOfOrder(t *testing.T) {
+// A LINE BEFORE THE FIRST HEADING IS THE BODY'S, so a row's section after it is out of order, and the
+// refusal quotes the opening of what the section stands beside, not all of it.
+func TestAnEditRefusesTextBeforeTheTLDRAndQuotesItsOpening(t *testing.T) {
 	runDir := newRun(t)
-	path := filepath.Join(runDir, "blue", "report.md")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
+	writeReport(t, runDir, orderHead)
+	registerBlue(t, runDir)
+	edit := func(key, text string) (string, error) {
+		return run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", key, "--quote", "## TL;DR", "--new", text+"\n\n## TL;DR", "--reason", "frame the answer")
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	for _, tc := range []struct {
-		doc  string
-		want []string
-	}{
-		{"# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Is 91 divisible by a small prime?\n\nYes.\n\n## The Catechism\n\nThese two factors settle it.\n\n" + orderOpen,
-			[]string{`"## The Catechism" after "## Is 91 divisible by a small prime?"`, "nothing in the report's text but the title line (`# …`) and `## TL;DR` stands before it"}},
-		{"# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n" + orderOpen + "\n## Appendix\n\nMore.\n",
-			[]string{`"## Open questions" before "## Appendix"`, "nothing in the report's text stands after it"}},
-		{"# On 91\n\nA framing paragraph.\n\n## TL;DR\n\n91 is 7 x 13.\n",
-			[]string{`"## TL;DR" after "A framing paragraph."`}},
-	} {
-		if err := os.WriteFile(path, []byte(tc.doc), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-		refusesTheOrder(t, out, err, tc.want...)
-		if _, err := os.Stat(path); err != nil {
-			t.Errorf("the refused ingest did not leave the file for its author to fix: %v", err)
-		}
-	}
-	// What a section stands beside can be a paragraph: the refusal quotes its opening, not all of it.
+	out, err := edit("F1", "A framing paragraph.")
+	refusesTheOrder(t, out, err, `"## TL;DR" after "A framing paragraph."`)
 	long := "A framing paragraph " + strings.Repeat("that runs on ", 30) + "to its last words."
-	if err := os.WriteFile(path, []byte("# On 91\n\n"+long+"\n\n## TL;DR\n\n91 is 7 x 13.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+	out, err = edit("F2", long)
 	refusesTheOrder(t, out, err, `"## TL;DR" after "A framing paragraph that runs on`, "…")
 	if err != nil && strings.Contains(err.Error()+out, "to its last words") {
 		t.Errorf("the refusal quotes the whole paragraph the section stands after:\n%v", err)
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
-		t.Errorf("the refused ingests recorded %d base(s)", n)
-	}
-	// A report that lacks the three is in order, and the one ingest a run gets is unspent.
-	if err := os.WriteFile(path, []byte("# On 91\n\n## What was asked\n\nWhether 91 is prime.\n\n## What was found\n\nIt is not.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatalf("a report with none of the three sections was refused: %v\n%s", err, out)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
+		t.Errorf("the refused edits recorded %d edit(s)", n)
 	}
 }
 
@@ -139,7 +108,7 @@ func TestARecordHoldingASectionOutOfOrderStillTakesEdits(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(orderHead + orderOwn1 + orderCat + orderOwn2 + orderOpen)}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(orderHead + orderOwn1 + orderCat + orderOwn2 + orderOpen)}); err != nil {
 		t.Fatal(err)
 	}
 	registerBlue(t, runDir)

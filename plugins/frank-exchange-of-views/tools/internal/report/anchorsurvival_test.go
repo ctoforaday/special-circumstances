@@ -81,7 +81,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// Ingest the round-0 report so Assemble can render it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the location-less cite/computation
 	// events below add no marker of their own (the report_op view excludes them).
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(blue)})
 
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://ex/eviction"),

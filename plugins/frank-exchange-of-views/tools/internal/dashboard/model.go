@@ -140,7 +140,7 @@ func jsonl(path string) []map[string]any {
 // rendered from the record, counted by the one counting rule. No seat relays the number and no
 // envelope carries it, so the tile cannot disagree with the report it describes.
 //
-// NIL IS "NOT MEASURED", NEVER ZERO. A record with no frozen report — a run before its synthesis,
+// NIL IS "NOT MEASURED", NEVER ZERO. A record with no part of the report — a run before its lanes,
 // or no record at all — has nothing to count, and a zero there would read as a report with no
 // cited claim in it.
 func blueClaimsOf(run record.Run) *int {

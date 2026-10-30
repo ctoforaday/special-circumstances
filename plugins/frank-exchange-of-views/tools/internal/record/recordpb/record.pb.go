@@ -81,7 +81,7 @@ const (
 	EventType_EVENT_TYPE_VERDICT           EventType = 30
 	EventType_EVENT_TYPE_VERIFY            EventType = 31
 	EventType_EVENT_TYPE_INQUIRY_REVIEW    EventType = 32
-	EventType_EVENT_TYPE_BASE_INGEST       EventType = 33
+	EventType_EVENT_TYPE_REPORT_PART       EventType = 33
 	EventType_EVENT_TYPE_SITTING_OPEN      EventType = 34
 	EventType_EVENT_TYPE_SITTING_CLOSE     EventType = 35
 	EventType_EVENT_TYPE_CAST              EventType = 36
@@ -123,7 +123,7 @@ var (
 		30: "EVENT_TYPE_VERDICT",
 		31: "EVENT_TYPE_VERIFY",
 		32: "EVENT_TYPE_INQUIRY_REVIEW",
-		33: "EVENT_TYPE_BASE_INGEST",
+		33: "EVENT_TYPE_REPORT_PART",
 		34: "EVENT_TYPE_SITTING_OPEN",
 		35: "EVENT_TYPE_SITTING_CLOSE",
 		36: "EVENT_TYPE_CAST",
@@ -162,7 +162,7 @@ var (
 		"EVENT_TYPE_VERDICT":           30,
 		"EVENT_TYPE_VERIFY":            31,
 		"EVENT_TYPE_INQUIRY_REVIEW":    32,
-		"EVENT_TYPE_BASE_INGEST":       33,
+		"EVENT_TYPE_REPORT_PART":       33,
 		"EVENT_TYPE_SITTING_OPEN":      34,
 		"EVENT_TYPE_SITTING_CLOSE":     35,
 		"EVENT_TYPE_CAST":              36,
@@ -2348,7 +2348,7 @@ type Event struct {
 	//	*Event_ManifestRow
 	//	*Event_Log
 	//	*Event_InquiryReview
-	//	*Event_BaseIngest
+	//	*Event_ReportPart
 	//	*Event_SittingOpen
 	//	*Event_SittingClose
 	//	*Event_Cast
@@ -2662,10 +2662,10 @@ func (x *Event) GetInquiryReview() *InquiryReview {
 	return nil
 }
 
-func (x *Event) GetBaseIngest() *BaseIngest {
+func (x *Event) GetReportPart() *ReportPart {
 	if x != nil {
-		if x, ok := x.Body.(*Event_BaseIngest); ok {
-			return x.BaseIngest
+		if x, ok := x.Body.(*Event_ReportPart); ok {
+			return x.ReportPart
 		}
 	}
 	return nil
@@ -2860,8 +2860,8 @@ type Event_InquiryReview struct {
 	InquiryReview *InquiryReview `protobuf:"bytes,51,opt,name=inquiry_review,json=inquiryReview,proto3,oneof"`
 }
 
-type Event_BaseIngest struct {
-	BaseIngest *BaseIngest `protobuf:"bytes,52,opt,name=base_ingest,json=baseIngest,proto3,oneof"`
+type Event_ReportPart struct {
+	ReportPart *ReportPart `protobuf:"bytes,52,opt,name=report_part,json=reportPart,proto3,oneof"`
 }
 
 type Event_SittingOpen struct {
@@ -2952,7 +2952,7 @@ func (*Event_Log) isEvent_Body() {}
 
 func (*Event_InquiryReview) isEvent_Body() {}
 
-func (*Event_BaseIngest) isEvent_Body() {}
+func (*Event_ReportPart) isEvent_Body() {}
 
 func (*Event_SittingOpen) isEvent_Body() {}
 
@@ -5111,36 +5111,32 @@ func (x *Inquiry) GetReason() string {
 	return ""
 }
 
-// BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
-// KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
-// is reliable enough to look like a key and not reliable enough to be one.
-// BaseIngest is the frozen round-0 report, stored VERBATIM at ingest (issue #709) — the origin the
-// diff-stack replays over. `blue edit` records each change as a BlueEdit; the current report is
-// this text with those edits folded back on. Written ONCE and never rewritten (a second ingest is
-// refused and redirected to `blue edit`), so the report has no writable file — only this base event
-// and its edits. `text` is the whole report, undecomposed: every reader operates on the rendered
-// text, not a document model, so there is nothing to parse and nothing to lose.
-type BaseIngest struct {
+// ReportPart is one lane's part of the report, stored VERBATIM at ingest. The report is a fold of
+// the report_op view from the empty text: a part is its `append` op, at its event id, and every
+// edit, anchor and retire after it folds over the text the parts made. Its author is the event's
+// seat; `ingest` records one per lane, before the report's first other op. `text` is undecomposed:
+// every reader operates on the rendered text, not a document model.
+type ReportPart struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BaseIngest) Reset() {
-	*x = BaseIngest{}
+func (x *ReportPart) Reset() {
+	*x = ReportPart{}
 	mi := &file_record_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BaseIngest) String() string {
+func (x *ReportPart) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BaseIngest) ProtoMessage() {}
+func (*ReportPart) ProtoMessage() {}
 
-func (x *BaseIngest) ProtoReflect() protoreflect.Message {
+func (x *ReportPart) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -5152,18 +5148,21 @@ func (x *BaseIngest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BaseIngest.ProtoReflect.Descriptor instead.
-func (*BaseIngest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReportPart.ProtoReflect.Descriptor instead.
+func (*ReportPart) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *BaseIngest) GetText() string {
+func (x *ReportPart) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
 	}
 	return ""
 }
 
+// BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
+// KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
+// is reliable enough to look like a key and not reliable enough to be one.
 type BlueEdit struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	EditKey *string                `protobuf:"bytes,1,opt,name=edit_key,json=editKey,proto3,oneof" json:"edit_key,omitempty"`
@@ -7645,8 +7644,8 @@ const file_record_proto_rawDesc = "" +
 	"\fmanifest_row\x180 \x01(\v2\x1b.feov.record.v1.ManifestRowH\x00R\vmanifestRow\x12'\n" +
 	"\x03log\x181 \x01(\v2\x13.feov.record.v1.LogH\x00R\x03log\x12F\n" +
 	"\x0einquiry_review\x183 \x01(\v2\x1d.feov.record.v1.InquiryReviewH\x00R\rinquiryReview\x12=\n" +
-	"\vbase_ingest\x184 \x01(\v2\x1a.feov.record.v1.BaseIngestH\x00R\n" +
-	"baseIngest\x12@\n" +
+	"\vreport_part\x184 \x01(\v2\x1a.feov.record.v1.ReportPartH\x00R\n" +
+	"reportPart\x12@\n" +
 	"\fsitting_open\x185 \x01(\v2\x1b.feov.record.v1.SittingOpenH\x00R\vsittingOpen\x12C\n" +
 	"\rsitting_close\x186 \x01(\v2\x1c.feov.record.v1.SittingCloseH\x00R\fsittingClose\x12*\n" +
 	"\x04cast\x187 \x01(\v2\x14.feov.record.v1.CastH\x00R\x04cast\x126\n" +
@@ -8039,7 +8038,7 @@ const file_record_proto_rawDesc = "" +
 	"\x12_supersedes_statusB\t\n" +
 	"\a_reason\".\n" +
 	"\n" +
-	"BaseIngest\x12\x17\n" +
+	"ReportPart\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
 	"\x05_text\"\x84\x03\n" +
 	"\bBlueEdit\x12\x1e\n" +
@@ -8237,7 +8236,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_through\"\xc5\x01\n" +
 	"\n" +
 	"ReportRead\x12\xad\x01\n" +
-	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or base_ingest when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
+	"\x04head\x18\x01 \x01(\x03B\x93\x01\x82\xb5\x18\x8e\x01\b\x01\x1a\x7fthe events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran\"\tevents.idH\x00R\x04head\x88\x01\x01B\a\n" +
 	"\x05_head\"\xf7\x01\n" +
 	"\x10EnvelopeAdmitted\x12\xd5\x01\n" +
 	"\bagent_id\x18\x01 \x01(\tB\xb4\x01\x82\xb5\x18\xaf\x01\b\x01\x1a\xaa\x01the harness's id for the subagent invocation whose envelope was admitted — the key that joins the admission to the sitting that agent opened and the close it ended withH\x00R\aagentId\x88\x01\x01B\v\n" +
@@ -8274,7 +8273,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xbd&\n" +
+	"\b_holding*\x8d'\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8303,8 +8302,8 @@ const file_record_proto_rawDesc = "" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12b\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aJ\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\x12x\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1aa\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\x12a\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aB\x8a\xb5\x18>a review of the inquiries themselves, rather than of a finding\x12~\n" +
-	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1ab\x8a\xb5\x18^the report as blue ingested it, stored verbatim as the origin every recorded edit replays over\x12\x93\x01\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aB\x8a\xb5\x18>a review of the inquiries themselves, rather than of a finding\x12\xcd\x01\n" +
+	"\x16EVENT_TYPE_REPORT_PART\x10!\x1a\xb0\x01\x8a\xb5\x18\xab\x01a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them\x12\x93\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1av\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\x12^\n" +
 	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1a@\x8a\xb5\x18<the harness's agent returning — the other end of that span\x12\xa6\x01\n" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x90\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\x12\xbf\x01\n" +
@@ -8606,7 +8605,7 @@ var file_record_proto_goTypes = []any{
 	(*Reproduce)(nil),                     // 49: feov.record.v1.Reproduce
 	(*InquiryReview)(nil),                 // 50: feov.record.v1.InquiryReview
 	(*Inquiry)(nil),                       // 51: feov.record.v1.Inquiry
-	(*BaseIngest)(nil),                    // 52: feov.record.v1.BaseIngest
+	(*ReportPart)(nil),                    // 52: feov.record.v1.ReportPart
 	(*BlueEdit)(nil),                      // 53: feov.record.v1.BlueEdit
 	(*Retire)(nil),                        // 54: feov.record.v1.Retire
 	(*ManifestRow)(nil),                   // 55: feov.record.v1.ManifestRow
@@ -8666,7 +8665,7 @@ var file_record_proto_depIdxs = []int32{
 	55,  // 24: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
 	56,  // 25: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
 	50,  // 26: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
-	52,  // 27: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
+	52,  // 27: feov.record.v1.Event.report_part:type_name -> feov.record.v1.ReportPart
 	65,  // 28: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
 	66,  // 29: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
 	68,  // 30: feov.record.v1.Event.cast:type_name -> feov.record.v1.Cast
@@ -8791,7 +8790,7 @@ func file_record_proto_init() {
 		(*Event_ManifestRow)(nil),
 		(*Event_Log)(nil),
 		(*Event_InquiryReview)(nil),
-		(*Event_BaseIngest)(nil),
+		(*Event_ReportPart)(nil),
 		(*Event_SittingOpen)(nil),
 		(*Event_SittingClose)(nil),
 		(*Event_Cast)(nil),

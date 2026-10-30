@@ -152,14 +152,19 @@ func planPairsOf(t *testing.T, name string) (srcPlans, dstPlans []storedPlan, sr
 	sdb := openRO(t, srcDir)
 	src = eventsByID(t, sdb)
 	for id, e := range src {
-		src[id] = computationRow(e)
+		src[id] = currentRow(e)
 	}
 	return storedPlansOf(t, sdb), dstPlans, src, dst, res
 }
 
-// computationRow is a source event as the record names it after epoch 49: a proof is a computation,
-// its key takes the word, and an anchor's key names the computation's id — the same hex under `K-`.
-func computationRow(e eventRow) eventRow {
+// currentRow is a source event as the record names it now: after epoch 49 a proof is a computation,
+// its key takes the word, and an anchor's key names the computation's id — the same hex under `K-`;
+// after epoch 52 the report's ingested text is its one part, and its key takes that word.
+func currentRow(e eventRow) eventRow {
+	if e.typ == "base_ingest" {
+		e.typ = "report_part"
+		e.key = strings.Replace(e.key, ":base_ingest:", ":report_part:", 1)
+	}
 	if e.typ == "proof" {
 		e.typ = "computation"
 		e.key = strings.Replace(e.key, ":proof:", ":computation:", 1)

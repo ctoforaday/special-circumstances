@@ -776,10 +776,12 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
--- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
--- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
+-- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b, exact):
+--   append → a=a lane's part, as it ingested it; exact=0. On the empty text the part is the text;
+--            otherwise the text, its trailing newlines trimmed, a blank line, then the part.
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
@@ -791,8 +793,10 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
-  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
-         COALESCE(b."exact_span", 0) AS "exact"
+  SELECT e."id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+    FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  UNION ALL
+  SELECT e."id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0
