@@ -97,13 +97,13 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "a grade motion cannot be ruled through the petition subgroup",
 			setup:   []seatStep{mint, fileGrade},
-			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--reason", "the bench takes the chair's docket"},
+			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the bench takes the chair's docket"},
 			refused: "was filed as a grade motion and you are ruling it as a petition",
 			guards:  "The same hole from the other side — the bench reaching a grade the chair owns.",
 		},
 		{
 			name:    "a motion is answered once",
-			setup:   []seatStep{filePetition, {"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--reason", "granted on the papers"}},
+			setup:   []seatStep{filePetition, {"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "granted on the papers"}},
 			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied", "--reason", "reversing myself silently"},
 			refused: "is already ruled",
 			guards: "Two rulings replay as whichever the shard ordering favours and the report " +

@@ -22,7 +22,7 @@ func Verbs() []*cobra.Command {
 		seat.Register(),
 		newMint(),
 		newClose(),
-		newRegrade(),
+		seat.Regrade("regrade"),
 		newFinding(),
 		newVerify(),
 		newRenderPage(),

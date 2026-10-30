@@ -173,10 +173,11 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "motion petition rule records the ruling and its opinion",
 			path: []string{"motion", "petition", "rule"}, seatID: "judge",
-			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
+			args: []string{"--id", "M2", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", // `opinion` is the ruler's argument — the one prose channel MotionRule carries.
-				"petition": "granted", "opinion": "the written opinion"},
+				"petition": "granted", "opinion": "the written opinion",
+				"relief": "Restate the section as the bench orders.", "binds": "blue"},
 			says: "motion M2 ruled granted",
 		},
 		{

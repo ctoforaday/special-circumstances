@@ -521,6 +521,18 @@ type runner struct {
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
 	remandActs              map[string]int
 	pastLimitRemandsRefused int
+	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
+	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
+	// second move released to the lens and the lens has not moved since. benchRegrades counts the
+	// bench's regrades, lockRefused the minting lens's moves of a locked axis the tool refused,
+	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
+	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
+	// grounds and admitted on a computation recorded since (benchorders_test.go). forceBenchOrders is
+	// benchOrdersSeed's run, which takes every arm. The sweep gates each count at zero.
+	benchSet                                                                map[string]map[string]string
+	benchLifted                                                             map[string]map[string]bool
+	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
+	forceBenchOrders                                                        bool
 	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
 	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
 	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
@@ -1465,8 +1477,8 @@ func (r *runner) petitionsFiledN() int {
 // OWN verb), so a forceHalt run emits `bench halt` and returns a halt ruling — the dedicated
 // halt-path test; the random path rules granted/denied and the run continues.
 func (r *runner) rulePetitions(seatID string) map[string]any {
-	rulings := r.rulePending(seatID, "petition")
-	env := map[string]any{"rulings": rulings}
+	r.rulePending(seatID, "petition")
+	env := map[string]any{}
 	if r.forceHalt {
 		// `bench halt` writes the record; the envelope's halt object is only what stops the
 		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
@@ -1481,9 +1493,9 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 
 // rulePending rules every pending petition at the bench sitting of the given occasion — the
 // petition sitting a plan convened, the terminal sitting, or the assembly that holds the gavel for
-// one filed after the last plan — and returns the envelope rulings.
-func (r *runner) rulePending(seatID, occasion string) []any {
-	rulings := arr()
+// one filed after the last plan. A grant states its order and whom it binds, and every seat's work
+// list then carries it from the record.
+func (r *runner) rulePending(seatID, occasion string) {
 	if r.petitionRuledAt == nil {
 		r.petitionRuledAt = map[string]string{}
 	}
@@ -1495,7 +1507,6 @@ func (r *runner) rulePending(seatID, occasion string) []any {
 	r.mu.Unlock()
 	for _, p := range pending {
 		who, _ := p["who"].(string)
-		class, _ := p["class"].(string)
 		opinion := "fuzz ruling opinion for " + who
 		ruling := "granted"
 		if r.coin(50) {
@@ -1505,20 +1516,40 @@ func (r *runner) rulePending(seatID, occasion string) []any {
 		// RUN, on its own channel (#329) — both can be true, and the petition does not stop
 		// being answered because the bench also ended the run.
 		id, _ := p["motion"].(string)
-		// A GRANT NAMES WHO IT BINDS. Relief with no addressee is what #360 measured — the engine
-		// threaded it into one hardcoded prompt, so relief for any other seat reached nothing.
+		// A GRANT STATES ITS ORDER AND WHOM IT BINDS, on the ruling: the record refuses a grant
+		// without either, and a denial with either.
 		binds := pick(r.rng, []string{"blue", "red", "both"})
+		relief := "fuzz: the order granting " + id + " — " + who + "'s objection is honoured in every act it reaches"
 		args := []string{"motion", "petition", "rule", "--seat-id", seatID, "--id", id,
 			"--as", ruling, "--reason", opinion}
 		if ruling == "granted" {
-			args = append(args, "--binds", binds)
+			args = append(args, "--relief", relief, "--binds", binds)
 		}
 		if _, err := r.exec(args...); err == nil {
 			r.petitionRuledAt[id] = occasion
+			if ruling == "granted" {
+				r.reliefReachesEverySeat(id, relief, binds)
+			}
 		}
-		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion, "relief": opinion, "binds": binds})
 	}
-	return rulings
+}
+
+// reliefReachesEverySeat holds every role's work list to carrying the order the bench just granted on
+// petition id, as the ruling recorded it.
+func (r *runner) reliefReachesEverySeat(id, relief, binds string) {
+	for _, s := range [][2]string{{"lens", "red-lens-evidence"}, {"chair", "red-chair"}, {"blue", "blue-respond"}, {"bench", "judge"}} {
+		w, err := record.WorkOfSeat(r.run(), s[0], s[1])
+		if err != nil {
+			r.noteActErr(s[1] + "'s work list could not be read for the relief granted on " + id + ": " + err.Error())
+			return
+		}
+		if !slices.ContainsFunc(w.Relief, func(o record.ReliefJSON) bool {
+			return o.Motion == id && o.Relief == relief && o.Binds == binds
+		}) {
+			r.noteActErr(fmt.Sprintf("the bench granted petition %s ordering %q, binding %s, and %s's work list carries %+v", id, relief, binds, s[1], w.Relief))
+			return
+		}
+	}
 }
 
 // petitionOracle holds every petition the run filed to its route: each is ruled, and one filed
@@ -3371,8 +3402,10 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	} else if fl != "" && r.coin(50) {
 		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
 	}
+	ancestor := ""
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
-		args = append(args, "--supersedes", open[r.rng.Intn(len(open))]) // lineage: this gap replaces an ancestor
+		ancestor = open[r.rng.Intn(len(open))]
+		args = append(args, "--supersedes", ancestor) // lineage: this gap replaces an ancestor
 	}
 	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
 	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
@@ -3402,6 +3435,8 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
 		r.freeClass(args)
 	}
+	// A SUCCESSOR CARRIES THE BENCH'S GRADE on every axis the bench set on its ancestor.
+	args = r.keepingBenchGrades(args)
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
@@ -3463,6 +3498,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if env.Result.GapID != "" {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
+		r.inheritBenchGrades(env.Result.GapID, ancestor)
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
 			r.mu.Lock()
@@ -4618,9 +4654,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 }
 
-// arr / obj are goja-friendly envelope builders.
-func arr(v ...any) []any { return append([]any{}, v...) }
-
 // envelopeFor performs the seat's tool acts and returns the envelope debate.js expects. The
 // randomisation here is what drives debate.js's control flow: red's verdict and gap count
 // decide whether the loop continues, deadlocks, or terminates.
@@ -4770,6 +4803,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
+			r.reconsider(seatID)
 		}
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -4849,19 +4883,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// escalated by hand, which stand docketed before impasse; iterating the fresh docket alone
 		// left the hand-filed motions unruled, and a bench that sat and ruled nothing is not
 		// re-readied for them.
-		// THE ENVELOPE IS THE BENCH'S ACCOUNT OF WHAT IT RULED, in JUDGE_ENVELOPE's shape: debate.js
-		// builds the ruling every later seat is handed from it. A remand row states no reopens_on —
-		// a remand closes nothing — and its direction reaches blue and the lens from the record,
-		// through the plan's remand_owed.
-		res := []any{} // an array, never null — the schema refuses null
+		// THE BENCH'S ENVELOPE CARRIES NOTHING: every ruling is on the record, and each later seat
+		// reads it there (its work list's estopped rows and the remand's items), never from the engine.
 		stillOpen := map[string]bool{}
 		for _, id := range r.openGaps() {
 			stillOpen[id] = true
 		}
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
-			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
-				"rationale": "fuzz: carried with a stated direction for " + id}
 			// A GAP CLOSED SINCE ITS DOCKETING IS NOT REMANDED: the bench reaches for the remand its
 			// scenario asks for, the tool refuses it naming the close, and the bench rules the motion
 			// with a disposition that closes, as for a lost dispute.
@@ -4869,6 +4898,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if closed && r.scenarioOf(id) != dirDisputeLost {
 				r.remandOfClosedRefused(seatID, id)
 			}
+			// THE BENCH SETS A GRADE IT HOLDS WRONG BEFORE IT RULES, while the motion stands.
+			r.benchSetsGrade(seatID, id)
 			// A GAP AT ITS REMAND LIMIT IS NOT REMANDED EITHER: the bench's work list says a remand of it
 			// is refused, the bench reaches for one and is refused naming the dispositions that close
 			// the gap, and it rules one of them.
@@ -4877,26 +4908,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.remandPastLimitRefused(seatID, id)
 			}
 			if !closed && !atLimit && r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
+				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", "fuzz: carried with a stated direction for "+id)
 				r.remandRouted(id)
 			}
 			if closed || atLimit || r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
 				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
-				row = map[string]any{"gap_id": id, "disposition": disp, "settled": settledByFuzzBench,
-					"rationale": "docket-rationale-for-" + id, "final": true}
 				answer := []string{"--final"}
 				if r.coin(50) {
-					const reopens = "a source the ruling did not weigh"
-					row["final"], row["reopens_on"] = false, reopens
-					answer = []string{"--reopens-on", reopens}
+					answer = []string{"--reopens-on", "a source the ruling did not weigh"}
 				}
-				r.benchDisposes(seatID, id, disp, append(answer, "--reason", row["rationale"].(string))...)
+				r.benchDisposes(seatID, id, disp, append(answer, "--reason", "docket-rationale-for-"+id)...)
 			}
-			res = append(res, row)
 		}
-		return map[string]any{"dispositions": res}
+		return map[string]any{}
 
 	case debatejs.OccasionOf(prompt) == "assemble":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
@@ -4969,6 +4995,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		r.checkAnchorOffers(seatID)
 		r.closeDocketed(seatID)
+		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
+		locked := r.lensMovesBenchAxis(seatID)
+		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
@@ -4992,10 +5021,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
 				// regrade is movement, so sample one — by the minter, which this seat is. EVERY
 				// AXIS, not three of four: --complexity is spelled by its flag here.
+				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
+				// drives the move, to be refused).
 				r.maybe(30, func() {
+					if regraded[id] {
+						return
+					}
+					held := r.benchGrades(id)
+					keep := func(dim string) string {
+						if g, ok := held[dim]; ok {
+							return g
+						}
+						return r.g()
+					}
 					dim := pick(r.rng, regradeDims)
 					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, r.g(), "--complexity", r.g())
+						"--"+dim, keep(dim), "--complexity", keep("complexity"))
 				})
 			}
 		}
@@ -5527,6 +5568,8 @@ type outcome struct {
 	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
 	// pastLimitRemandsRefused; lensFirstHolds is runner's.
 	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
+	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
+	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -6017,6 +6060,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
+	r.forceBenchOrders = seed == benchOrdersSeed
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
 	}
@@ -6846,6 +6890,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
 	res.lensFirstHolds = r.lensFirstHolds
+	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
@@ -8020,7 +8065,19 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 		case dirCounter:
 			r.counterEdit(seatID, id)
 		case dirDisputeWon, dirDisputeLost:
-			dim := pick(r.rng, disputeDims)
+			// AN AXIS THE BENCH SET TAKES NO GRADE MOTION: the record refuses one, and the dispute
+			// contests an axis that is still the parties'.
+			held := r.benchGrades(id)
+			var free []string
+			for _, d := range disputeDims {
+				if _, set := held[d]; !set {
+					free = append(free, d)
+				}
+			}
+			if len(free) == 0 {
+				continue
+			}
+			dim := pick(r.rng, free)
 			// A DIFFERENT GRADE FROM THE ONE ON THE BOARD. A motion proposing the grade already
 			// there is refused now (it asks for no change), and a drive that hits that 1 time in
 			// 5 would report as a missing dispute event three layers away — which is exactly the

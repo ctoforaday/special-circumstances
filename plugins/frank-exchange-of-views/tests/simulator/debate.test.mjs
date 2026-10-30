@@ -412,30 +412,27 @@ test('the terminal bench sitting fires only when the last plan holds a blocker t
   assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
 })
 
-// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and what it rules travels as a
-// petition sitting's does: the ruling is in the returned petitions, and a halt stamps the run HALTED.
+// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and what it returns is a
+// petition sitting's: a halt, which stamps the run HALTED. The ruling stays on the record.
 test('a petition standing at the exit: the terminal sitting rules it, and its halt stamps the run HALTED', async () => {
   const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('M-00000001', 'judge')] }) })
-  const ruling = { petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real', relief: 'withhold the protocol', binds: 'both' }
-  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [ruling], halt: { opinion: 'the human must decide this' } })] }))
+  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ halt: { opinion: 'the human must decide this' } })] }))
   const out = await halting.run(script, ARGS)
   const terminal = labelsOf(halting, 'judge · terminal')[0]
   assert.ok(terminal, 'the terminal sitting fired on the standing petition')
   assert.equal(terminal.opts.schema.properties.halt.required[0], 'opinion', 'the terminal envelope carries the halt')
-  assert.ok(terminal.opts.schema.properties.rulings, 'the terminal envelope carries petition rulings')
+  assert.deepEqual(Object.keys(terminal.opts.schema.properties), ['halt'], 'the terminal envelope relays a ruling')
+  assert.ok(/a grant with its relief and whom it binds/.test(terminal.prompt), 'the terminal sitting is not told a grant records its order')
   assert.ok(/A HALT IS A DIFFERENT DECISION FROM A RULING/.test(terminal.prompt) && /stamps the run HALTED/.test(terminal.prompt))
   assert.equal(out.verdict, 'HALTED')
   assert.equal(out.halted, true)
   assert.ok(out.halt_opinion.includes('the human must decide'))
-  assert.deepEqual(out.petitions, [{ petitioner: 'red-lens-dark-side', class: 'safety', ruling: 'granted', opinion: 'the hazard is real' }])
   const asm = firstPrompt(halting, 'judge · assemble')
   assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'), 'the assembly stamps the halt the terminal sitting recorded')
-  // Ruled without a halt, the run keeps its stamp and the ruling still travels.
-  const ruled = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ rulings: [{ ...ruling, ruling: 'denied', relief: undefined }] })] }))
+  // Ruled without a halt, the run keeps its stamp.
+  const ruled = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv()] }))
   const out2 = await ruled.run(script, ARGS)
   assert.equal(out2.verdict, 'CEILING')
-  assert.equal(out2.petitions.length, 1)
-  assert.equal(out2.petitions[0].ruling, 'denied')
   // THE STAMP IS THE LAST PLAN'S, WHATEVER THE TERMINAL SITTING RULED. The engine reads the record
   // only through the chair's plan, so the assembly is told CEILING by the epoch limit after the
   // ruling that left nobody ready — the word `bench outcome` must then derive from the record.
@@ -585,22 +582,26 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   for (const want of ['Docketed for you: G-00000001, G-00000002', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
     'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
-    'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE']) {
+    'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
   const schema = labelsOf(world, 'judge')[0].opts.schema
-  assert.ok(!schema.properties.deadlock && !schema.required.includes('deadlock'), 'deadlock is not a flag the bench returns')
-  assert.ok(schema.properties.dispositions.items.properties.disposition.enum.includes('defect_owed_elsewhere'))
+  assert.deepEqual(schema, { type: 'object', additionalProperties: false, properties: {} }, 'the docket envelope declares a field: its rulings are on the record')
 })
 
-test('W1.9: defect_owed_elsewhere ships as a named infra debt with the epoch it was ruled in', async () => {
+// THE BENCH'S RULINGS AND ORDERS REACH THE SEATS FROM THE RECORD (gblock, 2026-10-30). No envelope
+// relays one, no prompt carries a ruling row or an order, and the run returns no copy of either:
+// every party prompt states the duty and sends the seat to its work list, which carries them.
+test('no ruling or order travels through the engine: every party is told they bind it, from its work list', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }), passChair()],
-    judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'defect_owed_elsewhere', rationale: 'setup tooling must stage it' }] })],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')], { remand_owed: [{ gap_id: 'G-00000001', direction: 'THE RECORD DIRECTION' }] }) }), passChair()],
   }))
   const out = await world.run(script, ARGS)
-  assert.deepEqual(out.infra_debts, [{ gap_id: 'G-00000001', owed_fix: 'setup tooling must stage it', epoch: 1 }])
-  assert.ok(firstPrompt(world, 'judge · assemble').includes('setup tooling must stage it'), 'assembly is handed the named debts')
+  for (const c of world.calls.filter((c) => /^(red-lens|red-chair|blue-respond)/.test(c.opts.label))) {
+    assert.ok(c.prompt.includes('ITS RULINGS AND ORDERS WHAT YOU DO; each is on your work list'), `${c.opts.label} is not told the bench's orders and rulings bind it`)
+    assert.ok(!/GAPS THE BENCH HAS RULED|BENCH RELIEF IN EFFECT|THE RECORD DIRECTION/.test(c.prompt), `${c.opts.label} carries a ruling row, an order or a direction in its prompt`)
+  }
 })
 
 test('no seat prompt names a command path or spells a flag — the help page is the only page', async () => {
@@ -613,72 +614,6 @@ test('no seat prompt names a command path or spells a flag — the help page is 
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
     assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal))\b/.test(body),
       `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+).{20}/) || [''])[0]}`)
-  }
-})
-
-test('the bench\'s rulings travel to both parties, with blue told its duty and red estopped, each relying on the ruling as stated', async () => {
-  const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
-      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
-    judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'not_a_defect', rationale: 'THE OPINION', settled: 'THE BARRED PROPOSITION', reopens_on: 'A NEW SOURCE', final: false }] })],
-  }))
-  await world.run(script, ARGS)
-  const [blue1, blue2] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
-  assert.ok(!/GAPS THE BENCH HAS RULED/.test(blue1), 'nothing ruled yet, nothing claimed')
-  for (const want of ['GAPS THE BENCH HAS RULED', 'THE BENCH FOUND NO DEFECT', 'rely on this ruling as established', 'THE BARRED PROPOSITION', 'A NEW SOURCE', 'THE BAR IS ON THE PROPOSITION, NOT THE GAP']) {
-    assert.ok(blue2.includes(want), `blue lost: ${want}`)
-  }
-  const lens = firstPrompt(world, 'red-lens-evidence')
-  assert.ok(/YOU ARE ESTOPPED/.test(lens) && lens.includes('THE BARRED PROPOSITION') && lens.includes('A NEW SOURCE'), 'red is handed the bar and what reopens it')
-  // A RULING IS RELIED ON AS ITS ROW STATES IT (gblock's ruling, 2026-10-09): the bench's opinion is on the
-  // bench's and the chair's read group, and this clause renders to a lens and to blue, who hold neither.
-  for (const [who, prompt] of [['blue', blue2], ['a lens', lens]]) {
-    assert.ok(prompt.includes('RELY ON EACH RULING AS ITS ROW STATES IT'), `${who} is not told to rely on the ruling as stated`)
-    assert.ok(!/read the bench's opinion|THE REASONING IS ON THE RECORD/.test(prompt), `${who} is sent to the bench's opinion`)
-  }
-  assert.ok(!blue2.includes('THE OPINION') && !lens.includes('THE OPINION'), 'the opinion is not in the prompt')
-  assert.ok(!/your_duty/.test(lens), 'the duty table is blue\'s')
-})
-
-test('an empty settled bars nothing: the ruling still travels, and red is handed no estoppel over a blank', async () => {
-  const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
-      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')], { remand_owed: [{ gap_id: 'G-00000001', direction: 'THE RECORD DIRECTION' }] }) }),
-      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
-    judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'remanded', rationale: 'THE OPINION', settled: '' }] })],
-  }))
-  await world.run(script, ARGS)
-  const lens = firstPrompt(world, 'red-lens-evidence')
-  assert.ok(lens.includes('GAPS THE BENCH HAS RULED') && lens.includes('"gap_id":"G-00000001"') && lens.includes('THE RECORD DIRECTION'), 'the ruling and the direction its exchange owes still reach red')
-  assert.ok(!/"settled"/.test(lens), 'an empty settled renders as a proposition')
-  assert.ok(!/YOU ARE ESTOPPED/.test(lens), 'red is estopped on a proposition nobody stated')
-  // #1210: a remand readies blue for ONE more exchange, and the direction it owes travels with it.
-  const blue2 = labelsOf(world, 'blue-respond').map((c) => c.prompt)[1]
-  assert.ok(blue2.includes('back in the debate for ONE more exchange') && blue2.includes('THE RECORD DIRECTION'), 'blue is told the remand readies it for one more exchange, and the direction it owes')
-  // The duty lasts while the plan readies the exchange: a later plan that does not name G-00000001 in
-  // remand_owed tells blue the exchange is not owed, never that it is dispatched on it for one.
-  const blue3 = labelsOf(world, 'blue-respond').map((c) => c.prompt)[2]
-  assert.ok(blue3.includes('is not owed now') && !blue3.includes('back in the debate for ONE more exchange'), 'blue is still told a spent remand readies it for one more exchange')
-  assert.ok(!blue3.includes('THE RECORD DIRECTION'), 'a spent remand still hands blue its direction as a duty')
-})
-
-// #1249 review: A REMAND'S DIRECTION IS THE RECORD'S. The bench's envelope is its own account of
-// the ruling it recorded; the direction blue and the minting lens owe comes from the plan, which
-// reads the record. An envelope remand with a different reopens_on, or none, changes nothing.
-test('a remand\'s direction reaches blue and the lens from the plan, never from the bench envelope', async () => {
-  for (const account of [{}, { reopens_on: 'THE ENVELOPE ACCOUNT' }, { reopens_on: 'THE ENVELOPE ACCOUNT', final: true }]) {
-    const world = makeWorld(makeResponder({
-      chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
-        chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')], { remand_owed: [{ gap_id: 'G-00000001', direction: 'THE RECORD DIRECTION' }] }) }), passChair()],
-      judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'remanded', rationale: 'THE OPINION', settled: '', ...account }] })],
-    }))
-    await world.run(script, ARGS)
-    for (const [who, prompt] of [['blue', firstPrompt(world, 'blue-respond')], ['the lens', firstPrompt(world, 'red-lens-evidence')]]) {
-      assert.ok(prompt.includes('"direction":"THE RECORD DIRECTION"'), `${who} is not handed the record's direction (envelope ${JSON.stringify(account)})`)
-      assert.ok(!prompt.includes('THE ENVELOPE ACCOUNT'), `${who} is handed the envelope's account of the direction`)
-      assert.ok(!/"final"|"reopens_on"/.test(prompt.slice(prompt.indexOf('GAPS THE BENCH HAS RULED'))), `${who} is handed a remand as a reopen condition or a final ruling`)
-      assert.ok(prompt.includes('A REMANDED gap was never closed') && prompt.includes('what this exchange owes, not a condition for reopening'), `${who} reads a remand's direction as a reopen condition`)
-    }
   }
 })
 
@@ -879,8 +814,8 @@ test('W2c: a plan that convenes the bench for petitions seats it before any part
   const lens = denied.calls.findIndex((c) => c.opts.label.startsWith('red-lens-evidence'))
   const blue = denied.calls.findIndex((c) => c.opts.label.startsWith('blue-respond'))
   assert.ok(sitting >= 0 && sitting < lens && sitting < blue, 'the sitting fired before any party sat')
-  assert.equal(out.petitions.length, 1)
-  assert.equal(out.petitions[0].petitioner, 'x', 'the petitioner is the ruling\'s, read off the record by the bench')
+  assert.deepEqual(Object.keys(denied.calls[sitting].opts.schema.properties), ['halt'], 'the petition envelope relays a ruling')
+  assert.ok(denied.calls[sitting].prompt.includes('A GRANT RECORDS TWO THINGS') && denied.calls[sitting].prompt.includes('The seats it binds read it on their work lists'), 'the petition sitting is not told a grant records its order')
   assert.ok(denied.calls[sitting].prompt.includes('never sanctioned') && /A HALT IS A DIFFERENT DECISION FROM A RULING/.test(denied.calls[sitting].prompt))
   const halting = makeWorld(makeResponder({
     chair: [convened()],
@@ -895,7 +830,7 @@ test('W2c: a plan that convenes the bench for petitions seats it before any part
   assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'))
 })
 
-test('W2c: no plan convenes it, no sitting — whatever an envelope carries; granted relief binds the party it names', async () => {
+test('W2c: no plan convenes it, no sitting — whatever an envelope carries', async () => {
   const quiet = makeWorld(makeResponder({ chair: [passChair()] }))
   await quiet.run(script, ARGS)
   assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge · petition')))
@@ -910,10 +845,8 @@ test('W2c: no plan convenes it, no sitting — whatever an envelope carries; gra
   assert.ok(!envelopes.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'an envelope field convened the bench')
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
-    petition: [petitionRulingEnv({ rulings: [{ petitioner: 'red-chair', class: 'procedural', ruling: 'granted', relief: 'scope narrowed to §3', binds: 'blue' }] })],
   }))
   await world.run(script, ARGS)
-  assert.ok(firstPrompt(world, 'blue-respond').includes('BENCH RELIEF IN EFFECT') && firstPrompt(world, 'blue-respond').includes('scope narrowed'))
   // THE RIGHT IS STATED AT THE SEAT, ONCE: in its constitution, and in no prompt.
   assert.ok(!world.calls.some((c) => /PETITIONS:|you may petition the bench/.test(c.prompt)), 'a prompt restates the petition right')
   for (const held of ['../../agents/blue-synthesizer.md', '../../agents/blue-researcher.md', '../../skills/adversarial-audit/SKILL.md']) {
@@ -934,7 +867,7 @@ test('W2j: a bench holding reaches a seat from the record alone — every prompt
   assert.ok(world.calls.length > 0, 'nothing was dispatched')
   for (const c of world.calls) {
     assert.ok(!c.prompt.includes(stray), `${c.opts.label} carries a holding the envelope returned`)
-    assert.ok(c.prompt.includes("THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list"), `${c.opts.label} is not told what a recorded holding obliges`)
+    assert.ok(c.prompt.includes("THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD, ITS RULINGS AND ORDERS WHAT YOU DO; each is on your work list"), `${c.opts.label} is not told what a recorded holding obliges`)
     assert.ok(c.prompt.includes('the board, not a holding, says where a gap stands'), `${c.opts.label} is not told which wins`)
   }
   for (const seat of ['red-chair #1', 'red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {

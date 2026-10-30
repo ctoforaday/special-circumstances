@@ -1029,6 +1029,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
+		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
+			return err
+		}
 	case *recordpb.Computation:
 		// A COMPUTATION NAMES ITS BUNDLE AND ITS COMMAND. The sha is the bundle's address in the store
 		// and the key every re-run and verdict joins on, and argv is what a re-run executes; a
@@ -1282,14 +1285,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
 		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
-		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
-			return err
+		//
+		// THE ORIGINATOR REGRADES, AND SO DOES THE BENCH WHILE IT HEARS THE GAP (benchgrade.go): the
+		// bench's regrade sets the grade its ruling rules on.
+		if seatclass.RoleOfSeat(seatID) != "bench" {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
+				return err
+			}
 		}
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 		if err := requireOpenGap(q, b.GetGapId(), "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
+			return err
+		}
+		if err := requireRegradeWithinBenchLock(w, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.Motion:
@@ -1324,6 +1335,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireGradeMotionAsksForAChange(q, b.GetGrade()); err != nil {
 				return err
 			}
+			if err := requireGradeMotionOffBenchLock(w, b.GetGrade()); err != nil {
+				return err
+			}
 		}
 		// A DOCKET MOTION IS ABOUT A GAP TOO, and this check came across with the verb.
 		//
@@ -1347,6 +1361,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
+			}
+			// Off under Migrating: an archived bench that ruled one gap twice ruled it, and the
+			// translated filing in front of its second ruling is the record of that.
+			if !Migrating {
+				if err := requireNewGrounds(q, b.GetDocket()); err != nil {
+					return err
+				}
 			}
 		}
 	case *recordpb.MotionRule:
@@ -1374,6 +1395,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
+		if err := requirePetitionOrder(b); err != nil {
+			return err
+		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {

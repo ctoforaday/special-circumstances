@@ -128,7 +128,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		t.Fatalf("motion petition file: %v", err)
 	}
 	if _, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
-		"--id", "M1", "--as", "granted",
+		"--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue",
 		"--reason", "the relief binds the coming seats"); err != nil {
 		t.Fatalf("motion petition rule: %v", err)
 	}

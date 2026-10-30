@@ -49,6 +49,8 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [disposition](#disposition) | lens, chair, blue, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
 | [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
+| [relief](#relief) | lens, chair, blue, bench, operator |
+| [new grounds](#new-grounds) | lens, chair, blue, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, bench, operator |
@@ -522,7 +524,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 ## grade movement
 
-Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.
+Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
 
 **Delivered to:** lens, chair, bench, operator
 
@@ -542,6 +544,22 @@ A grade motion is a motion contesting a gap's grade, filed by any seat but the c
 |---|---|---|---|---|
 | grade dispute | GATED | `grade disputes?` |  |  |
 | grade_disputes (the envelope key) | GATED | `grade_disputes` |  |  |
+
+## relief
+
+Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+**Collisions:**
+
+- **relief sought** — the petitioner's ask, on the filing; relief is what the bench ordered on the ruling
+
+## new grounds
+
+New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
+
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## scorecard
 

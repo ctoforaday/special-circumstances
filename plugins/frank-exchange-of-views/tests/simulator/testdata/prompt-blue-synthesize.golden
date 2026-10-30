@@ -1,4 +1,4 @@
-prompt sha256: 1578dbdda5dbd65cf5716cfe8639abc4525a8ac4c9e0369090165ca7320f23dd
+prompt sha256: 50a34abc9b73c539e5cb871de0b15a64f9b568671e44c3ec4dea7c28857b83c0
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -32,7 +32,7 @@ SEAT_ID: blue-synthesize.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
+THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD, ITS RULINGS AND ORDERS WHAT YOU DO; each is on your work list, and the board, not a holding, says where a gap stands.
 One command's page prints at "/opt/feov/bin/feov-record" --seat-id blue-synthesize <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help alone is authoritative; this prompt names the JOB, never the flags.

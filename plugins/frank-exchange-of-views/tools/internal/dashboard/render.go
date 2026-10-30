@@ -110,13 +110,6 @@ func summarizeResult(raw any) string {
 	if v, ok := j["verdict"].(string); ok && v != "" {
 		bits = append(bits, "verdict "+v)
 	}
-	if r, ok := j["dispositions"].([]any); ok {
-		plural := "s"
-		if len(r) == 1 {
-			plural = ""
-		}
-		bits = append(bits, itoa(len(r))+" ruling"+plural)
-	}
 	if len(bits) == 0 {
 		return sliceStr(s, 110)
 	}
