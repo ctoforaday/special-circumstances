@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -28,6 +29,24 @@ if [ -s "$2" ]; then : > "out/$(cat "$2")"; fi
 if [ -n "$3" ]; then : > "out/$(printf '\377')$(pwd | wc -c | tr -d ' ')"; fi
 `
 
+// A NAME THAT IS NOT UTF-8 EXISTS ONLY WHERE NAMES ARE BYTES. Windows stores a file name as UTF-16,
+// so the program's 0xff byte reaches the directory listing as U+00FF and the drift names it as text;
+// elsewhere the byte survives and the drift Go-quotes the name. nameOpen and nameClose are what the
+// drift puts around a name that began with that byte.
+func nameOpen() string {
+	if runtime.GOOS == "windows" {
+		return "\u00ff"
+	}
+	return `"\xff`
+}
+
+func nameClose() string {
+	if runtime.GOOS == "windows" {
+		return ""
+	}
+	return `"`
+}
+
 // validDrift fails the test unless the body's drift is valid UTF-8 and the body projects.
 func validDrift(t *testing.T, body proto.Message, drift string) {
 	t.Helper()
@@ -50,7 +69,7 @@ func TestAReRunsDriftIsValidUTF8(t *testing.T) {
 		// The cut at the drift's limit falls inside a rune: the drift ends on the rune before it.
 		{"a cut inside a rune", strings.Repeat("a", 399) + "é tail", "", strings.Repeat("a", 399) + "…"},
 		// The program leaves an out/ file whose name is not UTF-8.
-		{"an out/ name", "a\n", "\xff", `out/"\xff" written by the re-run only`},
+		{"an out/ name", "a\n", "\xff", "out/" + nameOpen() + nameClose() + " written by the re-run only"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -108,7 +127,7 @@ func TestAComputationsDriftIsValidUTF8(t *testing.T) {
 		t.Fatalf("basis %s, want variant — the out/ name was meant to move between the copies", k.GetBasis())
 	}
 	validDrift(t, k, k.GetDrift())
-	if !strings.Contains(k.GetDrift(), `out/"\xff`) {
-		t.Errorf("drift %q, want the out/ name Go-quoted", k.GetDrift())
+	if !strings.Contains(k.GetDrift(), "out/"+nameOpen()) {
+		t.Errorf("drift %q, want it to name the out/ file as the platform lists it", k.GetDrift())
 	}
 }

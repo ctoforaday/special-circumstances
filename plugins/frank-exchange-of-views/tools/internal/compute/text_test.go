@@ -37,7 +37,8 @@ func TestAnExcerptIsValidAndTruthful(t *testing.T) {
 }
 
 // A BUNDLE THE STORE CANNOT READ SAYS WHY. Rerun carries the store's own error rather than calling
-// every failure a missing bundle: here dir/ holds a link to a directory, which reads as no file.
+// every failure a missing bundle: here dir/ holds a link to a directory, which reads as no file. The
+// store's words for that differ by platform, so the test asks Bundle for them.
 func TestRerunCarriesTheStoresError(t *testing.T) {
 	runDir := t.TempDir()
 	dir := BundlePath(runDir, "abc")
@@ -47,9 +48,13 @@ func TestRerunCarriesTheStoresError(t *testing.T) {
 	if err := os.Symlink(".", filepath.Join(dir, "loop")); err != nil {
 		t.Skip("no symlinks here:", err)
 	}
+	_, storeErr := Bundle(runDir, "abc")
+	if storeErr == nil {
+		t.Fatal("Bundle read a link to a directory as a file")
+	}
 	_, err := Rerun(runDir, "abc", []string{"bash", "loop"})
-	if err == nil || !strings.Contains(err.Error(), "is a directory") {
-		t.Errorf("Rerun over an unreadable bundle: %v, want the store's own error", err)
+	if err == nil || !strings.Contains(err.Error(), storeErr.Error()) {
+		t.Errorf("Rerun over an unreadable bundle: %v, want the store's own error %q", err, storeErr)
 	}
 	_, err = Rerun(t.TempDir(), "abc", []string{"bash", "loop"})
 	if err == nil || !strings.Contains(err.Error(), "not in the store") {
