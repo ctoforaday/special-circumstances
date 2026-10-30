@@ -184,6 +184,10 @@ func TestAnOverruledPositionSendsThePassBackToTheChair(t *testing.T) {
 	if _, owed := OverruledVerdictOwed(fam.Events, fam.At); owed {
 		t.Error("the verdict is recorded and the overruling still reads as owing one")
 	}
+	// THE VERDICT DOES NOT REOPEN THE OBJECTION: a position after it, in the same sitting, would be
+	// heard again on the same withholding, and is refused all the same.
+	_, err = Append(Identity{Run: run, SeatID: chairSeat}, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the same objection, after the verdict")})
+	mustRefuse(t, err, "overruled your position "+heardID, "Nothing was recorded")
 	if got, _, ok, err := DeriveVerdict(run); err != nil || !ok || got != "VERIFIED" {
 		t.Errorf("derived (%q, %v, %v), want VERIFIED", got, ok, err)
 	}

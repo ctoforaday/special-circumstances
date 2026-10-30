@@ -151,8 +151,9 @@ func requirePositionHearing(w writeView, seatID string, h *recordpb.PositionHear
 
 // requireNoRepeatedPosition refuses the chair's position at its first sitting after the bench
 // overruled its last one, while that sitting's plan permits the PASS (gblock, 2026-10-30): the
-// objection is decided, and a second position would hold the PASS back on it again. The sitting
-// records its verdict instead.
+// objection is decided, and a second position would hold the PASS back on it again. Refused whether
+// or not the sitting has recorded its verdict yet: a FAIL there does not reopen the objection, and a
+// position after it would be heard again on the same withholding.
 func requireNoRepeatedPosition(w writeView, seatID string) error {
 	if seatID != chairSeat || Migrating {
 		return nil
@@ -161,10 +162,10 @@ func requireNoRepeatedPosition(w writeView, seatID string) error {
 	if err != nil {
 		return err
 	}
-	if id, owed := overruledVerdictOwed(evs, win); owed {
+	if id, permitted, _ := overruledFollowerAt(evs, win); permitted {
 		return feov.Errorf(feov.Conflict,
 			"the bench overruled your position %s, and this is your first sitting since: the objection is decided, and a position here would hold the PASS back on it again. Nothing was recorded. "+
-				"Record the verdict your plan permits — the PASS, or a FAIL where the board as it stands still stops you", id)
+				"The sitting decides on the PASS with its verdict — the PASS, or a FAIL where the board as it stands still stops you", id)
 	}
 	return nil
 }
@@ -177,28 +178,35 @@ func OverruledVerdictOwed(evs []*Event, win WindowIndex) (string, bool) {
 }
 
 func overruledVerdictOwed(evs []*Event, win WindowIndex) (string, bool) {
+	id, permitted, verdict := overruledFollowerAt(evs, win)
+	return id, permitted && !verdict
+}
+
+// overruledFollowerAt reads the chair's latest sitting where it is the chair's first after the bench
+// overruled a position: that position's id, whether the sitting's latest stored plan permits the
+// PASS, and whether the sitting has recorded a verdict. "", false, false for any other sitting.
+func overruledFollowerAt(evs []*Event, win WindowIndex) (id string, permitted, verdict bool) {
 	latest := win.LatestSittingOf(chairSeat)
 	if latest == 0 {
-		return "", false
+		return "", false, false
 	}
 	ids := win.IDs(evs)
 	_, openings := dispatchLedger(evs, ids, win)
 	id, ok := overruledFollowers(motionsAt(evs, ids, win), openings[chairSeat])[latest]
 	if !ok {
-		return "", false
+		return "", false, false
 	}
-	permitted := false
 	for _, e := range thisSitting(evs, win, chairSeat) {
 		switch b := mustBodyOf(e).(type) {
 		case *recordpb.Gate:
-			return "", false
+			verdict = true
 		case *recordpb.Plan:
 			if p, _, err := ReadPlan([]byte(b.GetPrinted())); err == nil {
 				permitted = p.PassPermitted
 			}
 		}
 	}
-	return id, permitted
+	return id, permitted, verdict
 }
 
 // upheldPositionBlockers is the gate list's upheld_position arm: each position the bench upheld

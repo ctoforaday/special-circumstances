@@ -600,9 +600,12 @@ type runner struct {
 	// bench occasion each was ruled at. overruledPending is the position the bench overruled since
 	// the chair last sat, whose next sitting owes the verdict. The counts are the rulings and the
 	// refusals driven (positionheard_test.go).
-	positionsHeard                                   []string
-	positionRuledAt                                  map[string]string
-	overruledPending                                 string
+	positionsHeard   []string
+	positionRuledAt  map[string]string
+	overruledPending string
+	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
+	// plan it relays is the one it asks for after it (chairEnvelope).
+	positionFiled                                    bool
 	positionsUpheld, positionsOverruled              int
 	positionRulingsRefused, repeatedPositionsRefused int
 	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
@@ -1181,6 +1184,7 @@ func (r *runner) chairPosition(seatID string, owed bool) {
 		r.mu.Lock()
 		r.positionsWithheld++
 		r.positionsHeard = append(r.positionsHeard, positionIDOf(out))
+		r.positionFiled = true
 		r.mu.Unlock()
 	}
 	// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second is
@@ -1650,10 +1654,16 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	petitioned := len(r.petitionsFiled) > filed
 	r.mu.Unlock()
 	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A verdict prints the plan carrying it, and the
-	// chair relays that; a petition filed after it, or a sitting that recorded no verdict, asks the
-	// dispatch again — the workflow reads what still stands at the end of the sitting off the
-	// relayed plan, and capture holds every relayed plan to the record there.
-	if verdict == "" || petitioned {
+	// chair relays that; a petition or a heard position filed after it, or a sitting that recorded
+	// no verdict, asks the dispatch again — the workflow reads what still stands at the end of the
+	// sitting off the relayed plan, and capture holds every relayed plan to the record there. A
+	// FAIL's plan relayed over the position filed after it convened no bench: the engine ended the
+	// run UNVERIFIED while the record, holding the position, derived another outcome.
+	r.mu.Lock()
+	positioned := r.positionFiled
+	r.positionFiled = false
+	r.mu.Unlock()
+	if verdict == "" || petitioned || positioned {
 		r.planThisSitting = r.dispatchNext(seatID)
 	} else {
 		var plan map[string]any

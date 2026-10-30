@@ -56,11 +56,16 @@ func (r *runner) rulePositions(seatID, occasion string) {
 	}
 	for _, id := range r.unruledPositions() {
 		const opinion = "fuzz: the bench's reasoning on the PASS withheld"
-		if r.coin(50) {
+		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting decides on
+		// the PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
+		// own motions unruled, so that verdict is a FAIL or none).
+		if r.forcedVerdict() || r.coin(50) {
 			// AN OVERRULED RULING NAMES NO WORK, and one that names a lens is refused.
-			r.maybe(20, func() {
-				r.positionRulingRefused(seatID, id, "overruled naming a lens", "--as", "overruled", "--lens", r.castLens(), "--reason", opinion)
-			})
+			if !r.forcedVerdict() {
+				r.maybe(20, func() {
+					r.positionRulingRefused(seatID, id, "overruled naming a lens", "--as", "overruled", "--lens", r.castLens(), "--reason", opinion)
+				})
+			}
 			if _, err := r.exec("motion", "position", "rule", "--seat-id", seatID, "--id", id, "--as", "overruled", "--reason", opinion); err != nil {
 				r.noteActErr(fmt.Sprintf("the bench's overruling of position %s was refused: %v", id, err))
 				continue
