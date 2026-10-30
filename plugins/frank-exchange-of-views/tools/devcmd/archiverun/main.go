@@ -274,7 +274,7 @@ func archivedSha(runDir, bundle string) (string, error) {
 		return "", err
 	}
 	if len(files) != 1 {
-		return "", fmt.Errorf("bundle %s holds %d files; an archived proof's bundle holds its one script", bundle, len(files))
+		return "", fmt.Errorf("bundle %s holds %d files; a migrated computation's bundle holds its one script", bundle, len(files))
 	}
 	return compute.Sums(files)[0].Sha256, nil
 }

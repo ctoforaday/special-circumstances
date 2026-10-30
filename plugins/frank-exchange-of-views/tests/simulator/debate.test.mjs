@@ -504,7 +504,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
-    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output", "read at its anchor, gives the script and the output blue recorded"]) {
+    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output", "read at its anchor, gives the program and the output blue recorded"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
   }
   assert.ok(!/gap ids are the chair's/.test(evidence), 'the ids are the tool\'s, minted by the lens')

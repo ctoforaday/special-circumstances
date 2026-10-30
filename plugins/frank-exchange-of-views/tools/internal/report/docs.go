@@ -114,7 +114,7 @@ func AssembleShipped(run record.Run) (Shipped, error) {
 }
 
 // assemble composes the run's report set from the record and the report's text, before it ships:
-// each document's body, with the computations' marks in evidence.md where their anchors go (proofanchor.go)
+// each document's body, with the computations' marks in evidence.md where their anchors go (computationanchor.go)
 // and the record's text as written, no `<` escaped. It returns the headings of the rows it composed a
 // section for too: what the assembled layout reads to tell a section the table placed from a line of
 // the report's text that opens as one does. The layout passes a mark line to stand above each block
@@ -195,7 +195,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
 			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling, then each of the chair's reads of the report against them, with its reason", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
-			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run; then each citation with the sentence it backs and every reading of it — its outcome, its confidence and what was read", Body: ""},
+			Blurb: "the computations this run ran, with the exact program, the output, the sha256, and red's independent re-run; then each citation with the sentence it backs and every reading of it — its outcome, its confidence and what was read", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
 			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: body[FileRun].String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",

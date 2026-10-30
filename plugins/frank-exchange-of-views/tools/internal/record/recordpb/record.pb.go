@@ -4811,7 +4811,7 @@ func (x *Computation) GetInvariant() string {
 // THE ANCHOR IS ABOUT THE QUOTE, THE COMPUTATION IS ABOUT ITSELF (gblock, 2026-10-12). One bundle
 // can back several sentences, so a soundness verdict belongs to the one sentence it was judged
 // against. Keyed by sha alone, a lens's `unsound` on one sentence was overwritten by another lens's
-// `sound` on another in 11 of 15 archived runs with proofs.
+// `sound` on another in 11 of 15 archived runs with computations.
 //
 // The seat names the computation by its anchor; the tool derives `bundle_sha` from it, and the
 // write refuses a sha that is not that computation's. The two joins are spelled as Computation

@@ -160,7 +160,7 @@ func contradictionFact(b Blocker) string { return "contradiction " + b.Subject }
 func uncheckedFact(b Blocker) string {
 	switch {
 	case b.since == 0 && b.Detail != "":
-		return "computation " + b.Subject + " is on the record and nobody has judged whether its script establishes the sentence it backs"
+		return "computation " + b.Subject + " is on the record and nobody has judged whether its program establishes the sentence it backs"
 	case b.since == 0:
 		return "citation " + b.Subject + " is on the record and nobody has read its source against the sentence it backs"
 	case b.lastCheck == 0:
@@ -264,7 +264,7 @@ func blueFailedItem(b Blocker) string {
 		carried = "gap " + b.answeredBy + " states the defect and its fix"
 	}
 	if b.Detail != "" {
-		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the script shows, which leaves the computation unchecked for a fresh judgement, or a new computation with this one retired — or retire the claim it backs", failedFact(b), carried)
+		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the program shows, which leaves the computation unchecked for a fresh judgement, or a new computation with this one retired — or retire the claim it backs", failedFact(b), carried)
 	}
 	retire := "Retire the citation"
 	if b.answeredBy != "" {

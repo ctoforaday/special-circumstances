@@ -176,7 +176,7 @@ var layout = []Section{
 	// inquiries.md is not a section of this table: it is the rendering `show inquiries` prints
 	// (view.InquiryBody), whole, under headings that carry each fate's count.
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
-		From: "the computations on the record: each with its script, its output and red's re-run",
+		From: "the computations on the record: each with its program, its output and red's re-run",
 		Path: "Blue's `compute` records a computation and a lens's `reproduce` its re-run."},
 	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
 		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",

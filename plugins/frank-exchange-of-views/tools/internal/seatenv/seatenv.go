@@ -81,7 +81,7 @@ const VarHookVersion = "FEOV_HOOK_VERSION"
 // called the tool as blue; in a lens's re-run that call was refused, the script piped the refusal
 // through `jq` into a 0, the output matched, and the computation was recorded as reproducing byte for
 // byte while its check never ran. Nothing in the output can tell a 0 the computation printed from
-// one a refusal became. A file the tool writes can: a computation is a computation a checker can run,
+// one a refusal became. A file the tool writes can: a computation is a program a checker can run,
 // and one that reads the debate's record is not.
 //
 // Absent from every --help surface: a seat never types it.

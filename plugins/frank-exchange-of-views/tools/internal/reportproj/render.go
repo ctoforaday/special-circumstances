@@ -261,7 +261,7 @@ func RenderFromRecord(run record.Run) (string, error) {
 // fold another write's ops onto a render it made before its lock (record.RegisterReportRenderer).
 func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 	if !haveBase {
-		return "", fmt.Errorf("no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
+		return "", fmt.Errorf("no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, computing, counting claims and editing all read the frozen report")
 	}
 	text := base
 	for i, op := range ops {

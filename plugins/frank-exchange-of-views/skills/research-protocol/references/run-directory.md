@@ -25,7 +25,7 @@ research/<date>_<slug>/
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── inquiries.md         # each inquiry's fate, the path it took, each step's reason, and its ruling; the chair's reviews
-├── evidence.md        # the computations, with script, output and sha256; the citations, with every reading of each
+├── evidence.md        # the computations, with program, output and sha256; the citations, with every reading of each
 ├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks, every edit and its reason
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server

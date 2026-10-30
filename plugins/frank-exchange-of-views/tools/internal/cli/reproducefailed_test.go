@@ -144,7 +144,7 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "computation " + anchors[1] + " is on the record and nobody has judged whether its script establishes the sentence it backs — PASS is refused until a lens checks it, by judging whether its program establishes THIS sentence — its bundle has a standing re-run, so `reproduce --anchor " + anchors[1] + "` executes nothing, compares THIS computation's own output, exit and out/ against that re-run"
+		want := "computation " + anchors[1] + " is on the record and nobody has judged whether its program establishes the sentence it backs — PASS is refused until a lens checks it, by judging whether its program establishes THIS sentence — its bundle has a standing re-run, so `reproduce --anchor " + anchors[1] + "` executes nothing, compares THIS computation's own output, exit and out/ against that re-run"
 		if owner := lens == "red-lens-computation"; strings.Contains(work, want) != owner {
 			t.Errorf("%s's work list offers the second sentence's judgement = %v, want %v:\n%s", lens, !owner, owner, work)
 		}

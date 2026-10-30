@@ -16,7 +16,7 @@ package report
 //
 // HTML IN THE TEXT IS TEXT. The renderer passes no HTML through: an inline tag, a comment, an HTML
 // block are each shown as typed, whoever wrote them. The one element the tool places in a document
-// that markdown cannot say — a computation's anchor — is a node only the tool can produce (proofanchor.go),
+// that markdown cannot say — a computation's anchor — is a node only the tool can produce (computationanchor.go),
 // so a seat's copy of it is HTML in the text like any other.
 //
 // EVERY VALUE IS WRITTEN FOR ITS CONTEXT. The renderer builds its HTML by hand, so each value it

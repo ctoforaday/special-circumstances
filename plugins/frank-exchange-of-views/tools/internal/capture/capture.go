@@ -1991,7 +1991,7 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
-		// the run's own computations, re-run and compared. See proofrerun.go for why a seat's spot-check
+		// the run's own computations, re-run and compared. See computationrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
 		ComputationRerunAudit(run, computationRerunSample),
 		// Synthesis's declared breadth against the lane seats that actually took theirs — the one

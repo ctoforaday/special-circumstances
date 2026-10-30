@@ -39,7 +39,7 @@ package report
 // line after it is no code block (viewerList).
 //
 // THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
-// computation's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
+// computation's anchor in evidence.md (computationanchor.go): evidenceDoc writes a mark no record text holds,
 // and resolveMarkSpans makes it the anchor and returns its span. A `<` inside such a span is the
 // tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly strips every anchor
 // token as text enters composition, but those the weave turns into notes (stripTokens), and the weave

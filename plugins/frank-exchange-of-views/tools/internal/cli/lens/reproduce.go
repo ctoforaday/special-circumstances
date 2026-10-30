@@ -71,7 +71,7 @@ func newReproduce() *cobra.Command {
 		}
 		soundness := seat.Str(cmd, flags.As)
 		if soundness == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call records your verdict on the sentence at --anchor, so read the script FIRST — `show evidence --anchor %s` prints it — then call this once and say whether it computes what THAT sentence says; nothing is recorded by this call", p.Label)
+			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the program is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call records your verdict on the sentence at --anchor, so read the program FIRST — `show evidence --anchor %s` prints it — then call this once and say whether it computes what THAT sentence says; nothing is recorded by this call", p.Label)
 		}
 		snd, known := record.SoundnessOf(soundness)
 		if !known {
@@ -82,7 +82,7 @@ func newReproduce() *cobra.Command {
 			return nil, err
 		}
 		if note == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --reason: say what the script ACTUALLY COMPUTES, in your words, and whether that is what the sentence at %s says. A soundness verdict with no reading behind it is the assertion this verb exists to replace — read the script FIRST (`show evidence --anchor %s` prints it), then call this once with the verdict and what the reading showed; nothing is recorded by this call", p.Label, p.Label)
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: say what the program ACTUALLY COMPUTES, in your words, and whether that is what the sentence at %s says. A soundness verdict with no reading behind it is the assertion this verb exists to replace — read the program FIRST (`show evidence --anchor %s` prints it), then call this once with the verdict and what the reading showed; nothing is recorded by this call", p.Label, p.Label)
 		}
 		body := &recordpb.Reproduce{
 			ComputationId: proto.String(p.Label),
