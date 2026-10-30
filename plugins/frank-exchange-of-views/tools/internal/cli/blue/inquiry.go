@@ -189,7 +189,7 @@ type inquiryResult struct {
 func (r inquiryResult) Human() string {
 	head := "inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Question
 	if r.Idempotent {
-		head = "inquiry " + r.ID + " already records this question (idempotent retry — nothing written)"
+		head = seat.Repeated("inquiry " + r.ID)
 	}
 	if r.Recorded {
 		head = "inquiry " + r.ID + " recorded as " + r.Status

@@ -315,7 +315,7 @@ type mintResult struct {
 func (r mintResult) Human() string {
 	head := "minted " + r.GapID
 	if r.Idempotent {
-		head += " (idempotent retry — existing id returned)"
+		head = seat.Repeated("gap " + r.GapID)
 	}
 	note := reportvoice.Note("the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts", r.VoiceTells)
 	if r.Check == "" {

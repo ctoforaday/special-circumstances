@@ -180,7 +180,7 @@ func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
 	if _, err := run(t, args...); err != nil {
 		t.Fatalf("prove: %v", err)
 	}
-	if out, err := run(t, args...); err != nil || !strings.Contains(out, "idempotent") {
+	if out, err := run(t, args...); err != nil || !strings.Contains(out, repeatedWords) {
 		t.Errorf("an identical retry = %q, %v; want the stored proof, idempotent", out, err)
 	}
 	for flag, swap := range map[string][2]string{

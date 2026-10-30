@@ -214,7 +214,7 @@ type proveResult struct {
 func (r proveResult) Human() string {
 	note := reportvoice.Note("the proof's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return "blue prove (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
+		return seat.Repeated("the proof of program "+r.SHA[:12]) + note
 	}
 	out := fmt.Sprintf("proof %s recorded (%s, exit %d) — anchored, script and output cached", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {

@@ -295,7 +295,7 @@ type citeResult struct {
 func (r citeResult) Human() string {
 	note := reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 	if r.Idempotent {
-		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
+		return seat.Repeated("citation "+r.Label) + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 	}
 	span := ""
 	if r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE) {

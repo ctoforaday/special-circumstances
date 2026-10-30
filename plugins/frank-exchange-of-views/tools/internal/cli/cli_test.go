@@ -688,7 +688,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 	// The retry: same command, same key, and the EXISTING id comes back.
 	// FIRST LINE, because every write now also prints where the seat stands (seat/standing.go) and
 	// the subject here is what the verb said about the act.
-	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "minted G2 (idempotent retry — existing id returned)") {
+	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "gap G2 — this call repeats an act already on the record, so nothing was written") {
 		t.Errorf("the retry said %q, want the existing id", got)
 	}
 	mints := 0

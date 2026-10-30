@@ -667,7 +667,7 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted)")
 			sub.Flags().Bool(flags.Assembled, false,
-				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it — a listing WITHOUT the sections' text, which the --json form carries. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form")
+				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it — a listing WITHOUT the sections' text, which the --json form carries. --match and --quote select its sections and print them in the --json form, with or without --json; --anchor and --window are refused beside it in either form")
 			for _, name := range []string{flags.Match, flags.Quote} {
 				sub.Flags().Lookup(name).Usage += reportSelectorBound
 			}
@@ -697,10 +697,11 @@ func atAnchorShapeSuffix(name string) string {
 
 // reportSelectorBound closes --match and --quote on the report's page with what each combines
 // with there: the pair is every view's, and only this view has an anchor read and an assembled form.
-const reportSelectorBound = ". Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json"
+const reportSelectorBound = ". Refused beside --anchor. Beside --assembled it selects SECTIONS, printed in the --json form with or without --json"
 
-// markdownSelectorBound qualifies what --match and --quote select on a view whose bare form is markdown.
-const markdownSelectorBound = " of the --json form (the bare form is markdown and refuses this flag)"
+// markdownSelectorBound qualifies what --match and --quote select on a view whose bare form is
+// markdown: the markdown has no entries, so the selection is printed in the --json form.
+const markdownSelectorBound = " (printed in the --json form, with or without --json: the bare markdown has no entries)"
 
 // assembledShapeSuffix is the field tree of the report view's assembled layout, for the same reason.
 //
@@ -781,11 +782,23 @@ func renderView(cmd *cobra.Command, want string) error {
 	// What stays refused is --json where no JSON form exists (a markdown view), because there the
 	// seat asked for something the tool cannot give, and --json beside `--format markdown`, where
 	// it asked for two forms at once.
+	//
+	// A SELECTION IS PRINTED IN THE FORM THAT HAS ENTRIES. The markdown of changes, debate and
+	// inquiries is prose with no entries in it, so --match and --quote select from the --json form
+	// and print it, with or without --json. They were refused on the bare form ("Add --json") while
+	// `show report --quote` selected on its bare form, whose lines are its entries: a seat that
+	// learned the pair on the report was refused on changes (universe m36, two refusals and a
+	// friction entry). The refusal taught the flag and cost the call; the selection is the read the
+	// seat asked for.
+	sel, serr := SelectorOf(cmd)
+	if serr != nil {
+		return serr
+	}
 	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON && viewIsJSONByName(want) {
 		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
 			return feov.Errorf(feov.Validation, "--json asks for the JSON the %s view already is, and --format %s asks for its markdown — pass one", want, f)
 		}
-	} else if asJSON {
+	} else if asJSON || (sel.Active() && !viewIsJSONByName(want)) {
 		switch want {
 		// changes IS A CHANGE LOG AND NOW CARRIES THE CHANGE. The markdown stays — its diff blocks are
 		// the human-verification rendering — and this gives the same edits structured, so a seat can
@@ -942,17 +955,14 @@ func renderView(cmd *cobra.Command, want string) error {
 			if err != nil {
 				return err
 			}
-			if asJSON {
+			// A SELECTION OF SECTIONS IS THE --json FORM'S, with or without --json: the bare form
+			// lists the sections without their text, so it holds nothing a selector could match.
+			if asJSON || sel.Active() {
 				out, err := json.MarshalIndent(layout, "", "  ")
 				if err != nil {
 					return err
 				}
 				return WriteSelected(cmd, append(out, '\n'))
-			}
-			if sel, serr := SelectorOf(cmd); serr != nil {
-				return serr
-			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "--match and --quote select sections from the --json form of --assembled; the bare form prints every section")
 			}
 			if _, werr := fmt.Fprint(cmd.OutOrStdout(), layout.Markdown()); werr != nil {
 				return werr
@@ -1160,15 +1170,11 @@ func renderView(cmd *cobra.Command, want string) error {
 		return RefuseAndTeach(showGroup(cmd), feov.Validation, fmt.Sprintf("unknown view %q — each view is listed with the verb that fills it.", want))
 	}
 
-	// THE MARKDOWN FORM HAS NO ENTRIES TO SELECT. Its bytes went through WriteSelected, which hands
-	// back what it cannot parse as a document, so `--match` on a bare markdown view printed every
-	// entry and exited 0 — the answer a pattern matching all of them gets (universe m26: `show
-	// inquiries --match zzqqxx` returned all six). The pair selects the --json form of these views,
-	// and is refused here by name.
-	if sel, serr := SelectorOf(cmd); serr != nil {
-		return serr
-	} else if sel.Active() {
-		return feov.Errorf(feov.Validation, "--match and --quote select %s from the --json form of %s; the bare form is markdown and has no entries to select. Add --json", selectorNoun(want), want)
+	// THE MARKDOWN FORM HAS NO ENTRIES TO SELECT, so a selection never reaches it: the --json arm
+	// above serves every selection on these views. Handing markdown to WriteSelected printed every
+	// entry for any pattern (universe m26: `show inquiries --match zzqqxx` returned all six).
+	if sel.Active() {
+		return feov.Errorf(feov.Internal, "--match and --quote reached the markdown form of %s, which has no %s to select — the tool is at fault, not your call", want, selectorNoun(want))
 	}
 
 	scope := Str(cmd, flags.ID)
