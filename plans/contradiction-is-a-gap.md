@@ -1,7 +1,8 @@
 # A source reading against the report is a gap — the contradiction is deleted
 
 Written against `origin/main` **`8236e3a17`** (EventSchema 48, after Slim-fast's #1601 and #1643).
-Every file:line below is read at that commit. Implements gblock's ruling of 2026-10-30.
+Every file:line below is read at that commit. Implements gblock's ruling of 2026-10-30; every fork is
+RULED (gblock, 2026-10-30, §Forks).
 
 > **Owner ruling (gblock, 2026-10-30, his words):** "why isn't the contradiction recorded as a gap in
 > the first place like red would for any other problem it finds? We're letting it mint a weird
@@ -81,8 +82,8 @@ is already proven elsewhere (the failed check, §III.3).
   (its grades would be fabricated).
 - **Record shapes touched** (contract): `AboutKind` loses `ABOUT_KIND_CONTRADICTION = 4` (number and name
   `reserved`) and the `gap_may_name` facet (every remaining kind admits a gap, so the facet is dead);
-  `GapClass` gains one value (Fork F1); `SourceOutcome` gains a facet naming the classes each negative
-  outcome admits (Fork F1); `Verify` gains `gap_id` (references `mint.gap_id`); `Mint` is unchanged.
+  `GapClass` gains one value (F1); `SourceOutcome` gains a facet naming the classes each negative
+  outcome admits (F1); `Verify` gains `gap_id` (references `mint.gap_id`); `Mint` is unchanged.
 - **Existing mechanisms reused, not invented:** the one-gap rule (`onegapperclass.go`, eb0c5a99f), the
   failed-check state and its close gate (`failedcheck.go`, `requireFailedCheckAnswered`), the class's
   `material_default` stamped at write (`Mint.class_material`, `recordpb/gapclass.go:18`), the
@@ -98,7 +99,7 @@ is already proven elsewhere (the failed check, §III.3).
   records are brought forward by one `migrate` translation. The release gate
   (`FEOV_RELEASE_GATE=1`) runs in PR CI only — never locally (release fuzz cadence ruling, 2026-10-29).
 - **Brief claims checked at `8236e3a17` and found wrong or partial.**
-  - "GapClass has no class for the cited source refutes / does not contain the claim": `citation_figure_misattribution`'s `(means)` already reads "the figure, statement or support is absent from or contradicted by its text". F1 decides whether to keep that breadth or split it.
+  - "GapClass has no class for the cited source refutes / does not contain the claim": `citation_figure_misattribution`'s `(means)` already reads "the figure, statement or support is absent from or contradicted by its text". F1 (ruled) splits it: `refutes` gets the new class, and `citation_figure_misattribution` is narrowed to `absent`.
   - "#1522 made a refutes|absent reading a contradiction": the contradiction dates from gblock's 2026-10-06 rule (`citationid.go:455`); #1522 (a9ab33f49) made the finding insufficient, so only the gap minted from it answers.
   - "m19 contains contradictions": m19 (epoch 24) holds one negative reading (ev 114, `C-706fda63`), but the `contradiction` about-kind did not exist before epoch 30/31, so nothing in it was ever raised. Only m30 and m32 hold raises.
   - "N sources refuting one sentence yield N gaps": that holds in the release fuzz. No archive shows it. m32 shows N raises with one gap: four readings, four raising findings, one answering gap, three raised and never answered.
@@ -113,16 +114,18 @@ is already proven elsewhere (the failed check, §III.3).
 
 | Question (task item) | Decision | Fork |
 |---|---|---|
-| 1. One class or two | Two: a new `claim_contradicts_source` for `refutes`, the existing `citation_figure_misattribution` (narrowed) for `absent`; the lens picks among the classes its outcome admits | **F1** |
-| 1b. Who names class, quote, problem | Quote = the reading's claim (the tool already reads it for `verify`; `corroborate`'s `--quote`). Class = the lens's `--class`, refused outside the outcome's admitted set. Problem, check, check-kind, severity, likelihood, impact, fix = the lens's flags on the reading act, required on a negative outcome and refused on any other | **F2** |
+| 1. One class or two | A new `claim_contradicts_source` for `refutes`; the existing `citation_figure_misattribution` narrowed to `absent`; the lens picks among the classes its outcome allows | **F1** RULED |
+| 1b. Who names class, quote, problem | Quote = the reading's claim (the tool already reads it for `verify`; `corroborate`'s `--quote`). Class = the lens's `--class`, refused outside the outcome's admitted set. Problem, check, check-kind, severity, likelihood, impact, fix = the lens's flags on the reading act, required on a negative outcome and refused on any other | **F2** RULED |
 | 1c. Materiality | The class's `material_default` (both `always`), stamped at the write as for every gap | — |
-| 2. Duplicate | The one-gap rule refuses the *mint*; the reading is written and names the standing gap in `Verify.gap_id` | **F3** |
-| 3. Backing re-check | A citation found against is a **failed check** (third state beside unread/unsound). It holds the PASS until the citation holds, its sentence is edited, or it is retired; the gap it names cannot close while it stands (`requireFailedCheckAnswered`). A later backing reading clears the failed check; the minting lens then closes the gap `repaired` with its own close. No new answer kind | **F4** |
-| Corroboration `absent` | Records the reading only; mints nothing | **F5** |
-| Mint budget | A reading's gap takes no mint of the budget and does not count while open (the failed-check rule, restated for readings); the "answers its own raise" exemption is deleted | **F6** |
+| 2. Duplicate | The reading is kept and the one-gap rule refuses the *mint*; `Verify.gap_id` names the standing gap | **F3** RULED |
+| 3. Backing re-check | Found-against is a third **failed-check** state beside unread/unsound. It holds the PASS, and its gap cannot close (`requireFailedCheckAnswered`) until the citation holds (a backing re-check), the sentence is edited, or the citation is retired. A bench ruling cannot clear it while the reading stands. Once it clears, the minting lens closes the gap with its ordinary close. No new answer kind | **F4** RULED |
+| Corroboration `absent` | Records the reading; mints no gap | **F5** RULED |
+| Mint budget | A gap a reading mints is outside the mint budget: it takes no mint and does not count while open; the "answers its own raise" exemption is deleted | **F6** RULED |
 | 4. Delete | Everything in the census (§III.12) | — |
 | 5. migrate | One translation, §III.9 | — |
 | 6. Epoch | 49, re-derived at rebase | — |
+| 7. PR #1642 | Closed as superseded; its four diagnostic tally fields are carried into this PR (§III.11) | **F7** RULED |
+| 8. Delivery | ONE PR, implemented one phase per fresh agent (§III.14) | RULED |
 
 ### III.1 Record enums and messages — `internal/record/recordpb/record.proto` [MODIFY] (contract: event schema)
 
@@ -199,25 +202,77 @@ is already proven elsewhere (the failed check, §III.3).
   `counts.sources_refuted` and capture's assembled-report check read it); its comment stops saying "the
   contradiction's".
 - `failedChecksOf` adds the found-against state: each standing negative reading of the sentence the report
-  carries is a failed check whose owner is its reader and whose carrier (`answeredBy`) is the reading's
-  `gap_id` — read from the field, not from an about-anchor mint. The owner owes nothing (the gap exists
-  at the act), so dispatch readies blue alone for it (`dispatch.go:531-546`: the lens branch fires only
-  while `answeredBy == ""`, which a live found-against check never is).
-- `requireFailedCheckAnswered` then refuses closing that gap while the citation stands found against —
-  bench included, successor (`--superseded-by`) admitted — with a found-against sentence beside the
-  unread and unsound ones. The backing re-check is what clears the failed check; the gap's close stays
-  the minting lens's ordinary `close` (or the bench's), so no new answer kind exists.
-- **A found-against failed check never makes its reader owe a gap**, whether or not it names a carrier.
-  `failedCheck` gains its state (`unread | unsound | found_against`), and three readers key on the state,
-  not on `answeredBy == ""`: the lens arm of the readiness (`dispatch.go:531-538`) and the lens's work
-  item (`sitting.go`) fire for `unread`/`unsound` only, and `answersOwnFailedCheck`
-  (`failedcheck.go:109-119`) admits an about-anchor mint outside the budget for `unread`/`unsound` only.
-  So a carrier-less found-against check — which only a migrated archived reading can produce (§III.9) —
-  readies blue alone, and is cleared by the acts that clear every found-against check: a backing re-read
-  by its reader (its reading replaced), an edit of the sentence, or a retire. No mint answers it, so the
-  budget exemption cannot repeat. Test: `TestAMigratedFoundAgainstCheckReadiesBlueAlone` on migrated m32.
-- `failedRemedy` / `failedCheckReadiness` text for found-against: "blue edits the sentence, or retires or
-  replaces the citation".
+  carries is a failed check whose owner is its reader and whose carrier (`answeredBy`, `answers`) is the
+  reading's `gap_id` alone — read from the field, never from an about-anchor mint (the about-anchor scan
+  at `failedcheck.go:60-64, :75-83` stays for `unread`/`unsound` only). One failed check per standing
+  negative reading, so one anchor read against by two lenses holds two.
+- **OWED-NESS AND WORDING KEY ON THE STATE, NEVER ON `answeredBy == ""`.** `failedCheck` and `Blocker`
+  gain the check's state (`unread | unsound | found_against`; `Blocker.CheckState()` exported for the CLI
+  and the fuzz), and `Detail != ""` stops standing for "proof, else unread citation". The rule every
+  reader below holds: a lens **owes** a gap for a failed check of its own only when the state is `unread`
+  or `unsound` and no gap carries it; a `found_against` check is never owed by its reader, carried or not
+  — its gap is minted at the act, and where none is named (a migrated archived reading, §III.9) no mint
+  answers it either. `answeredBy` says only *which gap carries it*, for printing and for the close gate.
+  The readers, each changed to that rule (census: §III.12, "Readers of a failed check's owed-ness"):
+  - dispatch's lens arm (`dispatch.go:531-538`): readies the owner for `unread`/`unsound` with no carrier;
+    never for `found_against`, which readies blue alone (`:540-546`, cause `max(since, answeredAt)`);
+  - the lens's work item (`sitting.go:396-403`): `add` (owed) for `unread`/`unsound` with no carrier;
+    `may` for every `found_against` check — so `EnvelopeRefusal` (`envelope.go:44`, which reads this
+    list) never refuses a reader's envelope over one;
+  - retirement (`retirement.go:164-172`, `lensOwesOf`): a failed check is owed only for
+    `unread`/`unsound` with no carrier; `found_against` is skipped, so it never holds its reader from
+    retiring. Its doc comment (`:142-144`) says "a check of its that read nothing or judged a proof
+    unsound and that no gap of its carries yet";
+  - `answersOwnFailedCheck` (`failedcheck.go:109-119`) and `ownFailedCheckAnswers` (`:208-215`): the
+    budget exemption of an about-anchor mint is for `unread`/`unsound` only. A reading's gap is outside
+    the budget by F6's rule (§III.5), never through the failed-check carrier — so a held gap that another
+    lens minted cannot enter this lens's exemption set, and no mint is exempted twice;
+  - `requireNotARepeatFailedCheck` (`failedcheck.go:134-169`): `found_against` reads its own sentence
+    (§III.2's repeat rule); the citation branch's "read nothing" wording is the `unread` state's only;
+  - `requireFailedCheckAnswered` (`failedcheck.go:178-204`): a third message, for `found_against`:
+    "gap G carries citation C, which L's reading at event N found the source against, and the report still
+    carries that sentence — … It closes once a lens's reading of the sentence as it stands backs it, blue
+    edits the sentence, or blue retires the citation; no bench ruling closes it while the reading stands".
+- **Every printed sentence of a failed check keys on the state** (`passblockers.go`):
+  - `failedFact` (`:220-225`): `found_against` → "L's reading of citation C at event N found the source
+    against the sentence (`refutes` or `absent`), and the report still carries that sentence";
+  - `failedClears` (`:228-234`): `found_against` → "it clears when a lens's reading of the sentence as it
+    stands backs it, or when blue edits the sentence, which leaves it unchecked, or retires the citation;
+    the gap that carries it does not close while it stands, and no bench ruling clears it";
+  - `failedRemedy` (`:239-244`): `found_against` → "edits the sentence, or retires or replaces the citation";
+  - `failedOwed` (`:248-253`): the "owes its gap about the anchor (`mint --about-kind anchor …`), which
+    takes no mint of its budget" branch is `unread`/`unsound` with no carrier only; `found_against` with a
+    carrier → "gap G carries it to blue, which …"; without one → "no gap names it — blue …" (no seat is
+    told it owes a mint);
+  - `blueFailedItem` (`:256-268`): "the lens whose check failed has minted no gap about it yet" is the
+    `unread`/`unsound` no-carrier sentence only; `found_against` without a carrier → "no gap names it";
+    the citation remedy sentence takes `failedRemedy`'s found-against wording, and "Retire the citation" is
+    the `unread` sentence's;
+  - the kind's `gloss` (`:398`), `refusal` (`:402-420`: its hard-coded "The lens whose check failed mints
+    its gap about the anchor …" names the `unread`/`unsound` duty only, and `how` gains "found the source
+    against it") and `why` (`:421-427`, `until`);
+  - `failedCheckReadiness` (`dispatch.go:1297-1312`): `what, failed` and blue's remedy by state; the lens
+    arm's "minted no gap about it" stays, as only `unread`/`unsound` reach it.
+- Unchanged, read and judged state-safe: `verify.go:529-541` (`failedCheckWords`) runs only when
+  `!VerifyReads` — `unread` alone — and the found-against reading prints its `Gap` words instead (§III.2);
+  `verdict.go:141-162` (`anchorsStanding`) and `debate.js:1220-1227` name the anchor only.
+- `requireFailedCheckAnswered` refuses closing a found-against check's gap — bench included, successor
+  (`--superseded-by`) admitted — until the citation holds, its sentence is edited, or it is retired. The
+  backing re-check is what clears the failed check; the gap's close stays the minting lens's ordinary
+  `close` (or the bench's, once the check is cleared), so no new answer kind exists.
+- **The mechanism's own sweep.** The fix adds one field (the state) read by every reader above; its
+  other readers are the fuzz drives that branch on `Detail == ""` and `AnsweredBy()`
+  (`fuzz_test.go:2814, :2824, :2846, :3210, :3503, :4040`), which key on `CheckState()` (§III.11). No
+  other site reads `answeredBy`/`AnsweredBy()` outside the contradiction fold this plan deletes
+  (`citationid.go:516-647`, `onegapperclass.go:145`, `mintbudget.go:360-378`). `PlanBlocker`
+  (`dispatch.go:34-38`) carries kind, subject and owner only, and stays so: the state reaches a seat in
+  the plan's `why` sentence, not as a field.
+- A carrier-less found-against check — which only a migrated archived reading produces (§III.9) — readies
+  blue alone, sits on its reader's list as `may`, holds no reader from retiring, admits no budget-exempt
+  mint, and clears by the acts that clear every found-against check: a backing re-read of the sentence,
+  an edit of it, or a retire of the citation.
+  Tests: `TestAMigratedFoundAgainstCheckReadiesBlueAlone` (§III.9) and
+  `TestAFoundAgainstCheckIsWordedByItsState` (§III.10).
 - `holds()` comment (`anchorchecks.go:104-108`) and `VerifyReads` comment (`:278-281`) [MODIFY].
 - Corroborations place no anchor when negative, so they reach the board through their gap only.
 
@@ -249,10 +304,13 @@ is already proven elsewhere (the failed check, §III.3).
 - `record.go`: the finding case (`:1059-1063`) and the mint's about-kind refusal (`:966-971`) [DELETE] —
   with every kind admitted the check has nothing to refuse; `enums.go:294-300` (finding's set "less
   contradiction") [REWRITE]: finding and mint carry one set.
-- `sitting.go:369-425` (the lens owes a contradiction it read; the at-cap special case) [DELETE].
+- `sitting.go:369-425` (the lens owes a contradiction it read; the at-cap special case) [DELETE]; the
+  failed-check arm (`:396-403`) keys on the state (§III.3).
 - `dispatch.go`: the readiness case (`:520-526`), `contradictionReadiness` (`:1285-1292`), Plan JSON
   `desc` text (`:18-36`) [DELETE/REWRITE].
-- `retirement.go:20, :142` (a lens is not retired while it owes a contradiction) [REWRITE].
+- `retirement.go:20, :142` (a lens is not retired while it owes a contradiction) [REWRITE]; the
+  failed-check skip (`:164-172`) keys on the state, so a found-against check never holds its reader
+  from retiring (§III.3).
 - `evidenceview.go:306-373`: `UnansweredContradictions`, `EvidenceContradictionJSON` [DELETE];
   `:564`, `:584` comments [REWRITE]. `narrowedview.go:20` [REWRITE].
 - `convergence_refusal.go:77` [REWRITE].
@@ -263,22 +321,43 @@ is already proven elsewhere (the failed check, §III.3).
   are replaced by one paragraph: a negative reading mints its gap in the same act, the flags it needs,
   what the one-gap rule does to a second reading, and what clears the citation's failed check;
   `finding.md`, `mint.md`, `dispatch.md` [REWRITE] the contradiction sentences; `finding.go:144-145` flag
-  descriptions [REWRITE]; `verbs.go`, `flags/names.go` per census.
+  descriptions [REWRITE]; `verbs.go`, `flags/names.go` per census. The failed-check paragraphs name the
+  third state: `mint.md:15` ("A CHECK OF YOURS THAT FAILED … you owe its gap") says the owed gap is an
+  unread or unsound check's, and that a reading found against its sentence minted its gap at the act;
+  `close.md:11` ("A GAP THAT CARRIES A FAILED CHECK DOES NOT CLOSE") adds the found-against case and
+  what clears it (a backing reading of the sentence as it stands, an edit, a retire). `verify.md:11`
+  (the unread paragraph) KEEPs.
 - `terms.json`: the `contradiction` entry [DELETE] (with its ordinary-English collision); `failed check`
   [REWRITE] to include "or a lens's reading found the cited source refutes the sentence or does not
-  contain it — whose gap that reading minted at the act"; `lens retirement` [REWRITE] ("no contradiction
+  contain it — whose gap that reading minted at the act", and to state the obligation to mint as the
+  unread and unsound checks' only; `lens retirement` [REWRITE] ("no contradiction
   it read" goes). Then `go -C scripts run ./vocabdoc` regenerates `docs/vocabulary.md`.
 - agentgen sources [REWRITE]: `scripts/agentgen/src/fragments/lens-duties.md`, `fragments/lens-audit-and-mint.md`,
   `src/red-chair.md` (census), `src/skills/research-protocol/SKILL.md:17-19` ("it goes to the board as a
   finding — a PASS is refused until one is raised for it", found by the phrase sweep below), and
   `src/lead-judge.md` gains one sentence for the bench: a gap a lens's reading minted does not close
-  while that reading stands, whatever the ruling (R4). `fragments/blue-research-protocol.md` KEEPs.
+  while that reading stands, whatever the ruling (R4). `fragments/blue-search-and-cite.md:28-35` (blue's failed-check duty) [REWRITE]: a citation found against
+  is fixed by an edit of its sentence, or by retiring or replacing the citation, and "the lens's gap about
+  the anchor, once minted" becomes "the gap that carries it". `fragments/lens-audit-and-mint.md:6` (the
+  lens's failed-check duty) [REWRITE] with it: the owed gap is the unread or unsound check's.
+  `fragments/blue-research-protocol.md` KEEPs.
   Then `go -C scripts run ./agentgen` regenerates `agents/*.md` and both preloaded skills. Never
   hand-edit the generated text.
 - **Phrase sweep (the old model without the word).** The census grep finds the word; it cannot find a
-  sentence that teaches "a negative reading is a finding to raise". Run, and read every hit for that model:
-  `grep -rIn -E -i '(refut|absent|negative reading|found against|contradicting).{0,120}(finding|rais)|(finding|rais).{0,120}(refut|absent)' scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal/cli plugins/frank-exchange-of-views/skills plugins/frank-exchange-of-views/docs docs`
-  Known hits at `8236e3a17`: the research-protocol SKILL source above, `verify.go:304`, `verify.go:699`.
+  sentence that teaches "a negative reading is a finding to raise". It matches across line breaks (a
+  wrapped sentence is one match; `[^.]` keeps it inside one sentence) and prints the line the match starts
+  on. Run, and read every hit for that model:
+  `grep -rIl . scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal/cli plugins/frank-exchange-of-views/skills plugins/frank-exchange-of-views/docs docs | xargs perl -0777 -ne 'while(/(refut|absent|negative reading|found against|contradicting)[^.]{0,160}?(finding|rais)|(finding|rais)[^.]{0,160}?(refut|absent)/gis){ my $l = 1 + (substr($_,0,$-[0]) =~ tr/\n//); print "$ARGV:$l\n" }' | sort -u`
+  Known hits at `8236e3a17` (27; the 9 under `cli/*_test.go` are the census's test rows or other-sense
+  KEEPs — `missingflag_test.go:119`, `stategraph_test.go:91`, `verbs_test.go:114`):
+  REWRITE — `scripts/agentgen/src/skills/research-protocol/SKILL.md:17` (the sentence spanning l.17-19,
+  which a line grep cannot match), `fragments/lens-audit-and-mint.md:8`, `red-chair.md:12`,
+  `verify.go:304`, `verify.go:699`, `help/corroborate.md:13`, `help/finding.md:11`, `help/dispatch.md:15`
+  and `:19`, `debate.js:1046`, `docs/citations-and-bibliography.md:166` ("`refutes` and `absent` are
+  findings, not failures to grade"); REGENERATE — `skills/research-protocol/SKILL.md:19`,
+  `docs/vocabulary.md:455`; KEEP — `verify.go:56` (a code comment on why the outcome field exists),
+  `fragments/lens-audit-and-mint.md:9` (materiality), `debate.js:227` (inquiry `refuted`),
+  `docs/seat-surface-naming.md:749`, `docs/why-a-seat-stops.md:103` (ordinary English).
   The property each rewritten sentence holds: a negative reading's gap is minted in the same act.
 - `debate.js`: enginegen regions regenerate (`go -C plugins/frank-exchange-of-views/tools run
   ./devcmd/enginegen`); authored hits per census [REWRITE]; simulator goldens regenerate.
@@ -318,31 +397,46 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    **corroboration** reading (no anchor) is refused with the finding's id named — no archive holds one,
    so the refusal is the loud miss, not a silent zero.
 2. **An archived negative reading** carries no `gap_id`: its gap was minted later (forward reference) or
-   never. Not filled. Its found-against state is still a failed check on the migrated record (read from the
-   ledger), with no named carrier.
+   never. migrate does NOT fill `gap_id` from the `found_by` chain (ruled, gblock 2026-10-30). Its
+   found-against state is still a failed check on the migrated record (read from the ledger), with no
+   named carrier.
 3. **A mint whose `found_by` names a raising finding** is carried unchanged — the finding exists.
 4. **A stored plan's `contradiction` blocker** is respelled `failed_check` with subject = the reading's
    anchor (`plankinds.go`, `planids.go:29-31, :91-96`), re-keyed as `TranslatePlanKinds` already does.
 5. Migrate's comments in `entries.go:64-66` (the credit entry) and `outcomes.go:19` [REWRITE] to state
    archived bytes without the live concept word where they describe the live model.
 
-**Residue (stated, accepted in this plan):**
-- Archived readings name no gap, so the close gate cannot tie an archived answering gap to its reading;
-  that matters only to a run resumed after migration. Such a carrier-less found-against check readies blue
-  alone, puts nothing on its reader's work list and admits no budget-exempt mint (§III.3); it clears by a
-  re-read, an edit or a retire. Where the archive held the sentence on a contradiction, the migrated record
-  holds it on a failed check.
+**Residue (stated, accepted in this plan; ruled, gblock 2026-10-30):**
+- Archived readings name no gap, so the close gate cannot tie an archived answering gap (m30
+  `G-dc877265`, m32 `G-f417112d`) to its reading: in a run resumed after migration that gap may close
+  while its reading still stands. Accepted. A carrier-less found-against check readies blue alone, sits
+  on its reader's work list as not owed, holds no reader from retiring and admits no budget-exempt mint
+  (§III.3); it is cleared by a re-read, an edit or a retire. Where the archive held the sentence on a
+  contradiction, the migrated record holds it on a failed check.
 - m32: each of its four negative readings of `C-a36dce3f` that still stands at the end is its own
   found-against failed check (up to four, one per reader) and its four raising findings become four
   findings about that anchor. m32 ended UNVERIFIED, so no verdict moves.
-- Not taken: filling archived `gap_id` from the found_by chain — the answering gap is minted after the
-  reading, a forward reference the FK and the write order refuse.
 - Epoch-24/25/26 negative readings (m19, m23, 07d, wave-a) never had a raise; they come forward as
   readings on the ledger exactly as before.
 
 Tests [NEW], in `migrate/`: `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` (F-8410bec7 →
 `about anchor C-4f4b8cfa`; G-dc877265 open/closed as archived; 0 refusals) and
-`TestTheMigratedM32HoldsAFailedCheckPerStandingReading` (and `TestAMigratedFoundAgainstCheckReadiesBlueAlone`: dispatch readies no m32 lens for it, no lens work item, an about-anchor mint is counted); `TestM23CorroborationReadingComesForward`
+`TestTheMigratedM32HoldsAFailedCheckPerStandingReading`; `TestAMigratedFoundAgainstCheckReadiesBlueAlone`, on
+migrated m32, asserting for each found-against failed check of `C-a36dce3f` (state `found_against`,
+`AnsweredBy() == ""`):
+  1. dispatch: the plan's `why` readies `blue-respond` for it and names no reader lens for it;
+  2. work list: each reader's item for it is in `may`, never `Open`, and `EnvelopeRefusal` for that reader
+     does not name it;
+  3. retirement: `lensOwesOf` names no `failed_check C-a36dce3f` for any reader, so a reader with nothing
+     else owed retires (the lens fold reports it retired);
+  4. budget: an about-anchor mint by a reader is counted (`answersOwnFailedCheck` returns "");
+  5. the printed sentence: the blocker's `WorkItem()`, `why`, the PASS refusal and `blueFailedItem` say
+     the reading found the source against the sentence and name blue's remedy ("edits the sentence, or
+     retires or replaces the citation"), and contain none of "owes its gap about the anchor", "takes no
+     mint of its budget", "has minted no gap about it yet", "read nothing of its source";
+  6. a backing reading of the sentence by the reader (a sitting later), an edit naming the anchor, and a
+     retire of the citation each remove it — three subtests on copies.
+`TestM23CorroborationReadingComesForward`
 (the unraised corroboration and citation readings, 0 refusals). `reopenedm19_test.go` and
 `TestEveryArchivedRunMigrates` keep passing.
 
@@ -364,6 +458,13 @@ Tests [NEW], in `migrate/`: `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` 
   - `TestACorroborationAbsentMintsNothing` (F5).
   - `TestEveryNegativeOutcomeNamesItsClasses` (the `gap_classes` facet is non-empty exactly on
     `refutes` and `absent`, and every named class exists).
+  - `TestAFoundAgainstCheckIsWordedByItsState` (live record, `record/`): a lens's `refutes` reading
+    mints G. Asserts the found-against blocker's `CheckState()`, `AnsweredBy() == G`; `WorkItem()`,
+    `why`, the PASS refusal, `blueFailedItem` and blue's `failedCheckReadiness` carry "gap G carries it"
+    and the found-against remedy, and none of the owed-mint sentences; the reader's work list holds it as
+    `may`; `lensOwesOf` does not name it; the reader's about-anchor mint on that anchor is counted. A
+    second table row runs the `unread` state and asserts its sentences are unchanged ("owes its gap about
+    the anchor", "Retire the citation") — the state, not the carrier, picks the wording.
 
 ### III.11 Release fuzz harness — `releasegate/fuzz/` [MODIFY]; PR #1642 [SUPERSEDED]
 
@@ -375,10 +476,20 @@ Tests [NEW], in `migrate/`: `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` 
   negative readings refused a mint by the one-gap rule (the duplicate path is driven on purpose by
   re-reading a sentence already holding a reading's gap); found-against closes refused. New tally:
   max open gaps per (class, sentence) — must be ≤ 1.
-- PR #1642 (on hold): closed as superseded once this plan's PR is opened; its `final_blockers`,
-  `final_parties`, `mints_by_epoch`, `closes_by_epoch` tally fields are re-proposed here only if the
-  human wants them (they are diagnostics independent of this concept), with `open_by_found_by`'s
-  `contradiction` bucket replaced by `reading`.
+- The failed-check drives key on `CheckState()`, not on `Detail == ""` and `AnsweredBy()`
+  (`fuzz_test.go:2814` the unread repeat, `:2824` the unsound repeat, `:2846` the owed-gap mint and the
+  early-envelope refusal, `:3210` blue's "Retire the citation" oracle, `:3503`, `:4040`
+  `standingFailedCheckOf`): a found-against check is never driven as owed, and blue's oracle reads the
+  found-against remedy for it. New drive: a refuting reading followed by a backing re-read by the same
+  lens, after which the gap's close is admitted (the found-against close refusal's partner).
+- PR #1642: closed as superseded (F7, ruled). Its four diagnostic tally fields are carried into this PR's
+  `sweeptally_test.go`, each diagnosing a CEILING run independently of the contradiction:
+  - `final_blockers` — the PASS blockers standing at each run's end, by kind;
+  - `final_parties` — the parties the last dispatch readied;
+  - `open_by_found_by` — open gaps at the end, re-keyed by what surfaced each now that contradictions are
+    gone: `reading` (minted by a reading act, `Verify.gap_id`), `finding` (minted from a finding in
+    `found_by`), `none`;
+  - `mints_by_epoch` / `closes_by_epoch` — mints and closes per epoch.
 - Release gate: PR CI only. Never `FEOV_RELEASE_GATE=1` locally.
 
 ### III.12 Consumer census
@@ -392,7 +503,9 @@ grep -rIn -E 'ABOUT_KIND_CONTRADICTION|unanswered_contradictions|ContradictionOf
 ```
 
 Result: **201 files** (198 carry the word, 3 only the identifiers). Each hit was read for meaning.
-**DELETE 4 · REWRITE 60 · REGENERATE 16 · KEEP 121** (38 of the KEEP are historical). Paths are relative
+**DELETE 4 · REWRITE 62 · REGENERATE 16 · KEEP 121** (38 of the KEEP are historical). The two REWRITEs
+beyond the word census are `help/close.md` and `fragments/blue-search-and-cite.md`, found by the
+failed-check sweep below; its other hits are in files the word census already holds. Paths are relative
 to `plugins/frank-exchange-of-views/tools/internal/` unless shown. "n" = lines carrying the FEOV sense.
 
 **Production Go — record**
@@ -514,6 +627,32 @@ each states how it reads once a refutation is a gap):
 | `failed_check` PASS blocker (`passblockers.go:397`, `failedcheck.go`) | unread citations and unsound proofs | gains the found-against state (§III.3): holds the PASS until the citation holds, is edited or retired; readies blue alone; carrier = `Verify.gap_id` | MODIFY |
 | `unchecked` PASS blocker | a citation or proof with no check of its current sentence | unchanged: an edit of a found-against sentence makes the citation unchecked, owed a fresh check by its owning lens; that check either holds (failed check cleared, the gap may close) or is negative again (names the standing gap) | KEEP |
 | Evidence lens's gap duties (`fragments/lens-duties.md`, `lens-audit-and-mint.md`, `verify.md`) | read every citation; a negative reading opens a contradiction it must raise by finding, then answer by a gap minted from it, outside its budget | reads every citation; a negative reading carries the gap's judgment (class among the outcome's admitted set, problem, check, grades) and mints it in the same act, outside its budget; a second reading of a sentence holding that gap names it; the lens closes the gap with its ordinary close once the citation holds, is edited or retired. Unread readings keep the owed-gap-about-the-anchor duty | REWRITE (agentgen) |
+| Failed-check owed-ness readers (§III.3): dispatch lens arm `dispatch.go:531-538`, lens work item `sitting.go:396-403` (and `EnvelopeRefusal`, `envelope.go:44`, through it), retirement `retirement.go:164-172`, budget `failedcheck.go:109-119, :208-215` | owed iff `answeredBy == ""` | owed iff state is `unread`/`unsound` and no gap carries it; `found_against` never owed by its reader | MODIFY |
+| Failed-check printed sentences (§III.3): `passblockers.go` `failedFact` :220, `failedClears` :228, `failedRemedy` :239, `failedOwed` :248, `blueFailedItem` :256, the kind's gloss/refusal/why :398-427; `dispatch.go:1297` `failedCheckReadiness`; `failedcheck.go` repeat and close refusals :134, :178 | branch on `Detail` (proof) and `answeredBy`; citation = unread | branch on the state; found-against wording names the reading and blue's remedy (edit, retire or replace), never an owed mint | MODIFY |
+| Failed-check prose: `help/mint.md:15`, `help/close.md:11`, `fragments/blue-search-and-cite.md:28-35`, `fragments/lens-audit-and-mint.md:6`, `terms.json` `failed check` | two states; the seat whose check failed owes the gap | three states; the owed gap is the unread/unsound check's; a found-against check's gap was minted at the reading | REWRITE |
+| Fuzz failed-check drives `fuzz_test.go:2814, :2824, :2846, :3210, :3503, :4040` | `Detail == ""` = unread citation; `AnsweredBy() == ""` = owed | key on `CheckState()` | REWRITE (§III.11) |
+| `verify.go:529-541` `failedCheckWords`; `verdict.go:141-162`; `debate.js:1220-1227` | unread only (guarded by `!VerifyReads`); anchor names only | unchanged | KEEP |
+| Tests pinning unread/unsound sentences: `unreadcitation_test`, `unreadb6_test`, `blueanswered_test`, `failedcheck_test`, `reopened_test`, `tiersubstitution_test`, `unsoundm32_test`, `capture/dispatchparity_test` | those states' wording | unchanged — their wording does not move; they are the regression net for it | KEEP |
+
+**Readers of a failed check's owed-ness and its printed sentence** (the class the round-2 audit named;
+run at `8236e3a17`, every hit read; dispositions in the table above):
+
+```
+grep -rIn -E 'answeredBy|answered_by|AnsweredBy' plugins/frank-exchange-of-views/tools/internal plugins/frank-exchange-of-views/tools/cmd plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js scripts/agentgen/src | grep -v _test.go
+grep -rIn -E 'BlockerFailedCheck|failedChecksOf|answersOwnFailedCheck|ownFailedCheckAnswers|failedRemedy|failedOwed|blueFailedItem|failedCheckReadiness|failedCheckWords|failed check' <same paths> | grep -v _test.go
+grep -rIn -i -E 'check (of yours|that) failed|whose check failed|failed check|about the anchor|about that anchor' scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal/cli/seat/help plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js
+```
+
+Hits outside the contradiction fold (which is deleted: `citationid.go:516-647`, `onegapperclass.go:145`,
+`mintbudget.go:360-378`): `passblockers.go:83-97, :217-268, :397-427, :685`; `failedcheck.go:44-119,
+:134-215`; `sitting.go:321-322, :396-403`; `retirement.go:142-172`; `dispatch.go:21, :531-546,
+:1294-1312`; `mintbudget.go:306-307, :368, :392, :398-408`; `verdict.go:141-162`; `cli/lens/verify.go:529-541,
+:631-656`; `cli/seat/verbs.go:297`; `terms.json:1041-1042`; `help/mint.md:15`, `help/close.md:11`,
+`help/verify.md:11` (KEEP, unread), `help/dispatch.md:19`; `fragments/lens-audit-and-mint.md:6`,
+`fragments/blue-search-and-cite.md:28-35`; `debate.js:398` (enginegen, from `dispatch.go:21`),
+`debate.js:1220-1227`; `onegapperclass.go:28` (a comment naming `answersOwnFailedCheck`, KEEP);
+`migrate/plankinds.go:19` (respelling, KEEP); test files under `record/`, `capture/` and the fuzz (rows
+above). `sitting.go:268, :662-664` (`answeredByActThisSitting`) is a motion reader, other sense, KEEP.
 
 **Carried by the concept, not found by the word:** `record.proto.sha256`, `requirements.json` (epoch),
 `schema_gen.go`, `migrate/plankinds.go`, `failedcheck.go` (§III.3), `cli/lens/mint.go` (flag helper).
@@ -544,19 +683,27 @@ plugins/frank-exchange-of-views/
 scripts/agentgen/src/…                      [MODIFY]
 ```
 
-### III.14 Independently shippable parts
+### III.14 Delivery — one PR, one phase per fresh agent (RULED, gblock 2026-10-30)
 
-None that is a complete concept on its own; stated so the bundle is a choice, not a default:
+ONE PR on one branch, one epoch. No part is a complete concept on its own (deleting the contradiction
+before the reading mints leaves a refuting reading holding no PASS; a class no act routes to is a dead
+value; agent text cannot precede the flags it describes), so the bundle is the concept, not a default.
+Its cost is dominated by the census rewrite (62 REWRITE incl. 22 tests, 4 DELETE, 16 REGENERATE), not
+machinery: one facet, one field, one append path, one ledger state widened, one check state read.
 
-- *Delete the contradiction first, add the reading's gap later* — truncated: between the two, a refuting
-  reading holds no PASS and reaches no seat (the half-state the 10-06 ruling closed).
-- *Add the class and the facet first* — a class no act routes to is a dead value; it would also take an
-  epoch of its own for nothing a reader sees.
-- *The fuzz change alone* (PR #1642) — patches the harness, not the engine (§I value case).
-- The agent-text rewrite cannot precede the behaviour (the help would describe flags that do not exist).
+Implementation runs one phase per **fresh agent**, each starting from this plan and the branch's
+`.claude/checkpoints/CHECKPOINT.md`, ending with a commit, the checkpoint rewritten (head, the phase's
+loop result, the next phase), and the agent's exit. A phase ends where its loop is green; the full
+`check` is owed only at phase 6.
 
-So: one PR, one epoch. Its cost is dominated by the census rewrite (60 REWRITE incl. 22 tests, 4 DELETE, 16 REGENERATE), not
-machinery; the machinery is one facet, one field, one append path, one ledger state widened.
+| Phase | Scope | Phase loop (must pass to end it) |
+|---|---|---|
+| 1. Record | §III.1 proto, epoch, facet, `Verify.gap_id`; §III.3 the check state and every reader of it; §III.4; §III.5; §III.6 deletions; record-package tests of §III.10 | protogen/schemagen clean (§V.1); `go test -count=1 ./internal/record/` (excluding `migrate/`) |
+| 2. Reading act | §III.2 flags, two-body append, held gap, repeat, result words; cli tests | `go test -count=1 ./internal/cli/...` |
+| 3. migrate | §III.9 translation and the m30/m32/m23 tests | §V.6 |
+| 4. Agent text | §III.7 help, terms, agentgen sources, debate.js; regenerate; read every changed golden line | §V.1 second run no diff; §V.4 census and phrase sweep |
+| 5. Fuzz | §III.11 drives, gates, the four carried tally fields | `go test -count=1 ./releasegate/...` with the gate unset (compiles; the sweep runs in CI) |
+| 6. Verify | §V.2, §V.3, §V.5, §V.8, §V.9; open the PR; read PR CI's fuzz tally (§V.7) | all of §V |
 
 ## IV. Risk & Mitigation
 
@@ -565,12 +712,13 @@ machinery; the machinery is one facet, one field, one append path, one ledger st
 | R1 | A carrier keeps speaking the contradiction (prompt, help, golden, fuzz) — half-state that reads done | H × H × L | §III.12 census re-run as §V.4, identifiers grep must be empty; agentgen/enginegen/vocabdoc `-check` gates (§V.2) |
 | R2 | Lenses stop recording negative readings because the act now costs a full mint's flags | M × H × M | Flags are the same set `mint` already asks; refusal names each; smoke §V.8 checks negative readings still occur; the reading's gap takes no budget (F6) so cap is not a reason to read `supports` |
 | R3 | One-gap rule + lens-picked class lets two lenses split one defect across two classes on one sentence | M × L × L | Ordinary behaviour for any gap; the admitted sets are two classes each; sweep tally reports per-sentence gaps by class |
-| R4 | A bench `not_a_defect` ruling on a misread source cannot close the gap while the reading stands | M × M × M | Same as an unsound proof today (failed check is not a dispute); the reader re-reads (its own reading replaced) or blue edits. Stated in the bench's constitution. Fork F4 offers the alternative |
+| R4 | A bench `not_a_defect` ruling on a misread source cannot close the gap while the reading stands | M × M × M | Accepted by ruling (F4): as an unsound proof today, a failed check is not a dispute; the reader re-reads (its own reading replaced) or blue edits or retires. Stated in the bench's constitution (§III.7) |
 | R5 | migrate mistranslates m30/m32 raises | L × H × L | Tests on the real archives (§III.9); refusal on corroboration raises is loud |
 | R6 | Epoch collision with Slim-fast's epoch PR (50) or #1544 Part 1a | M × M × L | Re-derive at rebase; `schemaepoch_test.go` and setup's epoch refusal catch a stale number |
 | R7 | Goldens conflict semantically with a help-changing PR merged meanwhile | H × M × L | Rebase, regenerate at `-count=1`, read each changed line, re-run CI before merge (CLAUDE.md) |
 | R8 | The two-event act leaves a Verify without its Mint on crash | L × H × L | One transaction; keyed retry returns the stored pair (`keyedretry_test.go` extended) |
 | R9 | Release fuzz loses coverage of the duplicate path | M × M × L | New zero-gates (§III.11) fail the sweep if the one-gap path in the reading act is never driven |
+| R10 | A reader of a failed check keeps keying on `answeredBy == ""`, so a carrier-less found-against check is owed by its reader (never retires, envelope refused) or prints an owed mint that does not exist | M × H × L | §III.3 state key on every reader; the failed-check census (§III.12) re-run as §V.4; `TestAMigratedFoundAgainstCheckReadiesBlueAlone` and `TestAFoundAgainstCheckIsWordedByItsState`; delete-the-row checks §V.5 i–k |
 
 ## V. Verification Plan
 
@@ -582,7 +730,8 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
 4. Census re-run (must print only KEEP lines of §III.12):
    `grep -rIn -i contradict --exclude-dir=.git --exclude-dir=run-archive plugins scripts docs | grep -v -E 'cross_section_contradiction|claim_contradicts_(own_record|source)'`
    and identifiers, which must print nothing outside `migrate/` archived-word tables:
-   `grep -rIn -E 'ABOUT_KIND_CONTRADICTION|BlockerContradiction|unanswered_contradictions|contradictionsOf|ContradictionOfReading|requireOpenContradiction|answersRaisedContradiction|answersOwnRaise|gap_may_name|raised_by' plugins scripts`.
+   `grep -rIn -E 'ABOUT_KIND_CONTRADICTION|BlockerContradiction|unanswered_contradictions|contradictionsOf|ContradictionOfReading|requireOpenContradiction|answersRaisedContradiction|answersOwnRaise|gap_may_name|raised_by' plugins scripts`;
+   the phrase sweep of §III.7 (must print only its KEEP lines); and the failed-check sweep of §III.12, every `answeredBy`/`AnsweredBy()` hit read for a branch that decides owed-ness without the state (must find none).
    Re-armed by: any agent-facing or Go edit.
 5. Delete-the-row checks (each must turn the suite red; revert after):
    a. delete `(gap_classes)` from `SOURCE_OUTCOME_REFUTES` → `TestARefutingReadingMintsItsGapInTheSameAct` and `TestEveryNegativeOutcomeNamesItsClasses` fail;
@@ -592,7 +741,10 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    e. delete the reading exemption in `requireMintWithinBudget` → `TestAReadingsGapTakesNoMint` fails;
    f. delete migrate's raise translation → `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` fails (refusal);
    g. delete the call site of the new flag-registration helper in `verify.go` → help/flag tests fail;
-   h. delete the `Verify.gap_id` CHECK → a test writing a negative reading with no gap fails.
+   h. delete the write-path rule that a negative reading names its gap (`record.go`, the Verify case) → a test writing a negative reading with no gap fails;
+   i. revert `retirement.go`'s failed-check skip to `answeredBy != ""` → `TestAMigratedFoundAgainstCheckReadiesBlueAlone` (retirement) fails;
+   j. revert `sitting.go`'s lens arm to `answeredBy == ""` → the same test (work list, envelope) fails;
+   k. delete the `found_against` branch of `failedOwed` / `blueFailedItem` → `TestAFoundAgainstCheckIsWordedByItsState` and the m32 test (printed sentence) fail.
    Re-armed by: the function or table each names.
 6. migrate on real archives: `go -C plugins/frank-exchange-of-views/tools test -count=1 ./internal/record/migrate/ -run 'M30|M32|M23|EveryArchivedRun|M19'` → pass, 0 refusals. Re-armed by: `migrate/**`, `record.proto`.
 7. Release fuzz: PR CI only (sharded 4 + tally). Read the tally: new gates non-zero; max gaps per (class, sentence) = 1. NEVER run `FEOV_RELEASE_GATE=1` locally. Re-armed by: any record or flag change (CLAUDE.md requires a full pass before done).
@@ -604,43 +756,27 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
 9. **Driveable check on real data.** Migrate m30 into scratch (`~/.claude/scratch/contradiction-is-a-gap/m30/`), then on the migrated copy as `red-lens-evidence`: `feov-record verify --anchor C-4f4b8cfa --as refutes --class claim_contradicts_source …` → a gap lands (or names G-dc877265 if it is open with that class); a second lens's identical reading → names the same gap, no mint; `close` of that gap → refused while the reading stands; `show evidence` has no `unanswered_contradictions` key; `show board` lists the gap. Re-armed by: the reading act, the ledger, the close gate.
 10. Auditor gate: `/prosthetic-conscience:plan-audit plans/contradiction-is-a-gap.md` — two consecutive PASS, or the human's approval with every fork ruled.
 
-## Forks (for gblock — each with a recommendation)
+## Forks — all RULED (gblock, 2026-10-30)
 
-**F1 — Which class a negative reading's gap takes.**
-- *A. One class:* widen `citation_figure_misattribution` (it already says "absent from or contradicted by
-  its text") to every negative reading. No enum change. But it says "a cited source", which a refuting
-  corroboration is not, and it merges two repairs (fix the sentence vs fix the citation) into one class,
-  so the one-gap rule folds a refutes and an absent on one sentence into one gap.
-- *B. Two classes, fixed by outcome:* `refutes` → new `claim_contradicts_source`; `absent` →
-  `citation_figure_misattribution` narrowed. Separates the repairs; the tool picks, the lens cannot
-  misfile. But m30 and m32's lenses both filed their refutation as `within_source_condition_misattribution`
-  — the source states the result under a condition the report drops — which B could not record.
-- *C. (Recommended) Two classes plus a declared choice:* B's classes, and the lens picks among the
-  classes its outcome admits (`refutes`: `claim_contradicts_source` | `within_source_condition_misattribution`;
-  `absent`: `citation_figure_misattribution` | `within_source_condition_misattribution`), declared once on
-  `SourceOutcome`. Keeps the archived choice expressible; cost: two lenses may file one defect under two
-  classes on one sentence (R3).
+Each ruling is recorded here; the alternatives it rejected are deleted from the design.
 
-**F2 — Where the gap's judgment comes from.**
-- *A. (Recommended)* The reading act takes the mint's flags (problem, check, check-kind, grades, fix), required on a negative outcome. One act; nothing owed; no grade invented.
-- *B.* The reading records and the lens owes a `mint` naming it (the failed check's owed-gap shape, readied until minted). Two acts, and the debt between them is the placeholder the ruling objects to.
-- *C.* The tool mints with default grades. Rejected: the tool never makes it up — a fabricated grade reads exactly like a judged one.
-
-**F3 — What the reading act does when the one-gap rule refuses its mint.**
-- *A. (Recommended)* Keep the reading, refuse the mint, write `Verify.gap_id` = the standing gap, print it; the lens adds a finding about that gap only if it has more to say. The evidence stays on the ledger, so the citation is checked (no readiness loop).
-- *B.* Refuse the whole act (nothing recorded), telling the lens to file a finding about the gap. Loses the evidence, and for a second citation in the same sentence leaves it unchecked: the evidence lens is readied again, reads again, is refused again — a loop.
-- *C.* Keep the reading with no link; gate the gap's close by re-deriving the sentence's anchors at close time. A relation recovered from text position instead of a field the writer can refuse.
-
-**F4 — What holds the PASS for a citation found against, and how a backing re-check relates to the gap.**
-- *A. (Recommended)* Found-against becomes the third failed-check state: it holds the PASS until the citation holds, is edited or retired, no bench ruling clears it, and the gap its reading names cannot close while it stands. The backing re-check clears the failed check; the lens closes the gap with its ordinary close. Consistent with `unsound` (also a judgement) and closes the successor hole. Cost: a bench cannot rule a refutation wrong while the reading stands (R4).
-- *B.* Only the gap holds the PASS; a close gate refuses `repaired` while a reading naming the gap stands, and the bench may close it. Simpler, but a gap closed into a successor drops the reading's hold (the successor is not named by the reading), and archived readings hold nothing.
-
-**F5 — A corroboration that reads `absent`.**
-- *A. (Recommended)* Recorded as a reading, no gap. A source red chose that is silent on a claim is not a defect of the report; if the claim is unsupported, that is `unsourced_claim`, minted by the lens's judgement like any gap.
-- *B.* Mint as for a citation. There is no citation to misattribute, so no admitted class fits; it would need `unsourced_claim` (`by_grade`) or a third class, and today's behaviour (a PASS hold on red's own unlucky search) continues.
-
-**F6 — Mint budget for a reading's gap.**
-- *A. (Recommended)* Outside the budget, not counted while open (as a failed check's gap). The one-gap rule bounds it per sentence; counted, a lens at its cap could only record `supports` or nothing — the incentive PR #1642's stock built into the fuzz.
-- *B.* Counted; at the cap the reading is refused. Bounds mints harder, but the citation then stays unchecked and the evidence lens is readied to re-read it every sitting.
-
-**F7 — PR #1642's diagnostic tally fields** (`final_blockers`, `final_parties`, `mints_by_epoch`, `closes_by_epoch`): *(Recommended)* close #1642 as superseded and carry those four fields into this PR's fuzz change, since they diagnose CEILING runs independently of the contradiction; or drop them.
+- **F1 — Class (RULED).** A NEW class `claim_contradicts_source` for `refutes`; `citation_figure_misattribution`
+  narrowed to `absent`. The lens picks among the classes its outcome allows, declared once on
+  `SourceOutcome` (`gap_classes`): `refutes` → `claim_contradicts_source` | `within_source_condition_misattribution`;
+  `absent` → `citation_figure_misattribution` | `within_source_condition_misattribution` (§III.1). Cost
+  carried as R3.
+- **F2 — Judgment (RULED).** The reading act (`verify`/`corroborate`) takes the mint's judgment flags,
+  required when the outcome is negative and refused otherwise (§III.2).
+- **F3 — Duplicate (RULED).** The reading is kept and the mint refused; `Verify.gap_id` names the standing
+  gap (§III.1, §III.2).
+- **F4 — PASS hold (RULED).** Found-against is a third failed-check state. It holds the PASS, and its gap
+  cannot close until the citation holds (a backing re-check), the sentence is edited, or the citation is
+  retired. A bench ruling cannot clear it while the reading stands (§III.3; R4).
+- **F5 — Corroboration `absent` (RULED).** Records the reading and mints no gap (§III.1, §III.10).
+- **F6 — Budget (RULED).** A gap a reading mints is outside the mint budget (§III.5).
+- **F7 — PR #1642 (RULED).** Closed as superseded; its four diagnostic tally fields — `final_blockers`,
+  `final_parties`, `open_by_found_by` (re-keyed `reading | finding | none`), `mints_by_epoch` /
+  `closes_by_epoch` — are carried into this PR (§III.11).
+- **§III.9 — Archived carrier-less checks (RULED).** Cleared by a re-read, an edit or a retire. migrate does
+  NOT fill `gap_id` from the `found_by` chain; the residue is stated in §III.9.
+- **§III.14 — Delivery (RULED).** ONE PR, implemented one phase per fresh agent.
