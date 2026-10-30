@@ -803,7 +803,7 @@ whatever taught it was not the channel the constitution tells it to use.
 The `partial` arm, same board, same model:
 
     show board · ERR · --help · blue show · blue edit ×5 · blue manifest-row ×4 ·
-    blue revision · blue prove ×2 · blue position · blue friction · stop
+    blue revision · blue compute ×2 · blue position · blue friction · stop
 
 It read help once, worked the short list, and stopped at 22 calls with 2 refusals. It never reached
 past what it had been told, so it never met the channel that teaches.

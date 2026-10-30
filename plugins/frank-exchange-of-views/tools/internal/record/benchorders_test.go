@@ -256,8 +256,8 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 // moving the gap, and a second remand at impasse would be admitted past the limit.
 func TestABenchRegradeInARemandExchangeDoesNotSpendTheLimit(t *testing.T) {
 	st := remandedAtImpasse(t).lensActs("G1")
-	agent := fmt.Sprintf("blue-proves-%d", st.n)
-	st.registerAs("blue-respond", agent).blueProves("G1")
+	agent := fmt.Sprintf("blue-computes-%d", st.n)
+	st.registerAs("blue-respond", agent).blueComputes("G1")
 	st.docketMotion("blue-respond", "M2", "G1")
 	sevCertain := certn
 	st.add("judge", &recordpb.Regrade{GapId: proto.String("G1"), Severity: &sevCertain, Basis: proto.String("the bench's grade")})
@@ -330,20 +330,20 @@ func TestAReconsiderationIsAdmittedOnNewGroundsOnly(t *testing.T) {
 		{name: "both locators", after: newFinding, grounds: proto.String("F-00000002"), quote: proto.String("x"), want: []string{"--grounds and --quote each locate the new grounds; pass one"}},
 		{name: "a quote no edit since wrote", quote: proto.String("never written"), want: []string{`--quote "never written" is not new grounds on gap G1`}},
 		{name: "a finding about the gap since the ruling", after: newFinding, grounds: proto.String("F-00000002")},
-		{name: "a proof answering the gap since the ruling", after: func(st *stage) { st.blueProves("G1") }, grounds: proto.String("P-")},
+		{name: "a computation answering the gap since the ruling", after: func(st *stage) { st.blueComputes("G1") }, grounds: proto.String("K-")},
 		{name: "a quote of text an edit answering the gap wrote since", after: func(st *stage) { st.edit("G1", "the old sentence", "the sentence the search now backs") },
 			quote: proto.String("the search now backs")},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			var proofID string
+			var computationID string
 			after := c.after
-			if c.grounds != nil && *c.grounds == "P-" {
-				after = func(st *stage) { proofID = fmt.Sprintf("P-%d", st.n+1); st.blueProves("G1") }
+			if c.grounds != nil && *c.grounds == "K-" {
+				after = func(st *stage) { computationID = fmt.Sprintf("K-%d", st.n+1); st.blueComputes("G1") }
 			}
 			run := groundsBoard(t, after)
 			g := c.grounds
-			if proofID != "" {
-				g = proto.String(proofID)
+			if computationID != "" {
+				g = proto.String(computationID)
 			}
 			err := file(run, redocket("M2", g, c.quote))
 			if c.want == nil {

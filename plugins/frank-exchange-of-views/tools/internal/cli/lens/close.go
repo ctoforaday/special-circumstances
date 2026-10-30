@@ -57,7 +57,7 @@ func newClose() *cobra.Command {
 		// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
 		//
 		// This is what makes --check-kind a demand rather than a label. Red asked for a
-		// computation; a closure with no proof answering the gap would be red accepting
+		// computation; a closure with no computation answering the gap would be red accepting
 		// prose for the one class of check it declared prose cannot settle — which is
 		// exactly the round the 2026-08-05 smoke spent: R1-2 asked blue to "test it on a
 		// false claim", blue answered by ASSERTING the test had happened, and red's R2-2
@@ -68,7 +68,7 @@ func newClose() *cobra.Command {
 		// because the check could not be asked is a closure the tool vouched for on nothing.
 		if err := requireComputationAnswered(seat.Str(cmd, flags.ID),
 			func(id string) (bool, error) { return computationGapKind(run, id) },
-			func(id string) (bool, error) { return record.ProofAnswers(run, id) }); err != nil {
+			func(id string) (bool, error) { return record.ComputationAnswers(run, id) }); err != nil {
 			return nil, err
 		}
 		if _, err := record.Append(s.Identity(), p); err != nil {
@@ -80,8 +80,8 @@ func newClose() *cobra.Command {
 	seat.ClosureFlags(c)
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
 	flags.Text(c, flags.VerifiedWith, "WITH WHAT — the tool or command that showed it")
-	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in")
-	c.Flags().Var(&anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("P-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
+	c.Flags().String(flags.VerifiedAgainst, "", "AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in")
+	c.Flags().Var(&anchors, flags.Anchor, "the `ids` you verified it with, comma-separated — each the id inside a `"+anchor.Token("C-…")+"`, `"+anchor.Token("K-…")+"`, `"+anchor.Token("F-…")+"` or `"+anchor.Token("G-…")+"` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none")
 	// ALL THREE OR NONE, said by cobra rather than by a refusal after the fact. `validate` reads
 	// them as one fact (`anchored`), so two of three was never a partial closure — it was an
 	// unanchored one that spent the seat's turn before saying so.
@@ -111,9 +111,9 @@ func newClose() *cobra.Command {
 
 // closeResult names the closed gap and the closure class it was retired under.
 
-// requireComputationAnswered refuses a closure of a computation gap no proof answers, and refuses
-// any closure whose gap's check kind, or proof join, could not be read.
-func requireComputationAnswered(gapID string, isComputation, proofAnswers func(string) (bool, error)) error {
+// requireComputationAnswered refuses a closure of a computation gap no computation answers, and refuses
+// any closure whose gap's check kind, or computation join, could not be read.
+func requireComputationAnswered(gapID string, isComputation, computationAnswers func(string) (bool, error)) error {
 	kind, err := isComputation(gapID)
 	if err != nil {
 		return unreadableRefusal("the check kind "+gapID+" was minted with", err)
@@ -121,12 +121,12 @@ func requireComputationAnswered(gapID string, isComputation, proofAnswers func(s
 	if !kind {
 		return nil
 	}
-	answered, err := proofAnswers(gapID)
+	answered, err := computationAnswers(gapID)
 	if err != nil {
-		return unreadableRefusal("whether a proof answers "+gapID, err)
+		return unreadableRefusal("whether a computation answers "+gapID, err)
 	}
 	if !answered {
-		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no computation answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `compute --quote \"<the sentence>\" --answers %s --dir <bundle> -- <command>`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 			gapID, gapID)
 	}
 	return nil

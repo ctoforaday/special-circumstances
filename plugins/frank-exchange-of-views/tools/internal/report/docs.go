@@ -10,7 +10,7 @@ package report
 // revised, linked or archived without the other five.
 //
 // Splitting costs nothing in provenance, and that is not an opinion about markdown: the run
-// archive carries records/ and proofs/ ONLY, and Assemble re-derives the document from the
+// archive carries records/ and computations/ ONLY, and Assemble re-derives the document from the
 // event log. The report was always a projection. This file makes it one projection per audience
 // instead of one for all of them, from the same composers, in the same pass.
 //
@@ -114,7 +114,7 @@ func AssembleShipped(run record.Run) (Shipped, error) {
 }
 
 // assemble composes the run's report set from the record and the report's text, before it ships:
-// each document's body, with the proofs' marks in evidence.md where their anchors go (proofanchor.go)
+// each document's body, with the computations' marks in evidence.md where their anchors go (computationanchor.go)
 // and the record's text as written, no `<` escaped. It returns the headings of the rows it composed a
 // section for too: what the assembled layout reads to tell a section the table placed from a line of
 // the report's text that opens as one does. The layout passes a mark line to stand above each block
@@ -144,7 +144,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(rd.text(blue)), rd: rd}
 	// The title enters composition here, so its tokens leave here (stripTokens), by the weave's rule:
 	// the Question line composes the title into a section the weave reads, so a citation's or a
-	// proof's token stays for the weave to make a note of. The H1 is read by no weave, so it is cut
+	// computation's token stays for the weave to make a note of. The H1 is read by no weave, so it is cut
 	// from the title with no token in it: a token's bytes are no part of the length a reader sees,
 	// and the cut is at a boundary in what ships.
 	a.blue.title = rd.stripTokens(a.blue.title, true)
@@ -195,7 +195,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
 			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling, then each of the chair's reads of the report against them, with its reason", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
-			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run; then each citation with the sentence it backs and every reading of it — its outcome, its confidence and what was read", Body: ""},
+			Blurb: "the computations this run ran, with the exact program, the output, the sha256, and red's independent re-run; then each citation with the sentence it backs and every reading of it — its outcome, its confidence and what was read", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
 			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: body[FileRun].String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
@@ -207,15 +207,15 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 	// A footnote definition cannot cross a file boundary — that is a fact about markdown, not a
 	// preference — so weaving globally and splitting afterwards would ship dangling references
 	// in every document but one. Each document therefore numbers and defines the citations
-	// it actually contains, and the proof layer is numbered ONCE for the whole run (record
+	// it actually contains, and the computation layer is numbered ONCE for the whole run (record
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("cited sources: %w", err)
 	}
-	proofs, err := record.RecordedProofs(run)
+	computations, err := record.RecordedComputations(run)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("recorded proofs: %w", err)
+		return nil, nil, "", fmt.Errorf("recorded computations: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -231,21 +231,21 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		if docs[i].File == FileReport {
 			composed[bibliographyHeading] = woven != body
 		}
-		body, hit := weaveProofRefs(collapseBlanks(woven), proofs)
+		body, hit := weaveComputationRefs(collapseBlanks(woven), computations)
 		for _, label := range hit {
 			used[label] = true
 		}
 		docs[i].Body = collapseBlanks(body)
 	}
-	// evidence.md is composed LAST, from the proofs the set actually anchors, so a proof no
-	// document references is still shown (it is on the record) and a reference to a proof that
+	// evidence.md is composed LAST, from the computations the set actually anchors, so a computation no
+	// document references is still shown (it is on the record) and a reference to a computation that
 	// is not on the record is still stated (it is a defect, and a silent drop reads as clean).
-	// The citations follow the proofs, each with every reading of it.
+	// The citations follow the computations, each with every reading of it.
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			proofSec, citeSec := evidenceDoc(run, proofs, used), citationsSection(fam)
-			composed[evidenceHeading], composed[citationsHeading] = proofSec != "", citeSec != ""
-			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{proofSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
+			computationSec, citeSec := evidenceDoc(run, computations, used), citationsSection(fam)
+			composed[evidenceHeading], composed[citationsHeading] = computationSec != "", citeSec != ""
+			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{computationSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}
 	}
 
@@ -254,18 +254,18 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 }
 
 // NO TOKEN SHIPS IN PROSE, AND IT IS MADE SO WHERE TEXT ENTERS COMPOSITION. A seat copies a token into
-// record prose — a finding's location, a proof's reason, a citation's title — and the report's text
+// record prose — a finding's location, a computation's reason, a citation's title — and the report's text
 // carries the ones the tool placed. Every such text passes stripTokens as it enters a document: each
 // section a row composes, before its notes are escaped (Section.block); the inquiries document; and
 // each field the tool writes into a line after the weave — a note's text, a Bibliography entry, a
 // field of evidence.md (plain). Stripped later, a token's removal joined the bytes either side of it
 // into syntax nothing had escaped: `[<!--gap:G-00000001-->^1]` became a live `[^1]`. A token in a
-// seat's code ships as typed: code is the bytes a seat quotes, a script as it ran, and the proofs'
+// seat's code ships as typed: code is the bytes a seat quotes, a script as it ran, and the computations'
 // scripts and outputs in evidence.md are no field at all.
 
 // stripTokens is md with every anchor token as written (anchor.StripWritten) taken out but those in
 // code and, where weave is set, a token of a real id the weave turns into a note (a citation's or a
-// proof's): the text a woven document is composed from keeps those for the weave, and every other
+// computation's): the text a woven document is composed from keeps those for the weave, and every other
 // text keeps none. Code is what both tiers read as code (bothTierCode), the reading the note escape takes:
 // a token one tier reads as prose would ship there as prose.
 //
@@ -335,7 +335,7 @@ func stripOutside(md string, code [][2]int, weave bool) string {
 func StripTokens(s string) string { return stdReaders().stripTokens(s, false) }
 
 // wovenToken reports whether tok, one token as written, is a token of a real id the weave turns into a
-// note: a citation's or a proof's.
+// note: a citation's or a computation's.
 func wovenToken(tok string) bool {
 	woven := false
 	anchor.Each(tok, func(start, end int, id string) {
@@ -388,7 +388,7 @@ func masthead(d Doc, title string, set []Doc) string {
 	return h1 + "\n\n" + navBar(d.File, set) + "\n\n---\n\n"
 }
 
-// composedText is the document as assembly composed it, its masthead on it and its proofs' anchors in
+// composedText is the document as assembly composed it, its masthead on it and its computations' anchors in
 // place, with the record's text as written: what a seat reads of the set (Layout).
 func composedText(d Doc, title string, set []Doc) string {
 	return masthead(d, title, set) + resolveMarks(strings.TrimRight(d.Body, "\n")+"\n")
@@ -450,7 +450,7 @@ func indexDoc(run record.Run, title string, set []Doc, fam record.Family) string
 	if _, err := os.Stat(filepath.Join(run.Dir(), "report.html")); err == nil {
 		b.WriteString("\n[**report.html**](report.html) is the same set with real tabs and cross-document links — one self-contained file, no server and no network.\n")
 	}
-	b.WriteString("\nThe record these were rendered from is `records/`; the computations are cached under `proofs/`. Both survive the run; every document here can be rebuilt from them with `feov-record --seat-id <bench seat id> assemble --run <run dir>` — the bench's seat id is the `judge` one this run recorded.\n")
+	b.WriteString("\nThe record these were rendered from is `records/`; the computations are cached under `computations/`. Both survive the run; every document here can be rebuilt from them with `feov-record --seat-id <bench seat id> assemble --run <run dir>` — the bench's seat id is the `judge` one this run recorded.\n")
 	return b.String()
 }
 

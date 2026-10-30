@@ -36,8 +36,8 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 		{"a finding about the gap", lens, "G1", &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")}},
 		{"a mint superseding it", lens, "G1", mint("G3", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings", "G1")},
 		{"an edit answering it", blue, "G1", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("a")}},
-		{"a proof answering it", blue, "G1", &recordpb.Proof{ProofId: proto.String("P1"), Answers: proto.String("G1")}},
-		{"a judgement of a proof answering it", lens, "G1", &recordpb.Reproduce{ProofId: proto.String("P1")}},
+		{"a computation answering it", blue, "G1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("P1"), Answers: proto.String("G1")}},
+		{"a judgement of a computation answering it", lens, "G1", &recordpb.Reproduce{ComputationId: proto.String("P1")}},
 		{"a fate on the inquiry it is anchored on", blue, "G2", &recordpb.Inquiry{InquiryId: proto.String("I1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum()}},
 		{"a docket motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M1"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}},
 		{"a grade motion", blue, "G1", &recordpb.Motion{MotionId: proto.String("M2"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}}},
@@ -59,7 +59,7 @@ func TestEveryActOnAGapIsRead(t *testing.T) {
 	unrelated := []int64{
 		at(lens, &recordpb.Finding{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Text: proto.String("G1 is wrong")}),
 		at(blue, &recordpb.BlueEdit{Old: proto.String("G1"), New: proto.String("b")}),
-		at(lens, &recordpb.Reproduce{ProofId: proto.String("P-unknown")}),
+		at(lens, &recordpb.Reproduce{ComputationId: proto.String("K-unknown")}),
 	}
 	acts := gapActsOf(evs, ids)
 	for i, r := range rows {

@@ -39,7 +39,7 @@ func b4Report() string {
 	return b.String()
 }
 
-// The worked example: B4's record (29 paragraphs, 11 citations, 11 claims, 6 proofs) under a
+// The worked example: B4's record (29 paragraphs, 11 citations, 11 claims, 6 computations) under a
 // floor of 1, through the renderer this package registers.
 func TestTheB4MintBudgets(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -58,7 +58,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("C-%08x", i))}))
 	}
 	for i := 0; i < 6; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("P-%08x", i))}))
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("computation:%d", i), &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String(fmt.Sprintf("K-%08x", i))}))
 	}
 	recordtest.Seed(t, runDir, evs...)
 	run := runtest.Open(t, runDir)

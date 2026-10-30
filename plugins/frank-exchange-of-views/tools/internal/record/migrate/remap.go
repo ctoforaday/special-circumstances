@@ -46,6 +46,9 @@ type remap struct {
 	// rewritten as a reference; nothing can tell the two apart, so each rewrite is kept where a
 	// reader can judge it (the manifest's per-field count, and the archive's golden list).
 	prose []migration.ProseRewrite
+	// archivedNotes is whether the source predates the computation (epoch 49), whose seats' wording
+	// names a computation's note `[^P<n>]` (notes).
+	archivedNotes bool
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -73,15 +76,20 @@ var (
 	namedLens    = regexp.MustCompile(`^red-lens-r\d+-([a-z]+(?:-[a-z]+)*)$`)
 	roundedSeat  = regexp.MustCompile(`^(red-merge|red-chair|blue-respond|judge)-r\d+$`)
 	// currentID is an id already in the one shape, which a source written at this epoch carries.
-	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "proof", "gap", "inquiry", "motion") + `$`)
-	// hexID is an archived id whose eight hex are kept.
-	hexID = regexp.MustCompile(`^[fcp]-([0-9a-f]{8})$`)
+	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "computation", "gap", "inquiry", "motion") + `$`)
+	// hexID is an archived id whose eight hex are kept: an era's lower-case id, and a proof's `P-`
+	// id, which a source before epoch 49 carries and which is a computation's `K-` id with the same
+	// hex.
+	hexID = regexp.MustCompile(`^(?:[fcp]|P)-([0-9a-f]{8})$`)
 	// archivedToken is an anchor token as an archived record spells it, its tag and its id. A
 	// comment that only looks like one — a seat's prose showing the form with its id elided — is
 	// not a token and is left as written.
-	archivedToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([fcp]-[0-9a-f]+|G[0-9]+)-->`)
+	archivedToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([fcp]-[0-9a-f]+|P-[0-9a-f]{8}|G[0-9]+)-->`)
 	wordEnded     = regexp.MustCompile(`^\w(.*\w)?$`)
-	tagKind       = map[string]string{"fx": "finding", "cite": "citation", "proof": "proof", "gap": "gap"}
+	tagKind       = map[string]string{"fx": "finding", "cite": "citation", "proof": "computation", "gap": "gap"}
+	// archivedNote is a computation's woven footnote label as a source before epoch 49 spelled it,
+	// `[^P3]`, in a seat's wording: the report numbers a computation's note `[^K3]`.
+	archivedNote = regexp.MustCompile(`\[\^P([0-9]+)\]`)
 )
 
 // The three field lists (R-8, R-19) class every string field of every message an event body
@@ -93,22 +101,22 @@ var (
 //   - argumentFields hold a seat's own wording, where an id is a reference to the record: an
 //     archived id at word boundaries is replaced.
 //   - dataFields hold report text, subject sources, keys, hashes, dates, enumerated values and
-//     identities, and change in no other way: a rewritten Proof.script breaks its sha, and
+//     identities, and change in no other way: a rewritten Computation.argv breaks its sha, and
 //     "Q2 earnings" in a source's title is the subject's.
 //
 // mints names the id fields whose value brings an id into being, and the kind it is an id of.
 var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
-		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
-		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
+		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Computation.computation_id
+		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		DocketMotion.grounds InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Cite.text
-		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
+		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion MotionRule.relief
@@ -120,16 +128,17 @@ var (
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
 		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
-		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
-		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type
+		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
+		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
+		Register.agent_id Register.agent_type
 		Register.hook_version Register.run_via Register.tool_version
-		Reproduce.observed_output Reproduce.proof_sha Reproduce.recorded_output Retire.claim
+		Reproduce.bundle_sha Reproduce.drift Reproduce.rerun_sha Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
-		"Verify.label": "citation", "Proof.proof_id": "proof", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}
+		"Verify.label": "citation", "Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}
 )
 
 func fieldSet(names string) map[string]bool {
@@ -263,6 +272,30 @@ func (r *remap) walk(m protoreflect.Message) {
 // ids by the field's list. A reference to an id the run never minted is left as it was: the write
 // path decides what a dangling reference is worth, and it says so.
 func (r *remap) respell(field, v string) string {
+	if argumentFields[field] && r.archivedNotes {
+		v = r.notes(field, v)
+	}
+	return r.respellIDs(field, v)
+}
+
+// notes respells each archived computation footnote label in a seat's wording, kept beside the id
+// rewrites a reader can judge.
+func (r *remap) notes(field, v string) string {
+	var b strings.Builder
+	last := 0
+	for _, loc := range archivedNote.FindAllStringSubmatchIndex(v, -1) {
+		old, now := v[loc[0]:loc[1]], "[^K"+v[loc[2]:loc[3]]+"]"
+		b.WriteString(v[last:loc[0]])
+		b.WriteString(now)
+		last = loc[1]
+		r.prose = append(r.prose, migration.ProseRewrite{Field: field, Old: old, New: now, Context: around(v, loc[0], loc[1])})
+	}
+	b.WriteString(v[last:])
+	return b.String()
+}
+
+// respellIDs is respell's tokens and ids.
+func (r *remap) respellIDs(field, v string) string {
 	v = archivedToken.ReplaceAllStringFunc(v, func(tok string) string {
 		m := archivedToken.FindStringSubmatch(tok)
 		return anchor.Token(r.id(tagKind[m[1]], m[2]))

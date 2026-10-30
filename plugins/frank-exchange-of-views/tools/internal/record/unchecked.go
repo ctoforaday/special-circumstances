@@ -1,25 +1,27 @@
 package record
 
-// unchecked is one citation or proof no check of the sentence the report carries has reached: nobody
+// unchecked is one citation or computation no check of the sentence the report carries has reached: nobody
 // has checked it at all, or an edit changed its sentence after it was checked and no sitting opened
 // since has checked it. edit and lastCheck are events.id.
 type unchecked struct {
 	anchor string
-	// proof is whether the anchor is a proof's; a citation's otherwise.
-	proof bool
-	// sha is a proof's proof_sha; "" for a citation.
+	// computation is whether the anchor is a computation's; a citation's otherwise.
+	computation bool
+	// sha is a computation's bundle_sha; "" for a citation.
 	sha string
 	// edit is the latest blue edit naming the anchor in its `reopened`, 0 when none has; lastCheck is
 	// the anchor's latest check, 0 when it has none, and neither clears it.
 	edit, lastCheck int64
 	// placed is the events.id of the act that put the anchor on the record (anchorStanding.placed).
 	placed int64
-	// rerun is a proof's script state (proofVerdict.rerunWord) — a re-run belongs to the script, so a
-	// proof owed a judgement may be owed no re-run; "" for a citation.
+	// rerun is a computation's state (computationVerdict.rerunWord): its own comparison, or
+	// not_compared where its bundle was executed and nobody compared it, or not_rerun where nobody
+	// executed the bundle — an execution belongs to the bundle, so a computation owed a judgement may
+	// be owed no execution; "" for a citation.
 	rerun string
 }
 
-// uncheckedAnchors is the citations and proofs in the ledger's unchecked state (anchorStanding.state),
+// uncheckedAnchors is the citations and computations in the ledger's unchecked state (anchorStanding.state),
 // in the order the record placed them.
 //
 // A CHECK ON THE RECORD IS A CHECK OF THE SENTENCE AS IT STOOD. An edit that changes the sentence
@@ -28,7 +30,7 @@ type unchecked struct {
 // shipped on a sentence no seat had read (plans/reopened-evidence-is-owed.md). A citation nobody
 // ever read is the same unread sentence with no history: both are one state, and both hold the PASS.
 //
-// A finding's or gap's id in an edit's list is not a row — only a citation and a proof have a check
+// A finding's or gap's id in an edit's list is not a row — only a citation and a computation have a check
 // to redo.
 //
 // ANY SEAT'S CHECK CLEARS; ONE LENS IS READIED. A check is a reading of the sentence, and the write
@@ -39,17 +41,18 @@ type unchecked struct {
 // list blocks.
 func uncheckedAnchors(evs []*Event, win WindowIndex) []unchecked {
 	var out []unchecked
-	var reruns map[string]*scriptRerun
+	var reruns map[string]*bundleState
+	var acts map[string]*Event
 	for _, s := range anchorChecksOf(evs, win).order {
 		if s.state() != stateUnchecked {
 			continue
 		}
-		u := unchecked{anchor: s.anchor, proof: s.proof, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck(), placed: s.placed}
-		if s.proof {
+		u := unchecked{anchor: s.anchor, computation: s.computation, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck(), placed: s.placed}
+		if s.computation {
 			if reruns == nil {
-				reruns = scriptRerunsOf(evs)
+				reruns, acts = bundleRerunsOf(evs), actVerdictsOf(evs)
 			}
-			u.rerun = proofVerdictOf(s, reruns).rerunWord()
+			u.rerun = computationVerdictOf(s.anchor, s.sha, s, reruns, acts).rerunWord()
 		}
 		out = append(out, u)
 	}

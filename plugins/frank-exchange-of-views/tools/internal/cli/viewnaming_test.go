@@ -31,9 +31,9 @@ import (
 // this test exists to make visible rather than to paper over.
 var viewWriters = map[string][]string{
 	// The round-0 synthesis authors it; every later change is an `edit`. `cite`, `finding` and
-	// `prove` splice the anchor layer into it, which is why they are named here too — a seat
+	// `compute` splice the anchor layer into it, which is why they are named here too — a seat
 	// reading the report meets their tokens and has to carry them.
-	"report": {"edit", "cite", "finding", "prove"},
+	"report": {"edit", "cite", "finding", "compute"},
 	// The motion group fills it: the ask and the answer. Both, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
 	"motions":  {"motion", "rule"},
@@ -42,8 +42,8 @@ var viewWriters = map[string][]string{
 	"debate":   {"position"},
 	"changes":  {"edit"},
 	// All four, because the view answers two different questions with one table: what blue
-	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
-	"evidence":  {"cite", "prove", "verify", "reproduce"},
+	// offered as backing (`cite`, `compute`) and what red made of it (`verify`, `reproduce`).
+	"evidence":  {"cite", "compute", "verify", "reproduce"},
 	"inquiries": {"inquiry", "propose"},
 	"telemetry": {},
 	"board":     {"mint", "close", "regrade", "retire"},
@@ -119,7 +119,7 @@ func TestViewWritersHasNoStaleEntries(t *testing.T) {
 // NO MESSAGE NAMES A VIEW THAT DOES NOT EXIST.
 //
 // The inverse of the contract above, and it caught a real one: `lens reproduce --id` told a seat
-// the proofs were listed by `show --view proofs`. There is no `proofs` view. A seat following that
+// the computations were listed by `show --view computations`. There is no `computations` view. A seat following that
 // runs a command which is refused, and the refusal it gets — "unknown view" — reads as its own
 // mistake rather than the tool's.
 //
@@ -234,4 +234,4 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 // retiredViews are projection names that existed and do not any more. Every rename adds one, and
 // the entry is the whole point: a name nobody is watching for is how a stale reference survives a
 // rename in prose that compiles fine.
-var retiredViews = []string{"citation-ledger", "ledger", "archive", "changelog", "proofs"}
+var retiredViews = []string{"citation-ledger", "ledger", "archive", "changelog", "computations"}

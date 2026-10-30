@@ -1,4 +1,4 @@
-prompt sha256: 80a45d99bab373ac649945d37902928298236804a66f2791cbe8d8b40c4e7baa
+prompt sha256: 50a34abc9b73c539e5cb871de0b15a64f9b568671e44c3ec4dea7c28857b83c0
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -19,7 +19,7 @@ Two claims resting on the same url are one source and two anchors, not two sourc
 REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft it in research/2026-01-01_golden/scratch/ under a name that starts with your seat id and lacks that word, then bash cp it to research/2026-01-01_golden/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip.
 FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base.
 Do this ONCE; if it refuses, the tool records the refusal — log what you expected.
-Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.
+Citing a source, recording a computation and every later change read the frozen report, so each follows the freeze.
 THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.

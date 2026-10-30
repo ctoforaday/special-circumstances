@@ -562,14 +562,14 @@ SELECT
   gg."likelihood"                                                                     AS "current_likelihood",
   gg."impact"                                                                         AS "current_impact",
   gg."complexity_cost"                                                                AS "current_complexity_cost",
-  -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
-  -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
+  -- THE COMPUTATION JOIN, answered where every asker can share it: a 'computation' gap closes on
+  -- a recorded computation naming it in --answers, and "awaiting computation" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
   -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
-  EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id")                      AS "proof_answered",
+  EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id")                      AS "computation_answered",
   (cx."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
-     AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
+     AND NOT EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id"))          AS "awaiting_computation",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
   -- bench and to key the bench's sitting on the filing; remanded and unruled_docket_motion (outer
@@ -784,7 +784,7 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event: every act that places a marker — a finding, a gap, a
---            citation, a proof, a corroboration — appends one after its own event, so where an
+--            citation, a computation, a corroboration — appends one after its own event, so where an
 --            id is placed is read from one table.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; exact=0.

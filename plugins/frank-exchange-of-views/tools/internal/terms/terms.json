@@ -599,7 +599,7 @@
     },
     {
       "term": "anchor",
-      "definition": "An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.",
+      "definition": "An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.",
       "seats": [
         "lens",
         "chair",
@@ -611,8 +611,8 @@
       "collisions": []
     },
     {
-      "term": "proof",
-      "definition": "A proof is a recorded computation: a script that was run, with its hash and exit status.",
+      "term": "computation",
+      "definition": "A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.",
       "seats": [
         "lens",
         "chair",
@@ -1037,7 +1037,7 @@
     },
     {
       "term": "reopened",
-      "definition": "A citation or proof is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.",
+      "definition": "A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.",
       "seats": [
         "lens",
         "chair",
@@ -1048,17 +1048,17 @@
       "collisions": [
         {
           "word": "reopen (a gap)",
-          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof"
+          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation"
         },
         {
           "word": "`reopened` (the edit's field)",
-          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened"
+          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened"
         }
       ]
     },
     {
       "term": "unchecked",
-      "definition": "A citation or proof is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.",
+      "definition": "A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.",
       "seats": [
         "lens",
         "chair",
@@ -1070,7 +1070,7 @@
     },
     {
       "term": "failed check",
-      "definition": "A failed check is a standing check of a citation or proof that failed — a lens judged the proof's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.",
+      "definition": "A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.",
       "seats": [
         "lens",
         "chair",

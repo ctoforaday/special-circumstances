@@ -59,9 +59,9 @@ var (
 	// one the evidence lens had to verify. Counted from the record, not the rendered report, so the
 	// evidence budget never depends on the renderer and cannot shrink under a lens mid-run.
 	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`), false}
-	// Proofs: blue's `proof` rows — every computation recorded on the run. A reproduce is red's
-	// act on a proof and lives in its own table.
-	measureProofs = mintMeasure{"proofs on the record", countRows(`SELECT count(*) FROM "proof"`), false}
+	// Computations: blue's `computation` rows — every computation recorded on the run. A reproduce is red's
+	// act on a computation and lives in its own table.
+	measureComputations = mintMeasure{"computations on the record", countRows(`SELECT count(*) FROM "computation"`), false}
 	// Claims: claimcount.Count on the CURRENT report — citation anchors attached to prose.
 	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count), true}
 	// Paragraphs: claimcount.Paragraphs on the CURRENT report — blank-line-separated blocks that
@@ -94,7 +94,7 @@ func rate(mints, per int, unit string) string {
 // has a row, and no row names an area outside it (TestEveryLensAreaHasAMintScale).
 var mintScales = map[string]mintScale{
 	"evidence":     {measureCitations, 3, 2},
-	"computation":  {measureProofs, 3, 2},
+	"computation":  {measureComputations, 3, 2},
 	"logic":        {measureClaims, 1, 1},
 	"voice":        {measureParagraphs, 3, 5},
 	"dark-side":    {measureParagraphs, 3, 5},
@@ -342,7 +342,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a proof whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; it is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a computation whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; it is admitted at the cap, and does not count while it is open"
 
 // answersOwnRaiseAt is the contradiction a mint by seatID naming foundBy would answer that seatID's
 // own finding raised — its id, or "" where it answers none. It is the fold's own question asked of

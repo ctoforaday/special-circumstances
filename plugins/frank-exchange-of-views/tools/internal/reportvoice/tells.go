@@ -89,7 +89,7 @@ var tells = []Tell{
 	{DraftHistory, regexp.MustCompile(`(?i)an earlier version of this (sentence|bullet|paragraph)|corrected here`),
 		"the change stack holds what the report used to say", false},
 	{Apparatus, regexp.MustCompile(`(?i)the checking (program|script)|measurement apparatus`),
-		"the proof store holds the program; the report carries what it SHOWED", false},
+		"the computation store holds the program; the report carries what it SHOWED", false},
 	{Apparatus, regexp.MustCompile(`\bPDF pp?\. ?\d`),
 		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true", false},
 }
@@ -131,7 +131,7 @@ type Found struct {
 	Match string
 }
 
-// String is how every advising verb names a match to a seat — blue's edits, cites, proofs and
+// String is how every advising verb names a match to a seat — blue's edits, cites, computations and
 // inquiries, and red's mints and corroborations. One formatter, so a seat hearing the same advice
 // from two verbs hears it in the same words.
 func (f Found) String() string {

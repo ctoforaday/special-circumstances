@@ -23,7 +23,7 @@ import (
 // ruling) and about THIS gap, refusing otherwise with which of the two failed.
 //
 // WHAT COUNTS. An id: a finding about the gap (`--about-kind gap`), a gap minted about it or
-// superseding it, a proof answering it, or a citation placed in text an edit answering it wrote —
+// superseding it, a computation answering it, or a citation placed in text an edit answering it wrote —
 // each recorded after the ruling. A quote: report text an edit answering the gap wrote after the
 // ruling, which the report still carries (the verb's placement guard asks that of the report the
 // motion lands on). A ruling marked final still admits new grounds: final is the bench's forecast,
@@ -70,7 +70,7 @@ func (r closedBy) words(gap string) string {
 }
 
 // GroundsKinds is what --grounds takes, in the words a page and a refusal state it.
-const GroundsKinds = "the id of a finding about the gap, a gap minted about it or superseding it, a proof answering it, or a citation placed in text an edit answering it wrote"
+const GroundsKinds = "the id of a finding about the gap, a gap minted about it or superseding it, a computation answering it, or a citation placed in text an edit answering it wrote"
 
 // requireNewGrounds is the docket arm's check of a reconsideration's grounds.
 func requireNewGrounds(q recordsql.Querier, d *recordpb.DocketMotion) error {
@@ -116,7 +116,7 @@ const groundsActSQL = `SELECT e, kind, about, loc FROM (
        SELECT "event_id" e, 'finding' kind, ("about_kind" = 'gap' AND "about_ref" = ?2) about, '' loc FROM "finding" WHERE "id" = ?1
        UNION ALL SELECT m."event_id", 'gap', ((m."about_kind" = 'gap' AND m."about_ref" = ?2)
            OR EXISTS (SELECT 1 FROM "mint_supersedes" s WHERE s."event_id" = m."event_id" AND s."value" = ?2)), '' FROM "mint" m WHERE m."gap_id" = ?1
-       UNION ALL SELECT "event_id", 'proof', ("answers" = ?2), '' FROM "proof" WHERE "proof_id" = ?1
+       UNION ALL SELECT "event_id", 'computation', ("answers" = ?2), '' FROM "computation" WHERE "computation_id" = ?1
        UNION ALL SELECT "event_id", 'citation', 0, COALESCE("location", '') FROM "cite" WHERE "label" = ?1)
      ORDER BY e LIMIT 1`
 
@@ -133,7 +133,7 @@ func requireGroundsAct(q recordsql.Querier, gap string, ruling closedBy, id stri
 	if !found {
 		return feov.Errorf(feov.Validation,
 			"--grounds names %s, which no act on this record placed: it takes %s — the id inside its %s, %s, %s or %s token in the report or on the board. Nothing was recorded",
-			id, GroundsKinds, anchor.Token("F-…"), anchor.Token("G-…"), anchor.Token("P-…"), anchor.Token("C-…"))
+			id, GroundsKinds, anchor.Token("F-…"), anchor.Token("G-…"), anchor.Token("K-…"), anchor.Token("C-…"))
 	}
 	if at <= ruling.at {
 		return feov.Errorf(feov.Validation,

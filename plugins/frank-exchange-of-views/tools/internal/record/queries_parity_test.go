@@ -12,7 +12,7 @@ import (
 // EACH QUERY IS HELD AGAINST THE FOLD IT REPLACED, on one record written through the real write
 // path — the test plans/record-sqlite.md step 4 demands per converted projection. The fixture
 // deliberately exercises the folds' edges: a regrade overlaying a mint grade, a superseded
-// ancestor left open, a computation gap with and without a proof, and a record that does not
+// ancestor left open, a computation gap with and without a computation, and a record that does not
 // exist at all (whose every answer must be the honest zero, never an error).
 func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
@@ -54,8 +54,8 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("new evidence")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Proof{Answers: proto.String("G3"), ProofSha: proto.String("sha-7"),
-		Text: proto.String("7 is prime"), Script: proto.String("factor 7"), Exit: proto.Int32(0)}); err != nil {
+	if _, err := Append(blue, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), Answers: proto.String("G3"), BundleSha: proto.String("sha-7"),
+		Text: proto.String("7 is prime"), Exit: proto.Int32(0)}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(red, &recordpb.Close{GapId: proto.String("G3"),
@@ -138,7 +138,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
 	}
 
-	// Estoppel: the byte-exact pair, the proof join.
+	// Estoppel: the byte-exact pair, the computation join.
 	// Over a render the location stands in unanchored, the pair is the recorded one.
 	const render = "# R\n\nAt dawn the sky is teal at noon, or so it reads.\n"
 	if ok, err := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
@@ -150,14 +150,14 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if ok, _ := ProposalAppliedVerbatim(run, "G3", render, "", ""); ok {
 		t.Error("ProposalAppliedVerbatim matched an edit to a gap that prescribed no text — there is no proposal to apply")
 	}
-	if !proofAnswers(t, run, "G3") || proofAnswers(t, run, "G1") || proofAnswers(t, run, "") {
-		t.Error("ProofAnswers disagrees with the recorded proof join")
+	if !computationAnswers(t, run, "G3") || computationAnswers(t, run, "G1") || computationAnswers(t, run, "") {
+		t.Error("ComputationAnswers disagrees with the recorded computation join")
 	}
 
-	// The gaps the work list marks as awaiting a proof: G1 is the open computation gap with no proof; G3's proof discharges
+	// The gaps the work list marks as awaiting a computation: G1 is the open computation gap with no computation; G3's computation discharges
 	// it and G2 is a document check.
-	if got := awaitingProofT(t, run); len(got) != 1 || got[0] != "G1" {
-		t.Errorf("the work list's awaiting-proof gaps = %v, want [G1]", got)
+	if got := awaitingComputationT(t, run); len(got) != 1 || got[0] != "G1" {
+		t.Errorf("the work list's awaiting-computation gaps = %v, want [G1]", got)
 	}
 
 	if kind, err := MintCheckKind(run, "G2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
@@ -204,20 +204,20 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if err := passRefusalOver(t, run, BlockerStrandedGap); err != nil {
 		t.Errorf("the stranded refusal = %v", err)
 	}
-	if got := awaitingProofT(t, run); got != nil {
-		t.Errorf("the work list's awaiting-proof gaps = %v", got)
+	if got := awaitingComputationT(t, run); got != nil {
+		t.Errorf("the work list's awaiting-computation gaps = %v", got)
 	}
 	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
 	}
 }
 
-// proofAnswers is ProofAnswers with its read error failing the test rather than reading as false.
-func proofAnswers(t *testing.T, run Run, gapID string) bool {
+// computationAnswers is ComputationAnswers with its read error failing the test rather than reading as false.
+func computationAnswers(t *testing.T, run Run, gapID string) bool {
 	t.Helper()
-	ok, err := ProofAnswers(run, gapID)
+	ok, err := ComputationAnswers(run, gapID)
 	if err != nil {
-		t.Fatalf("ProofAnswers(%q): %v", gapID, err)
+		t.Fatalf("ComputationAnswers(%q): %v", gapID, err)
 	}
 	return ok
 }

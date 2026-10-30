@@ -51,7 +51,7 @@ func TestMigrateSaysWhatBecameOfTheReportsOrder(t *testing.T) {
 		// The quote runs from a section of the report's own into the Catechism's heading, and the
 		// two are no longer neighbours once the Catechism stands in its place.
 		"the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written": {
-			"The quotient is 13<!--proof:P-0000000c-->.\n\n## The Catechism", "The quotient is thirteen<!--proof:P-0000000c-->.\n\n## The Catechism"},
+			"The quotient is 13<!--computation:K-0000000c-->.\n\n## The Catechism", "The quotient is thirteen<!--computation:K-0000000c-->.\n\n## The Catechism"},
 	} {
 		out, err := runMigrate(t, "--from", source(edit), "--to", recordtest.TmpRun(t))
 		if err != nil {

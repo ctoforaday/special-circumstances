@@ -121,10 +121,15 @@ import (
 // check are the regrade and rule pages'. red-lens-evidence had 4 characters of headroom and the judge
 // 12, so each rises to its measured size: red-lens-evidence 10,614, judge 6,057. The chair and
 // blue-respond hold.
+//
+// Raised 2026-10-30 on merging the computation (epoch 49): the lens's check sentence speaks the
+// computation — its program, and the bundle run once with this computation's output compared — 10
+// characters more on the paragraph every lens receives, which this ruling's 10,614 had no room for.
+// red-lens-evidence rises to its measured size, 10,616; the other ceilings hold.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
 	"red-chair":         6300,
-	"red-lens-evidence": 10614,
+	"red-lens-evidence": 10616,
 	"judge":             6057,
 }
 

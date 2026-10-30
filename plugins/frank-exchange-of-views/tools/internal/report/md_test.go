@@ -199,12 +199,12 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	}
 }
 
-// A PROOF'S ANCHOR IS HTML WHERE THE TOOL WROTE IT, AND TEXT WHEREVER IT IS TYPED. evidence.md's
-// composer writes a mark for each proof, and shipping makes it the anchor; the same tag typed alone on
+// A COMPUTATION'S ANCHOR IS HTML WHERE THE TOOL WROTE IT, AND TEXT WHEREVER IT IS TYPED. evidence.md's
+// composer writes a mark for each computation, and shipping makes it the anchor; the same tag typed alone on
 // a line, or opening a line of prose, is a seat's, and is shown as typed.
 func TestAnAnchorTagIsHTMLOnlyWhereTheToolWroteIt(t *testing.T) {
-	html := renderOne(proofAnchorMark("P-deadbeef")+"\n\n<a id=\"P-0000beef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil).html
-	for _, want := range []string{"<a id=\"P-deadbeef\"></a>\n", `<p>&lt;a id=&quot;P-0000beef&quot;&gt;&lt;/a&gt;</p>`, `<p>&lt;a id=&quot;here&quot;&gt;&lt;/a&gt;the words after the tag.</p>`} {
+	html := renderOne(computationAnchorMark("K-deadbeef")+"\n\n<a id=\"K-0000beef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil).html
+	for _, want := range []string{"<a id=\"K-deadbeef\"></a>\n", `<p>&lt;a id=&quot;K-0000beef&quot;&gt;&lt;/a&gt;</p>`, `<p>&lt;a id=&quot;here&quot;&gt;&lt;/a&gt;the words after the tag.</p>`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendering does not carry %q:\n%s", want, html)
 		}

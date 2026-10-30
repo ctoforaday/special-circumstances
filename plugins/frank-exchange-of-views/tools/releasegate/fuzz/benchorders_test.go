@@ -18,7 +18,7 @@ import (
 // The drive reaches each: the bench regrades a docketed gap before it rules it; the minting lens of a
 // gap the bench remanded reaches to move the bench's axis and is refused; it moves an axis the bench
 // moved again at a later hearing and is admitted; blue files a docket motion on a gap the bench ruled closed, first with
-// no grounds (refused) and then on a proof it records since the ruling (admitted). The sweep gates
+// no grounds (refused) and then on a computation it records since the ruling (admitted). The sweep gates
 // each count at zero, and benchOrdersSeed's run drives every arm on every gap that reaches it, so the
 // gate does not wait on a draw.
 
@@ -227,7 +227,7 @@ func (r *runner) lensMovesReleasedAxis(seatID, skip string) string {
 }
 
 // reconsider is blue putting a gap the bench ruled closed before it again: with no grounds, or on a
-// quote of report text no edit answering the gap wrote since the ruling, refused; then on a proof of
+// quote of report text no edit answering the gap wrote since the ruling, refused; then on a computation of
 // its own answering the gap, recorded since the ruling, admitted. A gap a docket motion already
 // stands on is left to that motion.
 func (r *runner) reconsider(seatID string) {
@@ -284,37 +284,38 @@ func (r *runner) reconsider(seatID string) {
 	r.mu.Unlock()
 
 	name := "fuzz-grounds-" + id + ".js"
-	if err := r.writeScript(name, "console.log('what the ruling on "+id+" did not have');"); err != nil {
-		r.noteActErr("the new grounds' proof script could not be written: " + err.Error())
+	dir, argv, err := r.writeBundle(name, "console.log('what the ruling on "+id+" did not have');")
+	if err != nil {
 		return
 	}
-	if _, ok := r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", id,
-		"--reason", "fuzz: new grounds on "+id); !ok {
+	if _, ok := r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", id,
+		"--reason", "fuzz: new grounds on " + id, "--"}, argv...)...); !ok {
 		return
 	}
-	proof := r.latestProofAnswering(id)
-	if proof == "" {
-		r.noteActErr("blue proved new grounds on " + id + " and no proof answering it is on the record")
+	computation := r.latestComputationAnswering(id)
+	if computation == "" {
+		r.noteActErr("blue computed new grounds on " + id + " and no computation answering it is on the record")
 		return
 	}
-	if _, ok := r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id, "--grounds", proof,
-		"--reason", "fuzz: proof "+proof+" was recorded since the bench ruled "+id+" closed"); ok {
+	if _, ok := r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id, "--grounds", computation,
+		"--reason", "fuzz: computation "+computation+" was recorded since the bench ruled "+id+" closed"); ok {
 		r.mu.Lock()
 		r.groundsAdmitted++
 		r.mu.Unlock()
 	}
 }
 
-// latestProofAnswering is the id of the newest proof on the record answering gapID, "" where none does.
-func (r *runner) latestProofAnswering(gapID string) string {
+// latestComputationAnswering is the id of the newest computation on the record answering gapID, ""
+// where none does.
+func (r *runner) latestComputationAnswering(gapID string) string {
 	b, ok := r.board()
 	if !ok {
 		return ""
 	}
 	id := ""
 	for _, e := range b.Events {
-		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() == gapID {
-			id = p.GetProofId()
+		if p, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && p.GetAnswers() == gapID {
+			id = p.GetComputationId()
 		}
 	}
 	return id

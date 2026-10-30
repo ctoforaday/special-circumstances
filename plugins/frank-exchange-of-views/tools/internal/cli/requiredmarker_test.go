@@ -34,7 +34,7 @@ import (
 //
 // The marker is read through seat.IsMarked — the one reader of the shape every writer produces —
 // so this gate and helpcontract_test.go cannot disagree about what counts. "REQUIRED to close a
-// gap red minted with --check-kind computation" mid-sentence on `prove --answers` is a condition,
+// gap red minted with --check-kind computation" mid-sentence on `compute --answers` is a condition,
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
 //
 // EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
@@ -320,7 +320,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if omit != nil {
 					args, _ = without(args, omit)
 				}
-				_, err := runAt(t, append(append([]string{}, args...), "--run", runDir, "--seat-id", p.seat)...)
+				_, err := runAt(t, ahead(args, "--run", runDir, "--seat-id", p.seat)...)
 				dirty = err == nil
 				return err
 			}

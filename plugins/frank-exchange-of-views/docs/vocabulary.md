@@ -33,7 +33,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [source span](#source-span) | lens, blue |
 | [OCR-derived text](#ocr-derived-text) | lens, blue, operator |
 | [anchor](#anchor) | lens, chair, blue, bench, operator |
-| [proof](#proof) | lens, chair, blue, bench, operator |
+| [computation](#computation) | lens, chair, blue, bench, operator |
 | [finding anchor](#finding-anchor) | lens, chair, blue, bench, operator |
 | [verdict](#verdict) | lens, chair, blue, bench, operator |
 | [outcome](#outcome) | lens, chair, blue, bench, operator |
@@ -364,13 +364,13 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.
+An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
-## proof
+## computation
 
-A proof is a recorded computation: a script that was run, with its hash and exit status.
+A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -603,23 +603,23 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 ## reopened
 
-A citation or proof is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 **Delivered to:** lens, chair, blue, operator
 
 **Collisions:**
 
-- **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof
-- **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened
+- **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation
+- **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened
 
 ## unchecked
 
-A citation or proof is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
+A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
 
 **Delivered to:** lens, chair, blue, operator
 
 ## failed check
 
-A failed check is a standing check of a citation or proof that failed — a lens judged the proof's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
+A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
 
 **Delivered to:** lens, chair, blue, bench, operator

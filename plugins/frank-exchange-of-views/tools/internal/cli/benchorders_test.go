@@ -9,7 +9,7 @@ import (
 
 // THE BENCH'S ORDERS, ACROSS SEATS, THROUGH THE COMMANDS EACH SEAT TYPES (gblock, 2026-10-30): the
 // bench regrades a gap it is hearing and the minting lens may not move that axis; the bench rules the
-// gap closed; blue's docket motion on it is refused without new grounds, and admitted on a proof it
+// gap closed; blue's docket motion on it is refused without new grounds, and admitted on a computation it
 // records since the ruling, named by its id.
 func TestTheBenchSetsAGradeAndAReconsiderationComesOnNewGrounds(t *testing.T) {
 	runDir := seatRun(t)
@@ -45,26 +45,26 @@ func TestTheBenchSetsAGradeAndAReconsiderationComesOnNewGrounds(t *testing.T) {
 	}
 
 	s := script(t, runDir, "grounds.js", "console.log('what the ruling did not have');")
-	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond", "--quote", "the parser accepts an empty body in this line.",
-		"--script", s, "--answers", g, "--reason", "new grounds"); err != nil {
-		t.Fatalf("prove: %v", err)
+	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", "the parser accepts an empty body in this line.",
+		"--dir", s, "--answers", g, "--reason", "new grounds", "--", "node", "grounds.js"); err != nil {
+		t.Fatalf("compute: %v", err)
 	}
-	proof := lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+	computation := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 	// THE GAP MOVED UNDER BLUE'S SITTING (the bench regraded and ruled it), so the first filing is
 	// refused showing the moves and the same filing then lands.
 	reconsider := func() error {
 		_, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", g,
-			"--grounds", proof, "--reason", "the proof was recorded since the ruling")
+			"--grounds", computation, "--reason", "the computation was recorded since the ruling")
 		return err
 	}
 	if err := reconsider(); err != nil && !strings.Contains(err.Error(), "changed after your sitting opened") {
-		t.Fatalf("a docket motion on new grounds %s was refused: %v", proof, err)
+		t.Fatalf("a docket motion on new grounds %s was refused: %v", computation, err)
 	} else if err != nil {
 		if err := reconsider(); err != nil {
-			t.Fatalf("a docket motion on new grounds %s was refused: %v", proof, err)
+			t.Fatalf("a docket motion on new grounds %s was refused: %v", computation, err)
 		}
 	}
-	if got := lastBody(t, runDir, &recordpb.Motion{}).GetDocket().GetGrounds(); got != proof {
-		t.Errorf("the motion records grounds %q, want %q", got, proof)
+	if got := lastBody(t, runDir, &recordpb.Motion{}).GetDocket().GetGrounds(); got != computation {
+		t.Errorf("the motion records grounds %q, want %q", got, computation)
 	}
 }

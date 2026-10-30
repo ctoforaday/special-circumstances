@@ -1690,7 +1690,7 @@ func cell(s string) string {
 // opinion — with every fence it opens closed: a text that ends inside a fenced block gets the line
 // that closes it. Prose keeps its paragraphs, lists and headings, which are the seat's to write; a
 // fence left open is the one construct that runs past the text into what the tool writes after it,
-// turning every later heading, note and proof anchor in the document into code. A fence inside a list
+// turning every later heading, note and computation anchor in the document into code. A fence inside a list
 // item or a quotation closes with its container, and the tool's next line ends that.
 func ownBlock(s string) string {
 	if !strings.Contains(s, "```") && !strings.Contains(s, "~~~") {

@@ -24,7 +24,7 @@ import (
 const (
 	orderHead = "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n"
 	orderCat  = "## The Catechism\n\nThese two factors settle it<!--cite:C-0000000a-->.\n\n"
-	orderOwn1 = "## Is 91 divisible by a small prime?\n\nYes: 7 divides it<!--gap:G-0000000b-->. The quotient is 13<!--proof:P-0000000c-->.\n\n"
+	orderOwn1 = "## Is 91 divisible by a small prime?\n\nYes: 7 divides it<!--gap:G-0000000b-->. The quotient is 13<!--computation:K-0000000c-->.\n\n"
 	orderOwn2 = "## What a Fermat test would have shown\n\nNothing decisive<!--fx:F-0000000d-->.\n\n"
 	orderOpen = "## Open questions\n\nNone.\n"
 )

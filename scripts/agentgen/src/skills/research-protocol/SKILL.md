@@ -20,7 +20,7 @@ Research that survives an adversary.
 
 ## The exchange is TOOL-MEDIATED
 
-Everything the two sides exchange — findings, closures, citations, proofs, edits,
+Everything the two sides exchange — findings, closures, citations, computations, edits,
 inquiries, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
@@ -30,7 +30,7 @@ exactly like a clean board. See [[facts-are-fields]].
 
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
-a claim, `fx:` where red challenged, `proof:` where a computation settles it, `gap:` where red
+a claim, `fx:` where red challenged, `computation:` where a program blue ran settles it, `gap:` where red
 holds a gap open — and dropping one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
 
 ## Reading the report
@@ -78,6 +78,6 @@ full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inqu
 retired, the asks a later certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
-THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
-boundary, so each document numbers and defines the references it actually carries; proof numbers
-are run-wide, so `P3` is the same computation wherever it is cited.
+THE CITATION AND COMPUTATION LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
+boundary, so each document numbers and defines the references it actually carries; computation numbers
+are run-wide, so `K3` is the same computation wherever it is cited.

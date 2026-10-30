@@ -191,9 +191,9 @@ func ProtectedAnchorIDs(md string) []string {
 	return out
 }
 
-// The MissingAnchorIDs / MissingCitationAnchorIDs / MissingProofAnchorIDs /
+// The MissingAnchorIDs / MissingCitationAnchorIDs / MissingComputationAnchorIDs /
 // MissingProtectedAnchorIDs EXPECTED⊄PRESENT checks lived here — they backed the scorecard's
-// dropped_finding_markers and unbacked_citations detectors, the proof-backing audit, and the
+// dropped_finding_markers and unbacked_citations detectors, the computation-backing audit, and the
 // PostToolUse lockdown backstop. Under report-as-record (#709) the report is replayed from the
 // record and places only recorded markers, so EXPECTED⊄PRESENT is 0 by construction; every
 // consumer was removed, and these went with them.
