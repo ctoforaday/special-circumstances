@@ -1,19 +1,9 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
-
-// writeScript lays a computation script under the run directory, where `blue compute` resolves it.
-func writeScript(t *testing.T, runDir, name, body string) {
-	t.Helper()
-	if err := os.WriteFile(filepath.Join(runDir, name), []byte(body+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
 
 // THE DEMAND RED COULD NOT MAKE (#277).
 //
@@ -69,11 +59,11 @@ func TestAComputationAnsweringTheGapClosesIt(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
-	writeScript(t, runDir, "seven.js", "console.log([2,3,4,5,6].filter(n=>7%n===0).length===0);")
+	s := script(t, runDir, "seven.js", "console.log([2,3,4,5,6].filter(n=>7%n===0).length===0);")
 
 	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G1",
-		"--reason", "trial division settles it"); err != nil {
+		"--quote", "Seven is prime.", "--dir", s, "--answers", "G1",
+		"--reason", "trial division settles it", "--", "node", "seven.js"); err != nil {
 		t.Fatalf("compute refused: %v", err)
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
@@ -91,11 +81,11 @@ func TestAComputationForAnotherGapDoesNotClose(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\nNine is composite.\n")
 	mintComputation(t, runDir, "G1")
 	mintComputation(t, runDir, "G2")
-	writeScript(t, runDir, "nine.js", "console.log(9%3===0);")
+	s := script(t, runDir, "nine.js", "console.log(9%3===0);")
 
 	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Nine is composite.", "--script", "nine.js", "--answers", "G2",
-		"--reason", "settles the second claim"); err != nil {
+		"--quote", "Nine is composite.", "--dir", s, "--answers", "G2",
+		"--reason", "settles the second claim", "--", "node", "nine.js"); err != nil {
 		t.Fatalf("compute refused: %v", err)
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
@@ -125,11 +115,11 @@ func TestComputeRefusesAnUnknownGap(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
-	writeScript(t, runDir, "seven.js", "console.log(true);")
+	s := script(t, runDir, "seven.js", "console.log(true);")
 
 	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G99",
-		"--reason", "x"); err == nil {
+		"--quote", "Seven is prime.", "--dir", s, "--answers", "G99",
+		"--reason", "x", "--", "node", "seven.js"); err == nil {
 		t.Error("compute --answers accepted a gap no mint created")
 	}
 }

@@ -173,7 +173,7 @@ func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[s
 		if err := compute.WriteBundle(toDir, c.bundle, c.argv, files); err != nil {
 			return nil, fmt.Errorf("computation %s: %w", c.id, err)
 		}
-		if err := compute.WriteAct(toDir, c.bundle, c.id, output); err != nil {
+		if err := compute.WriteAct(toDir, c.bundle, c.id, output, nil); err != nil {
 			return nil, fmt.Errorf("computation %s: %w", c.id, err)
 		}
 	}

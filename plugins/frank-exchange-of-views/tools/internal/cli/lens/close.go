@@ -126,7 +126,7 @@ func requireComputationAnswered(gapID string, isComputation, computationAnswers 
 		return unreadableRefusal("whether a computation answers "+gapID, err)
 	}
 	if !answered {
-		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no computation answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `compute --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+		return feov.Errorf(feov.Conflict, "%s was minted --check-kind computation, and no computation answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `compute --quote \"<the sentence>\" --answers %s --dir <bundle> -- <command>`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 			gapID, gapID)
 	}
 	return nil

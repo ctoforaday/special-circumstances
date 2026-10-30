@@ -273,8 +273,8 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 	// refusal under test. Which id depends on what the verb points AT — a gap, an inquiry, or a
 	// motion — and a wrong id reports the flag under test as unnamed when the real refusal is
 	// about a gap called "placeholder".
-	if f.Name == "script" {
-		return scriptPath
+	if f.Name == "dir" {
+		return bundleDir
 	}
 	// A FLAG THAT DECLARES A FORM GETS A VALUE IN THAT FORM, read off the flag's own type. A value
 	// the flag refuses is refused BEFORE the missing flag is looked for, and the refusal is then
@@ -344,9 +344,12 @@ func seatRunForContracts(t *testing.T) string {
 		}
 	}
 	seedBlueReport(t, runDir)
-	// A REAL SCRIPT ON DISK, because `blue compute` RUNS what --script names.
-	scriptPath = filepath.Join(recordtest.TmpRun(t), "contract-computation.py")
-	if err := os.WriteFile(scriptPath, []byte("print('contract seed')\n"), 0o644); err != nil {
+	// A REAL BUNDLE ON DISK, because `blue compute` RUNS the command in a copy of what --dir names.
+	bundleDir = filepath.Join(recordtest.TmpRun(t), "contract-computation")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundleDir, "contract-computation.py"), []byte("print('contract seed')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
@@ -375,8 +378,8 @@ func seatRunForContracts(t *testing.T) string {
 	// first draft regexed a 64-hex out of the message, found nothing, and the gate then reported
 	// `--as` as unnamed when the real refusal was a missing --id.
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "a quoted sentence", "--script", scriptPath,
-		"--reason", "the computation a probe re-runs"); err != nil {
+		"--quote", "a quoted sentence", "--dir", bundleDir,
+		"--reason", "the computation a probe re-runs", "--", "python3", "contract-computation.py"); err != nil {
 		t.Fatalf("seed computation: %v", err)
 	}
 	b, err := record.FamilyOf(runtest.Open(t, runDir))
@@ -394,9 +397,9 @@ func seatRunForContracts(t *testing.T) string {
 	return runDir
 }
 
-// scriptPath and computationSHA are seeded once by seatRunForContracts and read by placeholderFor.
+// bundleDir and computationSHA are seeded once by seatRunForContracts and read by placeholderFor.
 var (
-	scriptPath     string
+	bundleDir      string
 	computationSHA string
 )
 

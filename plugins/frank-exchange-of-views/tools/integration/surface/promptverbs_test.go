@@ -547,7 +547,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 	// This gate skipped anything that was not a `.golden`, so the CONSTITUTIONS — which a seat
 	// receives as its system prompt, and which are agent-facing by definition — were never checked
 	// for flags at all. Found by reading them rather than by any failure. They carried
-	// `fetch --url <the cited url>`, `compute --quote "<the sentence>" --script <path>
+	// `fetch --url <the cited url>`, `compute --quote "<the sentence>" --dir <bundle>
 	// [--answers <gap>]`, `--supersedes <that gap>`, `blue cite --quote … --url <u> --title <t>`,
 	// and `--check-kind document | computation | source` — the last of which is quoted in THIS
 	// TEST'S OWN comment above as the example of what must not survive a strip.

@@ -36,7 +36,7 @@ func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", body)
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
+		"--quote", "Seven has no divisor between two and six.", "--dir", s, "--reason", "r", "--", "node", "seven.js"); err != nil {
 		t.Fatal(err)
 	}
 	p := lastBody(t, runDir, &recordpb.Computation{})
@@ -102,9 +102,9 @@ func TestAComputationReadAtItsAnchorCarriesItsBundleAndRecordedOutput(t *testing
 			t.Errorf("%s: asked for %s (%s), got anchor %q / computation %q (%s)", seat, anchor, sha, got.Anchor, got.Computation.Anchor, got.Computation.Sha256)
 		}
 		// THE BYTES `reproduce` EXECUTES, not a summary of them.
-		// The file keeps its extension: it is what says which interpreter the command names.
-		if fs := got.Computation.Files; len(fs) != 1 || fs[0].Path != "script.js" || fs[0].Body != body {
-			t.Errorf("%s: the bundle is not the stored bytes:\n got %+v\nwant script.js %q", seat, fs, body)
+		// The file keeps the name it has in the bundle: it is what the command names.
+		if fs := got.Computation.Files; len(fs) != 1 || fs[0].Path != "seven.js" || fs[0].Body != body {
+			t.Errorf("%s: the bundle is not the stored bytes:\n got %+v\nwant seven.js %q", seat, fs, body)
 		}
 		if got.Computation.Output == nil || !strings.Contains(*got.Computation.Output, "divisors of 7 in 2..6: 0") {
 			t.Errorf("%s: the recorded output is not the stored bytes: %v", seat, got.Computation.Output)
@@ -119,7 +119,7 @@ func TestAComputationReadAtItsAnchorCarriesItsBundleAndRecordedOutput(t *testing
 // program that does nothing, and a lens would judge it unsound — a verdict about the store,
 // recorded as a verdict about blue's computation.
 func TestAComputationWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
-	for _, gone := range []string{"dir/script.js", "acts/<id>/output"} {
+	for _, gone := range []string{"dir/seven.js", "acts/<id>/output"} {
 		t.Run(gone, func(t *testing.T) {
 			runDir, anchor, sha := provenRun(t, "console.log('no divisors in 2..6');")
 			path := filepath.Join(runDir, "computations", sha, filepath.FromSlash(strings.Replace(gone, "<id>", anchor, 1)))

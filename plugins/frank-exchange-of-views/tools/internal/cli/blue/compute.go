@@ -3,8 +3,10 @@ package blue
 import (
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
@@ -46,14 +48,26 @@ func newCompute() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		location, script := seat.Location(cmd), seat.Str(cmd, flags.Script)
+		location, dir := seat.Location(cmd), seat.Str(cmd, flags.Dir)
 		if strings.TrimSpace(location) == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a computation anchored to nothing is a script nobody can connect to a claim")
+			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a computation anchored to nothing is a program nobody can connect to a claim")
 		}
-		if strings.TrimSpace(script) == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --script: the path of the program that settles it — absolute, or relative to the run directory")
+		if strings.TrimSpace(dir) == "" {
+			return nil, feov.Errorf(feov.MissingField, "requires --dir: the directory holding the program and the files it reads — absolute, or relative to the run directory")
 		}
-		if err := record.RefuseRecordFile(run, compute.ScriptPath(run.Dir(), script), "--script", "a program"); err != nil {
+		argv, err := commandArgs(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(run.Dir(), dir)
+		}
+		// The bundle is read once, here, and every file is checked against the record BEFORE it is
+		// opened: a read of a record file in this process releases the locks its connection holds.
+		prog, err := compute.ReadProgram(dir, argv, func(path string) error {
+			return record.RefuseRecordFile(run, path, "--dir", "a bundle file")
+		})
+		if err != nil {
 			return nil, err
 		}
 
@@ -76,26 +90,22 @@ func newCompute() *cobra.Command {
 		}
 		tells := spanVoiceTells(why)
 
-		// The bundle's own sha settles it, and costs a file read rather than an execution.
+		// The bundle's own sha settles it — its files and its command — and costs a read rather than an
+		// execution.
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingComputationByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != nil {
-			now, _, _, serr := compute.ScriptBundle(run.Dir(), script)
-			if serr != nil {
-				return nil, serr
-			}
-			if now != prior.GetBundleSha() {
-				return nil, feov.Errorf(feov.Conflict, "--key %q already names computation %s on this run, and %s hashes to %s — "+
+			if now := prog.Sha; now != prior.GetBundleSha() {
+				return nil, feov.Errorf(feov.Conflict, "--key %q already names computation %s on this run, and %s run as %s hashes to %s — "+
 					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
 					"leave you citing a computation of something else. Give this program its own --key",
-					key, prior.GetBundleSha()[:12], script, now[:12])
+					key, prior.GetBundleSha()[:12], dir, prog, now[:12])
 			}
 			// THE SAME PROGRAM IS NOT YET THE SAME ACT: a retry states the sentence it backs, the
 			// method it cites, the gap it answers and its note again, or it is a second computation reusing
 			// the name.
-			retry := &recordpb.Computation{}
-			computeFields(cmd, retry, why)
+			retry := computeRetry(cmd, why)
 			if err := seat.RepeatsKeyed(key, "computation", prior.GetComputationId(), prior, retry, computeAsserted...); err != nil {
 				return nil, err
 			}
@@ -107,7 +117,7 @@ func newCompute() *cobra.Command {
 			return computeResult{SHA: prior.GetBundleSha(), Idempotent: true, VoiceTells: tells}, nil
 		}
 
-		res, err := compute.Run(run.Dir(), script)
+		res, err := compute.Run(run.Dir(), prog)
 		if err != nil {
 			// A computation that will not run is not evidence, and the failure is a capability
 			// signal — the same treatment `blue cite` gives an unreachable source.
@@ -119,9 +129,9 @@ func newCompute() *cobra.Command {
 		}
 
 		// THE ENVIRONMENT FAILING IS NOT THE COMPUTATION ANSWERING, and exit 0 does not tell the
-		// two apart. `compute.Run` works in the RUN directory; a script authored against the repo
-		// root prints "No such file or directory", carries on, and ends clean — which is how a
-		// report came to cite an enumeration that enumerated nothing as re-runnable evidence.
+		// two apart. A program runs in a copy of its bundle; one authored against the repo root
+		// prints "No such file or directory", carries on, and ends clean — which is how a report
+		// came to cite an enumeration that enumerated nothing as re-runnable evidence.
 		// Refused rather than graded, because the artifact is otherwise indistinguishable from a
 		// real negative result, and the seat is one edit away from a correct one.
 		expectError, err := cmd.Flags().GetBool(flags.ExpectError)
@@ -131,27 +141,27 @@ func newCompute() *cobra.Command {
 		// A BUNDLE THAT CALLS THE TOOL CANNOT BE CHECKED BY ANYONE: the tool refuses every call made
 		// while a checker runs it, so the stored copy's run said nothing a reader can repeat.
 		if len(res.Calls) > 0 {
-			return nil, feov.Errorf(feov.Validation, "%s calls feov-record (%s), which refuses every call made while a checker runs the program — no one else could run it to this output. A computation reads its inputs from files, never from the debate's tool", script, res.Calls[0])
+			return nil, feov.Errorf(feov.Validation, "%s calls feov-record (%s), which refuses every call made while a checker runs the program — no one else could run it to this output. A computation reads its inputs from files in its bundle, never from the debate's tool", prog, res.Calls[0])
 		}
 		// TWO RUNS THAT DIFFERED ARE A MEASUREMENT ONLY WHEN THE SEAT SAYS WHAT HOLDS ACROSS THEM, and
 		// --variance over two runs that agreed is a claim about a difference that did not happen.
 		variance := strings.TrimSpace(seat.Str(cmd, flags.Variance))
 		if res.Drift != "" && variance == "" {
-			return nil, feov.Errorf(feov.Validation, "%s did not write the same bytes twice — %s. Make its output deterministic (seed it, sort it, drop the timestamp), or state with --variance what holds across the runs, and it is recorded as `variant`", script, res.Drift)
+			return nil, feov.Errorf(feov.Validation, "%s did not write the same bytes twice — %s. Make its output deterministic (seed it, sort it, drop the timestamp), or state with --variance what holds across the runs, and it is recorded as `variant`", prog, res.Drift)
 		}
 		if res.Drift == "" && variance != "" {
-			return nil, feov.Errorf(feov.Validation, "--variance states what holds when the runs differ, and %s wrote the same bytes on every run — drop --variance and it is recorded as `reproducible`", script)
+			return nil, feov.Errorf(feov.Validation, "--variance states what holds when the runs differ, and %s wrote the same bytes on every run — drop --variance and it is recorded as `reproducible`", prog)
 		}
 		// --expect-error IS A CLAIM ABOUT THE RUN, and a run that failed nothing makes it false: the
 		// flag would be accepted and used for nothing.
 		if expectError && res.Failed == "" {
-			return nil, feov.Errorf(feov.Validation, "--expect-error says this computation's point is a failing command, but %s ran to exit %d with no environment error in its output — drop --expect-error, or fix the script so it captures the failure it is meant to prove", script, res.Exit)
+			return nil, feov.Errorf(feov.Validation, "--expect-error says this computation's point is a failing command, but %s ran to exit %d with no environment error in its output — drop --expect-error, or fix the program so it captures the failure it is meant to prove", prog, res.Exit)
 		}
 		if res.Failed != "" && !expectError {
 			return nil, feov.Errorf(feov.Validation, "%s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
-				"A computation runs with the RUN DIRECTORY as its working directory (%s), not the repository root — a script that reaches for repo paths must resolve them itself. "+
-				"Fix the script and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",
-				script, res.Exit, res.Failed, run.Dir())
+				"A computation runs in a fresh copy of its bundle, outside the run directory, and its working directory is that copy (%s in the output) — a file it reads belongs in the bundle. "+
+				"Fix the program and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",
+				prog, res.Exit, res.Failed, compute.BundleToken)
 		}
 
 		// THE ANCHOR EVENT BELOW IS THE MARKER: it carries the quote, and reportproj.Render re-places
@@ -171,13 +181,20 @@ func newCompute() *cobra.Command {
 			Basis:         recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 			Exit:          proto.Int32(int32(res.Exit)),
 		}
+		if res.ToolchainPath != "" {
+			body.ToolchainPath, body.ToolchainSha256 = proto.String(res.ToolchainPath), proto.String(res.ToolchainSha256)
+		}
 		if res.Drift != "" {
 			body.Basis = recordpb.Basis_BASIS_VARIANT.Enum()
 			body.Drift = proto.String(res.Drift)
 			body.Invariant = proto.String(variance)
 		}
 		computeFields(cmd, body, why)
-		if err := compute.WriteAct(run.Dir(), res.Bundle, label, []byte(res.Output)); err != nil {
+		// The store before the event: the bundle once under dir/, then this act's output and out/.
+		if err := compute.WriteBundle(run.Dir(), res.Bundle, res.Argv, prog.Files); err != nil {
+			return nil, err
+		}
+		if err := compute.WriteAct(run.Dir(), res.Bundle, label, []byte(res.Output), res.Out); err != nil {
 			return nil, err
 		}
 		if _, err := seat.AppendPlaced(s, body, label, location, computeRefusal); err != nil {
@@ -191,16 +208,38 @@ func newCompute() *cobra.Command {
 
 	// DescQuoteAlone: this verb's --reason is the computation note the report prints, no place for a section name.
 	flags.Text(c, flags.Quote, flags.DescQuoteAlone)
-	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the computation, so the computation does not depend on the draft")
-	seat.Require(c, flags.Quote, flags.Script)
+	c.Flags().String(flags.Dir, "", "the directory holding the program and every file it reads — its bundle, copied whole (at most 1 MiB, no symlinks) into a fresh directory for each run. A relative path is read from the run directory, so a bundle drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the computation, so the computation does not depend on the draft")
+	seat.Require(c, flags.Quote, flags.Dir)
+	c.Use = "compute [flags] -- <command> [args...]"
+	c.Args = cobra.ArbitraryArgs
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ComputeCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	flags.Text(c, flags.Variance, "what holds across the two runs when they differ — the invariant the result is evidence of (\"every run reports 91 = 7 × 13; the timing line moves\"). Required when the runs differ and refused when they agree")
 	c.Flags().Bool(flags.ExpectError, false, "this computation's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
-	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another program, --quote, --cites, --answers, --reason or --variance is refused: a handle names one computation")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle with another bundle or command, --quote, --cites, --answers, --reason or --variance is refused: a handle names one computation")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
 	seat.Records(c, "computation")
 	seat.Supplies(c, "basis", "the tool runs the program twice and records `reproducible` when the runs agree, `variant` when they differ")
 	return c
+}
+
+// commandArgs is the command after `--`: everything there is the program's argv, and nothing may
+// stand before it, where it would read as neither a flag nor the command.
+func commandArgs(cmd *cobra.Command) ([]string, error) {
+	args, dash := cmd.Flags().Args(), cmd.Flags().ArgsLenAtDash()
+	if dash > 0 {
+		return nil, feov.Errorf(feov.Validation, "%q stands before `--`, where it is neither a flag nor the command: the command goes after `--`, last, as `-- python3 count.py`", args[0])
+	}
+	if dash < 0 {
+		return nil, feov.Errorf(feov.MissingField, "requires the command after `--`: the program and its arguments, last, as `-- python3 count.py` or `-- ./run.sh` — the tool runs exactly that, in a copy of --dir")
+	}
+	return args, nil
+}
+
+// computeRetry is what a retry under a computation's key states besides its bundle.
+func computeRetry(cmd *cobra.Command, why string) *recordpb.Computation {
+	retry := &recordpb.Computation{}
+	computeFields(cmd, retry, why)
+	return retry
 }
 
 // computeFields sets every field of a computation that the SEAT types.

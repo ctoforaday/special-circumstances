@@ -171,20 +171,24 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	}
 
 	// COMPUTATIONS, so a lens has something to RE-RUN rather than only something to read. The tool
-	// executes the script twice and records whether it reproduced, which is the whole point of
-	// the verb the board is about to demand.
+	// executes the program twice and records whether it reproduced, which is the whole point of
+	// the verb the board is about to demand. Each program is its own bundle under the run's scratch/.
 	for i, pr := range b.Computations {
-		script := filepath.Join(runDir, fmt.Sprintf("probe-computation-%d.py", i+1))
-		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
+		name := fmt.Sprintf("probe-computation-%d.py", i+1)
+		bundle := filepath.Join(runDir, "scratch", fmt.Sprintf("probe-computation-%d", i+1))
+		if err := os.MkdirAll(bundle, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bundle, name), []byte(pr.Script+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		args := []string{"compute", "--run", runDir, "--seat-id", "blue-respond",
-			"--quote", pr.Location, "--script", script,
+			"--quote", pr.Location, "--dir", bundle,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
 		}
-		if _, err := run(t, args...); err != nil {
+		if _, err := run(t, append(args, "--", "python3", name)...); err != nil {
 			t.Fatalf("compute %d: %v", i+1, err)
 		}
 	}

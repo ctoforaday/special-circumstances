@@ -234,11 +234,15 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	// that name none start from the board they always did. Its anchor is read off the record.
 	vars := map[string]string{}
 	if namesVar(cmds, "{COMPUTATION}") {
-		if err := os.WriteFile(filepath.Join(runDir, "fuzz-computation.js"), []byte("console.log('fuzz computation');\n"), 0o644); err != nil {
+		bundle := filepath.Join(runDir, "fuzz-computation")
+		if err := os.MkdirAll(bundle, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bundle, "fuzz-computation.js"), []byte("console.log('fuzz computation');\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		prologue = append(prologue, cmd{verb: "compute", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
-			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-computation.js", "--reason", "the computation a lens re-runs"}})
+			"--quote", "A claim sits under S2.", "--dir", "{RUN}/fuzz-computation", "--reason", "the computation a lens re-runs", "--", "node", "fuzz-computation.js"}})
 	}
 	for _, pre := range prologue {
 		inv := runGo(bin, runDir, m, pre)
@@ -454,7 +458,7 @@ var tourArms = []fuzzArm{
 		}, nil),
 	tourArm("blue compute", []string{"blue-respond"}, []string{"compute"},
 		func(t string) []string {
-			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-computation.js", "--reason", t}
+			return []string{"--quote", "A claim sits under S2.", "--dir", "{RUN}/fuzz-computation", "--reason", t, "--", "node", "fuzz-computation.js"}
 		}, nil),
 	tourArm("chair position", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
 	// A CLOSING IS A PARTY'S, ON A DOCKETING: GAP002 is before the bench from the prologue, minted

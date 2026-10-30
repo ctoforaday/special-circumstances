@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -166,7 +167,7 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", "Method",
-				"--script", script(t, runDir, "m.js", "console.log(1)"), "--reason", "r")
+				"--dir", script(t, runDir, "m.js", "console.log(1)"), "--reason", "r", "--", "node", "m.js")
 			return err
 		}},
 		{"lens corroborate", false, func(t *testing.T, runDir string) error {
@@ -269,7 +270,7 @@ func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
 	}{
 		{blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
 			func(e *record.Event) string { return e.GetCite().GetLabel() }},
-		{blueSeat, []string{"compute", "--script", "p.js", "--reason", "r"},
+		{blueSeat, []string{"compute", "--dir", "scratch/p", "--reason", "r", "--", "node", "p.js"},
 			func(e *record.Event) string { return e.GetComputation().GetComputationId() }},
 		{lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
 			func(e *record.Event) string { return e.GetVerify().GetLabel() }},
@@ -319,7 +320,7 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 			func(e *record.Event) string { return e.GetMint().GetGapId() }, func(e *record.Event) string { return e.GetMint().GetLocation() }},
 		{"cite", blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
 			func(e *record.Event) string { return e.GetCite().GetLabel() }, func(e *record.Event) string { return e.GetCite().GetLocation() }},
-		{"compute", blueSeat, []string{"compute", "--script", "p.js", "--reason", "r"},
+		{"compute", blueSeat, []string{"compute", "--dir", "scratch/p", "--reason", "r", "--", "node", "p.js"},
 			func(e *record.Event) string { return e.GetComputation().GetComputationId() }, func(e *record.Event) string { return e.GetComputation().GetLocation() }},
 		{"corroborate", lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
 			func(e *record.Event) string { return e.GetVerify().GetLabel() }, func(e *record.Event) string { return e.GetVerify().GetClaim() }},
@@ -386,13 +387,13 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
 		}, []string{"cite", "--key", "K1", "--quote", stored, "--url", "https://example.org/s", "--title", "S"}},
 		{"computation", "K-0badf00d", blueSeat, func(runDir string) proto.Message {
-			bundle, argv, _, err := compute.ScriptBundle(runDir, script(t, runDir, "p.js", "console.log(1)"))
+			prog, err := compute.ReadProgram(filepath.Join(runDir, script(t, runDir, "p.js", "console.log(1)")), []string{"node", "p.js"}, func(string) error { return nil })
 			if err != nil {
 				t.Fatal(err)
 			}
-			return &recordpb.Computation{Argv: argv, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0badf00d"), Key: proto.String("K1"), BundleSha: proto.String(bundle),
+			return &recordpb.Computation{Argv: prog.Argv, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-0badf00d"), Key: proto.String("K1"), BundleSha: proto.String(prog.Sha),
 				Location: proto.String(stored), Text: proto.String("r")}
-		}, []string{"compute", "--key", "K1", "--quote", stored, "--script", "p.js", "--reason", "r"}},
+		}, []string{"compute", "--key", "K1", "--quote", stored, "--dir", "scratch/p", "--reason", "r", "--", "node", "p.js"}},
 		{"citation", "C-0badf00e", lensSeat, func(string) proto.Message {
 			return &recordpb.Verify{Label: proto.String("C-0badf00e"), Url: proto.String("https://example.org/r"), Title: proto.String("R"), Claim: proto.String(stored),
 				Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("r")}

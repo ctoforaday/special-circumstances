@@ -150,50 +150,53 @@ func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 	}
 }
 
-// A COMPUTATION'S SCRIPT IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS COMPUTATION STORE. The page names
+// A COMPUTATION'S BUNDLE IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS COMPUTATION STORE. The page names
 // the relative path a seat passes for a draft there, and the stored copy is the computation: the draft can
 // go and the computation still reads. An absolute path is still read where it lies.
-func TestComputeTakesAScriptFromTheRunsScratch(t *testing.T) {
+func TestComputeTakesABundleFromTheRunsScratch(t *testing.T) {
 	runDir := actFixture(t)
 	body := []byte("echo 0\n")
-	if err := os.MkdirAll(filepath.Join(runDir, "scratch"), 0o755); err != nil {
+	draft := filepath.Join(runDir, "scratch", "blue-respond-remainder")
+	if err := os.MkdirAll(draft, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "scratch", "blue-respond-remainder.sh"), body, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(draft, "remainder.sh"), body, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "the parser accepts an empty body in this line.", "--script", "./scratch/blue-respond-remainder.sh", "--reason", "an empty body parses to nothing")
+		"--quote", "the parser accepts an empty body in this line.", "--dir", "./scratch/blue-respond-remainder", "--reason", "an empty body parses to nothing",
+		"--", "bash", "remainder.sh")
 	if err != nil || !strings.Contains(out, "recorded") {
-		t.Fatalf("a script drafted in the run's scratch/ was not computed (%v): %s", err, out)
+		t.Fatalf("a bundle drafted in the run's scratch/ was not computed (%v): %s", err, out)
 	}
 	if err := os.RemoveAll(filepath.Join(runDir, "scratch")); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
-	argv, err := compute.ScriptArgv("remainder.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stored, err := compute.Bundle(runDir, compute.BundleSha(argv, []compute.FileSum{{Path: argv[len(argv)-1], Sha256: hex.EncodeToString(sum[:])}}))
+	argv := []string{"bash", "remainder.sh"}
+	stored, err := compute.Bundle(runDir, compute.BundleSha(argv, []compute.FileSum{{Path: "remainder.sh", Sha256: hex.EncodeToString(sum[:])}}))
 	if err != nil || len(stored) != 1 || !bytes.Equal(stored[0].Body, body) {
-		t.Fatalf("with scratch/ gone, the computation store does not hold the script's bytes (%v): %v", err, stored)
+		t.Fatalf("with scratch/ gone, the computation store does not hold the bundle's bytes (%v): %v", err, stored)
 	}
 
-	pad := filepath.Join(t.TempDir(), "blue-respond-elsewhere.sh")
-	if err := os.WriteFile(pad, []byte("echo 1\n"), 0o644); err != nil {
+	pad := filepath.Join(t.TempDir(), "blue-respond-elsewhere")
+	if err := os.MkdirAll(pad, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pad, "elsewhere.sh"), []byte("echo 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out, err = runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "the parser accepts an empty body in this line.", "--script", pad, "--reason", "an empty body parses to one")
+		"--quote", "the parser accepts an empty body in this line.", "--dir", pad, "--reason", "an empty body parses to one",
+		"--", "bash", "elsewhere.sh")
 	if err != nil || !strings.Contains(out, "recorded") {
-		t.Fatalf("a script at an absolute path outside the run directory was not computed (%v): %s", err, out)
+		t.Fatalf("a bundle at an absolute path outside the run directory was not computed (%v): %s", err, out)
 	}
 
-	u := cmdAt(NewRootFor("blue-respond"), []string{"compute"}).Flags().Lookup("script").Usage
+	u := cmdAt(NewRootFor("blue-respond"), []string{"compute"}).Flags().Lookup("dir").Usage
 	for _, says := range []string{"A relative path is read from the run directory", "drafted in the run's scratch/ is passed as scratch/", "an absolute path is read where it lies", "the computation does not depend on the draft"} {
 		if !strings.Contains(u, says) {
-			t.Errorf("compute --script does not say %q:\n%s", says, u)
+			t.Errorf("compute --dir does not say %q:\n%s", says, u)
 		}
 	}
 }

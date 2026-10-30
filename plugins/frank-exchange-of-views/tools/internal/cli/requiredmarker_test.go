@@ -320,7 +320,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if omit != nil {
 					args, _ = without(args, omit)
 				}
-				_, err := runAt(t, append(append([]string{}, args...), "--run", runDir, "--seat-id", p.seat)...)
+				_, err := runAt(t, ahead(args, "--run", runDir, "--seat-id", p.seat)...)
 				dirty = err == nil
 				return err
 			}

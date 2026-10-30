@@ -253,18 +253,23 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return fmt.Errorf("the board carries closings on %s and no docket motion of its own puts it before the bench — a closing argues a docketing", ref)
 	}
 
+	// Each computation is its own bundle under the run's scratch/, and its command comes last.
 	for i, pr := range b.Computations {
-		script := filepath.Join(run.Dir(), fmt.Sprintf("probe-computation-%d.py", i+1))
-		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
+		name := fmt.Sprintf("probe-computation-%d.py", i+1)
+		bundle := filepath.Join(run.Dir(), "scratch", fmt.Sprintf("probe-computation-%d", i+1))
+		if err := os.MkdirAll(bundle, 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(bundle, name), []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}
 		args := []string{"compute", "--run", run.Dir(), "--seat-id", "blue-respond",
-			"--quote", pr.Location, "--script", script,
+			"--quote", pr.Location, "--dir", bundle,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
 			args = append(args, "--answers", pr.Answers)
 		}
-		if _, err := exec(args...); err != nil {
+		if _, err := exec(append(args, "--", "python3", name)...); err != nil {
 			return fmt.Errorf("compute %d: %w", i+1, err)
 		}
 	}

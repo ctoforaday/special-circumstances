@@ -29,7 +29,7 @@ func TestABunchedRunIsRefusedWithWhatEachAnchorMarks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".",
-		"--script", script(t, runDir, "rise.js", "console.log(3-1)"), "--reason", "the difference of the two quarters is computed"); err != nil {
+		"--dir", script(t, runDir, "rise.js", "console.log(3-1)"), "--reason", "the difference of the two quarters is computed", "--", "node", "rise.js"); err != nil {
 		t.Fatal(err)
 	}
 	before := readReport(t, runDir)

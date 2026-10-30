@@ -21,7 +21,7 @@ func seedComputation(t *testing.T, runDir, label, file, body, output string) rec
 	if err := compute.WriteBundle(runDir, bundle, argv, files); err != nil {
 		t.Fatal(err)
 	}
-	if err := compute.WriteAct(runDir, bundle, label, []byte(output)); err != nil {
+	if err := compute.WriteAct(runDir, bundle, label, []byte(output), nil); err != nil {
 		t.Fatal(err)
 	}
 	return record.Computation{Label: label, SHA: bundle, Argv: argv, Basis: "reproducible"}
@@ -35,7 +35,7 @@ func seedStore(t *testing.T, runDir, bundle, label, body, output string) {
 	if err := compute.WriteBundle(runDir, bundle, []string{"python3", "script.py"}, []compute.File{{Path: "script.py", Body: []byte(body)}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := compute.WriteAct(runDir, bundle, label, []byte(output)); err != nil {
+	if err := compute.WriteAct(runDir, bundle, label, []byte(output), nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -245,7 +245,7 @@ func TestEachActShowsItsOwnOutput(t *testing.T) {
 	first := seedComputation(t, runDir, "K-00000001", "s.py", "print(1)", "first act\n")
 	second := first
 	second.Label = "K-00000002"
-	if err := compute.WriteAct(runDir, first.SHA, second.Label, []byte("second act\n")); err != nil {
+	if err := compute.WriteAct(runDir, first.SHA, second.Label, []byte("second act\n"), nil); err != nil {
 		t.Fatal(err)
 	}
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{first, second}, map[string]bool{"K-00000001": true, "K-00000002": true})
@@ -265,7 +265,7 @@ func TestABinaryBundleFileIsNamedNotPrinted(t *testing.T) {
 	if err := compute.WriteBundle(runDir, bundle, argv, files); err != nil {
 		t.Fatal(err)
 	}
-	if err := compute.WriteAct(runDir, bundle, "K-00000001", []byte("1\n")); err != nil {
+	if err := compute.WriteAct(runDir, bundle, "K-00000001", []byte("1\n"), nil); err != nil {
 		t.Fatal(err)
 	}
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}}, map[string]bool{"K-00000001": true})

@@ -21,7 +21,7 @@ func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
 	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--key", "P1",
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
-		"--script", s, "--reason", voicedComputationNote}
+		"--dir", s, "--reason", voicedComputationNote, "--", "node", "nine.js"}
 
 	out, err := run(t, args...)
 	if err != nil {
@@ -52,7 +52,7 @@ func TestACleanComputationNoteCarriesNoNote(t *testing.T) {
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
 	out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
-		"--script", s, "--reason", "a reproducible computation shows 3 divides 9")
+		"--dir", s, "--reason", "a reproducible computation shows 3 divides 9", "--", "node", "nine.js")
 	if err != nil {
 		t.Fatalf("compute: %v\n%s", err, out)
 	}

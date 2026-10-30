@@ -22,8 +22,8 @@ import (
 // lens filtered the envelope for `ok`, `reproduced` and `sound` and read `ok: true` beside two
 // nulls: the result's field was `matches`, and nothing carried the other.
 //
-// The script here reads a file beside the run and the file is removed after `compute`: recorded as
-// reproducible, and failing when the auditor runs it.
+// The program reads a file beside the run, outside its bundle, and the file is removed after
+// `compute`: recorded as reproducible, and failing when the auditor runs it.
 func TestASoundVerdictOverAFailedReRunIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
@@ -31,9 +31,9 @@ func TestASoundVerdictOverAFailedReRunIsRefused(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("no divisors in 2..6\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s := script(t, runDir, "seven.js", "console.log(require('fs').readFileSync('marker.txt','utf8').trim());")
+	s := script(t, runDir, "seven.js", "console.log(require('fs').readFileSync("+jsString(t, marker)+",'utf8').trim());")
 	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
+		"--quote", "Seven has no divisor between two and six.", "--dir", s, "--reason", "r", "--", "node", "seven.js"); err != nil || !strings.Contains(out, "reproducible") {
 		t.Fatalf("compute did not record the script as reproducible: %v\n%s", err, out)
 	}
 	computationAnchor := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
@@ -84,7 +84,7 @@ func TestASoundVerdictOnAVariantComputationIsRecorded(t *testing.T) {
 	seat := computeSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
 	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling", "--variance", "a number in [0, 1)"); err != nil || !strings.Contains(out, "variant") {
+		"--quote", "The sampled value varies between runs.", "--dir", s, "--reason", "sampling", "--variance", "a number in [0, 1)", "--", "node", "moves.js"); err != nil || !strings.Contains(out, "variant") {
 		t.Fatalf("compute did not record the moving program variant: %v\n%s", err, out)
 	}
 	computationAnchor := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
@@ -116,9 +116,9 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 	counter := filepath.Join(runDir, "runs.txt")
 	// The script counts its own executions in a file beside the run, so the test can see whether
 	// the second judgement ran it. It prints the same line every time, so it reproduces.
-	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync('runs.txt','x');console.log('no divisors in 2..6');")
+	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync("+jsString(t, counter)+",'x');console.log('no divisors in 2..6');")
 	for _, q := range []string{"Seven has no divisor between two and six.", "Seven is the fourth prime."} {
-		if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil {
+		if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--dir", s, "--reason", "r", "--", "node", "seven.js"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -185,13 +185,15 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 func TestAScriptThatCallsTheToolCannotBeJudgedSound(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
-	// The program calls the tool from its fourth execution on: `compute`'s three runs call nothing,
-	// and a checker's re-run is the first to call.
+	// The program calls the tool from its third execution on: `compute`'s two runs call nothing,
+	// and a checker's re-run is the first to call. It counts in a file beside the run, outside the
+	// bundle, whose copies start fresh on every run.
+	tally := jsString(t, filepath.Join(runDir, "runs.txt"))
 	s := script(t, runDir, "board.js", `const fs=require("fs");
-fs.appendFileSync("runs.txt","x");
-if (fs.readFileSync("runs.txt","utf8").length > 3 && process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
+fs.appendFileSync(`+tally+`,"x");
+if (fs.readFileSync(`+tally+`,"utf8").length > 2 && process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
 console.log("0");`)
-	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil {
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--dir", s, "--reason", "r", "--", "node", "board.js"); err != nil {
 		t.Fatalf("compute did not record a program whose runs call nothing: %v\n%s", err, out)
 	}
 	computationAnchor := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
@@ -217,6 +219,17 @@ console.log("0");`)
 	if p := evidenceJSON(t, runDir).Computations[0]; p.Rerun != "calls_the_tool" || p.Verified {
 		t.Errorf("the evidence row reads %+v, want calls_the_tool and not verified", p)
 	}
+}
+
+// jsString is path as a JavaScript string literal, for a program that reads state outside its
+// bundle: the program runs in a copy of the bundle, so a file beside the run is named absolutely.
+func jsString(t *testing.T, path string) string {
+	t.Helper()
+	b, err := json.Marshal(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }
 
 func mustComputations(t *testing.T, runDir string) []record.Computation {
@@ -260,10 +273,11 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	}
 	// The script counts its own executions in a file beside the run, so the test sees whether a
 	// later judgement ran it.
-	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync('runs.txt','x');console.log(fs.readFileSync('marker.txt','utf8').trim());")
+	counter := filepath.Join(runDir, "runs.txt")
+	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync("+jsString(t, counter)+",'x');console.log(fs.readFileSync("+jsString(t, marker)+",'utf8').trim());")
 	var anchors []string
 	for _, q := range []string{"Seven has no divisor between two and six.", "Seven is the fourth prime."} {
-		if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
+		if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", q, "--dir", s, "--reason", "r", "--", "node", "seven.js"); err != nil || !strings.Contains(out, "reproducible") {
 			t.Fatalf("compute did not record the script as reproducible: %v\n%s", err, out)
 		}
 		anchors = append(anchors, lastBody(t, runDir, &recordpb.Computation{}).GetComputationId())
@@ -278,7 +292,6 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	if out, err := reproduce("red-lens-logic", anchors[0], "unsound"); err != nil || !strings.Contains(out, `"rerun":"differs"`) {
 		t.Fatalf("the first re-run: %v\n%s", err, out)
 	}
-	counter := filepath.Join(runDir, "runs.txt")
 	runsBefore, _ := os.ReadFile(counter)
 
 	// The second sentence is owed, and the owner's work list names the act that re-runs nothing.
@@ -336,11 +349,12 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 func TestASoundJudgementOnAScriptThatCalledTheToolIsRefusedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
+	tally := jsString(t, filepath.Join(runDir, "runs.txt"))
 	s := script(t, runDir, "board.js", `const fs=require("fs");
-fs.appendFileSync("runs.txt","x");
-if (fs.readFileSync("runs.txt","utf8").length > 3 && process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
+fs.appendFileSync(`+tally+`,"x");
+if (fs.readFileSync(`+tally+`,"utf8").length > 2 && process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
 console.log("0");`)
-	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil {
+	if out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--dir", s, "--reason", "r", "--", "node", "board.js"); err != nil {
 		t.Fatalf("compute did not record a program whose runs call nothing: %v\n%s", err, out)
 	}
 	p := lastBody(t, runDir, &recordpb.Computation{})

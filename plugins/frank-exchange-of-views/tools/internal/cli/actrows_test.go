@@ -2,8 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -37,7 +35,7 @@ func actFixture(t *testing.T) string {
 
 func must(t *testing.T, runDir string, args ...string) string {
 	t.Helper()
-	out, err := runAt(t, append(args, "--run", runDir)...)
+	out, err := runAt(t, ahead(args, "--run", runDir)...)
 	if err != nil {
 		t.Fatalf("%v: %v", args, err)
 	}
@@ -110,10 +108,10 @@ func actRows() map[string]actRow {
 			}},
 		"blue compute": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) actVars {
-				return actVars{"script": script(t, runDir, "corr.js", "console.log(91 % 7)")}
+				return actVars{"bundle": script(t, runDir, "corr.js", "console.log(91 % 7)")}
 			},
 			act: func(v actVars, text string) []string {
-				return []string{"compute", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
+				return []string{"compute", "--quote", "the parser accepts an empty body in this line.", "--dir", v["bundle"], "--reason", text, "--", "node", "corr.js"}
 			}},
 		"blue inquiry propose": {seat: "blue-respond", act: func(_ actVars, text string) []string {
 			return []string{"inquiry", "propose", "--question", text, "--hypothesis", "it would settle something"}
@@ -136,12 +134,9 @@ func actRows() map[string]actRow {
 		// A computation whose output differs on every run.
 		"lens reproduce": {seat: lensSeat,
 			setup: func(t *testing.T, runDir string) actVars {
-				s := filepath.Join(runDir, "unstable.js")
-				if err := os.WriteFile(s, []byte("console.log(Math.random());"), 0o644); err != nil {
-					t.Fatal(err)
-				}
+				s := script(t, runDir, "unstable.js", "console.log(Math.random());")
 				must(t, runDir, "compute", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
-					"--script", s, "--reason", "the computation a lens re-runs", "--variance", "a number in [0, 1)")
+					"--dir", s, "--reason", "the computation a lens re-runs", "--variance", "a number in [0, 1)", "--", "node", "unstable.js")
 				return actVars{"computation": lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()}
 			},
 			act: func(v actVars, text string) []string {

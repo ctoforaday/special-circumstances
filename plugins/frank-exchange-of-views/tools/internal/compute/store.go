@@ -17,7 +17,7 @@ import (
 // <runDir>/computations/<bundle_sha>/:
 //
 //	dir/                the bundle — content-addressed, written once
-//	acts/<K-id>/        one per recorded act: its first run's output
+//	acts/<K-id>/        one per recorded act: its first run's output, and out/ when it wrote any
 //	rerun/<rerun_sha>/  content-addressed: one re-run's output
 //	.tmp-*/             staging for all three; never read, never archived
 //
@@ -138,9 +138,10 @@ func checkBundle(runDir, bundle string, argv []string) error {
 	return nil
 }
 
-// WriteAct puts one act's output at acts/<id>/, staged and renamed. An id is minted fresh for every
-// act, so a present directory is refused rather than overwritten.
-func WriteAct(runDir, bundle, id string, output []byte) error {
+// WriteAct puts one act's output, and the files its run wrote under out/, at acts/<id>/, staged and
+// renamed. An id is minted fresh for every act, so a present directory is refused rather than
+// overwritten.
+func WriteAct(runDir, bundle, id string, output []byte, out []File) error {
 	final := ActPath(runDir, bundle, id)
 	if _, err := os.Stat(final); err == nil {
 		return fmt.Errorf("the store already holds an act %s under bundle %s — an act's id is minted for it alone", id, short(bundle))
@@ -152,6 +153,17 @@ func WriteAct(runDir, bundle, id string, output []byte) error {
 	if err := os.WriteFile(filepath.Join(stage, "output"), output, 0o644); err != nil {
 		os.RemoveAll(stage)
 		return err
+	}
+	for _, f := range out {
+		p := filepath.Join(stage, "out", filepath.FromSlash(f.Path))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			os.RemoveAll(stage)
+			return err
+		}
+		if err := os.WriteFile(p, f.Body, 0o644); err != nil {
+			os.RemoveAll(stage)
+			return err
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
 		os.RemoveAll(stage)
@@ -220,4 +232,10 @@ func ActOutput(runDir, bundle, id string) ([]byte, error) {
 		return nil, missing(bundle, "recorded output of "+id, p)
 	}
 	return b, nil
+}
+
+// ActOut reads the files one act's run wrote under out/, sorted by path. An act that wrote none has
+// no out/, and reads as the empty set.
+func ActOut(runDir, bundle, id string) ([]File, error) {
+	return readOut(filepath.Join(ActPath(runDir, bundle, id), "out"))
 }

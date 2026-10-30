@@ -112,7 +112,7 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 		t.Fatalf("cite: %v\n%s", err, out)
 	}
 	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Thirteen is prime.",
-		"--script", script(t, runDir, "prime.js", "console.log(13)"), "--reason", "thirteen has no divisor below four"); err != nil {
+		"--dir", script(t, runDir, "prime.js", "console.log(13)"), "--reason", "thirteen has no divisor below four", "--", "node", "prime.js"); err != nil {
 		t.Fatalf("compute: %v\n%s", err, out)
 	}
 	open := runtest.Open(t, runDir)

@@ -53,20 +53,3 @@ func TestErrorSignatureCatchesInterpreterFailures(t *testing.T) {
 		}
 	}
 }
-
-// Run sets Failed from the FIRST pass's output, so a script that fails the same way twice is
-// still caught (it is `reproducible` — reproducibly broken).
-func TestRunSetsFailedOnAnEnvironmentError(t *testing.T) {
-	run := t.TempDir()
-	write(t, run, "probe.sh", "#!/bin/sh\ncat ./definitely-not-here 2>&1\necho done\n")
-	res, err := Run(run, "probe.sh")
-	if err != nil {
-		t.Fatalf("a script that runs is not a tool error: %v", err)
-	}
-	if res.Failed == "" {
-		t.Fatalf("output %q carried an environment error and Failed stayed empty", res.Output)
-	}
-	if res.Exit != 0 {
-		t.Logf("note: exit was %d; the check must not depend on it", res.Exit)
-	}
-}

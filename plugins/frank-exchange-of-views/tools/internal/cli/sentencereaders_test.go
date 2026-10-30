@@ -59,7 +59,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 		t.Helper()
 		s := script(t, runDir, "p.js", "console.log('it holds');")
 		if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
-			"--script", s, "--reason", "the computation settles it"); err != nil {
+			"--dir", s, "--reason", "the computation settles it", "--", "node", "p.js"); err != nil {
 			t.Fatalf("compute %q: %v", sentence, err)
 		}
 		return lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()

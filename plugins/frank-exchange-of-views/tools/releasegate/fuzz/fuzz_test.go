@@ -30,8 +30,6 @@ package fuzz
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -710,6 +708,8 @@ func refusedByShape(out []byte, id string) bool {
 type cmd struct {
 	r    *runner
 	args []string
+	// command is the program after `--` (compute's), which the invocation places last.
+	command []string
 }
 
 // do takes the verb as it is TYPED, so a verb under a subgroup is passed as the words a seat
@@ -720,6 +720,9 @@ func (r *runner) do(verb, seatID string) *cmd {
 	return &cmd{r: r, args: append(strings.Fields(verb), "--seat-id", seatID)}
 }
 func (c *cmd) set(flag, val string) *cmd { c.args = append(c.args, flag, val); return c }
+
+// runs sets the command after `--`.
+func (c *cmd) runs(argv []string) *cmd { c.command = argv; return c }
 
 // keyed adds, pct times in a hundred, a --key drawn from everything the act states so far: a key
 // names one act, so two acts under one key state the same thing (contentKey).
@@ -989,10 +992,9 @@ func (r *runner) dischargeOwed(seatID string) {
 			if !g.AwaitingComputation || !slices.Contains(w.Engaged.GapIDs, g.ID) {
 				continue
 			}
-			name := "fuzz-owed-" + g.ID + ".js"
-			if err := r.writeScript(name, "console.log('answers "+g.ID+"');"); err == nil {
-				r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
-					"--reason", "fuzz: the computation its sitting owes")
+			if dir, argv, err := r.writeBundle("fuzz-owed-"+g.ID+".js", "console.log('answers "+g.ID+"');"); err == nil {
+				r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", g.ID,
+					"--reason", "fuzz: the computation its sitting owes", "--"}, argv...)...)
 			}
 		}
 		return
@@ -2446,20 +2448,20 @@ func (r *runner) contradictionUnraised(id string) bool {
 	return false
 }
 
-// forcedComputations is the anchors of the computations on the record whose script is reopenedComputationScript.
+// forcedComputations is the anchors of the computations on the record of the reopened computation's bundle.
 func (r *runner) forcedComputations() []string {
-	return r.computationsOfScript(reopenedComputationScript)
+	return r.computationsOfBundle(reopenedComputationName, reopenedComputationScript)
 }
 
-// computationsOfScript is the anchors of the computations on the record whose script is script, read by its
-// sha256 on the record (EvidenceComputationJSON.Sha256), never recovered from report text.
-func (r *runner) computationsOfScript(script string) []string {
+// computationsOfBundle is the anchors of the computations on the record of the bundle writeBundle
+// writes for name and body, read by its identity on the record (EvidenceComputationJSON.Sha256), never
+// recovered from report text.
+func (r *runner) computationsOfBundle(name, body string) []string {
 	b, ok := r.board()
 	if !ok {
 		return nil
 	}
-	sum := sha256.Sum256([]byte(script))
-	sha := hex.EncodeToString(sum[:])
+	sha := bundleSha(name, body)
 	var out []string
 	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Computations {
 		if p.Sha256 == sha {
@@ -2492,13 +2494,13 @@ func (r *runner) computeToReopen(seatID string) {
 	}
 	anchors := r.forcedComputations()
 	if len(anchors) == 0 {
-		name := "fuzz-reopened-computation.js"
-		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(reopenedComputationScript), 0o644); err != nil {
-			r.reachedStage("could not write the script: " + err.Error())
+		dir, argv, err := r.writeBundle(reopenedComputationName, reopenedComputationScript)
+		if err != nil {
+			r.reachedStage("could not write the bundle: " + err.Error())
 			return
 		}
-		if _, err := r.exec("compute", "--seat-id", seatID, "--quote", "across the whole sampled corpus",
-			"--script", name, "--reason", "fuzz: the computation a later edit reopens"); err != nil {
+		if _, err := r.exec(append([]string{"compute", "--seat-id", seatID, "--quote", "across the whole sampled corpus",
+			"--dir", dir, "--reason", "fuzz: the computation a later edit reopens", "--"}, argv...)...); err != nil {
 			r.reachedStage("compute refused: " + firstLine(err.Error()))
 			return
 		}
@@ -2543,7 +2545,7 @@ func (r *runner) computeToReopen(seatID string) {
 // forcedChainComputation is whether anchor is the computation a forced chain judges (judgeToReopen, judgeUnsound).
 func (r *runner) forcedChainComputation(anchor string) bool {
 	return r.forceReopenedComputation && slices.Contains(r.forcedComputations(), anchor) ||
-		r.forceUnsoundComputation && slices.Contains(r.computationsOfScript(unsoundComputationScript), anchor)
+		r.forceUnsoundComputation && slices.Contains(r.computationsOfBundle(unsoundComputationName, unsoundComputationScript), anchor)
 }
 
 // judgeToReopen is the owner's half of the forced chain: it judges every forced computation its work list
@@ -2582,10 +2584,9 @@ func (r *runner) computeOwed(seatID string) {
 	r.owedComputations++
 	n := r.owedComputations
 	r.mu.Unlock()
-	name := fmt.Sprintf("fuzz-owed-computation-%d.js", n)
-	if err := r.writeScript(name, fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
-		r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name,
-			"--reason", "fuzz: a computation its owner has not yet checked")
+	if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
+		r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
+			"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...)
 	}
 	// AND THE HEAD MOVES PAST THE OWNER'S PIN. A computation moves no head, and a fold names a debt that
 	// keeps a lens from retiring in the clause keptByDebt reads only while the lens is behind the
@@ -2628,16 +2629,16 @@ func (r *runner) reachedUnsoundStage(s string) {
 // unsoundComputationScript stands, it proves the seeded sentence no edit rewrites, so the judgement the
 // owner records stands until blue's fix (fixUnsound).
 func (r *runner) computeToJudgeUnsound(seatID string) {
-	if !r.forceUnsoundComputation || r.unsoundFed() || len(r.computationsOfScript(unsoundComputationScript)) > 0 {
+	if !r.forceUnsoundComputation || r.unsoundFed() || len(r.computationsOfBundle(unsoundComputationName, unsoundComputationScript)) > 0 {
 		return
 	}
-	name := "fuzz-unsound-computation.js"
-	if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(unsoundComputationScript), 0o644); err != nil {
-		r.reachedUnsoundStage("could not write the script: " + err.Error())
+	dir, argv, err := r.writeBundle(unsoundComputationName, unsoundComputationScript)
+	if err != nil {
+		r.reachedUnsoundStage("could not write the bundle: " + err.Error())
 		return
 	}
-	if _, err := r.exec("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence",
-		"--script", name, "--reason", "fuzz: the computation its owner judges unsound"); err != nil {
+	if _, err := r.exec(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence",
+		"--dir", dir, "--reason", "fuzz: the computation its owner judges unsound", "--"}, argv...)...); err != nil {
 		r.reachedUnsoundStage("compute refused: " + firstLine(err.Error()))
 		return
 	}
@@ -2657,7 +2658,7 @@ func (r *runner) judgeUnsound(seatID string) {
 	if !r.forceUnsoundComputation || seatID != computationOwner || r.unsoundFed() {
 		return
 	}
-	forced := r.computationsOfScript(unsoundComputationScript)
+	forced := r.computationsOfBundle(unsoundComputationName, unsoundComputationScript)
 	if len(forced) == 0 {
 		return
 	}
@@ -3885,10 +3886,9 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// register() is idempotent and waits for the register to land, so this is a no-op on
 		// every later round and the ordering it needs on the first.
 		r.register("blue", "blue-respond")
-		name := "fuzz-answer-" + id + ".js"
-		if err := r.writeScript(name, "console.log('answers "+id+"');"); err == nil {
-			r.admit("compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
-				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
+		if dir, argv, err := r.writeBundle("fuzz-answer-"+id+".js", "console.log('answers "+id+"');"); err == nil {
+			r.admit(append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+				"--dir", dir, "--answers", id, "--reason", "fuzz: settling the computation check", "--"}, argv...)...)
 		}
 		// A COMPUTATION WHOSE FAILURE IS THE RESULT, once per run. `compute` refuses a script that exits
 		// non-zero — correctly, because a broken computation usually means a broken script — UNLESS the
@@ -3901,19 +3901,17 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		r.provedExpectedError = true
 		r.mu.Unlock()
 		if first {
-			absent := "fuzz-absent-" + id + ".js"
 			// The output carries an environment error the tool recognises: --expect-error on a run
 			// that failed nothing is refused.
 			body := "console.error('ls: cannot access /fuzz-absent: No such file or directory'); process.exit(3);"
-			if err := r.writeScript(absent, body); err == nil {
-				r.admit("compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
-					"--script", absent, "--expect-error",
-					"--reason", "fuzz: the absence IS the result, recorded as such")
+			if dir, argv, err := r.writeBundle("fuzz-absent-"+id+".js", body); err == nil {
+				r.admit(append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+					"--dir", dir, "--expect-error",
+					"--reason", "fuzz: the absence IS the result, recorded as such", "--"}, argv...)...)
 			}
-			clean := "fuzz-clean-" + id + ".js"
-			if err := r.writeScript(clean, "console.log(1)"); err == nil {
-				r.refuse(feov.Validation, "compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
-					"--script", clean, "--expect-error", "--reason", "fuzz: claims a failure the run does not have")
+			if dir, argv, err := r.writeBundle("fuzz-clean-"+id+".js", "console.log(1)"); err == nil {
+				r.refuse(feov.Validation, append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+					"--dir", dir, "--expect-error", "--reason", "fuzz: claims a failure the run does not have", "--"}, argv...)...)
 			}
 		}
 	}
@@ -4158,8 +4156,8 @@ const (
 	// dirComputeDrifts is the case that makes the re-run MEAN something. A deterministic script
 	// always reproduces, so with only dirCompute the scenario check and the tool's own
 	// computation guard are indistinguishable — probing by deleting the check caught NOTHING.
-	// A drifting script (an unseeded random, a live sample) is graded `observed` rather than
-	// `reproducible`, and red must NOT close on it: that is the whole difference between a
+	// A drifting program (an unseeded random, a live sample) is recorded `variant` with the
+	// invariant blue states, rather than `reproducible`, and red must NOT close on it: that is the whole difference between a
 	// computation and a measurement, and it is the branch a fake with only tidy scripts never shows.
 	dirComputeDrifts = "FUZZ-COMPUTE-DRIFTS: blue computes, but the output moves between runs; red cannot close on it"
 )
@@ -4478,16 +4476,17 @@ func (r *runner) extras(role, seatID string, open []string) {
 				r.retryKeyed(edit.args, "--new", newSpan+" again"+run)
 			}
 		})
-		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
-		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
-		// splice and the reproducible/observed grading, not a stub.
+		// #277: settle a claim by COMPUTING it. The program is written into a bundle of its own and
+		// the tool runs it twice in fresh copies — so this drives the real interpreter, the store,
+		// the anchor splice and the reproducible/variant grading, not a stub.
 		r.maybe(35, func() {
-			name := "fuzz-computation-" + seatID + ".js"
 			body := "console.log('fuzz computation for " + seatID + "');"
-			if r.coin(25) {
-				body = "console.log(Math.random());" // exercises the OBSERVED grade
+			drifts := r.coin(25)
+			if drifts {
+				body = "console.log(Math.random());" // moves between the runs: `variant`, with its invariant
 			}
-			if err := r.writeScript(name, body); err != nil {
+			dir, argv, err := r.writeBundle("fuzz-computation-"+seatID+".js", body)
+			if err != nil {
 				return
 			}
 			// SOME COMPUTATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES, as some citations do: anchored
@@ -4496,8 +4495,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 			pv := r.do("compute", seatID).
 				set("--quote", "§ fuzz sentence").
 				on(25, "--quote", "across the whole sampled corpus").
-				set("--script", name).
-				set("--reason", "fuzz: computing rather than arguing")
+				set("--dir", dir).
+				set("--reason", "fuzz: computing rather than arguing").
+				runs(argv)
+			// OUTPUT THAT MOVES IS REFUSED UNTIL THE SEAT STATES WHAT HOLDS ACROSS THE RUNS, and an
+			// invariant over runs that agreed is refused: the drive states one exactly when it drifts.
+			if drifts {
+				pv.set("--variance", "every run prints one number in [0, 1)")
+			}
 			// ANSWER a real gap most of the time: a computation check closes only on a computation
 			// that names it, so without this the guard would only ever be seen refusing.
 			if len(open) > 0 && r.coin(70) {
@@ -5899,6 +5904,9 @@ const reopenedComputationSeed = 5
 // on the record (EvidenceComputationJSON.Sha256), so the chain never recovers it from report text.
 const reopenedComputationScript = "console.log('fuzz: the computation a later edit reopens');"
 
+// reopenedComputationName is the file the reopened computation's bundle holds it as.
+const reopenedComputationName = "fuzz-reopened-computation.js"
+
 // unsoundComputationSeed is the seed whose run is FORCED to a standing unsound judgement that a plan
 // readies the judge or blue for (forceUnsoundComputation). It is within the six seeds the race variant
 // runs, whose sweep gates the arm as well, and casts every lens, so its computations fall to the
@@ -5915,9 +5923,12 @@ const reopenedComputationScript = "console.log('fuzz: the computation a later ed
 // one.
 const unsoundComputationSeed = 6
 
-// unsoundComputationScript is the forced unsound computation's script; its sha256 identifies the computation on the
-// record (computationsOfScript).
+// unsoundComputationScript is the forced unsound computation's program; its bundle's identity names the
+// computation on the record (computationsOfBundle).
 const unsoundComputationScript = "console.log('fuzz: the computation its owner judges unsound');"
+
+// unsoundComputationName is the file the unsound computation's bundle holds it as.
+const unsoundComputationName = "fuzz-unsound-computation.js"
 
 // owedComputationSeed is the seed whose run is FORCED to keep a computation nobody has checked before every plan
 // that follows a blue-respond sitting (forceOwedComputation), and whose computation lens mints nothing and
@@ -8017,21 +8028,25 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				}
 			}
 		case dirCompute, dirComputeDrifts:
-			// SETTLE IT BY COMPUTING. The script is written into the run dir and the tool runs
-			// it TWICE, so this drives the real interpreter, the cache, the anchor splice and
-			// the reproducible/observed grading — and --answers ties the execution to the gap
-			// it settles, which is what makes red's re-run targetable rather than arbitrary.
-			name := "fuzz-answer-" + id + ".js"
+			// SETTLE IT BY COMPUTING. The program is written into a bundle of its own and the tool
+			// runs it TWICE in fresh copies, so this drives the real interpreter, the store, the
+			// anchor splice and the reproducible/variant grading — and --answers ties the execution
+			// to the gap it settles, which is what makes red's re-run targetable rather than arbitrary.
 			body := "console.log('settles " + id + "');"
-			if r.scenarioOf(id) == dirComputeDrifts {
-				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
+			drifts := r.scenarioOf(id) == dirComputeDrifts
+			if drifts {
+				body = "console.log(Math.random());" // graded `variant`, and it will not re-run the same
 			}
-			if err := r.writeScript(name, body); err == nil {
+			if dir, argv, err := r.writeBundle("fuzz-answer-"+id+".js", body); err == nil {
 				comp := r.do("compute", seatID).
 					set("--quote", "§ fuzz sentence").
-					set("--script", name).
+					set("--dir", dir).
 					set("--answers", id).
-					set("--reason", "fuzz: computing rather than arguing")
+					set("--reason", "fuzz: computing rather than arguing").
+					runs(argv)
+				if drifts {
+					comp.set("--variance", "every run prints one number in [0, 1)")
+				}
 				// The METHOD is cited and the instance computed — that pairing is the whole
 				// claim of the computation axis. It passed the FABRICATED label "c-fuzz", which named
 				// no citation on the record: a computation claiming a provenance it did not have, and

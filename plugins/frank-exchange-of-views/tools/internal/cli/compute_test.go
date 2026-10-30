@@ -22,12 +22,30 @@ func computeSeat(t *testing.T, runDir, body string) string {
 	return seat
 }
 
+// script writes a one-file bundle: name, alone in scratch/<name without its extension>/ under the
+// run directory, and returns that bundle directory as --dir takes it — relative to the run.
 func script(t *testing.T, runDir, name, body string) string {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(runDir, name), []byte(body), 0o644); err != nil {
+	dir := filepath.Join("scratch", strings.TrimSuffix(name, filepath.Ext(name)))
+	if err := os.MkdirAll(filepath.Join(runDir, dir), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return name
+	if err := os.WriteFile(filepath.Join(runDir, dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return filepath.ToSlash(dir)
+}
+
+// ahead adds flags to an argument list ahead of its `--`, where compute's command stays last; a
+// list with no `--` takes them at its end.
+func ahead(args []string, flags ...string) []string {
+	out := append([]string{}, args...)
+	for i, a := range out {
+		if a == "--" {
+			return append(append(out[:i:i], flags...), args[i:]...)
+		}
+	}
+	return append(out, flags...)
 }
 
 // A computation settles the claim, anchors at the sentence it backs, and leaves an artifact.
@@ -38,7 +56,7 @@ func TestComputeAnchorsAndRecordsTheComputation(t *testing.T) {
 
 	out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
-		"--script", s, "--reason", "trial division settles it")
+		"--dir", s, "--reason", "trial division settles it", "--", "node", "nine.js")
 	if err != nil {
 		t.Fatalf("compute: %v", err)
 	}
@@ -80,7 +98,7 @@ func TestBlueEditCannotDropAComputationAnchor(t *testing.T) {
 	seat := computeSeat(t, runDir, "# H\n\nNine is composite by trial division. The protocol therefore rejects it.\n")
 	s := script(t, runDir, "n.js", "console.log('composite');")
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "Nine is composite by trial division.", "--script", s, "--reason", "r"); err != nil {
+		"--quote", "Nine is composite by trial division.", "--dir", s, "--reason", "r", "--", "node", "n.js"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", seat,
@@ -100,7 +118,7 @@ func TestRedReproducesAComputation(t *testing.T) {
 	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", "console.log('no divisors in 2..6');")
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
+		"--quote", "Seven has no divisor between two and six.", "--dir", s, "--reason", "r", "--", "node", "seven.js"); err != nil {
 		t.Fatal(err)
 	}
 	computationAnchor := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
@@ -128,17 +146,18 @@ func TestAMovingComputationIsRecordedVariantOnlyWithItsInvariant(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
-	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system"}
+	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--dir", s, "--reason", "sampling a live system"}
+	command := []string{"--", "node", "moves.js"}
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION)
-	out, err := run(t, args...)
+	out, err := run(t, append(args, command...)...)
 	if err == nil || !strings.Contains(err.Error()+out, "--variance") {
 		t.Fatalf("a moving computation with no invariant was recorded, or its refusal does not name --variance: %v\n%s", err, out)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); n != before {
 		t.Errorf("the refused computation recorded %d event(s)", n-before)
 	}
-	out, err = run(t, append(args, "--variance", "a number in [0, 1)")...)
+	out, err = run(t, append(append(args, "--variance", "a number in [0, 1)"), command...)...)
 	if err != nil || !strings.Contains(out, "variant") {
 		t.Fatalf("a moving computation with its invariant stated was not recorded variant: %v\n%s", err, out)
 	}
@@ -147,22 +166,23 @@ func TestAMovingComputationIsRecordedVariantOnlyWithItsInvariant(t *testing.T) {
 	}
 
 	steady := script(t, runDir, "steady.js", "console.log(7);")
-	out, err = run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--script", steady, "--reason", "r", "--variance", "seven")
+	out, err = run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--dir", steady, "--reason", "r", "--variance", "seven", "--", "node", "steady.js")
 	if err == nil {
 		t.Errorf("--variance over runs that agreed was recorded:\n%s", out)
 	}
 }
 
 // A computation that cannot run is not evidence, and the failure is a capability signal — the same
-// treatment `blue cite` gives an unreachable source.
+// treatment `blue cite` gives an unreachable source. Here the command names a program this
+// environment does not have on PATH.
 func TestAnUnrunnableComputationIsRefusedAndLogged(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "mystery.rb", "puts 1")
 
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
-		t.Fatal("a script with no known interpreter was accepted as evidence")
+		"--quote", "A sentence to anchor to.", "--dir", s, "--reason", "r", "--", "feov-no-such-interpreter", "mystery.rb"); err == nil {
+		t.Fatal("a command this environment does not have was accepted as evidence")
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
 		t.Error("the refusal wrote no log entry, so the missing capability is invisible to the retool loop")
@@ -178,7 +198,7 @@ func TestComputeRefusesAMisquotedLocation(t *testing.T) {
 	seat := computeSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "ok.js", "console.log('x');")
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "a sentence that is not in the report", "--script", s, "--reason", "r"); err == nil {
+		"--quote", "a sentence that is not in the report", "--dir", s, "--reason", "r", "--", "node", "ok.js"); err == nil {
 		t.Fatal("a computation anchored to text the report does not contain was accepted")
 	}
 }
@@ -191,7 +211,7 @@ func TestAComputationRetryIsHeldToEverythingItStated(t *testing.T) {
 	const first, second = "Nine is composite.", "Ten is composite."
 	seat := computeSeat(t, runDir, "# H\n\n"+first+"\n\n"+second+"\n")
 	s := script(t, runDir, "nine.js", "console.log(9%3)")
-	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--key", "P1", "--script", s, "--quote", first, "--reason", "trial division"}
+	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--key", "P1", "--dir", s, "--quote", first, "--reason", "trial division", "--", "node", "nine.js"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatalf("compute: %v", err)
 	}
@@ -226,7 +246,7 @@ func TestExpectErrorOnACleanRunIsRefused(t *testing.T) {
 	seat := computeSeat(t, runDir, "# H\n\nNine is composite.\n")
 	s := script(t, runDir, "nine.js", "console.log(9%3)")
 	_, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "Nine is composite.",
-		"--script", s, "--reason", "trial division", "--expect-error")
+		"--dir", s, "--reason", "trial division", "--expect-error", "--", "node", "nine.js")
 	if err == nil || !strings.Contains(err.Error(), "drop --expect-error") {
 		t.Errorf("--expect-error on a clean run = %v; want it refused", err)
 	}

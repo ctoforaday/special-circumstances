@@ -512,8 +512,8 @@ type sourceLiteral struct {
 
 // moduleLiterals is every interpreted string literal in the module's non-test, non-generated
 // sources outside notSeatFacing, with adjacent `+` operands joined — a long refusal is written as
-// several literals, and a span may straddle the seam ("Settle each with `blue compute … --script
-// <path> " + "--answers <gap>`"). A non-literal operand (a %s argument, a constant from another
+// several literals, and a span may straddle the seam ("Settle each with `blue compute … --dir
+// <bundle> " + "--answers <gap>`"). A non-literal operand (a %s argument, a constant from another
 // package, a function call) joins as one space, so a span that straddles one is read with a gap
 // where the value goes — `show --run %s --view <name>` still names its command and its flags.
 func moduleLiterals(t *testing.T) []sourceLiteral {

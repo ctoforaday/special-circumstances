@@ -72,9 +72,10 @@ func retireClaim(t *testing.T, runDir, claim string) *recordpb.Retire {
 // leave bare, for the retire to take out with its claim.
 func computeSentence(t *testing.T, runDir, sentence string) string {
 	t.Helper()
-	s := script(t, runDir, "compute-"+strings.Trim(strings.Fields(sentence)[0], ".")+".js", "console.log('it holds');")
+	name := "compute-" + strings.Trim(strings.Fields(sentence)[0], ".") + ".js"
+	s := script(t, runDir, name, "console.log('it holds');")
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
-		"--script", s, "--reason", "the computation settles it"); err != nil {
+		"--dir", s, "--reason", "the computation settles it", "--", "node", name); err != nil {
 		t.Fatalf("compute %q: %v", sentence, err)
 	}
 	return lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
@@ -279,7 +280,7 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 			case "computation":
 				s := script(t, runDir, "wet.js", "console.log('wet');")
 				if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
-					"--script", s, "--reason", "the computation settles it"); err != nil {
+					"--dir", s, "--reason", "the computation settles it", "--", "node", "wet.js"); err != nil {
 					t.Fatalf("compute: %v", err)
 				}
 				id = lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()

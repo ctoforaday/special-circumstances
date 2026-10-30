@@ -32,16 +32,21 @@ func TestAProgramThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
 	// script printed its 0 for a reason that had nothing to do with the tool. The paths travel as
 	// JSON strings here, and a call that cannot start says so in the output rather than as a 0.
 	//
-	// from is the execution, counted in a file beside the run, from which the program calls the tool:
-	// 1 calls on every run, and 4 first on the run after `compute`'s three.
+	// from is the execution, counted in a file beside the run — outside the bundle, whose copies start
+	// fresh on every run — from which the program calls the tool: 1 calls on every run, and 3 first on
+	// the run after `compute`'s two. The program is the one file of its own bundle directory.
 	quote := func(s string) string { b, _ := json.Marshal(s); return string(b) }
 	program := func(name string, from int) string {
 		t.Helper()
-		path := filepath.Join(runDir, name)
+		dir := filepath.Join(runDir, strings.TrimSuffix(name, filepath.Ext(name)))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		runs := quote(filepath.Join(runDir, name+".runs"))
 		body := `const fs = require("fs");
 const { execFileSync } = require("child_process");
-fs.appendFileSync(` + quote(name+".runs") + `, "x");
-if (fs.readFileSync(` + quote(name+".runs") + `, "utf8").length >= ` + strconv.Itoa(from) + `) {
+fs.appendFileSync(` + runs + `, "x");
+if (fs.readFileSync(` + runs + `, "utf8").length >= ` + strconv.Itoa(from) + `) {
   try {
     execFileSync(` + quote(bin) + `, ["--run", ` + quote(runDir) + `, "--seat-id", "blue-respond", "show", "board", "--json"], { stdio: "ignore" });
   } catch (e) {
@@ -50,10 +55,10 @@ if (fs.readFileSync(` + quote(name+".runs") + `, "utf8").length >= ` + strconv.I
 }
 console.log("0");
 `
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		return path
+		return dir
 	}
 	do := func(verb string, args ...string) invocation {
 		t.Helper()
@@ -72,7 +77,7 @@ console.log("0");
 		}
 	}
 
-	refused := do("compute", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--script", program("always.js", 1), "--reason", "reads the board", "--json")
+	refused := do("compute", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--dir", program("always.js", 1), "--reason", "reads the board", "--json", "--", "node", "always.js")
 	if refused.code == 0 || !strings.Contains(refused.stdout+refused.stderr, "calls feov-record") {
 		t.Fatalf("compute of a program whose stored copy calls the tool: exit %d, want a refusal naming the call\nstdout: %s\nstderr: %s", refused.code, refused.stdout, refused.stderr)
 	}
@@ -80,7 +85,7 @@ console.log("0");
 		t.Fatalf("the refused compute recorded %d computation(s)", len(ev.Computations))
 	}
 
-	comp := do("compute", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--script", program("later.js", 4), "--reason", "reads the board", "--json")
+	comp := do("compute", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--dir", program("later.js", 3), "--reason", "reads the board", "--json", "--", "node", "later.js")
 	if comp.code != 0 {
 		t.Fatalf("compute of a program whose runs call nothing: exit %d\nstdout: %s\nstderr: %s", comp.code, comp.stdout, comp.stderr)
 	}

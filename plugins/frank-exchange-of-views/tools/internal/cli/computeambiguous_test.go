@@ -15,7 +15,7 @@ func TestComputeRefusesAnAmbiguousQuoteNamingEachOccurrence(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", "91 is 7 times 13",
-		"--script", script(t, runDir, "f.js", "console.log(7*13)"), "--reason", "r")
+		"--dir", script(t, runDir, "f.js", "console.log(7*13)"), "--reason", "r", "--", "node", "f.js")
 	if err == nil {
 		t.Fatal("compute placed a computation on a quote that occurs twice")
 	}

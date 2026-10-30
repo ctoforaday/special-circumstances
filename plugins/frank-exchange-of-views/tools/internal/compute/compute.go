@@ -26,11 +26,16 @@ package compute
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -41,18 +46,30 @@ import (
 // project, and belongs in prose with its cost stated.
 const Timeout = 60 * time.Second
 
-// Result is one recorded execution: the bundle the tool stored, and what its two runs wrote.
+// BundleToken is what every copy's root reads as in a program's output: the two copies sit at
+// different paths, and a program that prints its own location prints the same line from either.
+const BundleToken = "<bundle>"
+
+// The copies' roots under one execution's scratch directory: the same leaf name at two depths, so a
+// program that names its own directory prints the same word from both, and one that reaches out of
+// its copy by a relative path (`../x`) reaches a different place from each.
+var copyRoots = [2]string{filepath.Join("a", "bundle"), filepath.Join("b", "c", "bundle")}
+
+// Result is one recorded execution: what the first of the two runs wrote, and what moved.
 type Result struct {
-	// Bundle is the bundle's identity (BundleSha) over Argv and the stored file.
 	Bundle string
 	Argv   []string
 	Output string
 	Exit   int
-	// Drift is what moved between the runs — the author's two, or the store's copy against them —
-	// or "" when every run wrote the same bytes.
+	// Out is every file the first run wrote under out/, by its path inside out/.
+	Out []File
+	// ToolchainPath and ToolchainSha256 name argv[0] as it resolved on this machine: "" for a bundle
+	// file, whose bytes are already in the bundle's identity.
+	ToolchainPath, ToolchainSha256 string
+	// Drift is what moved between the runs — exit, output or out/ — or "" when both wrote the same.
 	Drift string
-	// Calls is every feov-record call the stored copy made, each refused: a bundle that calls the
-	// tool cannot run in a checker's hands.
+	// Calls is every feov-record call either run made, each refused: a bundle that calls the tool
+	// cannot run in a checker's hands.
 	Calls []string
 	// Failed is the interpreter/shell error line found in the output, or "" when there is none.
 	//
@@ -63,137 +80,205 @@ type Result struct {
 	Failed string
 }
 
-// interpreterFor and its PATH resolution live in interpreter.go, which generalises what stood
-// here: per-extension candidate lists, the Windows `py -3` launcher, and a miss that names which
-// interpreters this environment DOES have rather than only saying no.
-
-// ScriptPath is the file a --script names: absolute as given, or relative to the run directory —
-// the one resolution ScriptBundle, Run and the caller's checks all read.
-func ScriptPath(runDir, scriptPath string) string {
-	if filepath.IsAbs(scriptPath) {
-		return scriptPath
-	}
-	return filepath.Join(runDir, scriptPath)
+// execution is what one copy's run wrote.
+type execution struct {
+	output string
+	exit   int
+	out    []File
+	calls  []string
 }
 
-// ScriptArgv is the command a one-script bundle is named by: the extension's first interpreter and
-// the stored file, `script<ext>`. It is the argv the bundle's identity is over, so it names the
-// interpreter, never the path one machine resolves it to.
-func ScriptArgv(scriptPath string) ([]string, error) {
-	ext := strings.ToLower(filepath.Ext(scriptPath))
-	names := candidates[ext]
-	if len(names) == 0 {
-		return nil, fmt.Errorf("%s has no known interpreter — a program must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(scriptPath))
-	}
-	return append(append([]string{names[0]}, argvFor[names[0]]...), "script"+ext), nil
+// command is how a program's argv[0] starts on this machine.
+type command struct {
+	// bundled is argv[0]'s path inside the bundle, or "" when argv[0] is not a bundle file.
+	bundled string
+	// path is the file that starts when argv[0] is not a bundle file.
+	path            string
+	toolchainSha256 string
 }
 
-// ScriptBundle is the bundle a --script names, and its identity — computed WITHOUT running it.
-//
-// It exists so `compute` can tell a crash-retry from a key collision before it decides to skip the
-// work. Those two look identical at the key and are opposite facts: one is the same program
-// arriving twice, the other is a DIFFERENT program under a key an earlier dispatch already burned.
-func ScriptBundle(runDir, scriptPath string) (bundle string, argv []string, files []File, err error) {
-	body, err := os.ReadFile(ScriptPath(runDir, scriptPath))
+// resolve finds what argv[0] starts. A relative path with a separator is a bundle file, run from the
+// copy; an absolute path is that file; a bare name is looked up on PATH. A miss is named, because a
+// seat told only "no" writes the same command again.
+func resolve(argv []string) (command, error) {
+	arg0 := argv[0]
+	if rel, ok := bundled(arg0); ok {
+		return command{bundled: rel}, nil
+	}
+	path := arg0
+	if !filepath.IsAbs(arg0) {
+		p, err := exec.LookPath(arg0)
+		if err != nil {
+			return command{}, fmt.Errorf("%s is not on PATH in this environment, so the computation cannot run here — name a program this environment has, or one in the bundle as ./<file>", arg0)
+		}
+		if path, err = filepath.Abs(p); err != nil {
+			return command{}, err
+		}
+	}
+	sum, err := fileSha(path)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("cannot read %s: %w", scriptPath, err)
+		return command{}, fmt.Errorf("cannot read %s, the program the command names: %w", path, err)
 	}
-	if argv, err = ScriptArgv(scriptPath); err != nil {
-		return "", nil, nil, err
-	}
-	files = []File{{Path: argv[len(argv)-1], Body: body}}
-	return BundleSha(argv, Sums(files)), argv, files, nil
+	return command{path: path, toolchainSha256: sum}, nil
 }
 
-// Run executes the script TWICE, stores it as a one-file bundle under
-// <runDir>/computations/<bundle_sha>/dir/, and runs the stored copy as a checker would.
+func fileSha(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// Run executes the program TWICE, each in its own fresh copy of the bundle outside the run tree, and
+// reports what the first wrote and what moved between the two. It stores nothing: the caller decides
+// whether the seat's act is accepted, and writes the store only then.
 //
 // Twice is the whole mechanism. One run cannot tell a computation from a coin flip, and the
-// difference is exactly what a reader needs. Run refuses nothing about what the runs wrote: it
-// reports the drift, and the caller decides whether the seat accepted it.
+// difference is exactly what a reader needs.
 //
-// THE STORED COPY RUNS TOO, because the store is where every later reader runs it. Running twice
-// from the author's own path proves determinism THERE and says nothing about whether the artifact
-// this run ships can be checked by anybody else. In research/2026-09-02_quadratic-formula 28
-// programs ran twice from the author's path and matched, while six did not reproduce from the
-// store and one exited 0 from it printing INVERTED answers: the author's directory is three levels
-// under the run, the store deeper, and `__file__`-relative path arithmetic silently changes
-// meaning between them.
-func Run(runDir, scriptPath string) (*Result, error) {
-	bundle, argv, files, err := ScriptBundle(runDir, scriptPath)
+// TWO COPIES AT DIFFERENT DEPTHS, NEITHER THE AUTHOR'S, because a later reader runs a copy too. In
+// research/2026-09-02_quadratic-formula 28 programs ran twice from the author's path and matched,
+// while six did not reproduce from the store and one exited 0 from it printing INVERTED answers:
+// `__file__`-relative path arithmetic silently changes meaning between directories. Two copies at
+// different depths make that arithmetic move between the runs, where it is seen.
+func Run(runDir string, p *Program) (res *Result, err error) {
+	c, err := resolve(p.Argv)
 	if err != nil {
 		return nil, err
 	}
-	body := files[0].Body
-	if len(bytes.TrimSpace(body)) == 0 {
-		return nil, fmt.Errorf("%s is empty — an empty program exits cleanly and establishes nothing, which is the most misleading artifact available", scriptPath)
-	}
-	abs := ScriptPath(runDir, scriptPath)
-	interp, err := interpreterFor(abs)
+	base, err := scratch(runDir)
 	if err != nil {
 		return nil, err
 	}
-
-	first, exit1, err := execute(runDir, interp, abs)
-	if err != nil {
-		return nil, err
+	defer func() { err = errors.Join(err, clear(base)) }()
+	var runs [2]execution
+	for i, sub := range copyRoots {
+		if runs[i], err = execute(Timeout, filepath.Join(base, sub), p, c); err != nil {
+			return nil, err
+		}
 	}
-	second, exit2, err := execute(runDir, interp, abs)
-	if err != nil {
-		return nil, err
+	first, second := runs[0], runs[1]
+	res = &Result{Bundle: p.Sha, Argv: p.Argv, Output: first.output, Exit: first.exit, Out: first.out,
+		ToolchainPath: c.path, ToolchainSha256: c.toolchainSha256}
+	if c.bundled != "" {
+		res.ToolchainPath, res.ToolchainSha256 = "", ""
 	}
-	res := &Result{Bundle: bundle, Argv: argv, Output: first, Exit: exit1}
-	if first != second || exit1 != exit2 {
-		res.Drift = describeDrift(first, second, exit1, exit2)
-	}
-	res.Failed = ErrorSignature(first)
-	if err := WriteBundle(runDir, bundle, argv, files); err != nil {
-		return nil, err
-	}
-	stored, sexit, calls, serr := executeStored(runDir, bundle, argv)
-	switch {
-	case serr != nil:
-		return nil, fmt.Errorf("%s does not run from the store: %w", scriptPath, serr)
-	case len(calls) > 0:
-		res.Calls = calls
-	case res.Drift == "" && (stored != res.Output || sexit != res.Exit):
-		res.Drift = "the stored copy says something else — " + describeDrift(res.Output, stored, res.Exit, sexit)
-	}
+	res.Drift = describeDrift(first, second)
+	res.Calls = union(first.calls, second.calls)
+	res.Failed = ErrorSignature(first.output)
 	return res, nil
 }
 
-// executeStored runs a bundle's stored copy as a checker runs it: `computations/<sha>/dir/` is the
-// only copy that outlives the run directory's working files and the only one a later audit can
-// reach.
-func executeStored(runDir, bundle string, argv []string) (string, int, []string, error) {
-	stored := filepath.Join(BundlePath(runDir, bundle), argv[len(argv)-1])
-	interp, err := interpreterFor(stored)
+// scratch is a fresh directory for one act's copies, outside the run tree: a copy inside it would
+// let a program reach the run by a relative path that no other machine holds.
+func scratch(runDir string) (string, error) {
+	base, err := os.MkdirTemp("", "feov-compute-*")
 	if err != nil {
-		return "", 0, nil, err
+		return "", fmt.Errorf("could not make a directory for the program's copies: %w", err)
 	}
-	return executeChecked(runDir, interp, stored)
+	canonBase, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		os.RemoveAll(base)
+		return "", err
+	}
+	if canonRun, err := filepath.EvalSymlinks(runDir); err == nil {
+		if rel, err := filepath.Rel(canonRun, canonBase); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			os.RemoveAll(base)
+			return "", fmt.Errorf("the system's temporary directory %s is inside the run directory %s, and a program's copies must sit outside the run tree — point TMPDIR elsewhere", canonBase, canonRun)
+		}
+	}
+	return base, nil
 }
 
-// executeChecked is execute as a CHECKER runs it: the script's environment names a fresh marker
-// file under seatenv.VarComputeRerun, feov-record refuses every call made under it and appends the
-// call there, and the calls come back beside the output. A script that called the tool cannot run
-// in a checker's hands, whatever it then did with the refusal — a `jq` over the refusal turns it
-// into an ordinary-looking number.
-func executeChecked(runDir string, argv []string, script string) (string, int, []string, error) {
-	marker, err := os.CreateTemp("", "feov-computation-rerun-*")
-	if err != nil {
-		return "", 0, nil, fmt.Errorf("could not stage the re-run's tool-call marker: %w", err)
+// clear removes an execution's scratch directory, clearing every read-only bit first: a program may
+// leave a directory it cannot be deleted from, and Windows refuses to remove a read-only file.
+func clear(base string) error {
+	filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+		if d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			os.Chmod(p, 0o700)
+		} else if d.Type().IsRegular() {
+			os.Chmod(p, 0o600)
+		}
+		return nil
+	})
+	if err := os.RemoveAll(base); err != nil {
+		return fmt.Errorf("could not remove the program's copies at %s: %w", base, err)
 	}
-	path := marker.Name()
-	marker.Close()
-	defer os.Remove(path)
-	out, code, err := executeIn(runDir, argv, script, append(os.Environ(), seatenv.VarComputeRerun+"="+path))
-	if err != nil {
-		return "", 0, nil, err
+	return nil
+}
+
+// execute runs the program once in a fresh copy of its bundle at root.
+//
+// THE COPY IS WRITTEN WITH EXPLICIT MODES, never the umask's: every file 0644, argv[0]'s bundle file
+// 0755, every directory 0755. The mode is not part of the bundle's identity, so it is the tool's to
+// set the same way in every copy on every machine.
+//
+// THE ROOT IS READ BACK CANONICAL (EvalSymlinks; on Windows the long form of an 8.3 path), because
+// that is the spelling the program sees: getcwd and an interpreter's own file path resolve every
+// symlink on the way. Replacing any other spelling with BundleToken would leave the copy's real path
+// in the output, different in each copy.
+func execute(limit time.Duration, root string, p *Program, c command) (execution, error) {
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return execution{}, err
 	}
-	body, err := os.ReadFile(path)
+	canon, err := filepath.EvalSymlinks(root)
 	if err != nil {
-		return "", 0, nil, fmt.Errorf("could not read the re-run's tool-call marker: %w", err)
+		return execution{}, err
+	}
+	for _, f := range p.Files {
+		path := filepath.Join(canon, filepath.FromSlash(f.Path))
+		if err := mkdirs(canon, filepath.Dir(path)); err != nil {
+			return execution{}, err
+		}
+		if err := os.WriteFile(path, f.Body, 0o644); err != nil {
+			return execution{}, err
+		}
+		mode := os.FileMode(0o644)
+		if f.Path == c.bundled {
+			mode = 0o755
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			return execution{}, err
+		}
+	}
+	if err := mkdirs(canon, filepath.Join(canon, "out")); err != nil {
+		return execution{}, err
+	}
+	// The checker's marker and the plotting config sit beside the copy, never in it.
+	parent := filepath.Dir(canon)
+	marker := filepath.Join(parent, "calls")
+	rc := filepath.Join(parent, "matplotlibrc")
+	if err := os.WriteFile(marker, nil, 0o600); err != nil {
+		return execution{}, err
+	}
+	// svg.hashsalt fixes the ids matplotlib otherwise salts at random into every SVG it writes.
+	if err := os.WriteFile(rc, []byte("svg.hashsalt: feov\n"), 0o644); err != nil {
+		return execution{}, err
+	}
+	path := c.path
+	if c.bundled != "" {
+		path = filepath.Join(canon, filepath.FromSlash(c.bundled))
+	}
+	output, exit, err := launch(limit, canon, path, p.Argv, checkerEnv(canon, marker, rc))
+	if err != nil {
+		return execution{}, err
+	}
+	out, err := readOut(filepath.Join(canon, "out"))
+	if err != nil {
+		return execution{}, err
+	}
+	body, err := os.ReadFile(marker)
+	if err != nil {
+		return execution{}, fmt.Errorf("could not read the run's tool-call marker: %w", err)
 	}
 	var calls []string
 	for _, line := range strings.Split(string(body), "\n") {
@@ -201,101 +286,205 @@ func executeChecked(runDir string, argv []string, script string) (string, int, [
 			calls = append(calls, line)
 		}
 	}
-	return out, code, calls, nil
+	return execution{output: strings.ReplaceAll(output, canon, BundleToken), exit: exit, out: out, calls: calls}, nil
 }
 
-// execute runs one pass with the run directory as the working directory.
+// mkdirs makes dir and every directory between root and it, each 0755 whatever the umask.
+func mkdirs(root, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for d := dir; d != root && strings.HasPrefix(d, root); d = filepath.Dir(d) {
+		if err := os.Chmod(d, 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkerEnv is the environment a program runs under: the caller's, with the checker's marker
+// (seatenv.VarComputeRerun — feov-record refuses every call made under it and appends the call
+// there) and the pins that take the commonest sources of moving output out of a run. PWD names the
+// copy, since the inherited one names the caller's directory, which no other machine has.
+func checkerEnv(root, marker, rc string) []string {
+	return append(os.Environ(),
+		seatenv.VarComputeRerun+"="+marker,
+		"SOURCE_DATE_EPOCH=0",
+		"PYTHONHASHSEED=0",
+		"TZ=UTC",
+		"LC_ALL=C",
+		"PYTHONUTF8=1",
+		"MATPLOTLIBRC="+rc,
+		"PWD="+root,
+	)
+}
+
+// launch runs path with argv (argv[0] as the seat typed it) in dir, stdout and stderr as one stream.
 //
 // A NON-ZERO EXIT IS NOT AN ERROR HERE. "The check failed" is a result a computation is entitled to
-// report: disproving a claim is worth exactly as much as proving one, and turning it into a
-// tool error would leave the engine able to record only confirmations.
-func execute(runDir string, argv []string, script string) (string, int, error) {
-	return executeIn(runDir, argv, script, nil)
-}
-
-// executeIn is execute under env, or under this process's environment when env is nil.
-func executeIn(runDir string, argv []string, script string, env []string) (string, int, error) {
-	return executeWithin(Timeout, runDir, argv, script, env)
-}
-
-// executeWithin is executeIn under a given limit; only a test asks for one other than Timeout.
-func executeWithin(limit time.Duration, runDir string, argv []string, script string, env []string) (string, int, error) {
+// report: disproving a claim is worth exactly as much as proving one.
+func launch(limit time.Duration, dir, path string, argv []string, env []string) (string, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
-	args := append(append([]string{}, argv[1:]...), script)
-	cmd := exec.CommandContext(ctx, argv[0], args...)
-	cmd.Dir = runDir
+	cmd := exec.CommandContext(ctx, path)
+	cmd.Args = append([]string{}, argv...)
+	cmd.Dir = dir
 	cmd.Env = env
-	// CombinedOutput, split so the launch is timed apart from the run: a timeout has to say whether
-	// the interpreter was slow to START or the script was slow to FINISH, which are different
-	// problems (#1554).
+	// One stream, split from CombinedOutput so the launch is timed apart from the run: a timeout has
+	// to say whether the program was slow to START or slow to FINISH, which are different problems
+	// (#1554).
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
-	// THE LIMIT HOLDS AGAINST A SCRIPT'S CHILDREN TOO. The context kills the interpreter, not what it
+	// THE LIMIT HOLDS AGAINST A PROGRAM'S CHILDREN TOO. The context kills the process, not what it
 	// started; a child still holding the output pipe kept Wait blocked until IT exited — measured: a
-	// `go run` computation killed at 500ms returned after the full minute its built binary slept. WaitDelay
-	// closes the pipe that long after the kill, so the limit is the limit.
+	// `go run` computation killed at 500ms returned after the full minute its built binary slept.
+	// WaitDelay closes the pipe that long after the kill, so the limit is the limit.
 	cmd.WaitDelay = time.Second
 	t0 := time.Now()
-	err := cmd.Start()
-	launch := time.Since(t0)
-	if err == nil {
-		err = cmd.Wait()
+	if err := cmd.Start(); err != nil {
+		return "", 0, fmt.Errorf("the system cannot start %s: %v — a bundle file the command runs directly must be a program this system executes (on Windows, an .exe; elsewhere, a binary or a script with a #! line); run a script through its interpreter instead, as `-- bash run.sh`", argv[0], err)
 	}
-	waited := time.Since(t0) - launch
-	out := buf.Bytes()
+	launched := time.Since(t0)
+	err := cmd.Wait()
+	waited := time.Since(t0) - launched
 	if ctx.Err() != nil {
-		return "", 0, fmt.Errorf("%s did not finish inside %s (launching %s took %s, then %s waiting on it) — a computation settles a question; anything longer is a project and belongs in prose with its cost stated",
-			filepath.Base(script), limit, argv[0], launch.Round(time.Millisecond), waited.Round(time.Millisecond))
+		return "", 0, fmt.Errorf("%s did not finish inside %s (launching it took %s, then %s waiting on it) — a computation settles a question; anything longer is a project and belongs in prose with its cost stated",
+			argv[0], limit, launched.Round(time.Millisecond), waited.Round(time.Millisecond))
 	}
 	if errors.Is(err, exec.ErrWaitDelay) {
-		return "", 0, fmt.Errorf("%s exited, but a process it started still held its output %s later — a computation's output is complete when the script exits, so wait for what it starts",
-			filepath.Base(script), cmd.WaitDelay)
+		return "", 0, fmt.Errorf("%s exited, but a process it started still held its output %s later — a computation's output is complete when the program exits, so wait for what it starts",
+			argv[0], cmd.WaitDelay)
 	}
 	code := 0
 	if err != nil {
 		var ee *exec.ExitError
 		if !errors.As(err, &ee) {
-			return "", 0, fmt.Errorf("could not run %s: %w (is %s installed?)", filepath.Base(script), err, argv[0])
+			return "", 0, fmt.Errorf("could not run %s: %w", argv[0], err)
 		}
 		code = ee.ExitCode()
 	}
-	return string(out), code, nil
+	return buf.String(), code, nil
 }
 
-// describeDrift names WHAT moved, so a reader can judge whether the movement is the point (a
-// live measurement) or a defect (an unseeded random, a timestamp printed into the output).
-func describeDrift(a, b string, ea, eb int) string {
-	switch {
-	case ea != eb:
-		return fmt.Sprintf("exit code moved %d -> %d between runs", ea, eb)
-	case len(a) != len(b):
-		return fmt.Sprintf("output length moved %d -> %d bytes between runs", len(a), len(b))
-	default:
-		for i := range a {
-			if a[i] != b[i] {
-				return fmt.Sprintf("output differs from byte %d between runs", i)
-			}
+// readOut reads every file a run wrote under out/, by its slash-separated path inside out/. A
+// symlink or other non-file there is refused: the act keeps out/'s bytes, and those have none.
+func readOut(dir string) ([]File, error) {
+	var out []File
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		return "output differs between runs"
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, p)
+		if err != nil {
+			return err
+		}
+		if !d.Type().IsRegular() {
+			return fmt.Errorf("the program left out/%s, which is not a file — out/ holds the files the act keeps, and this has no bytes to keep", filepath.ToSlash(rel))
+		}
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		out = append(out, File{Path: filepath.ToSlash(rel), Body: body})
+		return nil
+	})
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, err
+}
+
+func union(a, b []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range append(append([]string{}, a...), b...) {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// describeDrift names WHAT moved, so a reader can judge whether the movement is the point (a live
+// measurement) or a defect (an unseeded random, a timestamp printed into the output); "" when
+// nothing did.
+func describeDrift(a, b execution) string {
+	var moved []string
+	if a.exit != b.exit {
+		moved = append(moved, fmt.Sprintf("exit code moved %d -> %d between runs", a.exit, b.exit))
+	}
+	if a.output != b.output {
+		moved = append(moved, outputDrift(a.output, b.output))
+	}
+	if d := OutDrift(a.out, b.out); d != "" {
+		moved = append(moved, d)
+	}
+	return strings.Join(moved, "; ")
+}
+
+func outputDrift(a, b string) string {
+	if len(a) != len(b) {
+		return fmt.Sprintf("output length moved %d -> %d bytes between runs", len(a), len(b))
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return fmt.Sprintf("output differs from byte %d between runs", i)
+		}
+	}
+	return "output differs between runs"
+}
+
+// OutDrift names every out/ file that differs between two sets, or "" when they hold the same
+// bytes. An absent out/ and an empty one are the same set.
+func OutDrift(a, b []File) string {
+	am, bm := map[string][]byte{}, map[string][]byte{}
+	var names []string
+	for _, f := range a {
+		am[f.Path] = f.Body
+		names = append(names, f.Path)
+	}
+	for _, f := range b {
+		if _, ok := am[f.Path]; !ok {
+			names = append(names, f.Path)
+		}
+		bm[f.Path] = f.Body
+	}
+	sort.Strings(names)
+	var moved []string
+	for _, n := range names {
+		x, inA := am[n]
+		y, inB := bm[n]
+		switch {
+		case !inB:
+			moved = append(moved, "out/"+n+" written by the first only")
+		case !inA:
+			moved = append(moved, "out/"+n+" written by the second only")
+		case !bytes.Equal(x, y):
+			moved = append(moved, "out/"+n+" differs")
+		}
+	}
+	return strings.Join(moved, ", ")
 }
 
 // ErrorSignature reports the first line of output that is the ENVIRONMENT failing rather than the
 // computation answering, or "" when the output holds none.
 //
-// WHY THIS IS NOT THE EXIT CODE. Both computations that produced it exited 0. `Run` executes with the
-// RUN directory as its working directory; two lane scripts were authored against the repo root
-// (their own comments say "run from repo root"), so `find ./plugins/…` printed
-// "No such file or directory", the script carried on past it, and the run ended clean. One
-// recorded a file enumeration that enumerated nothing — every "ABSENT" verdict below it vacuous —
-// and the other recorded "0 files, 0 bytes" immediately above its own hard-coded line asserting
-// the opposite. Both were cited in a shipped report as re-runnable evidence.
+// WHY THIS IS NOT THE EXIT CODE. Both computations that produced it exited 0. Two lane scripts were
+// authored against the repo root (their own comments say "run from repo root"), so
+// `find ./plugins/…` printed "No such file or directory", the script carried on past it, and the run
+// ended clean. One recorded a file enumeration that enumerated nothing — every "ABSENT" verdict below
+// it vacuous — and the other recorded "0 files, 0 bytes" immediately above its own hard-coded line
+// asserting the opposite. Both were cited in a shipped report as re-runnable evidence.
 //
-// THE SIGNATURES ARE THE SHELL'S AND THE INTERPRETER'S, not the script's vocabulary. A computation about
-// error handling may legitimately print the word "error"; none of the lines below are ones a
-// script produces on purpose, and the one case that does — a computation whose POINT is to capture a
-// failing command — says so with `--expect-error` rather than being guessed at from the text.
+// THE SIGNATURES ARE THE SHELL'S AND THE INTERPRETER'S, not the program's vocabulary. A computation
+// about error handling may legitimately print the word "error"; none of the lines below are ones a
+// program produces on purpose, and the one case that does — a computation whose POINT is to capture
+// a failing command — says so with `--expect-error` rather than being guessed at from the text.
 var errorSignatures = []string{
 	"No such file or directory",
 	"command not found",
@@ -352,27 +541,26 @@ func short(sha string) string {
 
 // Rerun is one re-run of a recorded computation's stored bundle, against one act's recorded result.
 type Rerun struct {
-	// Matches is whether it wrote the act's recorded output and exit byte for byte. Never true where
-	// the bundle called the tool.
+	// Matches is whether it wrote the act's recorded output, exit and out/ byte for byte. Never true
+	// where the bundle called the tool.
 	Matches bool
 	// Got and Exit are what it wrote; Want is what the act's run recorded.
 	Got, Want string
 	Exit      int
+	// OutDrift names the out/ files that differ from the act's, or "" when they agree.
+	OutDrift string
 	// ToolCalls is every feov-record call the bundle made, each one refused (seatenv.VarComputeRerun).
 	// A bundle that made any cannot run in a checker's hands, and nothing it printed is a result.
 	ToolCalls []string
 }
 
-// Reproduce re-runs a recorded computation's bundle and reports whether it still writes what the
-// act recorded: its stored output and its exit, which the record holds.
+// Reproduce re-runs a recorded computation's bundle in one fresh copy, as `compute` ran it, and
+// reports whether it still writes what the act recorded: its stored output and out/, and its exit,
+// which the record holds.
 //
 // THIS IS RED'S AUDIT, and it is strictly stronger than any citation check: a cited source is
-// re-read and believed; a computation is re-executed and compared. It is also the direct answer to
-// the smoke's R2-2, where blue could only assert that a test had happened.
-//
-// IT RUNS AS A CHECKER (executeChecked), so a bundle that calls the tool is reported as one, never
-// as a match.
-func Reproduce(runDir, bundle string, argv []string, id string, exit int) (Rerun, error) {
+// re-read and believed; a computation is re-executed and compared.
+func Reproduce(runDir, bundle string, argv []string, id string, exit int) (r Rerun, err error) {
 	recorded, err := ActOutput(runDir, bundle, id)
 	if err != nil {
 		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. A seat that names a computation the
@@ -383,12 +571,34 @@ func Reproduce(runDir, bundle string, argv []string, id string, exit int) (Rerun
 	if len(argv) == 0 {
 		return Rerun{}, fmt.Errorf("computation %s names no command, so it cannot be re-run — which is the one thing a computation is for", id)
 	}
-	if _, err := os.Stat(filepath.Join(BundlePath(runDir, bundle), argv[len(argv)-1])); err != nil {
-		return Rerun{}, fmt.Errorf("%s has no stored program, so it cannot be re-run — which is the one thing a computation is for", short(bundle))
+	files, err := Bundle(runDir, bundle)
+	if err != nil {
+		return Rerun{}, fmt.Errorf("%s has no stored bundle, so it cannot be re-run — which is the one thing a computation is for", short(bundle))
 	}
-	out, code, calls, err := executeStored(runDir, bundle, argv)
+	recordedOut, err := ActOut(runDir, bundle, id)
 	if err != nil {
 		return Rerun{}, err
 	}
-	return Rerun{Matches: len(calls) == 0 && out == string(recorded) && code == exit, Got: out, Want: string(recorded), Exit: code, ToolCalls: calls}, nil
+	c, err := resolve(argv)
+	if err != nil {
+		return Rerun{}, err
+	}
+	base, err := scratch(runDir)
+	if err != nil {
+		return Rerun{}, err
+	}
+	defer func() { err = errors.Join(err, clear(base)) }()
+	e, err := execute(Timeout, filepath.Join(base, copyRoots[0]), &Program{Argv: argv, Files: files, Sha: bundle}, c)
+	if err != nil {
+		return Rerun{}, err
+	}
+	od := OutDrift(recordedOut, e.out)
+	return Rerun{
+		Matches:   len(e.calls) == 0 && e.output == string(recorded) && e.exit == exit && od == "",
+		Got:       e.output,
+		Want:      string(recorded),
+		Exit:      e.exit,
+		OutDrift:  od,
+		ToolCalls: e.calls,
+	}, nil
 }

@@ -124,6 +124,9 @@ func newReproduce() *cobra.Command {
 				if rr.Exit != p.Exit {
 					o.drift = fmt.Sprintf("exit moved %d -> %d; ", p.Exit, rr.Exit) + o.drift
 				}
+				if rr.OutDrift != "" {
+					o.drift = rr.OutDrift + "; " + o.drift
+				}
 			}
 		}
 		if err := o.refuseSound(p, snd); err != nil {

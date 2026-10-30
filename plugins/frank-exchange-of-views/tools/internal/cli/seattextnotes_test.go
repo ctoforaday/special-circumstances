@@ -19,12 +19,15 @@ import (
 func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 	runDir := actFixture(t)
 	const sentence = "the parser accepts an empty body in this line."
-	script := filepath.Join(t.TempDir(), "blue-respond-empty.sh")
-	if err := os.WriteFile(script, []byte("echo 0\n"), 0o644); err != nil {
+	bundle := filepath.Join(t.TempDir(), "blue-respond-empty")
+	if err := os.MkdirAll(bundle, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, "empty.sh"), []byte("echo 0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", sentence,
-		"--script", script, "--reason", "an empty body parses to nothing, which the class [^\\s] never matches"); err != nil {
+		"--dir", bundle, "--reason", "an empty body parses to nothing, which the class [^\\s] never matches", "--", "bash", "empty.sh"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",

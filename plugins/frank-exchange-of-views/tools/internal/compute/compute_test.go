@@ -1,208 +1,420 @@
 package compute
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
-// write drops a script into the run dir and returns its run-relative path.
-func write(t *testing.T, runDir, name, body string) string {
-	t.Helper()
-	if err := os.WriteFile(filepath.Join(runDir, name), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
+// fxPath is the fixture program every test here runs (testdata/fx), built once for the package: a
+// binary, so no arm depends on an interpreter being installed, and every arm runs on Windows too.
+var fxPath string
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "compute-fx-*")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	return name
+	fxPath = filepath.Join(dir, "fx")
+	if runtime.GOOS == "windows" {
+		fxPath += ".exe"
+	}
+	build := exec.Command("go", "build", "-o", fxPath, "./testdata/fx")
+	if out, err := build.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "building the fixture program: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
 }
 
-// hasNode reports whether node is on PATH — the interpreter every case here uses, chosen
-// because this repo already requires it (the simulator suite runs on it).
-func hasNode(t *testing.T) {
+// bundle writes files into a fresh bundle directory and returns it.
+func bundle(t *testing.T, files map[string]string) string {
 	t.Helper()
-	if _, err := os.Stat(os.DevNull); err != nil {
-		t.Skip("no /dev/null equivalent")
+	dir := t.TempDir()
+	for name, body := range files {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
+	return dir
 }
 
-// THE POINT OF THE VERB: a computation settles the question and leaves an artifact. This is
-// the smoke's G1 done properly — red asked "test the protocol on a false claim, is 9
-// prime"; blue answered in prose and G2 refused it for showing no evidence.
-func TestReproducibleComputationRunsAndRecordsItself(t *testing.T) {
-	hasNode(t)
-	runDir := t.TempDir()
-	s := write(t, runDir, "nine.js", `
-let d = [];
-for (let i = 2; i < 9; i++) if (9 % i === 0) d.push(i);
-console.log("9 divisors in 2..8:", d.join(","), "-> composite:", d.length > 0);
-`)
-	res, err := Run(runDir, s)
+func noRefusal(string) error { return nil }
+
+// program reads a bundle for the fixture run with args.
+func program(t *testing.T, dir string, args ...string) *Program {
+	t.Helper()
+	p, err := ReadProgram(dir, append([]string{fxPath}, args...), noRefusal)
+	if err != nil {
+		t.Fatalf("ReadProgram: %v", err)
+	}
+	return p
+}
+
+// run executes a program twice, failing the test on a tool error.
+func run(t *testing.T, p *Program) *Result {
+	t.Helper()
+	res, err := Run(t.TempDir(), p)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if res.Drift != "" {
-		t.Errorf("two runs of a deterministic program differed: %s", res.Drift)
-	}
-	if !strings.Contains(res.Output, "composite: true") {
-		t.Errorf("the computation's own answer is missing from the record: %q", res.Output)
-	}
-	// The bundle must survive the turn — that is the whole difference from a Bash call — and its
-	// identity is over the command as well as the file.
-	if want := []string{"node", "script.js"}; strings.Join(res.Argv, " ") != strings.Join(want, " ") {
-		t.Errorf("argv = %q, want %q", res.Argv, want)
-	}
-	files, err := Bundle(runDir, res.Bundle)
-	if err != nil {
-		t.Fatalf("the bundle was not stored, so the auditor has nothing to re-run: %v", err)
-	}
-	if len(files) != 1 || files[0].Path != "script.js" {
-		t.Errorf("the bundle holds %+v, want the one program as script.js", files)
-	}
-	if res.Bundle != BundleSha(res.Argv, Sums(files)) {
-		t.Errorf("bundle %s is not the identity of what the store holds", res.Bundle)
-	}
-	if res.Exit != 0 {
-		t.Errorf("exit = %d, want 0: the script says 9 is composite and says it successfully", res.Exit)
-	}
-	// An act's output is the caller's to store, under the id it mints: Run stores only the bundle.
-	ents, err := os.ReadDir(filepath.Join(runDir, StoreDir, res.Bundle))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var names []string
-	for _, e := range ents {
-		names = append(names, e.Name())
-	}
-	if strings.Join(names, ",") != "dir" {
-		t.Errorf("the bundle's directory holds %v — Run stores the bundle, and nothing else", names)
+	return res
+}
+
+// isolateTemp points the system temporary directory at a fresh one the test can inspect.
+func isolateTemp(t *testing.T, dir string) {
+	t.Helper()
+	for _, k := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(k, dir)
 	}
 }
 
-// THE IDENTITY IS FRAMED: every field is length-prefixed, so an argument holding a newline or a
-// space and one splitting it differently are different bundles.
-func TestTheBundleIdentityIsFramed(t *testing.T) {
-	f := []FileSum{{Path: "script.py", Sha256: "00"}}
-	if BundleSha([]string{"python3", "a b"}, f) == BundleSha([]string{"python3", "a", "b"}, f) {
-		t.Error("an argument with a space and two arguments hash alike")
+// THE POINT OF THE VERB: a computation settles the question and leaves an artifact, and two runs that
+// agree are `reproducible`.
+func TestAgreeingRunsAreReproducible(t *testing.T) {
+	p := program(t, bundle(t, map[string]string{"data.txt": "9\n"}), "print", "9 is composite")
+	res := run(t, p)
+	if res.Drift != "" {
+		t.Errorf("two runs of a deterministic program differed: %s", res.Drift)
 	}
-	if BundleSha([]string{"python3", "a\nb"}, f) == BundleSha([]string{"python3", "a", "b"}, f) {
+	if res.Output != "9 is composite\n" || res.Exit != 0 {
+		t.Errorf("recorded %q exit %d", res.Output, res.Exit)
+	}
+	if res.Bundle != BundleSha(p.Argv, Sums(p.Files)) {
+		t.Errorf("bundle %s is not the identity of the program's argv and files", res.Bundle)
+	}
+	// A program named by its absolute path is a toolchain: its path and bytes are named, never part
+	// of the bundle's identity.
+	want, err := fileSha(fxPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ToolchainPath != fxPath || res.ToolchainSha256 != want {
+		t.Errorf("toolchain = %s %s, want %s %s", res.ToolchainPath, res.ToolchainSha256, fxPath, want)
+	}
+}
+
+// UNDECLARED DRIFT IS REPORTED, each kind by name: the caller refuses it until the seat states what
+// holds across the runs.
+func TestEachKindOfDriftIsNamed(t *testing.T) {
+	counter := filepath.Join(t.TempDir(), "count")
+	for name, c := range map[string]struct {
+		args []string
+		says string
+	}{
+		"output": {[]string{"random"}, "output"},
+		"exit":   {[]string{"exitcount", counter}, "exit code moved 0 -> 1"},
+		"out/":   {[]string{"outrandom"}, "out/r.txt differs"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), c.args...))
+			if !strings.Contains(res.Drift, c.says) {
+				t.Errorf("drift %q does not name %q", res.Drift, c.says)
+			}
+		})
+	}
+}
+
+// out/ IS PART OF THE RESULT: the first run's files come back, and two runs that wrote the same
+// out/ agree.
+func TestOutIsCaptured(t *testing.T) {
+	res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), "out", "t.csv", "n,7\n"))
+	if res.Drift != "" {
+		t.Fatalf("drift %q", res.Drift)
+	}
+	if len(res.Out) != 1 || res.Out[0].Path != "t.csv" || string(res.Out[0].Body) != "n,7\n" {
+		t.Errorf("out = %+v", res.Out)
+	}
+}
+
+// A PROGRAM THAT REACHES OUT OF ITS COPY BY A RELATIVE PATH reaches a different place from each copy,
+// because the copies sit at different depths: a file present beside one only moves the output.
+func TestReachingOutOfTheCopyMoves(t *testing.T) {
+	tmp := t.TempDir()
+	isolateTemp(t, tmp)
+	// The first copy is <tmp>/feov-compute-*/a/bundle, so ../../../x is <tmp>/x; from the second,
+	// one level deeper, it is inside the scratch directory, where nothing is.
+	if err := os.WriteFile(filepath.Join(tmp, "x"), []byte("present\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := program(t, bundle(t, map[string]string{"a": "a"}), "read", "../../../x")
+	res, err := Run(t.TempDir(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Drift == "" {
+		t.Errorf("a program reading a file present at one depth only agreed with itself: %q", res.Output)
+	}
+}
+
+// A MISSING PATH SAID IN LOWERCASE is no signature the tool knows, and two runs that agree on it are
+// recorded with the exit they share — the residue the computation lens judges.
+func TestAMissingPathSaidInLowercaseIsRecorded(t *testing.T) {
+	res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), "read", "../nothing-here"))
+	if res.Drift != "" || res.Exit != 1 || res.Failed != "" {
+		t.Errorf("drift %q exit %d failed %q, want an agreeing exit 1 with no signature: %q", res.Drift, res.Exit, res.Failed, res.Output)
+	}
+	if !strings.Contains(res.Output, "no such file or directory") && !strings.Contains(res.Output, "cannot find") {
+		t.Errorf("output %q", res.Output)
+	}
+}
+
+// "No such file or directory" on stderr at exit 0 is the environment failing, not the program
+// answering: Failed names it, and the caller refuses it without --expect-error.
+func TestAnEnvironmentErrorOnStderrAtExitZeroIsNamed(t *testing.T) {
+	res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), "stderr", "find: ./plugins: No such file or directory"))
+	if res.Exit != 0 || res.Failed == "" {
+		t.Errorf("exit %d failed %q: output %q carried an environment error", res.Exit, res.Failed, res.Output)
+	}
+}
+
+// A PROGRAM THAT CALLS THE TOOL IS NAMED, whatever it printed: the marker is the signal.
+func TestAProgramThatCallsTheToolIsNamed(t *testing.T) {
+	res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), "call"))
+	if len(res.Calls) != 1 || res.Calls[0] != "feov-record show board --json" {
+		t.Errorf("calls = %q, want the one call", res.Calls)
+	}
+	if os.Getenv(seatenv.VarComputeRerun) != "" {
+		t.Errorf("%s leaked into the caller's environment", seatenv.VarComputeRerun)
+	}
+}
+
+// EVERY PIN IS IN THE PROGRAM'S ENVIRONMENT, and the copy's own directory is its PWD.
+func TestTheProgramRunsUnderThePins(t *testing.T) {
+	res := run(t, program(t, bundle(t, map[string]string{"a": "a"}), "env"))
+	for _, want := range []string{
+		"SOURCE_DATE_EPOCH=0\n", "PYTHONHASHSEED=0\n", "TZ=UTC\n", "LC_ALL=C\n", "PYTHONUTF8=1\n",
+		"PWD=" + BundleToken + "\n", `MATPLOTLIBRC holds "svg.hashsalt: feov\n"`, "checker marker set: true",
+	} {
+		if !strings.Contains(res.Output, want) {
+			t.Errorf("the program's environment lacks %q:\n%s", want, res.Output)
+		}
+	}
+}
+
+// THE BUNDLE'S REFUSALS: each is something a copy could not honour, and each is named.
+func TestTheBundleRefusals(t *testing.T) {
+	big := strings.Repeat("x", MaxBundle+1)
+	cases := map[string]struct {
+		files map[string]string
+		argv  []string
+		says  string
+	}{
+		"over the limit":            {map[string]string{"big.txt": big}, nil, "over"},
+		"an out entry":              {map[string]string{"out": "x"}, nil, "out"},
+		"a sources entry":           {map[string]string{"sources/C-1": "x"}, nil, "sources"},
+		"an interpreter cache":      {map[string]string{"__pycache__/m.cpython-312.pyc": "x"}, nil, "__pycache__"},
+		"a compiled file":           {map[string]string{"m.pyc": "x"}, nil, "m.pyc"},
+		"no command":                {map[string]string{"a": "a"}, []string{}, "command after `--`"},
+		"a relative command absent": {map[string]string{"a": "a"}, []string{"./run.sh"}, "the bundle holds no run.sh"},
+		"a command outside":         {map[string]string{"a": "a"}, []string{"../x/run.sh"}, "relative"},
+		"no file":                   {map[string]string{}, nil, "holds no file"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			argv := c.argv
+			if argv == nil {
+				argv = []string{fxPath, "print", "x"}
+			}
+			_, err := ReadProgram(bundle(t, c.files), argv, noRefusal)
+			if err == nil || !strings.Contains(err.Error(), c.says) {
+				t.Errorf("err = %v, want one saying %q", err, c.says)
+			}
+		})
+	}
+	t.Run("a symlink", func(t *testing.T) {
+		dir := bundle(t, map[string]string{"a": "a"})
+		if err := os.Symlink(filepath.Join(dir, "a"), filepath.Join(dir, "b")); err != nil {
+			t.Skipf("no symlinks here: %v", err)
+		}
+		if _, err := ReadProgram(dir, []string{fxPath, "print"}, noRefusal); err == nil || !strings.Contains(err.Error(), "symlink") {
+			t.Errorf("err = %v", err)
+		}
+	})
+	t.Run("the caller's refusal comes before any read", func(t *testing.T) {
+		dir := bundle(t, map[string]string{"a": "a", "record.db": "r"})
+		var seen []string
+		_, err := ReadProgram(dir, []string{fxPath}, func(p string) error {
+			seen = append(seen, filepath.Base(p))
+			if filepath.Base(p) == "record.db" {
+				return fmt.Errorf("this run's record")
+			}
+			return nil
+		})
+		if err == nil || !strings.Contains(err.Error(), "this run's record") {
+			t.Errorf("err = %v, seen %q", err, seen)
+		}
+	})
+}
+
+// A BARE COMMAND NOT ON PATH is named, so the seat knows which program this environment lacks.
+func TestABareCommandNotOnPathIsNamed(t *testing.T) {
+	p, err := ReadProgram(bundle(t, map[string]string{"a": "a"}), []string{"feov-no-such-program-xyz", "a"}, noRefusal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(t.TempDir(), p); err == nil || !strings.Contains(err.Error(), "feov-no-such-program-xyz is not on PATH") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// THE IDENTITY IS FRAMED: every field is length-prefixed, so an argument holding a newline or a space
+// and one splitting it differently are different bundles; and file bytes are in it.
+func TestTheBundleIdentityIsFramed(t *testing.T) {
+	dir := bundle(t, map[string]string{"a": "a"})
+	sha := func(argv ...string) string {
+		p, err := ReadProgram(dir, argv, noRefusal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p.Sha
+	}
+	if sha("python3", "a\nb") == sha("python3", "a", "b") {
 		t.Error("an argument with a newline and two arguments hash alike")
 	}
-	if BundleSha([]string{"python3", "x"}, f) == BundleSha([]string{"python3", "x"}, []FileSum{{Path: "script.py", Sha256: "01"}}) {
+	if sha("python3", "a b") == sha("python3", "a", "b") {
+		t.Error("an argument with a space and two arguments hash alike")
+	}
+	before := sha("python3", "a")
+	if err := os.WriteFile(filepath.Join(dir, "a"), []byte("b"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sha("python3", "a") == before {
 		t.Error("two bundles with different file bytes hash alike")
 	}
 }
 
-// A MOVING RESULT IS REPORTED, never laundered: Run says what moved, and the caller decides whether
-// the seat accepted it. This is the case the network choice makes routine.
-func TestMovingOutputReportsItsDrift(t *testing.T) {
-	hasNode(t)
-	runDir := t.TempDir()
-	s := write(t, runDir, "moves.js", "console.log(Math.random());")
-
-	res, err := Run(runDir, s)
-	if err != nil {
-		t.Fatalf("a non-deterministic script was REFUSED; it is a measurement, not an error: %v", err)
+// NO COPY REMAINS after an act — not even one the program left read-only, which neither Windows nor
+// a directory without its write bit lets RemoveAll take.
+func TestNoCopyRemains(t *testing.T) {
+	tmp := t.TempDir()
+	isolateTemp(t, tmp)
+	p := program(t, bundle(t, map[string]string{"a": "a"}), "readonly")
+	if _, err := Run(t.TempDir(), p); err != nil {
+		t.Fatal(err)
 	}
-	if res.Drift == "" {
-		t.Error("drift is unstated, so a reader cannot tell a live measurement from an unseeded random")
-	}
-}
-
-// DISPROVING IS AS VALUABLE AS PROVING. A non-zero exit is a result, not a tool failure —
-// otherwise the engine can only ever record confirmations.
-func TestAFailingCheckIsARecordedResultNotAnError(t *testing.T) {
-	hasNode(t)
-	runDir := t.TempDir()
-	s := write(t, runDir, "fails.js", `console.log("the claim does not hold"); process.exit(3);`)
-
-	res, err := Run(runDir, s)
-	if err != nil {
-		t.Fatalf("a failing check was treated as a tool error: %v", err)
-	}
-	if res.Exit != 3 {
-		t.Errorf("exit = %d, want 3 — the outcome is part of the evidence", res.Exit)
-	}
-	if !strings.Contains(res.Output, "does not hold") {
-		t.Errorf("the disproof's own words were lost: %q", res.Output)
-	}
-}
-
-// RED'S AUDIT IS RE-EXECUTION. A cited source is re-read and believed; a computation is re-run and
-// compared, which is the stronger check and the one G1 wanted.
-func TestReproduceReRunsAndAgrees(t *testing.T) {
-	hasNode(t)
-	runDir := t.TempDir()
-	s := write(t, runDir, "seven.js", `console.log("7 has no divisor in 2..6");`)
-	res, err := Run(runDir, s)
+	left, err := os.ReadDir(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteAct(runDir, res.Bundle, "K-00000001", []byte(res.Output)); err != nil {
+	for _, e := range left {
+		t.Errorf("the act left %s in the temporary directory", e.Name())
+	}
+}
+
+// A COPY'S ROOT READS AS <bundle> in what the program writes — spelled as the program sees it, which
+// is the canonical path: under a symlinked temporary directory getcwd names the real one.
+func TestTheCopyRootReadsAsTheBundle(t *testing.T) {
+	real := t.TempDir()
+	tmp := real
+	if runtime.GOOS != "windows" {
+		tmp = filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(real, tmp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	isolateTemp(t, tmp)
+	res := run(t, program(t, bundle(t, map[string]string{"data.txt": "x"}), "where"))
+	if res.Drift != "" {
+		t.Fatalf("a program printing its own location moved between copies: %s\n%s", res.Drift, res.Output)
+	}
+	if !strings.Contains(res.Output, "cwd: "+BundleToken+"\n") || !strings.Contains(res.Output, "file: "+filepath.Join(BundleToken, "data.txt")) {
+		t.Errorf("the output does not name the copy as %s:\n%s", BundleToken, res.Output)
+	}
+	if strings.Contains(res.Output, real) || strings.Contains(res.Output, tmp) {
+		t.Errorf("the output holds a copy's path:\n%s", res.Output)
+	}
+	if res.Exit != 1 {
+		t.Errorf("exit %d, want the program's 1", res.Exit)
+	}
+}
+
+// The same, through an interpreter: a Python program printing __file__ and os.getcwd() and raising.
+func TestAPythonProgramsOwnPathReadsAsTheBundle(t *testing.T) {
+	py, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 is not on PATH; the fixture arm above covers the mechanism")
+	}
+	real := t.TempDir()
+	tmp := real
+	if runtime.GOOS != "windows" {
+		tmp = filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(real, tmp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	isolateTemp(t, tmp)
+	dir := bundle(t, map[string]string{"where.py": "import os\nprint(os.path.abspath(__file__))\nprint(os.getcwd())\nraise SystemExit('the claim does not hold')\n"})
+	p, err := ReadProgram(dir, []string{filepath.Base(py), "where.py"}, noRefusal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := run(t, p)
+	if res.Drift != "" || !strings.Contains(res.Output, filepath.Join(BundleToken, "where.py")) || strings.Contains(res.Output, real) {
+		t.Errorf("drift %q, output:\n%s", res.Drift, res.Output)
+	}
+}
+
+// RED'S AUDIT IS RE-EXECUTION. A cited source is re-read and believed; a computation is re-run in a
+// fresh copy and compared — output, exit and out/.
+func TestReproduceReRunsAndAgrees(t *testing.T) {
+	runDir := t.TempDir()
+	p := program(t, bundle(t, map[string]string{"a": "a"}), "out", "t.csv", "n,7\n")
+	res := run(t, p)
+	if err := WriteBundle(runDir, res.Bundle, res.Argv, p.Files); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteAct(runDir, res.Bundle, "K-00000001", []byte(res.Output), res.Out); err != nil {
 		t.Fatal(err)
 	}
 	rr, err := Reproduce(runDir, res.Bundle, res.Argv, "K-00000001", res.Exit)
 	if err != nil {
 		t.Fatalf("Reproduce: %v", err)
 	}
-	if !rr.Matches || len(rr.ToolCalls) != 0 {
-		t.Errorf("a reproducible computation did not reproduce: got %q want %q (tool calls %q)", rr.Got, rr.Want, rr.ToolCalls)
+	if !rr.Matches {
+		t.Errorf("a reproducible computation did not reproduce: got %q want %q, out %q", rr.Got, rr.Want, rr.OutDrift)
+	}
+	// An out/ file the act recorded otherwise is a difference, named.
+	if err := os.WriteFile(filepath.Join(ActPath(runDir, res.Bundle, "K-00000001"), "out", "t.csv"), []byte("n,8\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rr, err = Reproduce(runDir, res.Bundle, res.Argv, "K-00000001", res.Exit); err != nil {
+		t.Fatal(err)
+	}
+	if rr.Matches || rr.OutDrift != "out/t.csv differs" {
+		t.Errorf("matches %v, out drift %q", rr.Matches, rr.OutDrift)
 	}
 }
 
-// A script the tool cannot run is refused rather than guessed at: the wrong interpreter
-// produces a confident error that reads exactly like a failed computation.
-func TestUnknownInterpreterIsRefused(t *testing.T) {
+// A BUNDLE THAT CALLS THE TOOL NEVER REPRODUCES, and the re-run names the call.
+func TestAProgramThatCallsTheToolNeverReproduces(t *testing.T) {
 	runDir := t.TempDir()
-	s := write(t, runDir, "mystery.rb", "puts 1")
-	if _, err := Run(runDir, s); err == nil {
-		t.Fatal("a script with no known interpreter was executed anyway")
-	} else if !strings.Contains(err.Error(), "interpreter") {
-		t.Errorf("the refusal must say why: %v", err)
+	p := program(t, bundle(t, map[string]string{"a": "a"}), "call")
+	if err := WriteBundle(runDir, p.Sha, p.Argv, p.Files); err != nil {
+		t.Fatal(err)
 	}
-}
-
-// An empty script exits 0 and proves nothing — the most misleading artifact available.
-func TestEmptyScriptIsRefused(t *testing.T) {
-	runDir := t.TempDir()
-	s := write(t, runDir, "empty.js", "   \n\t\n")
-	if _, err := Run(runDir, s); err == nil {
-		t.Fatal("an empty script was accepted as evidence")
+	if err := WriteAct(runDir, p.Sha, "K-00000001", []byte("0\n"), nil); err != nil {
+		t.Fatal(err)
 	}
-}
-
-// A SCRIPT THAT CALLS THE TOOL NEVER REPRODUCES, AND RUN NAMES THE CALL. The
-// stand-in does what feov-record does under a checker's run — appends its call to the marker the
-// run names (seatenv.VarComputeRerun) — and prints the same 0 either way, as a script piping the
-// tool's refusal through `jq` does. Its output alone could never tell the re-run anything.
-func TestAScriptThatCallsTheToolNeverReproduces(t *testing.T) {
-	hasNode(t)
-	runDir := t.TempDir()
-	s := write(t, runDir, "reads-the-record.js", `const fs = require("fs");
-if (process.env.`+seatenv.VarComputeRerun+`) fs.appendFileSync(process.env.`+seatenv.VarComputeRerun+`, "feov-record show board --json\n");
-console.log("0");`)
-	res, err := Run(runDir, s)
+	rr, err := Reproduce(runDir, p.Sha, p.Argv, "K-00000001", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Calls) != 1 || res.Calls[0] != "feov-record show board --json" {
-		t.Errorf("Run reports the stored copy's tool calls as %q, want the one call", res.Calls)
-	}
-	if err := WriteAct(runDir, res.Bundle, "K-00000001", []byte(res.Output)); err != nil {
-		t.Fatal(err)
-	}
-	rr, err := Reproduce(runDir, res.Bundle, res.Argv, "K-00000001", res.Exit)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rr.Matches || len(rr.ToolCalls) != 1 || rr.ToolCalls[0] != "feov-record show board --json" {
-		t.Errorf("the re-run of a script that called the tool reads matches=%v calls=%q — its output %q equals the recorded %q, and that is the hiding this exists to end", rr.Matches, rr.ToolCalls, rr.Got, rr.Want)
-	}
-	// The marker is the run's own: the environment this test runs in never carries it.
-	if os.Getenv(seatenv.VarComputeRerun) != "" {
-		t.Errorf("%s leaked into the caller's environment", seatenv.VarComputeRerun)
+	if rr.Matches || len(rr.ToolCalls) != 1 {
+		t.Errorf("the re-run of a program that called the tool reads matches=%v calls=%q — its output %q equals the recorded %q, and that is the hiding this exists to end", rr.Matches, rr.ToolCalls, rr.Got, rr.Want)
 	}
 }
 

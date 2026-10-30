@@ -233,13 +233,12 @@ func (r *runner) answerRemands(seatID string) {
 		}
 		ok := false
 		if role == "blue" {
-			name := "fuzz-remand-" + g.ID + ".js"
-			if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
-				r.noteActErr("the remand's computation script could not be written: " + err.Error())
+			dir, argv, err := r.writeBundle("fuzz-remand-"+g.ID+".js", "console.log('the remand direction for "+g.ID+"');")
+			if err != nil {
 				continue
 			}
-			_, ok = r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
-				"--reason", "fuzz: what the remand's direction found for "+g.ID)
+			_, ok = r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", g.ID,
+				"--reason", "fuzz: what the remand's direction found for " + g.ID, "--"}, argv...)...)
 		} else {
 			_, ok = r.admitFresh(g.ID, "regrade", "--seat-id", seatID, "--id", g.ID,
 				"--reason", "fuzz: blue's answer re-audited against the remand's direction; the acceptance check still fails")

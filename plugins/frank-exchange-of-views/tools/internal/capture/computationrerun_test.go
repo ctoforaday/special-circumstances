@@ -15,20 +15,29 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// provenComputation runs a real script through `compute` so the fixture is a computation the engine actually
-// recorded — cache layout, sha and basis included — rather than a hand-built imitation of one.
+// provenComputation runs a real program through `compute` so the fixture is a computation the engine actually
+// recorded — store layout, sha and basis included — rather than a hand-built imitation of one. The program
+// is the one file of its own bundle directory, run by the interpreter its extension names.
 func provenComputation(t *testing.T, runDir, name, body string) *compute.Result {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(runDir, "blue", "candidates"), 0o755); err != nil {
+	dir := filepath.Join(runDir, "scratch", strings.TrimSuffix(name, filepath.Ext(name)))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	rel := filepath.Join("blue", "candidates", name)
-	if err := os.WriteFile(filepath.Join(runDir, rel), []byte(body), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, err := compute.Run(runDir, rel)
+	interp := map[string]string{".sh": "bash", ".py": "python3", ".js": "node"}[filepath.Ext(name)]
+	prog, err := compute.ReadProgram(dir, []string{interp, name}, func(string) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := compute.Run(runDir, prog)
 	if err != nil {
 		t.Skipf("no interpreter for %s in this environment: %v", name, err)
+	}
+	if err := compute.WriteBundle(runDir, res.Bundle, res.Argv, prog.Files); err != nil {
+		t.Fatal(err)
 	}
 	return res
 }
@@ -38,7 +47,7 @@ func seedComputationEvents(t *testing.T, runDir string, rs ...*compute.Result) {
 	var evs []*recordpb.Event
 	for i, r := range rs {
 		id := fmt.Sprintf("K-%08x", i+1)
-		if err := compute.WriteAct(runDir, r.Bundle, id, []byte(r.Output)); err != nil {
+		if err := compute.WriteAct(runDir, r.Bundle, id, []byte(r.Output), r.Out); err != nil {
 			t.Fatal(err)
 		}
 		c := &recordpb.Computation{ComputationId: proto.String(id), Argv: r.Argv, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
@@ -53,7 +62,8 @@ func seedComputationEvents(t *testing.T, runDir string, rs ...*compute.Result) {
 
 // THE ACCEPTANCE CASE, seeded: a computation whose recorded output no longer reproduces.
 //
-// The script reads a file, so its output is a measurement of state rather than a computation.
+// The program reads a file OUTSIDE its bundle, by absolute path, so its output is a measurement of
+// state rather than a computation.
 // Changing that state after the computation is recorded is the ephemeral instrument — a failure the
 // 2026-08-23 run made three times, because nothing re-ran a computation.
 func TestComputationRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing.T) {
@@ -61,7 +71,7 @@ func TestComputationRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing
 	if err := os.WriteFile(filepath.Join(run, "corpus.txt"), []byte("three\nfiles\nhere\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	res := provenComputation(t, run, "count.sh", "#!/bin/sh\nwc -l < corpus.txt\n")
+	res := provenComputation(t, run, "count.sh", "#!/bin/sh\nwc -l < '"+filepath.Join(run, "corpus.txt")+"'\n")
 	if res.Drift != "" {
 		t.Fatalf("fixture must record as reproducible, drifted: %s", res.Drift)
 	}
@@ -97,7 +107,8 @@ func TestComputationRerunDoesNotFailAComputationRecordedAsVariant(t *testing.T) 
 		t.Fatal(err)
 	}
 	// Each execution increments, so `compute`'s two runs disagree and the basis records as variant.
-	res := provenComputation(t, run, "tick.sh", "#!/bin/sh\nn=$(cat n)\nn=$((n+1))\necho $n > n\necho \"tick $n\"\n")
+	// The counter lies outside the bundle: each run starts from a fresh copy, so one inside it never moves.
+	res := provenComputation(t, run, "tick.sh", "#!/bin/sh\nn=$(cat '"+counter+"')\nn=$((n+1))\necho $n > '"+counter+"'\necho \"tick $n\"\n")
 	if res.Drift == "" {
 		t.Skip("fixture's two runs agreed")
 	}

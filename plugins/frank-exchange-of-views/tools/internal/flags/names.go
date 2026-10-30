@@ -116,11 +116,12 @@ const (
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
 
-	// The computation axis. --script is the program that settles a claim; --cites names the METHOD
+	// The computation axis. --dir is the bundle that settles a claim — the program and the files it
+	// reads, run by the command after `--`; --cites names the METHOD
 	// citation it applies — the source that says trial division decides primality. The method
 	// is cited; the instance is computed.
-	Script = "script"
-	Cites  = "cites"
+	Dir   = "dir"
+	Cites = "cites"
 	// --variance is what holds across two runs of a computation that differed: the seat's statement
 	// of the invariant, which is what makes a moving result evidence of anything.
 	Variance = "variance"
@@ -319,7 +320,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, Variance, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Dir, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
@@ -346,7 +347,7 @@ func ClosedForm(name string) bool { return closedForm[name] }
 
 var closedForm = map[string]bool{
 	Run: true, SeatID: true, For: true, ID: true, Key: true, Class: true, Anchor: true,
-	Format: true, URL: true, At: true, Via: true, Script: true, VerifiedBy: true,
+	Format: true, URL: true, At: true, Via: true, Dir: true, VerifiedBy: true,
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
