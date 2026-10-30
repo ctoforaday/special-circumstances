@@ -4967,8 +4967,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		r.checkAnchorOffers(seatID)
 		r.closeDocketed(seatID)
-		r.lensMovesBenchAxis(seatID)
-		r.lensMovesReleasedAxis(seatID)
+		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
+		locked := r.lensMovesBenchAxis(seatID)
+		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
@@ -4995,6 +4996,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
 				// drives the move, to be refused).
 				r.maybe(30, func() {
+					if regraded[id] {
+						return
+					}
 					held := r.benchGrades(id)
 					keep := func(dim string) string {
 						if g, ok := held[dim]; ok {
