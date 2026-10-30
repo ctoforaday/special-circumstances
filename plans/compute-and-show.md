@@ -10,6 +10,13 @@
 > `round6/archscan/*.txt` (archive scans), `round6/resize-numbers.txt` (vision sizing),
 > `round6/probe/probe-out.txt` (renderer probe); `round2/census.tsv` (Go meanings),
 > `round3/c3-ledger.tsv` (non-Go), `round3/c10-*.txt` (archive text).
+>
+> AMENDED 2026-10-30 (#1657): Part 1a shipped (PR #1644, epoch 49; main `a31a7b06`, epoch 50).
+> Part 1a′, "one anchor lifecycle", is inserted before 1b on gblock's rulings of 2026-10-30 (Forks:
+> Lifecycle). Its forks L1–L6 are OPEN, and the amendment awaits the plan-audit gate. 1b, 1c and 2
+> are amended where they assumed two lifecycles (Part 1a′ dependents). Ledgers are under
+> `~/.claude/scratch/anchor-lifecycle/` (`census-verify.tsv`: the 1a-branch census re-verified on
+> main) and `~/.claude/scratch/compute-1a/orphan/` (`divergence.md`, `timeline.txt`, `gaps.txt`).
 
 ## I. Summary & Goals
 
@@ -63,19 +70,22 @@ assembly places the content after the paragraph holding the anchor, numbered in 
 kind ("Figure n", "Table n"), captioned by the act's `--reason` — the field that is already its
 footnote (a citation's footnote is its title and page; its `--reason` never prints, `cli/blue/cite.go:191–195`).
 Every seat, program or source string inside a shown block is composed as literal text
-(`report.Literal`). A shown block leaves the report as every anchor does: `edit` the sentence,
-then `retire` (`anchor/anchor.go:75`). No new lifecycle.
+(`report.Literal`). A shown block leaves the report as every evidence anchor does: `retire --anchor` takes the anchor
+out and keeps its sentence, which an edit may then change or cut. No new lifecycle: Part 1a′ makes
+the existing one a single lifecycle, which every evidence kind lives by (`anchor.Backs`).
 
 **Parts (R-split).** Each ships alone, with its own epoch and `migrate` translation.
 
 | Part | Scope | Depends on | Epoch |
 |---|---|---|---|
 | 1a | `prove` → `compute`; directory + argv; two-value basis; per-act store; one re-run per bundle, judged per act; `K-` anchors | — | E1 |
-| 1b | `--input` (raw cited bytes, read-only); package `archive`; operator `archive rerun` | 1a | E2 |
+| 1a′ | One anchor lifecycle. `retire --anchor` alone and the bare-edit refusal apply to every evidence kind. A retired anchor is dropped from every document. `source` and `computation` gaps close only on a live answer (`cite --answers`). One failed-check carrier. `[^K<n>]` numbered per document | 1a | E1′ |
+| 1b | `--input` (raw cited bytes, read-only); package `archive`; operator `archive rerun` | 1a, 1a′ | E2 |
 | 1c | `--show table\|image\|text` on `compute`; images exist only as shown blocks | 1a, #1569 (render-time allowlist) | E3 |
 | 2 | `--show image\|text` on `cite`: a colour crop of a box drawn on a view the model processes unresized | 1b (`archive rerun` re-derives crops), 1c (placement, `Show`, `Literal`) | E4 |
 
-E1–E4 are the next free epochs when each part lands (main is 43).
+E1–E4 are the next free epochs when each part lands (main was 43). 1a landed at 49. Main is 50 at
+this amendment, and E1′ is the next free epoch when 1a′ lands.
 
 **Success criteria.**
 
@@ -86,6 +96,10 @@ E1–E4 are the next free epochs when each part lands (main is 43).
 | S3 | 1a | A recorded act never changes after write. Every act's verdict compares the bundle's STANDING re-run — the latest `ran` reproduce, its result at `rerun/<its rerun_sha>/` — against the act's OWN output, exit and `out/`, whatever refusal, crash or concurrency preceded it; capture's audit and `archive rerun` execute fresh and neither read nor write the store | V1a.4, V1a.5 |
 | S4 | 1a | A keyed retry restates every recorded flag or is refused; program, argv and inputs are in the sha | V1a.6 |
 | S5 | 1a | Every archive migrates with zero refusals; III.1.6's assertions hold; `archive rerun` over every migrated archive gives each of the 159 stored scripts the outcome `archiverun` measured on the CI image and committed | V1a.7 |
+| S11 | 1a′ | `retire --anchor <id>` alone takes any evidence anchor out of the report and keeps its sentence. An edit leaving one bare is refused. A retired anchor appears in no document, and `verify` and `reproduce` refuse it. Footnotes are numbered per document over live anchors | V1a′.1, V1a′.5 |
+| S12 | 1a′ | A `source` or `computation` gap's close is refused unless a live anchor of the demanded kind answers it (`cite --answers`, `compute --answers`). Retiring that answer leaves an open gap `awaiting_evidence`. A closed gap follows L2, and a gap about the retired anchor follows L1 | V1a′.2 |
+| S13 | 1a′ | One failed-check carrier (L4). `assembly-screen` fails on a failed live anchor of either kind. A computation's keyed retry returns its id. `--cites` refuses a retired citation | V1a′.3, V1a′.4 |
+| S14 | 1a′ | Every archive migrates at E1′ with zero refusals, and the flip census is committed. The 2026-10-30 CEILING scenario resolves on its own record, in a scripted replay, and in a smoke | V1a′.6, V1a′.7 |
 | S6 | 1b | `--input C-…` materialises the cached bytes read-only at `sources/C-…`; the archive commits no source bytes; `archive rerun` on an extracted archive with no `cache/` re-fetches from where the bytes came, verifies sha256 and re-runs, with 1b's exit semantics | V1b.1–3 |
 | S7 | 1c | `--show table` renders the CSV under "*Table n.* R"; `--show image` embeds PNG/SVG under "*Figure n.* R" in report.md and (as `data:` URI) report.html; `--show text` inlines markdown refused where `edit` refuses it | V1c.1 |
 | S8 | 1c | Raw HTML in either output is #1569's: only the tool's shapes become HTML, decided on the whole shipped document's parse; report.md is written through the same decision. An image opens only from a shown block: `edit` and `ingest` refuse an image outside code in authored text, and composed seat text's `!` is escaped; no seat, program or source text inside a shown block opens an image, raw HTML or a weave-label footnote, or breaks the block (a `--show text` block is report text: a footnote of another label is its to write); every escape and refusal that skips code reads code as the renderer's parser does, and no unit leaves a fence open across its boundary | V1c.2, V1c.6 |
@@ -103,6 +117,8 @@ E1–E4 are the next free epochs when each part lands (main is 43).
 | Working directory = the run tree (`proof.go:261`) | working directory = a copy of the bundle |
 | One `output` per sha, overwritten by the next act (`proof.go:364`) | one output per act, written once |
 | One re-run's verdict standing for every act on a script | one standing re-run per bundle, compared against each act's own output |
+| Two lifecycles (`retire.go:191`, `edit.go:268`): a computation leaves only with its sentence, and a retired one stays in evidence.md "anchored to nothing" (1a′) | one lifecycle read off `anchor.Backs`; kind differences in two tables |
+| A closure on a retired answer, and `source` enforced nowhere (`estoppel.go:280`) | a live answer of the demanded kind |
 
 **Not in scope.** Interactive charts (`--show html`, a sandboxed frame): #1574, building on Part 1c and #1569.
 Rich media (audio, video). A machine-checked basis (Lean): the argv holds
@@ -242,10 +258,11 @@ enum Show {                                               // 1c (compute), 2 (ci
 //   what"; CALLS_THE_TOOL: "bundle" for "script". RERUN_NOT_RUN = 4 → reserved 4, "RERUN_NOT_RUN":
 //   `ran` = false carries "compared against the bundle's re-run, ran nothing".
 // AboutKind [MODIFY]: ABOUT_KIND_PROOF = 5 → ABOUT_KIND_COMPUTATION = 5.
-// Cite [MODIFY, 2]: + optional Show show = 26; optional int32 crop_page = 27;   // absent for an image source
-//   optional int32 crop_x = 28, crop_y = 29, crop_w = 30, crop_h = 31;   // the box, in VIEW pixels (--region)
-//   optional int32 crop_view_w = 32, crop_view_h = 33;                  // the view's size, read from its PNG
-//   optional string crop_sha256 = 34;   // the crop the seat was returned: sha256 of its DECODED pixels (Crop hash)
+// Cite [MODIFY, 2]: + optional Show show = 27; optional int32 crop_page = 28;   // absent for an image source
+//   (answers = 26 is 1a′'s, III.1′.3)
+//   optional int32 crop_x = 29, crop_y = 30, crop_w = 31, crop_h = 32;   // the box, in VIEW pixels (--region)
+//   optional int32 crop_view_w = 33, crop_view_h = 34;                  // the view's size, read from its PNG
+//   optional string crop_sha256 = 35;   // the crop the seat was returned: sha256 of its DECODED pixels (Crop hash)
 //   checks: show ∈ {IMAGE, TEXT}; crop_x…crop_sha256 present ⇔ IMAGE; crop_w, crop_h > 0;
 //   crop_x + crop_w ≤ crop_view_w; crop_y + crop_h ≤ crop_view_h;
 //   the view is one the model processes unresized — fits(crop_view_w, crop_view_h), in SQL integer arithmetic:
@@ -468,14 +485,201 @@ copy's path; make output deterministic or state the invariant; a helper the prog
 through its interpreter (only argv[0] is made executable); a non-zero exit both runs agree on is
 recorded; output and `out/` are unbounded and committed.
 
+### Part 1a′ — one anchor lifecycle (epoch E1′) (ruling Lifecycle; #1657)
+
+**Why.** The Part 1a smoke (2026-10-30_mersenne-31-prime-sum, one lane, `--smoke`) ended CEILING on
+gaps nothing could close. Blue reworded a sentence and moved its `<!--computation:K-…-->` to a bare
+position — refused for a `C-`, allowed for a `K-` — then retired the claim with `--quote`. The
+computation stayed in evidence.md "anchored to nothing". Lenses minted six gaps against the stale
+entries, and `close` refused the three `computation` ones: `requireComputationAnswered` asks only
+whether any computation names the gap, retired or not, and a gap about the retired anchor had none
+(`~/.claude/scratch/compute-1a/orphan/timeline.txt`, `gaps.txt`). The cause is that one lifecycle is
+claimed and two are built. `anchor.go:6–9` says "every kind lives the same way"; `retire.go:191` and
+`edit.go:268` implement two lifecycles. The census (`~/.claude/scratch/compute-1a/orphan/divergence.md`,
+taken on the 1a branch, re-verified on main at `a31a7b06` in
+`~/.claude/scratch/anchor-lifecycle/census-verify.tsv`: 100 of 120 refs at the same line, 20
+moved, none changed in meaning). In its sections A–J it classes 36 table rows LIFECYCLE, wholly or in part. Part 1a′ removes them before 1b, so
+that §I's placement rule, and every shown block in 1c and 2, rests on one lifecycle.
+
+**The rulings (gblock, 2026-10-30, binding).** Citations and computations are the same thing: "a
+textual statement about an external source or reference material. Even a reference to a figure in
+text is a citation." They "behave exactly like citations". A retired anchor of either kind is
+dropped from evidence.md, and the record keeps it. A gap whose check kind is `source` or
+`computation` closes only on a LIVE answer: `cite` gains `--answers G-…`, a non-retired anchor of
+the demanded kind must answer the gap, and retiring that anchor reopens the debt. Retire never
+auto-closes a gap. The tool refuses; it never infers.
+
+**One mechanism, the kind row decides.** An **evidence anchor** is an anchor whose kinds-table row
+has `backs: true`: `C-` and `K-` today, and Part 2's figures, which are citations. Every lifecycle
+rule below reads `anchor.Backs(id)`, never `anchor.Kind(id) == "…"`. What differs between kinds is
+looked up in a row:
+
+- **`anchor.kinds`** (the vocabulary leaf) holds the label, the token, the assembly (footnote
+  target) and `backs`. Its `claim` column is deleted (fork L3).
+- **`record.evidenceTables`** [NEW] (`record/evidencetables.go`) holds one row per backing kind:
+  - `table`, `idColumn`: the placing event's SQL table and id column (`cite`/`label`,
+    `computation`/`computation_id`);
+  - `check`: the check kind a live anchor answers (`CHECK_KIND_SOURCE`, `CHECK_KIND_COMPUTATION`);
+  - `checkVerb`: `verify`, `reproduce`;
+  - `owner`: replaces `anchorOwnerOf(computation bool)`, `available.go:431`;
+  - `failedWord`: "a standing reading finds against it", "a standing judgement calls it unsound";
+  - `noun`: "citation", "computation".
+
+  `TestEveryBackingKindHasAnEvidenceRow` fails when a `backs` kind has no row, when a row names no
+  `backs` kind, or when a `check` value has no row.
+
+A new kind adds one row to each table. It adds no lifecycle code: the SQL view's UNION arms
+(III.1′.3) are generated from `evidenceTables`.
+
+#### III.1′.1 The lifecycle (contract: CLI flag set, event schema, prompts)
+
+| Stage | One rule (every evidence anchor) | Today (main `a31a7b06`) | Kind row supplies |
+|---|---|---|---|
+| Attach | `cite` and `compute` place the anchor at the end of `--quote` (`AppendPlaced`, `seat/verbs.go:1384`). Both take `--answers G-…`. A keyed idempotent retry returns the anchor id | `cite` has no `--answers`. `compute`'s idempotent result omits the `K-` id (`cli/blue/compute.go:117`, `computation_id` omitempty :276). A seat retrying a compute never gets back the id that `retire --anchor` needs | — |
+| Edit, bare | An edit that would leave an evidence anchor bare is refused. The refusal names `retire --anchor <id> [--answers G]` as the way out (`refuseBaredCitations` → `refuseBaredEvidence`, `edit.go:261`, now on `anchor.Backs`) | `K-` may be left bare (`edit.go:268`). The smoke's orphan generator | `label` in the message |
+| Retire, sentence kept | `retire --anchor <id>` alone, for any evidence anchor: the anchor leaves, its sentence stays word for word, `claim_kept` is set, and `--answers` is optional (`retireCitation` → `retireAnchor`, `retire.go:183–216`). A finding or gap anchor alone is refused, as today, naming the claim retire | `K-` refused (`retire.go:191`), so an unsound `K-` on a correct sentence can leave only with the sentence. The help and the prompts already promise the act (III.1′.5) | `label` |
+| Retire, with the claim | `retire --quote` takes the bare anchors of a cut claim, any kind (unchanged, `retire.go:87–143`). An evidence anchor reaches it bare only from an archived record or the synthesizer's round-0 write | the same | — |
+| Render after retire | A retired evidence anchor appears in no document: no woven footnote in report.md (its token is gone), no entry in evidence.md, no row in `show evidence`'s lists or counts. `show evidence --anchor <retired id>` still returns it and says `retired` (event, reason). CHANGELOG's "Claims retired" (`layout.go:207`) names a sentence kept under its kind's label (`withdrawnClaims`, `assemble.go:925–967`) | evidence.md lists every computation and calls a retired one "anchored to nothing" (`report/computations.go:133–135`). It lists every source as still cited (`report/citations.go:22–73`). The unverified counts fold differently (`evidenceview.go:563–572`) | `label` |
+| Footnote numbering | Per document, by first appearance, over live anchors: `[^N]` and `[^K<n>]` alike. evidence.md's `#K-…` anchors carry identity across documents, so no number has to | `[^K<n>]` is run-wide record order, retired included, so a document shows `K1, K3` (`computations.go:32`) | `assembly` (target) |
+| Check needs a live sentence | `verify` and `reproduce` refuse an anchor that is not in the report, is retired, or stands bare, through one function (`citedSentence` → `record.LiveSentence`, `verify.go:129–150`). Reproduce records no sentence (fork L5) | `reproduce` judges a retired or bare `K-` (`reproduce.go:68` → `ComputationAt`, `citationid.go:428`) and the ledger then ignores the verdict | `checkVerb` |
+| Claim count | Every evidence anchor on prose counts, one claim per distinct anchor per sentence, as citations count today (`segmentLabels`, `claimcount.go:165`). The logic lens's mint budget follows (`mintbudget.go:66`) | `K-` `claim: false` (`anchor.go:63`). The footnote says "a computation, not a claim" (`computations.go:87`) | — (fork L3) |
+| Gap answer | A gap's answers are the live anchors whose `answers` names it. Its check kind demands a live answer of `evidenceTables[k].check`'s kind (III.1′.3) | `computation` only, retired anchors included (`estoppel.go:280`, `views.go:569–572`). `source` is enforced nowhere | `check`, `table`, `idColumn` |
+| Retire the answer | Retiring an answering anchor removes it from the answer set, so an open gap is awaiting again. A closed gap follows fork L2. Retire closes nothing (ruling) | a retired `K-` still answers | — |
+| Gap about the anchor | A gap minted `--about-kind anchor` about an evidence anchor is the failed check's carrier. Its live-answer demand follows fork L1 | refused at `close` (`requireComputationAnswered`) even when retiring the anchor was the fix (the smoke's G-342d3cdc, G-78817cfa) | — |
+| Failed check | One state, `stateFailed`: a standing check of the sentence that does not hold (unsound, refutes or absent), carried by a gap about the anchor (fork L4). `stateUnread` stays citation-only | refuted citation → contradiction (`citationid.go:661`); unsound computation → failed-check gap (`failedcheck.go:56`) | `failedWord` |
+| Blockers | The blocker carries the anchor id. Kind is read from the row, never inferred from `Detail` holding a sha (`passblockers.go:162`, `:186`, `:226`, `:234`) | inferred from `b.Detail != ""` | `noun`, `checkVerb`, `owner` |
+| Work-list backing | `backing[]` is read from the ledger: the latest standing check of each anchor that answers the gap, with outcome or soundness, its seat and its event (`backingOf`, `viewjson.go:1181`) | only `Verify` is indexed, so a `K-` shows an empty outcome | `checkVerb` |
+| Cross-kind reference | `compute --cites C-…` (and 1b's `--input`) refuse a retired citation. `retire --anchor C-…` is refused while a live computation names it in `cites` or `inputs`, and the refusal names those computations (fork L6) | `requireCitation` accepts a retired `C-` (`refs.go:239`). evidence.md prints "applies the method cited at C-…" for a citation the report no longer holds | — |
+| Capture | `assembly-screen` fails on any live evidence anchor in `stateFailed`, not only citations found against (`capture.go:434`). `computation-rerun` samples live computations only (`computationrerun.go:93`) | computation counterpart missing; retired computations sampled | — |
+| Owner | The anchor's row names its owning lens | `anchorOwnerOf(bool)` | `owner` |
+
+**What stays kind-specific, and why**
+
+| Difference | Why it is intrinsic | Where it lives |
+|---|---|---|
+| How evidence is made: fetch, sha256 of bytes, span, OCR versus bundle, two runs, basis | It is the evidence itself | `cite.go:92–110`, `compute.go:120–165` |
+| How it is checked: a reading against the source versus a re-run and a soundness judgement. The `unread` state is citation-only | A source can be unreachable or not the work. A stored bundle always runs (`RERUN_CALLS_THE_TOOL` is refused at write) | `anchorchecks.go:160–176` |
+| Owning lens | Different competence | `evidenceTables.owner` |
+| Footnote target: `[^N]` to an external source with a bibliography, deduped by url and pages, versus `[^K<n>]` to `evidence.md#K-…`. Only the target differs; numbering is now one scheme | A url is a shared external target; a computation's record lives in evidence.md | `anchor.kinds.assembly` |
+| Red's corroborations | Red places a `C-` it found. Red never authors a program into the report | `verify.go:277` |
+| Caption text (1c, 2): the footnote's text, which is the `--reason` for a computation and the title and page for a citation | It follows the footnote target | Fork "Caption" |
+| Absent-crop placeholder (2) | `cache/` is never archived (R-commit). `computations/` is | Part 2 |
+| Capture re-runs computations and re-fetches no source | Re-execution is local. Re-fetching at every capture breaks the politeness contract; 1b's `archive rerun --citations` is the operator's re-fetch | `computationrerun.go` |
+| Failure words ("refutes", "absent", "unsound") | What the check found | `evidenceTables.failedWord`; one state |
+
+#### III.1′.2 Verbs [MODIFY] (contract: CLI flag set)
+
+| Verb | Change |
+|---|---|
+| `blue cite` | `--answers G-…` (`flags.GapID().WithCheck(record.GapExists)`, as on `compute`, `compute.go:225`), written to `Cite.answers`. It joins `citeAsserted` (`cite.go:197–203`), so a keyed retry naming another gap is refused; `seat.AssertedCovers` (III.1.1) holds it. An anchor may answer a gap of any check kind; only the demanded kind discharges a demand (lead, disclosed) |
+| `blue compute` | The idempotent keyed retry returns `computation_id` (`compute.go:117`). `--cites` refuses a retired citation through `requireLiveCitation` (`refs.go:239`, `record.go:1051`) |
+| `blue retire` | `--anchor` alone accepts any evidence anchor (`retireAnchor`). The flag help (`retire.go:161–163`) and `seat.Supplies` (`:158`) say "an evidence anchor — a citation or computation". The C-referenced refusal follows fork L6 |
+| `blue edit` | `refuseBaredEvidence` on `anchor.Backs` (`edit.go:250–290`). Its per-kind "what each anchor marks" text (`:536–555`) is read through one `EvidenceAt` accessor (`evidenceview.go:644`) |
+| `lens verify`, `lens reproduce` | Both call `record.LiveSentence(run, id)` [NEW, moved from `verify.go:129`]. `reproduce` gains the refusal "a computation the report holds no sentence for is refused" |
+| `lens close` | `requireComputationAnswered` → `requireEvidenceAnswered` (`close.go:69–72`, `:116`): the demanded kind is read from `evidenceTables` by the gap's check kind, and the answer must be live (III.1′.3). The refusal names `cite --answers` for `source` and `compute --answers` for `computation` |
+| `cite`/`compute` refusal wording | `citeRefusal` and `computeRefusal` (`cite.go:224`, `compute.go:273`) become one `placementRefusal` (MisQuote, InFence), worded from the row's `label` |
+
+#### III.1′.3 The record [MODIFY] (contract: event schema)
+
+```proto
+// Cite [MODIFY]: + optional string answers = 26;   // the gap this citation answers; flag "answers".
+//   remap class: id (respelled). Part 2's fields move to 27–35 (III.0).
+// Retire [MODIFY] comments only: claim_kept (:1679) and answers (:1688) "a retire of a CITATION" / "a citation retire" →
+//   "of an evidence anchor"; anchors (:1673) "Each named c- anchor is one counted claim" →
+//   "Each named evidence anchor".
+```
+
+| View (`recordsql/views.go`) | Change |
+|---|---|
+| `evidence_anchor` [NEW] | `(anchor_id, kind, answers, placed_event, retired_event)`. One UNION arm per `evidenceTables` row, generated from the row (`table`, `idColumn`). `retired_event` = the first `retire_anchors` row naming the anchor (a retired anchor cannot come back: an edit invents no anchor, `bluedoc`) |
+| `gap` (`:569–572`) | `computation_answered` → `evidence_answered`: a live `evidence_anchor` of the kind the check kind demands answers the gap. `awaiting_computation` → `awaiting_evidence`: open, check kind ∈ {`source`, `computation`}, and none answers. `open` follows fork L2 |
+
+`ComputationAnswers` → `EvidenceAnswers` (`estoppel.go:280`). `Gap.NeedsComputation` → `Gap.AnswerKind`
+(`replay.go:199`), which returns the demanded anchor kind, "" for `document`. The JSON fields
+`awaiting_computation` → `awaiting_evidence` (`viewjson.go:153`, `:839`, `:974`), plus
+`answer_kind` beside it, so the seat reads which verb it owes. Blue's sitting debt (`sitting.go:257–285`)
+reads `AwaitingEvidence`, and its words come from the row. No compatibility alias: the old names
+leave every surface (CLAUDE.md).
+
+The ledger (`anchorchecks.go`): `anchorStanding.computation bool` → `kind string`.
+`stateFoundAgainst` and `stateUnsound` → `stateFailed` (fork L4). `failedChecksOf`
+(`failedcheck.go:56`) adds the failed state of any kind. `unansweredContradictions`
+(`citationid.go:661`) keeps only readings with no anchor (corroborations).
+
+#### III.1′.4 Render [MODIFY]
+
+| Site | Change |
+|---|---|
+| `report/computations.go:111–218` `evidenceDoc` | live computations only. "anchored to nothing" stays only for a live computation no document references (a defect, not a retirement) |
+| `report/citations.go:22–73` `citationsSection` | live citations only |
+| `computations.go:32` `computationNumbers`, `weaveComputationRefs` | per document, first appearance, live only (the shape of `weaveCitations`, `assemble.go:49`). Footnote text drops "a computation, not a claim" (`:87`) |
+| `computations.go:192–196` "applies the method cited at" | prints the citation's footnote. Under fork L6 it is never a retired one |
+| `record/evidenceview.go:365–575` `EvidenceJSONOf` | `sources` and `computations` hold live anchors. Both unverified counts come from the ledger `state()`. `--anchor` returns a retired anchor with `retired` (event id, reason) (lead, disclosed) |
+| `computationverdict.go:224–231` ("a retired anchor keeps the verdicts it left with") | still true of the record. evidence.md no longer shows it, and the comment says so |
+| `assemble.go:925–967` `withdrawnClaims` | a `claim_kept` row names the anchor's label: "…a citation it stood on was retired" or "…a computation it stood on was retired" |
+
+#### III.1′.5 Agent-facing text [MODIFY] (contract: prompts and constitutions)
+
+Edit the sources, then run `agentgen`, `enginegen` and `vocabdoc`. Census rows L5–L7 (III.9).
+
+| Carrier | Becomes |
+|---|---|
+| `help/retire.md:9`, `:11` | "EVIDENCE LEAVES ON ITS OWN, ITS SENTENCE KEPT": `--anchor` alone, a citation or a computation. A cited or computed sentence that is to go first loses its anchors this way, then is edited like any prose |
+| `help/edit.md:28` | "EVIDENCE NEVER STANDS BARE" |
+| `help/reproduce.md:21`; new paragraph | "A COMPUTATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED", mirroring `help/verify.md:19`. The text promising retire is now true |
+| `help/verify.md:11`, `:15`, `:19` | under fork L4, a reading that finds against a citation is a failed check, carried by your gap about the citation. Contradictions are corroborations' |
+| `help/close.md:11`; `help/mint.md:13`, `:15` | `source` and `computation` close only on a live answer, and retiring the answer reopens the debt. The failed-check paragraph follows fork L4. The contradiction exemption in `mint.md:13` follows fork L4 |
+| `help/cite.md`, `help/compute.md` | `--answers`. How the anchor leaves (`retire --anchor`, sentence kept) |
+| `scripts/agentgen/src/fragments/blue-search-and-cite.md:14–18`, `:28`, `:31–32` | one lifecycle for both. ":31–32 a new computation with the old one retired" is now an act the tool admits: `retire --anchor K-old --answers G`, then `compute … --answers G` on the kept sentence |
+| `fragments/lens-audit-and-mint.md:6` | the failed check in both kinds, fork L4's carrier |
+| `scripts/agentgen/src/blue-researcher.md:113` | `awaiting_evidence: true` with `answer_kind`: a program or a source is owed from YOU |
+| `scripts/agentgen/src/red-lens-evidence.md`, `red-lens-computation.md` | a `source`/`computation` check kind is a demand for a live answer. Do not demand retirement through a `document` gap: mint about the anchor (L1) |
+| debate.js generated envelope :393 ("fix or retire a computation judged unsound, retire a citation no check could read") | from `record.Plan`'s description, regenerated by `enginegen` |
+| terms.json `retire` (:779), `failed check` (:1072), `contradiction`, `anchor` | "retiring an evidence anchor alone — a citation or computation — keeps its sentence". `failed check` gains "a reading finds against it" (L4). `contradiction` is narrowed to corroborations. Regenerate `docs/vocabulary.md` |
+| FEOV `docs/citations-and-bibliography.md:146`, `:158`; `docs/propagation-and-anchoring.md` | the one lifecycle |
+| `seatprobe/boards.go:288` (retire `Because`) | "deleting the sentence is refused while evidence stands on it; retire the anchor first" |
+
+#### III.1′.6 migrate — one translation (contract: record migration)
+
+| Change | Translation | Asserted on every archive |
+|---|---|---|
+| `Cite.answers` (field 26) | none: no archived cite holds one. remap classes the field `id` (`remaplists_test.go`) | zero refusals |
+| `gap`, `evidence_anchor` view DDL | the epoch moves. `TestEveryDDLChangeBumpsTheEpoch`; `schema.epoch.json` restamped | — |
+| Ruling L4 (a): an archived mint `--about-kind contradiction` whose contradiction's opening reading checked a citation anchor | `about_kind anchor`, `about_ref` = that citation. Corroboration contradictions (anchor "") are unchanged. Count first (census L8) and assert it | every such mint translated; the derived failed check is answered by it |
+| Render only | per-document `[^K<n>]` numbers, evidence.md without retired entries, claim counts | goldens (V1a′.6) |
+
+**Residue, accepted** (each counted by V1a′.6's flip census over the 33 archives):
+
+| Residue | Why it stays |
+|---|---|
+| Archived edits that left a `K-` bare, and claim retires that took a `K-` with its sentence | what a seat did. Replay exempts refusals (`Migrating`) |
+| Archived `source` gaps closed on prose with no cite answering | fork L2 lets a closure that rested on no answer stand. Only a closure whose answer was live at the close and has since been retired falls |
+| Archived `computation` gaps closed on an answer later retired (the 2026-10-30 smoke if captured) | they re-derive open under fork L2. That is the true state, and the census counts them |
+| Re-derived blockers and claim counts differ from what an archived run's seats saw | derived views; the archived verdict is the record's |
+
+### Part 1a′ dependents — what 1b, 1c and 2 now assume
+
+Each later part's text below is amended in place. This table is the index.
+
+| Part | Was | Now |
+|---|---|---|
+| §I placement rule | "No new lifecycle" (a premise two lifecycles falsified) | "1a′'s one lifecycle" |
+| 1b `--input C-…` | refused when not on the record, not cached, or tool-composed | also refused when retired (`requireLiveCitation`). Retiring a citation a live computation reads is refused (L6) |
+| 1b `archive rerun` | every act | every act, retired included: it audits the record, not the report. A retired act's line says `retired` and keeps its outcome and exit semantics. `--citations` likewise |
+| 1c assembly, figure and table numbering | numbered per kind in document order | over live anchors. A retired act's block is never placed |
+| 1c voice lens | "edit the sentence, retire the `K-` anchor, compute again" | "retire the `K-` anchor (the sentence stays), compute again on the sentence" |
+| 1c evidence.md | each entry adds its shown output | each live entry |
+| 2 wrong crop | "`retire` + cite again (the existing lifecycle)" | `retire --anchor C-…` keeps the sentence, then cite again: the same act as a wrong figure |
+| 2 `Cite` fields | `show = 26` … `crop_sha256 = 34` | `answers = 26`, so `show = 27` … `crop_sha256 = 35` |
+
 ### Part 1b — `--input` and `archive rerun` (epoch E2)
 
 | Change | Detail |
 |---|---|
-| `compute --input C-…` (repeatable) [MODIFY] | the citation's RAW cached bytes (`fetchcache.Read`) — never extracted text (R-input). Placed read-only at `sources/C-…` in each copy; id + sha256 enter `bundle_sha`. Refused: a citation not on the record; bytes the cache does not hold; a citation whose bytes the tool composed — `copy_substitution` `recovered` or `named_backend` with no `copy_url` (`record.proto:1237`, `:1239`): no document exists to re-fetch |
+| `compute --input C-…` (repeatable) [MODIFY] | the citation's RAW cached bytes (`fetchcache.Read`) — never extracted text (R-input). Placed read-only at `sources/C-…` in each copy; id + sha256 enter `bundle_sha`. Refused: a citation not on the record, or retired (`requireLiveCitation`, 1a′); bytes the cache does not hold; a citation whose bytes the tool composed — `copy_substitution` `recovered` or `named_backend` with no `copy_url` (`record.proto:1237`, `:1239`): no document exists to re-fetch |
 | `reproduce`, capture's audit [MODIFY] | `compute.Rerun` materialises `sources/` the same way |
 | Package `archive` [NEW] (`internal/archive`) | the one writer and the one reader of the run-archive tarball: `archive.Write` (from `ArchiveRecord`, `capture.go:2045`; `capture` calls it) and `archive.Extract` (replacing `internal/record/recordtest/archive.go:34`'s loop and `archdump`'s `untar`, `main.go:149`). Every entry `0o644`, created with explicit permissions; identity holds no mode (III.1.3). Capture's transcript tarball (`capture.go:1748`) is another format and stays. It commits no `cache/` (R-commit) |
-| `feov-record archive rerun <runDir>` [NEW] (N1) | input: an extracted archive brought to the current epoch by `feov-migrate --from <runDir> --to <freshDir>` (an older epoch is refused by `requireThisEpoch`, pointing to `feov-migrate`). Re-fetch each input from where its bytes came — `copy_url` when set, else `url` (`fetchcache.Resolve`, paced) — verify sha256, then `compute.Rerun` each bundle once and compare every act (III.1.4: never reads `rerun/`, writes nothing to the store). Writes no event. `--citations` verifies every citation the same way (N2); a tool-composed citation prints `refused` (no document). `--help` states: it runs every archived program with the operator's privileges, filesystem and network (R12) |
+| `feov-record archive rerun <runDir>` [NEW] (N1) | input: an extracted archive brought to the current epoch by `feov-migrate --from <runDir> --to <freshDir>` (an older epoch is refused by `requireThisEpoch`, pointing to `feov-migrate`). Re-fetch each input from where its bytes came — `copy_url` when set, else `url` (`fetchcache.Resolve`, paced) — verify sha256, then `compute.Rerun` each bundle once and compare every act (III.1.4: never reads `rerun/`, writes nothing to the store). Writes no event. It audits the record, not the report, so a retired act is re-run as well and its line says `retired` (1a′). `--citations` verifies every citation the same way (N2); a tool-composed citation prints `refused` (no document). `--help` states: it runs every archived program with the operator's privileges, filesystem and network (R12) |
 | Rights [MODIFY] — every carrier (C4) | the decision, in each: computing over a cited body is accepted whatever `TDMReserved` says; output and `out/` are committed to `run-archive/` and may carry more of a source than a quotation; the bodies are never committed, kept as a corpus beyond the cache, or trained on. `fetchcache/shell.go:213–230` (comment); `cli/fetchsummary.go:110–112` and `:345–348` (comments); `:354–357` (the seat-printed note: "…What it forbids is keeping a corpus of it or training on it, which this tool does not do. A program you run over it is accepted; its output is committed"); `docs/citations-and-bibliography.md:74–75`. `TDMReserved` stays in the run's fetch index (`cache/`), not copied onto `Computation` (R-rights) |
 | Help, prompts [MODIFY] | `compute --help`: inputs are citations, raw bytes, read at `sources/<id>`; blue-researcher source: compute from what you cited |
 | migrate | replay only: migrated computations hold no inputs |
@@ -498,14 +702,14 @@ outcome, and how many had an input re-fetched, verified and re-run.
 | Change | Detail |
 |---|---|
 | `compute --show table\|image\|text` [MODIFY] | `out/` decoded as its kind: `table` one CSV with a header row (a cell holding a newline refused); `image` one PNG or SVG; `text` one markdown file under `edit`'s refusals (`composedRefusal` chain, `cli/blue/ingest.go:147`, called by `edit.go:308` and `ingest.go:80`, plus the image refusal below) and its voice advisory (`cli/blue/edit.go:104`). Any other count or extension, or a file that does not decode → refused. Joins the asserted set |
-| Assembly [MODIFY] (`report/layout.go`, `report/computations.go`) | block after the anchor's paragraph, numbered per kind in document order, inserted after every escape and the weave (no escape reads a shown block): `TABLE` → markdown table, every cell `Literal`, then `*Table n.* Literal(R)`; `IMAGE` → `![Figure n](<placed>)` — alt is tool text only — then `*Figure n.* Literal(R)`, in report.md (run root: the link resolves in the run directory and in an `archdump` of its archive, which copies `computations/` beside the report set; the archive itself holds no report.md, `capture.go:2045–2160`); `<img src="data:image/…;base64,…">` in report.html (an `<img>` runs no SVG script); `TEXT` → verbatim, already held to `edit`'s refusals. `<placed>` = `computations/<sha>/acts/<K-id>/out/` + each path segment `url.PathEscape`d, joined by `/` (a nested `out/sub/f.png` resolves), from one function (`placedPath`): the program chose the name, and PathEscape leaves no space, `(`, `)`, `[`, `]`, `<`, `>`, `\` or line break in a segment |
+| Assembly [MODIFY] (`report/layout.go`, `report/computations.go`) | block after the anchor's paragraph, numbered per kind in document order over live anchors (1a′), inserted after every escape and the weave (no escape reads a shown block): `TABLE` → markdown table, every cell `Literal`, then `*Table n.* Literal(R)`; `IMAGE` → `![Figure n](<placed>)` — alt is tool text only — then `*Figure n.* Literal(R)`, in report.md (run root: the link resolves in the run directory and in an `archdump` of its archive, which copies `computations/` beside the report set; the archive itself holds no report.md, `capture.go:2045–2160`); `<img src="data:image/…;base64,…">` in report.html (an `<img>` runs no SVG script); `TEXT` → verbatim, already held to `edit`'s refusals. `<placed>` = `computations/<sha>/acts/<K-id>/out/` + each path segment `url.PathEscape`d, joined by `/` (a nested `out/sub/f.png` resolves), from one function (`placedPath`): the program chose the name, and PathEscape leaves no space, `(`, `)`, `[`, `]`, `<`, `>`, `\` or line break in a segment |
 | Composition rule [NEW in 1a, III.1.5] (`report/notes.go`) | `report.Literal(s)` backslash-escapes every ASCII punctuation character and folds each line break to a space, so the string renders as its own characters in report.md and report.html and opens no image, link, raw HTML, footnote, emphasis or table cell. It is the one composer of seat, program and source text in a shown block — 1c: table cells (replacing `cell`'s pipe-only escape for shown tables, `assemble.go:1525`), the caption; 2: the caption (source title, page when there is one), the placeholder, the `--show text` span. Sweep of composition sites a part adds: these; evidence.md (names per III.1.5; `docs.go:211`'s whole-document escape moves per entry, applied before the entry's figure line is appended, so no tool-composed image is under it); run.md's absent-crop line (tool text, C-id and box) |
 | Code regions [MODIFY] (`layout.go:350`, `notes.go:32`) | serve markdown STRUCTURE only — the weave-label `[^` escape and the composed-image `!` escape; raw HTML is #1569's. `eachLine` marks a line fenced when goldmark's tree (`mdReader`) places it in an `ast.FencedCodeBlock` (fence lines included) or `ast.CodeBlock`, so its seven callers (§II) inherit the renderer's reading; code spans come from `ast.CodeSpan`; `reCodeSpan` is deleted. Each escape parses its unit as it ships — a whole document (`docs.go:129`, an evidence entry) or a section block (`layout.go:89`) with `mdReader`, a one-line title (`assemble.go:151`, `proofs.go:85`) with `lineReader`. Units join closed: assembly appends the closing fence to any unit whose parse ends inside a fenced block, so no fence state crosses a unit boundary and each unit's reading is the document's (`probe-out.txt`'s case) |
 | Raw HTML and images [MODIFY] (#1569; `notes.go:43`) | Raw HTML is #1569's in both outputs: report.html in md.go; report.md is written (`docs.go:391`) through the same decision on the same whole-document parse — every `<` outside code, autolinks and the tool's shapes backslash-escaped (each `<`, not only a node's opener: `probe2-out.txt`). So 1c adds no raw-HTML escape at composition and no raw-HTML refusal at `edit`/`ingest`. Images, which #1569 keys on a destination a seat can type: `EscapeNotes` → `EscapeComposed`, which outside code also escapes the `!` of each `ast.Image`, at its call sites, so no composed seat text (mint, fix, inquiry, ruling, verify, evidence) opens one; `edit` and `ingest` refuse an `ast.Image` outside code in authored text — a new link in `composedRefusal`'s chain, named in `help/edit.md` and `help/ingest.md` (measured 0 outside code in 30 archives). 1c supplies the allowlist's image set — `placedPath` of each shown act; Part 2 adds `cache/crops/<crop_sha256>.png`. Every other shipped .md is written through the same decision (T13) |
 | Seat-facing views [MODIFY] | `show report --assembled --json` carries each block in its section's `text`; bare `show report` (`report/seatread.go`) carries the anchor only, and `AssembledNote` (`layout.go:284`) says shown blocks are assembled content |
 | `show evidence --anchor K-…` [MODIFY] | returns the act's shown output — the stored path for an image; `reproduce` help and `scripts/agentgen/src/red-lens-computation.md`: read the image, not the caption — a truncated axis is an unsound sentence; an SVG is read as its source, and the duty states what the source does not show (the rendered layout: overlap, clipping, font substitution) until #1573 gives the lens a renderer (T14) |
-| Voice lens [MODIFY] `scripts/agentgen/src/red-lens-voice.md` | a shown text block is report text: read the report as assembled (R5). A finding's `--quote` must be report text, which a shown block is not: quote the anchor's sentence and name the block; the fix is `edit` the sentence, `retire` the `K-` anchor, compute again |
-| evidence.md, help [MODIFY] | each entry adds its shown output; tables are CSV, never printed markdown; a diagram can be a mermaid fence in `text`. `compute --help` (`image`): an SVG is shown as a static image (no script, hover or zoom); set `svg.fonttype: none`, so labels stay text the lens can read in the source |
+| Voice lens [MODIFY] `scripts/agentgen/src/red-lens-voice.md` | a shown text block is report text: read the report as assembled (R5). A finding's `--quote` must be report text, which a shown block is not: quote the anchor's sentence and name the block. The fix is `retire --anchor K-…` (the sentence stays), then compute again on the sentence (1a′) |
+| evidence.md, help [MODIFY] | each live entry adds its shown output (1a′); tables are CSV, never printed markdown; a diagram can be a mermaid fence in `text`. `compute --help` (`image`): an SVG is shown as a static image (no script, hover or zoom); set `svg.fonttype: none`, so labels stay text the lens can read in the source |
 | `devcmd/archdump` [MODIFY] | copies `computations/` beside the report set, so `diff -r` of two dumps compares shown images too |
 | migrate | replay only: migrated computations are not shown |
 
@@ -520,7 +724,7 @@ perceived on either tier.
 |---|---|
 | `cite --show text` | the source span (`--source-span`) as a block quote, `Literal`; verification unchanged |
 | `cite --show image --url U --page N` — phase 1 [MODIFY] | records nothing, and takes only what names the view: `--url`, `--page` (none for an image source). `--quote` and `--title` move from `seat.Require` (`cite.go:180`) to `seat.RequiredUnless(…, "unless --show image is given without --region")` (precedent `edit.go:239`). Returns the VIEW's path, width and height: a PDF page rendered in colour by `renderPagePNG` at `ResizedSize` of its full raster (`PageRenderDPI` :420) via `RenderPageInPixels`; an image source, the image box-averaged to `ResizedSize` of its own size when that differs (stdlib `image`, no new module). Width and height are read back from the PNG (`pngSize`, `pagerender.go:516`), never computed. Cached in `cache/`, keyed (source sha, page) |
-| `… --region x,y,w,h` — phase 2 [MODIFY] | every phase-1 flag plus `--quote`, `--title`, `--region` (the box in the view's pixels). Re-derives the view from its key and records `crop_view_w`/`_h` from it; a box outside it is refused. Crops from the full-resolution colour raster (a PDF at `PageRenderDPI`; an image's own pixels), the box scaled per axis by raster ÷ view and rounded; `crop_sha256` = sha256 over the crop's width, height and decoded 8-bit RGBA pixels, row-major, in III.1.3's length-prefixed framing — not the PNG bytes, which an encoder change moves; stages and renames it to `cache/crops/<crop_sha256>.png`, records it, then returns its path for the seat to read; a wrong crop is `retire` + cite again (the existing lifecycle). Never committed (R-commit); `archive rerun --citations` re-derives it and prints `differs` when its sha256 moved (1b table). `citeFields` writes `show`, `crop_page` and `crop_x…h`, and `citeAsserted` (`cite.go:198`) gains `--show` → `show`, `--page` → `crop_page`, `--region` → `crop_x`, `crop_y`, `crop_w`, `crop_h`, so a keyed retry with another page or box is a Conflict (W6); `crop_view_*` and `crop_sha256` derive from those |
+| `… --region x,y,w,h` — phase 2 [MODIFY] | every phase-1 flag plus `--quote`, `--title`, `--region` (the box in the view's pixels). Re-derives the view from its key and records `crop_view_w`/`_h` from it; a box outside it is refused. Crops from the full-resolution colour raster (a PDF at `PageRenderDPI`; an image's own pixels), the box scaled per axis by raster ÷ view and rounded; `crop_sha256` = sha256 over the crop's width, height and decoded 8-bit RGBA pixels, row-major, in III.1.3's length-prefixed framing — not the PNG bytes, which an encoder change moves; stages and renames it to `cache/crops/<crop_sha256>.png`, records it, then returns its path for the seat to read; a wrong crop is `retire --anchor C-…`, which keeps the sentence, then a new cite: 1a′'s lifecycle, the same act as for a wrong figure. Never committed (R-commit); `archive rerun --citations` re-derives it and prints `differs` when its sha256 moved (1b table). `citeFields` writes `show`, `crop_page` and `crop_x…h`, and `citeAsserted` (`cite.go:198`) gains `--show` → `show`, `--page` → `crop_page`, `--region` → `crop_x`, `crop_y`, `crop_w`, `crop_h`, so a keyed retry with another page or box is a Conflict (W6); `crop_view_*` and `crop_sha256` derive from those |
 | Colour | `renderPagePNG` (`pagerender.go:480`) takes a pixel size and the colour model in place of its DPI; its three callers — `RenderPages` :376, `RenderOnePage` :455, `readscanned.go:204` — pass the pixel size their DPI gives today and grayscale, and a view passes `ResizedSize` and colour, so OCR renders and `render-page` shas are unchanged. The comment `pagerender.go:298–308` is restated: OCR and `render-page` stay grayscale; views and crops are colour; the colour follows the consumer, so the record carries no colour field |
 | Caption | `*Figure n.* Literal(<source title>, page N)`, or `Literal(<source title>)` for an image source — the citation's footnote text; `--reason` stays off the report (`cite.go:191–195`) |
 | Absent crop | `cache/crops/<crop_sha256>.png` missing: report.md, report.html, `show report --assembled` and `devcmd/archdump` render "*Figure n.* <source title>[, page N]: image not held in this copy" (`Literal`, subject terms only — report-voice ruling); run.md's log names the absent crop (C-…, box) and `archive rerun`, which re-derives it |
@@ -530,7 +734,7 @@ perceived on either tier.
 
 | Carrier (sweep W3, III.9) | Becomes |
 |---|---|
-| `cli/seat/help/cite.md` | adds SHOWING WHAT A SOURCE SHOWS: `--show text` displays your span; `--show image` is two calls — first with only the source and page, and the tool returns a view sized so you see it unresized, with its width and height; read it; then the same call with your quote, title and `--region x,y,w,h` in that view's pixels records the citation and returns the crop — read it; a wrong crop is retired and cited again; a retry under one key restates the page and box |
+| `cli/seat/help/cite.md` | adds SHOWING WHAT A SOURCE SHOWS: `--show text` displays your span; `--show image` is two calls — first with only the source and page, and the tool returns a view sized so you see it unresized, with its width and height; read it; then the same call with your quote, title and `--region x,y,w,h` in that view's pixels records the citation and returns the crop — read it; a wrong crop is retired with `--anchor` (the sentence stays) and cited again; a retry under one key restates the page and box |
 | `cli/seat/help/verify.md` | a shown citation's crop is checked against the view of its page (`show evidence --anchor`): the same area, uncut, in colour |
 | `scripts/agentgen/src/blue-researcher.md`, `fragments/blue-search-and-cite.md` | show a source's figure when the figure is the evidence the sentence rests on; state the box on the view the tool returned, in its pixels |
 | `scripts/agentgen/src/red-lens-evidence.md` | fidelity duty: a shown crop that cuts a legend, axis or label that changes its reading is a finding |
@@ -566,6 +770,14 @@ excluded `_test.go`, `.pb.go`, generated `agents/` and preloaded skills, goldens
 | W6 | keyed acts' asserted sets: `grep -rn 'RepeatsKeyed(' --include=*.go $F/tools \| grep -v _test \| grep -v 'func '` | 5 (`cite`, `prove`, `mint`, `finding`, `edit`) | `cite`, `compute` under `seat.AssertedCovers` (III.1.1); the other three have no field writer to drive | 1a, 2 |
 | W7 | a reproduce's output copies: `grep -rn 'RecordedOutput\|ObservedOutput\|recorded_output\|observed_output' --include=*.go --include=*.proto $F/tools \| grep -v '_test\|\.pb\.go'` | 11 lines | `Reproduce` fields (`record.proto:1462–1463`, `reproduce.go:129–135`, `proofverdict.go:57`, `replay.go:532`, `remap.go:126`) → III.1.4, III.1.6; `EvidenceProofAtJSON.RecordedOutput` (`evidenceview.go:616`, `verbs.go:297`, `:725`) is the act's own stored output → `output` (III.1.5) | 1a |
 | W8 | page rasterisers: `grep -rn 'renderPagePNG(' --include=*.go $F/tools \| grep -v _test \| grep -v 'func '` | 3 | all pass grayscale (Part 2 Colour) | 2 |
+| L1 | kind-literal branches: `grep -rnE 'anchor\.Kind\([^)]*\) *[!=]= *"(citation\|computation)"\|Kind\(id\); k != "citation"' --include=*.go $F/tools \| grep -v _test` (run at `a31a7b06`) | 3: `cli/blue/edit.go:268`, `cli/blue/retire.go:191`, `report/rawhtml.go:346` | edit and retire move to `anchor.Backs` (III.1′.1). `rawhtml.go:346` is the `<a id>` link target of the `WeaveComputation` assembly, which is intrinsic and unchanged | 1a′ |
+| L2 | kind inferred from a side field or a bool: `grep -rnE '\bcomputation +bool\b\|\.computation\b\|Detail *[!=]= *""' --include=*.go $F/tools/internal/{record,capture,report} \| grep -v _test` | 24 lines / 9 files: `anchorchecks.go` 3, `available.go` 1 (`anchorOwnerOf`), `dispatch.go` 1, `evidenceview.go` 1, `failedcheck.go` 4, `passblockers.go` 9, `sitting.go` 1, `unchecked.go` 3, `record.pb.go` 1 (false) | all read `anchorStanding.kind` and the `evidenceTables` row | 1a′ |
+| L3 | the computation debt: `git grep -n 'awaiting_computation\|AwaitingComputation\|computation_answered\|ComputationAnswers\|NeedsComputation\|requireComputationAnswered' -- plugins scripts` | non-test: `close.go` 4, `estoppel.go` 3, `views.go` 3, `replay.go` 2, `sitting.go` 2, `viewjson.go` 11, `agentgen/src/blue-researcher.md:113`; test and golden: `checkkind_test.go` 5, `viewfamilies_test.go` 1, `workstate_test.go` 1, `fuzz_test.go` 1, manual golden 4, `schema.sql` 3 | renamed to the `evidence` forms, with no alias (III.1′.3) | 1a′ |
+| L4 | `CHECK_KIND_SOURCE` readers: `grep -rn 'CHECK_KIND_SOURCE' --include=*.go $F/tools \| grep -v pb.go` | 0 | `Gap.AnswerKind` through `evidenceTables` becomes its reader | 1a′ |
+| L5 | anchor retirement in agent text: `grep -n -i retire` over `cli/seat/help/*.md`, `scripts/agentgen/src/**`, debate.js (`~/.claude/scratch/anchor-lifecycle/retire-mentions.txt`, 23 lines) | 14 on anchors (`retire.md:9,11`; `edit.md:28`; `verify.md:11,15,19`; `reproduce.md:21`; `close.md:11`; `mint.md:15`; `blue-search-and-cite.md:14–18,28,31–32`; `lens-audit-and-mint.md:6`); 9 on claim or lens retirement (`dispatch.md:13`, `spot-check.md:7`, `blue-additive-only.md:1`, `blue-research-protocol.md:9`, both preloaded-skill sources, `red-chair.md:14`, `lens-duties.md:5`, debate.js authored :776, :880) | the 14 change (III.1′.5); the 9 are unchanged | 1a′ |
+| L6 | the release fuzz drive: `grep -nE 'retire\|"cite"\|compute\|reproduce\|"close"' releasegate/fuzz/fuzz_test.go` (`fuzz-verbs.txt`, 48 lines) | `retire --anchor` only on the citation branch (:1095); an unsound computation is edited, never retired (:1111–1129); computation gaps are answered before close (:3920–3947, :3946, :3964, :3969) | a computation branch retires `--anchor K-` with `--answers` and computes again; a `source` gap is answered by `cite --answers` before close; a retire of an answering anchor reopens the gap and the drive answers it again | 1a′ |
+| L7 | contradiction carrier: `grep -rn 'unansweredContradictions\|contradictionsOf\|ABOUT_KIND_CONTRADICTION' --include=*.go $F/tools \| grep -v '_test\|pb.go'` | 26 lines / 10 files (`citationid.go` 11, `mintbudget.go` 4, `about.go` 2, `evidenceview.go` 2, `passblockers.go` 2, `verify.go`, `anchorchecks.go`, `migrate/replay.go`, `onegapperclass.go`, `record.go` 1 each) | L4 (a): each one narrowed to readings with no anchor; anchored readings move to `failedChecksOf` | 1a′ |
+| L8 | archives: mints `--about-kind contradiction` whose contradiction checked a citation anchor; gaps whose derived state flips at E1′ | NOT MEASURED. V1a′.6 measures it before the translation is written, and commits the count | III.1′.6 | 1a′ |
 
 Named consumers, meaning checked: `capture.go:2035–2036` (archive contents, 1a; no `cache/`, kept
 by R-commit); `pagerender.go:298–308` (restated in Part 2); `law/precedents.md:11–20`, `seat-surface-naming.md:806`
@@ -587,6 +799,11 @@ by R-commit); `pagerender.go:298–308` (restated in Part 2); `law/precedents.md
 | R10 | `archive rerun` breaks the fetch politeness contract | L × M × L | `fetchcache.Resolve`'s pacing; `--citations` is opt-in (N2) |
 | R11 | Unbounded output and `out/` (R-size) bloat `run-archive/` | M × L × L | Stated in `compute --help`; the bundle stays ≤ 1 MiB |
 | R12 | **`archive rerun` runs archived programs with the operator's privileges, filesystem and network** | L × H × M | Stated in its `--help`; in CI it runs only in its own Linux job `archive-rerun`, modelled on `ocr-corpus` (:315), gated `if: github.event_name == 'schedule' \|\| github.event_name == 'workflow_dispatch'` (the workflow's `on:` also holds `push` and `pull_request`, :4–22): `contents: read`, `persist-credentials: false`, `setup-go` `cache: false`, `setup-node` `package-manager-cache: false` (as :569), `setup-python` with its `cache` input unset (its default caches nothing; it has no `package-manager-cache` input — its `action.yml`), no `actions/cache` — so nothing an archived program writes (`GOCACHE`, `GOMODCACHE`, `$HOME`) is saved for a pull request to restore; never the `release` job (`contents: write`) — ruling CI. Residue: a program can still read the runner's environment and reach the network |
+| R13 | **`source` becomes a hard demand (1a′)**: a lens that minted `source` meaning "find a better source" now blocks its own close, `moot` and `not_a_defect` included, until a live citation answers. The ruling binds every closing disposition, as it already does for `computation` | M × M × L | `mint --help` and `close --help` state it; a wrong demand is regraded or superseded; L1 covers gaps about an anchor; V1a′.7(c) watches for a CEILING on such a gap |
+| R14 | **Re-derived archived state (1a′)**: L2 and L4 change the derived boards of archived runs | L × L × L | Replay exempts refusals (`Migrating`). V1a′.6's flip census counts each change per archive and commits the counts |
+| R15 | **Retire is cheap for a computation (1a′)**: blue retires an unsound `K-` and keeps a sentence nothing now backs | M × M × L | The same as for a citation today. The kept sentence is prose the logic lens audits, the claim count drops, and the CHANGELOG lists the retire |
+| R16 | **One failed-check carrier changes the evidence lens's procedure (L4)** | M × M × M | the help, the `red-lens-evidence` source, a `seatprobe` board (a refuted citation expects the lens's gap about the anchor), the fuzz drive (L6) |
+| R17 | **A generated SQL arm drifts from its table row (1a′)** | L × M × L | the `evidence_anchor` arms are built from `evidenceTables`; `TestEveryBackingKindHasAnEvidenceRow`; the `schema.sql` golden |
 
 **R7 — what step 4 grades** (`ErrorSignature` matches case-sensitive `No such file or directory`,
 `Traceback`, `command not found`, `Permission denied`, `cannot access`, `: not found`,
@@ -632,6 +849,14 @@ Windows) and carry no Short gear, so they run on the Windows leg.
 | V1a.7 | migrate tests on the archives of III.1.6, each assertion and residue row (m32's `not_run` rows included). Then `go -C plugins/frank-exchange-of-views/tools run ./devcmd/archiverun`: each of the 30 archives through `archive.Extract`, migrate and `archive rerun`, every act's outcome against `devcmd/archiverun/testdata/outcomes.tsv` (159 rows: archive, old sha, outcome). The file is MEASURED, not forecast: `archiverun -write` in the `archive-rerun` job on `workflow_dispatch` uploads it as an artifact and it is committed — interpreters pinned by `setup-python`/`setup-node`, their versions in its header. The dev-box probe's 109 / 48 / 2 had no pins and one copy; m19's `10ef5e65` reads `/home/…/scratch/universe-m19/…` by absolute path and is expected to differ on the CI image. Off the CI image the outcomes check fails by design (other interpreters, no pins): a dev box runs the migrate half only. The 13 migrated `DIFFERS` carry `drift` "on re-run the program wrote: …" with their program bytes unrespelled. Nightly in the same job on `schedule` (R12); never in `release` (a workflow edit: CI's `actionlint` reads it) | a refusal, a failed assertion, a header version mismatch, a missing interpreter, or any act's outcome other than its committed row — a reproducible act's exactly; a variant act's re-run may or may not write its recorded output, so for it `reproduced` and `moved` stand for each other |
 | V1a.8 | Delete-the-row: each pinned env var, each `remap` admission (`P-` in `hexID`, `archivedToken`, `[^Pn]`, `not_run`, `about_kind proof`), each refusal arm, each `notFields` entry — a test fails for each | a deletion leaves the suite green |
 | V1a.9 | Smoke: `scripts/universe.sh build`, grep the staged marketplace for `blue compute`, `--smoke` on a numeric question; capture's `computation-rerun` | the run recorded no computation, or a FAIL |
+| V1a′.1 | Lifecycle, ONE table-driven test over every `backs` kind (`C-`, `K-`) running the same script. Place with `--answers G`. An edit leaving the anchor bare is refused, naming `retire --anchor`. `retire --anchor` alone keeps the sentence: `claim_kept`, `anchors` = [id], CHANGELOG names the kind. report.md, evidence.md and `show evidence`'s lists and counts then hold no entry, and `show evidence --anchor` says `retired`. `verify` and `reproduce` of it are refused, and so is a bare one from a migrated record. An edit carrying it to other prose reopens it. A sentence with one `K-` counts one claim (L3). Delete-the-row: remove `computation`'s `evidenceTables` row → `TestEveryBackingKindHasAnEvidenceRow` fails; set `K-` `backs: false` → the script fails on its `K-` arm; restore `anchor.Kind(id) == "citation"` in edit or retire → the `K-` arm fails; drop the retire filter from `evidenceDoc` or `citationsSection` → the render arm fails | any arm passes the wrong way for either kind |
+| V1a′.2 | Closure, per check kind. A close without an answer is refused, naming `cite --answers` / `compute --answers`. A live answer of the demanded kind admits it; one of the other kind does not. Retiring the answer makes the open gap `awaiting_evidence` and the close is refused. L1: a gap about `K-x`, minted `--check-kind computation`, after `retire --anchor K-x` → red's close admitted, nothing auto-closed. L2: close, then retire the answer → `open`; a new answer → still open (no auto-reclose) until a new close; a bench-closed gap and an archived closure that rested on no answer stay closed. Blue's sitting is held on an awaiting `source` gap as on a `computation` one. Delete the `retired_event` join → the retire arm fails; delete the kind match → the cross-kind arm fails | any |
+| V1a′.3 | Failed check (L4). A standing `refutes` on a `C-` → `stateFailed`, PASS held; the reader's gap about the `C-` answers it; a repeat refuted reading is refused as a repeat unsound is. A corroboration's contradiction is unchanged. `assembly-screen` FAILs on a live unsound `K-` and on a live refuted `C-`, and PASSes once each is retired. Blocker words: a computation blocker whose `Detail` is empty still names `reproduce` and its owner. `computation-rerun` samples no retired computation | any |
+| V1a′.4 | Retry and cross-kind. A keyed idempotent `compute` retry returns `computation_id`. `cite` keyed retries with another `--answers` → refused; `seat.AssertedCovers` over `cite` includes `answers`. `--cites` a retired citation → refused. `retire --anchor C-` named by a live `K-`'s `cites` → refused naming the `K-` (L6); admitted after that `K-` is retired | any |
+| V1a′.5 | Render goldens. Two documents referencing `K-a`, `K-b` in opposite orders → each numbers `[^K1]`, `[^K2]` by its own first appearance, and a retired `K-` takes no number. evidence.md holds no retired `C-` or `K-`. "anchored to nothing" appears only for a live computation no document references. Read every changed golden line (difftest `manual`, report, evidence) | a retired anchor rendered, a gap in numbering, or a lost duty on a help page |
+| V1a′.6 | Migrate at E1′. All 33 archives: zero refusals; `Cite.answers` absent; III.1′.6's L4 translation on each counted mint (L8, measured first). The flip census: per archive, gaps whose `open`, `awaiting_evidence` or failed-check state, and claim counts, differ between E1 and E1′. Written by a `devcmd` and committed as testdata, measured, not forecast; a change in a count fails the test | a refusal, a count off its committed row, an uncounted flip |
+| V1a′.7 | Real data: the 2026-10-30 CEILING. (a) The smoke's own record (`~/.claude/scratch/compute-1a/smoke/copy/run/records/record.db`, committed as a fixture, or captured into `run-archive/`, before 1a′ starts) through `feov-migrate` to E1′. Its evidence.md holds none of `K-414ee920`, `K-72d5d71a`, `K-71a99b9a`, `K-bc8ac2b6` and no "anchored to nothing"; red's close of `G-342d3cdc` and `G-78817cfa` is admitted (L1). (b) A scripted replay of its acts through the CLI at E1′. `compute` `K1` on S; the lens mints a gap G on S. Blue's edit moving `K1` to a bare position → refused. `retire --anchor K1 --answers G`, then `compute --answers G` on S → G closes on red's close, and no computation gap stays open on a retired `K-`. (c) `scripts/universe.sh build`, grep the staged marketplace for `retire --anchor` on a computation; then `--smoke` on the same question. The run records no close refusal of a gap whose anchor was retired, evidence.md holds no retired anchor, and capture's `assembly-screen` and `computation-rerun` PASS | any; or (c) ends CEILING on a gap held by a retired anchor |
+| V1a′.8 | Agent text. `agentgen -check`, `enginegen -check`, `vocabdoc`; each changed `--help` read before and after. A failing assertion, not a golden a person reads: rendered `retire --help`, `edit --help` and `reproduce --help` carry the one-lifecycle sentences (III.1′.5); drop one → it fails | a stale page or a lost duty |
 | V1b.1 | `--input`: raw bytes at `sources/C-…`, read-only, in both copies; a citation not on the record / not cached / `recovered` with no `copy_url` → refused; a different input under the same key → Conflict; a zero-input bundle hashes to the sha pinned in 1a's test | any |
 | V1b.2 | `archive rerun` on a fixture archive with no `cache/` against a local server: correct bytes → `reproduced`, exit 0; a `followed_link` citation re-fetched from its `copy_url`, not its `url`; a `VARIANT` that moved → `moved`, exit 0; a `REPRODUCIBLE` that differs → exit 1; changed bytes → refused naming url and both shas, exit 1; 404 → exit 1; each act line names its inputs verified. `archive.Write` → `archive.Extract` round-trips a `./run.sh` bundle that then reproduces; C10 finds `tar.NewReader` only in `internal/archive`; `archive rerun --help` names operator privileges and network | any outcome, exit or line differs |
 | V1b.3 | Real data: V1a.9 on a question with a CSV source; extract its archive to a clean scratch dir, `feov-migrate --from … --to …`, `feov-record archive rerun` | the summary's count of computations with an input re-fetched, verified and re-run is below 1; or a non-zero exit |
@@ -710,3 +935,13 @@ each lands with its part and fails if its property breaks.
 | Comparison basis (lead, disclosed) | What a `ran` = false act records of the re-run it read | its `rerun_sha`; the write refuses one that is no longer the standing re-run's | Record nothing (a standing that moves between read and write goes unseen) |
 | Phase-1 flags (lead, disclosed) | What `cite --show image` without `--region` takes | `--url` and `--page` only; `--quote`/`--title` `RequiredUnless` | Require all three in both phases (a quote and title stated twice, recorded once) |
 | Placed names (lead, disclosed) | A program-chosen `out/` name in a figure's destination | `url.PathEscape` per path segment in one `placedPath`, which the allowlist's image arm matches | A tool-named copy of the file (a second copy of `out/` bytes); refuse names by a character class; escape the whole relative path (`/` → `%2F` resolves nothing) |
+| Lifecycle (gblock, 2026-10-30; #1657) | How citations and computations live | exactly alike: a computation, like a citation, is a textual statement about external or reference material ("even a reference to a figure in text is a citation"). Retired anchors are dropped from evidence.md, and the record keeps them. A `source` or `computation` gap closes only on a live answer: `cite --answers`, and retiring the answer reopens the debt. Retire never auto-closes a gap. Part 1a′ is built before 1b. No compatibility path | ~~retire auto-closes the gaps its anchor answered~~ (rejected); keep two lifecycles |
+| L1 — OPEN (lead recommends a) | A gap minted `--about-kind anchor` about an evidence anchor (the failed check's carrier) under `--check-kind source`/`computation`: does that anchor's retirement meet its live-answer demand? | (a) yes. The demand is met when the gap's `about_ref` anchor is retired: two fields, `mint.about_ref` and `retire.anchors`; nothing is inferred. Red still closes. The term "failed check" and every help page already say that retiring the anchor clears the gap, and the strict reading leaves the smoke's `G-342d3cdc` and `G-78817cfa` at CEILING again | (b) strict: only a live anchor answering it closes it; red regrades or supersedes. (c) the retire must name the gap (`retire --anchor X --answers G`); a retire without `--answers` leaves the gap unclosable, and a retire cannot be repeated |
+| L2 — OPEN (lead recommends a) | A CLOSED gap whose answering anchor is retired | (a) the closure falls, derived. A red close of a demand gap stands while at least one anchor that answered the gap when the close was recorded is live. When the last of them is retired, the gap is `open` and `awaiting_evidence` until a new answer AND a new close; an answer recorded after the close never restores it, so nothing auto-closes. A closure that rested on no answer (archived; `document` gaps) and a bench closure stand. This is "retiring it reopens the debt" read literally, with one definition of `open` that every reader (dispatch, PASS, work list) follows | (b) the gap stays closed and a new blocker, "closed on retired evidence", holds PASS until red re-closes: a second state machine. (c) only an open gap's debt reopens, and a closed gap's evidence can vanish unseen |
+| L3 — OPEN (lead recommends a) | Claim count | (a) a `K-` on prose counts as a claim exactly as a `C-` does (one per distinct anchor per sentence). The `claim` column is deleted and `CountsAsClaim` reads `backs`. The logic lens's budget grows by computation-backed claims; it only grows, so no archived mint is refused | (b) count sentences carrying at least one evidence anchor, which also changes the citation count (a two-citation sentence becomes one claim). (c) keep `K-` `claim: false`, the divergence the ruling removes |
+| L4 — OPEN (lead recommends a) | One failed-check carrier | (a) a standing `refutes`/`absent` reading of a citation joins `stateFailed` and is carried by the reader's gap about the anchor, as `unsound` is. A contradiction keeps only readings with no anchor (corroborations). migrate translates archived contradiction mints on anchored readings (III.1′.6, counted by L8) | (b) an unsound computation becomes a contradiction (a finding raises it; the gap minted from that finding answers it), adding a finding step to the computation lens. (c) keep two carriers, stated kind-specific; "exactly like citations" then fails on the path that holds the PASS |
+| L5 — OPEN (lead recommends a) | Does `reproduce` record the sentence it judged, as `verify` records `claim`? | (a) no. It refuses as `verify` does and records nothing new: field destination rule (gblock, 2026-10-18). `Verify.claim`'s readers (contradiction claim, corroboration) have no computation counterpart | (b) `Reproduce.claim`, for symmetry: a field no surface reads |
+| L6 — OPEN (lead recommends a) | Retiring a citation a live computation names (`--cites`; 1b `--input`) | (a) refused while such a computation is live, naming it; blue retires or recomputes it first. The tool refuses and never cascades | (b) the computation is reopened when its citation retires: a derived cross-kind edge the ledger lacks. (c) allowed, and evidence.md names a citation the report no longer holds |
+| Show evidence after retire (lead, disclosed) | What `show evidence` says of a retired anchor | its lists and counts hold live anchors only, as evidence.md does. `--anchor <retired>` returns it with `retired` (event, reason), so a lens can still read what left | list every anchor with a `retired` field (the lists and evidence.md would disagree) |
+| Answer of another kind (lead, disclosed) | `cite --answers` on a `computation` gap, or `compute --answers` on a `source` gap | accepted; only the demanded kind discharges a demand (an anchor may answer part of a gap of any kind, as `compute --answers` on a `document` gap does today) | refused at write |
+| Kind-row home (lead, disclosed) | Where kind differences live | two tables. `anchor.kinds` holds the vocabulary (the leaf imports nothing). `record.evidenceTables` holds the record facts (table, id column, check kind, verb, owner, failure words), held level by a test, with the SQL arms generated from it | all in `anchor.kinds` (the leaf would import `recordpb`); per-site `if computation` (today's 24 sites, L2) |
