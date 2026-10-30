@@ -1665,7 +1665,15 @@ func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args
 // execAs is exec under a harness agent id, as the PreToolUse hook exports one into a dispatched
 // seat's shell; "" is exec's own environment, which carries none.
 func (r *runner) execAs(agent string, args ...string) (string, error) {
-	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
+	// --run goes before a `--`: what follows it is a computation's command, and the verb would run
+	// --run as two more of its arguments.
+	full := append([]string{}, args...)
+	if i := slices.Index(full, "--"); i >= 0 {
+		full = slices.Insert(full, i, "--run", r.runDir)
+	} else {
+		full = append(full, "--run", r.runDir)
+	}
+	cmd := exec.Command(r.bin, full...)
 	if agent != "" {
 		cmd.Env = append(os.Environ(), seatenv.AgentVar+"="+agent)
 	}
