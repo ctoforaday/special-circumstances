@@ -108,19 +108,9 @@ func noSeatNote(seatID string) string {
 	return ""
 }
 
-// readsSources reports whether a role reads a SOURCE, and so carries `fetch`.
-//
-// Blue reads what it cites and a lens reads the same cached bytes to verify the citation, or a
-// source of its own to corroborate one. The chair and the bench are handed no source to read: the
-// chair reads the report, the board and the changes since a stale area's pin, and the bench's
-// ruling basis is confined to the closings, the transcript and the artifacts as the record renders
-// them. A verb on a surface is a thing its seat reaches for, and every seat reads its whole
-// surface at its opening act, so a read no duty asks for is cost on every sitting.
-//
-// THE TREE IS THE GATE. `fetch` writes no event, so there is no write path to refuse it on: a
-// seat whose tree does not mount it is answered by the wrong-seat refusal, which names the seats
-// that hold it.
-func readsSources(role string) bool { return role == "lens" || role == "blue" }
+// readsSources is seat.ReadsSources: the one statement of which roles read a source, shared with
+// the `show source` projection.
+func readsSources(role string) bool { return seat.ReadsSources(role) }
 
 // newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {

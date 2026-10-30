@@ -135,65 +135,24 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 	if strings.TrimSpace(span) == "" {
 		return SpanLocation{}, fmt.Errorf("%w: the span is empty", ErrSpanAbsent)
 	}
-	origin, rec, err := TextOrigin(run, e)
+	texts, origin, rec, err := sourceTexts(run, e)
 	if err != nil {
 		return SpanLocation{}, err
 	}
-	var texts []spanText
 	loc := SpanLocation{}
-	switch origin {
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
-		if err := readingComplete(run, rec); err != nil {
-			return SpanLocation{}, err
-		}
-		for _, p := range rec.Pages {
-			b, err := os.ReadFile(PageTextPath(run, rec.Sha, p.Page))
-			if err != nil {
-				return SpanLocation{}, err
-			}
-			texts = append(texts, spanText{page: p.Page, text: string(b), sha: p.TextSha})
-		}
+	if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR {
 		loc.Engine, loc.ReadingSha = rec.Engine, rec.TextSha
-	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED:
-		t, err := embeddedText(run, e)
-		if err != nil {
-			return SpanLocation{}, err
-		}
-		texts = append(texts, t)
-	default:
-		return SpanLocation{}, fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
 	}
 
-	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
-		want := fold(span, mode).s
-		var hits []spanHit
-		for _, t := range texts {
-			f := fold(t.text, mode)
-			for from := 0; ; {
-				i := strings.Index(f.s[from:], want)
-				if i < 0 {
-					break
-				}
-				hits = append(hits, spanHit{t: t, start: f.at[from+i], end: f.end[from+i+len(want)-1]})
-				from += i + 1
-			}
+	if h, found, err := locateOnce(texts, span); err != nil {
+		return SpanLocation{}, err
+	} else if found {
+		loc.Start, loc.End, loc.TextSha = h.start, h.end, h.t.sha
+		if h.t.page > 0 {
+			loc.Pages = []int{h.t.page}
 		}
-		switch {
-		case len(hits) > 1:
-			return SpanLocation{}, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
-				ErrSpanRepeated, len(hits), pagesOf(hits))
-		case len(hits) == 1:
-			h := hits[0]
-			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
-				return SpanLocation{}, err
-			}
-			loc.Start, loc.End, loc.TextSha = h.start, h.end, h.t.sha
-			if h.t.page > 0 {
-				loc.Pages = []int{h.t.page}
-			}
-			loc.Before, loc.Matched, loc.After = window(h.t.text, h.start, h.end)
-			return loc, nil
-		}
+		loc.Before, loc.Matched, loc.After = window(h.t.text, h.start, h.end)
+		return loc, nil
 	}
 
 	want := fold(span, hyphenAsIs).s
@@ -216,6 +175,72 @@ func LocateSourceSpan(run record.Run, e Entry, span string) (SpanLocation, error
 	}
 	return SpanLocation{}, fmt.Errorf("%w: not in the text at %s (compared as: %s)",
 		ErrSpanAbsent, SourceTextPath(run, e, origin), SpanNormalisation)
+}
+
+// sourceTexts is the texts a span is found in, for the origin TextOrigin gives: each page's reading
+// of a complete OCR reading, or the one embedded text. A source the tool holds no text for is
+// ErrNoText.
+func sourceTexts(run record.Run, e Entry) ([]spanText, recordpb.SourceTextOrigin, ReadingRecord, error) {
+	origin, rec, err := TextOrigin(run, e)
+	if err != nil {
+		return nil, 0, ReadingRecord{}, err
+	}
+	var texts []spanText
+	switch origin {
+	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
+		if err := readingComplete(run, rec); err != nil {
+			return nil, 0, ReadingRecord{}, err
+		}
+		for _, p := range rec.Pages {
+			b, err := os.ReadFile(PageTextPath(run, rec.Sha, p.Page))
+			if err != nil {
+				return nil, 0, ReadingRecord{}, err
+			}
+			texts = append(texts, spanText{page: p.Page, text: string(b), sha: p.TextSha})
+		}
+	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED:
+		t, err := embeddedText(run, e)
+		if err != nil {
+			return nil, 0, ReadingRecord{}, err
+		}
+		texts = append(texts, t)
+	default:
+		return nil, 0, ReadingRecord{}, fmt.Errorf("%w: %s", ErrNoText, recordpb.Word(origin))
+	}
+	return texts, origin, rec, nil
+}
+
+// locateOnce finds span once in texts under each hyphen reading in turn, the first that finds it
+// deciding: found is false when no reading finds it anywhere, and a span found more than once, or
+// found once and cutting into a clause, is refused.
+func locateOnce(texts []spanText, span string) (spanHit, bool, error) {
+	for _, mode := range []hyphenMode{hyphenAsIs, hyphenJoined, hyphenKept} {
+		want := fold(span, mode).s
+		var hits []spanHit
+		for _, t := range texts {
+			f := fold(t.text, mode)
+			for from := 0; ; {
+				i := strings.Index(f.s[from:], want)
+				if i < 0 {
+					break
+				}
+				hits = append(hits, spanHit{t: t, start: f.at[from+i], end: f.end[from+i+len(want)-1]})
+				from += i + 1
+			}
+		}
+		switch {
+		case len(hits) > 1:
+			return spanHit{}, false, fmt.Errorf("%w: the source's text holds it %d times%s; quote enough of the sentence that it is found once",
+				ErrSpanRepeated, len(hits), pagesOf(hits))
+		case len(hits) == 1:
+			h := hits[0]
+			if err := spanAtBoundaries(h.t.text, h.start, h.end); err != nil {
+				return spanHit{}, false, err
+			}
+			return h, true, nil
+		}
+	}
+	return spanHit{}, false, nil
 }
 
 // embeddedText is the text an embedded source's span is found in: the extraction stored beside a

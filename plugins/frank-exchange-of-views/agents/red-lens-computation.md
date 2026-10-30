@@ -22,6 +22,7 @@ EVERY COMPUTATION NOBODY HAS JUDGED IS YOURS: its re-run and the verdict on its 
   summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim through the run's cached source read, so every seat that reads it after you reads the same bytes.
   WebFetch is not used: it returns a summary, not the source.
+- To find words in a cached source, YOU MUST search it with the run's source search, not the shell: it reads the text a citation is located in, as the locator reads it, and each hit carries the source's sentence around it and whether a citation can quote that sentence as printed.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
 - **A CITATION OR COMPUTATION IS CHECKED BY THE LENS WHOSE WORK LIST OFFERS IT** — a citation nobody has verified goes to the evidence lens; a computation nobody has judged goes to the computation lens. One your work list does not offer is not a check you owe: its sentence is content you audit like any other, and its standing check is on the evidence layer.
 - **A CITATION OR COMPUTATION NOBODY HAS CHECKED HOLDS THE PASS, AND SO DOES ONE WHOSE CHECK FAILED.** A check fails when you judge a computation's sentence unsound, or when your reading of a citation reads nothing of the cited work — the source unreachable, or the copy not the work. Your check is not the defect's record: in the sitting it fails, mint your gap about that anchor, graded on every axis with the fix blue must make — for a computation, the sentence made to say what the program shows, or the computation retired; for a citation, the citation retired or a source a lens can read cited in its place — it takes no mint of your budget, and you are readied until it is on the board. A citation clears once any lens's reading of it reads the work; a computation, once your own later judgement calls it sound — another lens's never does; either clears when blue retires it. While that gap is open and the sentence unchanged, repeating the failed check is refused: the gap already carries it, and you owe no second one. The gap does not close while the check it carries still stands failed. After blue's edit reopens the sentence, check it as it then stands.
@@ -72,6 +73,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
   - A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+  - A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
   - An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.
   - A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
@@ -107,14 +109,14 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 22 pages — every page below that carries no marker for it):
+§2 (the last block of 23 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
-§3 (on 19 pages):
+§3 (on 20 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -184,7 +186,7 @@ Every seat but the one that rules a subject may file on it; exactly one rules, a
 §17 (on 3 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,subject},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§18 (on 4 pages):
+§18 (on 5 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
 §19 (on 2 pages):
@@ -336,7 +338,7 @@ Flags:
 (Enumerated values:) → SHARED §12
 ========
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — search and quote THAT file, not the raw bytes, and you need no PDF or HTML tooling.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — quote THAT text, not the raw bytes; a seat that reads sources searches it with `show source` (by the summary's sha256), which reads it as a citation is located in it and needs no PDF or HTML tooling.
 
 A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary and named in the summary as ocr_derived text. A ruled table is reconstructed into |-separated rows; one the engine cannot reconstruct falls back to plain text WITH the reason stated. A document over the render disk budget is refused rather than partly read. OCR text can misread: a citation of it, like a citation of any text the tool holds, takes blue's `cite --source-span` with the words copied from that text, and for OCR text the tool records the PDF page they sit on.
 
@@ -749,6 +751,7 @@ Available Commands:
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `compute`
+  source      WHERE ONE CACHED SOURCE'S TEXT SAYS SOMETHING — every place a pattern matches the text, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
 (Global Flags:) → SHARED §2
@@ -858,6 +861,29 @@ Flags:
       --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
       --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
       --window int    ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
+========
+$ feov-record show source --help
+SEARCH ONE CACHED SOURCE'S TEXT — the text a citation of it is found in: the extraction of a PDF or an HTML page, the bytes of a text type, or the OCR reading of a scan, page by page. It reads; it records nothing and refuses no act.
+
+NAME THE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), and WHAT TO FIND with --match (an RE2 regex) or --quote (literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’.
+
+EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.
+
+THE LIST HOLDS AT MOST 25 HITS, in text order. `selection` says what was asked, how many matches the text holds (`matched`), how many are listed (`shown`) and how many are not (`omitted`); `complete` is false when hits were left out — narrow the pattern to reach them.
+
+An unknown source, a source the tool holds no text for, an empty pattern, and a pattern that matches the empty string are refused.
+
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §18
+
+OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,text_sha,matched,sentence,sentence_start,sentence_end,source_span,not_citeable}],selection:{criterion,matched,shown,omitted,complete}}
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+Flags:
+      --anchor id     the citation whose source to search, by its anchor id. Pass this or --sha
+      --match regex   find every place the source's text matches this regex (RE2, case-insensitive; a bounded repeat such as .{0,80} is fine). The matches are counted, and at most 25 are listed. Pass this or --quote
+      --quote text    find every place the source's text holds this text LITERALLY (case-insensitive, in the source's normalisation). Use this rather than --match whenever the text has (), ., *, ? or [] in it. Pass this or --match
+      --sha sha256    the cached source's sha256, as the fetch summary and the evidence view print it. Pass this or --anchor
 ========
 $ feov-record show work --help
 **WHERE YOUR DISPATCH HANDED YOU THIS LIST — it arrives under a preamble that says so — YOU ARE PROBABLY NOT MEANT TO RUN THIS: every act you record answers `may I stop` for you afterwards, so reach for it only when neither reached you, or when you want the items that do NOT block you. A seat of blue-researcher's configuration, which seats several seats, and a resumed dispatch are handed no list, and read it first.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.

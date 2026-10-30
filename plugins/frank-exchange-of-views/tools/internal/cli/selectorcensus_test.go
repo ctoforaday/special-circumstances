@@ -130,7 +130,10 @@ type selectorRow struct {
 	formats bool
 }
 
-// selectorViews walks the chair's tree, which mounts every `show` projection and the `inquest` group.
+// selectorViews walks the chair's tree, which mounts the `inquest` group and every `show` projection
+// that selects entries. `show source` is mounted for the seats that read sources alone, and its pair
+// searches a source's text rather than selecting entries; TestAShowSourceHitIsCitedAtTheOffsetsItPrinted
+// and the fetchcache search tests hold it.
 func selectorViews(t *testing.T) []selectorRow {
 	t.Helper()
 	root := NewRootFor("red-chair")
