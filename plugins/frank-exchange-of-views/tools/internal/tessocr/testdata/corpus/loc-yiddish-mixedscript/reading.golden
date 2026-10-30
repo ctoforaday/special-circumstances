@@ -1,4 +1,4 @@
-loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@757c966a67b2 · rendered at 300.00 DPI (native 300.00), 5144x7345 px
+loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@dcf601ddbdb1 · rendered at 300.00 DPI (native 300.00), 5144x7345 px
 table: true · rules: detector · rotated: false · grid intersections: 20030 · repaired crossings: 0 · length: 5715 · ink: 15.060%
 marks: 1 columns, 1 subcolumns, 1 rows, 1 of 10 placed, psm disagreement 0.00
 text cells: 1 tables, 17 bands, 25 rows, 19 columns, 98 cells, 1125 words placed, 1142 read

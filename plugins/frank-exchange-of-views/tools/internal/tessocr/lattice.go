@@ -661,19 +661,19 @@ func (t Table) render() string {
 	return b.String()
 }
 
-// linesOf renders loose words as the page's own prose, one readingLines line per line.
-func linesOf(words []tsvWord) string {
-	var out []string
-	for _, ln := range readingLines(words) {
-		out = append(out, lineText(ln))
-	}
-	return strings.Join(out, "\n")
-}
-
 // TextCells reconstructs a ruled table whose cells hold TEXT: the lattice says where the cells
 // are, the TSV says which words sit in each, and the page's own prose is kept around the rows in
 // reading order (a page is not always all table — one of this corpus's is prose with a five-row
-// table in it). It returns the reading, what it measured, and the reason it is not acceptable,
+// table in it).
+//
+// THE PAGE'S PROSE IS THE LAYOUT PASS'S. prose is that pass's words, and what no table holds is
+// written as the plain reading writes it, in tesseract's block, paragraph and line order. The
+// witness that fills the cells is often the sparse pass, which reads more words and has no
+// layout: its lines are fragments in no order, and grouping them by height joins the lines of
+// side-by-side columns — the prose of a multi-column page the detector fired on came out
+// interleaved line by line (#1619). On the 158 English OmniDocBench pages that emit a table, the
+// layout pass's prose moves text edit distance 0.578 → 0.373 (74 pages better, 8 worse by at
+// most 0.08). It returns the reading, what it measured, and the reason it is not acceptable,
 // which is "" when it is.
 //
 // THE SECOND WITNESS FILLS ONLY EMPTY CELLS. Layout analysis drops a short word alone in a narrow
@@ -688,16 +688,15 @@ func linesOf(words []tsvWord) string {
 // readWords and readSparse are the same two passes as they were read, before their spread lines
 // were removed (CellStats.WordsRead): they decide nothing but the words-per-cell floor, and supply
 // no word to the reading.
-func TextCells(lat Lattice, words, sparseWords, readWords, readSparse []tsvWord) (string, CellStats, string) {
+func TextCells(lat Lattice, words, sparseWords, readWords, readSparse, prose []tsvWord) (string, CellStats, string) {
 	tables := lat.Tables()
 	if len(tables) == 0 {
 		return "", CellStats{}, "the page's rules bound no cells, so there is no row to recover"
 	}
 	read := lat.Tables()
 	var st CellStats
-	// Each table takes the words inside it; what no table claims is the page's own prose, and it
+	// Each table takes the words inside it; what no table holds is the page's own prose, and it
 	// is written where it sits — before, between or after the tables, in reading order.
-	claimed := map[int]bool{}
 	type block struct {
 		y    int
 		text string
@@ -705,11 +704,6 @@ func TextCells(lat Lattice, words, sparseWords, readWords, readSparse []tsvWord)
 	var blocks []block
 	for i := range tables {
 		t := &tables[i]
-		for j, w := range words {
-			if int(w.cx()) >= t.X0 && int(w.cx()) < t.X1 && int(w.cy()) >= t.Y0 && int(w.cy()) < t.Y1 {
-				claimed[j] = true
-			}
-		}
 		_, _, one := t.fill(words)
 		one.WordsFromSparse = t.fillEmpty(sparseWords)
 		one.WordsPlaced += one.WordsFromSparse
@@ -724,14 +718,14 @@ func TextCells(lat Lattice, words, sparseWords, readWords, readSparse []tsvWord)
 		return "", st, why
 	}
 	var loose []tsvWord
-	for j, w := range words {
-		if !claimed[j] && strings.TrimSpace(w.text) != "" {
+	for _, w := range prose {
+		if !inAnyTable(w, tables) && strings.TrimSpace(w.text) != "" {
 			loose = append(loose, w)
 		}
 	}
 	st.WordsAround = len(loose)
 	for _, run := range proseRuns(loose, tables) {
-		blocks = append(blocks, block{run.y, linesOf(run.words)})
+		blocks = append(blocks, block{run.y, proseText(run.words)})
 	}
 	sort.SliceStable(blocks, func(a, b int) bool { return blocks[a].y < blocks[b].y })
 	var parts []string
@@ -741,6 +735,16 @@ func TextCells(lat Lattice, words, sparseWords, readWords, readSparse []tsvWord)
 		}
 	}
 	return strings.Join(parts, "\n\n"), st, ""
+}
+
+// inAnyTable reports whether a word's centre lies inside one of the tables' boxes.
+func inAnyTable(w tsvWord, tables []Table) bool {
+	for _, t := range tables {
+		if int(w.cx()) >= t.X0 && int(w.cx()) < t.X1 && int(w.cy()) >= t.Y0 && int(w.cy()) < t.Y1 {
+			return true
+		}
+	}
+	return false
 }
 
 // proseRuns groups the page's own words into the runs BETWEEN tables, so a sentence that sits
