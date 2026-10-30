@@ -64,16 +64,16 @@ type gtGap struct {
 }
 
 type groundTruth struct {
-	order         []string
-	gaps          map[string]*gtGap
-	findingLabels map[string]bool
-	placedIDs     map[string]bool // every act that stored a quote, so an Anchor event owes its marker
-	anchorEvIDs   map[string]bool
-	computationIDs      map[string]bool
-	citeEvents    int
-	verifyEvents  int
-	inquiries     map[string]string // inquiry id -> last status word
-	observations  int
+	order          []string
+	gaps           map[string]*gtGap
+	findingLabels  map[string]bool
+	placedIDs      map[string]bool // every act that stored a quote, so an Anchor event owes its marker
+	anchorEvIDs    map[string]bool
+	computationIDs map[string]bool
+	citeEvents     int
+	verifyEvents   int
+	inquiries      map[string]string // inquiry id -> last status word
+	observations   int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
 	// `continue` past one: the miss and the honest zero are the same silence, and this fold's
@@ -93,12 +93,12 @@ func closesSet() map[string]bool {
 
 func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
-		gaps:          map[string]*gtGap{},
-		findingLabels: map[string]bool{},
-		placedIDs:     map[string]bool{},
-		anchorEvIDs:   map[string]bool{},
-		computationIDs:      map[string]bool{},
-		inquiries:     map[string]string{},
+		gaps:           map[string]*gtGap{},
+		findingLabels:  map[string]bool{},
+		placedIDs:      map[string]bool{},
+		anchorEvIDs:    map[string]bool{},
+		computationIDs: map[string]bool{},
+		inquiries:      map[string]string{},
 	}
 	closes := closesSet()
 	// THE DOCKET RULING'S GAP RIDES ITS FILING, and this walk is single-pass over the events as

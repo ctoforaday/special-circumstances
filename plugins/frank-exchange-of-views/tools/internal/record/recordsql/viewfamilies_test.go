@@ -45,7 +45,7 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Insert(db, event(t, 5, recordpb.EventType_EVENT_TYPE_COMPUTATION, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+	if _, err := Insert(db, event(t, 5, recordpb.EventType_EVENT_TYPE_COMPUTATION, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		Answers: proto.String("G3"), Text: proto.String("t"), Exit: proto.Int32(0)})); err != nil {
 		t.Fatal(err)
 	}

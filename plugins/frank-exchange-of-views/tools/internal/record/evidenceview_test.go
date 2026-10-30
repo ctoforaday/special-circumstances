@@ -66,7 +66,7 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 // A COMPUTATION CARRIES BOTH IDS: the anchor the seat reads in the report and `reproduce --anchor` takes,
 // and the script's sha256 every computation on that script shares.
 func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		ComputationId: proto.String("p-deadbeef"), BundleSha: proto.String("f00d"),
 		// exit 0 is the SUCCESS status, and it is set explicitly: an implicit-presence encoding
 		// would drop exactly the case that says the computation worked.
@@ -93,7 +93,7 @@ func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
 // that cannot tell "nobody re-ran it" from "it reproduced" rates an unaudited computation as an audited
 // one. `omitempty` on any of the three would erase exactly the distinction.
 func TestEvidence_UnverifiedComputationSaysSoInTheJSON(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		ComputationId: proto.String("p-1"), BundleSha: proto.String("s1"),
 	}))
 	out, err := json.Marshal(evidenceJSONT(t, b))

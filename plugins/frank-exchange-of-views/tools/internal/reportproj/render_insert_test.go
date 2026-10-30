@@ -49,7 +49,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append cite: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		ComputationId: proto.String(computationID), BundleSha: proto.String("sha-" + computationID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append computation: %v", err)

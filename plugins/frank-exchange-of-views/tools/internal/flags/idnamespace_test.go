@@ -30,12 +30,12 @@ import (
 // idShapes is every shaped id value the flag package offers, by the name its Type reports.
 func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
-		"gap-id":          GapID,
-		"motion-id":       MotionID,
-		"inquiry-id":      InquiryID,
-		"anchor":          AnchorID,
-		"citation-anchor": CitationAnchor,
-		"computation-anchor":    ComputationAnchor,
+		"gap-id":             GapID,
+		"motion-id":          MotionID,
+		"inquiry-id":         InquiryID,
+		"anchor":             AnchorID,
+		"citation-anchor":    CitationAnchor,
+		"computation-anchor": ComputationAnchor,
 	}
 }
 

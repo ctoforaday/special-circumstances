@@ -36,7 +36,7 @@ type failedCheck struct {
 	anchor string
 	// computation is whether the anchor is a computation's; sha is then its bundle_sha, "" for a citation.
 	computation bool
-	sha   string
+	sha         string
 	// owner is the seat whose check failed — a computation's judge, a citation's first reader since the
 	// edit — and since that check's events.id.
 	owner string

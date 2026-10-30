@@ -115,8 +115,8 @@ type Board struct {
 	// page and a lens owes a check against that page's image. They add no claim.
 	PagedClaims []PagedClaim
 	// Motions and Computations are the adjudications and computations the board already carries.
-	Motions []Motion
-	Computations  []Computation
+	Motions      []Motion
+	Computations []Computation
 	// Expect is what a correctly-taught seat does here.
 	Expect []Expectation
 	// RedNarrative is red's first-epoch "### RED" section, the transcript a repairing seat is sent to

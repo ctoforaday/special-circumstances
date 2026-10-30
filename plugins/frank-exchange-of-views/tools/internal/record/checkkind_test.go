@@ -147,7 +147,7 @@ func TestAwaitingComputationTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// THE COMPUTATION ANSWERS A GAP, and the earlier conversion dropped `answers` — so the computation
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a computation that names no gap is a script that ran for no stated reason.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 		Answers:   proto.String("G1"),
 		BundleSha: proto.String("sha-s"),
 	}); err != nil {

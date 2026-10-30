@@ -282,7 +282,7 @@ func (v EvidenceVerificationJSON) Refuted() bool {
 
 // EvidenceJSON is the whole evidence layer of the report.
 type EvidenceJSON struct {
-	Sources []EvidenceSourceJSON      `json:"sources"`
+	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
 	// Independent is red's corroboration — sources it went and found, which blue never cited and
 	// which therefore have no anchor. A separate array rather than anchorless rows mixed into the
@@ -312,7 +312,7 @@ type EvidenceJSON struct {
 	// which the gap that answers it names in its found_by.
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
-		Sources int `json:"sources"`
+		Sources      int `json:"sources"`
 		Computations int `json:"computations"`
 		// ComputationsUnverified is the count whose `verified` is false: the script not reproduced, or the
 		// sentence not judged sound. It is stated because the honest zero and the unchecked case are
@@ -356,9 +356,9 @@ type EvidenceUncheckedJSON struct {
 // EvidenceJSONOf projects the record's evidence layer in event order.
 func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	out := EvidenceJSON{
-		Sources:     []EvidenceSourceJSON{},
+		Sources:      []EvidenceSourceJSON{},
 		Computations: []EvidenceComputationJSON{},
-		Independent: []EvidenceVerificationJSON{},
+		Independent:  []EvidenceVerificationJSON{},
 	}
 	out.UnansweredContradictions = []EvidenceContradictionJSON{}
 	for _, c := range unansweredContradictions(evs, win) {

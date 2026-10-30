@@ -63,10 +63,10 @@ func graphEdges(p processTally) (seats int, edges int, reached map[string][]stri
 // are the entities a verb can be made to point at — and a fourth appearing is a change to the
 // surface's shape that should be seen, not absorbed.
 var referenceKinds = map[string]string{
-	"gap-id":          "a board gap, checked with record.GapExists",
-	"citation-anchor": "a citation anchor id, checked with record.CitationExists",
-	"computation-anchor":    "a computation anchor id, checked with record.ComputationExists",
-	"inquiry-id":      "an inquiry, checked with record.InquiryExists",
+	"gap-id":             "a board gap, checked with record.GapExists",
+	"citation-anchor":    "a citation anchor id, checked with record.CitationExists",
+	"computation-anchor": "a computation anchor id, checked with record.ComputationExists",
+	"inquiry-id":         "an inquiry, checked with record.InquiryExists",
 }
 
 // permittedReport renders the PERMITTED surface — what the tree allows — beside the observed one.
