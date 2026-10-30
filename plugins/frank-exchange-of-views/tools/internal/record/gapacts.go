@@ -17,8 +17,8 @@ import (
 // The acts, by the field each names the gap in:
 //
 //   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
-//     about the gap, a mint superseding it, a judgement of a proof that answers it;
-//   - blue: an edit answering it, a proof answering it, a fate on the inquiry it is anchored on, a
+//     about the gap, a mint superseding it, a judgement of a computation that answers it;
+//   - blue: an edit answering it, a computation answering it, a fate on the inquiry it is anchored on, a
 //     closing;
 //   - either: a docket or grade motion on it.
 //
@@ -32,8 +32,8 @@ type gapAct struct {
 // gapActsOf is every act on each gap, in record order. ids are evs's places.
 func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 	out := map[string][]gapAct{}
-	proofGap := map[string]string{}     // a proof's anchor → the gap it answers
-	anchoredOn := map[string][]string{} // an inquiry → the gaps minted about it
+	computationGap := map[string]string{} // a computation's anchor → the gap it answers
+	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
 	for i, e := range evs {
 		var on []string
 		switch b := mustBody(e).(type) {
@@ -56,11 +56,11 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 			on = []string{b.GetAnswers()}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
-		case *recordpb.Proof:
-			proofGap[b.GetProofId()] = b.GetAnswers()
+		case *recordpb.Computation:
+			computationGap[b.GetComputationId()] = b.GetAnswers()
 			on = []string{b.GetAnswers()}
 		case *recordpb.Reproduce:
-			on = []string{proofGap[b.GetProofId()]}
+			on = []string{computationGap[b.GetComputationId()]}
 		case *recordpb.Inquiry:
 			on = anchoredOn[b.GetInquiryId()]
 		case *recordpb.Motion:

@@ -221,7 +221,7 @@ minutes; a haiku smoke of the same topic reached four epochs, minted and audited
   setting, not an accident — decide whether it is the one you want before reading the stamp as
   clean.
 - Archive the run before the container is reclaimed. `research/` is gitignored, so `run-archive/`
-  is the only part that outlives it — records and proofs only, gzipped; the fetched-source cache is
+  is the only part that outlives it — records and computations only, gzipped; the fetched-source cache is
   re-fetchable and about 100× larger.
 
 ## Environment that will bite you

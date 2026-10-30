@@ -24,13 +24,13 @@ import (
 // eleven times as the head moved. So a lens RETIRES at its third sitting in a row that mints no
 // fresh material, and a head move does not ready a retired lens.
 //
-// A LENS THAT OWES IS NOT RETIRED. Judging a proof and closing a gap mint nothing, so a lens could
+// A LENS THAT OWES IS NOT RETIRED. Judging a computation and closing a gap mint nothing, so a lens could
 // retire holding work no other seat may do: universe-m23's voice lens retired with its gap open and
-// answered by blue, and nobody was readied to close it; a computation lens that only judges proofs
-// retired, and every proof recorded after shipped "not judged". What a lens owes is each item its
+// answered by blue, and nobody was readied to close it; a computation lens that only judges computations
+// retired, and every computation recorded after shipped "not judged". What a lens owes is each item its
 // work list names as its own to clear that is still undone (lensOwesOf) — on a gap it minted, what is
 // new since it last sat; a blocker whose owner it is; a citation it owns that nobody has verified, or
-// a proof it owns that nobody has judged — and
+// a computation it owns that nobody has judged — and
 // while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
 // sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits and
 // the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
@@ -140,7 +140,7 @@ func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 //     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
 //     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
 //   - A blocker on the stream whose owner it is (events is eventBlockersOf): a contradiction it read,
-//     a citation or proof it owns with no check of the sentence the report carries, a check of its
+//     a citation or computation it owns with no check of the sentence the report carries, a check of its
 //     that failed and that no gap of its carries yet.
 //
 // The work list keeps offering an item after the lens has sat on it; only the debt ends there.

@@ -2,12 +2,17 @@ package seat
 
 import (
 	"fmt"
+	"slices"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -22,7 +27,7 @@ type Asserted struct {
 // `conflict` naming the stored values; nil where every asserted field repeats the stored one. id
 // is "" for an act the tool names by no id.
 //
-// A KEY IS ONE ACT'S NAME, as it is one program's for `prove` and one citation's for `cite`: a
+// A KEY IS ONE ACT'S NAME, as it is one program's for `compute` and one citation's for `cite`: a
 // retry that states a different grade, subject or text is a second act reusing the name, and
 // answering it with the first leaves the seat holding something other than what it asked for.
 // Every fact the act's verb records from a flag is listed by its caller, the location included: a
@@ -91,4 +96,60 @@ func statement(flag string, fd protoreflect.FieldDescriptor, v protoreflect.Valu
 		return fmt.Sprintf("--%s %q", flag, v.String())
 	}
 	return fmt.Sprintf("--%s %v", flag, v.Interface())
+}
+
+// AssertedCovers holds a keyed verb's asserted set to its field writer: for every flag the verb
+// takes but --key, a distinct value is set on a fresh command and passed through write, and every
+// field that moves from the baseline must be listed in asserted under that flag. --key is the handle
+// itself, the one thing a retry states by definition. It returns an error
+// naming each flag that moves a field a keyed retry does not restate — the field a repeat could
+// change while the tool answers it with the stored act.
+//
+// THE SET IS HAND-KEPT, AND THIS IS WHAT KEEPS IT: a flag added to the verb and its writer but not to
+// the asserted set is a retry that states another act and is answered as idempotent.
+//
+// newCmd builds the verb's command; write runs the verb's own field writer over a fresh body. A flag
+// whose value no candidate below parses is reported, never skipped.
+func AssertedCovers(newCmd func() *cobra.Command, write func(*cobra.Command) proto.Message, asserted []Asserted) error {
+	base := write(newCmd()).ProtoReflect()
+	fields := base.Descriptor().Fields()
+	var problems []string
+	newCmd().Flags().VisitAll(func(f *pflag.Flag) {
+		if f.Name == flags.Key {
+			return
+		}
+		c := newCmd()
+		if !setDistinct(c.Flags().Lookup(f.Name)) {
+			problems = append(problems, fmt.Sprintf("--%s takes no value the check can set", f.Name))
+			return
+		}
+		got := write(c).ProtoReflect()
+		for i := 0; i < fields.Len(); i++ {
+			fd := fields.Get(i)
+			if base.Get(fd).Equal(got.Get(fd)) {
+				continue
+			}
+			if !slices.ContainsFunc(asserted, func(a Asserted) bool { return a.Flag == f.Name && a.Field == fd.Name() }) {
+				problems = append(problems, fmt.Sprintf("--%s moves %s, and a keyed retry does not restate it", f.Name, fd.Name()))
+			}
+		}
+	})
+	if problems != nil {
+		return feov.Errorf(feov.Internal, "%s", strings.Join(problems, "; "))
+	}
+	return nil
+}
+
+// setDistinct sets a flag to a value other than its default, trying each shape a seat's flags take.
+func setDistinct(f *pflag.Flag) bool {
+	for _, v := range []string{"true", "G-1a2b3c4d", "C-1a2b3c4d", "K-1a2b3c4d", "a distinct value", "https://example.org/distinct", "7"} {
+		if v == f.DefValue {
+			continue
+		}
+		if f.Value.Set(v) == nil && f.Value.String() != f.DefValue {
+			f.Changed = true
+			return true
+		}
+	}
+	return false
 }

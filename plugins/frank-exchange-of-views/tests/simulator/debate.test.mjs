@@ -258,19 +258,19 @@ test('CEILING: the run at its epoch limit — the stamp says so and names no dea
   assert.ok(!/deadlock/i.test(asm) || /not a judged/i.test(asm), 'deadlock is per gap and on the record, not a run-level stamp')
 })
 
-// A CEILING over an unchecked citation or proof, or one on a failed check, names it in the reason the
+// A CEILING over an unchecked citation or computation, or one on a failed check, names it in the reason the
 // run ends on, and names no other blocker; with none standing, each reason is the sentence it is
 // without the rule. The record's derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
-test('CEILING: the reason names each unchecked citation or proof and each on a failed check, and only those', async () => {
+test('CEILING: the reason names each unchecked citation or computation and each on a failed check, and only those', async () => {
   const ended = async (chair) => {
     const world = makeWorld(makeResponder({ chair }))
     await world.run(script, ARGS)
     return world.logs.find((m) => m.startsWith('debate ended: CEILING')).replace(/^.*? chair sitting\(s\) — /, '')
   }
-  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('P-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
+  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('K-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
   const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
-  const clause = '; unchecked: C-706fda63, P-cd9f4c5a; on a failed check: C-0b0e0d0a'
+  const clause = '; unchecked: C-706fda63, K-cd9f4c5a; on a failed check: C-0b0e0d0a'
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
 })
@@ -504,7 +504,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
-    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the stored script is what the re-run executes; a clean exit or '0 failing' is not an output", "read at the computation's anchor, gives the script and the output blue recorded"]) {
+    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the bundle runs once and THIS computation's output is compared; a clean exit or '0 failing' is not an output", "read at its anchor, gives the program and the output blue recorded"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
   }
   assert.ok(!/gap ids are the chair's/.test(evidence), 'the ids are the tool\'s, minted by the lens')
@@ -518,7 +518,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // sections as they ship before it grades one.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
-    assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
+    assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a computation contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
       `${seat} is not told that an inquiry contradicting the report is a gap`)
     assert.ok(/read them in the report's assembled form before you grade an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
     assert.ok(/A contradiction left as a finding ships: a finding about an inquiry is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an inquiry contradiction as a finding`)
@@ -732,7 +732,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
   // on every verb whose text the report prints (edit, ingest, the inquiry's propose and record, and
-  // prove's note and cite's title, which the Bibliography prints),
+  // compute's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
   // The pointer is the synthesizer constitution's, once: it holds at every synthesis.
   const synthMd = readFileSync(new URL('../../agents/blue-synthesizer.md', import.meta.url), 'utf8')

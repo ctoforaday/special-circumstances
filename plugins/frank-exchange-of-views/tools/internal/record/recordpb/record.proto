@@ -275,9 +275,9 @@ enum EventType {
   reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
   EVENT_TYPE_POSITION = 23 [(means) = "the chair's argument to the bench on what is about no one gap"];
-  EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
+  EVENT_TYPE_COMPUTATION = 24 [(means) = "a program blue ran twice on a bundle, with the bundle's hash, its exit and its basis — the answer a computation check demands"];
   EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
-  EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
+  EVENT_TYPE_REPRODUCE = 26 [(means) = "red checking a recorded computation against its bundle's re-run, and whether what it computes is sound"];
   EVENT_TYPE_RETIRE = 27 [(means) = "a claim retired from the report, with the reason and what supersedes it"];
   EVENT_TYPE_SPOT_CHECK = 29 [(means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
   EVENT_TYPE_VERDICT = 30 [(means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
@@ -342,7 +342,7 @@ enum RunOutcome {
 enum CheckKind {
   CHECK_KIND_UNSPECIFIED = 0;
   CHECK_KIND_DOCUMENT = 1 [(means) = "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"];
-  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
+  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a computation answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind"];
   CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it — the claim stands or falls on what the cited material actually says"];
 }
 
@@ -371,10 +371,10 @@ enum GapClass {
   GAP_CLASS_UNSPECIFIED = 0;
   GAP_CLASS_CROSS_SECTION_CONTRADICTION = 1 [(means) = "two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "claim_contradicts_own_record",
-    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?"];
-  GAP_CLASS_CLAIM_CONTRADICTS_OWN_RECORD = 2 [(means) = "the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a proof's result — or a record entry contradicts what the report shows was done",
+    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?"];
+  GAP_CLASS_CLAIM_CONTRADICTS_OWN_RECORD = 2 [(means) = "the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a computation's result — or a record entry contradicts what the report shows was done",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "cross_section_contradiction",
-    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?"];
+    (distinguisher) = "are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?"];
   GAP_CLASS_READER_CHANNEL_MISMATCH = 3 [(means) = "a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without it",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "claim_contradicts_own_record",
     (distinguisher) = "do the two places disagree, or does one simply lack what the other holds?"];
@@ -402,7 +402,7 @@ enum GapClass {
   GAP_CLASS_DERIVATION_STATUS_OVERCLAIM = 11 [(means) = "a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "verification_scope_blindspot",
     (distinguisher) = "is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?"];
-  GAP_CLASS_VERIFICATION_SCOPE_BLINDSPOT = 12 [(means) = "a check, experiment or proof covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentence",
+  GAP_CLASS_VERIFICATION_SCOPE_BLINDSPOT = 12 [(means) = "a check, experiment or computation covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentence",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "derivation_status_overclaim",
     (distinguisher) = "is the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?"];
   GAP_CLASS_SELF_ATTESTATION = 13 [(means) = "the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion out",
@@ -447,13 +447,13 @@ enum GapClass {
   GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION = 26 [(means) = "the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the source state the result, under a condition the report drops, or not state it at all?"];
-  GAP_CLASS_LIVE_SOURCE_DRIFT = 27 [(means) = "a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was written",
+  GAP_CLASS_LIVE_SOURCE_DRIFT = 27 [(means) = "a claim or computation rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was written",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "artifact_preservation",
     (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
-  GAP_CLASS_ARTIFACT_PRESERVATION = 28 [(means) = "an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it is",
+  GAP_CLASS_ARTIFACT_PRESERVATION = 28 [(means) = "an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "live_source_drift",
     (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
-  GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names",
+  GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the report states with no source or computation behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "is a source recorded against the claim that says something else, or is there no source behind the claim at all?"];
   GAP_CLASS_UNCLASSIFIED = 30 [(means) = "no other value fits this gap. The mint's reason names the nearest value and what it does not cover",
@@ -534,29 +534,31 @@ enum Confidence {
   CONFIDENCE_LOW = 3 [(means) = "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"];
 }
 
-// Soundness: REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures
+// Soundness: REPRODUCING IS NOT PROVING. Re-running a program and getting the same bytes measures
 // determinism; `print("7 is prime")` reproduces perfectly forever. UNSOUND is the dangerous
-// cell, because a proof that re-runs clean and establishes nothing looks maximally credible.
+// cell, because a computation that re-runs clean and establishes nothing looks maximally credible.
 enum Soundness {
   SOUNDNESS_UNSPECIFIED = 0;
-  SOUNDNESS_SOUND = 1 [(means) = "you READ the script and it computes what it claims to compute"];
+  SOUNDNESS_SOUND = 1 [(means) = "you READ the program and it computes what it claims to compute"];
   SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to"]; // the dangerous cell, because it looks maximally credible
 }
 
-// Rerun is what one `reproduce` did with the proof's SCRIPT, which every proof anchor on that
-// script shares. The tool writes it; a seat never states it. Soundness is the other half, judged
-// per anchor, because one script can back several sentences and only one of them may be what it
-// computes.
+// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output, exit
+// and out/ — against its bundle's re-run. The tool writes it; a seat never states it. The bundle is
+// executed once and its standing re-run is executed once, but the comparison is per act: two acts on
+// one bundle can have recorded different results. Soundness is the other half, judged per anchor,
+// because one bundle can back several sentences and only one of them may be what it computes.
 //
-// NOT_RUN IS A VALUE AND NOT AN ABSENCE. A bool `reproduced` read false both where the script
-// printed something else and where nothing re-ran it, and a reader of the record could not tell a
-// failed check from a judgement made on an earlier re-run.
+// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle with a
+// standing re-run executes nothing and compares this act against that re-run; the comparison is
+// still this act's, so it carries a value of this set, and `ran` = false says nothing executed.
 enum Rerun {
   RERUN_UNSPECIFIED = 0;
-  RERUN_REPRODUCED = 1 [(means) = "this act re-ran the stored script and it printed the recorded output byte for byte"];
-  RERUN_DIFFERS = 2 [(means) = "this act re-ran the stored script and it printed something other than the recorded output"];
-  RERUN_CALLS_THE_TOOL = 3 [(means) = "this act re-ran the stored script and the script called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"];
-  RERUN_NOT_RUN = 4 [(means) = "this act did not run the script: an earlier re-run of the same script stands for every proof on it, and this act judged its own anchor's sentence against that re-run"];
+  RERUN_REPRODUCED = 1 [(means) = "the bundle's re-run wrote this act's recorded output, exit and out/, byte for byte"];
+  RERUN_DIFFERS = 2 [(means) = "the bundle's re-run wrote something other than this act's recorded output, exit or out/; drift names what"];
+  RERUN_CALLS_THE_TOOL = 3 [(means) = "the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"];
+  reserved 4;
+  reserved "RERUN_NOT_RUN";
 }
 
 // InquiryStatus is an inquiry's fate. The inquiries projection groups BY status, so a value outside
@@ -574,7 +576,7 @@ enum InquiryStatus {
   INQUIRY_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"];
   INQUIRY_STATUS_DEFERRED = 3 [(means) = "left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR"]; // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
   // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
-  // record holds no link from a proof or a section to an inquiry, so no write can tell a declined
+  // record holds no link from a computation or a section to an inquiry, so no write can tell a declined
   // inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
   INQUIRY_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
   INQUIRY_STATUS_ABANDONED = 5 [(means) = "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this"]; // what stopped it is the part a future run needs: it stops a later run re-walking it
@@ -717,7 +719,7 @@ message Event {
     Anchor anchor = 39;
     Cite cite = 40;
     Verify verify = 41;
-    Proof proof = 42;
+    Computation computation = 42;
     Reproduce reproduce = 43;
     Inquiry inquiry = 44;
     BlueEdit blue_edit = 45;
@@ -1122,10 +1124,10 @@ message SpotCheck {
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor", (gap_may_name) = true];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
   ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
-  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or proof, by its anchor, whose check failed: a proof judged unsound, or a citation whose cited work was not read", (gap_may_name) = true];
+  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread", (gap_may_name) = true];
 }
 
 message Finding {
@@ -1396,79 +1398,120 @@ message Verify {
   reserved "reference", "independent";
 }
 
-// Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
-// `drift` records that the two runs disagreed, which makes it a measurement of a moving system
-// rather than a proof.
-message Proof {
-  optional string proof_id = 1;
-  // proof_key is typed --key: the flag word is declared so a refusal names what a seat can type.
-  optional string proof_key = 2 [(sql) = { flag: "key" }];
-  optional string proof_sha = 3;
-  // proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
-  // census for the same reason as Outcome's three.
-  optional string proof_basis = 8;
+// Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with
+// the last mile walked: the METHOD is cited, the instance is computed.
+//
+// THE BASIS IS DERIVED, never claimed: the tool runs the bundle twice. REPRODUCIBLE is two runs
+// that wrote the same bytes; VARIANT is two runs that differed, which the seat accepted by stating
+// what holds across them (`invariant`), and `drift` is what the tool saw move. Each is present
+// exactly when the basis is VARIANT — the check below — so a reader never meets a moving
+// measurement that reads as a reproducible one.
+//
+// THE PROGRAM'S BYTES ARE CONTENT, NOT FACTS. The bundle lives under `computations/<bundle_sha>/dir/`
+// and this act's output under `computations/<bundle_sha>/acts/<computation_id>/`; the record holds
+// what ran (`argv`, `bundle_sha`), its exit and its basis, which is what a reader refuses on.
+message Computation {
+  option (check) = {
+    expr: "(\"basis\" = 'variant' AND coalesce(trim(\"drift\", ' ' || char(9, 10, 13)), '') <> '' AND coalesce(trim(\"invariant\", ' ' || char(9, 10, 13)), '') <> '') OR (\"basis\" = 'reproducible' AND \"drift\" IS NULL AND \"invariant\" IS NULL)"
+    why: "a VARIANT computation states what moved between its two runs and what holds across them; a REPRODUCIBLE one wrote the same bytes twice, so it carries neither"
+  };
+
+  optional string computation_id = 1;
+  // key is typed --key: the flag word is declared so a refusal names what a seat can type.
+  optional string key = 2 [(sql) = { flag: "key" }];
+  // bundle_sha is the bundle's identity: sha256 over its argv and its files, each length-prefixed
+  // (compute.BundleSha), computed without running it.
+  optional string bundle_sha = 3;
   optional string answers = 4;
+  // cites is the METHOD's citation.
   optional string cites = 5;
-
   // drift is WHAT MOVED between the two runs, not merely that something did.
-  //
-  // It was a bool, and the sentence describing the divergence lived in the proof cache's
-  // meta.json instead. That split put a fact about the debate in a JSON file beside the record
-  // that exists to hold it — and the report renders the sentence, so the record was the one
-  // party to the exchange that could not say what happened. Absent means the two runs agreed.
   optional string drift = 6;
-
-  // text is the proof's note, printed as its footnote — the seat's own wording. What ran, its hash,
-  // exit and anchoring site are the execution's facts.
+  // text is the computation's note, printed as its footnote — the seat's own wording.
   optional string text = 7 [(prose) = true, (sql) = { flag: "reason" }];
-
-  // script and exit are the execution's own facts, and they belong here for the same reason:
-  // `report/proofs.go` renders both, and a reader of the record should not have to open a
-  // second store to learn how a proof ran. The script BODY and its output stay in the cache as
-  // CONTENT, addressed by proof_sha — content is not a fact about the debate.
-  optional string script = 9;
+  // exit is the first run's.
   optional int32 exit = 10;
-
-  // location is the anchoring quote this proof backs — the same `--quote` cite and finding record.
-  // The Anchor appended after the proof carries it and places the marker; held here as well, it is
-  // the proof's own statement of its site, which a retry places an owed Anchor at and every reader
-  // of the proof reads without a join.
+  // location is the anchoring quote this computation backs — the same `--quote` cite and finding
+  // record. The Anchor appended after it carries it and places the marker; held here as well, it is
+  // the computation's own statement of its site, which a retry places an owed Anchor at.
   optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
+  // argv is the command that ran, in the bundle's copy.
+  repeated string argv = 12;
+  // toolchain_path is argv[0] resolved, with its sha256; absent when argv[0] is a bundle file.
+  optional string toolchain_path = 13;
+  optional string toolchain_sha256 = 18;
+  optional Basis basis = 14 [(sql) = {
+    required: true
+    why: "every computation ran twice, and its basis says whether the two runs agreed"
+  }];
+  // invariant is what the seat states holds across two runs that differed.
+  optional string invariant = 15 [(prose) = true, (sql) = { flag: "variance" }];
+
+  reserved 8, 9;
+  reserved "proof_basis", "script";
 }
 
-// Reproduce is red checking ONE PROOF ANCHOR. REPRODUCING IS NOT PROVING: `rerun` is COMPUTED by
-// the tool and is never claimed by the seat, while `soundness` is red's JUDGEMENT of whether the
-// script establishes THIS anchor's sentence.
+// Basis is what running a bundle twice found.
+enum Basis {
+  BASIS_UNSPECIFIED = 0;
+  BASIS_REPRODUCIBLE = 1 [(means) = "both runs wrote the same output, exit and out/ files, byte for byte"];
+  BASIS_VARIANT = 2 [(means) = "the two runs differed, and blue stated what holds across them"];
+}
+
+// Reproduce is red checking ONE COMPUTATION ANCHOR. REPRODUCING IS NOT PROVING: `rerun` is
+// COMPUTED by the tool and is never claimed by the seat, while `soundness` is red's JUDGEMENT of
+// whether the program establishes THIS anchor's sentence.
 //
-// THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). One
-// script can back several sentences — `prove` of a script already proved records a new anchor over
-// the same sha — so a re-run belongs to the script and answers for every anchor on it, while a
-// soundness verdict belongs to the one sentence it was judged against. Keyed by sha alone, a lens's
-// `unsound` on one sentence was overwritten by another lens's `sound` on another in 11 of 15
-// archived runs with proofs.
+// THE ANCHOR IS ABOUT THE QUOTE, THE COMPUTATION IS ABOUT ITSELF (gblock, 2026-10-12). One bundle
+// can back several sentences, so a soundness verdict belongs to the one sentence it was judged
+// against. Keyed by sha alone, a lens's `unsound` on one sentence was overwritten by another lens's
+// `sound` on another in 11 of 15 archived runs with computations.
 //
-// The seat names the proof by its anchor; the tool derives `proof_sha` from it, and the write
-// refuses a sha that is not that proof's. The two joins are spelled as Proof spells them —
-// `proof_id` for the anchor, `proof_sha` for the script.
+// The seat names the computation by its anchor; the tool derives `bundle_sha` from it, and the
+// write refuses a sha that is not that computation's. The two joins are spelled as Computation
+// spells them — `computation_id` for the anchor, `bundle_sha` for the bundle.
+//
+// `ran` says whether this act executed the bundle. One that did not compared against the bundle's
+// standing re-run: the latest reproduce that ran the bundle and names its execution. `rerun_exit` is
+// the exit of the execution this act ran, and `rerun_sha` names the execution this act compared
+// against — its own where it ran, else the standing one's — stored at
+// computations/<bundle_sha>/rerun/<rerun_sha>/, written before this event. The write refuses an act
+// that ran nothing whose `rerun_sha` is no longer the standing one's. Neither is present on a
+// reproduce migrated from a record that kept no raw re-run.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's
 // latest, so a retried write repeats a verdict and changes nothing.
 message Reproduce {
-  optional string proof_sha = 1;
+  option (check) = {
+    expr: "(\"rerun\" = 'differs') = (coalesce(trim(\"drift\", ' ' || char(9, 10, 13)), '') <> '')"
+    why: "a re-run that differs from this act's recorded result says what differs, and one that does not carries no drift"
+  };
+  option (check) = {
+    expr: "\"rerun_exit\" IS NULL OR (\"ran\" = 1 AND \"rerun_sha\" IS NOT NULL)"
+    why: "a re-run's exit is the exit of an execution this act ran, named by rerun_sha"
+  };
+
+  optional string bundle_sha = 1;
   optional Soundness soundness = 3;
-  optional string recorded_output = 4;
-  optional string observed_output = 5;
   optional string note = 6 [(sql) = { flag: "reason" }, (prose) = true];
-  optional string proof_id = 7 [(sql) = {
+  optional string computation_id = 7 [(sql) = {
     flag: "anchor"
     required: true
-    why: "the proof whose sentence you judged, by its anchor — a soundness verdict is about one sentence, and a script can back several"
+    why: "the computation whose sentence you judged, by its anchor — a soundness verdict is about one sentence, and a bundle can back several"
   }];
   optional Rerun rerun = 8;
+  optional bool ran = 9 [(sql) = {
+    required: true
+    why: "whether this act executed the bundle, or compared against a re-run another act executed"
+  }];
+  optional int32 rerun_exit = 10;
+  // drift is what differs between this act's recorded result and the re-run.
+  optional string drift = 11;
+  optional string rerun_sha = 12;
 
-  reserved 2;
-  reserved "reproduced";
+  reserved 2, 4, 5;
+  reserved "reproduced", "recorded_output", "observed_output";
 }
 
 // InquiryReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
@@ -1557,7 +1600,7 @@ message BlueEdit {
   optional bool applied_verbatim = 6;
 
   // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
-  // proofs whose referent moved under them.
+  // computations whose referent moved under them.
   //
   // THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
   // lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.

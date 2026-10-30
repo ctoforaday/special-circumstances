@@ -547,7 +547,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 	// This gate skipped anything that was not a `.golden`, so the CONSTITUTIONS — which a seat
 	// receives as its system prompt, and which are agent-facing by definition — were never checked
 	// for flags at all. Found by reading them rather than by any failure. They carried
-	// `fetch --url <the cited url>`, `prove --quote "<the sentence>" --script <path>
+	// `fetch --url <the cited url>`, `compute --quote "<the sentence>" --dir <bundle>
 	// [--answers <gap>]`, `--supersedes <that gap>`, `blue cite --quote … --url <u> --title <t>`,
 	// and `--check-kind document | computation | source` — the last of which is quoted in THIS
 	// TEST'S OWN comment above as the example of what must not survive a strip.
@@ -746,7 +746,7 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 //
 // Measured on 2026-08-13, before this gate existed. The map carried rows for `blue dispute`,
 // `merge dispute-respond`, `<seat> petition`, `bench petition-rule` and `blue confidence` — all
-// retired or moved — and had NO row for `blue prove`, `blue edit`, `lens reproduce`,
+// retired or moved — and had NO row for `blue compute`, `blue edit`, `lens reproduce`,
 // `lens verify`, `bench assemble`, `bench halt` or any of
 // the seven motion commands. Roughly a third of the live surface was undocumented while a third
 // of the document described a tree that no longer existed.

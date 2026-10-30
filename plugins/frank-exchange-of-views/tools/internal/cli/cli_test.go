@@ -718,7 +718,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
 // AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade, close and manifest-row carry `gap_id`,
-// inquiry propose `inquiry_id`, prove `proof_id`, motion file and rule `motion_id`; finding carried a
+// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`; finding carried a
 // bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
 // finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
 func TestActResultsNameTheirIDByKind(t *testing.T) {

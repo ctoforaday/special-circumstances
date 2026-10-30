@@ -21,7 +21,7 @@ func Verbs() []*cobra.Command {
 		newIngest(),
 		newEdit(),
 		newCite(),
-		newProve(),
+		newCompute(),
 		newRetire(),
 		newInquiry(),
 		newManifestRow(),

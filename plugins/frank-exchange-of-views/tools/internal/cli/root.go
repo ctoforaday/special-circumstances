@@ -69,7 +69,7 @@ func InvokedAs() string {
 func seatVerbs(role string) ([]*cobra.Command, string) {
 	switch role {
 	case "lens":
-		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them."
+		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them."
 	case "chair":
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
@@ -515,8 +515,8 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 
 // Execute runs the CLI.
 func Execute() {
-	if marker := os.Getenv(seatenv.VarProofRerun); marker != "" {
-		refuseInsideProofRerun(marker, os.Args[1:])
+	if marker := os.Getenv(seatenv.VarComputeRerun); marker != "" {
+		refuseInsideComputeRerun(marker, os.Args[1:])
 		os.Exit(2)
 	}
 	if _, err := Invoke(newRoot(), os.Args[1:], dispatchedSeat()); err != nil {

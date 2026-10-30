@@ -367,6 +367,63 @@ jobs:
             -run '^TestCorpusGoldens$' ./internal/fetchcache/ | tee "$RUNNER_TEMP/corpus.txt"
           grep -q '^--- PASS: TestCorpusGoldens ' "$RUNNER_TEMP/corpus.txt"
 
+  archive-rerun:
+    # EVERY ARCHIVED COMPUTATION, MIGRATED AND RE-RUN (plans/compute-and-show.md §V V1a.7).
+    # devcmd/archiverun unpacks each run-archive tarball, migrates it to this binary's epoch,
+    # executes every recorded bundle once and grades each act on it against
+    # devcmd/archiverun/testdata/outcomes.tsv.
+    #
+    # THE OUTCOMES ARE MEASURED HERE, NEVER FORECAST. On workflow_dispatch the job runs `-write`
+    # and uploads the file as the archive-rerun-outcomes artifact, which is committed as it was
+    # measured; on the nightly schedule it checks the committed file. The file's header names
+    # each interpreter's version, and the check refuses any other, so the pins below ARE the
+    # measurement's conditions: ubuntu-24.04 for bash, and Go, Node and Python by exact version.
+    # Moving a pin is a re-measurement: dispatch, download, commit.
+    #
+    # IT RUNS EVERY ARCHIVED PROGRAM with the runner's privileges, filesystem and network, so it
+    # is a job of its own, on schedule and dispatch only, never a step of the release job: it
+    # reads contents only, persists no credential, and saves no cache a pull request could
+    # restore — setup-go `cache: false`, setup-node `package-manager-cache: false`, setup-python's
+    # `cache` input left unset (which caches nothing), and no actions/cache. What a program writes
+    # to GOCACHE, GOMODCACHE or $HOME dies with the runner. Residue: a program can still read the
+    # runner's environment and reach the network.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-node@v7
+        with:
+          package-manager-cache: false
+          node-version: "24.19.0"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12.16"
+      - name: Measure every archived computation's outcome
+        if: github.event_name == 'workflow_dispatch'
+        run: go run ./devcmd/archiverun -write
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: archive-rerun-outcomes
+          path: plugins/frank-exchange-of-views/tools/devcmd/archiverun/testdata/outcomes.tsv
+          if-no-files-found: error
+          retention-days: 14
+      - name: Every archived computation re-runs as measured
+        if: github.event_name == 'schedule'
+        run: go run ./devcmd/archiverun
+
   feov-record:
     # The FEOV seat-side record runtime (plans/record-tool.md R2g). Its own Go
     # module, so the prosthetic-conscience job's working-directory does not reach

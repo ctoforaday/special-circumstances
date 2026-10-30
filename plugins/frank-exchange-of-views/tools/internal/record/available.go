@@ -18,7 +18,7 @@ import (
 // still holds. But a duty is derived only where omission already carries a mechanical consequence,
 // so it can name 4 of blue's verbs, 5 of merge's, 3 of bench's and 2 of lens's. Every act whose
 // omission is merely a QUALITY loss — an inquiry never revisited, a repair with no manifest
-// row, an archive never sampled, a citation nobody verified, a source blue never cited, a proof
+// row, an archive never sampled, a citation nobody verified, a source blue never cited, a computation
 // nobody re-ran, a grade accepted and never moved — got no line. Those are exactly the acts the
 // probe boards bait and the measured runs skip.
 //
@@ -408,17 +408,17 @@ func regradesAwaitedOf(evs []*Event, win WindowIndex, open map[string]bool) []ow
 	return out
 }
 
-// computationSeat is the computation lens's seat — the owner of every proof's check
+// computationSeat is the computation lens's seat — the owner of every computation's check
 // (anchorOwnerOf).
 const computationSeat = "red-lens-computation"
 
-// anchorOwnerOf is the lens that owes the check of an anchor of one kind — proof says which: a
-// citation's is the evidence lens, a proof's the computation lens. Every run seats both. It is the
+// anchorOwnerOf is the lens that owes the check of an anchor of one kind — computation says which: a
+// citation's is the evidence lens, a computation's the computation lens. Every run seats both. It is the
 // one answer to "who owes this anchor's check": the owner of an unchecked anchor's blocker, whose work
 // list it blocks, whose debt it is (lensOwesOf), and whom dispatch readies (passBlockersOf).
 //
-// ONE LENS OWNS A PROOF (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
-// for the rest it's just content to judge?" A proof item on every lens's list put lenses dispatched
+// ONE LENS OWNS A COMPUTATION (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
+// for the rest it's just content to judge?" A computation item on every lens's list put lenses dispatched
 // together in a race to re-run and judge one script — universe-m26 re-ran one script 16 times across
 // five lenses.
 //
@@ -428,8 +428,8 @@ const computationSeat = "red-lens-computation"
 // later runs put 42 of 58 and 35 of 45 there.
 //
 // Every other lens reads the anchor's standing check and judges its sentence as content.
-func anchorOwnerOf(proof bool) string {
-	if proof {
+func anchorOwnerOf(computation bool) string {
+	if computation {
 		return computationSeat
 	}
 	return evidenceSeat
@@ -502,7 +502,7 @@ func remandItem(g WorkGapState, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
 	if blue {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + g.DocketDirection +
-			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a proof that answers it, a fate on the inquiry it is anchored on, or a motion on it" + next
+			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a computation that answers it, a fate on the inquiry it is anchored on, or a motion on it" + next
 	}
 	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + g.DocketDirection +
 		". Your sitting cannot end until you record an act on " + g.ID + ": a regrade (one that keeps the grade says what your check still finds failing), a close, or a finding about it. Your act does not begin the exchange: it begins when blue records an act on " + g.ID + next

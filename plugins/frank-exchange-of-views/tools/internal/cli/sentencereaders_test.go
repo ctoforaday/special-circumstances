@@ -55,17 +55,17 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c1w := cite("Costs rose 4.5% in 2023", "https://a/2")
 	c2 := cite("91 = 7 × 13. ✓", "https://a/3")
 	// A citation never stands bare, so the sentences cut down to their anchors are proved ones.
-	prove := func(sentence string) string {
+	compute := func(sentence string) string {
 		t.Helper()
 		s := script(t, runDir, "p.js", "console.log('it holds');")
-		if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
-			"--script", s, "--reason", "the computation settles it"); err != nil {
-			t.Fatalf("prove %q: %v", sentence, err)
+		if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
+			"--dir", s, "--reason", "the computation settles it", "--", "node", "p.js"); err != nil {
+			t.Fatalf("compute %q: %v", sentence, err)
 		}
-		return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+		return lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 	}
-	c3 := prove("Gone soon")
-	c4 := prove("Gone item")
+	c3 := compute("Gone soon")
+	c4 := compute("Gone item")
 
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
 		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "3" {

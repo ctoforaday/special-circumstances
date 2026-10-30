@@ -51,7 +51,7 @@ func TestMintAdvisesOnThisRun(t *testing.T) {
 func TestCorroborationCarriesOnlyItsSourceIntoTheReport(t *testing.T) {
 	runDir := corroborateRun(t)
 	const (
-		title  = "Po-Shen Loh, A Simple Proof of the Quadratic Formula"
+		title  = "Po-Shen Loh, A Simple Computation of the Quadratic Formula"
 		url    = "https://example.org/loh-2019"
 		reason = "REDREASON the source states the method at section 2"
 	)

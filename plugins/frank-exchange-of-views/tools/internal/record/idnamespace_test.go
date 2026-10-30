@@ -38,7 +38,7 @@ type idKind struct {
 	name string
 	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
 	// internal/flags where a flag takes this kind alone, and from the anchor kinds table flags
-	// itself reads where none does — a finding and a proof are named on the general anchor flag —
+	// itself reads where none does — a finding and a computation are named on the general anchor flag —
 	// never restated here: a matrix that exists to catch namespace drift cannot itself hold a
 	// second copy of the namespace.
 	pattern *regexp.Regexp
@@ -57,7 +57,7 @@ func idKinds() []idKind {
 		{name: "motion", pattern: flags.MotionID().Shape()},
 		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
 		{name: "finding", pattern: kindShape("finding"), anchored: true},
-		{name: "proof", pattern: kindShape("proof"), anchored: true},
+		{name: "computation", pattern: kindShape("computation"), anchored: true},
 	}
 }
 
@@ -230,8 +230,8 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	case "citation":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, corroboration(id, "https://example.org/"+id, "the claim "+id+" bears on", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS))
 		return err
-	case "proof":
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Proof{ProofId: proto.String(id), ProofSha: proto.String("sha-" + id), Script: proto.String("s.py")})
+	case "computation":
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String(id), BundleSha: proto.String("sha-" + id)})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the write path is never shown an id of this kind", kind)

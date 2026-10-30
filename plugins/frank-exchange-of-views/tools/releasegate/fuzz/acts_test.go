@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -130,9 +131,17 @@ func eitherReport(p processTally) string {
 }
 
 // The fluent builder's doors, and result for a caller that reads both of exec's results.
-func (c *cmd) admit() (string, bool)   { return c.r.admit(c.args...) }
-func (c *cmd) refuse(code feov.Code)   { c.r.refuse(code, c.args...) }
-func (c *cmd) result() (string, error) { return c.r.exec(c.args...) }
+func (c *cmd) admit() (string, bool)   { return c.r.admit(c.all()...) }
+func (c *cmd) refuse(code feov.Code)   { c.r.refuse(code, c.all()...) }
+func (c *cmd) result() (string, error) { return c.r.exec(c.all()...) }
+
+// all is the invocation: the flags, then the command after `--`, which stands last.
+func (c *cmd) all() []string {
+	if c.command == nil {
+		return c.args
+	}
+	return append(append(slices.Clone(c.args), "--"), c.command...)
+}
 
 // writeSetup writes one file a run is built from, with its directory. Its error is the caller's to
 // fail on: a run built without its report or its terms is not the run the sweep measures.
@@ -146,14 +155,25 @@ func writeSetup(path string, data []byte) error {
 	return nil
 }
 
-// writeScript writes a proof script into the run directory. A write that fails fails the run: the
-// proof it was for is never driven, and the drive would otherwise skip it in silence.
-func (r *runner) writeScript(name, body string) error {
-	err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644)
-	if err != nil {
-		r.noteActErr("write the proof script " + name + ": " + err.Error())
+// writeBundle writes a computation's program into a bundle directory of its own under the run's
+// scratch/, and returns that directory as `compute --dir` takes it (relative to the run) and the
+// command that runs the program. A write that fails fails the run: the computation it was for is
+// never driven, and the drive would otherwise skip it in silence.
+func (r *runner) writeBundle(name, body string) (dir string, argv []string, err error) {
+	dir = filepath.Join("scratch", strings.TrimSuffix(name, filepath.Ext(name)))
+	if err = os.MkdirAll(filepath.Join(r.runDir, dir), 0o755); err == nil {
+		err = os.WriteFile(filepath.Join(r.runDir, dir, name), []byte(body), 0o644)
 	}
-	return err
+	if err != nil {
+		r.noteActErr("write the computation bundle " + name + ": " + err.Error())
+	}
+	return dir, []string{"node", name}, err
+}
+
+// bundleSha is the identity of the bundle writeBundle writes for name and body, as the record holds
+// it (compute.BundleSha): the drive finds its own computations on the record by it.
+func bundleSha(name, body string) string {
+	return compute.BundleSha([]string{"node", name}, compute.Sums([]compute.File{{Path: name, Body: []byte(body)}}))
 }
 
 // sourceTitle is the title the drive gives a source it cites or corroborates. It is a source's own

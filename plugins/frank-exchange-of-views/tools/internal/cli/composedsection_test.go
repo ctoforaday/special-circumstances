@@ -249,7 +249,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 // is the verbs'; migrate replays the record's events, so the archive comes forward with nothing
 // refused and the heading still in its report. Assembly keeps no list of headings to leave out:
 // the text blue filed there ships in the body with every anchor it carries, and
-// the proof footnotes run P1 to P9 with none missing (the shipped m20 report ran P1 to P7, P9).
+// the computation footnotes run P1 to P9 with none missing (the shipped m20 report ran P1 to P7, P9).
 func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	to := recordtest.TmpRun(t)
 	res, err := migrate.Migrate(recordtest.RequireArchive(t, "2026-10-11_is-91-prime-m20.tar.gz"), to, migrate.Entries(), migrate.Options{})
@@ -288,14 +288,14 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if line, s, found := report.ComposedIn(report.ParseText(""), report.ParseText(blue)); !found || line != "## Alternatives considered" || s.Heading != "Alternatives considered" {
 		t.Fatalf("the migrated m20's report carries %q (found %v), want \"## Alternatives considered\" — this archive is the case", line, found)
 	}
-	proofs := 0
+	computations := 0
 	for _, id := range anchor.IDs(blue) {
-		if anchor.Kind(id) == "proof" {
-			proofs++
+		if anchor.Kind(id) == "computation" {
+			computations++
 		}
 	}
-	if proofs != 9 {
-		t.Fatalf("the migrated m20's report carries %d proof anchors, want 9", proofs)
+	if computations != 9 {
+		t.Fatalf("the migrated m20's report carries %d computation anchors, want 9", computations)
 	}
 	docs, err := shippedDocs(dst)
 	if err != nil {
@@ -313,7 +313,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range view.Sections {
-		if (s.Heading == "Bibliography" || s.Heading == "Proofs") && (!s.Ships || !strings.HasPrefix(s.Text, "## "+s.Heading+"\n")) {
+		if (s.Heading == "Bibliography" || s.Heading == "Computations") && (!s.Ships || !strings.HasPrefix(s.Text, "## "+s.Heading+"\n")) {
 			t.Errorf("m20 cites and proves, and the layout's %s row is ships=%v, text %.60q", s.Heading, s.Ships, s.Text)
 		}
 		// The body stands before the tool's sections and holds a section under one of their names.
@@ -333,9 +333,9 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	if body, tool := strings.Index(shipped, "### Weighed and rejected"), strings.LastIndex(shipped, "## Alternatives considered\n"); body < 0 || body > tool || strings.Contains(shipped, "## Additional findings") {
 		t.Errorf("m20's own sections do not ship before the sections the tool composes, or ship under a heading of the tool's")
 	}
-	for n := 1; n <= proofs; n++ {
-		if ref := "[^P" + string(rune('0'+n)) + "]"; !strings.Contains(shipped, ref) {
-			t.Errorf("report.md carries no %s: a proof anchored in the report did not ship", ref)
+	for n := 1; n <= computations; n++ {
+		if ref := "[^K" + string(rune('0'+n)) + "]"; !strings.Contains(shipped, ref) {
+			t.Errorf("report.md carries no %s: a computation anchored in the report did not ship", ref)
 		}
 	}
 	for _, want := range []string{"which other approaches were weighed, and what became of each", "### Weighed and rejected"} {

@@ -12,7 +12,7 @@ import (
 // idLetters is the letter each kind's id begins with, written out here and nowhere read from the
 // table that spells it: a letter that moves in the table fails this file by name.
 var idLetters = map[string]string{
-	"finding": "F", "citation": "C", "proof": "P", "gap": "G", "inquiry": "Q", "motion": "M",
+	"finding": "F", "citation": "C", "computation": "K", "gap": "G", "inquiry": "Q", "motion": "M",
 }
 
 // Every kind's id is the one shape: its letter, a hyphen and exactly eight lower-case hex.
