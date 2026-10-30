@@ -66,7 +66,6 @@ var notFields = map[string]string{
 	"none":        "SpotCheck's claim that the archive was empty; the board's count answers it, and SpotCheck.reason says why a spot-check named nothing",
 	"notes":       "SpotCheck's prose when a sample WAS taken, beside `reason` for when none was; one channel split by which branch wrote it. SpotCheck.reason replaces both",
 	"reference":   "a free-text third spelling of a source on the one verb that reads one red found itself. Verify.url + Verify.title replace it, as Cite already named sources",
-	"claim":       "on a CITE it re-quoted the sentence `location` already held to place the anchor. Verify.claim is a different field and still exists",
 	"independent": "a verification's mark that red found the source itself, beside the empty anchor that says the same; `corroborate` is the verb, and every reader splits on the anchor",
 	"estopped_by": "the prescribing gap of an estoppel refusal, beside a count that reads only Log.type; the entry's text names the gap",
 	"rationale":   "the bench's own prose channel on the retired `opinion` body. The disposition is a docket motion's ruling now, and every subject's ruling carries its ruler's argument on MotionRule.opinion (flag `--reason`) — so the fact survives on a field that already held it for the other three subjects, rather than on a fifth name for one concept",
@@ -81,7 +80,6 @@ var notFields = map[string]string{
 
 	// NEVER A PAYLOAD KEY.
 	"script": "a FILENAME in the store, not a recorded field — a computation's program lives on disk under computations/<bundle_sha>/dir/, and the record carries its bundle_sha and argv",
-	"exit":   "a field of the in-process execution result — never written to a shard; Computation.exit is the record's",
 	"output": "a field of the in-process execution result; an act's output is in the store, " + actOutputPath + ", and the record carries none",
 
 	// A PROOF IS A COMPUTATION (epoch 49). Each key is migrate's to translate, onto the field named.
@@ -152,16 +150,31 @@ func TestEveryPreMigrationKeyIsAccountedFor(t *testing.T) {
 	}
 }
 
-// AND THE EXCUSES MUST NOT ROT. An entry in notFields naming a key the census never had is dead
-// weight that reads as coverage — the same failure the descriptions and requiredness gates catch
+// AND THE EXCUSES MUST NOT ROT. An entry in notFields naming a key the census never had, or a key a
+// proto field already accounts for by name, is dead weight that reads as coverage: deleting it
+// changes nothing any test reads — the same failure the descriptions and requiredness gates catch
 // from the other direction.
 func TestNoExcuseNamesAKeyTheCensusNeverHad(t *testing.T) {
 	census := map[string]bool{}
 	for _, k := range loadKeyCensus(t) {
 		census[k] = true
 	}
+	fields := map[string]bool{}
+	fd, err := protoregistry.GlobalFiles.FindFileByPath("record.proto")
+	if err != nil {
+		t.Fatalf("cannot find the schema: %v", err)
+	}
+	for i := 0; i < fd.Messages().Len(); i++ {
+		md := fd.Messages().Get(i)
+		for j := 0; j < md.Fields().Len(); j++ {
+			fields[string(md.Fields().Get(j).Name())] = true
+		}
+	}
 	var stale []string
 	for k := range notFields {
+		if fields[k] {
+			t.Errorf("notFields excuses %q, which a field of that name already accounts for — delete it", k)
+		}
 		if !census[k] {
 			stale = append(stale, k)
 		}
