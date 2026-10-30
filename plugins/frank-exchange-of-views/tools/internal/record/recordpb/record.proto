@@ -543,18 +543,19 @@ enum Soundness {
   SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to"]; // the dangerous cell, because it looks maximally credible
 }
 
-// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output and
-// exit — against its bundle's re-run. The tool writes it; a seat never states it. Soundness is the
-// other half, judged per anchor, because one bundle can back several sentences and only one of
-// them may be what it computes.
+// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output, exit
+// and out/ — against its bundle's re-run. The tool writes it; a seat never states it. The bundle is
+// executed once and its standing re-run is executed once, but the comparison is per act: two acts on
+// one bundle can have recorded different results. Soundness is the other half, judged per anchor,
+// because one bundle can back several sentences and only one of them may be what it computes.
 //
-// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle another
-// reproduce already re-ran executes nothing and compares against that re-run; the comparison is
+// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle with a
+// standing re-run executes nothing and compares this act against that re-run; the comparison is
 // still this act's, so it carries a value of this set, and `ran` = false says nothing executed.
 enum Rerun {
   RERUN_UNSPECIFIED = 0;
-  RERUN_REPRODUCED = 1 [(means) = "the bundle's re-run wrote this act's recorded output and exit, byte for byte"];
-  RERUN_DIFFERS = 2 [(means) = "the bundle's re-run wrote something other than this act's recorded output or exit; drift names what"];
+  RERUN_REPRODUCED = 1 [(means) = "the bundle's re-run wrote this act's recorded output, exit and out/, byte for byte"];
+  RERUN_DIFFERS = 2 [(means) = "the bundle's re-run wrote something other than this act's recorded output, exit or out/; drift names what"];
   RERUN_CALLS_THE_TOOL = 3 [(means) = "the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"];
   reserved 4;
   reserved "RERUN_NOT_RUN";
@@ -1453,7 +1454,7 @@ message Computation {
 // Basis is what running a bundle twice found.
 enum Basis {
   BASIS_UNSPECIFIED = 0;
-  BASIS_REPRODUCIBLE = 1 [(means) = "both runs wrote the same output and exit, byte for byte"];
+  BASIS_REPRODUCIBLE = 1 [(means) = "both runs wrote the same output, exit and out/ files, byte for byte"];
   BASIS_VARIANT = 2 [(means) = "the two runs differed, and blue stated what holds across them"];
 }
 
@@ -1471,9 +1472,12 @@ enum Basis {
 // spells them — `computation_id` for the anchor, `bundle_sha` for the bundle.
 //
 // `ran` says whether this act executed the bundle. One that did not compared against the bundle's
-// standing re-run. `rerun_exit` is that execution's exit, and `rerun_sha` names the execution this
-// act compared against; neither is present on a reproduce migrated from a record that kept no raw
-// re-run.
+// standing re-run: the latest reproduce that ran the bundle and names its execution. `rerun_exit` is
+// the exit of the execution this act ran, and `rerun_sha` names the execution this act compared
+// against — its own where it ran, else the standing one's — stored at
+// computations/<bundle_sha>/rerun/<rerun_sha>/, written before this event. The write refuses an act
+// that ran nothing whose `rerun_sha` is no longer the standing one's. Neither is present on a
+// reproduce migrated from a record that kept no raw re-run.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's

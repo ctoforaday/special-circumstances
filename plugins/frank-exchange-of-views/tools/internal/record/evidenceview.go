@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -51,8 +52,9 @@ import (
 // anchor to join on and never will; they are the `independent` array, and that is a different
 // fact from an unverified citation rather than a missing one.
 //
-// COMPUTATIONS carry the same join through `reproduce`'s `anchor`, and the re-run of the bundle
-// through its sha: `rerun: not_rerun` means nobody re-ran the bundle, `soundness: not_judged` that nobody
+// COMPUTATIONS carry the same join through `reproduce`'s `anchor`, and each act's comparison
+// through it too: `rerun: not_rerun` means nobody executed the bundle, `rerun: not_compared` that the
+// bundle was executed and nobody compared this act against it, `soundness: not_judged` that nobody
 // judged this sentence. Every absence in this view is a stated field, because an unaudited thing
 // and a clean thing are otherwise the same empty space.
 
@@ -158,7 +160,7 @@ func sourceTextOf(c *recordpb.Cite) *EvidenceSourceText {
 	}
 }
 
-// EvidenceComputationJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
+// EvidenceComputationJSON is one computation blue recorded, keyed by its anchor, WITH red's comparison.
 type EvidenceComputationJSON struct {
 	// Anchor is the K-<hex> in the report and what `lens reproduce --anchor` takes; Sha256 is the
 	// bundle's, which every computation on the same bundle shares.
@@ -175,6 +177,11 @@ type EvidenceComputationJSON struct {
 	Invariant string `json:"invariant"`
 	SeatID    string `json:"seat_id"`
 	Epoch     int    `json:"epoch"`
+	// BundleBases is every basis the acts on this row's bundle were recorded with, where they differ:
+	// one bundle, run twice by two acts, can move for one and not the other, and a reader judging
+	// this act's comparison reads that the bundle's output is not settled. Absent where every act on
+	// the bundle has this row's basis.
+	BundleBases []string `json:"bundle_bases,omitempty"`
 
 	// The bundle's files and this act's output are read at the computation's anchor, from the
 	// store: see EvidenceComputationAtJSON. They are content, and every seat pulls this table.
@@ -185,15 +192,16 @@ type EvidenceComputationJSON struct {
 	// `{reproduced, sound}` and read nulls, and a lens's `unsound` on one sentence was overwritten by
 	// another lens's `sound` on another sentence over the same bundle (#1358).
 	//
-	// Rerun is the BUNDLE's standing re-run, shared by every computation on the sha: reproduced |
-	// differs | calls_the_tool, or not_rerun when nobody re-ran it.
+	// Rerun is THIS ACT's comparison against its bundle's standing re-run: reproduced | differs |
+	// calls_the_tool; not_compared where the bundle was executed and nobody compared this act;
+	// not_rerun where nobody executed the bundle.
 	Rerun string `json:"rerun"`
 	// Soundness is THIS ANCHOR's sentence: sound | unsound | not_judged | reopened (an edit changed
 	// the sentence after it was judged). A standing `unsound` from any seat reads unsound here until
 	// that seat judges it again or an edit reopens the sentence.
 	Soundness string `json:"soundness"`
-	// Verified is the conjunction a reader asks for: the bundle reproduced AND this sentence is
-	// judged sound.
+	// Verified is the conjunction a reader asks for: this act's comparison reproduced AND this
+	// sentence is judged sound.
 	Verified bool `json:"verified"`
 	// Checks is every `reproduce` naming this anchor, in record order, each marked whether it still
 	// stands. An empty array is the honest "nobody judged this sentence".
@@ -442,9 +450,11 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		byAnchor[v.Anchor] = append(byAnchor[v.Anchor], v)
 	}
 
-	// Red's checks of each computation: the bundle's re-run by sha, the sentence's verdicts by anchor.
+	// Red's checks of each computation: the bundle's executions by sha, each act's comparison and its
+	// sentence's verdicts by anchor, and each bundle's bases.
 	ledger := anchorChecksOf(evs, win)
-	reruns := bundleRerunsOf(evs)
+	reruns, acts := bundleRerunsOf(evs), actVerdictsOf(evs)
+	bases := bundleBasesOf(evs)
 
 	for _, e := range evs {
 		w := win.Of(e)
@@ -495,10 +505,10 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				OCRTextSha:         bd.GetOcrTextSha(),
 			})
 		case *recordpb.Computation:
-			// The anchor's verdict is read off the ledger by anchor; the bundle's re-run by the
-			// bundle_sha the record spells once, on the Computation and on each Reproduce of it.
+			// The anchor's verdict and its comparison are read by anchor; the bundle's executions by
+			// the bundle_sha the record spells once, on the Computation and on each Reproduce of it.
 			s := ledger.at(bd.GetComputationId())
-			v := computationVerdictOf(s, reruns)
+			v := computationVerdictOf(bd.GetComputationId(), bd.GetBundleSha(), s, reruns, acts)
 			checks := []EvidenceReproductionJSON{}
 			if s != nil {
 				standing := map[int64]bool{}
@@ -527,6 +537,12 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				Invariant: bd.GetInvariant(),
 				SeatID:    e.GetSeatId(),
 				Epoch:     w.Epoch,
+				BundleBases: func() []string {
+					if b := bases[bd.GetBundleSha()]; len(b) > 1 {
+						return b
+					}
+					return nil
+				}(),
 				Rerun:     v.rerunWord(),
 				Soundness: v.soundness,
 				Verified:  v.verified(),
@@ -654,4 +670,26 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 	return EvidenceAtJSON{}, fmt.Errorf("no source or computation is at anchor %q on this record (%d source(s), %d computation(s)). "+
 		"--anchor takes the id inside a citation or computation token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
 		id, len(ev.Sources), len(ev.Computations))
+}
+
+// bundleBasesOf is every bundle's bases, keyed by bundle_sha: each basis an act on it was recorded
+// with, sorted.
+func bundleBasesOf(evs []*Event) map[string][]string {
+	seen := map[string]map[string]bool{}
+	for _, e := range evs {
+		if c, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && c.GetBundleSha() != "" {
+			if seen[c.GetBundleSha()] == nil {
+				seen[c.GetBundleSha()] = map[string]bool{}
+			}
+			seen[c.GetBundleSha()][recordpb.Word(c.GetBasis())] = true
+		}
+	}
+	out := map[string][]string{}
+	for sha, b := range seen {
+		for w := range b {
+			out[sha] = append(out[sha], w)
+		}
+		sort.Strings(out[sha])
+	}
+	return out
 }

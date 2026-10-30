@@ -185,7 +185,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			t.Errorf("show evidence --anchor %s: reopened = %+v (%v), want edit %d, last check %d", r.anchor, at.Unchecked, err, r.edit, r.lastCheck)
 		}
 	}
-	if !strings.Contains(chair, "`reproduce --anchor "+m19Reopened[2].anchor+"` records your verdict on its sentence without re-running it") {
+	if !strings.Contains(chair, "`reproduce --anchor "+m19Reopened[2].anchor+"` records your verdict on its sentence, executing nothing once the bundle has a standing re-run") {
 		t.Errorf("the computation's item does not carry the anchor its judgement takes:\n%s", chair)
 	}
 	var rows []unchecked

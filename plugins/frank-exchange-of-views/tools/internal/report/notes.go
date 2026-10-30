@@ -214,3 +214,40 @@ func codeIn(tree ast.Node, src []byte) [][2]int {
 	slices.SortFunc(code, func(a, b [2]int) int { return a[0] - b[0] })
 	return code
 }
+
+// Literal is s as markdown that renders as its own characters, on one line: every ASCII punctuation
+// character backslash-escaped, and each line break folded to a space.
+//
+// IT IS THE ONE COMPOSER OF A PROGRAM- OR SEAT-CHOSEN STRING PRINTED OUTSIDE A FENCE. A command line,
+// a toolchain path, a bundle file's path and the name of a file a program wrote under out/ are
+// chosen by whoever wrote the program, and a name holding `](`, a backtick, `[^K1]`, `<`, `|` or a
+// line break followed by `## X` opens a link, a code span, a footnote, raw HTML, a table cell or a
+// heading wherever it is spliced raw. Escaped, every one of those is text in both the shipped .md and
+// report.html; folded, a line break opens no block. A code span is not enough: a line break inside one
+// still ends the paragraph at a heading line before the span is read.
+func Literal(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '\r':
+			if i+1 < len(s) && s[i+1] == '\n' {
+				i++
+			}
+			b.WriteByte(' ')
+		case c == '\n':
+			b.WriteByte(' ')
+		case asciiPunct(c):
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// asciiPunct is CommonMark's ASCII punctuation: every character a backslash escapes.
+func asciiPunct(c byte) bool {
+	return c >= '!' && c <= '/' || c >= ':' && c <= '@' || c >= '[' && c <= '`' || c >= '{' && c <= '~'
+}

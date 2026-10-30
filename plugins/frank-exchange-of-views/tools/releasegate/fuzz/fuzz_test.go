@@ -3053,7 +3053,7 @@ func (r *runner) tallyOwed(plan map[string]any) {
 		}
 		if n, _ := strconv.Atoi(g[1]); n >= 3 {
 			r.owedKept++
-			if strings.Contains(g[2], string(record.BlockerUnchecked)+" P-") {
+			if owesAComputation(g[2], computations) {
 				r.computationOwedKept++
 			}
 			if r.owedKeptBy == nil {
@@ -3064,6 +3064,18 @@ func (r *runner) tallyOwed(plan map[string]any) {
 			}
 		}
 	}
+}
+
+// owesAComputation is whether a fold's "it owes" clause holds an unchecked item whose subject the
+// record holds as a computation — the id read against the record's computations, never by the shape
+// of its prefix, which the id kind's letter changed under once.
+func owesAComputation(clause string, computations map[string]bool) bool {
+	for _, item := range strings.Split(clause, ", ") {
+		if id, ok := strings.CutPrefix(item, string(record.BlockerUnchecked)+" "); ok && computations[strings.TrimSpace(id)] {
+			return true
+		}
+	}
+	return false
 }
 
 // owedKinds is the kinds of debt a fold's "it owes" clause names, each once: the fold names each item
@@ -7874,10 +7886,11 @@ func (r *runner) answerInquiryRulings(seatID string) {
 }
 
 // recomputeOpenComputations audits the computation answering each open COMPUTE gap, and the gap's minting lens
-// closes on the computation's standing re-run rather than on its own say-so. The computation's OWNER re-runs it
-// and judges its sentence — the one audit that does not end in believing bytes somebody else chose.
-// Every other lens reads the standing re-run off `show evidence` and re-runs nothing: a computation's
-// sentence is content to it.
+// closes on that computation's own comparison rather than on its own say-so. The computation's OWNER
+// reproduces it — executing the bundle where nobody has, else comparing against its standing re-run —
+// and judges its sentence: the one audit that does not end in believing bytes somebody else chose.
+// Every other lens reads the computation's comparison off `show evidence` and executes nothing: a
+// computation's sentence is content to it.
 func (r *runner) recomputeOpenComputations(seatID string) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
@@ -7889,7 +7902,7 @@ func (r *runner) recomputeOpenComputations(seatID string) {
 			computationFor[p.GetAnswers()] = p.GetComputationId()
 		}
 	}
-	standing := map[string]bool{} // anchor -> its script's standing re-run reproduced
+	standing := map[string]bool{} // anchor -> its own comparison against its bundle's re-run reproduced
 	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Computations {
 		standing[p.Anchor] = p.Rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED)
 	}

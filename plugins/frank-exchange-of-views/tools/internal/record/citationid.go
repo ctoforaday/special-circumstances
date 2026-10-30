@@ -302,30 +302,58 @@ type Computation struct {
 	Exit   int
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
+	// ToolchainPath and ToolchainSha256 name argv[0] as it resolved where blue ran it: "" for a
+	// bundle file, whose bytes are in the bundle.
+	ToolchainPath, ToolchainSha256 string
 
 	// Drift is WHAT MOVED between the two runs, and Invariant what the seat stated holds across them;
 	// both are present exactly when the basis is variant.
 	Drift, Invariant string
 
-	// Rerun is the BUNDLE's standing re-run (#343): the latest `reproduce` of this sha that ran it,
-	// shared by every computation on the bundle. Nil when nobody re-ran it — and that absence is
-	// itself information the reader needs, so the report says so rather than omitting it.
+	// Rerun is THIS ACT's comparison (#343): its latest `reproduce`, which set its own recorded
+	// output, exit and out/ against an execution of the bundle. Nil when nobody compared it — and
+	// that absence is information the reader needs, so the report says so rather than omitting it.
 	Rerun *ComputationRerun
+	// Executed is whether any checker executed the bundle: an act with no comparison on an executed
+	// bundle is not compared, never not re-run.
+	Executed bool
+	// Standing is the bundle's standing re-run — the execution a later reproduce of any act on the
+	// bundle compares against instead of executing — nil where no reproduce that ran it names its
+	// execution.
+	Standing *StandingRerun
 	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — and Judgements
 	// are the standing verdicts it is read from, one per seat (computationverdict.go).
 	Soundness  string
 	Judgements []ComputationJudgement
 }
 
-// ComputationRerun is one `reproduce` that RAN a computation's bundle. The result is COMPUTED by the
-// tool, not claimed by the seat — which is the whole reason re-running beats re-reading.
+// ComputationRerun is one act's comparison: the `reproduce` that set the act's recorded result
+// against an execution of its bundle. The result is COMPUTED by the tool, not claimed by the seat —
+// which is the whole reason re-running beats re-reading.
 type ComputationRerun struct {
 	SeatID  string
 	Epoch   int
 	Sitting int
 	Rerun   recordpb.Rerun
-	// Drift is what the re-run wrote that differs from the recorded result, present where it differed.
+	// Drift is what differs between the act's recorded result and the execution, present where it
+	// differed.
 	Drift string
+	// Ran is whether this reproduce executed the bundle itself.
+	Ran bool
+	// RerunSha names the execution compared against, rerun/<RerunSha>/ in the store; "" on a
+	// reproduce migrated from a record that kept no raw re-run.
+	RerunSha string
+}
+
+// StandingRerun is a bundle's standing re-run: the latest `reproduce` that executed it and named the
+// execution.
+type StandingRerun struct {
+	SeatID   string
+	RerunSha string
+	Exit     int
+	// Rerun is the standing reproduce's comparison of its own act; calls_the_tool says the execution
+	// called the tool, so no act has an output of it to compare.
+	Rerun recordpb.Rerun
 }
 
 // ComputationJudgement is one standing soundness verdict on a computation's anchor: red's JUDGEMENT,
@@ -337,8 +365,8 @@ type ComputationJudgement struct {
 	Note   string
 }
 
-// RecordedComputations returns every computation on the record, in event order, each with its
-// bundle's re-run and its own sentence's verdict.
+// RecordedComputations returns every computation on the record, in event order, each with its own
+// comparison, its bundle's standing re-run and its own sentence's verdict.
 //
 // The OUTPUT and the BUNDLE are deliberately not here: they live on disk under
 // <run>/computations/<bundle_sha>/ and can be large. The assembler reads them from the store so the
@@ -349,14 +377,14 @@ func RecordedComputations(run Run) ([]Computation, error) {
 		return nil, err
 	}
 	ledger := anchorChecksOf(m.Events, m.At)
-	reruns := bundleRerunsOf(m.Events)
+	reruns, acts := bundleRerunsOf(m.Events), actVerdictsOf(m.Events)
 	var out []Computation
 	for _, e := range m.Events {
 		pf, isComputation := recordpb.BodyAs[*recordpb.Computation](e)
 		if !isComputation {
 			continue
 		}
-		v := computationVerdictOf(ledger.at(pf.GetComputationId()), reruns)
+		v := computationVerdictOf(pf.GetComputationId(), pf.GetBundleSha(), ledger.at(pf.GetComputationId()), reruns, acts)
 		p := Computation{
 			Label: pf.GetComputationId(),
 			SHA:   pf.GetBundleSha(),
@@ -366,14 +394,24 @@ func RecordedComputations(run Run) ([]Computation, error) {
 			Cites: pf.GetCites(),
 			// --reason lands on Computation.text, the message's only prose channel — the same
 			// flag/field split recordpb/required.go records for Verify.text.
-			Reason:    pf.GetText(),
-			Drift:     pf.GetDrift(),
-			Invariant: pf.GetInvariant(),
-			Soundness: v.soundness,
+			Reason:          pf.GetText(),
+			ToolchainPath:   pf.GetToolchainPath(),
+			ToolchainSha256: pf.GetToolchainSha256(),
+			Drift:           pf.GetDrift(),
+			Invariant:       pf.GetInvariant(),
+			Soundness:       v.soundness,
 		}
-		if r := v.rerun; r != nil {
-			w := m.At.Of(r.ev)
-			p.Rerun = &ComputationRerun{SeatID: r.ev.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.rerun, Drift: r.drift}
+		if r := v.compared(); r != nil {
+			w := m.At.Of(v.comparison)
+			p.Rerun = &ComputationRerun{SeatID: v.comparison.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.GetRerun(),
+				Drift: r.GetDrift(), Ran: r.GetRan(), RerunSha: r.GetRerunSha()}
+		}
+		if b := v.bundle; b != nil {
+			p.Executed = true
+			if b.standing != nil {
+				r, _ := recordpb.BodyAs[*recordpb.Reproduce](b.standing)
+				p.Standing = &StandingRerun{SeatID: b.standing.GetSeatId(), RerunSha: r.GetRerunSha(), Exit: int(r.GetRerunExit()), Rerun: r.GetRerun()}
+			}
 		}
 		for _, c := range v.judgements {
 			r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
@@ -384,8 +422,9 @@ func RecordedComputations(run Run) ([]Computation, error) {
 	return out, nil
 }
 
-// ComputationAt is the recorded computation at one anchor, with its bundle's re-run and its sentence's
-// verdict — what `reproduce --anchor` acts on. An anchor no computation carries is refused by name.
+// ComputationAt is the recorded computation at one anchor, with its comparison, its bundle's standing
+// re-run and its sentence's verdict — what `reproduce --anchor` acts on. An anchor no computation
+// carries is refused by name.
 func ComputationAt(run Run, anchorID string) (Computation, error) {
 	computations, err := RecordedComputations(run)
 	if err != nil {

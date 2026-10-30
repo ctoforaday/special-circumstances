@@ -1101,9 +1101,6 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	repo := t.TempDir()
 	run := filepath.Join(repo, "research", "2026-08-22_x")
 	recs := filepath.Join(run, "records")
-	if err := os.MkdirAll(filepath.Join(run, "computations", "abc"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(recs, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1116,9 +1113,6 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 
 	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
 		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(run, "computations", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The run's TERMS. Read at READ time by the dispatch verb, the write path, sittingcap, the
@@ -1176,7 +1170,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 			digestBody = string(b)
 		}
 	}
-	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl", "computations/abc/script.py",
+	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl",
 		// WITHOUT THIS THE ARCHIVE IS BROKEN, NOT THIN. Measured on a real archived run against the
 		// same run live: `ops tiers` printed configuredBulk/configuredJudgment from the live
 		// directory and omitted both from the archive — a run whose terms were discarded reads

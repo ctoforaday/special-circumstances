@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -2119,11 +2120,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		}
 		dbBytes = b
 	}
-	type archived struct {
-		name string
-		path string
-		data []byte // the bytes, when they were read for the walk rather than by it
-	}
+	type archived = archive.Entry
 	var files []archived
 	add := func(root, prefix string) error {
 		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
@@ -2137,18 +2134,24 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 			if p == dbPath || p == dbPath+"-wal" || p == dbPath+"-shm" {
 				return nil
 			}
-			files = append(files, archived{name: prefix + filepath.ToSlash(rel), path: p})
+			files = append(files, archived{Name: prefix + filepath.ToSlash(rel), Path: p})
 			return nil
 		})
 	}
 	if dbBytes != nil {
-		files = append(files, archived{name: "records/record.db", data: dbBytes})
+		files = append(files, archived{Name: "records/record.db", Data: dbBytes})
 	}
 	if err := add(recs, "records/"); err != nil {
 		return "", err
 	}
 	shards := len(files)
-	_ = add(filepath.Join(run.Dir(), "computations"), "computations/")
+	// THE COMPUTATION STORE AS THE RECORD NAMES IT (archive.Store): its staging and any directory no
+	// event names stay behind.
+	store, err := archive.Store(run)
+	if err != nil {
+		return "", fmt.Errorf("listing the computation store: %w", err)
+	}
+	files = append(files, store...)
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
@@ -2168,7 +2171,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// record, while the law mirror is read by seats during the run and is provenance rather than
 	// function. Carrying provenance is a separate decision, and naming it here is how it stays one.
 	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
-		files = append(files, archived{name: "inputs/run-config.json", path: cfg})
+		files = append(files, archived{Name: "inputs/run-config.json", Path: cfg})
 	}
 
 	// THE STAGED CORPUS IS HASHED, NOT CARRIED (gblock, 2026-09-19).
@@ -2183,7 +2186,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
 		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
 			if os.WriteFile(digestPath, b, 0o644) == nil {
-				files = append(files, archived{name: "inputs/" + corpusDigestName, path: digestPath})
+				files = append(files, archived{Name: "inputs/" + corpusDigestName, Path: digestPath})
 			}
 		}
 	}
@@ -2199,33 +2202,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		return "", err
 	}
 	out := filepath.Join(outDir, filepath.Base(filepath.Clean(run.Dir()))+".tar.gz")
-	f, err := os.Create(out)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	gz := gzip.NewWriter(f)
-	tw := tar.NewWriter(gz)
-	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
-	for _, fl := range files {
-		b := fl.data
-		if b == nil {
-			var rerr error
-			if b, rerr = os.ReadFile(fl.path); rerr != nil {
-				return "", rerr
-			}
-		}
-		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
-			return "", err
-		}
-		if _, err := tw.Write(b); err != nil {
-			return "", err
-		}
-	}
-	if err := tw.Close(); err != nil {
-		return "", err
-	}
-	if err := gz.Close(); err != nil {
+	if err := archive.Write(out, files); err != nil {
 		return "", err
 	}
 	return out, nil

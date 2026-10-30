@@ -963,13 +963,14 @@ func (Soundness) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{11}
 }
 
-// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output and
-// exit — against its bundle's re-run. The tool writes it; a seat never states it. Soundness is the
-// other half, judged per anchor, because one bundle can back several sentences and only one of
-// them may be what it computes.
+// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output, exit
+// and out/ — against its bundle's re-run. The tool writes it; a seat never states it. The bundle is
+// executed once and its standing re-run is executed once, but the comparison is per act: two acts on
+// one bundle can have recorded different results. Soundness is the other half, judged per anchor,
+// because one bundle can back several sentences and only one of them may be what it computes.
 //
-// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle another
-// reproduce already re-ran executes nothing and compares against that re-run; the comparison is
+// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle with a
+// standing re-run executes nothing and compares this act against that re-run; the comparison is
 // still this act's, so it carries a value of this set, and `ran` = false says nothing executed.
 type Rerun int32
 
@@ -4817,9 +4818,12 @@ func (x *Computation) GetInvariant() string {
 // spells them — `computation_id` for the anchor, `bundle_sha` for the bundle.
 //
 // `ran` says whether this act executed the bundle. One that did not compared against the bundle's
-// standing re-run. `rerun_exit` is that execution's exit, and `rerun_sha` names the execution this
-// act compared against; neither is present on a reproduce migrated from a record that kept no raw
-// re-run.
+// standing re-run: the latest reproduce that ran the bundle and names its execution. `rerun_exit` is
+// the exit of the execution this act ran, and `rerun_sha` names the execution this act compared
+// against — its own where it ran, else the standing one's — stored at
+// computations/<bundle_sha>/rerun/<rerun_sha>/, written before this event. The write refuses an act
+// that ran nothing whose `rerun_sha` is no longer the standing one's. Neither is present on a
+// reproduce migrated from a record that kept no raw re-run.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's
@@ -8368,11 +8372,11 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12W\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aB\x8a\xb5\x18>you READ the program and it computes what it claims to compute\x12z\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xcb\x03\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xd8\x03\n" +
 	"\x05Rerun\x12\x15\n" +
-	"\x11RERUN_UNSPECIFIED\x10\x00\x12f\n" +
-	"\x10RERUN_REPRODUCED\x10\x01\x1aP\x8a\xb5\x18Lthe bundle's re-run wrote this act's recorded output and exit, byte for byte\x12z\n" +
-	"\rRERUN_DIFFERS\x10\x02\x1ag\x8a\xb5\x18cthe bundle's re-run wrote something other than this act's recorded output or exit; drift names what\x12\xb1\x01\n" +
+	"\x11RERUN_UNSPECIFIED\x10\x00\x12l\n" +
+	"\x10RERUN_REPRODUCED\x10\x01\x1aV\x8a\xb5\x18Rthe bundle's re-run wrote this act's recorded output, exit and out/, byte for byte\x12\x80\x01\n" +
+	"\rRERUN_DIFFERS\x10\x02\x1am\x8a\xb5\x18ithe bundle's re-run wrote something other than this act's recorded output, exit or out/; drift names what\x12\xb1\x01\n" +
 	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\xe9\r\n" +
 	"\rInquiryStatus\x12\x1e\n" +
 	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\x93\x01\n" +
@@ -8439,10 +8443,10 @@ const file_record_proto_rawDesc = "" +
 	"\x1dCOPY_SUBSTITUTION_FULLER_COPY\x10\x04\x1a\xc6\x01\x8a\xb5\x18\xc1\x01the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version\x12\x85\x02\n" +
 	"\x1fCOPY_SUBSTITUTION_NAMED_BACKEND\x10\x05\x1a\xdf\x01\x8a\xb5\x18\xda\x01a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document\x12l\n" +
 	"\x1eCOPY_SUBSTITUTION_NOT_RECORDED\x10\x06\x1aH\x8a\xb5\x18Dthis citation or reading predates the field; written only by migrate\x12\xd7\x02\n" +
-	"\x1cCOPY_SUBSTITUTION_NOT_CACHED\x10\a\x1a\xb4\x02\x8a\xb5\x18\xaf\x02a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records*\xc9\x01\n" +
+	"\x1cCOPY_SUBSTITUTION_NOT_CACHED\x10\a\x1a\xb4\x02\x8a\xb5\x18\xaf\x02a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records*\xd5\x01\n" +
 	"\x05Basis\x12\x15\n" +
-	"\x11BASIS_UNSPECIFIED\x10\x00\x12S\n" +
-	"\x12BASIS_REPRODUCIBLE\x10\x01\x1a;\x8a\xb5\x187both runs wrote the same output and exit, byte for byte\x12T\n" +
+	"\x11BASIS_UNSPECIFIED\x10\x00\x12_\n" +
+	"\x12BASIS_REPRODUCIBLE\x10\x01\x1aG\x8a\xb5\x18Cboth runs wrote the same output, exit and out/ files, byte for byte\x12T\n" +
 	"\rBASIS_VARIANT\x10\x02\x1aA\x8a\xb5\x18=the two runs differed, and blue stated what holds across them*\xbe\x01\n" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +

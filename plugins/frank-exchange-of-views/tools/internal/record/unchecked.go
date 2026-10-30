@@ -14,8 +14,10 @@ type unchecked struct {
 	edit, lastCheck int64
 	// placed is the events.id of the act that put the anchor on the record (anchorStanding.placed).
 	placed int64
-	// rerun is a computation's script state (computationVerdict.rerunWord) — a re-run belongs to the script, so a
-	// computation owed a judgement may be owed no re-run; "" for a citation.
+	// rerun is a computation's state (computationVerdict.rerunWord): its own comparison, or
+	// not_compared where its bundle was executed and nobody compared it, or not_rerun where nobody
+	// executed the bundle — an execution belongs to the bundle, so a computation owed a judgement may
+	// be owed no execution; "" for a citation.
 	rerun string
 }
 
@@ -39,7 +41,8 @@ type unchecked struct {
 // list blocks.
 func uncheckedAnchors(evs []*Event, win WindowIndex) []unchecked {
 	var out []unchecked
-	var reruns map[string]*bundleRerun
+	var reruns map[string]*bundleState
+	var acts map[string]*Event
 	for _, s := range anchorChecksOf(evs, win).order {
 		if s.state() != stateUnchecked {
 			continue
@@ -47,9 +50,9 @@ func uncheckedAnchors(evs []*Event, win WindowIndex) []unchecked {
 		u := unchecked{anchor: s.anchor, computation: s.computation, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck(), placed: s.placed}
 		if s.computation {
 			if reruns == nil {
-				reruns = bundleRerunsOf(evs)
+				reruns, acts = bundleRerunsOf(evs), actVerdictsOf(evs)
 			}
-			u.rerun = computationVerdictOf(s, reruns).rerunWord()
+			u.rerun = computationVerdictOf(s.anchor, s.sha, s, reruns, acts).rerunWord()
 		}
 		out = append(out, u)
 	}

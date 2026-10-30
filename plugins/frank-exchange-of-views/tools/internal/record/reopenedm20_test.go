@@ -56,7 +56,7 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 		t.Errorf("the plan readies %+v, want %s for the computation it owns", plan.Parties, computationSeat)
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
-	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its script establishes THIS sentence",
+	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its program establishes THIS sentence",
 		computationSeat + " owes that check and is the seat readied for it", "another lens's check clears it as well"} {
 		if !strings.Contains(chair, want) {
 			t.Errorf("the chair's work list does not say %q:\n%s", want, chair)

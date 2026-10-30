@@ -79,7 +79,7 @@ func TestComputationsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T)
 		"print('divisors",                   // THE PROGRAM — a computation's source IS its evidence
 		"divisors of 9: 3",                  // and its output
 		"basis**: reproducible",             // how far it can be trusted
-		"**command**: `python3 nine.py`",    // what ran, as the bundle names its file
+		`**command**: python3 nine\.py`,     // what ran, as the bundle names its file, through Literal
 		"applies the method cited",          // the cite/compute pair, legible as one argument
 	} {
 		if !strings.Contains(ev, want) {
@@ -101,10 +101,10 @@ func TestAComputationWithNoReasonIsNamedByItsCommand(t *testing.T) {
 	computations := []record.Computation{c}
 	out, _ := weaveComputationRefs("Seven divides 91<!--computation:K-deadbeef-->.\n", computations)
 	ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true})
-	if !strings.Contains(out, "[^K1]: python3 script.py") {
+	if !strings.Contains(out, `[^K1]: python3 script\.py`) {
 		t.Errorf("the report's note does not name the command:\n%s", out)
 	}
-	if !strings.Contains(ev, "### K1 — python3 script.py") {
+	if !strings.Contains(ev, `### K1 — python3 script\.py`) {
 		t.Errorf("the evidence heading does not name the command:\n%s", ev)
 	}
 }
@@ -269,7 +269,7 @@ func TestABinaryBundleFileIsNamedNotPrinted(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}}, map[string]bool{"K-00000001": true})
-	if !strings.Contains(out, "- `data.bin`: 3 bytes, sha256 ") || !strings.Contains(out, "print(1)") {
+	if !strings.Contains(out, `- data\.bin: 3 bytes, sha256 `) || !strings.Contains(out, "print(1)") {
 		t.Errorf("a binary file was printed, or the text file was not:\n%s", out)
 	}
 }

@@ -360,7 +360,7 @@ CREATE TABLE "enum_basis" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_basis" ("value", "means") VALUES ('reproducible', 'both runs wrote the same output and exit, byte for byte');
+INSERT INTO "enum_basis" ("value", "means") VALUES ('reproducible', 'both runs wrote the same output, exit and out/ files, byte for byte');
 INSERT INTO "enum_basis" ("value", "means") VALUES ('variant', 'the two runs differed, and blue stated what holds across them');
 
 CREATE TABLE "enum_soundness" (
@@ -375,8 +375,8 @@ CREATE TABLE "enum_rerun" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_rerun" ("value", "means") VALUES ('calls_the_tool', 'the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker''s hands, so nothing is reproduced');
-INSERT INTO "enum_rerun" ("value", "means") VALUES ('differs', 'the bundle''s re-run wrote something other than this act''s recorded output or exit; drift names what');
-INSERT INTO "enum_rerun" ("value", "means") VALUES ('reproduced', 'the bundle''s re-run wrote this act''s recorded output and exit, byte for byte');
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('differs', 'the bundle''s re-run wrote something other than this act''s recorded output, exit or out/; drift names what');
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('reproduced', 'the bundle''s re-run wrote this act''s recorded output, exit and out/, byte for byte');
 
 CREATE TABLE "enum_inquiry_status" (
   "value" TEXT PRIMARY KEY,

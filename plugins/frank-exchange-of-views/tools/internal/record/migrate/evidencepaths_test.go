@@ -60,7 +60,7 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsComputations(t *testing.T) 
 		t.Fatal("the shipped set holds no evidence document")
 	}
 	for _, p := range computations {
-		want := "`" + strings.Join(p.Argv, " ") + "` (bundle sha256 `" + p.SHA[:12] + "`)"
+		want := report.Literal(strings.Join(p.Argv, " ")) + " (bundle sha256 `" + p.SHA[:12] + "`)"
 		if !strings.Contains(evidence, want) {
 			t.Errorf("evidence.md does not name computation %s's stored command %s", p.Label, want)
 		}

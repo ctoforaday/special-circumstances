@@ -421,7 +421,7 @@ func describeDrift(a, b execution) string {
 	if a.output != b.output {
 		moved = append(moved, outputDrift(a.output, b.output))
 	}
-	if d := OutDrift(a.out, b.out); d != "" {
+	if d := outDrift(a.out, b.out, "the first", "the second"); d != "" {
 		moved = append(moved, d)
 	}
 	return strings.Join(moved, "; ")
@@ -439,9 +439,10 @@ func outputDrift(a, b string) string {
 	return "output differs between runs"
 }
 
-// OutDrift names every out/ file that differs between two sets, or "" when they hold the same
-// bytes. An absent out/ and an empty one are the same set.
-func OutDrift(a, b []File) string {
+// outDrift names every out/ file that differs between two sets, or "" when they hold the same
+// bytes, naming the side that alone wrote a file as aName or bName. An absent out/ and an empty one
+// are the same set.
+func outDrift(a, b []File, aName, bName string) string {
 	am, bm := map[string][]byte{}, map[string][]byte{}
 	var names []string
 	for _, f := range a {
@@ -461,9 +462,9 @@ func OutDrift(a, b []File) string {
 		y, inB := bm[n]
 		switch {
 		case !inB:
-			moved = append(moved, "out/"+n+" written by the first only")
+			moved = append(moved, "out/"+n+" written by "+aName+" only")
 		case !inA:
-			moved = append(moved, "out/"+n+" written by the second only")
+			moved = append(moved, "out/"+n+" written by "+bName+" only")
 		case !bytes.Equal(x, y):
 			moved = append(moved, "out/"+n+" differs")
 		}
@@ -537,68 +538,4 @@ func short(sha string) string {
 		return sha[:12]
 	}
 	return sha
-}
-
-// Rerun is one re-run of a recorded computation's stored bundle, against one act's recorded result.
-type Rerun struct {
-	// Matches is whether it wrote the act's recorded output, exit and out/ byte for byte. Never true
-	// where the bundle called the tool.
-	Matches bool
-	// Got and Exit are what it wrote; Want is what the act's run recorded.
-	Got, Want string
-	Exit      int
-	// OutDrift names the out/ files that differ from the act's, or "" when they agree.
-	OutDrift string
-	// ToolCalls is every feov-record call the bundle made, each one refused (seatenv.VarComputeRerun).
-	// A bundle that made any cannot run in a checker's hands, and nothing it printed is a result.
-	ToolCalls []string
-}
-
-// Reproduce re-runs a recorded computation's bundle in one fresh copy, as `compute` ran it, and
-// reports whether it still writes what the act recorded: its stored output and out/, and its exit,
-// which the record holds.
-//
-// THIS IS RED'S AUDIT, and it is strictly stronger than any citation check: a cited source is
-// re-read and believed; a computation is re-executed and compared.
-func Reproduce(runDir, bundle string, argv []string, id string, exit int) (r Rerun, err error) {
-	recorded, err := ActOutput(runDir, bundle, id)
-	if err != nil {
-		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. A seat that names a computation the
-		// store does not hold is handed what the reference was and what it means that nothing
-		// carries it, never a path under the record root it cannot look at.
-		return Rerun{}, fmt.Errorf("no recorded output for computation %s in this run's store — `show evidence` lists every computation by its anchor", id)
-	}
-	if len(argv) == 0 {
-		return Rerun{}, fmt.Errorf("computation %s names no command, so it cannot be re-run — which is the one thing a computation is for", id)
-	}
-	files, err := Bundle(runDir, bundle)
-	if err != nil {
-		return Rerun{}, fmt.Errorf("%s has no stored bundle, so it cannot be re-run — which is the one thing a computation is for", short(bundle))
-	}
-	recordedOut, err := ActOut(runDir, bundle, id)
-	if err != nil {
-		return Rerun{}, err
-	}
-	c, err := resolve(argv)
-	if err != nil {
-		return Rerun{}, err
-	}
-	base, err := scratch(runDir)
-	if err != nil {
-		return Rerun{}, err
-	}
-	defer func() { err = errors.Join(err, clear(base)) }()
-	e, err := execute(Timeout, filepath.Join(base, copyRoots[0]), &Program{Argv: argv, Files: files, Sha: bundle}, c)
-	if err != nil {
-		return Rerun{}, err
-	}
-	od := OutDrift(recordedOut, e.out)
-	return Rerun{
-		Matches:   len(e.calls) == 0 && e.output == string(recorded) && e.exit == exit && od == "",
-		Got:       e.output,
-		Want:      string(recorded),
-		Exit:      e.exit,
-		OutDrift:  od,
-		ToolCalls: e.calls,
-	}, nil
 }

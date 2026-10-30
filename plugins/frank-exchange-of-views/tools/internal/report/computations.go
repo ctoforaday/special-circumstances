@@ -85,7 +85,7 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: program, output and sha256 in [evidence.md](%s#%s).\n",
-			computationNote(num[label]), escapeNotesInLine(firstNonEmpty(plain(p.Reason), plain(commandOf(p)))), FileEvidence, label)
+			computationNote(num[label]), firstNonEmpty(escapeNotesInLine(plain(p.Reason)), Literal(commandOf(p))), FileEvidence, label)
 	}
 	return b.String(), order
 }
@@ -99,9 +99,15 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 //
 // The bundle and output are read from the STORE under <run>/computations/<bundle_sha>/, not from the
 // record: the report must show the exact bytes that ran, not a copy the record made of them. Each
-// act shows its OWN recorded output (acts/<computation_id>/output). A missing artifact is stated,
-// never silently skipped — a section quietly short of a computation is worse than one that says the
-// artifact is gone.
+// act shows its OWN recorded output (acts/<computation_id>/output) and, where its comparison
+// differed, the output of the execution THAT comparison read (rerun/<its rerun_sha>/output) — never
+// another act's, whatever bundle they share. A missing artifact is stated, never silently skipped —
+// a section quietly short of a computation is worse than one that says the artifact is gone.
+//
+// A NAME A PROGRAM CHOSE PRINTS THROUGH Literal OR INSIDE A FENCE. The command, the toolchain path,
+// each bundle file's path and each out/ file's name are the program author's, and a raw one can open
+// a heading, a link, a footnote or raw HTML in the document; outputs and drifts are fenced longer
+// than any backtick run they hold.
 func evidenceDoc(run record.Run, computations []record.Computation, anchored map[string]bool) string {
 	if len(computations) == 0 {
 		return ""
@@ -116,13 +122,14 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 	b.WriteString("`reproducible` means the program wrote the same output and exit when run twice;\n")
 	b.WriteString("`variant` means the two runs differed, and the computation states what holds across them\n")
 	b.WriteString("and what moved. Each program is stored under `computations/<bundle_sha>/`, so any reader\n")
-	b.WriteString("can run it again.\n\n")
+	b.WriteString("can run it again. A re-run executes a program once, and each computation's own recorded output\n")
+	b.WriteString("is compared against that execution.\n\n")
 
 	for _, p := range computations {
 		label := p.Label
 		n := num[label]
 		b.WriteString(computationAnchorMark(label) + "\n\n")
-		fmt.Fprintf(&b, "### K%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), commandOf(p)))
+		fmt.Fprintf(&b, "### K%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), Literal(commandOf(p))))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
 		}
@@ -130,7 +137,10 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 		if p.Invariant != "" {
 			fmt.Fprintf(&b, "- **holds across both runs**: %s\n", plain(p.Invariant))
 		}
-		fmt.Fprintf(&b, "- **command**: %s (bundle sha256 %s)\n", codeSpanOf(commandOf(p)), codeSpanOf(shortSHA(p.SHA)))
+		fmt.Fprintf(&b, "- **command**: %s (bundle sha256 %s)\n", orEmpty(Literal(commandOf(p))), codeSpanOf(shortSHA(p.SHA)))
+		if p.ToolchainPath != "" {
+			fmt.Fprintf(&b, "- **toolchain**: %s (sha256 %s)\n", Literal(p.ToolchainPath), codeSpanOf(shortSHA(p.ToolchainSha256)))
+		}
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
 		if p.Drift != "" {
 			b.WriteString("- **moved between the two runs**:\n\n")
@@ -140,19 +150,21 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 		// worth the reader knowing about, and its absence is worth knowing about too: a computation
 		// nobody re-ran and a computation that reproduced used to render identically.
 		//
-		// The RE-RUN belongs to the bundle, and every computation on the same bundle shares it; the
-		// JUDGEMENT belongs to this computation's sentence. The dangerous cell is
-		// reproduces-but-unsound: it re-runs clean and establishes nothing, which is what a
-		// computation looks like at its most credible and least useful.
+		// The EXECUTION belongs to the bundle, and is made once; the COMPARISON belongs to this
+		// computation, against its own recorded output; the JUDGEMENT belongs to this computation's
+		// sentence. The dangerous cell is reproduces-but-unsound: it re-runs clean and establishes
+		// nothing, which is what a computation looks like at its most credible and least useful.
 		switch r := p.Rerun; {
-		case r == nil:
+		case r == nil && !p.Executed:
 			b.WriteString("- **not re-run** — no checker executed this bundle; the computation stands on blue's execution alone\n")
+		case r == nil:
+			b.WriteString("- **not compared** — the bundle was re-run and nobody compared this computation's output against it\n")
 		case r.Rerun == recordpb.Rerun_RERUN_REPRODUCED:
-			b.WriteString("- **re-run by red**: it REPRODUCES — the stored program, run again, wrote the recorded output byte for byte\n")
+			b.WriteString("- **re-run by red**: it REPRODUCES — the stored program, run again, wrote this computation's recorded output byte for byte\n")
 		case r.Rerun == recordpb.Rerun_RERUN_CALLS_THE_TOOL:
 			b.WriteString("- **re-run by red — IT CANNOT BE CHECKED.** The program calls the debate's own tool, which refuses every call made inside a re-run, so no reader can run it to its recorded output\n")
 		default:
-			b.WriteString("- **re-run by red**: it DID NOT REPRODUCE — the stored program no longer writes the recorded output\n")
+			b.WriteString("- **re-run by red**: it DID NOT REPRODUCE — the stored program, run again, did not write this computation's recorded output\n")
 			if r.Drift != "" {
 				b.WriteString("\n" + itemBlock(fenced("", strings.TrimRight(r.Drift, "\n"))) + "\n")
 			}
@@ -184,12 +196,23 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 		}
 		b.WriteString("\n")
 
-		files, output := readArtifact(run, p)
+		files, output, out := readArtifact(run, p)
 		for _, f := range files {
 			b.WriteString(f + "\n")
 		}
 		b.WriteString("Output:\n\n")
 		b.WriteString(fenced("", strings.TrimRight(output, "\n")) + "\n")
+		if len(out) > 0 {
+			b.WriteString("Files written under out/:\n\n")
+			for _, f := range out {
+				b.WriteString(f)
+			}
+			b.WriteString("\n")
+		}
+		if r := p.Rerun; r != nil && r.Rerun == recordpb.Rerun_RERUN_DIFFERS && r.RerunSha != "" {
+			b.WriteString("Output on re-run:\n\n")
+			b.WriteString(fenced("", strings.TrimRight(rerunOutput(run, p), "\n")) + "\n")
+		}
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
@@ -280,11 +303,12 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// readArtifact returns the bundle's files, each as the block the document prints, and this act's
-// output — or an explicit note in place of what is missing. Silence here would let a report claim a
-// computation it cannot show. A file that is not text — not UTF-8, or holding a NUL — is one line
-// naming its path, size and sha256 rather than bytes a fence would mangle.
-func readArtifact(run record.Run, p record.Computation) (files []string, output string) {
+// readArtifact returns the bundle's files, each as the block the document prints, this act's output,
+// and each file this act's run wrote under out/ as one line — or an explicit note in place of what is
+// missing. Silence here would let a report claim a computation it cannot show. A file that is not
+// text — not UTF-8, or holding a NUL — is one line naming its path, size and sha256 rather than bytes
+// a fence would mangle.
+func readArtifact(run record.Run, p record.Computation) (files []string, output string, out []string) {
 	at := compute.StoreDir + "/" + p.SHA + "/"
 	stored, err := compute.Bundle(run.Dir(), p.SHA)
 	if err != nil {
@@ -292,18 +316,47 @@ func readArtifact(run record.Run, p record.Computation) (files []string, output 
 	}
 	for _, f := range stored {
 		if !utf8.Valid(f.Body) || bytes.IndexByte(f.Body, 0) >= 0 {
-			sum := sha256.Sum256(f.Body)
-			files = append(files, fmt.Sprintf("- %s: %d bytes, sha256 %s\n", codeSpanOf(f.Path), len(f.Body), hex.EncodeToString(sum[:])))
+			files = append(files, fileLine(f))
 			continue
 		}
-		files = append(files, codeSpanOf(f.Path)+":\n\n"+fenced(fenceLang(f.Path), strings.TrimRight(string(f.Body), "\n")))
+		files = append(files, Literal(f.Path)+":\n\n"+fenced(fenceLang(f.Path), strings.TrimRight(string(f.Body), "\n")))
 	}
 	if b, rerr := compute.ActOutput(run.Dir(), p.SHA, p.Label); rerr == nil {
 		output = string(b)
 	} else {
 		output = "(the output is missing from " + at + "acts/" + p.Label + "/)"
 	}
-	return files, output
+	if written, oerr := compute.ActOut(run.Dir(), p.SHA, p.Label); oerr == nil {
+		for _, f := range written {
+			out = append(out, fileLine(f))
+		}
+	}
+	return files, output, out
+}
+
+// fileLine is one stored file as a list item: its path, its size and its sha256.
+func fileLine(f compute.File) string {
+	sum := sha256.Sum256(f.Body)
+	return fmt.Sprintf("- %s: %d bytes, sha256 %s\n", orEmpty(Literal(f.Path)), len(f.Body), hex.EncodeToString(sum[:]))
+}
+
+// rerunOutput is the output of the execution an act's comparison read, resolved from the record by
+// the comparison's own rerun_sha — never by listing rerun/, where a directory no event names, or a
+// later execution's, may sit — or a note where the store lacks it.
+func rerunOutput(run record.Run, p record.Computation) string {
+	e, err := compute.ReadRerun(run.Dir(), p.SHA, p.Rerun.RerunSha, 0)
+	if err != nil {
+		return "(the re-run's output is missing from " + compute.StoreDir + "/" + p.SHA + "/rerun/" + p.Rerun.RerunSha + "/)"
+	}
+	return e.Output
+}
+
+// orEmpty is s, or the documents' mark for a value the record does not hold.
+func orEmpty(s string) string {
+	if s == "" {
+		return "_(empty)_"
+	}
+	return s
 }
 
 // fenceLang picks the code-fence language from a file's extension so the report highlights it the

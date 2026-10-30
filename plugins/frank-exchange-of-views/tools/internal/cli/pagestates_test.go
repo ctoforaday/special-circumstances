@@ -132,8 +132,9 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 	page := seat.HelpText(cmdAt(NewRootFor("red-chair"), []string{"show", "evidence"}))
 	for _, says := range []string{
-		"A COMPUTATION'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES", "`rerun` is the BUNDLE's", "`soundness` is THIS ANCHOR's sentence",
-		"`verified` is true when the bundle reproduced AND this sentence is judged sound",
+		"A COMPUTATION'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES", "`rerun` is THIS ACT's comparison against its bundle's standing re-run", "`soundness` is THIS ANCHOR's sentence",
+		"`not_compared`: the bundle was re-run and nobody compared this act", "`not_rerun`: the bundle was never re-run", "`bundle_bases`",
+		"`verified` is true when this act's comparison reproduced AND this sentence is judged sound",
 		"`counts.computations_unverified` is how many computations are not verified",
 		"`--about-kind contradiction --about <id>`",
 	} {
@@ -142,7 +143,7 @@ func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 		}
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
-	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,",
+	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,bundle_bases:[string],rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,",
 		"unanswered_contradictions:[{id,claim,reader,anchor,raised_by}]", "counts:{sources,computations,computations_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)

@@ -170,30 +170,35 @@ func uncheckedFact(b Blocker) string {
 }
 
 // uncheckedAct is the check an unchecked blocker is owed, in the order the act needs: a citation's
-// source read against its sentence; a computation's script read and, where it has no re-run, re-run, then
-// its sentence judged. A re-run belongs to the script, so a script with one is never re-run again,
-// whatever it showed, and the act turns on that alone.
+// source read against its sentence; a computation's program read, then compared against its bundle's
+// re-run — executing the bundle where nobody has — then its sentence judged. An execution belongs to
+// the bundle, so a bundle with a standing re-run is never executed again; the comparison belongs to
+// this computation, so it is made against this computation's own recorded output whatever another
+// computation on the bundle showed.
 //
 // THE COMPUTATION ITEM CARRIES THE ID THE VERB TAKES: the computation's anchor, which `reproduce --anchor` takes
 // and the seat reads in the report. When the verb took the script's sha256 and the item named the
 // anchor, three lenses on universe-m11 spent 22 computation-file reads and 14 filesystem hunts translating
-// one into the other, for 12 re-runs. AND IT SAYS WHERE THE SCRIPT IS READ FIRST: an item that handed
+// one into the other, for 12 re-runs. AND IT SAYS WHERE THE PROGRAM IS READ FIRST: an item that handed
 // over the re-run's id let a lens record a verdict on a script it had not read (wave A, 2026-10-09:
 // three placeholder verdicts, each of which stands).
 func uncheckedAct(b Blocker) string {
 	if b.Detail == "" {
 		return "reading its source against the sentence as it now stands (`verify --anchor " + b.Subject + "`)"
 	}
-	read := "`show evidence --anchor " + b.Subject + "` prints the script and its recorded output"
-	if b.rerun == RerunNone || b.rerun == "" {
-		return "READING its script and then RE-RUNNING it, never by reading alone: " + read + ", and `reproduce --anchor " + b.Subject + "` then re-runs it and records your verdict on its sentence in one act"
+	read := "`show evidence --anchor " + b.Subject + "` prints the program and its recorded output"
+	switch b.rerun {
+	case RerunNone, "":
+		return "READING its program and then RE-RUNNING it, never by reading alone: " + read + ", and `reproduce --anchor " + b.Subject + "` then executes its bundle, compares this computation's recorded output, and records your verdict on its sentence in one act"
+	case RerunNotCompared:
+		return "judging whether its program establishes THIS sentence — its bundle has a standing re-run, so `reproduce --anchor " + b.Subject + "` executes nothing, compares THIS computation's own output, exit and out/ against that re-run, and records your verdict on its sentence: " + read
 	}
 	showed := "did not reproduce (" + b.rerun + ")"
 	if b.rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED) {
 		showed = "REPRODUCED"
 	}
-	return "judging whether its script establishes THIS sentence — the script was re-run and " + showed + ", and one script can back several sentences, so a verdict on another is not a verdict on this one: " +
-		read + ", and `reproduce --anchor " + b.Subject + "` records your verdict on its sentence without re-running it"
+	return "judging whether its program establishes THIS sentence — compared against its bundle's re-run, its own output " + showed + ", and one bundle can back several sentences, so a verdict on another is not a verdict on this one: " +
+		read + ", and `reproduce --anchor " + b.Subject + "` records your verdict on its sentence, executing nothing once the bundle has a standing re-run"
 }
 
 // uncheckedOwed is the other sentence every wording of an unchecked blocker states: whose the check

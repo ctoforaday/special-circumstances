@@ -58,58 +58,65 @@ import (
 // to make "nobody looked" impossible, not to re-execute the run.
 const computationRerunSample = 3
 
-// recordedComputation is one distinct BUNDLE on the record, keyed by its sha. Several computations can
-// share one: `compute` of a bundle already recorded records a new computation anchor over the same
-// sha, and a re-run of the bundle answers for every computation that holds it. computations counts
-// them; first is the earliest act on the bundle, whose recorded result the re-run is compared with.
+// recordedComputation is one distinct BUNDLE on the record, keyed by its sha, with every act on it.
+// Several computations can share one: `compute` of a bundle already recorded records a new
+// computation anchor over the same sha. The bundle is executed once and each act compared against
+// that execution with its OWN recorded result, graded by its OWN basis: two acts on one bundle can
+// have recorded different outputs, and one can be `variant` where another is `reproducible`.
 type recordedComputation struct {
-	sha, basis   string
-	first        *recordpb.Computation
-	rerunBySeat  bool
-	computations int
+	sha         string
+	argv        []string
+	acts        []*recordpb.Computation
+	rerunBySeat bool
+}
+
+// bases is every basis the bundle's acts were recorded with, sorted.
+func (p recordedComputation) bases() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, a := range p.acts {
+		if w := recordpb.Word(a.GetBasis()); !seen[w] {
+			seen[w] = true
+			out = append(out, w)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // recordedComputations lists the run's computations from the RECORD, not from the computations/ directory.
 //
-// The record is where a computation's claims live — its basis, its script, its id — and it is the thing
-// a reader can refuse. Enumerating the directory instead would make a computation the record never
-// recorded invisible to this audit, and a computation recorded with no artifact on disk look like no
-// computation at all: both of those are exactly the states worth reporting.
+// The record is where a computation's claims live — its basis, its program, its id — and it is the
+// thing a reader can refuse. Enumerating the directory instead would make a computation the record
+// never recorded invisible to this audit, and a computation recorded with no artifact on disk look
+// like no computation at all: both of those are exactly the states worth reporting.
 func recordedComputations(evs []*record.Event) []recordedComputation {
-	// A BUNDLE A SEAT RE-RAN is one with a reproduce that RAN it; a reproduce that judged its
-	// anchor on an earlier re-run ran nothing.
+	// A BUNDLE A SEAT RE-RAN is one with a reproduce that RAN it; a reproduce that compared against
+	// an earlier execution ran nothing.
 	rerun := map[string]bool{}
 	for i := range evs {
-		if body, ok := recordpb.Body(evs[i]); ok {
-			if r, is := body.(*recordpb.Reproduce); is && r.GetBundleSha() != "" && r.GetRan() {
-				rerun[r.GetBundleSha()] = true
-			}
+		if r, ok := recordpb.BodyAs[*recordpb.Reproduce](evs[i]); ok && r.GetBundleSha() != "" && r.GetRan() {
+			rerun[r.GetBundleSha()] = true
 		}
 	}
 	at := map[string]int{} // sha → its row of out
 	var out []recordedComputation
 	for i := range evs {
-		body, ok := recordpb.Body(evs[i])
-		if !ok {
+		p, ok := recordpb.BodyAs[*recordpb.Computation](evs[i])
+		if !ok || p.GetBundleSha() == "" {
 			continue
 		}
-		p, is := body.(*recordpb.Computation)
-		if !is || p.GetBundleSha() == "" {
-			continue
+		k, seen := at[p.GetBundleSha()]
+		if !seen {
+			k = len(out)
+			at[p.GetBundleSha()] = k
+			out = append(out, recordedComputation{sha: p.GetBundleSha(), argv: p.GetArgv(), rerunBySeat: rerun[p.GetBundleSha()]})
 		}
-		if k, seen := at[p.GetBundleSha()]; seen {
-			out[k].computations++
-			continue
-		}
-		at[p.GetBundleSha()] = len(out)
-		out = append(out, recordedComputation{
-			sha: p.GetBundleSha(), basis: recordpb.Word(p.GetBasis()), first: p,
-			rerunBySeat: rerun[p.GetBundleSha()], computations: 1,
-		})
+		out[k].acts = append(out[k].acts, p)
 	}
-	// THE SAMPLE IS DETERMINISTIC AND IT PREFERS THE UNAUDITED. Computations no seat re-ran come first
+	// THE SAMPLE IS DETERMINISTIC AND IT PREFERS THE UNAUDITED. Bundles no seat re-ran come first
 	// — that is where a re-run is worth most, and it is the same ordering the seat's own
-	// affordance list uses — then by sha, so capturing a run twice checks the same computations and this
+	// affordance list uses — then by sha, so capturing a run twice checks the same bundles and this
 	// audit's own result is reproducible.
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].rerunBySeat != out[j].rerunBySeat {
@@ -120,8 +127,13 @@ func recordedComputations(evs []*record.Event) []recordedComputation {
 	return out
 }
 
-// ComputationRerunAudit re-runs a bounded sample of the run's recorded computations and compares each against
-// the output it recorded.
+// ComputationRerunAudit executes a bounded sample of the run's recorded bundles, once each, and
+// compares every act on each against that execution.
+//
+// IT EXECUTES FRESH AND NEITHER READS NOR WRITES THE RE-RUN STORE. A seat's standing re-run under
+// rerun/ is what the seats compared against; this audit is the check of the record that does not
+// believe it, so it reads only the bundle (dir/) and each act's recorded result (acts/), and
+// stores nothing.
 func ComputationRerunAudit(run record.Run, sample int) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
@@ -136,37 +148,53 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 	}
 
 	var fails, moved, ran int
-	var notes []string
+	var notes, mixed []string
 	for _, p := range computations[:sample] {
 		ran++
-		rr, err := compute.Reproduce(run.Dir(), p.sha, p.first.GetArgv(), p.first.GetComputationId(), int(p.first.GetExit()))
-		got, want := rr.Got, rr.Want
+		if b := p.bases(); len(b) > 1 {
+			// ONE BUNDLE, ACTS OF DIFFERENT BASES: the same bytes moved between one act's two runs and
+			// not between another's, so the bundle's output is not settled whatever this execution
+			// shows. Each act is still graded by its own basis below.
+			mixed = append(mixed, fmt.Sprintf("bundle %s backs acts recorded %s", short(p.sha), strings.Join(b, " and ")))
+		}
+		e, err := compute.Rerun(run.Dir(), p.sha, p.argv)
 		switch {
 		case err != nil:
-			// A COMPUTATION THAT CANNOT BE RE-RUN IS THE ONE THING A COMPUTATION IS FOR. The recorded output
-			// or the stored bundle is gone, so nothing in this run can check it any more.
+			// A COMPUTATION THAT CANNOT BE RE-RUN IS THE ONE THING A COMPUTATION IS FOR. The stored
+			// bundle is gone or cannot start, so nothing in this run can check it any more.
 			fails++
 			notes = append(notes, fmt.Sprintf("FAIL %s could not be re-run: %v", short(p.sha), err))
-		case len(rr.ToolCalls) > 0:
+			continue
+		case len(e.Calls) > 0:
 			// A BUNDLE THAT CALLS THE TOOL CANNOT BE CHECKED BY ANYONE, this audit included: the
 			// tool refuses every call made under a re-run, whatever the program then prints.
 			fails++
-			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", short(p.sha), rr.ToolCalls[0]))
-		case rr.Matches:
-			// Reproduced. Nothing to say per computation; the count says it.
-		case p.basis == recordpb.Word(recordpb.Basis_BASIS_VARIANT):
-			// Recorded AS something that does not hold still: a `variant` computation's two runs
-			// already differed, and its invariant says what holds across them. Divergence here is
-			// the recorded fact arriving on time, not a defect — and this audit becoming a
-			// REGRESSION detector rather than a discoverer of what compute already knew is the
-			// whole point of grading from the store.
-			moved++
-			notes = append(notes, fmt.Sprintf("moved %s diverged, as its recorded `%s` basis says it may (%s)",
-				short(p.sha), orQ(p.basis), firstDifference(want, got)))
-		default:
-			fails++
-			notes = append(notes, fmt.Sprintf("FAIL %s recorded basis `%s` and NO LONGER REPRODUCES — %s",
-				short(p.sha), orQ(p.basis), firstDifference(want, got)))
+			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", short(p.sha), e.Calls[0]))
+			continue
+		}
+		for _, a := range p.acts {
+			c, err := compute.Compare(run.Dir(), p.sha, a.GetComputationId(), int(a.GetExit()), e)
+			basis := recordpb.Word(a.GetBasis())
+			switch {
+			case err != nil:
+				fails++
+				notes = append(notes, fmt.Sprintf("FAIL %s on %s could not be compared: %v", a.GetComputationId(), short(p.sha), err))
+			case c.Matches:
+				// Reproduced. Nothing to say per act; the count says it.
+			case a.GetBasis() == recordpb.Basis_BASIS_VARIANT:
+				// Recorded AS something that does not hold still: a `variant` computation's two runs
+				// already differed, and its invariant says what holds across them. Divergence here is
+				// the recorded fact arriving on time, not a defect — and this audit becoming a
+				// REGRESSION detector rather than a discoverer of what compute already knew is the
+				// whole point of grading from the store.
+				moved++
+				notes = append(notes, fmt.Sprintf("moved %s on %s diverged, as its recorded `%s` basis says it may (%s)",
+					a.GetComputationId(), short(p.sha), orQ(basis), difference(c, e)))
+			default:
+				fails++
+				notes = append(notes, fmt.Sprintf("FAIL %s on %s recorded basis `%s` and NO LONGER REPRODUCES — %s",
+					a.GetComputationId(), short(p.sha), orQ(basis), difference(c, e)))
+			}
 		}
 	}
 
@@ -177,9 +205,9 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 	// computations over 6 bundles, and "3 of 6 recorded proof(s)" undercounted the record by a third.
 	covered, total := 0, 0
 	for i, p := range computations {
-		total += p.computations
+		total += len(p.acts)
 		if i < sample {
-			covered += p.computations
+			covered += len(p.acts)
 		}
 	}
 	detail := fmt.Sprintf("re-ran %d of %d distinct bundle(s), behind %d of the %d recorded computation(s)", ran, len(computations), covered, total)
@@ -191,6 +219,9 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 	} else {
 		detail += "; every one reproduced its recorded output"
 	}
+	if len(mixed) > 0 {
+		detail += "; " + strings.Join(mixed, "; ")
+	}
 	v := "PASS"
 	if fails > 0 {
 		v = "FAIL"
@@ -198,6 +229,15 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 		v = "WARN"
 	}
 	return Audit{Check: "computation-rerun", Verdict: v, Detail: detail}
+}
+
+// difference names where an act's recorded result and the execution part: the first line of output
+// that differs, or what else moved where the output agrees.
+func difference(c compute.Comparison, e compute.Execution) string {
+	if c.Recorded != e.Output {
+		return firstDifference(c.Recorded, e.Output)
+	}
+	return c.Drift
 }
 
 func countUnaudited(ps []recordedComputation) int {

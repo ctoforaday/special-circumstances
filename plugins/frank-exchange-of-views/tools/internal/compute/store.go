@@ -18,7 +18,7 @@ import (
 //
 //	dir/                the bundle — content-addressed, written once
 //	acts/<K-id>/        one per recorded act: its first run's output, and out/ when it wrote any
-//	rerun/<rerun_sha>/  content-addressed: one re-run's output
+//	rerun/<rerun_sha>/  content-addressed: one `ran` execution's output, and out/ when it wrote any
 //	.tmp-*/             staging for all three; never read, never archived
 //
 // Every directory is staged under .tmp-* in its bundle's directory (the same filesystem) and
@@ -150,20 +150,9 @@ func WriteAct(runDir, bundle, id string, output []byte, out []File) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(stage, "output"), output, 0o644); err != nil {
+	if err := writeResult(stage, output, out); err != nil {
 		os.RemoveAll(stage)
 		return err
-	}
-	for _, f := range out {
-		p := filepath.Join(stage, "out", filepath.FromSlash(f.Path))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			os.RemoveAll(stage)
-			return err
-		}
-		if err := os.WriteFile(p, f.Body, 0o644); err != nil {
-			os.RemoveAll(stage)
-			return err
-		}
 	}
 	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
 		os.RemoveAll(stage)

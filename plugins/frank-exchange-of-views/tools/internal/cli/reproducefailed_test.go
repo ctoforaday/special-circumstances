@@ -100,10 +100,10 @@ func TestASoundVerdictOnAVariantComputationIsRecorded(t *testing.T) {
 
 // THE ANCHOR IS ABOUT THE QUOTE, THE COMPUTATION IS ABOUT THE COMPUTATION ITSELF (gblock, 2026-10-12).
 //
-// One script backs two sentences. The first lens's re-run reproduces it for both; the second
-// sentence is still owed a judgement, its work item — on the computation lens's list alone, the
-// lens that owns computations in this cast — says the script was re-run and reproduced, and the judgement runs
-// nothing. Each sentence keeps its own verdict: the second lens's `unsound` on one does not move
+// One program backs two sentences. The first lens's reproduce executes the bundle; the second
+// sentence is still owed a judgement, and its work item — on the computation lens's list alone, the
+// lens that owns computations in this cast — says the bundle has a standing re-run, so the judgement
+// executes nothing and compares this computation's own output against it. Each sentence keeps its own verdict: the second lens's `unsound` on one does not move
 // the first lens's `sound` on the other, and neither overwrites the other.
 func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
@@ -144,7 +144,7 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "computation " + anchors[1] + " is on the record and nobody has judged whether its script establishes the sentence it backs — PASS is refused until a lens checks it, by judging whether its script establishes THIS sentence — the script was re-run and REPRODUCED"
+		want := "computation " + anchors[1] + " is on the record and nobody has judged whether its script establishes the sentence it backs — PASS is refused until a lens checks it, by judging whether its program establishes THIS sentence — its bundle has a standing re-run, so `reproduce --anchor " + anchors[1] + "` executes nothing, compares THIS computation's own output, exit and out/ against that re-run"
 		if owner := lens == "red-lens-computation"; strings.Contains(work, want) != owner {
 			t.Errorf("%s's work list offers the second sentence's judgement = %v, want %v:\n%s", lens, !owner, owner, work)
 		}
@@ -254,11 +254,12 @@ func evidenceJSON(t *testing.T, runDir string) record.EvidenceJSON {
 	return ev
 }
 
-// A SCRIPT IS RE-RUN ONCE, WHATEVER ITS RE-RUN SHOWED (gblock, 2026-10-17: "Why keep reproducing it
-// when it wasn't modified?"). A script is addressed by its sha and never changes, so a re-run that
-// did not reproduce stands for the script exactly as one that did: a later judgement runs nothing,
-// says what the standing re-run showed and whose it is, and a `sound` over it is refused on the
-// same ground as over a fresh failed run.
+// A BUNDLE IS EXECUTED ONCE, WHATEVER ITS EXECUTION SHOWED (gblock, 2026-10-17: "Why keep reproducing
+// it when it wasn't modified?"). A bundle is addressed by its sha and never changes, so an execution
+// that did not reproduce stands for the bundle exactly as one that did: a later judgement executes
+// nothing, compares its own computation's recorded output against the standing re-run, says whose it
+// is, and a `sound` over a comparison that differs is refused on the same ground as over a fresh
+// failed run.
 func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	runDir := newRun(t)
 	cast, lanes := record.CastFor(1)
@@ -302,7 +303,7 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "the script was re-run and did not reproduce (differs)"; !strings.Contains(work, want) || !strings.Contains(work, "without re-running it") {
+	if want := "its bundle has a standing re-run, so `reproduce --anchor " + anchors[1] + "` executes nothing"; !strings.Contains(work, want) {
 		t.Errorf("the owner's work list does not offer the sentence's judgement on the standing re-run:\n%s", work)
 	}
 
@@ -312,7 +313,7 @@ func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
 		t.Fatalf("a `sound` verdict was recorded over the standing re-run that did not reproduce:\n%s", out)
 	}
 	msg := err.Error() + "\n" + out
-	for _, want := range []string{"did NOT reproduce", "`--as sound` is not recorded", "as red-lens-logic re-ran it", "nothing was re-run now", "recorded: no divisors in 2..6", "Nothing is recorded"} {
+	for _, want := range []string{"did NOT reproduce", "`--as sound` is not recorded", "compared against the re-run red-lens-logic executed", "nothing was executed now", "recorded: no divisors in 2..6", "Nothing is recorded"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("the refusal over the standing re-run does not say %q:\n%s", want, msg)
 		}
@@ -366,7 +367,7 @@ console.log("0");`)
 	runsBefore, _ := os.ReadFile(counter)
 
 	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", p.GetComputationId(), "--as", "sound", "--reason", "it reads the board")
-	if err == nil || !strings.Contains(err.Error()+out, "calls feov-record") || !strings.Contains(err.Error()+out, "as red-lens-logic re-ran it") {
+	if err == nil || !strings.Contains(err.Error()+out, "calls feov-record") || !strings.Contains(err.Error()+out, "compared against the re-run red-lens-logic executed") {
 		t.Fatalf("a sound verdict over a standing re-run that called the tool: %v\n%s", err, out)
 	}
 	out, err = run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", p.GetComputationId(), "--as", "unsound",
@@ -378,8 +379,12 @@ console.log("0");`)
 		t.Errorf("a judgement re-ran a script that already had a re-run (%d runs before, %d after)", len(runsBefore), len(runsAfter))
 	}
 
+	if ev := lastBody(t, runDir, &recordpb.Reproduce{}); ev.GetRan() || ev.GetRerun() != recordpb.Rerun_RERUN_CALLS_THE_TOOL || ev.GetDrift() != "" || ev.GetRerunSha() == "" {
+		t.Errorf("an act on a standing execution that called the tool records ran=%v rerun=%s drift=%q rerun_sha=%q, want ran nothing, calls_the_tool, no drift, the standing's execution", ev.GetRan(), ev.GetRerun(), ev.GetDrift(), ev.GetRerunSha())
+	}
+	standing := lastBody(t, runDir, &recordpb.Reproduce{}).GetRerunSha()
 	_, err = record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-lens-computation"}, &recordpb.Reproduce{
-		ComputationId: proto.String(p.GetComputationId()), BundleSha: proto.String(p.GetBundleSha()),
+		ComputationId: proto.String(p.GetComputationId()), BundleSha: proto.String(p.GetBundleSha()), RerunSha: proto.String(standing),
 		Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Rerun: recordpb.Rerun_RERUN_CALLS_THE_TOOL.Enum(), Ran: proto.Bool(false), Note: proto.String("n"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "never sound") {
