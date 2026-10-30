@@ -17,7 +17,7 @@ import (
 //
 // The drive reaches each: the bench regrades a docketed gap before it rules it; the minting lens of a
 // gap the bench remanded reaches to move the bench's axis and is refused; it moves an axis the bench
-// moved twice and is admitted; blue files a docket motion on a gap the bench ruled closed, first with
+// moved again at a later hearing and is admitted; blue files a docket motion on a gap the bench ruled closed, first with
 // no grounds (refused) and then on a proof it records since the ruling (admitted). The sweep gates
 // each count at zero, and benchOrdersSeed's run drives every arm on every gap that reaches it, so the
 // gate does not wait on a draw.
@@ -41,22 +41,24 @@ func (r *runner) benchOrdersArm() bool {
 
 // benchSetsGrade is the bench, hearing gapID, moving one axis before it rules: admitted while a docket
 // motion on the gap stands unruled. The move locks an axis the bench does not hold and releases one
-// it does (benchMoves). On the forced seed the bench also moves a second axis twice in the hearing,
-// locking it and then releasing it, so the lens meets one axis locked and one released.
+// it does (benchMoves). One regrade per gap per sitting is the record's rule, so the release is a
+// later hearing's: on the forced seed the bench moves an axis it holds wherever it holds one, and the
+// lens moving a free axis in the remand's exchange (lensMovesBenchAxis) lets that hearing remand
+// again, so the lens meets the released axis.
 func (r *runner) benchSetsGrade(seatID, gapID string) {
 	if !slices.Contains(r.openGaps(), gapID) || len(r.unruledDocketMotions(gapID)) == 0 || !r.benchOrdersArm() {
 		return
 	}
 	// EVERY AXIS, complexity included: the bench's regrade takes the lens's four flags.
-	dim := pick(r.rng, benchRegradeDims)
-	if !r.benchMoves(seatID, gapID, dim) || !r.forceBenchOrders {
-		return
+	dims := benchRegradeDims
+	if held := r.benchGrades(gapID); r.forceBenchOrders && len(held) > 0 {
+		dims = make([]string, 0, len(held))
+		for dim := range held {
+			dims = append(dims, dim)
+		}
+		slices.Sort(dims)
 	}
-	other := pick(r.rng, slices.DeleteFunc(slices.Clone(benchRegradeDims), func(d string) bool { return d == dim }))
-	if _, locked := r.benchGrades(gapID)[other]; !locked && !r.benchMoves(seatID, gapID, other) {
-		return
-	}
-	r.benchMoves(seatID, gapID, other)
+	r.benchMoves(seatID, gapID, pick(r.rng, dims))
 }
 
 // benchMoves is the bench's regrade moving gapID's dim, and the drive's model of the lock after it: an
@@ -157,6 +159,7 @@ func (r *runner) lensMovesBenchAxis(seatID string) {
 				r.mu.Lock()
 				r.lockRefused++
 				r.mu.Unlock()
+				r.lensMovesFreeAxis(seatID, id, held)
 			case ok && env.Code == string(feov.Conflict) && r.staleReads(seatID, id) > before:
 				noteEither(args[1:2], "a regrade of a gap another seat changed since this seat's read point, recorded again", false)
 				continue
@@ -169,8 +172,24 @@ func (r *runner) lensMovesBenchAxis(seatID string) {
 	}
 }
 
-// lensMovesReleasedAxis is the minting lens moving an axis the bench moved twice on an open gap of its
-// own: the bench's second move released it, so the record admits the lens's move, and lockLifted
+// lensMovesFreeAxis is, on the forced seed, the minting lens moving an axis of gapID the bench does not
+// hold: movement, so the gap's limits count afresh and its next hearing may remand it again — the
+// hearing whose bench move releases the axis it holds.
+func (r *runner) lensMovesFreeAxis(seatID, gapID string, held map[string]string) {
+	if !r.forceBenchOrders {
+		return
+	}
+	free := slices.DeleteFunc(slices.Clone(regradeDims), func(d string) bool { _, set := held[d]; return set })
+	if len(free) == 0 {
+		return
+	}
+	dim := pick(r.rng, free)
+	r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, r.gradeOtherThan(r.currentGrade(gapID, dim)),
+		"--reason", "fuzz: the lens moving an axis the bench does not hold")
+}
+
+// lensMovesReleasedAxis is the minting lens moving an axis the bench moved again on an open gap of its
+// own: the bench's later move released it, so the record admits the lens's move, and lockLifted
 // counts each one admitted. The axis is then the lens's, as any unlocked axis is.
 func (r *runner) lensMovesReleasedAxis(seatID string) {
 	for _, id := range r.openGaps() {
