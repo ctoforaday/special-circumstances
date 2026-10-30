@@ -188,3 +188,46 @@ func TestAnArchivedNotRunStandsOnTheBundlesReRun(t *testing.T) {
 		t.Fatal("m32 carried no act that ran nothing — the fixture this test reads is gone")
 	}
 }
+
+// AN ACT'S out/ SURVIVES A MIGRATION OF A STORE THAT HOLDS IT. A source at epoch 49 or later keeps
+// each act's out/ beside its output; a migration that dropped it would have every later comparison
+// read the re-run's out/ files as written by the re-run alone — a computation that reproduces,
+// reported as one that does not.
+func TestAnActsOutSurvivesTheMigrationOfAStoreThatHoldsIt(t *testing.T) {
+	got, _, dir := migratedComputations(t, "2026-09-11_is-91-prime-b9.tar.gz")
+	var k *recordpb.Computation
+	for _, c := range got {
+		if _, err := compute.ActOutput(dir, c.GetBundleSha(), c.GetComputationId()); err == nil {
+			k = c
+			break
+		}
+	}
+	if k == nil {
+		t.Fatal("the archive migrated no computation with its output — the fixture this test reads is gone")
+	}
+	want := []compute.File{{Path: "plot.svg", Body: []byte("<svg/>\n")}, {Path: "sub/n.txt", Body: []byte("91\n")}}
+	for _, f := range want {
+		p := filepath.Join(compute.ActPath(dir, k.GetBundleSha(), k.GetComputationId()), "out", filepath.FromSlash(f.Path))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, f.Body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	to := filepath.Join(t.TempDir(), "run")
+	m, err := Migrate(dir, to, Entries(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Refusals) != 0 || len(m.MissingArtifacts) != 0 {
+		t.Fatalf("re-migrating refused %d event(s) and lacked %q", len(m.Refusals), m.MissingArtifacts)
+	}
+	out, err := compute.ActOut(to, k.GetBundleSha(), k.GetComputationId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.EqualFunc(out, want, func(a, b compute.File) bool { return a.Path == b.Path && string(a.Body) == string(b.Body) }) {
+		t.Errorf("computation %s's out/ after the migration: %q, want %q", k.GetComputationId(), out, want)
+	}
+}

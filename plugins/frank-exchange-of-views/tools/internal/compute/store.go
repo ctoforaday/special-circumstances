@@ -121,7 +121,7 @@ func WriteBundle(runDir, bundle string, argv []string, files []File) error {
 		if _, serr := os.Stat(final); serr == nil {
 			return checkBundle(runDir, bundle, argv)
 		}
-		return fmt.Errorf("storing bundle %s: %w", short(bundle), err)
+		return fmt.Errorf("storing bundle %s: %w", Short(bundle), err)
 	}
 	return nil
 }
@@ -133,7 +133,7 @@ func checkBundle(runDir, bundle string, argv []string) error {
 		return err
 	}
 	if got := BundleSha(argv, Sums(files)); got != bundle {
-		return fmt.Errorf("the store already holds a bundle under %s and it hashes to %s — the store's copy is not the bundle its name says, so nothing is written over it", short(bundle), short(got))
+		return fmt.Errorf("the store already holds a bundle under %s and it hashes to %s — the store's copy is not the bundle its name says, so nothing is written over it", Short(bundle), Short(got))
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func checkBundle(runDir, bundle string, argv []string) error {
 func WriteAct(runDir, bundle, id string, output []byte, out []File) error {
 	final := ActPath(runDir, bundle, id)
 	if _, err := os.Stat(final); err == nil {
-		return fmt.Errorf("the store already holds an act %s under bundle %s — an act's id is minted for it alone", id, short(bundle))
+		return fmt.Errorf("the store already holds an act %s under bundle %s — an act's id is minted for it alone", id, Short(bundle))
 	}
 	stage, err := staging(runDir, bundle)
 	if err != nil {

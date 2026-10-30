@@ -137,9 +137,9 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 		if p.Invariant != "" {
 			fmt.Fprintf(&b, "- **holds across both runs**: %s\n", plain(p.Invariant))
 		}
-		fmt.Fprintf(&b, "- **command**: %s (bundle sha256 %s)\n", orEmpty(Literal(commandOf(p))), codeSpanOf(shortSHA(p.SHA)))
+		fmt.Fprintf(&b, "- **command**: %s (bundle sha256 %s)\n", orEmpty(Literal(commandOf(p))), codeSpanOf(compute.Short(p.SHA)))
 		if p.ToolchainPath != "" {
-			fmt.Fprintf(&b, "- **toolchain**: %s (sha256 %s)\n", Literal(p.ToolchainPath), codeSpanOf(shortSHA(p.ToolchainSha256)))
+			fmt.Fprintf(&b, "- **toolchain**: %s (sha256 %s)\n", Literal(p.ToolchainPath), codeSpanOf(compute.Short(p.ToolchainSha256)))
 		}
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
 		if p.Drift != "" {
@@ -374,13 +374,6 @@ func fenceLang(path string) string {
 	default:
 		return ""
 	}
-}
-
-func shortSHA(s string) string {
-	if len(s) > 12 {
-		return s[:12]
-	}
-	return s
 }
 
 func firstNonEmpty(xs ...string) string {

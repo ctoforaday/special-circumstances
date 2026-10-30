@@ -13,7 +13,9 @@
 //
 // A bundle's row is keyed by the archive and the archived script's sha (the one file's sha256,
 // which a migrated bundle keeps), and holds the outcome its acts agree on, or each distinct
-// outcome, comma-separated, where they do not.
+// outcome, comma-separated, where they do not. The check holds a reproducible act's outcome
+// exactly; a variant act's re-run may or may not write its recorded output, so for it reproduced
+// and moved stand for each other (satisfies).
 //
 // THE OUTCOMES ARE MEASURED, NEVER FORECAST. They depend on the interpreters the programs run
 // under, so the file's header names each interpreter's version and a check under any other
@@ -257,11 +259,17 @@ func rerun(archiveName, runDir string) ([]Row, error) {
 			return nil, err
 		}
 		outcomes := map[string]bool{}
+		var acts []Act
 		e, rerr := compute.Rerun(runDir, b.sha, b.argv)
-		for _, a := range b.acts {
-			outcomes[grade(runDir, b.sha, a, e, rerr)] = true
+		if e.Leftover != "" {
+			fmt.Fprintf(os.Stderr, "archiverun: %s: the re-run of %s left its copy behind: %s\n", archiveName, compute.Short(b.sha), e.Leftover)
 		}
-		rows = append(rows, Row{Archive: archiveName, OldSha: old, Outcome: joinOutcomes(outcomes)})
+		for _, a := range b.acts {
+			act := Act{Outcome: grade(runDir, b.sha, a, e, rerr), Variant: a.GetBasis() == recordpb.Basis_BASIS_VARIANT}
+			outcomes[act.Outcome] = true
+			acts = append(acts, act)
+		}
+		rows = append(rows, Row{Archive: archiveName, OldSha: old, Outcome: joinOutcomes(outcomes), Acts: acts})
 	}
 	return rows, nil
 }
@@ -279,22 +287,17 @@ func archivedSha(runDir, bundle string) (string, error) {
 	return compute.Sums(files)[0].Sha256, nil
 }
 
-// grade is one act's outcome against its bundle's execution.
+// grade is one act's outcome against its bundle's execution: refused where the bundle could not be
+// executed or compared or it called the tool, else compute.Grade's, as capture grades it.
 func grade(runDir, bundle string, act *recordpb.Computation, e compute.Execution, rerr error) string {
 	if rerr != nil || len(e.Calls) > 0 {
 		return Refused
 	}
 	c, err := compute.Compare(runDir, bundle, act.GetComputationId(), int(act.GetExit()), e)
-	switch {
-	case err != nil:
+	if err != nil {
 		return Refused
-	case c.Matches:
-		return Reproduced
-	case act.GetBasis() == recordpb.Basis_BASIS_VARIANT:
-		return Moved
-	default:
-		return Differs
 	}
+	return string(compute.Grade(c, act.GetBasis() == recordpb.Basis_BASIS_VARIANT))
 }
 
 // Interpreters is the version each command an archived program names reports, as the first line

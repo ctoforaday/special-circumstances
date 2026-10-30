@@ -64,10 +64,10 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 }
 
 // A COMPUTATION CARRIES BOTH IDS: the anchor the seat reads in the report and `reproduce --anchor` takes,
-// and the script's sha256 every computation on that script shares.
-func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
+// and the bundle's sha every computation on that bundle shares.
+func TestEvidence_AComputationCarriesItsAnchorAndItsBundlesSha(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
-		ComputationId: proto.String("p-deadbeef"), BundleSha: proto.String("f00d"),
+		ComputationId: proto.String("K-deadbeef"), BundleSha: proto.String("f00d"),
 		// exit 0 is the SUCCESS status, and it is set explicitly: an implicit-presence encoding
 		// would drop exactly the case that says the computation worked.
 		Exit: proto.Int32(0),
@@ -78,7 +78,7 @@ func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
 		t.Fatalf("Computations = %d, want 1", len(got.Computations))
 	}
 	p := got.Computations[0]
-	if p.Anchor != "p-deadbeef" || p.Sha256 != "f00d" {
+	if p.Anchor != "K-deadbeef" || p.Sha256 != "f00d" {
 		t.Errorf("anchor/sha = %q/%q", p.Anchor, p.Sha256)
 	}
 	if p.Rerun != RerunNone || p.Soundness != SoundnessNotJudged || p.Verified || len(p.Checks) != 0 {

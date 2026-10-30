@@ -71,6 +71,10 @@ type Result struct {
 	// Calls is every feov-record call either run made, each refused: a bundle that calls the tool
 	// cannot run in a checker's hands.
 	Calls []string
+	// Leftover is why the program's copies could not be removed after both runs finished, or "" when
+	// they were. It says nothing about the computation: every field above was measured before the
+	// removal, so the caller records the act and reports the leftover as the tool's own defect.
+	Leftover string
 	// Failed is the interpreter/shell error line found in the output, or "" when there is none.
 	//
 	// It is not an exit code and cannot be one: both programs this check was built for exited 0.
@@ -156,7 +160,15 @@ func Run(runDir string, p *Program) (res *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = errors.Join(err, clear(base)) }()
+	defer func() {
+		if cerr := clear(base); cerr != nil {
+			if err != nil || res == nil {
+				err = errors.Join(err, cerr)
+			} else {
+				res.Leftover = cerr.Error()
+			}
+		}
+	}()
 	var runs [2]execution
 	for i, sub := range copyRoots {
 		if runs[i], err = execute(Timeout, filepath.Join(base, sub), p, c); err != nil {
@@ -196,6 +208,17 @@ func scratch(runDir string) (string, error) {
 	return base, nil
 }
 
+// removeCopies removes an execution's scratch directory once its read-only bits are cleared; a test
+// replaces it to make the removal fail.
+var removeCopies = os.RemoveAll
+
+// SetRemoveCopiesForTest has every execution remove its copies with f, and returns the restore.
+func SetRemoveCopiesForTest(f func(string) error) (restore func()) {
+	prev := removeCopies
+	removeCopies = f
+	return func() { removeCopies = prev }
+}
+
 // clear removes an execution's scratch directory, clearing every read-only bit first: a program may
 // leave a directory it cannot be deleted from, and Windows refuses to remove a read-only file.
 func clear(base string) error {
@@ -210,7 +233,7 @@ func clear(base string) error {
 		}
 		return nil
 	})
-	if err := os.RemoveAll(base); err != nil {
+	if err := removeCopies(base); err != nil {
 		return fmt.Errorf("could not remove the program's copies at %s: %w", base, err)
 	}
 	return nil
@@ -280,10 +303,11 @@ func execute(limit time.Duration, root string, p *Program, c command) (execution
 	if err != nil {
 		return execution{}, fmt.Errorf("could not read the run's tool-call marker: %w", err)
 	}
+	// Each call is the arguments the program passed the tool, which may be any bytes.
 	var calls []string
 	for _, line := range strings.Split(string(body), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
-			calls = append(calls, line)
+			calls = append(calls, Printable(line))
 		}
 	}
 	return execution{output: strings.ReplaceAll(output, canon, BundleToken), exit: exit, out: out, calls: calls}, nil
@@ -382,7 +406,7 @@ func readOut(dir string) ([]File, error) {
 			return err
 		}
 		if !d.Type().IsRegular() {
-			return fmt.Errorf("the program left out/%s, which is not a file — out/ holds the files the act keeps, and this has no bytes to keep", filepath.ToSlash(rel))
+			return fmt.Errorf("the program left out/%s, which is not a file — out/ holds the files the act keeps, and this has no bytes to keep", Printable(filepath.ToSlash(rel)))
 		}
 		body, err := os.ReadFile(p)
 		if err != nil {
@@ -431,7 +455,7 @@ func outputDrift(a, b string) string {
 	if len(a) != len(b) {
 		return fmt.Sprintf("output length moved %d -> %d bytes between runs", len(a), len(b))
 	}
-	for i := range a {
+	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
 			return fmt.Sprintf("output differs from byte %d between runs", i)
 		}
@@ -460,13 +484,14 @@ func outDrift(a, b []File, aName, bName string) string {
 	for _, n := range names {
 		x, inA := am[n]
 		y, inB := bm[n]
+		name := "out/" + Printable(n)
 		switch {
 		case !inB:
-			moved = append(moved, "out/"+n+" written by "+aName+" only")
+			moved = append(moved, name+" written by "+aName+" only")
 		case !inA:
-			moved = append(moved, "out/"+n+" written by "+bName+" only")
+			moved = append(moved, name+" written by "+bName+" only")
 		case !bytes.Equal(x, y):
-			moved = append(moved, "out/"+n+" differs")
+			moved = append(moved, name+" differs")
 		}
 	}
 	return strings.Join(moved, ", ")
@@ -529,13 +554,5 @@ func Stored(runDir, bundle, id string) (files []File, output []byte, err error) 
 func missing(sha, what, at string) error {
 	return fmt.Errorf("bundle %s is on the record and its %s is not in the store: %s not found at %s. "+
 		"That is a fault in the run, not in the computation — it cannot be read, and a judgement of it would be a judgement of nothing. Report it with `log` as a defect",
-		short(sha), what, what, at)
-}
-
-// short is the sha's leading twelve characters, the form every message about a computation prints.
-func short(sha string) string {
-	if len(sha) > 12 {
-		return sha[:12]
-	}
-	return sha
+		Short(sha), what, what, at)
 }

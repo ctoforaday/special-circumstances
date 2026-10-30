@@ -155,7 +155,7 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 			// ONE BUNDLE, ACTS OF DIFFERENT BASES: the same bytes moved between one act's two runs and
 			// not between another's, so the bundle's output is not settled whatever this execution
 			// shows. Each act is still graded by its own basis below.
-			mixed = append(mixed, fmt.Sprintf("bundle %s backs acts recorded %s", short(p.sha), strings.Join(b, " and ")))
+			mixed = append(mixed, fmt.Sprintf("bundle %s backs acts recorded %s", compute.Short(p.sha), strings.Join(b, " and ")))
 		}
 		e, err := compute.Rerun(run.Dir(), p.sha, p.argv)
 		switch {
@@ -163,25 +163,32 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 			// A COMPUTATION THAT CANNOT BE RE-RUN IS THE ONE THING A COMPUTATION IS FOR. The stored
 			// bundle is gone or cannot start, so nothing in this run can check it any more.
 			fails++
-			notes = append(notes, fmt.Sprintf("FAIL %s could not be re-run: %v", short(p.sha), err))
+			notes = append(notes, fmt.Sprintf("FAIL %s could not be re-run: %v", compute.Short(p.sha), err))
 			continue
 		case len(e.Calls) > 0:
 			// A BUNDLE THAT CALLS THE TOOL CANNOT BE CHECKED BY ANYONE, this audit included: the
 			// tool refuses every call made under a re-run, whatever the program then prints.
 			fails++
-			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", short(p.sha), e.Calls[0]))
+			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", compute.Short(p.sha), e.Calls[0]))
 			continue
+		}
+		if e.Leftover != "" {
+			// The execution finished before its copy's removal failed, so it is graded below; the
+			// leftover is this audit's own defect, said beside the grades.
+			notes = append(notes, fmt.Sprintf("the re-run of %s left its copy behind: %s", compute.Short(p.sha), e.Leftover))
 		}
 		for _, a := range p.acts {
 			c, err := compute.Compare(run.Dir(), p.sha, a.GetComputationId(), int(a.GetExit()), e)
 			basis := recordpb.Word(a.GetBasis())
-			switch {
-			case err != nil:
+			if err != nil {
 				fails++
-				notes = append(notes, fmt.Sprintf("FAIL %s on %s could not be compared: %v", a.GetComputationId(), short(p.sha), err))
-			case c.Matches:
-				// Reproduced. Nothing to say per act; the count says it.
-			case a.GetBasis() == recordpb.Basis_BASIS_VARIANT:
+				notes = append(notes, fmt.Sprintf("FAIL %s on %s could not be compared: %v", a.GetComputationId(), compute.Short(p.sha), err))
+				continue
+			}
+			switch compute.Grade(c, a.GetBasis() == recordpb.Basis_BASIS_VARIANT) {
+			case compute.Reproduced:
+				// Nothing to say per act; the count says it.
+			case compute.Moved:
 				// Recorded AS something that does not hold still: a `variant` computation's two runs
 				// already differed, and its invariant says what holds across them. Divergence here is
 				// the recorded fact arriving on time, not a defect — and this audit becoming a
@@ -189,11 +196,11 @@ func ComputationRerunAudit(run record.Run, sample int) Audit {
 				// whole point of grading from the store.
 				moved++
 				notes = append(notes, fmt.Sprintf("moved %s on %s diverged, as its recorded `%s` basis says it may (%s)",
-					a.GetComputationId(), short(p.sha), orQ(basis), difference(c, e)))
-			default:
+					a.GetComputationId(), compute.Short(p.sha), orQ(basis), difference(c, e)))
+			case compute.Differs:
 				fails++
 				notes = append(notes, fmt.Sprintf("FAIL %s on %s recorded basis `%s` and NO LONGER REPRODUCES — %s",
-					a.GetComputationId(), short(p.sha), orQ(basis), difference(c, e)))
+					a.GetComputationId(), compute.Short(p.sha), orQ(basis), difference(c, e)))
 			}
 		}
 	}
@@ -248,13 +255,6 @@ func countUnaudited(ps []recordedComputation) int {
 		}
 	}
 	return n
-}
-
-func short(sha string) string {
-	if len(sha) > 8 {
-		return sha[:8]
-	}
-	return sha
 }
 
 // firstDifference names WHERE the two outputs part company, not merely that they did.

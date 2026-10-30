@@ -100,7 +100,7 @@ func newCompute() *cobra.Command {
 				return nil, feov.Errorf(feov.Conflict, "--key %q already names computation %s on this run, and %s run as %s hashes to %s — "+
 					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
 					"leave you citing a computation of something else. Give this program its own --key",
-					key, prior.GetBundleSha()[:12], dir, prog, now[:12])
+					key, compute.Short(prior.GetBundleSha()), dir, prog, compute.Short(now))
 			}
 			// THE SAME PROGRAM IS NOT YET THE SAME ACT: a retry states the sentence it backs, the
 			// method it cites, the gap it answers and its note again, or it is a second computation reusing
@@ -203,7 +203,13 @@ func newCompute() *cobra.Command {
 			}
 			return nil, err
 		}
-		return computeResult{Label: label, SHA: res.Bundle, Basis: recordpb.Word(body.GetBasis()), Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
+		// COPIES LEFT BEHIND ARE THE TOOL'S DEFECT, NOT THE COMPUTATION'S. Both runs finished and
+		// every recorded field was measured before the removal, so the act stands; the leftover is
+		// logged after it, best-effort, as the tool's own failure.
+		if res.Leftover != "" {
+			_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(res.Leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
+		}
+		return computeResult{Label: label, SHA: res.Bundle, Basis: recordpb.Word(body.GetBasis()), Exit: res.Exit, Drift: res.Drift, Leftover: res.Leftover, VoiceTells: tells}, nil
 	}))
 
 	// DescQuoteAlone: this verb's --reason is the computation note the report prints, no place for a section name.
@@ -273,6 +279,8 @@ type computeResult struct {
 	Exit       int    `json:"exit"`
 	Drift      string `json:"drift,omitempty"`
 	Idempotent bool   `json:"idempotent,omitempty"`
+	// Leftover is why the program's copies could not be removed; the computation is recorded.
+	Leftover string `json:"leftover,omitempty"`
 	// VoiceTells is ADVICE on the note, and the computation is already recorded by the time it renders.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -280,11 +288,14 @@ type computeResult struct {
 func (r computeResult) Human() string {
 	note := reportvoice.Note("the computation's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return "blue compute (idempotent retry — already recorded as " + r.SHA[:12] + ")" + note
+		return "blue compute (idempotent retry — already recorded as " + compute.Short(r.SHA) + ")" + note
 	}
 	out := fmt.Sprintf("computation %s recorded (%s, exit %d) — anchored, program and output stored", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {
 		out += "\n  the runs differed: " + r.Drift + " — recorded with the invariant you stated"
+	}
+	if r.Leftover != "" {
+		out += "\n  the tool's own defect, logged: " + r.Leftover
 	}
 	return out + note
 }

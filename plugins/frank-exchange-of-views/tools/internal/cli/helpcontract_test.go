@@ -471,7 +471,7 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 // flagToken matches a `--flag` reference inside a refusal message.
 //
 // THE LEADING BOUNDARY IS LOAD-BEARING. Without it this matched `--computation` inside the anchor
-// token `<!--computation:p-…-->`, and reported `lens reproduce` — whose message is correct — for a
+// token `<!--computation:K-…-->`, and reported `lens reproduce` — whose message is correct — for a
 // flag it never named. A seat types a flag after a space, a backtick, a quote or an open
 // paren; nothing else introduces one. Go's regexp has no lookbehind, so the boundary is a
 // non-capturing alternation and the NAME is group 1.

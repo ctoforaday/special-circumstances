@@ -139,6 +139,10 @@ func TestComputationRerunFailsAComputationThatCannotBeReRunAtAll(t *testing.T) {
 	if !strings.Contains(got.Detail, "could not be re-run") {
 		t.Errorf("detail must say it could not be re-run; got:\n%s", got.Detail)
 	}
+	// The bundle is named in the one short form every message about a computation prints.
+	if want := "FAIL " + res.Bundle[:12] + " could not be re-run"; !strings.Contains(got.Detail, want) {
+		t.Errorf("detail must name the bundle as %q; got:\n%s", want, got.Detail)
+	}
 }
 
 // A RUN WITH NO COMPUTATIONS AND A RUN NOBODY COULD READ ARE NOT THE SAME ANSWER, and neither is a PASS.

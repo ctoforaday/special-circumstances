@@ -138,9 +138,10 @@ func reproduceShape(col string, v any, out map[string]any) (handled bool, err er
 const observedColumn = "\x00observed_output"
 
 // reproduceDrift is the drift an archived re-run that differed carries: what the program wrote, as
-// bytes. Replay sets it after the ids are respelled, so the program's bytes are never respelled.
+// a record string field carries a program's bytes (compute.Printable). Replay sets it after the ids
+// are respelled, so the program's bytes are never respelled.
 func reproduceDrift(observed string) string {
-	return "on re-run the program wrote: " + observed
+	return "on re-run the program wrote: " + compute.Printable(observed)
 }
 
 // migratedComputation is one computation replay wrote, and where its stored artifact comes from.
@@ -155,14 +156,14 @@ type migratedComputation struct {
 }
 
 // writeStore builds the migrated run's computations/ from the source's store: each bundle's dir/
-// once, and each act's own output under acts/<id>/. A source at epoch 49 or later holds the store's
-// own layout, and its directories the record names are copied as they are; .tmp-* staging and a
-// directory no event names are not. An artifact the source does not hold is returned by name — the
+// once, and each act's own output and out/ under acts/<id>/. A source at epoch 49 or later holds
+// the store's own layout, and its directories the record names are copied as they are; .tmp-*
+// staging and a directory no event names are not. An artifact the source does not hold is returned by name — the
 // manifest carries it — and nothing is written in its place.
 func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[string][]string) ([]string, error) {
 	var missing []string
 	for _, c := range comps {
-		files, output, at, err := sourceArtifact(fromDir, c)
+		files, output, out, at, err := sourceArtifact(fromDir, c)
 		if errors.Is(err, fs.ErrNotExist) {
 			missing = append(missing, fmt.Sprintf("%s: %s", c.id, at))
 			continue
@@ -173,7 +174,7 @@ func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[s
 		if err := compute.WriteBundle(toDir, c.bundle, c.argv, files); err != nil {
 			return nil, fmt.Errorf("computation %s: %w", c.id, err)
 		}
-		if err := compute.WriteAct(toDir, c.bundle, c.id, output, nil); err != nil {
+		if err := compute.WriteAct(toDir, c.bundle, c.id, output, out); err != nil {
 			return nil, fmt.Errorf("computation %s: %w", c.id, err)
 		}
 	}
@@ -192,30 +193,33 @@ func writeStore(fromDir, toDir string, comps []migratedComputation, reruns map[s
 	return missing, nil
 }
 
-// sourceArtifact reads one computation's bundle files and act output from the source run, and names
-// where it looked.
-func sourceArtifact(fromDir string, c migratedComputation) (files []compute.File, output []byte, at string, err error) {
+// sourceArtifact reads one computation's bundle files, act output and out/ files from the source
+// run, and names where it looked. An archived proof wrote no out/: the proof's store had none.
+func sourceArtifact(fromDir string, c migratedComputation) (files []compute.File, output []byte, out []compute.File, at string, err error) {
 	if c.oldSha == "" {
 		if files, err = compute.Bundle(fromDir, c.bundle); err != nil {
-			return nil, nil, compute.BundlePath(fromDir, c.bundle), fs.ErrNotExist
+			return nil, nil, nil, compute.BundlePath(fromDir, c.bundle), fs.ErrNotExist
 		}
 		if output, err = compute.ActOutput(fromDir, c.bundle, c.id); err != nil {
-			return nil, nil, compute.ActPath(fromDir, c.bundle, c.id), fs.ErrNotExist
+			return nil, nil, nil, compute.ActPath(fromDir, c.bundle, c.id), fs.ErrNotExist
 		}
-		return files, output, "", nil
+		if out, err = compute.ActOut(fromDir, c.bundle, c.id); err != nil {
+			return nil, nil, nil, "", fmt.Errorf("computation %s: %w", c.id, err)
+		}
+		return files, output, out, "", nil
 	}
 	dir := filepath.Join(fromDir, "proofs", c.oldSha)
 	file := c.argv[len(c.argv)-1]
 	body, err := os.ReadFile(filepath.Join(dir, file))
 	if err != nil {
-		return nil, nil, filepath.Join(dir, file), fs.ErrNotExist
+		return nil, nil, nil, filepath.Join(dir, file), fs.ErrNotExist
 	}
 	if c.output != nil {
 		output = []byte(*c.output)
 	} else if output, err = os.ReadFile(filepath.Join(dir, "output")); err != nil {
-		return nil, nil, filepath.Join(dir, "output"), fs.ErrNotExist
+		return nil, nil, nil, filepath.Join(dir, "output"), fs.ErrNotExist
 	}
-	return []compute.File{{Path: file, Body: body}}, output, "", nil
+	return []compute.File{{Path: file, Body: body}}, output, nil, "", nil
 }
 
 // copyStoreTree copies a directory of regular files.

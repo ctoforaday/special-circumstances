@@ -28,6 +28,9 @@ type Execution struct {
 	Exit   int
 	Out    []File
 	Calls  []string
+	// Leftover is why the execution's copy could not be removed after it finished, or "" when it was
+	// (Result.Leftover): the execution stands, and the caller reports the leftover as a defect.
+	Leftover string
 }
 
 // Rerun executes a recorded computation's stored bundle once, in one fresh copy outside the run tree,
@@ -38,11 +41,11 @@ type Execution struct {
 // and believed; a computation is re-executed and compared.
 func Rerun(runDir, bundle string, argv []string) (e Execution, err error) {
 	if len(argv) == 0 {
-		return Execution{}, fmt.Errorf("bundle %s names no command, so it cannot be re-run — which is the one thing a computation is for", short(bundle))
+		return Execution{}, fmt.Errorf("bundle %s names no command, so it cannot be re-run — which is the one thing a computation is for", Short(bundle))
 	}
 	files, err := Bundle(runDir, bundle)
 	if err != nil {
-		return Execution{}, fmt.Errorf("%s has no stored bundle, so it cannot be re-run — which is the one thing a computation is for", short(bundle))
+		return Execution{}, fmt.Errorf("bundle %s cannot be re-run, which is the one thing a computation is for: %w", Short(bundle), err)
 	}
 	c, err := resolve(argv)
 	if err != nil {
@@ -52,7 +55,15 @@ func Rerun(runDir, bundle string, argv []string) (e Execution, err error) {
 	if err != nil {
 		return Execution{}, err
 	}
-	defer func() { err = errors.Join(err, clear(base)) }()
+	defer func() {
+		if cerr := clear(base); cerr != nil {
+			if err != nil {
+				err = errors.Join(err, cerr)
+			} else {
+				e.Leftover = cerr.Error()
+			}
+		}
+	}()
 	x, err := execute(Timeout, filepath.Join(base, copyRoots[0]), &Program{Argv: argv, Files: files, Sha: bundle}, c)
 	if err != nil {
 		return Execution{}, err
@@ -116,11 +127,7 @@ func Compare(runDir, bundle, id string, exit int, e Execution) (Comparison, erro
 		moved = append(moved, fmt.Sprintf("exit moved %d -> %d", exit, e.Exit))
 	}
 	if e.Output != string(recorded) {
-		got := e.Output
-		if len(got) > driftOutputLimit {
-			got = got[:driftOutputLimit] + "…"
-		}
-		moved = append(moved, "on re-run the program wrote: "+got)
+		moved = append(moved, "on re-run the program wrote: "+Excerpt(e.Output, driftOutputLimit))
 	}
 	for i, m := range moved {
 		if i > 0 {
@@ -130,6 +137,32 @@ func Compare(runDir, bundle, id string, exit int, e Execution) (Comparison, erro
 	}
 	c.Matches = len(e.Calls) == 0 && c.Drift == ""
 	return c, nil
+}
+
+// Outcome is how one act stands against an execution of its bundle, graded by the act's own basis.
+type Outcome string
+
+const (
+	// Reproduced: the execution wrote the act's recorded output, exit and out/.
+	Reproduced Outcome = "reproduced"
+	// Moved: it did not, and the act was recorded variant — its two runs already differed, so the
+	// execution moving is the recorded fact arriving, not a defect.
+	Moved Outcome = "moved"
+	// Differs: it did not, and the act was recorded reproducible.
+	Differs Outcome = "differs"
+)
+
+// Grade is an act's outcome from its comparison and whether it was recorded variant. A comparison
+// whose execution called the tool never matches, and its caller refuses it before grading.
+func Grade(c Comparison, variant bool) Outcome {
+	switch {
+	case c.Matches:
+		return Reproduced
+	case variant:
+		return Moved
+	default:
+		return Differs
+	}
 }
 
 // RerunPath is the directory a run holds one execution of a bundle in, by the execution's sha.
@@ -176,7 +209,7 @@ func (s *Staged) Promote() error {
 			s.promoted = true
 			return nil
 		}
-		return fmt.Errorf("storing the re-run of bundle %s: %w", short(s.bundle), err)
+		return fmt.Errorf("storing the re-run of bundle %s: %w", Short(s.bundle), err)
 	}
 	s.promoted = true
 	return nil
@@ -197,7 +230,7 @@ func ReadRerun(runDir, bundle, sha string, exit int) (Execution, error) {
 	dir := RerunPath(runDir, bundle, sha)
 	out, err := os.ReadFile(filepath.Join(dir, "output"))
 	if err != nil {
-		return Execution{}, missing(bundle, "re-run "+short(sha), dir)
+		return Execution{}, missing(bundle, "re-run "+Short(sha), dir)
 	}
 	files, err := readOut(filepath.Join(dir, "out"))
 	if err != nil {

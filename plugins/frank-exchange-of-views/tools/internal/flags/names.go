@@ -219,7 +219,7 @@ const (
 	VerifiedAgainst = "verified-against"
 
 	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
-	// `<!--computation:p-…-->` token — naming a place in the report by identity rather than by
+	// `<!--computation:K-…-->` token — naming a place in the report by identity rather than by
 	// quoting it. Where --quote says the text, this says the marker.
 	//
 	// Two verbs take it and each narrows the CLASS it accepts, which is the per-verb

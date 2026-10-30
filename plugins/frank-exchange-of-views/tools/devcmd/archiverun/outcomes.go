@@ -4,19 +4,30 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 )
 
-// The outcomes a bundle's act is graded with.
+// The outcomes a bundle's act is graded with: compute.Grade's, and refused.
 const (
-	Reproduced = "reproduced"
-	Moved      = "moved"
-	Differs    = "differs"
+	Reproduced = string(compute.Reproduced)
+	Moved      = string(compute.Moved)
+	Differs    = string(compute.Differs)
 	Refused    = "refused"
 )
 
-// Row is one archived bundle's measured outcome.
+// Row is one archived bundle's measured outcome: the outcome its acts agree on, or each distinct
+// one, and each act's own.
 type Row struct {
 	Archive, OldSha, Outcome string
+	// Acts is each act's outcome and basis, as measured; the outcomes file holds only Outcome.
+	Acts []Act
+}
+
+// Act is one act's measured outcome, and whether it was recorded variant.
+type Act struct {
+	Outcome string
+	Variant bool
 }
 
 func (r Row) key() string { return r.Archive + "\t" + r.OldSha }
@@ -115,7 +126,7 @@ func Compare(held string, versions map[string]string, rows []Row) []string {
 		switch {
 		case !ok:
 			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, and the file holds no row for it", r.Archive, r.OldSha, r.Outcome))
-		case want != r.Outcome:
+		case !satisfies(want, r):
 			problems = append(problems, fmt.Sprintf("%s %s: re-ran %s, the file holds %s", r.Archive, r.OldSha, r.Outcome, want))
 		}
 	}
@@ -130,6 +141,49 @@ func Compare(held string, versions map[string]string, rows []Row) []string {
 		problems = append(problems, fmt.Sprintf("%s: the file holds a row no archive re-ran", k))
 	}
 	return problems
+}
+
+// satisfies is whether a measured row stands for the held outcome. A REPRODUCIBLE act's outcome is
+// held exactly. A VARIANT act's re-run may write its recorded output or not — the act was recorded
+// variant because its runs already differed — so either of its non-failing outcomes, reproduced or
+// moved, stands for the other: the held set is satisfied when the fixed outcomes are all in it, and
+// the variant acts can land on the rest of it.
+func satisfies(want string, r Row) bool {
+	if want == r.Outcome {
+		return true
+	}
+	held := map[string]bool{}
+	for _, o := range strings.Split(want, ",") {
+		held[o] = true
+	}
+	flexible := func(o string) bool { return o == Reproduced || o == Moved }
+	fixed, free := map[string]bool{}, 0
+	for _, a := range r.Acts {
+		if a.Variant && flexible(a.Outcome) {
+			free++
+		} else {
+			fixed[a.Outcome] = true
+		}
+	}
+	for o := range fixed {
+		if !held[o] {
+			return false
+		}
+	}
+	rest := 0
+	for o := range held {
+		if fixed[o] {
+			continue
+		}
+		if !flexible(o) {
+			return false
+		}
+		rest++
+	}
+	if rest > free {
+		return false
+	}
+	return free == 0 || rest > 0 || held[Reproduced] || held[Moved]
 }
 
 // summary counts the bundles by outcome.

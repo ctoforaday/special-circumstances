@@ -721,7 +721,7 @@ func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
 }
 
 // refusalFlagToken matches a `--flag` reference in a refusal. The leading boundary keeps it out
-// of anchor tokens like `<!--computation:p-…-->`; Go's regexp has no lookbehind, so the NAME is group 1.
+// of anchor tokens like `<!--computation:K-…-->`; Go's regexp has no lookbehind, so the NAME is group 1.
 var refusalFlagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
 
 // EVERY FLAG A RECORD-LAYER REFUSAL NAMES IS A WORD A SEAT CAN ACTUALLY TYPE.

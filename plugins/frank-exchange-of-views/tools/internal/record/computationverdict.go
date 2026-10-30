@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -138,7 +139,7 @@ func validateStandingComparison(q recordsql.Querier, sha string, b *recordpb.Rep
 	}
 	if live {
 		if b.GetRerunSha() != standingSha.String {
-			return fmt.Errorf("the act on %s ran nothing and compared against the re-run %s, but the re-run standing for its bundle is now %s — another execution was recorded after this act read the record, so its comparison is against a re-run that no longer stands; call again to compare against the standing one", b.GetComputationId(), shortSha(b.GetRerunSha()), shortSha(standingSha.String))
+			return fmt.Errorf("the act on %s ran nothing and compared against the re-run %s, but the re-run standing for its bundle is now %s — another execution was recorded after this act read the record, so its comparison is against a re-run that no longer stands; call again to compare against the standing one", b.GetComputationId(), compute.Short(b.GetRerunSha()), compute.Short(standingSha.String))
 		}
 		calls := recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL)
 		if (standingRerun.String == calls) != (b.GetRerun() == recordpb.Rerun_RERUN_CALLS_THE_TOOL) {
@@ -147,7 +148,7 @@ func validateStandingComparison(q recordsql.Querier, sha string, b *recordpb.Rep
 		return nil
 	}
 	if b.GetRerunSha() != "" {
-		return fmt.Errorf("the act on %s ran nothing and names the re-run %s, which no act on the record executed — an act that ran nothing compares against the re-run standing for its bundle", b.GetComputationId(), shortSha(b.GetRerunSha()))
+		return fmt.Errorf("the act on %s ran nothing and names the re-run %s, which no act on the record executed — an act that ran nothing compares against the re-run standing for its bundle", b.GetComputationId(), compute.Short(b.GetRerunSha()))
 	}
 	var migrated sql.NullString
 	ran, err := queryRowAt(q, []any{&migrated}, `SELECT "rerun" FROM "reproduce" WHERE "bundle_sha" = ? AND "ran" = 1 ORDER BY "event_id" DESC LIMIT 1`, sha)
@@ -161,14 +162,6 @@ func validateStandingComparison(q recordsql.Querier, sha string, b *recordpb.Rep
 		return fmt.Errorf("reproduce of %s ran nothing and records %s, but the bundle's re-run is %s — an act that ran nothing and names no execution states the comparison of the re-run it stands on", b.GetComputationId(), recordpb.Word(b.GetRerun()), migrated.String)
 	}
 	return nil
-}
-
-// shortSha is a sha's leading twelve characters, as every message about a computation prints one.
-func shortSha(s string) string {
-	if len(s) > 12 {
-		return s[:12]
-	}
-	return s
 }
 
 // refuseSoundOverTheTool refuses a `sound` verdict on a bundle whose re-run called the tool.
