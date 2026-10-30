@@ -209,7 +209,7 @@ func newCompute() *cobra.Command {
 		if res.Leftover != "" {
 			_, _ = record.Append(s.Identity(), &recordpb.Log{Text: proto.String(res.Leftover), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()})
 		}
-		return computeResult{Label: label, SHA: res.Bundle, Basis: recordpb.Word(body.GetBasis()), Exit: res.Exit, Drift: res.Drift, Leftover: res.Leftover, VoiceTells: tells}, nil
+		return computeResult{Label: label, SHA: res.Bundle, Basis: recordpb.Word(body.GetBasis()), Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
 	}))
 
 	// DescQuoteAlone: this verb's --reason is the computation note the report prints, no place for a section name.
@@ -279,8 +279,6 @@ type computeResult struct {
 	Exit       int    `json:"exit"`
 	Drift      string `json:"drift,omitempty"`
 	Idempotent bool   `json:"idempotent,omitempty"`
-	// Leftover is why the program's copies could not be removed; the computation is recorded.
-	Leftover string `json:"leftover,omitempty"`
 	// VoiceTells is ADVICE on the note, and the computation is already recorded by the time it renders.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -293,9 +291,6 @@ func (r computeResult) Human() string {
 	out := fmt.Sprintf("computation %s recorded (%s, exit %d) — anchored, program and output stored", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {
 		out += "\n  the runs differed: " + r.Drift + " — recorded with the invariant you stated"
-	}
-	if r.Leftover != "" {
-		out += "\n  the tool's own defect, logged: " + r.Leftover
 	}
 	return out + note
 }
