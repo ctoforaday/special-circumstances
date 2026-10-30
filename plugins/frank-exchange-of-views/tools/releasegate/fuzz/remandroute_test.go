@@ -7,6 +7,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE BENCH'S REMAND, ON A GAP THAT IS NOT MATERIAL AND ON A CLOSED ONE (gblock, 2026-10-24).
@@ -315,14 +317,17 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 }
 
 // A REMAND'S EXCHANGE BEGINS WITH BLUE (ruled by gblock 2026-10-27), and blue's item holds the sitting
-// its dispatch owes.
+// its dispatch owes until blue acts.
 //
 // remandHeldBeforeRegister reads blue's list BEFORE blue registers, when blue's sitting is not yet
-// blue-respond's on the record, at the first blue sitting after each chair plan: the item on each gap
-// that plan owes a remand's exchange — the plan dispatching blue postdates the ruling — must be there
-// and must block, with no reason saying the ruling came after blue's dispatch. On universe-m35 it
-// read "the ruling landed after this sitting opened" and did not block, and after blue's sitting
-// closed it was gone.
+// blue-respond's on the record, at the first blue sitting after each chair plan, for each gap that
+// plan owes a remand's exchange and that is still owed with no docket motion standing on it. Whether
+// the item must block is read off the record here, not off the plan: it blocks exactly while blue has
+// recorded no act on the gap since the bench's latest remand of it AND that ruling precedes blue's
+// latest dispatch. A plan can owe a remand blue has already acted on — the round holding blue's act
+// is not yet counted — and the record then rightly says the item no longer holds blue. On
+// universe-m35 the item read "the ruling landed after this sitting opened" and did not block while
+// both held, and after blue's sitting closed it was gone; either direction fails here.
 func (r *runner) remandHeldBeforeRegister() {
 	r.mu.Lock()
 	first := !r.blueSatSincePlan
@@ -346,20 +351,46 @@ func (r *runner) remandHeldBeforeRegister() {
 		r.noteActErr("blue's work list could not be read before it registered: " + err.Error())
 		return
 	}
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the record could not be read before blue registered")
+		return
+	}
+	acts, _, _ := actsOnGaps(b.Events)
+	ruled := remandRulings(b.Events)
+	dispatched := -1 // blue's latest dispatch row, a stream position
+	for i, e := range b.Events {
+		if d, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok && d.GetSeatId() == "blue-respond" {
+			dispatched = i
+		}
+	}
 	owed := map[string]bool{}
 	for _, g := range w.Open {
 		owed[g.ID] = g.RemandStage == "owed"
 	}
 	for _, o := range owedByPlan {
-		if !owed[o.GapID] {
-			continue // closed or docketed again since: no exchange is owed, and no item stands
+		if !owed[o.GapID] || len(r.unruledDocketMotions(o.GapID)) > 0 {
+			continue // closed or put before the bench again since: no exchange is owed, and no item stands
 		}
-		if !blocksOn(w.Sitting, o.GapID, o.Direction) {
-			r.noteActErr(fmt.Sprintf("the plan dispatching blue owes remanded gap %s its exchange, and before blue registered its remand item does not block its list — blue has not acted", o.GapID))
-			continue
+		acted := false
+		for _, a := range acts[o.GapID] {
+			acted = acted || a.at > ruled[o.GapID] && seatclass.RoleOfSeat(a.seat) == "blue"
 		}
-		r.mu.Lock()
-		r.remandHolds++
-		r.mu.Unlock()
+		want := !acted && ruled[o.GapID] < dispatched
+		switch got := blocksOn(w.Sitting, o.GapID, o.Direction); {
+		case want && !got:
+			r.noteActErr(fmt.Sprintf("the plan dispatching blue owes remanded gap %s its exchange, blue has recorded no act on it since the ruling, and before blue registered its remand item does not block its list", o.GapID))
+		case !want && got:
+			r.noteActErr(fmt.Sprintf("blue's remand item on gap %s blocks its list before blue registered, though %s", o.GapID,
+				map[bool]string{true: "blue has recorded an act on it since the ruling", false: "the ruling landed after blue's latest dispatch"}[acted]))
+		case got:
+			r.mu.Lock()
+			r.remandHolds++
+			r.mu.Unlock()
+		default:
+			r.mu.Lock()
+			r.remandReleases++
+			r.mu.Unlock()
+		}
 	}
 }

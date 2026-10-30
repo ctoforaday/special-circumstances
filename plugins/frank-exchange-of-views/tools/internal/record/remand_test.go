@@ -745,6 +745,38 @@ func TestBlueRemandItemBlocksBeforeAndAfterRegister(t *testing.T) {
 	}
 }
 
+// A PLAN CAN OWE A REMAND BLUE HAS ALREADY ACTED ON. Blue sits on the remanded G1, records a proof
+// answering it, and its sitting never closes — a subagent that died before its stop. The sitting is
+// not measured, so the round holding blue's act is not counted, and the next plan still owes G1's
+// exchange and engages blue on it; blue's item stays on its list and does not block, because blue
+// has acted since the ruling. The release fuzz's pre-register read held every owed remand to a
+// blocking item and failed on this shape; it now reads the act off the record. Blue's next sitting
+// closes the open one, and the round it completes is the remand's.
+func TestAPlanOwesARemandBlueActedOnInASittingNotYetMeasured(t *testing.T) {
+	st := remandedAtImpasse(t).register("red-chair").dispatch(2, "blue-respond", "G1").
+		registerAs("blue-respond", "blue-dies").blueProves("G1").register("red-chair")
+	run := st.seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Fatalf("blue's sitting is not measured, so the remand is still owed: remand_owed %+v, parties %+v, why %q", plan.RemandOwed, plan.Parties, plan.Why)
+	}
+	if remandItemBlocks(t, run, "blue", "blue-respond") || !workMentions(t, run, "blue", "blue-respond", "you have recorded an act on it since the ruling") {
+		t.Errorf("blue acted on G1 since the ruling: its item stays on the list and does not block")
+	}
+	more := st.more()
+	spent := more.dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-next").stop("blue-next").register("red-chair").seed()
+	after, err := PlanDispatch(spent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.RemandOwed) != 0 {
+		t.Errorf("blue's next sitting closes the open one, and the round holding its act is the remand's: remand_owed %+v, why %q", after.RemandOwed, after.Why)
+	}
+}
+
 // A REMAND IS ANSWERED ONLY AFTER IT (ruled by gblock 2026-10-27). Blue answered G1 with an edit, the
 // exchanges after it stalled it to impasse, and the bench remanded it: the edit is what the bench
 // heard, and it answers nothing the remand asks. On universe-m35 the lens's list said "ANSWERED by an

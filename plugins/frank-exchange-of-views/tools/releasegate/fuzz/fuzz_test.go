@@ -523,10 +523,11 @@ type runner struct {
 	blueRemandActs          int
 	pastLimitRemandsRefused int
 	// remandHolds counts the remand items blue's list held blocking before blue registered, on the
-	// gaps the plan dispatching it owed a remand's exchange (remandHeldBeforeRegister); blueSatSincePlan
-	// is whether blue has sat since that plan. The sweep gates remandHolds at zero.
-	remandHolds      int
-	blueSatSincePlan bool
+	// gaps the plan dispatching it owed a remand's exchange, and remandReleases those it rightly held
+	// unblocked — blue had acted since the ruling (remandHeldBeforeRegister); blueSatSincePlan is
+	// whether blue has sat since that plan. The sweep gates remandHolds at zero and reports releases.
+	remandHolds, remandReleases int
+	blueSatSincePlan            bool
 	// lensTurns counts the lens engagements the relayed plans made on a gap blue had acted on since
 	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
 	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
@@ -5504,8 +5505,9 @@ type outcome struct {
 	rulerFilingsRefused int
 	// closedRemandsRefused and trifleRemandsRouted are runner's.
 	closedRemandsRefused, trifleRemandsRouted int
-	// blueRemandActs, pastLimitRemandsRefused, remandHolds, lensTurns and lensWaits are runner's.
-	blueRemandActs, pastLimitRemandsRefused, remandHolds, lensTurns, lensWaits int
+	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
+	// are runner's.
+	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -6810,7 +6812,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
-	res.remandHolds, res.lensTurns, res.lensWaits = r.remandHolds, r.lensTurns, r.lensWaits
+	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.

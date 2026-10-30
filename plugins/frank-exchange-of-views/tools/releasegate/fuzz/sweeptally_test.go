@@ -148,6 +148,7 @@ type runTally struct {
 	BlueRemandActs          int                       `json:"blue_remand_acts"`
 	PastLimitRemandsRefused int                       `json:"past_limit_remands_refused"`
 	RemandHolds             int                       `json:"remand_holds"`
+	RemandReleases          int                       `json:"remand_releases"`
 	LensTurns               int                       `json:"lens_turns"`
 	LensWaits               int                       `json:"lens_waits"`
 }
@@ -175,7 +176,7 @@ func tallyOf(o outcome) runTally {
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
-		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
+		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
 	}
 }
 
@@ -520,7 +521,8 @@ type sweepFold struct {
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, pastLimitRemandsRefused         int
-	remandHolds, lensTurns, lensWaits               int
+	remandHolds, remandReleases                     int
+	lensTurns, lensWaits                            int
 	applyMisses, estoppelMisses                     map[string]int
 }
 
@@ -635,6 +637,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.blueRemandActs += r.BlueRemandActs
 		f.pastLimitRemandsRefused += r.PastLimitRemandsRefused
 		f.remandHolds += r.RemandHolds
+		f.remandReleases += r.RemandReleases
 		f.lensTurns += r.LensTurns
 		f.lensWaits += r.LensWaits
 		for why, n := range r.EstoppelMisses {
@@ -932,7 +935,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		// A REMAND'S EXCHANGE BEGINS WITH BLUE (ruled by gblock 2026-10-27): blue's item on a gap the plan
 		// owes a remand's exchange blocks its list read before blue registers.
-		t.Logf("remands: %d item(s) held blue before its register", f.remandHolds)
+		t.Logf("remands: %d item(s) held blue before its register; %d released it, blue having acted since the ruling", f.remandHolds, f.remandReleases)
 		if f.remandHolds == 0 {
 			t.Errorf("fuzz read ZERO remand items on blue's list before its register, across %d runs — the item blue's dispatch owes is unexercised (false green)", f.completed)
 		}
