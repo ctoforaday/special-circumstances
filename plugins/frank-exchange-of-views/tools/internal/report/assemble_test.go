@@ -491,7 +491,7 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 // WHICH HEADINGS THE REPORT'S TEXT MAY NOT CARRY IS A RULING, written out here so a row that
 // changes sides is seen. Refused: every heading composed into report.md, where the report's own
 // would stand beside the tool's, and each section of another document that is an account of the
-// run — red's readings of the citations and blue's edits among them. Not refused: Proofs and
+// run — red's readings of the citations and blue's edits among them. Not refused: Computations and
 // Motions, composed into other documents under names a subject uses.
 func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
@@ -501,7 +501,7 @@ func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	if got := RefusedHeadings(); !slices.Equal(got, refused) {
 		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
 	}
-	own := map[string]string{"Proofs": FileEvidence, "Motions": FileJudgments}
+	own := map[string]string{"Computations": FileEvidence, "Motions": FileJudgments}
 	for _, s := range layout {
 		if file, ok := own[s.Heading]; s.SubjectHeading != ok || ok && s.File != file {
 			t.Errorf("row %q in %s: SubjectHeading is %v", s.Heading, s.File, s.SubjectHeading)
@@ -512,7 +512,7 @@ func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 			t.Errorf("row %q is marked a subject's heading too, and it is composed by %s in %s", s.Heading, s.Composer, s.File)
 		}
 	}
-	if want := "Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: " + OwnInTheReport + "."; SubjectHeadingsNote != want {
+	if want := "Assembly also composes Motions in judgments.md and Computations in evidence.md, and those names are not refused: " + OwnInTheReport + "."; SubjectHeadingsNote != want {
 		t.Errorf("the note on the help pages reads\n  %s\nwant\n  %s", SubjectHeadingsNote, want)
 	}
 }
@@ -522,7 +522,7 @@ func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 // label the write refuses and the weave never writes is a footnote of the report's own turned away.
 func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 	for n := 1; n < 2000; n += 7 {
-		for _, l := range []string{citationNote(n), proofNote(n)} {
+		for _, l := range []string{citationNote(n), computationNote(n)} {
 			for _, doc := range []string{"A claim" + l + ".\n", "A claim.\n\n" + l + ": a note.\n", "## TL;DR\n\n| a" + l + " | b |\n"} {
 				if got, s, found := WovenNoteIn(ParseText(""), ParseText(doc)); !found || got != l || s.Heading != bibliographyHeading {
 					t.Errorf("WovenNoteIn(ParseText(%q)) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
@@ -530,8 +530,8 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 			}
 		}
 	}
-	// The weave itself, over a citation and a proof: every label in what it returns is one.
-	woven, _ := weaveProofRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--proof:P-00000001-->.\n", nil), nil)
+	// The weave itself, over a citation and a computation: every label in what it returns is one.
+	woven, _ := weaveComputationRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--computation:K-00000001-->.\n", nil), nil)
 	labels := regexp.MustCompile(`\[\^[^\]]*\]`).FindAllString(woven, -1)
 	if len(labels) != 4 {
 		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)
@@ -541,15 +541,15 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 			t.Errorf("the weave wrote %s, and the write does not refuse it", l)
 		}
 	}
-	if got, _, _ := WovenNoteIn(ParseText(""), ParseText("A claim[^p3].\n")); got != "[^p3]" {
-		t.Errorf("a proof's label in lower case reads %q; a renderer folds a label's case", got)
+	if got, _, _ := WovenNoteIn(ParseText(""), ParseText("A claim[^k3].\n")); got != "[^k3]" {
+		t.Errorf("a computation's label in lower case reads %q; a renderer folds a label's case", got)
 	}
 	for _, doc := range []string{
 		"A claim[^scope].\n\n[^scope]: an aside.\n",
-		"A claim[^a1], another[^1a], a third[^P], a fourth[^Px1], a fifth[^note-2].\n",
-		"The class `[^1]` and the class `[^P2]`.\n",
+		"A claim[^a1], another[^1a], a third[^K], a fourth[^Kx1], a fifth[^note-2].\n",
+		"The class `[^1]` and the class `[^K2]`.\n",
 		"```\n[^1]: quoted output\n```\n",
-		"~~~\nA claim[^P1].\n~~~\n",
+		"~~~\nA claim[^K1].\n~~~\n",
 		"Item [1], power 2^3, set [^0-9].\n",
 	} {
 		if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); found {
@@ -567,7 +567,7 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 // the shipped .md escapes the comment — and is a footnote there, though a reader with the grammar ends
 // the comment's block at its line and reads the indented line as code.
 func TestWovenNoteInReadsCodeAsTheShippedReadingsDo(t *testing.T) {
-	for _, doc := range []string{"Para.\n\n    grep '[^1]'\n", "A ``class\n[^P2]`` here.\n"} {
+	for _, doc := range []string{"Para.\n\n    grep '[^1]'\n", "A ``class\n[^K2]`` here.\n"} {
 		if l, _, found := WovenNoteIn(ParseText(""), ParseText(doc)); found {
 			t.Errorf("WovenNoteIn(ParseText(%q)) found %q in code", doc, l)
 		}
@@ -878,7 +878,7 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 
 // EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE, AND NONE MOVES PAST ANOTHER. The text is parted in
 // two at the section that closes it, with the title line taken out, and nothing is in neither
-// part. universe-m20 lost a section, a proof and fifteen other anchors to a list of headings the
+// part. universe-m20 lost a section, a computation and fifteen other anchors to a list of headings the
 // composer left out, and universe-m21's Catechism shipped ahead of the sections it was written
 // after; the composer keeps no list of sections to leave out or to move.
 func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
@@ -894,7 +894,7 @@ func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
 		"## The Catechism", "written after the argument.", "",
 		"## TL;DR", "written later still.", "",
 		// What the write refuses and a migrated record can still hold: kept whole, anchors and all.
-		"## Alternatives considered", "an approach weighed<!--proof:P-00000001-->.", "",
+		"## Alternatives considered", "an approach weighed<!--computation:K-00000001-->.", "",
 		"## Risk Matrix", "a risk row.", "",
 		"## Open questions", "the closing section.", "",
 		"##  open questions (in full)", "a second, spelled another way.", "",

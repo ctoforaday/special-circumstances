@@ -50,8 +50,9 @@ func New() *cobra.Command {
 		Long: Name + " reads an old run's record — including a vocabulary the record tool's readers refuse — translates " +
 			"each event through the authored registry, and replays them in order through the current write path under " +
 			"the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record " +
-			"feov-record of the same release could have written; run channels (inputs, proofs) copy verbatim, and " +
-			"inputs/" + migration.ManifestName + " records what was translated, refused, and accepted as loss. A refusal " +
+			"feov-record of the same release could have written; the inputs channel copies verbatim, the computation " +
+			"store is rebuilt for the computations the record holds, and inputs/" + migration.ManifestName + " records " +
+			"what was translated, refused, and accepted as loss, and each stored artifact the source lacked. A refusal " +
 			"exits non-zero and is the tool's OUTPUT — there is no flag that skips validation.\n\n" +
 			"IT WRITES THE EPOCH OF ITS RELEASE: this binary writes event-schema epoch " + fmt.Sprint(record.EventSchema) +
 			", the epoch of the feov-record it ships beside, and a migrated run is read with that feov-record. It is an " +

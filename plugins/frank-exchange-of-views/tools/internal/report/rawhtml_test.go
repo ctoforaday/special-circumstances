@@ -90,7 +90,7 @@ var seatHTMLCases = []struct {
 		after: "more", heading: "after"},
 	{name: "an anchor in the tool's shape with an attribute of the seat's",
 		units: []string{
-			"## A\n\n<a id=\"P-deadbeef\" onmouseover=\"x()\"></a>",
+			"## A\n\n<a id=\"K-deadbeef\" onmouseover=\"x()\"></a>",
 			"## After\n\nmore",
 		},
 		after: "more", heading: "after"},
@@ -231,17 +231,17 @@ func seatElements(page string) []string {
 	}
 }
 
-// THE .md KEEPS THE TOOL'S ANCHOR AND ESCAPES A SEAT'S COPY. evidence.md's anchor per proof, which the
+// THE .md KEEPS THE TOOL'S ANCHOR AND ESCAPES A SEAT'S COPY. evidence.md's anchor per computation, which the
 // other documents link by label, ships as HTML; the same tag typed by a seat, and an anchor token a seat
 // typed (assembly weaves or strips every token the tool placed), are text.
 func TestTheMarkdownKeepsOnlyTheToolsAnchor(t *testing.T) {
-	md := "# R\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n\n" +
-		"<a id=\"P-deadbeef\"></a>\n\n<!--cite:C-00000001-->\n\nA claim<!--gap:G-0000abcd--> stands.\n"
+	md := "# R\n\n" + computationAnchorMark("K-deadbeef") + "\n\n### K1 — the check\n\n" +
+		"<a id=\"K-deadbeef\"></a>\n\n<!--cite:C-00000001-->\n\nA claim<!--gap:G-0000abcd--> stands.\n"
 	got := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}}).md[0]
-	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="P-deadbeef">`, "</a>"}) {
-		t.Errorf("a CommonMark reader finds HTML other than the proof's anchor: %q\n%s", found, got)
+	if found := htmlNodes(got); !slices.Equal(found, []string{`<a id="K-deadbeef">`, "</a>"}) {
+		t.Errorf("a CommonMark reader finds HTML other than the computation's anchor: %q\n%s", found, got)
 	}
-	for _, want := range []string{"\n" + proofAnchor("P-deadbeef") + "\n", `&lt;a id="P-deadbeef">&lt;/a>`, `&lt;!--cite:C-00000001-->`, `A claim&lt;!--gap:G-0000abcd--> stands.`} {
+	for _, want := range []string{"\n" + computationAnchor("K-deadbeef") + "\n", `&lt;a id="K-deadbeef">&lt;/a>`, `&lt;!--cite:C-00000001-->`, `A claim&lt;!--gap:G-0000abcd--> stands.`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the shipped .md lacks %q:\n%s", want, got)
 		}
@@ -509,11 +509,11 @@ func TestShippingIsBounded(t *testing.T) {
 	}
 }
 
-// TEXT WITH NOTHING TO ESCAPE IS NOT PARSED. Most documents hold no `<` but a proof's anchor, and most
+// TEXT WITH NOTHING TO ESCAPE IS NOT PARSED. Most documents hold no `<` but a computation's anchor, and most
 // sections no `[^`: neither costs a parse.
 func TestTextWithNothingToEscapeIsNotParsed(t *testing.T) {
 	rd, all, _ := countParses("")
-	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\nn > 3, and `code`.\n"
+	md := "## Computations\n\n" + computationAnchorMark("K-deadbeef") + "\n\nn > 3, and `code`.\n"
 	if got := rd.ship(md); got != resolveMarks(md) {
 		t.Errorf("shipped %q, want the text with its anchor in place", got)
 	}
@@ -599,62 +599,61 @@ func TestTheLayoutShowsTheRecordsTextUnescaped(t *testing.T) {
 	}
 }
 
-// A PROOF'S ANCHOR IS THE TOOL'S ONLY WHERE THE TOOL WROTE IT. A seat that types a proof's anchor into
+// A COMPUTATION'S ANCHOR IS THE TOOL'S ONLY WHERE THE TOOL WROTE IT. A seat that types a computation's anchor into
 // the report's text would give the page two elements of that id, and the report's tab comes first: every
-// footnote linking to the proof would land on the seat's copy.
-func TestASeatsCopyOfAProofAnchorIsText(t *testing.T) {
+// footnote linking to the computation would land on the seat's copy.
+func TestASeatsCopyOfAComputationAnchorIsText(t *testing.T) {
 	docs := []Doc{
-		{File: FileReport, Nav: "Report", Body: "## A\n\n<a id=\"P-deadbeef\"></a>\n\nA claim[^P1].\n\n[^P1]: [the computation](evidence.md#P-deadbeef)\n"},
-		{File: FileEvidence, Nav: "Evidence", Body: "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n"},
+		{File: FileReport, Nav: "Report", Body: "## A\n\n<a id=\"K-deadbeef\"></a>\n\nA claim[^K1].\n\n[^K1]: [the computation](evidence.md#K-deadbeef)\n"},
+		{File: FileEvidence, Nav: "Evidence", Body: "## Computations\n\n" + computationAnchorMark("K-deadbeef") + "\n\n### K1 — the check\n"},
 	}
 	set := stdReaders().shipSet("# T", docs)
 	page := RenderSite(set, record.Family{})
-	if n := strings.Count(page, `id="P-deadbeef"`); n != 1 {
-		t.Fatalf("report.html holds %d element(s) with the proof's id, want 1", n)
+	if n := strings.Count(page, `id="K-deadbeef"`); n != 1 {
+		t.Fatalf("report.html holds %d element(s) with the computation's id, want 1", n)
 	}
-	if strings.Index(page, `id="P-deadbeef"`) < strings.Index(page, `<article id="`+docElement(FileEvidence)) {
-		t.Errorf("the proof's id is not evidence.md's element")
+	if strings.Index(page, `id="K-deadbeef"`) < strings.Index(page, `<article id="`+docElement(FileEvidence)) {
+		t.Errorf("the computation's id is not evidence.md's element")
 	}
-	if md := set.md[0]; !strings.Contains(md, `&lt;a id="P-deadbeef">&lt;/a>`) {
+	if md := set.md[0]; !strings.Contains(md, `&lt;a id="K-deadbeef">&lt;/a>`) {
 		t.Errorf("report.md ships the seat's copy of the anchor as HTML:\n%s", md)
 	}
-	if md := set.md[1]; !strings.Contains(md, "\n"+proofAnchor("P-deadbeef")+"\n") {
-		t.Errorf("evidence.md does not ship the proof's anchor:\n%s", md)
+	if md := set.md[1]; !strings.Contains(md, "\n"+computationAnchor("K-deadbeef")+"\n") {
+		t.Errorf("evidence.md does not ship the computation's anchor:\n%s", md)
 	}
 }
 
-// A PROOF SHOWS THE EXACT BYTES THAT RAN. A fence of three backticks closed at an output's own "```"
+// A COMPUTATION SHOWS THE EXACT BYTES THAT RAN. A fence of three backticks closed at an output's own "```"
 // line, and the rest shipped as prose — escaped, so the evidence no longer showed what ran.
-func TestAProofsCodeShipsByteForByte(t *testing.T) {
+func TestAComputationsCodeShipsByteForByte(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "abc123def4567890"
 	script := "print('```')\nprint('<td>42</td>')"
 	output := "```\n<td>42</td>\n````"
-	seedProof(t, runDir, sha, script, output+"\n")
-	recorded := "`<x>` at the edge"
-	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "s.py",
-		Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Recorded: recorded, Observed: "a ` b"}}}
-	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+	seedStore(t, runDir, sha, "K-deadbeef", script, output+"\n")
+	drift := "on re-run the program wrote: a ` b\n```\n<td>43</td>"
+	computations := []record.Computation{{Label: "K-deadbeef", SHA: sha, Basis: "reproducible", Argv: []string{"python3", "script.py"},
+		Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Drift: drift}}}
+	ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true})
 	set := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}})
 	blocks := codeBlocks(t, mainOf(RenderSite(set, record.Family{})))
-	for _, want := range []string{script, output} {
+	for _, want := range []string{script, output, drift} {
 		if !slices.Contains(blocks, want) {
 			t.Errorf("report.html does not show %q as one code block: %q", want, blocks)
 		}
 	}
 	md := set.md[0]
 	viewed := commonmarkUnsafe(t, md)
-	for _, want := range []string{script, output} {
+	// The drift is a block of its re-run's list item, each line indented under it.
+	for _, want := range []string{script, output, strings.ReplaceAll(drift, "\n", "\n  ")} {
 		if !strings.Contains(md, want) {
 			t.Errorf("evidence.md does not hold the bytes as they ran, %q:\n%s", want, md)
 		}
+		if want != script && want != output {
+			continue
+		}
 		if !strings.Contains(viewed, fmt.Sprintf(">%s\n</code>", escapeForTest(want))) {
 			t.Errorf("a viewer does not show %q as one code block:\n%s", want, viewed)
-		}
-	}
-	for _, want := range []string{"<code>" + escapeForTest(recorded) + "</code>", "<code>a ` b</code>"} {
-		if !strings.Contains(viewed, want) {
-			t.Errorf("a re-run's output is not one code span, want %q:\n%s", want, viewed)
 		}
 	}
 }

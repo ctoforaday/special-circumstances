@@ -353,7 +353,7 @@ func ReportBaseExists(run Run) (bool, error) {
 	return recordHas(run, `SELECT 1 FROM "base_ingest" LIMIT 1`)
 }
 
-// FindingMarkerRecorded / ProofMarkerRecorded — the "does an event already name this marker id"
+// FindingMarkerRecorded / ComputationMarkerRecorded — the "does an event already name this marker id"
 // membership questions — lived here. They served the torn-splice adoption the three splicing verbs
 // ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
 // arise, and the adoption (and these) are gone.

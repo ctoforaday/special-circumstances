@@ -53,10 +53,10 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
-		{"proof judged unsound", BlockerFailedCheck, true, true, func(b *stage) {
+		{"computation judged unsound", BlockerFailedCheck, true, true, func(b *stage) {
 			// judged in the lens's last sitting, at the head, with its gap minted, so nothing else holds.
-			b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
-				add(evLens, aboutProof("G-1", "P-1"))
+			b.computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
+				add(evLens, aboutComputation("G-1", "K-1"))
 		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},

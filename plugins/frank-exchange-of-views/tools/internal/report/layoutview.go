@@ -15,7 +15,7 @@ import (
 // Layout assembles the set from the record as it stands and slices what assembly made by the rows
 // of `layout`, so the view cannot describe a report other than the one that ships. It shows the
 // record's text as written, because a seat quotes and edits it: the shipped .md is that text with
-// every line ending `\n` and every `<` outside code but a proof's anchor written `&lt;` (ship), and
+// every line ending `\n` and every `<` outside code but a computation's anchor written `&lt;` (ship), and
 // report.html shows it as typed.
 
 // LayoutSection is one row of the assembled layout, for the run it was asked of.

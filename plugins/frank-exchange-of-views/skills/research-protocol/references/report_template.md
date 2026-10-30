@@ -144,9 +144,9 @@
 
 # evidence.md — the computations and the citations
 
-## Proofs                                <!-- [RECORD] every proof on the record, with its script, output, sha256 and red's
-                                              independent re-run. Numbered RUN-WIDE, so P3 is the same computation in every
-                                              document that cites it. A proof no document references is still shown, and
+## Computations                          <!-- [RECORD] every computation on the record, with its program, output, bundle sha
+                                              and red's independent re-run. Numbered RUN-WIDE, so K3 is the same computation in
+                                              every document that cites it. A computation no document references is still shown, and
                                               said to be unreferenced. -->
 
 ## Citations                             <!-- [RECORD] every source the report cites, red's corroborations among them, with

@@ -74,7 +74,7 @@ type drive struct {
 
 func (d drive) do(seatID string, args ...string) (string, error) {
 	d.t.Helper()
-	return runAt(d.t, append(append([]string{}, args...), "--run", d.run, "--seat-id", seatID)...)
+	return runAt(d.t, ahead(args, "--run", d.run, "--seat-id", seatID)...)
 }
 
 // admitted files an act the write path must admit.
@@ -145,7 +145,7 @@ const (
 	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
-	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
+	rowReproduce   = "a new judgement of the same computation anchor — a seat's latest judgement of a sentence is its verdict on it"
 	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
 )
 
@@ -197,16 +197,16 @@ func answerDrives() []answerDrive {
 	// "a new <act>" is admitted at once.
 	twice := func(seatID string, args ...string) func(d drive) {
 		return func(d drive) {
-			d.admitted("the first", seatID, append(append([]string{}, args...), "--reason", "the first")...)
-			d.admitted("a new one, in the same sitting", seatID, append(append([]string{}, args...), "--reason", "this replaces my earlier one, which was wrong")...)
+			d.admitted("the first", seatID, ahead(args, "--reason", "the first")...)
+			d.admitted("a new one, in the same sitting", seatID, ahead(args, "--reason", "this replaces my earlier one, which was wrong")...)
 		}
 	}
 	oncePerSitting := func(row, seatID string, args ...string) func(d drive) {
 		return func(d drive) {
-			d.admitted("the first", seatID, append(append([]string{}, args...), "--reason", "the first")...)
-			d.endsWithRow(d.refused("a second in the sitting", seatID, append(append([]string{}, args...), "--reason", "the second")...), row)
+			d.admitted("the first", seatID, ahead(args, "--reason", "the first")...)
+			d.endsWithRow(d.refused("a second in the sitting", seatID, ahead(args, "--reason", "the second")...), row)
 			d.nextSitting(seatID)
-			d.admitted("the next sitting's", seatID, append(append([]string{}, args...), "--reason", "the first was wrong")...)
+			d.admitted("the next sitting's", seatID, ahead(args, "--reason", "the first was wrong")...)
 		}
 	}
 	return []answerDrive{
@@ -258,6 +258,21 @@ func answerDrives() []answerDrive {
 			d.closeG1(lensSeat)
 			d.nextSitting(lensSeat)
 			d.refused("a regrade of a closed gap", lensSeat, "regrade", "--id", "G1", "--severity", "low", "--reason", "the first was wrong")
+		}},
+		// THE BENCH'S REGRADE SETS A GRADE BY MOVING IT, while a docket motion on the gap stands before
+		// it: the next sitting's correction moves the axis again, and keeping it is refused.
+		{name: "regrade, the bench", row: rowRegrade, helps: []string{"bench regrade"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
+			regrade := func(sev, why string) []string {
+				return []string{"regrade", "--id", "G1", "--severity", sev, "--reason", why}
+			}
+			d.admitted("the first", "judge", regrade("high", "the first")...)
+			d.endsWithRow(d.refused("a second in the sitting", "judge", regrade("certain", "the second")...), rowRegrade)
+			d.nextSitting("judge")
+			d.admitted("the next sitting's", "judge", regrade("certain", "the first was wrong")...)
+			d.closeG1(lensSeat)
+			d.nextSitting("judge")
+			d.refused("a regrade of a closed gap", "judge", regrade("low", "the first was wrong")...)
 		}},
 		{name: "verify", row: rowVerify, helps: []string{"lens verify"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/v": []byte("<html>the source</html>")}})
@@ -400,7 +415,7 @@ func answerDrives() []answerDrive {
 			m := motionID(d.t, d.run, "motion", "petition", "file", "--seat-id", lensSeat,
 				"--class", "safety", "--relief", "halt before the next exchange", "--reason", "a consent gate is missing")
 			d.admitted("the ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
-			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--reason", "again"), rowPetition)
+			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "again"), rowPetition)
 			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the petition was wrong, and this is what holds")
 		}},
 		// NO ROW: the chair holds no act that answers its own ruling on an inquiry. A docket motion
@@ -428,9 +443,9 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "reproduce", row: rowReproduce, helps: []string{"lens reproduce"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
-			d.admitted("prove", "blue-respond", "prove", "--quote", quoteThree, "--script", s, "--reason", "the computation")
-			proofAnchor := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofId()
-			twice(lensSeat, "reproduce", "--anchor", proofAnchor, "--as", "sound")(d)
+			d.admitted("compute", "blue-respond", "compute", "--quote", quoteThree, "--dir", s, "--reason", "the computation", "--", "node", "p.js")
+			computationAnchor := lastBody(d.t, d.run, &recordpb.Computation{}).GetComputationId()
+			twice(lensSeat, "reproduce", "--anchor", computationAnchor, "--as", "sound")(d)
 		}},
 		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
 		{name: "log", row: "a new log entry", helps: []string{"blue log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
@@ -438,9 +453,9 @@ func answerDrives() []answerDrive {
 				twice(s, "log", "--type", "defect")(d)
 			}
 		}},
-		{name: "proof", row: "a new proof", helps: []string{"blue prove"}, drive: func(d drive) {
+		{name: "computation", row: "a new computation", helps: []string{"blue compute"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
-			twice("blue-respond", "prove", "--quote", quoteThree, "--script", s)(d)
+			twice("blue-respond", "compute", "--quote", quoteThree, "--dir", s, "--", "node", "p.js")(d)
 		}},
 		{name: "cite", row: "a new citation", helps: []string{"blue cite"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{

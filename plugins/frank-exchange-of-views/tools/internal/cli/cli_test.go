@@ -453,10 +453,11 @@ func TestRoleHelpCarriesTheLogFooter(t *testing.T) {
 	}
 }
 
-// The board verbs exist in the lens role and NOWHERE else. Mint, close and regrade are the
-// originating lens's acts (plans/roundless.md §III.B.3): the chair carries, spot-checks, dispatches
-// and gives the verdict, and the bench disposes through docket rulings. This is the claim the whole
-// engine rests on, so it is asserted over the actual command trees.
+// The board verbs exist in the lens role and NOWHERE else, but for the bench's regrade. Mint, close
+// and regrade are the originating lens's acts (plans/roundless.md §III.B.3): the chair carries,
+// spot-checks, dispatches and gives the verdict, and the bench disposes through docket rulings —
+// setting, by its own regrade, the grade a ruling rules on (record/benchgrade.go). This is the claim
+// the whole engine rests on, so it is asserted over the actual command trees.
 func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 	// ASKED OF FOUR TREES, not of four groups in one. The claim is stronger for it: a board verb is
 	// absent from the chair's SURFACE, not merely absent from a namespace the chair could still
@@ -474,6 +475,12 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
+			if other == "bench" && board == "regrade" {
+				if !verbs[other][board] {
+					t.Errorf("the bench role is missing %q — a ruling would rule on a grade it holds wrong, with no act to set it", board)
+				}
+				continue
+			}
 			if verbs[other][board] {
 				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
 			}
@@ -718,7 +725,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
 // AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade, close and manifest-row carry `gap_id`,
-// inquiry propose `inquiry_id`, prove `proof_id`, motion file and rule `motion_id`; finding carried a
+// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`; finding carried a
 // bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
 // finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
 func TestActResultsNameTheirIDByKind(t *testing.T) {

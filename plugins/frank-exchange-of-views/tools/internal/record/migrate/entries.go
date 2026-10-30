@@ -68,8 +68,9 @@ func Entries() Registry {
 		"credit": {Translate: toNoEvent},
 		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
 		// re-run is the script's; its soundness is carried to every anchor on that script when it was
-		// written — the fan-out is the replay's, because it reads the proofs replayed before it
-		// (reproduceAnchors in replay.go).
+		// written — the fan-out is the replay's, because it reads the computations replayed before it
+		// (reproduceAnchors in replay.go). One before epoch 49 names a proof and a script's sha, and
+		// its `not_run` is an act that ran nothing (computations.go).
 		"reproduce": {Translate: reproduceEntry},
 		// A DISPATCH ROW BEFORE EPOCH 31 NAMED THE GAPS WHOSE REMAND EXCHANGE IT READIED. The record
 		// stores the plan the row was written from, whose remand_owed names them with the direction,
@@ -322,6 +323,11 @@ func reproduceEntry(old OldEvent) ([]proto.Message, error) {
 	out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,
 		Word: "reproduce", Lists: old.Lists, Arms: old.Arms, Fields: map[string]any{}}
 	for col, v := range old.Fields {
+		if handled, err := reproduceShape(col, v, out.Fields); err != nil {
+			return nil, err
+		} else if handled {
+			continue
+		}
 		switch col {
 		case "reason":
 			out.Fields["note"] = v
@@ -343,15 +349,25 @@ func reproduceEntry(old OldEvent) ([]proto.Message, error) {
 				r = recordpb.Rerun_RERUN_REPRODUCED
 			}
 			out.Fields["rerun"] = recordpb.Word(r)
+			out.Fields["ran"] = int64(1)
 		default:
 			out.Fields[col] = v
 		}
 	}
+	observed, hasObserved := out.Fields[observedColumn].(string)
+	delete(out.Fields, observedColumn)
 	body, err := identityBody(out)
 	if err != nil {
 		return nil, err
 	}
-	return []proto.Message{body}, nil
+	r := body.(*recordpb.Reproduce)
+	if r.GetRerun() == recordpb.Rerun_RERUN_DIFFERS && r.Drift == nil {
+		if !hasObserved {
+			return nil, fmt.Errorf("this reproduce of %s records a re-run that differed and not what it wrote — a re-run that differs says what differs, and the archive holds nothing to say it with", r.GetComputationId())
+		}
+		r.Drift = proto.String(reproduceDrift(observed))
+	}
+	return []proto.Message{r}, nil
 }
 
 // frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is

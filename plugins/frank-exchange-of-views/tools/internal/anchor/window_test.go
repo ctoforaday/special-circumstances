@@ -93,11 +93,11 @@ func TestADuplicateAnchorRefuses(t *testing.T) {
 	}
 }
 
-// Citation and proof anchors resolve through the same door — AnchorToken already knows all three
+// Citation and computation anchors resolve through the same door — AnchorToken already knows all three
 // classes, so nothing here needs to.
 func TestEveryAnchorClassResolves(t *testing.T) {
-	doc := "## S\n\ncited.<!--cite:C-00000011-->\n\nproved.<!--proof:P-00000022-->\n"
-	for _, id := range []string{"C-00000011", "P-00000022"} {
+	doc := "## S\n\ncited.<!--cite:C-00000011-->\n\nproved.<!--computation:K-00000022-->\n"
+	for _, id := range []string{"C-00000011", "K-00000022"} {
 		if _, err := ReadAround(doc, id, 1); err != nil {
 			t.Errorf("anchor class %q does not resolve: %v", id, err)
 		}

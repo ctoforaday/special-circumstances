@@ -13,7 +13,7 @@ import (
 //
 // This engine computes the facts a seat would benefit from claiming, precisely so it cannot
 // claim them: fix_basis is derived from whether the pair validates against the live report,
-// proof_basis from running the script twice, applied_verbatim from comparing bytes — or, on
+// basis from running the program twice, applied_verbatim from comparing bytes — or, on
 // `blue edit --accept`, from the tool having supplied those bytes itself. Each
 // exists because a seat asked to self-report reports the flattering value.
 //
@@ -24,7 +24,7 @@ import (
 // recorded and believed.
 
 // VerdictBasis says how far a recorded verdict can be trusted, on the same footing as
-// fix_basis and proof_basis.
+// fix_basis and a computation's basis.
 const (
 	// VerdictDerived: the tool computed it from the record and the seat's claim agreed.
 	VerdictDerived = "derived"
@@ -122,7 +122,7 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 		}
 		plan := foldPlan(params, *r.plan)
 		// A RUN THAT ENDS OVER AN UNCHECKED OR FAILED CHECK NAMES IT. The run ends on its term or with
-		// no terminal state over a citation or proof nobody has read against the sentence the report
+		// no terminal state over a citation or computation nobody has read against the sentence the report
 		// carries, or one whose check failed, and the reason is where a reader of the outcome
 		// learns which. No other blocker kind is named: the reason states why the run stopped, and the
 		// board states what else is open.
@@ -137,7 +137,7 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil
 }
 
-// anchorsStanding is the outcome reason's clause naming each citation or proof that holds the PASS by
+// anchorsStanding is the outcome reason's clause naming each citation or computation that holds the PASS by
 // its own state — unchecked, or on a failed check — or "" where none does.
 func anchorsStanding(bs []PlanBlocker) string {
 	var unchecked, failed []string

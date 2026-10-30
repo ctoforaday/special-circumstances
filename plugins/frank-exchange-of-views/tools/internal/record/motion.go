@@ -228,6 +228,9 @@ type Motion struct {
 	// Principle is the principle a docket ruling states, which the write requires of every one.
 	// Only the docket arm carries one; any other subject's ruling leaves it "".
 	Principle string
+	// RulingRelief and RulingBinds are a granted petition's order: what the bench ordered, and
+	// whom it binds (blue | red | both). Every other ruling leaves both "".
+	RulingRelief, RulingBinds string
 
 	// Subject-specific payload, carried rather than re-derived.
 	Fields map[string]string
@@ -361,6 +364,13 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 					m.Fields["gap_id"] = fil.Docket.GetGapId()
 					m.GapID = fil.Docket.GetGapId()
 				}
+				// A RECONSIDERATION'S NEW GROUNDS, as the filer located them (requireNewGrounds).
+				if fil.Docket.Grounds != nil {
+					m.Fields["grounds"] = fil.Docket.GetGrounds()
+				}
+				if fil.Docket.GroundsQuote != nil {
+					m.Fields["grounds_quote"] = fil.Docket.GetGroundsQuote()
+				}
 			default:
 				// A FILING ARM NOBODY FOLDED RENDERS AS A MOTION WITH NO ASK IN IT. Fields stays
 				// empty, GapID stays "", and every reader shows the subject and nothing else —
@@ -428,6 +438,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = rulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
 		m.Opinion = f.GetOpinion()
 		m.Principle = f.GetDocket().GetPrinciple()
+		m.RulingRelief, m.RulingBinds = f.GetRelief(), recordpb.Word(f.GetBinds())
 		if seq != nil {
 			m.ruled = seq[i]
 		}

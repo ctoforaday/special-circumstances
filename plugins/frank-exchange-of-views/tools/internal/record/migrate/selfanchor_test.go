@@ -22,7 +22,7 @@ func TestASelfAnchoredClosureMigratesWithoutItsOwnGap(t *testing.T) {
 	}
 	want := map[string][]string{
 		"G-97b44713": {"G-968365ad"},
-		"G-968365ad": {"P-24a6af66", "P-7de24bab"},
+		"G-968365ad": {"K-24a6af66", "K-7de24bab"},
 		"G-dc877265": {"C-4f4b8cfa"},
 	}
 	for _, g := range fam.Gaps {

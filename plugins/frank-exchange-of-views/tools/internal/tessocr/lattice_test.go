@@ -290,3 +290,42 @@ func TestTextCellsWritesProseInLayoutOrder(t *testing.T) {
 		t.Errorf("reading =\n%s\nwant it to end with the columns in layout order:\n%s", text, want)
 	}
 }
+
+// A FRAME OF PROSE IS NOT A TABLE (#1619). Three paragraph cells stacked in one column, each
+// running on into the next mid-sentence, are prose that column and row rules happen to frame; the
+// same cells ending their sentences are a table whose entries are paragraphs (IEEE 1012 Table 1).
+func TestTextCellsRefusesProseRunningOnAcrossRules(t *testing.T) {
+	const head = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+	// cell writes two lines of four words at (x, y) and (x, y+30), on layout lines l and l+1.
+	cell := func(blk, l, x, y int, first, second string) string {
+		var b strings.Builder
+		for i, line := range []string{first, second} {
+			for j, w := range strings.Fields(line) {
+				fmt.Fprintf(&b, "5\t1\t%d\t1\t%d\t%d\t%d\t%d\t50\t20\t95\t%s\n", blk, l+i, j+1, x+60*j, y+30*i, w)
+			}
+		}
+		return b.String()
+	}
+	lat := ParseLattice(ruleDump(
+		"h 100 100 803 3", "h 100 200 803 3", "h 100 300 803 3", "h 100 400 803 3",
+		"v 100 100 3 303", "v 400 100 3 303", "v 800 100 3 303",
+	))
+	page := func(ends [3]string, starts [3]string) []tsvWord {
+		tsv := head
+		for i := 0; i < 3; i++ {
+			y := 120 + 100*i
+			tsv += cell(i+1, 1, 110, y, starts[i]+" the long river", "ran slowly past "+ends[i])
+			tsv += cell(i+4, 1, 410, y, "Entry and its", "short note here.")
+		}
+		return parseTSVWords(tsv)
+	}
+	runOn := page([3]string{"the", "of", "done."}, [3]string{"Along", "banks", "water"})
+	text, st, why := TextCells(lat, runOn, nil, runOn, nil, runOn)
+	if st.ProseContinuations != 2 || !strings.Contains(why, "runs on from one cell into the cell under it 2 times") {
+		t.Errorf("run-on cells: continuations=%d why=%q text=%q; want 2 and a refusal naming them", st.ProseContinuations, why, text)
+	}
+	entries := page([3]string{"done.", "done.", "done."}, [3]string{"Along", "Banks", "Water"})
+	if _, st, why := TextCells(lat, entries, nil, entries, nil, entries); why != "" || st.ProseContinuations != 0 {
+		t.Errorf("sentence-final cells: continuations=%d why=%q; want 0 and the table kept", st.ProseContinuations, why)
+	}
+}

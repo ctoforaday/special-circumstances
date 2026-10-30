@@ -39,7 +39,7 @@ func newMint() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// The argument is resolved BEFORE the retry check, as `edit` and `prove` resolve theirs: a
+		// The argument is resolved BEFORE the retry check, as `edit` and `compute` resolve theirs: a
 		// retry is the same act, judged on the same inputs, and the first call recorded them.
 		text, err := seat.Reason(cmd)
 		if err != nil {
@@ -267,8 +267,8 @@ func newMint() *cobra.Command {
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a proof whose sentence you judged unsound; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a proof's anchor. It is CHECKED against the record")
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
@@ -367,7 +367,7 @@ func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
 		}
 		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of --quote: %s. "+
 			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
-			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a proof, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
+			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
 			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
 			"or write the anchor into --new after the text it marks, as `show report` prints it; "+
 			"or leave --new off and state the fix as prose in --fix", why)

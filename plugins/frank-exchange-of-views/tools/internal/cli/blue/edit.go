@@ -175,7 +175,7 @@ func newEdit() *cobra.Command {
 			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
 			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
 			// sentence nobody read, and nothing said so. Text moves through this verb alone,
-			// so the no-loss proof and the requires-review mark belong on this one channel.
+			// so the no-loss computation and the requires-review mark belong on this one channel.
 			//
 			// Computed from the render the validation used, which is the report the edit lands on.
 			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
@@ -517,7 +517,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 	if err != nil {
 		return err
 	}
-	proofs, err := record.RecordedProofs(run)
+	computations, err := record.RecordedComputations(run)
 	if err != nil {
 		return err
 	}
@@ -544,8 +544,8 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 			if g := fam.Gap(id); g != nil && g.Mint != nil {
 				about = g.Mint.GetProblem()
 			}
-		case "proof":
-			for _, p := range proofs {
+		case "computation":
+			for _, p := range computations {
 				if p.Label == id {
 					about = p.Reason
 				}

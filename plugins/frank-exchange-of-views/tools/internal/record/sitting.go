@@ -105,7 +105,7 @@ type SittingJSON struct {
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every
-// act, and the gap rows carry the view's answers (openness, the proof debt) so no fold decides
+// act, and the gap rows carry the view's answers (openness, the computation debt) so no fold decides
 // them a second time (plans/board-as-views.md wave 1c). ids are the events' row ids, aligned with
 // evs: the PASS gate's lens condition compares recorded pins with the report head, both row ids,
 // and the chair's list states that condition from the same fold the gate refuses from.
@@ -258,7 +258,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// the next epoch.
 		//
 		// IT HOLDS THE SITTING ONLY WHERE THIS SITTING IS ENGAGED ON THE GAP, and until a recorded
-		// act answers it there (gblock, 2026-10-24): a proof naming it, which ends the debt; a motion
+		// act answers it there (gblock, 2026-10-24): a computation naming it, which ends the debt; a motion
 		// blue files on the gap, which puts the demand before its ruler; or a retire that takes the
 		// gap's sentence out. Prose does not: an edit arguing the demand is wrong leaves it owed.
 		var engaged []string
@@ -267,18 +267,18 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		moved, retired := answeredByActThisSitting(evs, win, seatID)
 		for _, g := range gaps {
-			if !g.AwaitingProof {
+			if !g.AwaitingComputation {
 				continue
 			}
 			id := g.ID
-			const what = " was minted --check-kind computation and no proof answers it; prose cannot close it"
+			const what = " was minted --check-kind computation and no computation answers it; prose cannot close it"
 			switch {
 			case !slices.Contains(engaged, id):
 				may("gap " + id + what + " — this sitting is not engaged on it")
 			case moved[id]:
-				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a proof names it")
+				may("gap " + id + what + " — your motion this sitting on it puts the demand before its ruler, and the lens's close stays refused until a computation names it")
 			case retired && g.LocationState == LocationGone:
-				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a proof names it")
+				may("gap " + id + what + " — your retire this sitting took its sentence out, and the lens's close stays refused until a computation names it")
 			default:
 				add("gap " + id + what)
 			}
@@ -367,7 +367,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
-	// CITATION OR PROOF IT OWNS (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS
+	// CITATION OR COMPUTATION IT OWNS (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS
 	// REACHED, THE GAP ABOUT A CHECK OF ITS THAT FAILED, AND ITS CLOSING ON A GAP OF ITS OWN THAT IS
 	// DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
 	// channel, and the sitting it was dispatched for), each is a PASS blocker whose owner is that lens
@@ -698,7 +698,7 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 	return seatEntries, toolRefusals
 }
 
-// gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join
+// gapsAwaitingComputationOn is gone: the gap rows carry awaiting_computation off the view, the same join
 // the close gate reads, so the sitting and the gate cannot disagree about what is owed.
 
 // sittingRecordedNothing reports whether the seat's current sitting holds no ACTS — nothing of a type

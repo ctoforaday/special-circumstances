@@ -79,12 +79,12 @@ var textInputs = []struct{ name, title, doc string }{
 
 // recordInputs is every field of the record a seat writes that assembly places on the page, each
 // set to the hostile words by assembleHostile (assembled through the production write path), and read back from
-// the document it lands in: a citation's title and URL, a proof's reason, an inquiry's question,
+// the document it lands in: a citation's title and URL, a computation's reason, an inquiry's question,
 // method and reason, a gap's problem, location, fix and check, a closing, a motion's basis, the
 // bench's opinion, a position, the outcome's prose. Each is written behind a word of its own, which
 // the test finds on the page, so a field that stops reaching it fails here rather than passing.
 var recordInputs = map[string]string{
-	"citation title": "Title ", "citation URL": "example.invalid/", "proof reason": "reason ", "inquiry question": "question ",
+	"citation title": "Title ", "citation URL": "example.invalid/", "computation reason": "reason ", "inquiry question": "question ",
 	"inquiry method": "method ", "inquiry reason": "why ", "gap problem": "problem ", "gap location": "location ",
 	"gap fix": "fix ", "gap check": "check ", "closing": "closing ", "motion basis": "basis ", "opinion": "opinion ",
 	"position": "position ", "outcome prose": "prose ",
@@ -95,8 +95,8 @@ func assembleHostile(t *testing.T, h string) Shipped {
 	t.Helper()
 	runDir := newRun(t)
 	const sha = "feed0000face1111"
-	seedProof(t, runDir, sha, "console.log(1);", "1\n")
-	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--proof:P-00000001-->.\n"
+	seedStore(t, runDir, sha, "K-00000001", "console.log(1);", "1\n")
+	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--computation:K-00000001-->.\n"
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
@@ -120,9 +120,9 @@ func assembleHostile(t *testing.T, h string) Shipped {
 		Label: proto.String("C-00000001"), Url: proto.String("https://example.invalid/" + h),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Title " + h), AccessDate: proto.String("2026-08-03"),
 	})
-	add("blue-synthesize", &recordpb.Proof{
-		ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
-		ProofBasis: proto.String("reproducible"), Script: proto.String("check.js"), Text: proto.String("reason " + h),
+	add("blue-synthesize", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
+		ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),
+		Text: proto.String("reason " + h),
 	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("problem " + h),
@@ -266,18 +266,18 @@ func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 	}
 }
 
-// NO TOKEN SHIPS FROM TEXT COMPOSED AFTER THE STRIP. A proof's reason and a citation's title reach the
+// NO TOKEN SHIPS FROM TEXT COMPOSED AFTER THE STRIP. A computation's reason and a citation's title reach the
 // documents after the strip that runs before the weave — the weave's notes, evidence.md's heading for
-// the proof — and a token a seat copied into either shipped there as typed. Through real assembly. A
-// proof's script is code, and evidence.md shows it as the bytes that ran, a token's shape and all. A
+// the computation — and a token a seat copied into either shipped there as typed. Through real assembly. A
+// computation's script is code, and evidence.md shows it as the bytes that ran, a token's shape and all. A
 // field's lines are flattened before its tokens are taken: a token on an indented line is code in the
 // field and prose on the one line the tool writes, and stripped in the field's reading it shipped.
-func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
+func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "feed0000face1111"
 	const script = "console.log('<!--fx:F-0000beef-->'.length);"
-	seedProof(t, runDir, sha, script, "26\n")
-	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--proof:P-00000001-->.\n"
+	seedStore(t, runDir, sha, "K-00000001", script, "26\n")
+	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--computation:K-00000001-->.\n"
 	id := record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
@@ -286,12 +286,11 @@ func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		&recordpb.BaseIngest{Text: proto.String(blue)},
 		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 			Label: proto.String("C-00000001"), Url: proto.String("https://example.invalid/a"),
-			Sha256: proto.String("deadbeef"), Title: proto.String("Coherence <!--gap:G-0000abcd-->Proof <!--cite:C-…-->\n\n    <!--gap:G-00000001-->"), AccessDate: proto.String("2026-08-03"),
+			Sha256: proto.String("deadbeef"), Title: proto.String("Coherence <!--gap:G-0000abcd-->Computation <!--cite:C-…-->\n\n    <!--gap:G-00000001-->"), AccessDate: proto.String("2026-08-03"),
 		},
-		&recordpb.Proof{
-			ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
-			ProofBasis: proto.String("reproducible"), Script: proto.String("check.js"),
-			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--proof:P-00000002-->\n\n    <!--gap:G-00000001-->"),
+		&recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
+			ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),
+			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
 		},
 	} {
 		if _, err := record.Append(id, body); err != nil {
@@ -317,7 +316,7 @@ func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		if strings.Contains(strings.ReplaceAll(text, script, ""), "<!--") {
 			t.Errorf("%s shows a token as typed:\n%s", where, text)
 		}
-		for _, want := range []string{"Coherence Proof", "trial division settles it"} {
+		for _, want := range []string{"Coherence Computation", "trial division settles it"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%s does not show %q:\n%s", where, want, text)
 			}
@@ -325,7 +324,7 @@ func TestATokenInAProofReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	}
 	for where, text := range map[string]string{FileEvidence: shown[FileEvidence], "report.html": textOf(string(page))} {
 		if !strings.Contains(text, script) {
-			t.Errorf("%s does not show the proof's script as it ran:\n%s", where, text)
+			t.Errorf("%s does not show the computation's script as it ran:\n%s", where, text)
 		}
 	}
 }
