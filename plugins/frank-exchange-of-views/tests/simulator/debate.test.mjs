@@ -546,6 +546,22 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
+// THE ORDER IS THE RECORD'S, NOT THE SCRIPT'S (ruled by gblock 2026-10-30): a lens's turn on a gap
+// comes with blue's act, and the plan says when. An epoch whose plan engages blue alone on a fresh gap
+// sits no lens; the next, whose plan engages the minting lens on it after blue's answer, sits the lens
+// on it with the gap named, and blue after it.
+test('a plan that engages blue alone on a gap sits no lens, and the lens sits on it when the plan engages it', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }),
+      chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const seats = world.calls.map((c) => c.opts.label.replace(/ #\d+.*$/, '')).filter((l) => l === 'red-chair' || l === 'blue-respond' || l.startsWith('red-lens-'))
+  assert.deepEqual(seats, ['red-chair', 'blue-respond', 'red-chair', 'red-lens-logic', 'blue-respond', 'red-chair'], 'each epoch sits exactly the parties its plan names')
+  const [lens] = labelsOf(world, 'red-lens-logic').map((c) => c.prompt)
+  assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
+})
+
 test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]

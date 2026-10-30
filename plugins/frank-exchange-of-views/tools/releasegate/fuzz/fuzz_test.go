@@ -517,16 +517,20 @@ type runner struct {
 	// both counts at zero.
 	closedRemandsRefused, trifleRemandsRouted int
 	trifleRemanded                            map[string]bool
-	// remandActs counts, by role, the acts on a remanded gap the remand's blocking item held a seat to
+	// blueRemandActs counts blue's acts on a remanded gap the remand's blocking item held it to
 	// (answerRemands), and pastLimitRemandsRefused the bench's remands past the limit the tool refused
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
-	remandActs              map[string]int
+	blueRemandActs          int
 	pastLimitRemandsRefused int
-	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
-	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
-	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
-	lensFirst      map[string]string
-	lensFirstHolds int
+	// remandHolds counts the remand items blue's list held blocking before blue registered, on the
+	// gaps the plan dispatching it owed a remand's exchange (remandHeldBeforeRegister); blueSatSincePlan
+	// is whether blue has sat since that plan. The sweep gates remandHolds at zero.
+	remandHolds      int
+	blueSatSincePlan bool
+	// lensTurns counts the lens engagements the relayed plans made on a gap blue had acted on since
+	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
+	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
+	lensTurns, lensWaits int
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -4615,6 +4619,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		plan := r.planThisSitting
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
+		r.tallyLensTurns(plan)
+		r.mu.Lock()
+		r.blueSatSincePlan = false
+		r.mu.Unlock()
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
@@ -4686,7 +4694,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return r.chairEnvelope(seatID, verdict, printed, responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
-		r.lensFirstHeld()
+		r.remandHeldBeforeRegister()
 		r.sit("blue", seatID)
 		// BLUE ANSWERS WHAT THE PLAN ENGAGED IT ON, not every open gap: the record dispatched blue
 		// for exactly these, and its manifest must name them (W2b). Closings are owed on the
@@ -5496,9 +5504,8 @@ type outcome struct {
 	rulerFilingsRefused int
 	// closedRemandsRefused and trifleRemandsRouted are runner's.
 	closedRemandsRefused, trifleRemandsRouted int
-	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
-	// pastLimitRemandsRefused; lensFirstHolds is runner's.
-	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
+	// blueRemandActs, pastLimitRemandsRefused, remandHolds, lensTurns and lensWaits are runner's.
+	blueRemandActs, pastLimitRemandsRefused, remandHolds, lensTurns, lensWaits int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -6802,8 +6809,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
-	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
-	res.lensFirstHolds = r.lensFirstHolds
+	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
+	res.remandHolds, res.lensTurns, res.lensWaits = r.remandHolds, r.lensTurns, r.lensWaits
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.

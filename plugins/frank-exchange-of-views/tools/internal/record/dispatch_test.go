@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -343,7 +344,8 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 }
 
 // Empty is the termination signal: every cast lens retired and no material gap is open — PASS
-// permitted. With a material gap open and below its limits, its two parties are ready.
+// permitted. With a material gap open and below its limits, blue is ready on it, and its minting
+// lens once blue has acted on it.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").sit(2, evLens).sit(2, evLens). // two barren sittings: retired
@@ -360,13 +362,17 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
 		register("red-chair")
 	plan2, _ := PlanDispatch(b2.seed())
-	want := map[string][]string{evLens: {"G1"}, "blue-respond": {"G1"}}
-	if len(plan2.Parties) != 2 || plan2.PassPermitted {
-		t.Fatalf("plan = %+v, want the lens and blue engaged on G1", plan2)
+	if len(plan2.Parties) != 1 || !slices.Equal(gapsOf(plan2, "blue-respond"), []string{"G1"}) || plan2.PassPermitted {
+		t.Fatalf("plan = %+v, want blue engaged on G1", plan2)
 	}
-	for _, p := range plan2.Parties {
-		if w := want[p.SeatID]; len(w) != len(p.GapIDs) || (len(w) > 0 && w[0] != p.GapIDs[0]) {
-			t.Errorf("%s engaged on %v, want %v", p.SeatID, p.GapIDs, w)
+	// Blue's proof answering G1 is its act; the proof readies its own checker too, which is not G1's.
+	plan3, _ := PlanDispatch(b2.more().blueProves("G1").seed())
+	if plan3.PassPermitted {
+		t.Fatalf("plan = %+v, want the lens and blue engaged on G1", plan3)
+	}
+	for _, seat := range []string{evLens, "blue-respond"} {
+		if got := gapsOf(plan3, seat); !slices.Equal(got, []string{"G1"}) {
+			t.Errorf("%s engaged on %v once blue has acted on G1, want [G1]", seat, got)
 		}
 	}
 }

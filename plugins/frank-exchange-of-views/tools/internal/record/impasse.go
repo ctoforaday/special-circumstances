@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -135,7 +136,7 @@ func Exchanges(run Run, p Params) (map[string]*GapExchanges, error) {
 // is read from its caller: the chair's dispatch plan is its reader, and a plan is computed while the
 // run is running. ids is evs's places; remands is the "remand" view's rows by gap (remandRulingsOf).
 func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
-	out := exchangeFold(evs, ids, win, when)
+	out := exchangeFold(evs, ids, win, when, remands)
 	for g, x := range out {
 		ruled := remandSittingsOf(remands[g])
 		x.remandSittings = countedRemands(x.rounds, ruled, p)
@@ -150,9 +151,24 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 }
 
 // exchangeFold counts each gap's exchanges and stalls, and records each counted exchange as a round;
-// exchangesOf applies the run's terms and the remands to them.
-func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map[string]*GapExchanges {
+// exchangesOf applies the run's terms and the remands to them. remands is the "remand" view's rows
+// by gap (remandRulingsOf), read here for where each ruling hands the turn to blue.
+//
+// A ROUND OPENS ON THE LENS'S TURN, and the lens's turn is not only a sitting it was engaged in
+// (lensTurnOn, ruled by gblock 2026-10-30):
+//
+//   - the MINT is the minting lens's opening turn, so blue's first sitting on a fresh gap completes
+//     the gap's first exchange — the plan readies blue alone on it, and the lens sits after blue;
+//   - a REMAND RULING hands the turn to blue: the bench heard both parties, so blue's next sitting
+//     completes the exchange the remand grants, beginning at the ruling (impasseOf);
+//   - a lens's turn that has not come is PASSED: a counted round whose end leaves blue with no act
+//     on the gap since the lens's last act there readies the lens on nothing new, so the plan does
+//     not engage it, and the round blue's next sitting completes opens where this one ended. A gap
+//     blue never answers stalls exchange by exchange and reaches impasse as it did when the lens sat
+//     a null turn on it each epoch.
+func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
 	minted := map[string]string{}    // gap -> the lens that minted it
+	mintedAt := map[string]int64{}   // gap -> the place of its mint
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
 	dispatches, openings := dispatchLedger(evs, ids, win)
@@ -166,6 +182,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			g := b.GetGapId()
 			if _, seen := minted[g]; !seen {
 				minted[g] = e.GetSeatId()
+				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
 			}
 			for _, s := range b.GetSupersedes() {
@@ -226,11 +243,23 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 		sort.Slice(ss, func(a, b int) bool { return ss[a].start < ss[b].start })
 		moves := movement[g]
 		pendingRed := int64(math.MinInt64)
+		// handed is each place that hands the turn to blue outside a sitting: the mint, then each
+		// remand ruling, in place order; next is the first not yet passed.
+		rulings := remandPlaces(remands[g])
+		handed, next := append([]int64{mintedAt[g]}, rulings...), 0
 		for _, s := range ss {
+			for ; next < len(handed) && handed[next] < s.start; next++ {
+				pendingRed = handed[next]
+			}
 			if s.open {
 				// NOT COUNTED AND NOT ZERO. A sitting the record cannot close is reported as
-				// itself; folding it either way would state something the record does not hold.
+				// itself; folding it either way would state something the record does not hold. The
+				// lens's turn it is taking is unmeasured, so no turn handed before it opens a round
+				// the next blue sitting could complete.
 				x.Unresolved++
+				if s.red {
+					pendingRed = math.MinInt64
+				}
 				continue
 			}
 			if s.red {
@@ -255,7 +284,31 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			}
 			x.rounds = append(x.rounds, exchangeRound{start: pendingRed, end: s.end, moved: moved, acted: blueActed(acts[g], pendingRed, s.end)})
 			pendingRed = math.MinInt64
+			if !lensTurnOn(acts[g], minted[g], mintedAt[g], latestBefore(rulings, s.end), s.end) {
+				pendingRed = s.end // the lens's turn has not come, so it passes: blue's next sitting completes a round
+			}
 		}
 	}
 	return out
+}
+
+// remandPlaces is the place of each of a gap's remand rulings, in record order.
+func remandPlaces(rows []remandRow) []int64 {
+	out := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.eventID)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// latestBefore is the latest of places (sorted) at or before upto, 0 when none is.
+func latestBefore(places []int64, upto int64) int64 {
+	var at int64
+	for _, p := range places {
+		if p <= upto {
+			at = p
+		}
+	}
+	return at
 }

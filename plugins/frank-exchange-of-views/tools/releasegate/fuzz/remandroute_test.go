@@ -165,7 +165,8 @@ func (r *runner) remandStands(gapID string) bool {
 }
 
 // tallyTrifleRoutes counts each remanded gap that is not material whose one more exchange the plan
-// readies: named in remand_owed, with its minting lens and blue among the parties for it.
+// readies: named in remand_owed, with blue among the parties for it — the exchange begins with
+// blue's act, and the lens-turn oracle (tallyLensTurns) holds the minting lens to waiting for it.
 func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 	r.mu.Lock()
 	pending := map[string]bool{}
@@ -199,8 +200,8 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 		if !pending[o.GapID] {
 			continue
 		}
-		if !engagedOn[o.GapID]["blue-respond"] || !engagedOn[o.GapID][r.minterOf(o.GapID)] {
-			r.noteActErr(fmt.Sprintf("the plan names gap %s's remand as owed and does not engage its minting lens and blue on it: parties %v", o.GapID, parties))
+		if !engagedOn[o.GapID]["blue-respond"] {
+			r.noteActErr(fmt.Sprintf("the plan names gap %s's remand as owed and does not engage blue on it: parties %v", o.GapID, parties))
 			continue
 		}
 		r.mu.Lock()
@@ -210,13 +211,15 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 	}
 }
 
-// A REMAND'S ITEM HOLDS EACH SEAT IT READIES UNTIL THAT SEAT ACTS ON THE GAP (gblock, 2026-10-25).
+// A REMAND'S ITEM HOLDS BLUE UNTIL BLUE ACTS ON THE GAP (gblock, 2026-10-25), AND NEVER HOLDS THE
+// MINTING LENS (ruled by gblock 2026-10-30): the exchange begins with blue's act, and the lens's turn
+// on the gap comes with it.
 //
-// answerRemands is the act each owes before its envelope (record.EnvelopeRefusal refuses it while
-// the item blocks): blue a proof answering the gap — an act that moves nothing, so a gap the scenario
-// leaves unanswered still stalls, goes back to the bench and is closed there — and the minting lens a
-// regrade that keeps the grade. It acts on a gap only where the item blocks this seat's list, so a
-// seat that already acted, or whose dispatch was made before the ruling, is held to nothing here.
+// answerRemands is the act blue owes before its envelope (record.EnvelopeRefusal refuses it while
+// the item blocks): a proof answering the gap — an act that moves nothing, so a gap the scenario
+// leaves unanswered still stalls, goes back to the bench and is closed there. It acts on a gap only
+// where the item blocks blue's list, so a sitting that already acted, or whose dispatch was made
+// before the ruling, is held to nothing here. On the minting lens's list the item must not block.
 func (r *runner) answerRemands(seatID string) {
 	role := "lens"
 	if seatID == "blue-respond" {
@@ -231,34 +234,25 @@ func (r *runner) answerRemands(seatID string) {
 		if g.RemandStage != "owed" || g.DocketDirection == "" || !blocksOn(w.Sitting, g.ID, g.DocketDirection) {
 			continue
 		}
-		ok := false
-		if role == "blue" {
-			name := "fuzz-remand-" + g.ID + ".js"
-			if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
-				r.noteActErr("the remand's proof script could not be written: " + err.Error())
-				continue
-			}
-			_, ok = r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
-				"--reason", "fuzz: what the remand's direction found for "+g.ID)
-		} else {
-			_, ok = r.admitFresh(g.ID, "regrade", "--seat-id", seatID, "--id", g.ID,
-				"--reason", "fuzz: blue's answer re-audited against the remand's direction; the acceptance check still fails")
+		if role == "lens" {
+			r.noteActErr(fmt.Sprintf("%s's remand item on gap %s blocks its list — the exchange begins with blue's act, so the minting lens owes the gap nothing before it", seatID, g.ID))
+			continue
 		}
-		if !ok {
+		name := "fuzz-remand-" + g.ID + ".js"
+		if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
+			r.noteActErr("the remand's proof script could not be written: " + err.Error())
+			continue
+		}
+		if _, ok := r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
+			"--reason", "fuzz: what the remand's direction found for "+g.ID); !ok {
 			continue
 		}
 		if w2, err := record.WorkOfSeat(r.run(), role, seatID); err == nil && blocksOn(w2.Sitting, g.ID, g.DocketDirection) {
 			r.noteActErr(fmt.Sprintf("%s recorded an act on remanded gap %s and the remand's item still blocks its list", seatID, g.ID))
 			continue
 		}
-		if role == "lens" {
-			r.noteLensFirst(g.ID, g.DocketDirection)
-		}
 		r.mu.Lock()
-		if r.remandActs == nil {
-			r.remandActs = map[string]int{}
-		}
-		r.remandActs[role]++
+		r.blueRemandActs++
 		r.mu.Unlock()
 	}
 }
@@ -320,52 +314,31 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 	}
 }
 
-// THE LENS SITS FIRST, AND ITS ACT BEGINS NO REMAND'S EXCHANGE (ruled by gblock 2026-10-27).
+// A REMAND'S EXCHANGE BEGINS WITH BLUE (ruled by gblock 2026-10-27), and blue's item holds the sitting
+// its dispatch owes.
 //
-// debate.js dispatches the lenses before blue in an epoch, so the minting lens records its act on a
-// remanded gap before blue has answered. noteLensFirst remembers each gap the lens acted on while
-// blue's remand item on it still blocked — blue had not acted since the ruling — and the stage
-// still reads owed: the lens's act alone has begun nothing. lensFirstHeld then reads blue's list
-// BEFORE blue registers, when blue's sitting is not yet blue-respond's on the record: the item on each
-// such gap must be there and must block, with no reason saying the ruling came after blue's dispatch.
-// On universe-m35 it read "the ruling landed after this sitting opened" and did not block, and after
-// blue's sitting closed it was gone.
-
-// noteLensFirst records gapID as a remanded gap its minting lens acted on before blue, holding the
-// stage to owed while blue's item still blocks.
-func (r *runner) noteLensFirst(gapID, direction string) {
-	w, err := record.WorkOfSeat(r.run(), "blue", "blue-respond")
-	if err != nil {
-		r.noteActErr("blue's work list could not be read after the lens acted on a remanded gap: " + err.Error())
+// remandHeldBeforeRegister reads blue's list BEFORE blue registers, when blue's sitting is not yet
+// blue-respond's on the record, at the first blue sitting after each chair plan: the item on each gap
+// that plan owes a remand's exchange — the plan dispatching blue postdates the ruling — must be there
+// and must block, with no reason saying the ruling came after blue's dispatch. On universe-m35 it
+// read "the ruling landed after this sitting opened" and did not block, and after blue's sitting
+// closed it was gone.
+func (r *runner) remandHeldBeforeRegister() {
+	r.mu.Lock()
+	first := !r.blueSatSincePlan
+	r.blueSatSincePlan = true
+	plan := r.planThisSitting
+	r.mu.Unlock()
+	if !first || plan == nil {
 		return
 	}
-	if !blocksOn(w.Sitting, gapID, direction) {
-		return // blue acted on it since the ruling: the lens is not first
+	raw, _ := json.Marshal(plan["remand_owed"])
+	var owedByPlan []struct {
+		GapID     string `json:"gap_id"`
+		Direction string `json:"direction"`
 	}
-	for _, g := range w.Open {
-		if g.ID == gapID && g.RemandStage != "owed" {
-			r.noteActErr(fmt.Sprintf("the minting lens acted on remanded gap %s before blue did, and its remand_stage reads %q — the lens's act alone began the exchange", gapID, g.RemandStage))
-			return
-		}
-	}
-	r.mu.Lock()
-	if r.lensFirst == nil {
-		r.lensFirst = map[string]string{}
-	}
-	r.lensFirst[gapID] = direction
-	r.mu.Unlock()
-}
-
-// lensFirstHeld holds blue's list, read before blue registers, to each remanded gap the lens acted on
-// first: while the remand is owed, its item is on the list and blocks.
-func (r *runner) lensFirstHeld() {
-	r.mu.Lock()
-	pending := map[string]string{}
-	for g, d := range r.lensFirst {
-		pending[g] = d
-	}
-	r.mu.Unlock()
-	if len(pending) == 0 {
+	_ = json.Unmarshal(raw, &owedByPlan)
+	if len(owedByPlan) == 0 {
 		return
 	}
 	w, err := record.WorkOfSeat(r.run(), "blue", "blue-respond")
@@ -377,19 +350,16 @@ func (r *runner) lensFirstHeld() {
 	for _, g := range w.Open {
 		owed[g.ID] = g.RemandStage == "owed"
 	}
-	for g, d := range pending {
-		r.mu.Lock()
-		delete(r.lensFirst, g)
-		r.mu.Unlock()
-		if !owed[g] {
+	for _, o := range owedByPlan {
+		if !owed[o.GapID] {
 			continue // closed or docketed again since: no exchange is owed, and no item stands
 		}
-		if !blocksOn(w.Sitting, g, d) {
-			r.noteActErr(fmt.Sprintf("the minting lens acted on remanded gap %s first, and before blue registered its remand item does not block its list — the exchange is owed and blue has not acted", g))
+		if !blocksOn(w.Sitting, o.GapID, o.Direction) {
+			r.noteActErr(fmt.Sprintf("the plan dispatching blue owes remanded gap %s its exchange, and before blue registered its remand item does not block its list — blue has not acted", o.GapID))
 			continue
 		}
 		r.mu.Lock()
-		r.lensFirstHolds++
+		r.remandHolds++
 		r.mu.Unlock()
 	}
 }

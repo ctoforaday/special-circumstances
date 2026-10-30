@@ -250,8 +250,8 @@ func blueRetiresCitationFor(b *stage, gap string) *stage {
 // architecture and voice lenses each held a gap of their own that is not material, which readies
 // nobody and which blue never answered, and sat after every edit to the epoch limit: lens sittings
 // went from 29–30 to 50. A lens holding only its own unanswered gap retires at its third barren
-// sitting and the moved head does not ready it; a material gap still engages it as a party to its
-// own dispute, on that gap, as the debate readies any minter (foldPlan).
+// sitting and the moved head does not ready it. A material gap readies blue on it, and its lens only
+// once blue has acted on it (lensTurnOn): unanswered, it readies the lens for nothing.
 func TestALensHoldingOnlyItsOwnUnansweredGapRetires(t *testing.T) {
 	for _, c := range []struct {
 		name     string
@@ -274,9 +274,11 @@ func TestALensHoldingOnlyItsOwnUnansweredGapRetires(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p, party := partyOf(plan, evLens)
-			if want := c.material; party != want || (party && !slices.Equal(p.GapIDs, []string{"G1"})) {
-				t.Errorf("a party = %v on %v, want a party only on its material gap (%v): %+v", party, p.GapIDs, want, plan.Parties)
+			if p, party := partyOf(plan, evLens); party {
+				t.Errorf("the lens is a party on %v to a gap blue has not answered: %+v", p.GapIDs, plan.Parties)
+			}
+			if got := gapsOf(plan, "blue-respond"); c.material != slices.Equal(got, []string{"G1"}) {
+				t.Errorf("blue engaged on %v, want G1 exactly when it is material (%v): %+v", got, c.material, plan.Parties)
 			}
 		})
 	}
