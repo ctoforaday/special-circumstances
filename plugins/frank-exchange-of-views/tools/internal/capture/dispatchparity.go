@@ -107,12 +107,12 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	// separable from it by id. This exempts a bench register in the FINAL dispatch group only,
 	// which is where the terminal disposition and the assembly sit. The discrimination lost is
 	// narrow and real: a genuinely stray bench register in that last group now reads as a bookend.
-	// It cannot be recovered from an id that four sittings share — position is what distinguishes
+	// It cannot be recovered from an id that five sittings share — position is what distinguishes
 	// them, and position is already what this test uses.
 	// A BENCH SITTING THE ENGINE CONVENED IS NOT A STRAY. The terminal disposition and the assembly
 	// are convened by the engine, not by the chair, so each lands in a dispatch window with no
-	// dispatch row naming it. `docket` and `petition` are the occasions the chair dispatches — the
-	// bench's row names which — so a bench register of either is a party's sitting, answered by a
+	// dispatch row naming it. `docket`, `petition` and `position` are the occasions the chair
+	// dispatches — the bench's row names which — so a bench register of any of them is a party's sitting, answered by a
 	// row like any other, and one no row convened is a stray.
 	//
 	// THIS USED TO BE POSITION — "a bench register in the FINAL group" — which let a genuinely

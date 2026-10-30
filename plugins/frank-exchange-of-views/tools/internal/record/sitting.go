@@ -366,6 +366,11 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
+		// THE SITTING AFTER AN OVERRULED POSITION DECIDES THE PASS (gblock, 2026-10-30;
+		// positionheard.go): it owes a verdict, and a position here is refused.
+		if id, owed := overruledVerdictOwed(evs, win); owed {
+			add(overruledVerdictItem(id))
+		}
 	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
 	// CITATION OR COMPUTATION IT OWNS (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS
 	// REACHED, THE GAP ABOUT A CHECK OF ITS THAT FAILED, AND ITS CLOSING ON A GAP OF ITS OWN THAT IS
@@ -398,6 +403,15 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 					add(b.WorkItem())
 				} else {
 					may(b.WorkItem())
+				}
+				continue
+			}
+			// AN UPHELD POSITION NAMING THIS LENS IS ITS AUDIT TO HAVE, in a sitting opened after the
+			// ruling — one already open when the bench ruled cannot clear it, as an edited sentence's
+			// cannot (positionheard.go).
+			if b.Kind == BlockerUpheldPosition && b.Owner == seatID {
+				if win.LatestSittingOf(seatID) > b.since {
+					add(upheldAuditItem(b))
 				}
 				continue
 			}

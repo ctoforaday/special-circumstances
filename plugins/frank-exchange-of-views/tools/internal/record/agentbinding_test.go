@@ -114,7 +114,7 @@ func TestSeatBindingsBindABracketOnlySitting(t *testing.T) {
 	})
 }
 
-// THE OCCASION IS THE REGISTER'S. The bench's four sittings share one id, so its register says
+// THE OCCASION IS THE REGISTER'S. The bench's five sittings share one id, so its register says
 // which this one was convened for, and the binding carries it; a seat whose id already says, and an
 // agent bound by its bracket, read "" — read as a string, so a NULL that reached the scan would fail
 // here rather than silently become a docket ruling.

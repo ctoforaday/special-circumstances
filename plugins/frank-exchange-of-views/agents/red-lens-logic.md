@@ -167,7 +167,7 @@ Enumerated values:
 how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 §14 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules).
 
 §15 (on 3 pages):
 A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, answered by blue, or argued in another seat's finding after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you.
@@ -219,7 +219,7 @@ Available Commands:
   verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

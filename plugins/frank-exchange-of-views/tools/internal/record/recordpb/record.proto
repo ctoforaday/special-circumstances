@@ -590,6 +590,11 @@ enum MotionSubject {
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
   MOTION_SUBJECT_INQUIRY = 3 [(means) = "a ruling on an inquiry blue proposed; the id is the INQUIRY's own, because the proposal IS the filing", (ruled_by) = "chair"];
   MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
+  // A WITHHELD PASS IS HEARD (gblock, 2026-10-30). The chair's position at a sitting that withheld a
+  // PASS its plan permitted readies the bench on it, and the bench rules it: upheld names the work,
+  // overruled sends the PASS back to the chair's next sitting. The id is the POSITION's own, because
+  // the position IS the filing, as an inquiry's proposal is.
+  MOTION_SUBJECT_POSITION = 5 [(means) = "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", (ruled_by) = "bench"];
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
@@ -614,6 +619,15 @@ enum PetitionRuling {
   PETITION_RULING_UNSPECIFIED = 0;
   PETITION_RULING_GRANTED = 1 [(means) = "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"];
   PETITION_RULING_DENIED = 2 [(means) = "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"];
+}
+
+// THE BENCH'S TWO ANSWERS TO A WITHHELD PASS. Either way the objection is decided: an upheld one
+// names the work the debate continues on, an overruled one leaves the PASS to the chair's next
+// sitting, which records a verdict.
+enum PositionRuling {
+  POSITION_RULING_UNSPECIFIED = 0;
+  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange between its minting lens and blue — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
+  POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work"];
 }
 
 enum InquiryRuling {
@@ -1806,6 +1820,7 @@ message Motion {
     PetitionMotion petition = 11;
     InquiryMotion inquiry = 12;
     DocketMotion docket = 13;
+    PositionMotion position = 14;
   }
 }
 
@@ -1984,6 +1999,49 @@ message DocketRuling {
   }, (prose) = true];
 }
 
+// PositionMotion is the position subject's filing arm, and nothing writes it: the chair's position
+// IS the filing, as blue's proposal is an inquiry's, so the ruling joins on the position's own id.
+// The arm exists because every subject is spelled by an arm on both sides of the exchange
+// (Motion.Subject, MotionRule.Subject).
+message PositionMotion {
+  optional string position_id = 1;
+}
+
+// PositionHearing is the bench's ruling on a withheld PASS: the word, and on an upheld ruling the
+// work it names. A MESSAGE ARM, as the docket's is, because an upheld ruling carries the work and
+// the direction that work owes; the word alone is overruled.
+message PositionHearing {
+  // UPHELD NAMES THE WORK, OVERRULED NAMES NONE (gblock, 2026-10-30): a lens or open gaps, chosen
+  // per ruling, never both and never neither. The gaps are a list, which a CHECK cannot read, so
+  // which work an upheld ruling names, and that the lens and the gaps are on the record, is refused
+  // at the write (requirePositionHearing); what one row can say is said here.
+  option (check) = {
+    expr: "\"ruling\" = 'upheld' OR (\"lens\" IS NULL AND \"direction\" IS NULL)"
+    why: "an overruled position names no work: --lens and --direction are an upheld ruling's, and the PASS goes back to the chair"
+  };
+  option (check) = {
+    expr: "\"ruling\" <> 'upheld' OR coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> ''"
+    why: "an upheld position names the work the debate continues on, and --direction is what that work owes; a blank one is no direction"
+  };
+  optional PositionRuling ruling = 1 [(sql) = {
+    required: true
+    flag: "as"
+    why: "the bench's word on the withheld PASS — upheld names the work the debate continues on, overruled sends the PASS back to the chair's next sitting"
+  }];
+  // The lens an upheld ruling readies to audit its area, once.
+  optional string lens = 2 [(sql) = {
+    flag: "lens"
+    why: "on an upheld ruling: the lens readied to audit its area for the defect the position argues"
+  }];
+  // The open gaps an upheld ruling sends back for one more exchange.
+  repeated string gap_ids = 3;
+  // THE WORK'S DIRECTION. The dispatch hands it to the readied seats, as a remand's.
+  optional string direction = 4 [(sql) = {
+    flag: "direction"
+    why: "on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its minting lens"
+  }, (prose) = true];
+}
+
 // InquiryMotion rules on an inquiry blue proposed. The id is the INQUIRY's own — an inquiry has
 // no separate filing, because blue's proposal IS the filing.
 message InquiryMotion {
@@ -2047,6 +2105,7 @@ message MotionRule {
     PetitionRuling petition = 11;
     InquiryRuling inquiry = 12;
     DocketRuling docket = 13;
+    PositionHearing position = 14;
   }
 
   // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
@@ -2102,6 +2161,7 @@ enum Occasion {
   OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits"];
   OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
   OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
+  OCCASION_POSITION = 5 [(means) = "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits"];
 }
 
 // Register is every seat's FIRST record action, and the only event Append does not write —
@@ -2507,6 +2567,13 @@ message Outcome {
 
 message Position {
   optional string text = 1 [(sql) = { flag: "reason" }, (prose) = true];
+  // THE ID A BENCH RULING JOINS ON (gblock, 2026-10-30): a position at a sitting that withheld a PASS
+  // its plan permitted is heard by the bench, which rules it on this id. The tool assigns it.
+  optional string position_id = 2 [(sql) = {
+    required: true
+    unique: true
+    why: "the id the bench's ruling on a withheld PASS joins on — the tool assigns it, and a position without one cannot be heard"
+  }];
 }
 
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed

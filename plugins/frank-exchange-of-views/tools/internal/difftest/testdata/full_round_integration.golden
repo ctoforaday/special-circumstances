@@ -69,7 +69,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
-position recorded
+position POSITION001 recorded
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 7 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
@@ -111,7 +111,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, no
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_PARTIAL_CONTROL_COVERAGE","class_material":"CLASS_MATERIAL_BY_GRADE","complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["FINDING001","FINDING002"],"gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_MINT"}
 {"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP001","seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"round one: FAIL"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 {"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":15,"type":"EVENT_TYPE_DISPATCH"}
 {"dispatch":{"pin":"3","seat_id":"red-lens-logic"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_DISPATCH"}

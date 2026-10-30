@@ -268,7 +268,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 	}
 	parties = append(parties,
 		map[string]any{"seat_id": "blue-respond", "gap_ids": []any{gap}},
-		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "docket"}})
+		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "position", "docket"}})
 	chair := 0
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},

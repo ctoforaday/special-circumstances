@@ -55,6 +55,7 @@ func idKinds() []idKind {
 		{name: "gap", pattern: flags.GapID().Shape(), anchored: true},
 		{name: "inquiry", pattern: flags.InquiryID().Shape()},
 		{name: "motion", pattern: flags.MotionID().Shape()},
+		{name: "position", pattern: flags.PositionID().Shape()},
 		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
 		{name: "finding", pattern: kindShape("finding"), anchored: true},
 		{name: "computation", pattern: kindShape("computation"), anchored: true},
@@ -223,6 +224,14 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 				Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),
 			}},
 		})
+		return err
+	case "position":
+		// A position is the chair's alone, and one per sitting: each goes onto a run of its own.
+		runDir = newRun(t)
+		if err := writeSeat(t, runDir); err != nil {
+			return err
+		}
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Position{PositionId: proto.String(id), Text: proto.String("why the PASS is withheld")})
 		return err
 	case "finding":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Finding{Id: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})

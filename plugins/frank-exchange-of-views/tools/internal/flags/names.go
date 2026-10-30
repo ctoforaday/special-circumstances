@@ -255,6 +255,8 @@ const (
 	// so it answers neither ReopensOn nor Final.
 	Direction = "direction"
 	Relief    = "relief"
+	// Lens is the lens an upheld ruling on the chair's withheld PASS names to audit its area.
+	Lens = "lens"
 
 	// Blue's process record.
 	Method     = "method"
@@ -324,7 +326,7 @@ func All() []string {
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
-		Settled, ReopensOn, Final, Direction,
+		Settled, ReopensOn, Final, Direction, Lens,
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, BinDir, RunID, ScriptPath, AllowSubstitution, FromSession,
 		Card, Watch, Now, Serve,
@@ -351,7 +353,7 @@ var closedForm = map[string]bool{
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true,
 	Model: true, JudgmentModel: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
-	Card: true, Occasion: true,
+	Card: true, Occasion: true, Lens: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.

@@ -18,13 +18,14 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a check of its that failed; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition or a position alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
-	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
+	// (the gap_ids, after blue sits), `petition` (the unruled petitions, before any party sits) and
+	// `position` (the chair's position on a PASS it withheld, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
 	// the workflow routes on it — never on an empty gap list. Every other seat has no occasion, and
 	// the field is absent.
-	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (before any other party sits), docket (its gap_ids, after blue)"`
+	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (before any other party sits), position (the chair's position on a PASS it withheld, before any other party sits), docket (its gap_ids, after blue)"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -517,6 +518,12 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
+		// AN UPHELD POSITION THAT NAMES A LENS READIES IT until it has audited its area: its blocker
+		// stands until the lens is served the report in a sitting opened after the ruling
+		// (upheldPositionBlockers), so the readiness ends with it.
+		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
+			engage(b.Owner, "")
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, contradictionReadiness(b, true))
@@ -676,8 +683,8 @@ func epochLimitHeldTheBench(params Params, r planReads) bool {
 		}
 		subj, _ := MotionSubjectEnum(m.Subject) // benchSittingFor holds the bench-ruled subjects only
 		switch benchSittingFor[subj] {
-		case recordpb.Occasion_OCCASION_PETITION:
-			if !benchSatOnOccasionSince(benchOn, recordpb.Occasion_OCCASION_PETITION, m.filed) {
+		case recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_POSITION:
+			if !benchSatOnOccasionSince(benchOn, benchSittingFor[subj], m.filed) {
 				return true
 			}
 		case recordpb.Occasion_OCCASION_DOCKET:
@@ -1272,6 +1279,7 @@ func owedSitting(evs []*Event, win WindowIndex, seatID string) (dispatchRow, boo
 var (
 	occasionDocket   = recordpb.Word(recordpb.Occasion_OCCASION_DOCKET)
 	occasionPetition = recordpb.Word(recordpb.Occasion_OCCASION_PETITION)
+	occasionPosition = recordpb.Word(recordpb.Occasion_OCCASION_POSITION)
 )
 
 // benchSittingFor is the sitting dispatch convenes the bench for to rule a motion of each subject
@@ -1280,6 +1288,7 @@ var (
 var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: recordpb.Occasion_OCCASION_PETITION,
 	recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:   recordpb.Occasion_OCCASION_DOCKET,
+	recordpb.MotionSubject_MOTION_SUBJECT_POSITION: recordpb.Occasion_OCCASION_POSITION,
 }
 
 // contradictionReadiness is the plan's reason on a contradiction a lens read and nothing has
@@ -1321,6 +1330,14 @@ func failedCheckReadiness(b Blocker, seat string, satSince bool) string {
 func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat, occasion string, gaps ...string)) string {
 	subj, _ := MotionSubjectEnum(b.motionSubject)
 	switch occ, routed := benchSittingFor[subj]; {
+	// A WITHHELD PASS IS HEARD AT A POSITION SITTING, once per filing, as a petition is at its own
+	// (positionheard.go). The plan the withholding sitting relays convenes it.
+	case routed && occ == recordpb.Occasion_OCCASION_POSITION:
+		if benchSatOnOccasionSince(on, recordpb.Occasion_OCCASION_POSITION, b.since) {
+			return fmt.Sprintf("%s: the chair's position on the PASS it withheld, unruled, and the bench has sat to hear positions since it was filed — one position sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
+		}
+		engage(benchSeat, occasionPosition)
+		return fmt.Sprintf("%s: the chair withheld the PASS its plan permitted and argued why — the bench is ready to hear the position, and rules it upheld, naming the work the debate continues on, or overruled, sending the PASS back to the chair's next sitting", b.Subject)
 	case routed && occ == recordpb.Occasion_OCCASION_PETITION:
 		if benchSatOnOccasionSince(on, recordpb.Occasion_OCCASION_PETITION, b.since) {
 			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
@@ -1340,7 +1357,7 @@ func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasio
 
 // dispatchOccasions is what the chair convenes the bench for, in schema order: a dispatch row
 // names these and no other. The terminal and assembly sittings are the engine's own.
-var dispatchOccasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION}
+var dispatchOccasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_POSITION}
 
 // DispatchOccasions is the words a plan's bench party can carry in `occasions` — the set
 // requireDispatchOccasions holds a dispatch row to, which the engine script's party schema is
@@ -1362,12 +1379,12 @@ func requireDispatchOccasions(b *recordpb.Dispatch) error {
 		return nil
 	}
 	if len(occ) == 0 {
-		return fmt.Errorf("a bench row names what the bench is convened for (%s, %s, or both); its one seat id cannot say", occasionDocket, occasionPetition)
+		return fmt.Errorf("a bench row names what the bench is convened for (%s); its one seat id cannot say", strings.Join(wordsOf(dispatchOccasions), ", "))
 	}
 	seen := map[recordpb.Occasion]bool{}
 	for _, o := range occ {
 		if !slices.Contains(dispatchOccasions, o) {
-			return fmt.Errorf("the chair convenes the bench for %s or %s, and %s is a sitting the engine convenes", occasionDocket, occasionPetition, recordpb.Word(o))
+			return fmt.Errorf("the chair convenes the bench for %s, and %s is a sitting the engine convenes", strings.Join(wordsOf(dispatchOccasions), " or "), recordpb.Word(o))
 		}
 		if seen[o] {
 			return fmt.Errorf("the row names %s twice; the bench sits once per occasion", recordpb.Word(o))

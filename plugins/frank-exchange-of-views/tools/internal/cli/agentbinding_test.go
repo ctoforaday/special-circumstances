@@ -269,9 +269,9 @@ func TestABracketBoundSeatThatActsIsRegisteredAndCapped(t *testing.T) {
 // THE ONE SURFACE WHOSE REGISTER CARRIES MORE THAN THE BINDING IS STILL REFUSED, because what it
 // carries there cannot be supplied by anything but the seat:
 //
-//	bench   --occasion        which of its four questions this sitting answers
+//	bench   --occasion        which of its five questions this sitting answers
 //
-// Registering it silently would have to INVENT the answer: the bench's four sittings would become
+// Registering it silently would have to INVENT the answer: the bench's five sittings would become
 // indistinguishable once the run is archived — so here the call is the seat's to spend, and the
 // refusal names it. BLUE'S REGISTER CARRIES NOTHING BUT THE BINDING, so a blue seat acting first is
 // registered for it, as a lens and the chair are.

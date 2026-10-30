@@ -33,7 +33,7 @@ func listsItem(s SittingJSON, sub string) bool {
 }
 
 func (b *stage) position(seat string) *stage {
-	return b.add(seat, &recordpb.Position{Text: proto.String("the position")})
+	return b.add(seat, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the position")})
 }
 
 // lastKey is the key of the event the stage wrote last.

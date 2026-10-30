@@ -131,6 +131,7 @@ CREATE TABLE "enum_occasion" (
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('assemble', 'assembling the final report by union-copy. The last step of the run');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('docket', 'ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the petitions filed since the bench last sat to hear one. The chair''s plan convenes it at the next chair sitting, before any party of that epoch sits');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('position', 'hearing the chair''s position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
 
 CREATE TABLE "enum_verdict" (
@@ -216,6 +217,13 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defec
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap; its minting lens''s act alone begins nothing. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap''s limits count afresh from it', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
+
+CREATE TABLE "enum_position_ruling" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange between its minting lens and blue — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
 
 CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
@@ -444,7 +452,8 @@ CREATE TABLE "outcome" (
 
 CREATE TABLE "position" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "text" TEXT
+  "text" TEXT,
+  "position_id" TEXT NOT NULL UNIQUE
 ) STRICT;
 
 CREATE TABLE "halt" (
@@ -504,6 +513,11 @@ CREATE TABLE "motion_docket" (
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
+CREATE TABLE "motion_position" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
+  "position_id" TEXT
+) STRICT;
+
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL,
@@ -536,6 +550,23 @@ CREATE TABLE "motion_rule_docket" (
   CHECK ("disposition" <> 'remanded' OR (coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> '' AND "reopens_on" IS NULL AND "final" IS NULL)),
   CHECK ("disposition" = 'remanded' OR "direction" IS NULL),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_position" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion_rule"("event_id"),
+  "ruling" TEXT NOT NULL,
+  "lens" TEXT,
+  "direction" TEXT,
+  CHECK ("ruling" = 'upheld' OR ("lens" IS NULL AND "direction" IS NULL)),
+  CHECK ("ruling" <> 'upheld' OR coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> ''),
+  FOREIGN KEY ("ruling") REFERENCES "enum_position_ruling"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_position_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "motion_rule_position"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "mint" (
@@ -1239,7 +1270,10 @@ WHERE r."claim_kept" = 1;
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
--- and the research direction it states, which the DocketRuling CHECKs require of a remand.
+-- and the research direction it states, which the DocketRuling CHECKs require of a remand — and every
+-- gap an upheld ruling on the chair's withheld PASS sends back for one more exchange, one row per gap
+-- (gblock, 2026-10-30): that is a remand too, on the ruling's direction, and the gap's one remand at
+-- impasse like any other.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -1257,7 +1291,17 @@ JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
 JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 JOIN "events" e ON e."id" = mr."event_id"
-WHERE NOT d."closes";
+WHERE NOT d."closes"
+UNION ALL
+SELECT pg."value"                           AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rp."direction"                       AS "direction"
+FROM "motion_rule_position_gap_ids" pg
+JOIN "motion_rule_position" rp ON rp."event_id" = pg."event_id"
+JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE rp."ruling" = 'upheld';
 
 -- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:

@@ -31,7 +31,7 @@ import (
 // express "required only when --on=grade", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "inquiry", "docket"}
+var MotionSubjects = []string{"grade", "petition", "inquiry", "docket", "position"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -43,6 +43,7 @@ var MotionVerdicts = map[string][]EnumValue{
 	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
 	"inquiry":  evsOf(recordpb.InquiryRuling(0).Descriptor()),
+	"position": evsOf(recordpb.PositionRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
 	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of
@@ -228,6 +229,8 @@ type Motion struct {
 	// Principle is the principle a docket ruling states, which the write requires of every one.
 	// Only the docket arm carries one; any other subject's ruling leaves it "".
 	Principle string
+	// Work is what an upheld ruling on a position names; zero on every other ruling.
+	Work PositionWork
 
 	// Subject-specific payload, carried rather than re-derived.
 	Fields map[string]string
@@ -273,6 +276,8 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		sitting      int
 	}
 	proposals := map[string]proposal{}
+	// The positions the bench hears: each is a position motion, filed by the position itself.
+	heard := heardPositionsOf(evs, win)
 
 	// TWO PASSES, SO THE JOIN DOES NOT DEPEND ON THE ORDER THE EVENTS ARRIVE IN.
 	//
@@ -308,6 +313,21 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			continue
 		}
 		switch f := body.(type) {
+		case *recordpb.Position:
+			// A HEARD POSITION IS ITS OWN FILING (heardPositionsOf), joined on the position's id, as an
+			// inquiry's proposal is. A position the bench does not hear is no motion.
+			if !heard[e] || f.GetPositionId() == "" {
+				continue
+			}
+			id := f.GetPositionId()
+			w := win.Of(e)
+			m := &Motion{ID: id, Subject: positionSubject, Filer: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
+				Basis: f.GetText(), Fields: map[string]string{"position_id": id}}
+			if seq != nil {
+				m.filed = seq[i]
+			}
+			byID[id] = m
+			order = append(order, id)
 		case *recordpb.Motion:
 			// THE FILING CARRIES THE ID EVERYTHING ELSE JOINS ON. It is read from the filing's own
 			// message rather than from a key that might be present on anything.
@@ -360,6 +380,12 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				if fil.Docket.GapId != nil {
 					m.Fields["gap_id"] = fil.Docket.GetGapId()
 					m.GapID = fil.Docket.GetGapId()
+				}
+			case *recordpb.Motion_Position:
+				// NOTHING WRITES THIS ARM: the position is the filing (the Position case above). An
+				// arm a stored motion carries anyway is folded as what it says.
+				if fil.Position.PositionId != nil {
+					m.Fields["position_id"] = fil.Position.GetPositionId()
 				}
 			default:
 				// A FILING ARM NOBODY FOLDED RENDERS AS A MOTION WITH NO ASK IN IT. Fields stays
@@ -428,6 +454,9 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = rulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
 		m.Opinion = f.GetOpinion()
 		m.Principle = f.GetDocket().GetPrinciple()
+		if h := f.GetPosition(); h != nil {
+			m.Work = PositionWork{Lens: h.GetLens(), GapIDs: h.GetGapIds(), Direction: h.GetDirection()}
+		}
 		if seq != nil {
 			m.ruled = seq[i]
 		}
@@ -482,6 +511,14 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject, id string) (filed string, err error) {
 	if id == "" {
 		return "", fmt.Errorf("--id is required — a ruling names the motion it answers, and that join is the whole of #312")
+	}
+	// A heard position has no filing event either — the position is the filing — so an id that
+	// resolves to a position the bench hears IS a position motion by construction.
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_POSITION {
+		if err := requirePositionRef(q, id); err != nil {
+			return "", err
+		}
+		return motionSubjectWord(subject), nil
 	}
 	// An inquiry has no filing event — the proposal is the filing — so an id that resolves to an
 	// inquiry IS an inquiry motion by construction.

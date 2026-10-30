@@ -264,6 +264,10 @@ func payloadKey(flag string) string {
 // lying about what it accepts, and the help IS the contract a seat reads.
 // ruleDetail is what a subject's ruling page says of that subject alone.
 var ruleDetail = map[string]string{
+	"position": "\n\nA POSITION HAS NO FILING: the chair's position at a sitting that withheld a PASS its plan permitted is the filing, so the id is the position's own — the " +
+		"`A-` id your work list names with the chair's argument, which is what you rule on. A position filed at any other sitting is not before you, and its id is refused. " +
+		"EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange between its minting lens and blue on --direction — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. " +
+		"`overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.",
 	"docket": "\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
 		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
 		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap — the minting lens's act alone begins nothing — and each seat's sitting cannot end until it has acted on it. " +
@@ -282,8 +286,11 @@ var ruleDetail = map[string]string{
 func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	e := record.MotionVerdictEnum(subject)
 	what := record.Article(subject) + " " + subject + " motion"
-	if subject == "inquiry" {
+	switch subject {
+	case "inquiry":
 		what = "an inquiry blue proposed"
+	case "position":
+		what = "the chair's position on a PASS it withheld"
 	}
 	c := &cobra.Command{
 		Use:   "rule",
@@ -296,9 +303,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		// — the subgroup's refusal in command.go — not to the gavel-holder, who never does.
 		Long: "rule on " + what + " — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
-			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two each convene a " +
+			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's three each convene a " +
 			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
-			"sits; a docket after blue has sat on the gap." + ruleDetail[subject],
+			"sits; a position by the plan of the chair sitting that withheld the PASS, before any party of the next epoch sits; a docket after blue has sat on the gap." + ruleDetail[subject],
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -387,6 +394,23 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				}
 				dr.Direction = seat.OptStr(cmd, flags.Direction)
 				body.Ruling = &recordpb.MotionRule_Docket{Docket: dr}
+			case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
+				v, ok := enumOf[recordpb.PositionRuling](recordpb.PositionRuling(0).Descriptor(), word)
+				if !ok {
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a position", word)
+				}
+				// AN OMITTED FLAG STAYS ABSENT, as the docket's do: the write refuses the wrong work for
+				// the word (record's requirePositionHearing) in the ruling's own terms.
+				h := &recordpb.PositionHearing{Ruling: &v, Lens: seat.OptStr(cmd, flags.Lens), Direction: seat.OptStr(cmd, flags.Direction)}
+				if csv, ok := cmd.Flags().Lookup(flags.IDs).Value.(*flags.CSV); ok {
+					for _, g := range csv.Value() {
+						if err := flags.GapID().Set(g); err != nil {
+							return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.IDs, err)
+						}
+					}
+					h.GapIds = csv.Value()
+				}
+				body.Ruling = &recordpb.MotionRule_Position{Position: h}
 			default:
 				// The ruling half of the same silence: no arm leaves Ruling nil, `rulingWord`
 				// returns "", and record.go refuses — but naming the SUBJECT rather than the
@@ -419,12 +443,24 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	enumhelp.Flag(c, flags.As, e, "your ruling")
 	seat.Require(c, flags.As)
 	for _, f := range ruleFlags {
+		help := ruleFlagHelp[f]
+		if h, ok := positionFlagHelp[f]; ok && subject == "position" {
+			help = h
+		}
 		switch f {
 		case flags.Final:
-			c.Flags().Bool(f, false, ruleFlagHelp[f])
+			c.Flags().Bool(f, false, help)
+		case flags.Lens:
+			// A seat id: closed form, so no quoting rule.
+			c.Flags().String(f, "", help)
+		case flags.IDs:
+			c.Flags().Var(new(flags.CSV), f, help)
 		default:
-			flags.Text(c, f, ruleFlagHelp[f])
+			flags.Text(c, f, help)
 		}
+	}
+	if subject == "position" {
+		seat.RequiredUnless(c, flags.Direction, "unless --as overruled")
 	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
@@ -458,6 +494,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 func refHelp(subject string) string {
 	if subject == "inquiry" {
 		return "the INQUIRY id: an inquiry's filing is the proposal, so it joins on the inquiry's own id, not a motion's"
+	}
+	if subject == "position" {
+		return "the POSITION id: a heard position's filing is the position itself, so it joins on the position's own id, not a motion's"
 	}
 	return "the motion id"
 }
@@ -524,6 +563,14 @@ var ruleFlagHelp = map[string]string{
 	flags.Direction:  "on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this",
 }
 
+// positionFlagHelp is what a ruling on a position says of the flags it shares with the docket's, and
+// of its own: the work an upheld ruling names.
+var positionFlagHelp = map[string]string{
+	flags.Direction: "the work an upheld ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens",
+	flags.Lens:      "on an upheld position, naming the work as a lens: the `seat-id` of the lens of the run's cast readied to audit its area on --direction. Never with --ids, never on an overruled one",
+	flags.IDs:       "on an upheld position, naming the work as open gaps — their `gap-ids`, comma-separated: each goes back for one more exchange between its minting lens and blue on --direction. Never with --lens, never on an overruled one",
+}
+
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a
 // wrong-kind value is refused by its shape rather than by a lookup that reports "no such motion" for a
 // perfectly good gap id.
@@ -541,6 +588,9 @@ var ruleFlagHelp = map[string]string{
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 	if subject == "inquiry" {
 		return flags.InquiryID()
+	}
+	if subject == "position" {
+		return flags.PositionID()
 	}
 	if filing {
 		return flags.GapID()

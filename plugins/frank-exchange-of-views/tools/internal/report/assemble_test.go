@@ -687,7 +687,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		mintT(t, "red-lens-logic", "G1"), // the gap the docket motion below names
 		// The chair's register opens epoch 1; everything below sits in it.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("gap A stands")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the

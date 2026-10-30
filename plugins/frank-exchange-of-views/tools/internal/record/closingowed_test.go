@@ -239,7 +239,7 @@ func TestTheWritePathAdmitsAClosingOnlyFromAPartyOnADocketedGap(t *testing.T) {
 // the verb and under Migrating alike: a party argues a docketed gap in its closing.
 func TestTheWritePathAdmitsAPositionOnlyFromTheChair(t *testing.T) {
 	run := docketed(t).seed()
-	position := &recordpb.Position{Text: proto.String("why the PASS was withheld")}
+	position := &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("why the PASS was withheld")}
 	for _, replaying := range []bool{false, true} {
 		if replaying {
 			migrating(t)

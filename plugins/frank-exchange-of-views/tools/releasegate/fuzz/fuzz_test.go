@@ -596,6 +596,15 @@ type runner struct {
 	// is the bench occasion each was ruled at. The petition oracle reads the two.
 	petitionsFiled  []filedPetition
 	petitionRuledAt map[string]string
+	// positionsHeard is every position the chair filed on a PASS it withheld; positionRuledAt the
+	// bench occasion each was ruled at. overruledPending is the position the bench overruled since
+	// the chair last sat, whose next sitting owes the verdict. The counts are the rulings and the
+	// refusals driven (positionheard_test.go).
+	positionsHeard                                   []string
+	positionRuledAt                                  map[string]string
+	overruledPending                                 string
+	positionsUpheld, positionsOverruled              int
+	positionRulingsRefused, repeatedPositionsRefused int
 	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
 	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
 	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
@@ -1163,12 +1172,15 @@ func (r *runner) chairPosition(seatID string, owed bool) {
 	if !owed && !r.coin(30) {
 		return
 	}
-	if _, err := r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID); err != nil {
+	out, err := r.exec("--json", "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	if err != nil {
 		return
 	}
 	if owed {
+		// THE BENCH HEARS IT (gblock, 2026-10-30): the plan the chair asks for next convenes it.
 		r.mu.Lock()
 		r.positionsWithheld++
+		r.positionsHeard = append(r.positionsHeard, positionIDOf(out))
 		r.mu.Unlock()
 	}
 	// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second is
@@ -4661,10 +4673,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.extras("chair", seatID, r.openGaps())
 		r.carryPrior(seatID)
 		permitted, _ := plan["pass_permitted"].(bool)
+		// THE BENCH OVERRULED THE CHAIR'S LAST POSITION: this sitting decides on the PASS. A position
+		// here would withhold it on the same objection again and is refused; the verdict follows.
+		overruled := r.takeOverruled()
+		if overruled != "" && permitted && r.coin(50) {
+			r.repeatedPositionRefused(seatID, overruled)
+		}
 		// A CHAIR MAY WITHHOLD A PASS THE BOARD PERMITS, and its position then says why — the one
-		// sitting the position is owed at (record.PositionSittings). Drawn rarely, never in the
-		// forced-verified run: the debate ends there UNVERIFIED, nobody being ready.
-		if permitted && !r.forceVerified && r.coin(5) {
+		// sitting the position is owed at (record.PositionSittings). The bench hears it next. Drawn
+		// rarely, never in a forced run, and never where an overruling decided the objection.
+		if permitted && overruled == "" && !r.forcedVerdict() && r.coin(5) {
 			r.chairPosition(seatID, true)
 			return r.chairEnvelope(seatID, "", "", responses)
 		}
@@ -4812,6 +4830,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	//
 	// This reads the OCCASION recordClause writes into the prompt — the same word a real bench seat
 	// is told and types at `register` — so the fuzz stands in for the seat instead of guessing at it.
+	case debatejs.OccasionOf(prompt) == "position":
+		// THE CHAIR'S POSITION ON A PASS IT WITHHELD: the bench rules it, and its envelope carries
+		// only a halt.
+		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.rulePositions(seatID, "position")
+		return map[string]any{}
+
 	case debatejs.OccasionOf(prompt) == "petition":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
@@ -4833,6 +4858,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// dispatched to nobody, and `bench outcome` refuses while its motion stands.
 		if debatejs.OccasionOf(prompt) == "terminal" {
 			r.rulePending(seatID, "terminal")
+			r.rulePositions(seatID, "terminal")
 			r.ruleStandingDockets(seatID)
 		}
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
@@ -5464,8 +5490,10 @@ type outcome struct {
 	// blue's answer to a ruling records a fate by an id read off the record, so neither notices the
 	// propose-result reader going blind.
 	inquiryRecords int
-	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's.
+	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's, as are
+	// positionsUpheld and positionsOverruled, the bench's rulings on them.
 	closingsFiled, closingsRefused, closingWaits, positionsWithheld int
+	positionsUpheld, positionsOverruled                             int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
 	// spansRefused is the cites the tool refused for a span the source does not hold
@@ -6137,6 +6165,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = o
 		return res
 	}
+	if o := r.positionOracle(halted); o != "" {
+		res.err = o
+		return res
+	}
 	if r.lastPassRefusal != "" && res.verdict != "VERIFIED" {
 		res.why = "PASS refused: " + r.lastPassRefusal
 		if r.lastRuleRefusal != "" {
@@ -6795,6 +6827,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.inquiryRecords = r.inquiryRecords
 	res.closingsFiled, res.closingsRefused, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsRefused, r.closingWaits, r.positionsWithheld
+	res.positionsUpheld, res.positionsOverruled = r.positionsUpheld, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
 	res.copiesRead = r.copiesRead

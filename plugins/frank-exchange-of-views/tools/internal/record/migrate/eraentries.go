@@ -36,7 +36,7 @@ func eraEntries() Registry {
 		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
-		"position": mapped("position", ren{"reason": "text"}, nil, nil),
+		"position": positionEntry(mapped("position", ren{"reason": "text"}, nil, nil)),
 		"closing":  mapped("closing", ren{"reason": "text"}, nil, nil),
 		"certify":  mapped("certify", ren{"reason": "statement"}, nil, nil),
 		"regrade":  mapped("regrade", ren{"reason": "basis"}, nil, nil),
@@ -74,6 +74,26 @@ type (
 // columns and lists whose retirement the schema recorded (each with its reason, which lands in
 // the refusal if the drop map is wrong), remap recorded value renames, then hold the result to
 // the same identity contract every kept word gets.
+// positionEntry gives an archived position the id a position carries from epoch 49 (gblock,
+// 2026-10-30: a bench ruling on a withheld PASS joins on it). The archive holds none, so the entry
+// names the position by its place in the source — its seat, timestamp and key, which no two of its
+// events share — and the remap mints the id from that name and the source hash (Position.position_id
+// is a minting field), so two migrations of one source give one position one id.
+func positionEntry(e Entry) Entry {
+	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
+		bodies, err := e.Translate(old)
+		if err != nil {
+			return nil, err
+		}
+		for _, b := range bodies {
+			if p, ok := b.(*recordpb.Position); ok && p.PositionId == nil {
+				p.PositionId = proto.String(fmt.Sprintf("position %s %s %s", old.SeatID, old.TS, old.Key))
+			}
+		}
+		return bodies, nil
+	}}
+}
+
 func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entry {
 	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
 		out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,

@@ -118,7 +118,7 @@ const SEATS = {
   'red-lens-voice': { role: 'lens', tier: 'bulk', agentType: 'frank-exchange-of-views:red-lens-voice', area: 'voice' },
 }
 const LANE = { prefix: 'blue-lane-', role: 'blue', tier: 'bulk', agentType: 'frank-exchange-of-views:blue-researcher' }
-const OCCASION = { docket: 'docket', petition: 'petition', terminal: 'terminal', assemble: 'assemble' }
+const OCCASION = { docket: 'docket', petition: 'petition', terminal: 'terminal', assemble: 'assemble', position: 'position' }
 const MASS_MAPPING_VERSION = 'v2'
 // END GENERATED SEATS
 const roleOfSeat = (id) => (Object.prototype.hasOwnProperty.call(SEATS, id) ? SEATS[id].role : '')
@@ -377,7 +377,7 @@ const RULING_ON_PETITION = { type: 'string', enum: ['granted', 'denied'] }
 const RELIEF_BINDS = { type: 'string', enum: ['blue', 'red', 'both'] }
 const DISPOSITION = { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'defect_owed_elsewhere', 'remanded', 'moot'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
-const BENCH_PARTY_OCCASIONS = ['docket', 'petition']
+const BENCH_PARTY_OCCASIONS = ['docket', 'petition', 'position']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
 const BENCH_PARTY = {
   type: 'object',
@@ -385,8 +385,8 @@ const BENCH_PARTY = {
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['judge'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps docketed for the bench; empty when it is convened for a petition alone' },
-    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: BENCH_PARTY_OCCASIONS }, description: 'what the bench is convened for — petition (before any other party sits), docket (its gap_ids, after blue)' },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps docketed for the bench; empty when it is convened for a petition or a position alone' },
+    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: BENCH_PARTY_OCCASIONS }, description: "what the bench is convened for — petition (before any other party sits), position (the chair's position on a PASS it withheld, before any other party sits), docket (its gap_ids, after blue)" },
   },
 }
 const LENS_OR_BLUE_PARTY = {
@@ -395,7 +395,7 @@ const LENS_OR_BLUE_PARTY = {
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a check of its that failed; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
     occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
   },
 }
@@ -417,7 +417,7 @@ const PLAN = {
     epoch: { type: 'integer', minimum: 0, description: 'the epoch the record has reached: the chair sittings opened so far, this one included' },
     final_sitting: { type: 'boolean', description: "this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit" },
     epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
-    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'remand_owed', 'contradiction', 'unchecked', 'failed_check', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
+    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'remand_owed', 'contradiction', 'unchecked', 'failed_check', 'no_report', 'lens_ready', 'stale_area', 'grade_movement', 'closing_owed', 'unruled_motion', 'upheld_position', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
     verdict: { type: 'string', enum: ['PASS', 'FAIL'], description: 'the verdict the chair recorded in this sitting; absent while it has recorded none' },
   },
@@ -893,7 +893,7 @@ let haltOpinion = null
 // A HALT IS ASKED THE SAME WAY WHEREVER THE BENCH HEARS A PETITION — the petition sitting, and the
 // terminal sitting a petition still standing at the exit reaches. `effect` says what the envelope's
 // halt does from that sitting.
-const haltClause = (effect) => `A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a petition, and both can be true at once — rule the petition on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, and ALSO return the envelope's \`halt\` object carrying that same opinion, which is what ${effect}.`
+const haltClause = (effect, filing = 'petition') => `A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a ${filing}, and both can be true at once — rule the ${filing} on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, and ALSO return the envelope's \`halt\` object carrying that same opinion, which is what ${effect}.`
 
 // takePetitionRulings carries a sitting's petition rulings and its halt into the engine — the one
 // handler for every sitting that can hear a petition, so a ruling reaches the returned petitions and
@@ -930,6 +930,28 @@ async function hearPetitions() {
   // the bench for it again.
   if (!sitting) return false
   return takePetitionRulings(sitting)
+}
+// A POSITION SITTING HEARS THE CHAIR'S POSITION ON A PASS IT WITHHELD (gblock, 2026-10-30): a chair
+// sitting whose plan permitted the PASS, that recorded none, and that filed the position readies the
+// bench on it, and this script convenes that sitting where it convenes a petition's — before any
+// other party of the epoch sits. The ruling is on the record; the envelope carries only the halt,
+// because what the ruling sets in motion — the work an upheld ruling names, or the verdict an
+// overruled one sends back to the chair — reaches the coming seats through the record's plan and
+// their work lists, never through this script.
+const POSITION_HEARING = { type: 'object', additionalProperties: false, properties: { halt: PETITION_RULING.properties.halt } }
+
+async function hearPositions() {
+  const seatID = 'judge'
+  log(`epoch ${epoch}: the plan convenes the bench to hear the chair's position on the PASS it withheld — before any party of this epoch sits`)
+  const sitting = await sit((o) => agent(
+    `Position sitting, topic "${topic}". The chair held back a PASS its plan permitted, and its position argues why: your work list names each such position whose gavel is yours, and the motions projection carries the position's text. Read the report, the board and the position, and rule EACH position upheld | overruled, with your opinion — the reasoning, the principle applied, why the objection does or does not hold. EITHER WAY THE OBJECTION IS DECIDED, NOT DROPPED. UPHELD: the objection holds, and your ruling NAMES THE WORK the debate continues on, one way: a lens, to audit its area, or open gaps, each sent back for one more exchange between its minting lens and blue — a gap sent back this way is its one remand at impasse, as a docket remand is — and in either case the DIRECTION that work owes, written as a directive a seat can act on. OVERRULED: the objection does not hold; you name no work, and the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict on it. Read the transcript for context. ${haltClause('stops the engine', 'position')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.position)} Return your envelope.`, o),
+    { ...dispatchAs(seatID), label: `judge · ${OCCASION.position} · ${slug}`, phase: 'Debate', schema: POSITION_HEARING })
+  // A HEARD POSITION IS NEVER DROPPED: it stands on the record unruled, and the next plan convenes
+  // the bench for it again.
+  if (!sitting) return false
+  if (sitting.halt && sitting.halt.opinion) { halted = true; haltOpinion = sitting.halt.opinion }
+  if (halted) log(`JUDICIAL HALT — ${haltOpinion ? haltOpinion.slice(0, 200) : ''}`)
+  return halted
 }
 // ---- Frontier ----
 phase('Frontier')
@@ -1118,6 +1140,8 @@ while (!halted && !seatStop) {
   // A PETITION IS HEARD BEFORE ANY PARTY OF THE EPOCH SITS — the epoch after its filing, because
   // the record reaches this script only through the chair's plan. A halt ends the run here.
   if (benches.some((p) => p.occasions.includes(OCCASION.petition)) && await hearPetitions()) break
+  // THE CHAIR'S POSITION ON A PASS IT WITHHELD IS HEARD THERE TOO, on the same terms.
+  if (benches.some((p) => p.occasions.includes(OCCASION.position)) && await hearPositions()) break
 
   if (lenses.length) {
     log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${SEATS[p.seat_id].area}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
@@ -1245,11 +1269,13 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // while a bench-owned motion stands, so one filed after it is ruled at assembly.
 //
 // A PETITION STANDING HERE IS HEARD HERE, and its ruling and a halt travel as the petition sitting's
-// do (takePetitionRulings): a halt stamps the run HALTED.
+// do (takePetitionRulings): a halt stamps the run HALTED. A POSITION STANDING HERE — the chair
+// withheld the PASS at its final sitting — is heard here as well, and the run ends at its ceiling
+// however it is ruled (gblock, 2026-10-30): no sitting follows to do the work or record the verdict.
 const benchBlockers = lastPlan ? lastPlan.blockers.filter((b) => b.kind === 'unruled_motion' && roleOfSeat(b.owner) === 'bench') : []
 if (!halted && benchBlockers.length) {
   const terminalJudge = await sit((o) => agent(
-    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, and each petition ruling also returns on the envelope's \`rulings\` — its petitioner and class, your ruling and opinion, and on a grant the relief and whom it binds. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`, o),
+    `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, and each petition ruling also returns on the envelope's \`rulings\` — its petitioner and class, your ruling and opinion, and on a grant the relief and whom it binds. A POSITION among them — the chair held back a PASS its plan permitted at its final sitting — is ruled upheld | overruled with your opinion: upheld names the lens whose area the objection reaches and the direction its audit owes, overruled names nothing, and the run ends at its ceiling however you rule it. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`, o),
     { ...dispatchAs('judge'), label: `judge · ${OCCASION.terminal} · ${slug}`, phase: 'Assemble', schema: TERMINAL_ENVELOPE })
   if (terminalJudge) {
     if (takePetitionRulings(terminalJudge)) {

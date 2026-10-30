@@ -24,7 +24,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge, merge+":register:#1", &recordpb.Register{}),
-		recordtest.At(t, merge, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
+		recordtest.At(t, merge, merge+":position", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("red r1")}),
 		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
 		// opinion are both foreign keys onto the mint.
 		recordtest.At(t, lens, lens+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -67,7 +67,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	// its Blue is the empty array a consumer counts as zero, never a null).
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge2, merge2+":register:#2", &recordpb.Register{}),
-		recordtest.At(t, merge2, merge2+":position:#2", &recordpb.Position{Text: proto.String("red r2")}),
+		recordtest.At(t, merge2, merge2+":position:#2", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("red r2")}),
 	})
 	// A blue seat that recorded nothing in round 2 is simply absent from the record — there is no
 	// empty shard file to write, which is what the call here used to produce.
@@ -126,7 +126,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, "red-chair", "red-chair:position", &recordpb.Position{Text: proto.String("red")}),
+		recordtest.At(t, "red-chair", "red-chair:position", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("red")}),
 	})
 	out, err := DebateJSONBytes(mustRun(t, runDir))
 	if err != nil {

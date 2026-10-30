@@ -18,7 +18,7 @@ import (
 // place — seatclass.RoleOfSeat, read from internal/seatclass's roster — and every question here is
 // a call to it. An id the roster does not carry has no role and selects no surface.
 //
-// A petition sitting is `judge`, like the bench's other three. Which of the four questions a
+// A petition sitting is `judge`, like the bench's other four. Which of the five questions a
 // sitting answers rides on the register's `occasion` (see occasion.go), and who filed the petition
 // rides on the petition.
 //

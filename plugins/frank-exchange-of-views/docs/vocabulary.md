@@ -561,7 +561,7 @@ A scorecard is the numbers a seat is measured on, computed from the record: red'
 
 ## occasion
 
-A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
+A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its five sittings share a single id.
 
 **Delivered to:** bench
 

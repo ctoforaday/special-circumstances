@@ -71,6 +71,8 @@ export const blueEnv = (over = {}) => ({ manifest: ['G-00000001'], ...over })
 // …gaps)` is the bench on its docket, `petitionBench()` the bench convened to hear petitions.
 export const party = (seat_id, ...gap_ids) => (seat_id === 'judge' ? { seat_id, gap_ids, occasions: ['docket'] } : { seat_id, gap_ids })
 export const petitionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: ['petition'] })
+// positionBench is the bench convened to hear the chair's position on a PASS it withheld.
+export const positionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: ['position'] })
 // blocker is one entry of the plan's `blockers`: what holds a PASS and the seat whose act clears it.
 export const blocker = (subject, owner, kind = 'unruled_motion') => ({ kind, subject, owner })
 // exchanges is the plan's entry for each gap its parties are engaged on, in the order first named,
@@ -104,17 +106,18 @@ export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', 
 // makeResponder serves envelopes by seat, in order; the last one repeats. A lens returns its empty
 // envelope; the frontier and the lanes answer in free text.
 export const assembleEnv = (over = {}) => ({ open_gaps: 0, ...over })
-export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()], petition = [petitionRulingEnv()], assemble = [assembleEnv()] } = {}) {
+export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judgeEnv()], blueSynth = [blueEnv()], blueRespond = [blueEnv()], petition = [petitionRulingEnv()], position = [{}], assemble = [assembleEnv()] } = {}) {
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {
     const label = opts.label || ''
     // ROUTE ON THE QUESTION, NOT THE SEAT. The bench is one seat now, so `judge` heads the label
-    // of four different sittings and a prefix match cannot tell them apart. What distinguishes
+    // of five different sittings and a prefix match cannot tell them apart. What distinguishes
     // them is what the engine ASKED — which the label carries after the head, and which the real
     // dispatch carries as the envelope schema it demands back. Matching the head alone sent the
     // assembly sitting a judge envelope with no open_gaps in it, and the run reported null.
     if (label.startsWith('red-chair')) return take(chair)
     if (/^judge · petition/.test(label)) return take(petition)
+    if (/^judge · position/.test(label)) return take(position)
     if (/^judge · assemble/.test(label)) return take(assemble)
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)

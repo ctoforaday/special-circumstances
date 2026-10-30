@@ -189,7 +189,12 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			if lastMove.halt {
 				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
 			}
-		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads four sittings' labels, so
+		// The position sitting's envelope carries only a halt.
+		case strings.Contains(label, "· position"):
+			if lastMove.halt {
+				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
+			}
+		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads five sittings' labels, so
 		// a seat-id switch sends the assembly down the docket-ruling arm and open_gaps is never
 		// set — the run then reports 0 outstanding over a board holding 1. The question is in the
 		// label, which is where the collapse put it.

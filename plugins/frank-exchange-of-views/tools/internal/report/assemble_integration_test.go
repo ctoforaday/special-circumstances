@@ -91,7 +91,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
+	add("red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("gap G1 stands until the race is shown impossible")})
 	add("blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
 		Question: proto.String("model-check the two-writer interleaving"),

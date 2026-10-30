@@ -78,8 +78,11 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
 			Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: str("red's position")}),
-		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: str("blue's position")}),
+		// The chair's plan permitted the PASS and its position withholds it, so the bench hears it:
+		// a position motion (motions), read off the plan and the verdicts of the sitting.
+		recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: str(passPermittedPlanPrinted())}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: str("A-0000000b"), Text: str("red's position")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: str("blue's position")}),
 		recordtest.Event(t, "red-chair", &recordpb.Closing{GapId: str("G1"), Text: str("red closes on G1")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: str("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a question")}),
@@ -91,7 +94,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		// A second regrade, position, log and computation, each its seat's own act.
 		recordtest.At(t, "red-chair", "red-chair:regrade:#9", &recordpb.Regrade{GapId: str("G2"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: str("misread")}),
-		recordtest.At(t, "red-chair", "red-chair:position:#9", &recordpb.Position{Text: str("red's position, misworded")}),
+		recordtest.At(t, "red-chair", "red-chair:position:#9", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: str("red's position, misworded")}),
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
@@ -104,6 +107,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
+		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("A-0000000b"), Opinion: str("the objection does not hold"),
+			Ruling: &recordpb.MotionRule_Position{Position: &recordpb.PositionHearing{Ruling: recordpb.PositionRuling_POSITION_RULING_OVERRULED.Enum()}}}),
 		// The whole report served to a lens (debate).
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.ReportRead{Head: proto.Int64(1)}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
@@ -610,4 +615,11 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 			}
 		}
 	})
+}
+
+// passPermittedPlanPrinted is a stored plan's printed form over a board that permits a PASS.
+func passPermittedPlanPrinted() string {
+	p := emptyPlan()
+	p.PassPermitted = true
+	return p.WithKey().Printed()
 }

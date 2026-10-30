@@ -378,7 +378,7 @@ func TestRecordParityAudit(t *testing.T) {
 	if a := RecordParityAudit(seed(permitted...)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1, which withheld the PASS its plan permitted, filed no position") {
 		t.Errorf("a chair sitting that withheld a permitted PASS and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{Text: proto.String("why")}))...)); a.Verdict != "PASS" {
+	if a := RecordParityAudit(seed(append(permitted, chairAct("position", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("why")}))...)); a.Verdict != "PASS" {
 		t.Errorf("the withheld PASS is argued: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	if a := RecordParityAudit(seed(append(permitted, chairAct("gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}))...)); a.Verdict != "PASS" {

@@ -118,6 +118,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 | `chair inquiry review` | red's PER-SITTING verdict that the report still carries an inquiry, read at the leaf | — | CLEAN: new channel. An inquiry reaches the report as a row `assemble` GENERATES, so it carries no citation anchor and `lens verify` cannot reach it — "we pursued X" was the one class of claim in the document nothing could refuse. `unsupported` and `absent` put the inquiry on blue's worklist; `verdict --as PASS` is refused while any inquiry is unvoted this sitting |
 | `motion petition file` | an ethical, safety, integrity or constitutional objection | envelope `petitions[]` | EXECUTED (#315, #1203): the event is the only channel — no envelope carries a petition, and the chair's plan convenes the bench for each one at the next chair sitting |
 | `motion petition rule` | the bench ruling on a petition | — | CLEAN, except for the halt channel above (#329) |
+| `motion position rule` | the bench ruling on the chair's position at a sitting that withheld a PASS its plan permitted: `upheld` naming a lens or open gaps with a direction, or `overruled` naming nothing | — | CLEAN. The position sitting's envelope carries only a halt; the ruling and the work it names reach the coming seats through the record's plan and their work lists |
 
 > **The whole group was used on no subject in the 2026-08-12 elicitation** — `rule` fired nine
 > times, `file` not once. Seats read grades and never treat them as contestable: 10 of 110 blue

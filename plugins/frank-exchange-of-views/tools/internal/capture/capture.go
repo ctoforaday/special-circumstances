@@ -584,8 +584,9 @@ func StrayRecordsAudit(project, runDir string) Audit {
 // positions and closings that were, and gives a sitting that holds none no section.
 //
 // THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED. The chair's work list holds
-// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its position
-// is held by its prompt and by this audit. A party's closing is on its work list as well, as the PASS
+// no item for it, so its position is held by its prompt and by this audit. The chair's first sitting
+// after the bench overruled its position owes the verdict instead (gblock, 2026-10-30): its work list
+// says so, and this audit fails one that closed without it. A party's closing is on its work list as well, as the PASS
 // gate's blocker, and this audit is the after-the-run reading of the same duty.
 //
 // A CLOSING IS SHORT ONLY WHERE ITS PARTY SAT. A party that sat through a sitting opened after the
@@ -627,6 +628,8 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 			unmeasured = append(unmeasured, name+"shows no position so far — NOT MEASURED: the record cannot close it (red-chair has not opened a sitting since and its agent's stop is not on the record)")
 		case record.PositionMissing:
 			short = append(short, name+"filed no position")
+		case record.PositionVerdictMissing:
+			short = append(short, fmt.Sprintf("red-chair sitting %d, its first after the bench overruled its position %s, closed with no verdict — the overruled objection is decided, and that sitting owed the verdict its plan permitted", p.Ordinal, p.Overruled))
 		}
 		owed++
 	}

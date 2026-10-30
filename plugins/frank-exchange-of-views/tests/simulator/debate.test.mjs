@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, withKey, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, positionBench, blocker, withKey, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -895,6 +895,42 @@ test('W2c: a plan that convenes the bench for petitions seats it before any part
   assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'))
 })
 
+// THE CHAIR'S POSITION ON A PASS IT WITHHELD IS HEARD BEFORE ANY PARTY SITS (gblock, 2026-10-30): the
+// plan convenes the bench with occasion `position`, the sitting is asked to rule it upheld | overruled
+// and told what each sets in motion, and a halt from it ends the run HALTED as a petition sitting's does.
+test('a plan that convenes the bench for the chair\'s position seats it before any party; a halt ends the run HALTED', async () => {
+  const convened = () => chairEnv({ plan: plan([party('red-lens-evidence'), positionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('A-00000001', 'judge')] }) })
+  const heard = makeWorld(makeResponder({ chair: [convened(), passChair()] }))
+  const out = await heard.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  const sitting = heard.calls.findIndex((c) => c.opts.label.startsWith('judge · position'))
+  const lens = heard.calls.findIndex((c) => c.opts.label.startsWith('red-lens-evidence'))
+  const blue = heard.calls.findIndex((c) => c.opts.label.startsWith('blue-respond'))
+  assert.ok(sitting >= 0 && sitting < lens && sitting < blue, 'the sitting fired before any party sat')
+  assert.ok(!heard.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'a position convened a petition sitting')
+  const prompt = heard.calls[sitting].prompt
+  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'next sitting decides on the PASS with a verdict', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
+    assert.ok(prompt.includes(clause), `the position sitting's prompt lacks: ${clause}`)
+  }
+  const halting = makeWorld(makeResponder({ chair: [convened()], position: [{ halt: { opinion: 'the human must decide this' } }] }))
+  const out2 = await halting.run(script, ARGS)
+  assert.equal(out2.verdict, 'HALTED')
+  assert.ok(out2.halt_opinion.includes('the human must decide'))
+  assert.ok(!halting.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'nothing sat past the halt')
+})
+
+// A POSITION STANDING AT THE EXIT — the chair withheld the PASS at its final sitting — is heard by the
+// terminal bench, and the run ends at its ceiling however it is ruled (gblock, 2026-10-30).
+test('a position standing at the exit: the terminal sitting rules it, and the run ends CEILING', async () => {
+  const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('A-00000001', 'judge')] }) })
+  const world = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()] }))
+  const out = await world.run(script, ARGS)
+  const terminal = labelsOf(world, 'judge · terminal')[0]
+  assert.ok(terminal, 'the terminal sitting fired on the standing position')
+  assert.ok(/A POSITION among them/.test(terminal.prompt) && /the run ends at its ceiling however you rule it/.test(terminal.prompt), terminal.prompt.slice(0, 600))
+  assert.equal(out.verdict, 'CEILING')
+})
+
 test('W2c: no plan convenes it, no sitting — whatever an envelope carries; granted relief binds the party it names', async () => {
   const quiet = makeWorld(makeResponder({ chair: [passChair()] }))
   await quiet.run(script, ARGS)
@@ -1477,6 +1513,7 @@ test('every envelope schema the engine dispatches compiles under strict types wi
     makeResponder(),
     makeResponder({ chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()] }),
     makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')]) }), passChair()] }),
+    makeResponder({ chair: [chairEnv({ plan: plan([positionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('A-00000001', 'judge')] }) }), passChair()] }),
     makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M-00000001', 'judge')] }) })] }),
   ]
   const seen = new Map()

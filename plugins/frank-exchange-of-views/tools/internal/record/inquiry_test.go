@@ -114,7 +114,9 @@ func TestTheInquiryReviewIsOwedWhenWhatItReadChanges(t *testing.T) {
 		{"an inquiry and no report", func(b *stage) { b.add("blue-respond", inquiry("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED)) }, false},
 		{"the report ingested", func(b *stage) { b.ingest() }, true},
 		{"the chair's review", func(b *stage) { b.add("red-chair", review) }, false},
-		{"the chair's position", func(b *stage) { b.add("red-chair", &recordpb.Position{Text: proto.String("p")}) }, false},
+		{"the chair's position", func(b *stage) {
+			b.add("red-chair", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("p")})
+		}, false},
 		{"a lens's register", func(b *stage) { b.register(evLens) }, false},
 		{"the chair's next sitting", func(b *stage) { b.register("red-chair") }, false},
 		{"the report edited", func(b *stage) { b.edit("", "# report", "# report, revised") }, true},

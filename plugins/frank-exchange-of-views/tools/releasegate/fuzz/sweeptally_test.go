@@ -107,6 +107,8 @@ type runTally struct {
 	ClosingsRefused            int                       `json:"closings_refused"`
 	ClosingWaits               int                       `json:"closing_waits"`
 	PositionsWithheld          int                       `json:"positions_withheld"`
+	PositionsUpheld            int                       `json:"positions_upheld"`
+	PositionsOverruled         int                       `json:"positions_overruled"`
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
 	CopiesRead                 map[string]map[string]int `json:"copies_read"`
@@ -161,6 +163,7 @@ func tallyOf(o outcome) runTally {
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
+		PositionsUpheld: o.positionsUpheld, PositionsOverruled: o.positionsOverruled,
 		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
@@ -500,6 +503,7 @@ type sweepFold struct {
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
 	positionsWithheld                               int
+	positionsUpheld, positionsOverruled             int
 	fragmentsDriven, truncationsDriven              int
 	reopenedReadied, reopenedPlans                  int
 	computationReopenedReadied, owedKeptBy          map[string]int
@@ -569,6 +573,8 @@ func foldRuns(runs []runTally) sweepFold {
 		f.inquiryRecords += r.InquiryRecords
 		f.closingsFiled, f.closingsRefused, f.closingWaits = f.closingsFiled+r.ClosingsFiled, f.closingsRefused+r.ClosingsRefused, f.closingWaits+r.ClosingWaits
 		f.positionsWithheld += r.PositionsWithheld
+		f.positionsUpheld += r.PositionsUpheld
+		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
 		if r.Seed == absentSpanSeed {
@@ -816,8 +822,10 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// NOT A GATE: a plan permitting a PASS is reached by the forced-verified run, which must record
 		// it, and rarely by any other, so the withheld PASS is a draw the sweep may not make. The duty is
 		// held by record's TestTheChairOwesAPositionWhereItWithheldAPermittedPass and capture's
-		// record-parity tests; the count is reported so a sweep that does draw it says so.
-		t.Logf("chair sittings that withheld a permitted PASS and argued why: %d across %d runs", f.positionsWithheld, f.completed)
+		// record-parity tests, and the bench's hearing of it by record's withheldpass_test.go; each
+		// position the sweep does draw is held to its ruling by the position oracle, and the counts
+		// are reported so a sweep that draws it says so.
+		t.Logf("chair sittings that withheld a permitted PASS and argued why: %d across %d runs; the bench upheld %d and overruled %d", f.positionsWithheld, f.completed, f.positionsUpheld, f.positionsOverruled)
 		// THE SECTION-ORDER GATE. The generators here write the report's text in order, so the
 		// refusal that holds it is reached only by the drive that writes a section out of place.
 		if f.ordersRefused == 0 {
