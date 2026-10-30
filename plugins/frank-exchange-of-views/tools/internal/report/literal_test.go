@@ -15,7 +15,8 @@ import (
 )
 
 // shapes counts the nodes of a parsed document that a string a program chose could open: headings
-// (by text), links, images, raw HTML, footnote references, emphasis, code spans and table cells.
+// and raw HTML (each by its text, so an evidence document's `<a id>` anchors are compared by label),
+// links, images, footnote references, emphasis, code spans, table cells and fences.
 func shapes(md string) map[string]int {
 	src := []byte(md)
 	out := map[string]int{}
@@ -30,8 +31,10 @@ func shapes(md string) map[string]int {
 			out["link"]++
 		case *ast.Image:
 			out["image"]++
-		case *ast.RawHTML, *ast.HTMLBlock:
-			out["html"]++
+		case *ast.RawHTML:
+			out["html "+string(n.Segments.Value(src))]++
+		case *ast.HTMLBlock:
+			out["html "+string(n.Lines().Value(src))]++
 		case *ast.Emphasis:
 			out["emphasis"]++
 		case *ast.CodeSpan:
@@ -137,7 +140,7 @@ func TestAProgramsNamesOpenNothingInTheEvidenceDocument(t *testing.T) {
 			Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, RerunSha: staged.Sha,
 				Drift: name("out/"+outName+" written by this act's run only; on re-run the program wrote: ````\n## V\n====\n    File \"x\"", "out/out.png written by this act's run only; on re-run the program wrote: other output")},
 		}
-		return evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}, map[string]bool{"K-00000001": true})
+		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}, map[string]bool{"K-00000001": true}))
 	}
 	plain, hostile := shapes(doc(t, false)), shapes(doc(t, true))
 	for k, n := range plain {

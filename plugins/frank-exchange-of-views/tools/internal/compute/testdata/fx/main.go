@@ -32,6 +32,13 @@ func main() {
 	case "out":
 		os.WriteFile(filepath.Join("out", args[1]), []byte(args[2]), 0o644)
 		fmt.Println("wrote", args[1])
+	case "outdepth":
+		// Names its out/ file after the length of its working directory, so the two copies, at
+		// different depths, write files of different names.
+		wd, _ := os.Getwd()
+		name := args[1] + strconv.Itoa(len(wd))
+		os.WriteFile(filepath.Join("out", name), []byte("x"), 0o644)
+		fmt.Println("wrote a file")
 	case "outrandom":
 		os.WriteFile(filepath.Join("out", "r.txt"), []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), 0o644)
 		fmt.Println("wrote r.txt")
