@@ -38,6 +38,12 @@ func TestTheBenchSetsAGradeAndAReconsiderationComesOnNewGrounds(t *testing.T) {
 		t.Fatalf("a docket motion on a gap the bench ruled closed, with no grounds: %v", err)
 	}
 
+	_, err = runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", g,
+		"--quote", "the parser accepts an empty body in this line.", "--reason", "the report says otherwise")
+	if err == nil || !strings.Contains(err.Error(), "is not new grounds on gap "+g) {
+		t.Fatalf("a docket motion quoting text no edit answering the gap wrote since the ruling: %v", err)
+	}
+
 	s := script(t, runDir, "grounds.js", "console.log('what the ruling did not have');")
 	if _, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond", "--quote", "the parser accepts an empty body in this line.",
 		"--script", s, "--answers", g, "--reason", "new grounds"); err != nil {

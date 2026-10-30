@@ -4991,13 +4991,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// An axis the bench set is the lens's to keep, never to move (lensMovesBenchAxis drives
 				// the move, to be refused).
 				r.maybe(30, func() {
-					dim := pick(r.rng, regradeDims)
-					grade := r.g()
-					if held, ok := r.benchGrades(id)[dim]; ok {
-						grade = held
+					held := r.benchGrades(id)
+					keep := func(dim string) string {
+						if g, ok := held[dim]; ok {
+							return g
+						}
+						return r.g()
 					}
+					dim := pick(r.rng, regradeDims)
 					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, grade, "--complexity", r.g())
+						"--"+dim, keep(dim), "--complexity", keep("complexity"))
 				})
 			}
 		}

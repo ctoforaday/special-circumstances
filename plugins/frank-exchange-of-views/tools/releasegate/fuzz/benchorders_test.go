@@ -43,7 +43,8 @@ func (r *runner) benchSetsGrade(seatID, gapID string) {
 	if !slices.Contains(r.openGaps(), gapID) || len(r.unruledDocketMotions(gapID)) == 0 || !r.benchOrdersArm() {
 		return
 	}
-	dim := pick(r.rng, regradeDims)
+	// EVERY AXIS, complexity included: the bench's regrade takes the lens's four flags.
+	dim := pick(r.rng, benchRegradeDims)
 	grade := r.gradeOtherThan(r.currentGrade(gapID, dim))
 	if _, ok := r.admitFresh(gapID, "regrade", "--seat-id", seatID, "--id", gapID, "--"+dim, grade,
 		"--reason", "fuzz: the bench holds "+gapID+"'s "+dim+" is "+grade+", and rules on that grade"); !ok {
@@ -60,6 +61,9 @@ func (r *runner) benchSetsGrade(seatID, gapID string) {
 	r.benchSet[gapID][dim] = grade
 	r.benchRegrades++
 }
+
+// benchRegradeDims is the four axes by flag name, as a regrade spells them.
+var benchRegradeDims = append(append([]string{}, regradeDims...), "complexity")
 
 // benchGrades is a copy of the axes the bench set on gapID, by flag name.
 func (r *runner) benchGrades(gapID string) map[string]string {
@@ -138,9 +142,10 @@ func (r *runner) lensMovesBenchAxis(seatID string) {
 	}
 }
 
-// reconsider is blue putting a gap the bench ruled closed before it again: with no grounds, refused
-// for wanting new grounds; then on a proof of its own answering the gap, recorded since the ruling,
-// admitted. A gap a docket motion already stands on is left to that motion.
+// reconsider is blue putting a gap the bench ruled closed before it again: with no grounds, or on a
+// quote of report text no edit answering the gap wrote since the ruling, refused; then on a proof of
+// its own answering the gap, recorded since the ruling, admitted. A gap a docket motion already
+// stands on is left to that motion.
 func (r *runner) reconsider(seatID string) {
 	if !r.benchOrdersArm() {
 		return
@@ -172,6 +177,22 @@ func (r *runner) reconsider(seatID string) {
 		return
 	case !ok || env.Code != string(feov.Validation) || !strings.Contains(env.Error, "admitted on NEW GROUNDS only") || !strings.Contains(env.Error, "the bench ruled gap "+id):
 		r.noteActErr(fmt.Sprintf("blue's docket motion on %s, which the bench ruled closed, was refused, and not for wanting new grounds: %s", id, firstLine(out)))
+		return
+	}
+	r.mu.Lock()
+	r.groundsRefused++
+	r.mu.Unlock()
+
+	// A QUOTE THE RULING ALREADY HAD: the seeded sentence stands in the report, and no edit answering
+	// the gap wrote it after the ruling.
+	out, err = file("--quote", "§ fuzz sentence")
+	env, ok = refusalEnvelopeIn(out)
+	switch {
+	case err == nil:
+		r.noteActErr(fmt.Sprintf("blue's docket motion on %s quoting text no edit answering it wrote since the ruling was admitted: %s", id, firstLine(out)))
+		return
+	case !ok || env.Code != string(feov.Validation) || !strings.Contains(env.Error, "is not new grounds on gap "+id):
+		r.noteActErr(fmt.Sprintf("blue's docket motion on %s quoting text the ruling already had was refused, and not as old grounds: %s", id, firstLine(out)))
 		return
 	}
 	r.mu.Lock()
