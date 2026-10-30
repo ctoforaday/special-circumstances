@@ -185,7 +185,7 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 	t.Run("a lens regrade moving it is refused", func(t *testing.T) {
 		s := benchSetSeverity(t)
 		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, low))
-		mustRefuse(t, err, "gap G1's severity is high, which the bench set at event", "only the bench moves it again")
+		mustRefuse(t, err, "gap G1's severity is high, which the bench set at event", "only the bench moves it while it stands; the bench moving it again releases it to you")
 	})
 	t.Run("a lens regrade keeping it, or moving another axis, is admitted", func(t *testing.T) {
 		s := benchSetSeverity(t)
@@ -215,13 +215,40 @@ func TestAnAxisTheBenchSetIsTheBenchsToMove(t *testing.T) {
 		_, err = Append(sit(t, s.run, evLens), regradeOf("G2", sev, low))
 		mustRefuse(t, err, "gap G2's severity is high, which the bench set at event")
 	})
-	t.Run("the bench moves it again, and the lock holds the new grade", func(t *testing.T) {
+	// THE LOCK RETURNS TO THE LENS (gblock, 2026-10-30): the bench moving a locked axis lifts the
+	// lock at its new grade, and the lens may move it from there.
+	t.Run("the bench moves it again, and the lens may regrade it from the new grade", func(t *testing.T) {
 		s := benchSetSeverity(t)
 		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
-		lens := sit(t, s.run, evLens)
-		_, err := Append(lens, regradeOf("G1", sev, high))
-		mustRefuse(t, err, "gap G1's severity is certain, which the bench set at event")
-		mustAppend(t, lens, regradeOf("G1", sev, certn))
+		w, err := WorkOfSeat(s.run, "lens", evLens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, g := range w.Open {
+			if g.ID == "G1" && g.Severity != "certain" {
+				t.Errorf("G1's severity after the bench's second move is %q, want the bench's certain", g.Severity)
+			}
+		}
+		blue := sit(t, s.run, "blue-respond")
+		mustAppend(t, blue, gradeMotionOn("M7", "G1", sev, low))
+		mustAppend(t, sit(t, s.run, evLens), regradeOf("G1", sev, low))
+	})
+	t.Run("a third bench move locks it again", func(t *testing.T) {
+		s := benchSetSeverity(t)
+		bench := sit(t, s.run, "judge")
+		mustAppend(t, bench, regradeOf("G1", sev, certn))
+		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, low))
+		_, err := Append(sit(t, s.run, evLens), regradeOf("G1", sev, medium))
+		mustRefuse(t, err, "gap G1's severity is low, which the bench set at event")
+		_, err = Append(sit(t, s.run, "blue-respond"), gradeMotionOn("M7", "G1", sev, high))
+		mustRefuse(t, err, "gap G1's severity is low, which the bench set at event")
+	})
+	t.Run("a successor of a released axis is minted at any grade", func(t *testing.T) {
+		s := benchSetSeverity(t)
+		mustAppend(t, sit(t, s.run, "judge"), regradeOf("G1", sev, certn))
+		m := corrMint("G2")
+		m.Supersedes, m.Severity = []string{"G1"}, medium.Enum()
+		mustAppend(t, sit(t, s.run, evLens), m)
 	})
 }
 

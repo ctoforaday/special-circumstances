@@ -17,8 +17,10 @@ import (
 // regrade precedes the ruling that rules on it, and the grade-movement window (gradeMovementOf)
 // closes over it as it closes over every regrade a ruling follows.
 //
-// ONE PREDICATE, THREE REFUSALS. An axis is the BENCH'S while the latest regrade that moved it was
-// the bench's (benchSetAxesOf). While it is:
+// ONE PREDICATE, THREE REFUSALS. A bench regrade that moves an axis the bench does not hold LOCKS
+// it; one that moves an axis it holds LIFTS the lock, and the axis stands at the bench's new grade
+// for the lens to move from there (gblock, 2026-10-30: "Lock returns to lens"). benchSetAxesOf folds
+// that toggle, and while an axis is locked:
 //
 //   - a lens's regrade that MOVES it is refused; one that keeps it is the lens saying its gap stands,
 //     and is admitted;
@@ -27,9 +29,10 @@ import (
 //   - a mint superseding the gap whose grade differs on it is refused: the lock follows the lineage,
 //     so a successor carries the bench's grade and the lens cannot escape it by re-minting.
 //
-// Only the bench moves it again, at a later docket motion on the gap; its new grade is then the
-// bench's in turn. A bench regrade that moves nothing is refused: keeping a grade is the lens's act
-// (keptgrade.go), and the bench sets a grade by moving it.
+// Only the bench moves it while it stands, at a docket motion on the gap standing unruled; that move
+// releases it to the lens, and a later bench move locks it again. A bench regrade that moves nothing
+// is refused: keeping a grade is the lens's act (keptgrade.go), and the bench sets a grade by moving
+// it.
 
 // gradeAxes is the four axes in the order the folds below index them.
 var gradeAxes = [4]recordpb.GradeDimension{
@@ -59,12 +62,12 @@ func mintAxes(m *recordpb.Mint) [4]recordpb.Grade {
 	return [4]recordpb.Grade{m.GetSeverity(), m.GetLikelihood(), m.GetImpact(), m.GetComplexityCost()}
 }
 
-// axisGrade is where one axis of one gap stands: its grade, and — where the latest regrade that
-// moved it was the bench's, or the gap inherits the axis from an ancestor's — that regrade's place.
+// axisGrade is where one axis of one gap stands: its grade, and — where the bench locked it, or the
+// gap inherits the lock from an ancestor — the place of the bench regrade that locked it.
 type axisGrade struct {
 	grade recordpb.Grade
-	// benchAt is the place of the bench regrade that set the axis (an ancestor's, for a successor
-	// that inherits it), 0 when the axis is not the bench's.
+	// benchAt is the place of the bench regrade that locked the axis (an ancestor's, for a successor
+	// that inherits it), 0 while it is unlocked.
 	benchAt int64
 }
 
@@ -81,7 +84,7 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 			for k, g := range mintAxes(b) {
 				cur[k].grade = g
 			}
-			// THE LOCK FOLLOWS THE LINEAGE: an axis the bench set on an ancestor is the bench's on its
+			// THE LOCK FOLLOWS THE LINEAGE: an axis the bench holds locked on an ancestor is locked on its
 			// successor, which the write admits only at the ancestor's grade.
 			for _, a := range b.GetSupersedes() {
 				for k, ax := range out[a] {
@@ -100,9 +103,13 @@ func benchSetAxesOf(evs []*Event, ids []int64) map[string][4]axisGrade {
 					continue
 				}
 				cur[k].grade = *w
-				cur[k].benchAt = 0
-				if bench {
+				// THE BENCH'S MOVE TOGGLES THE LOCK: it locks an unlocked axis and lifts its own lock,
+				// releasing the axis to the lens at the new grade. Any other seat's move leaves it
+				// unlocked — the write refuses one on a locked axis.
+				if bench && cur[k].benchAt == 0 {
 					cur[k].benchAt = ids[i]
+				} else {
+					cur[k].benchAt = 0
 				}
 			}
 			out[g] = cur
@@ -120,13 +127,13 @@ func benchSetAxesAt(w writeView) (map[string][4]axisGrade, error) {
 	return benchSetAxesOf(evs, win.IDs(evs)), nil
 }
 
-// benchLockWords is the refusal's account of one bench-set axis.
+// benchLockWords is the refusal's account of one locked axis.
 func benchLockWords(gap string, k int, ax axisGrade) string {
 	return fmt.Sprintf("gap %s's %s is %s, which the bench set at event %d", gap, recordpb.Word(gradeAxes[k]), recordpb.Word(ax.grade), ax.benchAt)
 }
 
 // requireRegradeWithinBenchLock is the regrade arm of the lock. A lens's regrade may move no axis the
-// bench set. The bench's regrade needs a docket motion on the gap standing unruled before it, and
+// bench holds locked. The bench's regrade needs a docket motion on the gap standing unruled before it, and
 // must move an axis.
 func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regrade) error {
 	if r.GetGapId() == "" {
@@ -159,13 +166,13 @@ func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regra
 			continue
 		}
 		return feov.Errorf(feov.Conflict,
-			"%s, and only the bench moves it again, while a docket motion on the gap is before it. A regrade that keeps it — naming it at %s, or naming no grade — is yours to file. Nothing was recorded",
+			"%s, and only the bench moves it while it stands; the bench moving it again releases it to you. A regrade that keeps it — naming it at %s, or naming no grade — is yours to file. Nothing was recorded",
 			benchLockWords(r.GetGapId(), k, cur[k]), recordpb.Word(cur[k].grade))
 	}
 	return nil
 }
 
-// requireGradeMotionOffBenchLock refuses a grade motion on an axis the bench set: the chair could
+// requireGradeMotionOffBenchLock refuses a grade motion on an axis the bench holds locked: the chair could
 // accept it, and the minting lens would owe a regrade the lock refuses.
 func requireGradeMotionOffBenchLock(w writeView, m *recordpb.GradeMotion) error {
 	k := axisOf(m.GetDimension())
@@ -186,7 +193,7 @@ func requireGradeMotionOffBenchLock(w writeView, m *recordpb.GradeMotion) error 
 }
 
 // requireSuccessorKeepsBenchGrades refuses a mint superseding a gap whose grade differs from the
-// ancestor's on an axis the bench set: the successor carries the bench's grade.
+// ancestor's on an axis the bench holds locked: the successor carries the bench's grade.
 func requireSuccessorKeepsBenchGrades(w writeView, m *recordpb.Mint) error {
 	if len(m.GetSupersedes()) == 0 {
 		return nil

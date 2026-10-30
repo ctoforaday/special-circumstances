@@ -522,15 +522,18 @@ type runner struct {
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
 	remandActs              map[string]int
 	pastLimitRemandsRefused int
-	// benchSet is each gap's axes the bench set with its own regrade, by flag name, with the grade
-	// (benchSetsGrade; a successor inherits its ancestor's). benchRegrades counts those regrades,
-	// lockRefused the minting lens's moves of such an axis the tool refused, and groundsRefused and
+	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
+	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
+	// second move released to the lens and the lens has not moved since. benchRegrades counts the
+	// bench's regrades, lockRefused the minting lens's moves of a locked axis the tool refused,
+	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
 	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
 	// grounds and admitted on a proof recorded since (benchorders_test.go). forceBenchOrders is
 	// benchOrdersSeed's run, which takes every arm. The sweep gates each count at zero.
-	benchSet                                                    map[string]map[string]string
-	benchRegrades, lockRefused, groundsRefused, groundsAdmitted int
-	forceBenchOrders                                            bool
+	benchSet                                                                map[string]map[string]string
+	benchLifted                                                             map[string]map[string]bool
+	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
+	forceBenchOrders                                                        bool
 	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
 	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
 	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
@@ -4965,6 +4968,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.checkAnchorOffers(seatID)
 		r.closeDocketed(seatID)
 		r.lensMovesBenchAxis(seatID)
+		r.lensMovesReleasedAxis(seatID)
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
@@ -4988,8 +4992,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
 				// regrade is movement, so sample one — by the minter, which this seat is. EVERY
 				// AXIS, not three of four: --complexity is spelled by its flag here.
-				// An axis the bench set is the lens's to keep, never to move (lensMovesBenchAxis drives
-				// the move, to be refused).
+				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
+				// drives the move, to be refused).
 				r.maybe(30, func() {
 					held := r.benchGrades(id)
 					keep := func(dim string) string {
@@ -5532,8 +5536,8 @@ type outcome struct {
 	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
 	// pastLimitRemandsRefused; lensFirstHolds is runner's.
 	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
-	// benchRegrades, lockRefused, groundsRefused and groundsAdmitted are runner's.
-	benchRegrades, lockRefused, groundsRefused, groundsAdmitted int
+	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
+	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -6840,7 +6844,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
 	res.lensFirstHolds = r.lensFirstHolds
-	res.benchRegrades, res.lockRefused, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.groundsRefused, r.groundsAdmitted
+	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.

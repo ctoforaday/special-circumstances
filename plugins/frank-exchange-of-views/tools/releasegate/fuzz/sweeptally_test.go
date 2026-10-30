@@ -151,6 +151,7 @@ type runTally struct {
 	LensFirstHolds          int                       `json:"lens_first_holds"`
 	BenchRegrades           int                       `json:"bench_regrades"`
 	LockRefused             int                       `json:"lock_refused"`
+	LockLifted              int                       `json:"lock_lifted"`
 	GroundsRefused          int                       `json:"grounds_refused"`
 	GroundsAdmitted         int                       `json:"grounds_admitted"`
 }
@@ -179,7 +180,7 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs, LensRemandActs: o.lensRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, LensFirstHolds: o.lensFirstHolds,
-		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
+		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 	}
 }
 
@@ -525,7 +526,7 @@ type sweepFold struct {
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, lensRemandActs                  int
 	pastLimitRemandsRefused, lensFirstHolds         int
-	benchRegrades, lockRefused                      int
+	benchRegrades, lockRefused, lockLifted          int
 	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
 }
@@ -644,6 +645,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.lensFirstHolds += r.LensFirstHolds
 		f.benchRegrades += r.BenchRegrades
 		f.lockRefused += r.LockRefused
+		f.lockLifted += r.LockLifted
 		f.groundsRefused += r.GroundsRefused
 		f.groundsAdmitted += r.GroundsAdmitted
 		for why, n := range r.EstoppelMisses {
@@ -947,12 +949,15 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
 		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.
-		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a bench-set axis refused, %d reconsideration(s) refused for wanting new grounds, %d admitted on them", f.benchRegrades, f.lockRefused, f.groundsRefused, f.groundsAdmitted)
+		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted, %d reconsideration(s) refused for wanting new grounds, %d admitted on them", f.benchRegrades, f.lockRefused, f.lockLifted, f.groundsRefused, f.groundsAdmitted)
 		if f.benchRegrades == 0 {
 			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
 		}
 		if f.lockRefused == 0 {
 			t.Errorf("fuzz drove ZERO moves of a bench-set axis refused across %d runs — the lock on the bench's grade is unexercised (false green)", f.completed)
+		}
+		if f.lockLifted == 0 {
+			t.Errorf("fuzz drove ZERO lens moves of an axis the bench released across %d runs — the bench's second move returning the axis to the lens is unexercised (false green)", f.completed)
 		}
 		if f.groundsRefused == 0 || f.groundsAdmitted == 0 {
 			t.Errorf("fuzz drove %d reconsiderations refused for wanting new grounds and %d admitted on them across %d runs — both must be non-zero, or the new-grounds check is unexercised (false green)", f.groundsRefused, f.groundsAdmitted, f.completed)
