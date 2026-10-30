@@ -74,6 +74,11 @@ func TestAShowSourceHitIsCitedAtTheOffsetsItPrinted(t *testing.T) {
 		t.Fatalf("want one hit, got %+v", got)
 	}
 	h := got.Hits[0]
+	// THE KEY IS `source_span`, the flag's own name, which the page tells a seat to copy from.
+	raw, _ := run(t, "show", "source", "--run", runDir, "--seat-id", citeSeat, "--sha", sha, "--match", `.{0,60}Fermat liar.{0,20}`)
+	if !strings.Contains(raw, `"source_span": "`+h.SourceSpan+`"`) {
+		t.Errorf("the hit does not print its span under `source_span`:\n%s", raw)
+	}
 	if h.SourceSpan == "" {
 		t.Fatalf("the hit is not citeable: %s", h.NotCiteable)
 	}
@@ -108,6 +113,7 @@ func TestShowSourceRefusesAnUnknownSourceAndAnEmptyPattern(t *testing.T) {
 		{[]string{"--sha", sha, "--match", ""}, "name what to find"},
 		{[]string{"--sha", sha, "--match", "x*"}, "matches the empty string"},
 		{[]string{"--sha", sha, "--match", "a", "--quote", "a"}, "Pass ONE"},
+		{[]string{"--sha", sha, "--anchor", "C-00000000", "--match", "liar"}, "pass one"},
 	} {
 		out, err := run(t, append([]string{"show", "source", "--run", runDir, "--seat-id", citeSeat}, tc.args...)...)
 		if err == nil || !strings.Contains(out+err.Error(), tc.want) {

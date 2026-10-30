@@ -84,8 +84,39 @@ func TestASourceSearchQuoteFoldsTypographyAndNamesAnUnciteableSentence(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Hits) != 2 || rep.Hits[0].SourceSpan != "" || rep.Hits[0].NotCiteable == "" {
-		t.Fatalf("a sentence the source holds twice is not citeable as printed; got %+v", rep.Hits)
+	if len(rep.Hits) != 2 || rep.Hits[0].SourceSpan != "" || !strings.Contains(rep.Hits[0].NotCiteable, "more than once") {
+		t.Fatalf("a sentence the source holds twice is not citeable as printed, and the hit says so; got %+v", rep.Hits)
+	}
+}
+
+// A SENTENCE AT THE TEXT'S EDGE IS ITS WORDS, NOT THE WHITESPACE BEFORE THEM, and one that ends
+// where cite reads no sentence end is a hit the hit says cite will not take.
+func TestASourceSearchSentenceIsTrimmedAndAMidClauseEndIsNamed(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	// The first sentence opens lowercase, so no sentence start stops the search before the text's
+	// own start; the last ends with no terminator, so only the text's end stops it.
+	text := "\n   lead sentence here. Bases such as e.g. two are liars. Tail words\n"
+	e := storeTextSource(t, run, "https://ex/edges", text)
+	lead, err := SearchSource(run, e, "here", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lead.Hits) != 1 || lead.Hits[0].SourceSpan != "lead sentence here." || lead.Hits[0].SentenceStart != 4 {
+		t.Fatalf("the text's first sentence starts at its first word; got %+v", lead.Hits)
+	}
+	tail, err := SearchSource(run, e, "tail", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tail.Hits) != 1 || tail.Hits[0].SourceSpan != "Tail words" || tail.Hits[0].SentenceEnd != len(text)-1 {
+		t.Fatalf("the text's last sentence ends at its last word; got %+v", tail.Hits)
+	}
+	eg, err := SearchSource(run, e, "bases", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(eg.Hits) != 1 || eg.Hits[0].SourceSpan != "" || !strings.Contains(eg.Hits[0].NotCiteable, "boundary") {
+		t.Fatalf("a sentence cut at \"e.g.\" is not citeable as printed, and the hit says why; got %+v", eg.Hits)
 	}
 }
 

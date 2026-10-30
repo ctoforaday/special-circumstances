@@ -129,16 +129,15 @@ func sourceHit(texts []spanText, t spanText, start, end int) SourceHit {
 		return h
 	}
 	sentence := strings.Join(strings.Fields(t.text[a:z]), " ")
-	at, found, err := locateOnce(texts, sentence)
+	// The sentence is this text's own words at [a, z), so the locator finds it here: once, and then
+	// it is cited at these offsets, or more than once. Found once, it can still end where cite reads
+	// no sentence end — "e.g." before a lowercase word.
+	_, _, err := locateOnce(texts, sentence)
 	switch {
 	case errors.Is(err, ErrSpanRepeated):
 		h.NotCiteable = "the source holds this sentence more than once"
-	case errors.Is(err, ErrSpanMidClause):
-		h.NotCiteable = "the sentence does not start and end at a boundary cite takes"
 	case err != nil:
-		h.NotCiteable = err.Error()
-	case !found || at.t.page != t.page || at.start != a || at.end != z:
-		h.NotCiteable = "the sentence is not found as one span of the source's text"
+		h.NotCiteable = "the sentence does not start and end at a boundary cite takes"
 	default:
 		h.SourceSpan = sentence
 	}
