@@ -140,7 +140,7 @@ func TestTextCellsKeepsRowBindingAndThePageAroundIt(t *testing.T) {
 		"h 100 100 900 3", "h 100 200 900 3", "h 100 300 900 3",
 		"v 100 100 3 203", "v 400 100 3 203", "v 700 100 3 203", "v 1000 100 3 203",
 	))
-	text, st, why := TextCells(lat, parseTSVWords(tsv), nil, parseTSVWords(tsv), nil)
+	text, st, why := TextCells(lat, parseTSVWords(tsv), nil, parseTSVWords(tsv), nil, parseTSVWords(tsv))
 	if why != "" {
 		t.Fatalf("refused: %s", why)
 	}
@@ -182,7 +182,7 @@ func TestTextCellsRefusesWhatIsNotATableOfText(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			text, _, why := TextCells(ParseLattice(tc.dump), parseTSVWords(tc.tsv), nil, parseTSVWords(tc.tsv), nil)
+			text, _, why := TextCells(ParseLattice(tc.dump), parseTSVWords(tc.tsv), nil, parseTSVWords(tc.tsv), nil, parseTSVWords(tc.tsv))
 			if why == "" {
 				t.Fatalf("accepted, want a refusal naming %q. text:\n%s", tc.want, text)
 			}
@@ -244,7 +244,7 @@ func TestTextCellsSplitsABandWhereNoWordCrosses(t *testing.T) {
 		"h 100 100 603 3", "h 100 320 603 3",
 		"v 100 100 3 223", "v 400 100 3 223", "v 700 100 3 223",
 	))
-	text, st, why := TextCells(lat, parseTSVWords(tsv), nil, parseTSVWords(tsv), nil)
+	text, st, why := TextCells(lat, parseTSVWords(tsv), nil, parseTSVWords(tsv), nil, parseTSVWords(tsv))
 	if why != "" {
 		t.Fatalf("refused: %s", why)
 	}
@@ -254,5 +254,39 @@ func TestTextCellsSplitsABandWhereNoWordCrosses(t *testing.T) {
 	want := "| Task one continues | Input A |\n|---|---|\n| Task two | Input B |"
 	if text != want {
 		t.Errorf("reading =\n%q\nwant\n%q", text, want)
+	}
+}
+
+// THE PROSE AROUND A TABLE IS THE LAYOUT PASS'S (#1619). Under the table sit two columns of prose
+// side by side. The cell witness is a sparse read, every word its own line; the layout pass reads
+// each column as a block. Written from the witness, the two columns' lines interleave.
+func TestTextCellsWritesProseInLayoutOrder(t *testing.T) {
+	const head = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+	cells := "5\t1\t1\t1\t1\t1\t110\t150\t60\t20\t95\tTask\n5\t1\t1\t1\t1\t2\t180\t150\t40\t20\t95\tone\n" +
+		"5\t1\t1\t1\t1\t3\t410\t150\t60\t20\t95\tInput\n5\t1\t1\t1\t1\t4\t480\t150\t20\t20\t95\tA\n" +
+		"5\t1\t1\t1\t2\t1\t110\t247\t60\t20\t95\tTask\n5\t1\t1\t1\t2\t2\t180\t247\t40\t20\t95\ttwo\n" +
+		"5\t1\t1\t1\t2\t3\t410\t247\t60\t20\t95\tInput\n5\t1\t1\t1\t2\t4\t480\t247\t20\t20\t95\tB\n"
+	sparse := head + cells +
+		"5\t1\t2\t1\t1\t1\t110\t400\t60\t20\t95\tLeft\n5\t1\t3\t1\t1\t1\t180\t400\t40\t20\t95\tone\n" +
+		"5\t1\t4\t1\t1\t1\t410\t400\t60\t20\t95\tRight\n5\t1\t5\t1\t1\t1\t480\t400\t40\t20\t95\tone\n" +
+		"5\t1\t6\t1\t1\t1\t110\t440\t60\t20\t95\tLeft\n5\t1\t7\t1\t1\t1\t180\t440\t40\t20\t95\ttwo\n" +
+		"5\t1\t8\t1\t1\t1\t410\t440\t60\t20\t95\tRight\n5\t1\t9\t1\t1\t1\t480\t440\t40\t20\t95\ttwo\n"
+	layout := head + cells +
+		"5\t1\t2\t1\t1\t1\t110\t400\t60\t20\t95\tLeft\n5\t1\t2\t1\t1\t2\t180\t400\t40\t20\t95\tone\n" +
+		"5\t1\t2\t1\t2\t1\t110\t440\t60\t20\t95\tLeft\n5\t1\t2\t1\t2\t2\t180\t440\t40\t20\t95\ttwo\n" +
+		"5\t1\t3\t1\t1\t1\t410\t400\t60\t20\t95\tRight\n5\t1\t3\t1\t1\t2\t480\t400\t40\t20\t95\tone\n" +
+		"5\t1\t3\t1\t2\t1\t410\t440\t60\t20\t95\tRight\n5\t1\t3\t1\t2\t2\t480\t440\t40\t20\t95\ttwo\n"
+	lat := ParseLattice(ruleDump(
+		"h 100 100 603 3", "h 100 320 603 3",
+		"v 100 100 3 223", "v 400 100 3 223", "v 700 100 3 223",
+	))
+	w, p := parseTSVWords(sparse), parseTSVWords(layout)
+	text, _, why := TextCells(lat, w, nil, w, nil, p)
+	if why != "" {
+		t.Fatalf("refused: %s", why)
+	}
+	want := "Left one\nLeft two\n\nRight one\nRight two"
+	if !strings.HasSuffix(text, want) {
+		t.Errorf("reading =\n%s\nwant it to end with the columns in layout order:\n%s", text, want)
 	}
 }

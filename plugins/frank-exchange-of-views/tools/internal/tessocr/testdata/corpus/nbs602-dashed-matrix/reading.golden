@@ -1,5 +1,5 @@
-nbs602-dashed-matrix · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@4214567013aa · rendered at 350.21 DPI (native 350.21), 2612x3468 px
-table: true · rules: repair · rotated: false · grid intersections: 0 · repaired crossings: 32 · length: 1254 · ink: 4.588%
+nbs602-dashed-matrix · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@dcf601ddbdb1 · rendered at 350.21 DPI (native 350.21), 2612x3468 px
+table: true · rules: repair · rotated: false · grid intersections: 0 · repaired crossings: 32 · length: 1321 · ink: 4.588%
 text cells: 1 tables, 3 bands, 4 rows, 7 columns, 21 cells, 60 words placed, 157 read
 fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
 removed lines: 22
@@ -27,12 +27,14 @@ removed: Eee’
 removed: i er es | ee er ee |! Be ee er ee | re ew mw eee | ee eee = |
 ---
 SENSORS
+
 la) Using the matrix below, rank the listed sensors in
 order of importance (1 through 6) for immediate econom-
-ic benefit to the user. Fill in only the Tows that
+ic benefit to the user. Fill in only the rows’ that
 correspond to the application area(s) you are familiar
+
 with. (You may give two or more sensors equal rank. )
-Touch* Simple Complex Prox- Simple Complex
+Touch* Simple Complext Prox- Simple Complex
 Force Force imity Vision Vision
 
 | Spot Welding | 3. 7 (2-6) | 4.1 (3-5) | 4.9 (4-6) | 2.1 (1-3) | 2.1 (1-2) | 3.4 (5-6) |
@@ -41,16 +43,18 @@ Force Force imity Vision Vision
 | Drilling, Routing Grinding, etc. | 4.1 (3-5) | 2.4 (1-3) | 2.9 (2-3) | 4.4 (3-6) | 1.8 (1-2) | 3.9 (2-6) |
 | Small Part Assembly | 3.8 (3-5) | 2.6 (2-4) | 3.4 (3-4) | 3.9 (3-5) | 1.7 (1-2) | 2.1 (1-3) |
 
-Machine Tool 2.8 3.4 4.6 3.1 2.3 3.6
-Loading/Unloading (2-4) (3-4) (4-6) (2-3) (1-3) (2-6)
-Press 2.5 3.1 4.8 3.0 2.7 4.1
-Loading/Unloadina (2-3) (2-4) (4-5) (2-3) (1-4) (3-6)
----
+Machine Tool i 2.8 it 3.4 it 4.6 i 3.1 i 2.3 i 3.6
+Loading/Unloading : (2-4) | (3-4) | (4-6) | (2-3) + (1-3) 1 (2-6)
+H H H H H H
+Press t 2.5 { 3.1 H 4.8 ' 3.90 i 2.7 t+ 4.1
+Loading/Unloading { (2-3) | (2-4) i (4-5) | (2-3) + ¢€1-4) t (3-6)
+
 # Touch - presence or absence of parts or displacement along
-one axit
+one axis
 Simple force —- measure force along a single axis
 Complex force — measure force along two or more axes
 Proximity ~ non-contact detection of part
 Simple vision — detect edges, holes, corners, etc.
 Complex vision - recognize shapes
+
 -3¢9--
