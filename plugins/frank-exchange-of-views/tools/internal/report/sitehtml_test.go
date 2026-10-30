@@ -19,7 +19,7 @@ import (
 
 // REPORT.HTML SHOWS THE TEXT'S HTML AS TYPED (#1569). The renderer passes no HTML of the text
 // through, so nothing a seat wrote is an element; the one element the tool places that markdown
-// cannot say, a proof's anchor, is a node only evidenceDoc's mark produces; and an allowlist of what
+// cannot say, a computation's anchor, is a node only evidenceDoc's mark produces; and an allowlist of what
 // the renderer writes holds every body after it. These tests read the page with an HTML tokenizer —
 // what a browser builds — never with the markdown parser the renderer reads.
 
@@ -175,12 +175,12 @@ func tokens(body string) []html.Token {
 }
 
 // THE ALLOWLIST IS EXACTLY WHAT THE RENDERER WRITES. On honest documents — every construct the
-// renderer has an element for, the citation layer, a proof's anchor, links across the set and record
+// renderer has an element for, the citation layer, a computation's anchor, links across the set and record
 // ids — the policy changes nothing a browser reads. If it does, the policy is wrong, not the page.
 func TestTheAllowlistChangesNothingTheRendererWrites(t *testing.T) {
 	report := strings.Join([]string{
 		"# Title", "",
-		"A paragraph with **bold**, _italic_, ~~struck~~, `code`, a [link](docket.md), a [tab](evidence.md#P-deadbeef),",
+		"A paragraph with **bold**, _italic_, ~~struck~~, `code`, a [link](docket.md), a [tab](evidence.md#K-deadbeef),",
 		"an <https://example.invalid/a> autolink, a mail <someone@example.invalid>, https://example.invalid/b and ![an image](https://example.invalid/i.png).",
 		"Line one  ", "line two.", "",
 		"> a quotation", "",
@@ -191,16 +191,16 @@ func TestTheAllowlistChangesNothingTheRendererWrites(t *testing.T) {
 		"```bash", "echo '<x>' && echo \"y\"", "```", "",
 		"    indented code", "",
 		"---", "",
-		"## Proofs", "",
-		"A claim[^1] and another[^P1], about G-00000001.", "",
+		"## Computations", "",
+		"A claim[^1] and another[^K1], about G-00000001.", "",
 		"[^1]: The source, which cites[^2]. https://example.invalid/a",
 		"[^2]: The second source.",
-		"[^P1]: a computation — in [evidence.md](evidence.md#P-deadbeef).",
+		"[^K1]: a computation — in [evidence.md](evidence.md#K-deadbeef).",
 	}, "\n")
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Body: report},
 		{File: FileDocket, Nav: "Board", Body: "## The board\n\n### G-00000001 — the gap\n\nIt is open; see [the report](report.md).\n"},
-		{File: FileEvidence, Nav: "Evidence", Body: "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1 — the check\n\n```python\nprint(91 % 7)\n```\n"},
+		{File: FileEvidence, Nav: "Evidence", Body: "## Computations\n\n" + computationAnchorMark("K-deadbeef") + "\n\n### K1 — the check\n\n```python\nprint(91 % 7)\n```\n"},
 	}
 	set := stdReaders().shipSet("# T", docs)
 	anchor, seen, files := anchors{}, map[string]int{}, map[string]bool{}
@@ -236,7 +236,7 @@ func TestAnchorTokensAreNeverShownAsTyped(t *testing.T) {
 		"# On 91 — research report", "",
 		"## TL;DR", "",
 		"<!--gap:G-0000abcd--> The next sentence <b>x</b>.", "",
-		"- <!--proof:P-deadbeef--> A listed sentence <b>y</b>.", "",
+		"- <!--computation:K-deadbeef--> A listed sentence <b>y</b>.", "",
 		"> <!--fx:F-0000beef--> A quoted sentence.", "",
 		"[^n]: <!--gap:G-0000abcd--> A note's sentence.", "",
 		"A claim[^n].", "",
@@ -339,18 +339,18 @@ func TestAngleBracketDestinationsStayLinks(t *testing.T) {
 	}
 }
 
-// A PROOF'S LABEL ANCHORS ONCE, IN BOTH TIERS. Two proofs under one label gave the second a literal
-// tag, and a label that is no proof id panicked the assembly.
-func TestAProofLabelAnchorsOnce(t *testing.T) {
-	md := "## Proofs\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P1\n\n" + proofAnchorMark("P-deadbeef") + "\n\n### P2\n\n" + proofAnchorMark("not-a-label") + "\n\n### P3\n"
+// A COMPUTATION'S LABEL ANCHORS ONCE, IN BOTH TIERS. Two computations under one label gave the second a literal
+// tag, and a label that is no computation id panicked the assembly.
+func TestAComputationLabelAnchorsOnce(t *testing.T) {
+	md := "## Computations\n\n" + computationAnchorMark("K-deadbeef") + "\n\n### K1\n\n" + computationAnchorMark("K-deadbeef") + "\n\n### K2\n\n" + computationAnchorMark("not-a-label") + "\n\n### K3\n"
 	set := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: md}})
 	page := mainOf(RenderSite(set, record.Family{}))
 	shipped := set.md[0]
 	for tier, got := range map[string]string{"report.html": page, "evidence.md": shipped} {
-		if n := strings.Count(got, proofAnchor("P-deadbeef")); n != 1 {
+		if n := strings.Count(got, computationAnchor("K-deadbeef")); n != 1 {
 			t.Errorf("%s holds %d anchors for the label, want 1:\n%s", tier, n, got)
 		}
-		if strings.Contains(got, "not-a-label") || strings.Contains(got, "proof-anchor") {
+		if strings.Contains(got, "not-a-label") || strings.Contains(got, "computation-anchor") {
 			t.Errorf("%s shows a mark:\n%s", tier, got)
 		}
 	}

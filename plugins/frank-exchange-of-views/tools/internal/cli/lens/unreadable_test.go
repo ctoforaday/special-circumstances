@@ -37,11 +37,11 @@ func TestAClosureWhoseCheckKindCannotBeReadIsRefused(t *testing.T) {
 	wantRefusalNaming(t, err, "the check kind G-1 was minted with")
 }
 
-func TestAClosureWhoseProofJoinCannotBeReadIsRefused(t *testing.T) {
+func TestAClosureWhoseComputationJoinCannotBeReadIsRefused(t *testing.T) {
 	err := requireComputationAnswered("G-1",
 		func(string) (bool, error) { return true, nil },
 		func(string) (bool, error) { return false, errUnreadable })
-	wantRefusalNaming(t, err, "whether a proof answers G-1")
+	wantRefusalNaming(t, err, "whether a computation answers G-1")
 }
 
 // The healthy answers, so the refusals above are about the failure and not the fixture.

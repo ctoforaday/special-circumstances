@@ -85,7 +85,7 @@ type StandingJSON struct {
 // owed.
 //
 // IT CANNOT REACH "0 OPEN", AND THAT IS THE WORK LIST'S DESIGN RATHER THAN A ROUNDING HERE. The list
-// deliberately keeps the acts a seat MAY do — a citation nobody verified, a proof nobody re-ran —
+// deliberately keeps the acts a seat MAY do — a citation nobody verified, a computation nobody re-ran —
 // because a seat whose list empties reads it as permission to stop looking (record.Item.Blocks). So
 // "all clear" is the terminal, not "nothing open", and the sentence has to say which one it means.
 func (s StandingJSON) Human() string {

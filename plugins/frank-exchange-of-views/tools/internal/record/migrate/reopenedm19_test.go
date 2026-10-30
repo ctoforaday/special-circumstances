@@ -31,7 +31,7 @@ func TestTheMigratedM19HoldsTheSameReopenedAnchors(t *testing.T) {
 		got = append(got, r.Anchor)
 		t.Logf("%s: edit %d, last check %d", r.Anchor, r.Edit, r.LastCheck)
 	}
-	want := []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}
+	want := []string{"C-706fda63", "C-4dae2507", "K-cd9f4c5a"}
 	if !slices.Equal(got, want) {
 		t.Errorf("the migrated m19's reopened anchors = %q, want %q", got, want)
 	}

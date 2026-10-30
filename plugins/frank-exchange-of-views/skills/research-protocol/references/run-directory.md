@@ -25,7 +25,7 @@ research/<date>_<slug>/
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── inquiries.md         # each inquiry's fate, the path it took, each step's reason, and its ruling; the chair's reviews
-├── evidence.md        # the computations, with script, output and sha256; the citations, with every reading of each
+├── evidence.md        # the computations, with program, output and sha256; the citations, with every reading of each
 ├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks, every edit and its reason
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
@@ -73,7 +73,7 @@ permitted (VERIFIED) — or when the run reaches its epoch limit with parties st
 named as the reason). A gap at impasse after the one more exchange the bench's remand granted is
 docketed again and closed: a second remand at impasse is refused. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max), the floor of the gaps a lens may hold open at once (mint-budget), which the record raises
-with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs; a gap that
+with the report's size in each lens's unit — citations, computations, claims or prose paragraphs; a gap that
 answers a contradiction its own lens raised takes no mint of it — and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan the same for three chair sittings in a row — the same parties readied against the same

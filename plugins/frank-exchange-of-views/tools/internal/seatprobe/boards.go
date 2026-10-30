@@ -19,7 +19,7 @@ package seatprobe
 // # Why the boards are plural
 //
 // One board cannot honestly demand all eighteen of blue's verbs: a situation that wants a
-// citation, a retraction, a proof, a grade contest and a closing argument at once is not a
+// citation, a retraction, a computation, a grade contest and a closing argument at once is not a
 // situation, it is a checklist. So each board is one coherent sitting, and coverage is a property
 // of the UNION — which is what surfacecoverage_test.go checks, against the verb list the cobra
 // tree actually offers rather than a list maintained here.
@@ -87,8 +87,8 @@ type Motion struct {
 	RuledWhy string
 }
 
-// Proof is a recorded computation, so a lens has something to re-run.
-type Proof struct {
+// Computation is a recorded computation, so a lens has something to re-run.
+type Computation struct {
 	Location, Script, Answers string
 }
 
@@ -114,9 +114,9 @@ type Board struct {
 	// is cited against the scanned fixture, quoting Span from its reading, so the tool records a
 	// page and a lens owes a check against that page's image. They add no claim.
 	PagedClaims []PagedClaim
-	// Motions and Proofs are the adjudications and computations the board already carries.
-	Motions []Motion
-	Proofs  []Proof
+	// Motions and Computations are the adjudications and computations the board already carries.
+	Motions      []Motion
+	Computations []Computation
 	// Expect is what a correctly-taught seat does here.
 	Expect []Expectation
 	// RedNarrative is red's first-epoch "### RED" section, the transcript a repairing seat is sent to
@@ -181,7 +181,7 @@ The remaining cases are out of scope.
 				Fix:      "Recompute the total from the per-source table and correct whichever is wrong.",
 				Check:    "The stated total equals the sum of the per-source rows.", CheckKind: "computation",
 				Severity: "high", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "prove",
+				Baits: "compute",
 				Why: "A computation check CANNOT be closed by prose — the tool says so at the write path. " +
 					"Twelve numbers is exactly the size where typing the sum feels cheaper than running " +
 					"it, and typing it is how the wrong total got there in the first place.",
@@ -193,7 +193,7 @@ The remaining cases are out of scope.
 				Fix:      "Show the model and the rate it was run at, or drop the projection.",
 				Check:    "The projection is reproducible from a stated rate and a stated starting figure.", CheckKind: "computation",
 				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
-				Baits: "prove",
+				Baits: "compute",
 				Why: "Restating a projection in prose leaves a reader unable to vary the rate, which is " +
 					"the only question anybody has about a forecast.",
 			},
@@ -223,7 +223,7 @@ The remaining cases are out of scope.
 			},
 		},
 		Expect: []Expectation{
-			{Seat: "blue-respond", Verb: "prove", Because: "TWO gaps here are check-kind computation, and such a check closes ONLY when a proof answers it. A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
+			{Seat: "blue-respond", Verb: "compute", Because: "TWO gaps here are check-kind computation, and such a check closes ONLY when a computation answers it. A seat that repairs the number in prose has restated the claim it was asked to evidence, and the gap stays open with nobody able to discharge it."},
 			{Seat: "blue-respond", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a gap blue repaired that carries no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
@@ -503,7 +503,7 @@ Figures were read from the deployed configuration at the pinned revision.
 	}
 }
 
-// lensAudit: a lens sitting. Findings, source verification, and a proof to re-run.
+// lensAudit: a lens sitting. Findings, source verification, and a computation to re-run.
 func lensAudit() Board {
 	return Board{
 		Name: "lens-audit", Seat: "red-lens-evidence",
@@ -524,7 +524,7 @@ The methodology follows the standard published by the working group.
 The working group's standard has been withdrawn since the benchmark was run.
 `,
 		Claims: []string{"The improvement is 40% against the prior release."},
-		Proofs: []Proof{{
+		Computations: []Computation{{
 			Location: "The improvement is 40% against the prior release.",
 			Script:   "print('improvement: 40%')",
 		}},
@@ -533,7 +533,7 @@ The working group's standard has been withdrawn since the benchmark was run.
 			{Seat: "red-lens-evidence", Verb: "finding", Because: "The lens's whole act. A finding anchors into the report at a quoted sentence and is refused if the quote is not there, so it cannot be filed against text nobody wrote."},
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
 			{Seat: "red-lens-evidence", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
-			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A proof is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
+			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A computation is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
 			{Seat: "red-lens-evidence", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat but the bench may file; the bench rules."},
 			{Seat: "red-lens-evidence", Verb: "log", Because: "The report cites a claim whose source is behind a paywall this seat cannot reach. There is no verb for `I could not read it`, so the accounted move is to say so in the log — and a lens that instead grades the citation on the abstract has produced a verification that never happened."},
 		},
@@ -608,9 +608,9 @@ The methodology follows the standard published by the working group.
 		Motions: []Motion{{
 			Subject: "grade", Filer: "blue-respond", GapID: "G1",
 			Dimension: "severity", Proposed: "medium",
-			Basis:    "the figure is reproducible from the proof now on the board; what remains is presentation, not correctness",
+			Basis:    "the figure is reproducible from the computation now on the board; what remains is presentation, not correctness",
 			Ruled:    "accepted",
-			RuledWhy: "the proof answers the check; the residual defect is that the derivation is not IN the report, which is material but not serious",
+			RuledWhy: "the computation answers the check; the residual defect is that the derivation is not IN the report, which is material but not serious",
 		}},
 		Expect: []Expectation{
 			{Seat: "red-lens-evidence", Verb: "regrade", Because: "Blue's grade motion on G1 was accepted by the chair, and accepting a motion does not move the grade — saying so is not doing it. The regrade is the ORIGINATOR's act; nobody else's regrade lands on this gap."},
@@ -649,7 +649,9 @@ No material downside was identified.
 					"reports the absence of a finding as the absence of a risk, and the two are only the same " +
 					"if a search happened. Blue has not said what was searched, over what corpus, or with " +
 					"what stopping rule — so a reader cannot tell a thorough review from a sentence nobody " +
-					"checked. The repair is one clause and blue has declined it twice.",
+					"checked. The repair is one clause and blue has declined it twice. I graded its severity " +
+					"`certain` on first read, and that overstates it: the sentence misleads, it does not assert a " +
+					"falsehood, and on the record as it stands it is a `medium` defect.",
 				BlueClosing: "The section is a summary of the risk review above it, and that review names " +
 					"its sources. Red is asking for a methods paragraph inside a TL;DR, which is a house-style " +
 					"preference dressed as a correctness gap. If the bench holds that a negative claim owes " +
@@ -676,6 +678,11 @@ No material downside was identified.
 			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
 			// skim the whole board.
 			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `remanded` is the one value that sends the gap back to the debate for one more exchange instead of closing it — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
+			{Seat: "judge", Verb: "regrade", Because: "Red's own closing concedes the gap's severity is overstated — `certain` " +
+				"for a sentence that misleads without asserting a falsehood — and the ruling rules on the grade the gap carries. " +
+				"A bench that holds a grade wrong sets it with its own regrade while the docket motion stands, then rules; a " +
+				"ruling over a grade it holds wrong records a fate on a gap the record still grades as something else, and " +
+				"only the bench's regrade binds the lens not to move it back."},
 			{Seat: "judge", Verb: "motion petition rule", Because: "A petition convenes the bench at the next chair sitting, before any party of that epoch sits, and the run cannot end in a verdict while one stands. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +

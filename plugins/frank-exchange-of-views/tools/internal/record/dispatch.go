@@ -19,7 +19,7 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a check of its that failed; empty for blue readied to remedy a failed check — fix or retire a proof judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read or a check of its that failed; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
@@ -503,9 +503,9 @@ func foldPlan(params Params, r planReads) Plan {
 	// stopped at the call limit or never closed readies it again, the reason says so, and the blocker still holds the
 	// PASS — the precedent benchSatFor set for the docket.
 	//
-	// A CITATION OR PROOF WITH NO CHECK OF ITS SENTENCE AS IT STANDS READIES ITS OWNER, once per
+	// A CITATION OR COMPUTATION WITH NO CHECK OF ITS SENTENCE AS IT STANDS READIES ITS OWNER, once per
 	// cause: the edit that changed its sentence, or the act that placed it. Its owner owes the check,
-	// so it is not retired (lensOwesOf), but a cite or a proof moves no report head (reportHeadOf), so
+	// so it is not retired (lensOwesOf), but a cite or a computation moves no report head (reportHeadOf), so
 	// Source 1 does not ready it for an anchor blue placed after its last sitting — and with nobody
 	// ready the run ended UNVERIFIED over the citation (the release fuzz's forced-VERIFIED seed). The
 	// owner is ready until it sits through a sitting opened after the cause, and one reason names every
@@ -544,7 +544,7 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			engage(b.Owner, "")
 			plan.Why = append(plan.Why, contradictionReadiness(b, false))
-		// A FAILED CHECK READIES TWO SEATS (gblock, 2026-10-24, for the proof; 2026-10-25, for the
+		// A FAILED CHECK READIES TWO SEATS (gblock, 2026-10-24, for the computation; 2026-10-25, for the
 		// citation): the lens whose check failed to mint its gap, until it has, and blue to remedy it —
 		// each once per cause, where blue's cause moves when the gap is minted, so blue sits with the
 		// gap's fix in hand.
@@ -573,7 +573,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
 	// the stale areas, its ruling on a grade or inquiry motion). A blocker another seat must clear —
 	// an unruled petition, a contradiction no gap answers, a docket motion on a gap that has
-	// since closed, a citation or proof with no check of its sentence as it stands — holds it, and its
+	// since closed, a citation or computation with no check of its sentence as it stands — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
 	// cannot clear (#1202).
 	chairOnly := true
@@ -1317,7 +1317,7 @@ func contradictionReadiness(b Blocker, satSince bool) string {
 func failedCheckReadiness(b Blocker, seat string, satSince bool) string {
 	what, failed := "citation "+b.Subject, "read nothing of its source"
 	if b.Detail != "" {
-		what, failed = "proof "+b.Subject, "judged it unsound"
+		what, failed = "computation "+b.Subject, "judged it unsound"
 	}
 	if seat == blueRespondSeat {
 		if satSince {

@@ -109,7 +109,7 @@ type GapJSON struct {
 	// unset, so a gap anchored by quote reads exactly as it did.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
 	// location, and whether anyone has verified them.
 	//
 	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
@@ -131,26 +131,26 @@ type GapJSON struct {
 	AcceptanceGate string `json:"acceptance_check"`
 	// CheckKind says what KIND of evidence settles the acceptance check, and it is the field
 	// with teeth: `computation` means the gap cannot be closed on prose at all — only a
-	// `blue prove --answers <id>` settles it. It lived on the mint event and reached NO view,
+	// `blue compute --answers <id>` settles it. It lived on the mint event and reached NO view,
 	// so the one seat that can satisfy the demand could not see it existed.
 	//
-	// Measured: `prove` was invoked zero times across eighteen probed seat dispatches, on
+	// Measured: `compute` was invoked zero times across eighteen probed seat dispatches, on
 	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
 	// reasoning, wrote the answer into the report, and was satisfied — the exact failure the
 	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
 	// merge's close in the following epoch, by which time blue's sitting was over.
 	CheckKind string `json:"check_kind"`
-	// AwaitingProof is check_kind stated as a DEBT rather than as a property.
+	// AwaitingComputation is check_kind stated as a DEBT rather than as a property.
 	//
-	// Projecting check_kind was necessary and not sufficient: with it visible, `prove` went
+	// Projecting check_kind was necessary and not sufficient: with it visible, `compute` went
 	// from 0 uses in eighteen sittings to 1 in nine. A seat reading `"check_kind":
 	// "computation"` learns a fact about the gap; it does not learn that IT owes a program,
 	// and the difference decides whether the sitting produces one.
 	//
-	// True only while the gap is OPEN and no proof names it in --answers. It is DERIVED at
+	// True only while the gap is OPEN and no computation names it in --answers. It is DERIVED at
 	// projection from the same join the close gate uses, so the board and the gate cannot
 	// disagree about what is owed.
-	AwaitingProof bool `json:"awaiting_proof"`
+	AwaitingComputation bool `json:"awaiting_computation"`
 	// The concrete proposal, when red made one (#267 stage 3). fix_basis is DERIVED at mint
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
@@ -347,7 +347,7 @@ func gradeVal(g recordpb.Grade) any {
 func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 
 // BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
-// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the proof debt), the
+// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the computation debt), the
 // list tables answer found_by/supersedes, and only the acts this projection EMBEDS — closures,
 // regrades, findings — come through the typed loader, because their bodies render whole and the
 // schema machinery is the one statement of body shape.
@@ -413,7 +413,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_by", "minted_event",
+	    "acceptance_check", "check_kind", "awaiting_computation", "fix_basis", "fix_new", "minted_by", "minted_event",
 	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last",
 	    "material", "remanded", "docket_direction"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -446,7 +446,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			Class:     class.String,
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
-			CheckKind: kind.String, AwaitingProof: awaiting,
+			CheckKind: kind.String, AwaitingComputation: awaiting,
 			Backing: []GapBackingJSON{},
 		}
 		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
@@ -667,6 +667,9 @@ type WorkJSON struct {
 	// board's status for it — on every seat's list, because a holding binds every seat. See
 	// DeclarationJSON.
 	Declarations []DeclarationJSON `json:"declarations"`
+	// Relief is every granted petition's order, with whom it binds — on every seat's list, as the
+	// declarations are. See ReliefJSON.
+	Relief []ReliefJSON `json:"relief"`
 }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
@@ -677,7 +680,7 @@ type WorkJSON struct {
 // because "nobody looked" and "not backed" are different answers.
 type GapBackingJSON struct {
 	Anchor string `json:"anchor"`
-	// Kind is citation | proof | finding, from the id's prefix — the one string-encoded fact this
+	// Kind is citation | computation | finding, from the id's prefix — the one string-encoded fact this
 	// tree keeps on purpose, because the id and its token are minted together (see anchor.Token).
 	Kind string `json:"kind"`
 	// Outcome and Confidence are the verification, where one exists — the SourceOutcome and
@@ -760,7 +763,7 @@ type WorkGapJSON struct {
 	// when the where is a quote.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
 	// location, and whether anyone has verified them.
 	//
 	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
@@ -832,14 +835,17 @@ type WorkGapJSON struct {
 	// and a seat scanning the open set has to know which of them cannot be answered in prose
 	// before it decides how to spend the sitting.
 	CheckKind string `json:"check_kind"`
-	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
-	AwaitingProof bool `json:"awaiting_proof"`
+	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingComputation.
+	AwaitingComputation bool `json:"awaiting_computation"`
 	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. The work list says in words
 	// that the bench remanded this gap and what direction its one more exchange owes; a seat acting
 	// on the JSON needs the same fact as a field rather than by matching on the sentence. `omitempty`
 	// on the direction and not on the flag: false is a real answer, "" is the absence of one.
 	Remanded        bool   `json:"remanded"`
 	DocketDirection string `json:"docket_direction,omitempty"`
+	// DocketSettled is what the latest remand settles — the proposition a party may no longer
+	// assert though the gap is back in the debate; absent where it settles none.
+	DocketSettled string `json:"docket_settled,omitempty"`
 	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
@@ -891,7 +897,7 @@ type EstoppedJSON struct {
 	Location      string `json:"location"`
 	AboutKind     string `json:"about_kind,omitempty"`
 	AboutRef      string `json:"about_ref,omitempty"`
-	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
 	// location, and whether anyone has verified them.
 	//
 	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,
@@ -916,6 +922,13 @@ type EstoppedJSON struct {
 	// fates settle the first while leaving the second. Carried here so a seat reading its
 	// board can tell "fixed" from "shipping broken, knowingly" without decoding a word.
 	ArtifactState string `json:"artifact_state"`
+	// Settled, ReopensOn and Final are the ruling's own answers, off the ruling the bench recorded:
+	// the proposition the losing party may no longer assert (empty where the ruling barred none),
+	// and what would reopen the gap — the condition, or Final where nothing would. A docket motion
+	// on the gap is a reconsideration, admitted on new grounds only (requireNewGrounds).
+	Settled   string `json:"settled"`
+	ReopensOn string `json:"reopens_on,omitempty"`
+	Final     bool   `json:"final"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -933,7 +946,7 @@ func synopsis(s string) string {
 }
 
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
-// (openness, the regrade-overlaid grades, the proof debt, `closed_by_bench` and `bench_closed_last`)
+// (openness, the regrade-overlaid grades, the computation debt, `closed_by_bench` and `bench_closed_last`)
 // plus the last closer's word, read off the act the view names. The work list walks the gap view in the order
 // BoardJSONOfRun does, so the two agree on membership and order. It is the input SittingOf and
 // availableOf read instead of a folded Board.
@@ -957,19 +970,22 @@ type WorkGapState struct {
 	LocationState, sentence string
 	AboutKind, AboutRef     string
 	// Edits are the edits whose recorded `reopened` names the gap, in record order.
-	Edits                              []GapEdit
-	Open, AwaitingProof, ClosedByBench bool
+	Edits                                    []GapEdit
+	Open, AwaitingComputation, ClosedByBench bool
 	// benchClosedLast is the view's `bench_closed_last`: whether the later closing act is the
 	// bench's, which the closure's word and its bar on re-raising follow.
 	benchClosedLast bool
 	// Remanded: OPEN, the bench has remanded it, and nothing is pending. Off the view, the same
-	// way AwaitingProof is — the alternative was a second Go fold of a question the SQL already
+	// way AwaitingComputation is — the alternative was a second Go fold of a question the SQL already
 	// answers, which is what #681's standing rule forbids.
 	Remanded bool
 	// DocketDirection is the research direction the latest remand states, or "" when the bench has
 	// never remanded the gap. It is the SUBSTANCE of the remand: without it a seat is told the gap
 	// came back from the bench and not what to do about it.
 	DocketDirection string
+	// DocketSettled is the proposition the latest remand settles, "" where it settles none or the
+	// bench never remanded the gap — the gap view's `docket_settled`.
+	DocketSettled string
 	// remand is where the gap stands against the bench's counted remands, and route what the
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
@@ -982,9 +998,12 @@ type WorkGapState struct {
 	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
 	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
 	// item on a docket motion says so before it rules.
-	remandLimit                      int64
-	Fate                             string // the last closer's word; closed gaps only
-	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
+	remandLimit int64
+	Fate        string // the last closer's word; closed gaps only
+	// benchRuling is the bench's closing ruling the gap view names (`bench_close_event`); nil where
+	// the bench never closed the gap. Its settled, reopens_on and final reach the estopped row.
+	benchRuling                      *recordpb.DocketRuling
+	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
 	// Material, ClassMaterial, Stranded and SupersededBy are the view's columns the PASS gate
@@ -1042,7 +1061,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
-	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_direction",
+	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
@@ -1055,7 +1074,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, classMaterial, supersededBy sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial, supersededBy sql.NullString
 		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
@@ -1063,7 +1082,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		// remanded/docket_direction here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.Remanded, &reopensOn,
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingComputation, &g.Remanded, &reopensOn, &remandSettled,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
@@ -1072,7 +1091,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
-		g.DocketDirection = reopensOn.String
+		g.DocketDirection, g.DocketSettled = reopensOn.String, remandSettled.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
@@ -1109,7 +1128,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
 		if c != nil {
-			g.Fate, g.closedEpoch = c.reason(), c.closedEpoch
+			g.Fate, g.closedEpoch, g.benchRuling = c.reason(), c.closedEpoch, c.lastBenchClosure
 		}
 		out = append(out, g)
 	}
@@ -1210,7 +1229,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
-	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}}
+	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}, Relief: []ReliefJSON{}}
 	for _, g := range gaps {
 		if g.Open {
 			item := WorkGapJSON{
@@ -1231,8 +1250,8 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false.
 				YoursToClose: reader != "" && g.MintedBy == reader,
 				RegradesOwed: []OwedRegradeJSON{},
-				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
-				Remanded: g.Remanded, DocketDirection: g.DocketDirection, RemandStage: remandStageWords[g.remand],
+				CheckKind:    g.CheckKind, AwaitingComputation: g.AwaitingComputation,
+				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
 			}
@@ -1249,7 +1268,8 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 			continue
 		}
 		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
-			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
+			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate,
+			Settled: g.benchRuling.GetSettled(), ReopensOn: g.benchRuling.GetReopensOn(), Final: g.benchRuling.GetFinal()}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
 			ci.ArtifactState = string(s)
 		} else {
@@ -1440,6 +1460,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if w.Declarations, err = declarationsOf(evs, win, gaps); err != nil {
 		return WorkJSON{}, err
 	}
+	w.Relief = reliefOf(evs, win)
 	return w, nil
 }
 
@@ -1479,7 +1500,7 @@ type FindingJSON struct {
 	// anchor went missing, it is one whose subject was never on the page.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and proof anchors in its
+	// Backing is WHAT STANDS BEHIND THIS GAP'S SENTENCE — the citation and computation anchors in its
 	// location, and whether anyone has verified them.
 	//
 	// IT RIDES THE GAP BECAUSE THAT IS THE QUESTION. A lens auditing a claim asks "is this backed,

@@ -97,7 +97,7 @@ func terminalModel(t *testing.T, live record.LiveState) Model {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS"}`},
-		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","dispositions":[1]}`},
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL"}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
@@ -169,9 +169,9 @@ func TestRenderHTMLLive(t *testing.T) {
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
 		// A claim count a seat put in its envelope is not summarised: the count is the report's.
-		{`{"verdict":"FAIL","claim_count":15,"dispositions":[1]}`,
-			"verdict FAIL · 1 ruling"},
-		{`{"dispositions":[1,2]}`, "2 rulings"},
+		{`{"verdict":"FAIL","claim_count":15}`, "verdict FAIL"},
+		// A ruling is the record's: the bench's envelope carries none to count.
+		{`{"dispositions":[1,2]}`, `{"dispositions":[1,2]}`},
 		{`not json`, "not json"},
 		{`{}`, "{}"},
 	}

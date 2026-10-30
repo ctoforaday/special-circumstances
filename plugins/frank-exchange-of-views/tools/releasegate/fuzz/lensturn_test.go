@@ -30,8 +30,8 @@ type gapActs map[string][]struct {
 // actsOnGaps reads every act on a gap off evs, and each gap's mint position and stranded state.
 func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, superseded map[string]bool) {
 	acts, minted, superseded = gapActs{}, map[string]int{}, map[string]bool{}
-	proofAnswers := map[string]string{} // proof id → the gap it answers
-	anchored := map[string][]string{}   // inquiry id → the gaps minted about it
+	computationGap := map[string]string{} // computation id → the gap it answers
+	anchored := map[string][]string{}     // inquiry id → the gaps minted about it
 	add := func(seat string, at int, gaps ...string) {
 		for _, g := range gaps {
 			if g != "" {
@@ -74,12 +74,12 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, super
 		if b, ok := recordpb.BodyAs[*recordpb.Retire](e); ok && b.GetClaimKept() {
 			add(seat, i, b.GetAnswers())
 		}
-		if b, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
-			proofAnswers[b.GetProofId()] = b.GetAnswers()
+		if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
+			computationGap[b.GetComputationId()] = b.GetAnswers()
 			add(seat, i, b.GetAnswers())
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Reproduce](e); ok {
-			add(seat, i, proofAnswers[b.GetProofId()])
+			add(seat, i, computationGap[b.GetComputationId()])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 			add(seat, i, anchored[b.GetInquiryId()]...)

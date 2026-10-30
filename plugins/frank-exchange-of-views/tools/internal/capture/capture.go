@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -380,7 +381,7 @@ func ContextUse(transcripts []record.Transcript) Audit {
 // footnotes, which is the design and is why AssemblyScreen screens the url rather than the
 // anchor. The 2026-08-23 runs prove that weave can be LOSSY on one class and sound on another
 // in the same pass: 11 citation anchors became `[^1]`–`[^11]` with a complete bibliography,
-// while 6 proof anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
+// while 6 computation anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
 // headings written as `### [^P1] …` — which markdown reads as a second reference, not a
 // heading. Both reports shipped and rendered literal `[^P1]` at every site: 12 broken
 // references in one, 4 in the other.
@@ -668,7 +669,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 // invisible; `(\S+)` captured `--seat-id "x"` with the quotes; FindStringSubmatch saw only the
 // first invocation in a batched command, which debate.js encourages; the event type is not the
 // verb for six types (friction-none, anchor, blue_edit, the two motion subcommands, and friction
-// when emitted as a side effect of mint/prove/cite); and `[\s\S]*?` spanned invocations, so one
+// when emitted as a side effect of mint/compute/cite); and `[\s\S]*?` spanned invocations, so one
 // call's verb could pair with another call's seat and MANUFACTURE an invocation that never
 // happened — masking a genuine orphan. Four modes fail loudly; the fifth fails silently, which is
 // the one that matters.
@@ -823,7 +824,7 @@ type Claim struct {
 // it (it came back in the call's result) or NAMED it (it is in the call's input), other than the
 // calls that recorded the sitting's closes. The audit searched every call of every transcript, and
 // the close itself carries every anchor it names, so no anchored closure could fail: m30's
-// G-968365ad named two proofs and reconciled on its own `close --anchor`. A close is located in its
+// G-968365ad named two computations and reconciled on its own `close --anchor`. A close is located in its
 // sitting's transcript by its stamp, inside the window from the call to its result; a close no
 // call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
@@ -1992,9 +1993,9 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
-		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
+		// the run's own computations, re-run and compared. See computationrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
-		ProofRerunAudit(run, proofRerunSample),
+		ComputationRerunAudit(run, computationRerunSample),
 		// Synthesis's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
@@ -2090,7 +2091,7 @@ func copyFile(src, dst string) error {
 // artifact. The record they were derived from — the thing each audit re-reads, and the only thing
 // that can answer a question nobody has thought of yet — was left behind.
 //
-// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and computations/: 49 KB gzipped for a fifteen-seat run, so
 // keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
 // bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
 // already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
@@ -2121,16 +2122,12 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		}
 		dbBytes = b
 	}
-	type archived struct {
-		name string
-		path string
-		data []byte // the bytes, when they were read for the walk rather than by it
-	}
+	type archived = archive.Entry
 	var files []archived
 	add := func(root, prefix string) error {
 		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
-				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+				return nil // a missing computations/ is ordinary; a missing records/ is caught below
 			}
 			rel, rerr := filepath.Rel(root, p)
 			if rerr != nil {
@@ -2139,18 +2136,24 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 			if p == dbPath || p == dbPath+"-wal" || p == dbPath+"-shm" {
 				return nil
 			}
-			files = append(files, archived{name: prefix + filepath.ToSlash(rel), path: p})
+			files = append(files, archived{Name: prefix + filepath.ToSlash(rel), Path: p})
 			return nil
 		})
 	}
 	if dbBytes != nil {
-		files = append(files, archived{name: "records/record.db", data: dbBytes})
+		files = append(files, archived{Name: "records/record.db", Data: dbBytes})
 	}
 	if err := add(recs, "records/"); err != nil {
 		return "", err
 	}
 	shards := len(files)
-	_ = add(filepath.Join(run.Dir(), "proofs"), "proofs/")
+	// THE COMPUTATION STORE AS THE RECORD NAMES IT (archive.Store): its staging and any directory no
+	// event names stay behind.
+	store, err := archive.Store(run)
+	if err != nil {
+		return "", fmt.Errorf("listing the computation store: %w", err)
+	}
+	files = append(files, store...)
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
@@ -2170,7 +2173,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// record, while the law mirror is read by seats during the run and is provenance rather than
 	// function. Carrying provenance is a separate decision, and naming it here is how it stays one.
 	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
-		files = append(files, archived{name: "inputs/run-config.json", path: cfg})
+		files = append(files, archived{Name: "inputs/run-config.json", Path: cfg})
 	}
 
 	// THE STAGED CORPUS IS HASHED, NOT CARRIED (gblock, 2026-09-19).
@@ -2185,7 +2188,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
 		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
 			if os.WriteFile(digestPath, b, 0o644) == nil {
-				files = append(files, archived{name: "inputs/" + corpusDigestName, path: digestPath})
+				files = append(files, archived{Name: "inputs/" + corpusDigestName, Path: digestPath})
 			}
 		}
 	}
@@ -2201,33 +2204,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		return "", err
 	}
 	out := filepath.Join(outDir, filepath.Base(filepath.Clean(run.Dir()))+".tar.gz")
-	f, err := os.Create(out)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	gz := gzip.NewWriter(f)
-	tw := tar.NewWriter(gz)
-	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
-	for _, fl := range files {
-		b := fl.data
-		if b == nil {
-			var rerr error
-			if b, rerr = os.ReadFile(fl.path); rerr != nil {
-				return "", rerr
-			}
-		}
-		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
-			return "", err
-		}
-		if _, err := tw.Write(b); err != nil {
-			return "", err
-		}
-	}
-	if err := tw.Close(); err != nil {
-		return "", err
-	}
-	if err := gz.Close(); err != nil {
+	if err := archive.Write(out, files); err != nil {
 		return "", err
 	}
 	return out, nil

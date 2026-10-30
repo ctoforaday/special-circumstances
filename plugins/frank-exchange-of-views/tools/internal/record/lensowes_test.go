@@ -31,7 +31,7 @@ func foldOf(t *testing.T, run Run, seat string) lensFold {
 // A LENS THAT OWES IS NOT RETIRED (retirement.go). Each row is a debt that stands until the lens acts
 // on it, staged on a lens that then sits three times at the head minting nothing: with the debt
 // standing it is not retired and the moved head readies it, the reason naming what it owes; the same
-// board without the debt retires it. A computation lens retired with a proof it alone is offered
+// board without the debt retires it. A computation lens retired with a computation it alone is offered
 // unjudged. What is new on a gap of its own is owed until it sits (TestNewsOnItsGapIsOwedUntilItSits).
 func TestALensThatOwesIsNotRetired(t *testing.T) {
 	for _, c := range []struct {
@@ -41,14 +41,14 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 		debt func(b *stage)
 		owes string
 	}{
-		{"a proof it owns that nobody judged", compLens, []string{compLens, evLens},
-			func(b *stage) { b.proof("P-1", "s1") }, "unchecked P-1"},
+		{"a computation it owns that nobody judged", compLens, []string{compLens, evLens},
+			func(b *stage) { b.computation("K-1", "s1") }, "unchecked K-1"},
 		{"a citation it owns reopened since its check", evLens, []string{evLens},
 			func(b *stage) { b.cite("C-1").supports(evLens, "C-1").reopen("C-1") }, "unchecked C-1"},
-		{"a proof it owns reopened since its judgement", compLens, []string{compLens, evLens},
+		{"a computation it owns reopened since its judgement", compLens, []string{compLens, evLens},
 			func(b *stage) {
-				b.proof("P-1", "s1").reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
-			}, "unchecked P-1"},
+				b.computation("K-1", "s1").reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("K-1")
+			}, "unchecked K-1"},
 		{"a contradiction it read that nothing answers", evLens, []string{evLens},
 			func(b *stage) { b.add(evLens, contradictingVerify("the sky is green")) }, "contradiction "},
 	} {
@@ -114,9 +114,9 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 	}
 }
 
-// THE DEBT IS THE OWNER'S ALONE. A proof nobody judged is the computation lens's, so the evidence
+// THE DEBT IS THE OWNER'S ALONE. A computation nobody judged is the computation lens's, so the evidence
 // lens beside it owes nothing for it and retires.
-func TestAnUnjudgedProofKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
+func TestAnUnjudgedComputationKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
 	for _, c := range []struct {
 		name  string
 		cast  []string
@@ -125,26 +125,26 @@ func TestAnUnjudgedProofKeepsOnlyItsOwnerFromRetiring(t *testing.T) {
 		{"computation cast", []string{compLens, evLens}, compLens},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			b := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingest().register("red-chair").proof("P-1", "s1")
+			b := newStage(t).cast(append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")...).ingest().register("red-chair").computation("K-1", "s1")
 			for _, l := range c.cast {
 				b.sit(2, l).sit(2, l).sit(2, l)
 			}
 			run := b.ingest().register("red-chair").seed()
 			for _, l := range c.cast {
 				if f := foldOf(t, run, l); f.retired() == (l == c.owner) {
-					t.Errorf("%s retired = %v with P-1 unjudged; want retired exactly when it does not own the proof (owner %s): %+v", l, f.retired(), c.owner, f)
+					t.Errorf("%s retired = %v with K-1 unjudged; want retired exactly when it does not own the computation (owner %s): %+v", l, f.retired(), c.owner, f)
 				}
 			}
 		})
 	}
 }
 
-// A REOPENED PROOF IS THE COMPUTATION LENS'S, A REOPENED CITATION THE EVIDENCE LENS'S
+// A REOPENED COMPUTATION IS THE COMPUTATION LENS'S, A REOPENED CITATION THE EVIDENCE LENS'S
 // (anchorOwnerOf): the blocker names that owner, the plan readies it and no other lens for the
 // anchor, and its work list — opened after the edit — blocks on it.
 func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
-	proof := func(b *stage) {
-		b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
+	computation := func(b *stage) {
+		b.computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("K-1")
 	}
 	citation := func(b *stage) { b.cite("C-1").supports(compLens, "C-1").reopen("C-1") }
 	for _, c := range []struct {
@@ -154,7 +154,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 		anchor string
 		owner  string
 	}{
-		{"a proof, computation cast", []string{compLens, evLens}, proof, "P-1", compLens},
+		{"a computation, computation cast", []string{compLens, evLens}, computation, "K-1", compLens},
 		{"a citation, computation cast", []string{compLens, evLens}, citation, "C-1", evLens},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -220,13 +220,19 @@ func TestALensBelowItsLimitSaysWhenItRetires(t *testing.T) {
 	}
 }
 
-// A PROOF NAMES ITS SCRIPT. A proof with no sha could never be re-run or judged, so the lens that
-// owns proofs would owe a check no act can record: the write refuses it.
-func TestAProofWithNoScriptIsRefused(t *testing.T) {
-	runDir := newRun(t)
-	_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{ProofId: proto.String("P-00000001"), Script: proto.String("s.py")})
-	if err == nil || !strings.Contains(err.Error(), "names no script") {
-		t.Fatalf("a proof with no sha was not refused: %v", err)
+// A COMPUTATION NAMES ITS BUNDLE AND ITS COMMAND. A computation with no sha or no argv could never be
+// re-run or judged, so the lens that owns computations would owe a check no act can record: the
+// write refuses it.
+func TestAComputationWithNoBundleOrCommandIsRefused(t *testing.T) {
+	for name, c := range map[string]*recordpb.Computation{
+		"no bundle_sha": {Argv: []string{"python3", "script.py"}},
+		"no argv":       {BundleSha: proto.String("sha")},
+	} {
+		c.Basis, c.ComputationId = recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), proto.String("K-00000001")
+		_, err := Append(Identity{Run: mustRun(t, newRun(t)), SeatID: "blue-respond"}, c)
+		if err == nil || !strings.Contains(err.Error(), "names no bundle or no command") {
+			t.Errorf("%s: not refused: %v", name, err)
+		}
 	}
 }
 

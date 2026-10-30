@@ -290,7 +290,7 @@ func TestBudgetExhaustedLensRetiresAndIsStillAPartyToItsGap(t *testing.T) {
 	if len(gapsOf(plan, evLens)) != 0 {
 		t.Errorf("the retired lens is a party to G1 before blue has acted on it: %+v", plan.Parties)
 	}
-	answered, err := PlanDispatch(b.more().blueProves("G1").seed())
+	answered, err := PlanDispatch(b.more().blueComputes("G1").seed())
 	if err != nil {
 		t.Fatal(err)
 	}

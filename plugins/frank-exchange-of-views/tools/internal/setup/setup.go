@@ -45,7 +45,7 @@ import (
 // named for its seat. It is made here because a shell redirect into a missing directory fails,
 // and a seat's first write is as often `> scratch/…` as a file tool that would make it. Nothing
 // composed or archived reads it: the documents come from the record, and capture keeps records/
-// and proofs/.
+// and computations/.
 var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "scratch"}
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a

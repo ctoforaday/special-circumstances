@@ -366,7 +366,7 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 		t.Fatalf("plan = %+v, want blue engaged on G1", plan2)
 	}
 	// Blue's proof answering G1 is its act; the proof readies its own checker too, which is not G1's.
-	plan3, _ := PlanDispatch(b2.more().blueProves("G1").seed())
+	plan3, _ := PlanDispatch(b2.more().blueComputes("G1").seed())
 	if plan3.PassPermitted {
 		t.Fatalf("plan = %+v, want the lens and blue engaged on G1", plan3)
 	}

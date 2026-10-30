@@ -88,7 +88,7 @@ func Visible(s string) string { return normalizeQuote(s) }
 // of the invisible layer and the line breaks out (Visible).
 //
 // A TOKEN IN A LOG ENTRY IS A MARKER, NOT A MENTION. Every document that renders the log strips a
-// finding's or a gap's token and weaves a citation's or a proof's into a note, so a refusal naming
+// finding's or a gap's token and weaves a citation's or a computation's into a note, so a refusal naming
 // one read "anchor G-ec5568ed () is not in the report" on universe-m28. The bare id is how every
 // shipped document names an anchor, and nothing that reads the annotation layer takes it for one.
 //
@@ -354,8 +354,8 @@ func SpanBoundaryOK(s string, start, end int) bool {
 //
 // AN ANCHOR NEVER SPLITS A QUOTATION THE QUOTE CLOSED. The trailing-punctuation trim lets a quote
 // carry or drop a full stop, and the anchor sits before it; the same trim also took the closing mark
-// off `for example "91 is not a Prime number"`, so the proof's anchor landed between "number" and the
-// mark the seat had quoted (universe-m36 ev339, P-f3354ca4). The quote names the mark, so the anchor
+// off `for example "91 is not a Prime number"`, so the computation's anchor landed between "number" and the
+// mark the seat had quoted (universe-m36 ev339, K-f3354ca4). The quote names the mark, so the anchor
 // goes past it; a full stop after the mark still stands after the anchor.
 //
 // Only a mark that touches the content closes it: a space in the run ends the walk, so the opening
@@ -432,7 +432,7 @@ var (
 
 // AmbiguousError is ErrAmbiguous with WHERE the quote stands: each occurrence's section and the
 // sentence it begins in, so the seat can quote the one it means with the text before it instead of
-// searching the report for the copy it did not know was there (m35: two `prove` refusals, and
+// searching the report for the copy it did not know was there (m35: two `compute` refusals, and
 // blue's own check for a second copy was anchored and missed it).
 type AmbiguousError struct {
 	// Where names every occurrence, in report order.

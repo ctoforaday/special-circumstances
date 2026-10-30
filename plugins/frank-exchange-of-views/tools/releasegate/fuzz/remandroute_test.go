@@ -76,12 +76,12 @@ func (r *runner) closeDocketed(seatID string) {
 }
 
 // closableNow is the lens arm's close condition on gap id, by its scenario: satisfied once blue has
-// sat on it, a proof once it has reproduced, a dispute red loses once blue has argued it.
+// sat on it, a computation once it has reproduced, a dispute red loses once blue has argued it.
 func (r *runner) closableNow(id string) bool {
 	switch d := r.scenarioOf(id); {
 	case satisfied(d):
 		return r.presented.has(id)
-	case d == dirProve:
+	case d == dirCompute:
 		return r.reproduced.has(id)
 	case d == dirDisputeWon:
 		return r.presented.has(id)
@@ -218,7 +218,7 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 // on the gap comes with it.
 //
 // answerRemands is the act blue owes before its envelope (record.EnvelopeRefusal refuses it while
-// the item blocks): a proof answering the gap — an act that moves nothing, so a gap the scenario
+// the item blocks): a computation answering the gap — an act that moves nothing, so a gap the scenario
 // leaves unanswered still stalls, goes back to the bench and is closed there. It acts on a gap only
 // where the item blocks blue's list, so a sitting that already acted, or whose dispatch was made
 // before the ruling, is held to nothing here. On the minting lens's list the item must not block.
@@ -240,13 +240,12 @@ func (r *runner) answerRemands(seatID string) {
 			r.noteActErr(fmt.Sprintf("%s's remand item on gap %s blocks its list — the exchange begins with blue's act, so the minting lens owes the gap nothing before it", seatID, g.ID))
 			continue
 		}
-		name := "fuzz-remand-" + g.ID + ".js"
-		if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
-			r.noteActErr("the remand's proof script could not be written: " + err.Error())
+		dir, argv, err := r.writeBundle("fuzz-remand-"+g.ID+".js", "console.log('the remand direction for "+g.ID+"');")
+		if err != nil {
 			continue
 		}
-		if _, ok := r.admit("prove", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,
-			"--reason", "fuzz: what the remand's direction found for "+g.ID); !ok {
+		if _, ok := r.admit(append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir, "--answers", g.ID,
+			"--reason", "fuzz: what the remand's direction found for " + g.ID, "--"}, argv...)...); !ok {
 			continue
 		}
 		if w2, err := record.WorkOfSeat(r.run(), role, seatID); err == nil && blocksOn(w2.Sitting, g.ID, g.DocketDirection) {

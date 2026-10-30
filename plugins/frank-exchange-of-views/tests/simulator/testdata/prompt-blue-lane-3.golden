@@ -1,4 +1,4 @@
-prompt sha256: ad619b0f4422394ac96bb4b4c0ebd783ed01a8c5799a41ad3cd5cedc2b6ca69f
+prompt sha256: a816391add3c69cf88607c7a44b9424c5d3510275b1785fa4af4e2317e17e766
 
 Blue lane 3 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `inquiries` projection — where each carries an id and its hypothesis.
@@ -30,7 +30,7 @@ SEAT_ID: blue-lane-3.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
+THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD, ITS RULINGS AND ORDERS WHAT YOU DO; each is on your work list, and the board, not a holding, says where a gap stands.
 One command's page prints at "/opt/feov/bin/feov-record" --seat-id blue-lane-3 <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help alone is authoritative; this prompt names the JOB, never the flags.

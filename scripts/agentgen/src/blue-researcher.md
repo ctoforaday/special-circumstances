@@ -59,8 +59,8 @@ route is, because the quantities a question needs then have nowhere to come from
 You have a shell and the run's `scratch/`. Where an argument can be settled by arithmetic, an
 enumeration, a simulation, a sample, or a statistical test, WRITE THE PROGRAM AND RUN IT — a
 computation you ran and recorded is stronger evidence than any source you can cite, because a
-reader can vary its inputs and disagree with it. A program you record as a proof is drafted in
-`scratch/` like any other; the record keeps its own copy with the proof.
+reader can vary its inputs and disagree with it. A program you record as a computation is drafted
+in `scratch/` like any other; the record keeps its own copy with the computation.
 
 **AND A QUANTITY IN YOUR PROSE MUST COME FROM SOMEWHERE A READER CAN REACH.** Every number,
 count, rate, proportion or interval you assert rests on a computation you recorded or a source you
@@ -77,7 +77,7 @@ cannot point at, either go and produce it or delete the sentence.
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its minting lens audits your answer
   only after you have acted: while that exchange is
-  owed, YOU MUST record an act on the gap — an edit or a proof that answers the direction, a fate on
+  owed, YOU MUST record an act on the gap — an edit or a computation that answers the direction, a fate on
   the inquiry it is anchored on, or a motion on it — and your envelope is refused until you have.
 - **Disagreement is part of the exchange, not a failure of it.** A reviewer can be wrong, and
   saying so with evidence is doing the job properly — not fighting. Argue the substance; concede
@@ -100,7 +100,7 @@ cannot point at, either go and produce it or delete the sentence.
   that state the corrected claim, not only the flagged sentence.
 @include fragments/petition-right.md
 @include fragments/blue-return-the-envelope.md
-- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it — a lane draft becomes the report's text. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, the inquiry's propose and record, and prove and cite, whose proof note and source title the report prints.
+- **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it — a lane draft becomes the report's text. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, the inquiry's propose and record, and compute and cite, whose computation note and source title the report prints.
 
 @include fragments/log-duty-blue-bench.md
 - BEFORE writing a figure you worked out yourself, YOU MUST put the derivation on the
@@ -111,9 +111,9 @@ cannot point at, either go and produce it or delete the sentence.
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
   `computation` CANNOT be closed any other way, and its work item states the debt directly:
-  `awaiting_proof: true` means that gap is waiting on a program from YOU. Its lens is
+  `awaiting_computation: true` means that gap is waiting on a program from YOU. Its lens is
   refused if it tries to close one on prose, so an unanswered demand does not settle — it
   carries into your next sitting. Your sitting's last act reports what is still owed; discharge
-  each with a proof naming that gap, or argue in the edit's reasoning that the demand is
+  each with a computation naming that gap, or argue in the edit's reasoning that the demand is
   wrong. What you may not do is leave it silent.
 @include fragments/disputed-fact-in-the-sentence.md

@@ -94,8 +94,8 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 			// required sets, which is why they are subgroups, and `--id` is enforced in the
 			// handler rather than marked at the flag.
 			//
-			// `reproduce` needs a proof ON THE BOARD before its own flags are reached, so the
-			// placeholder id produces a refusal about the missing proof rather than the missing
+			// `reproduce` needs a computation ON THE BOARD before its own flags are reached, so the
+			// placeholder id produces a refusal about the missing computation rather than the missing
 			// flag — a precondition this gate does not build.
 			//
 			// Both are real gaps in this gate's coverage, named rather than left looking covered.
@@ -273,8 +273,8 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 	// refusal under test. Which id depends on what the verb points AT — a gap, an inquiry, or a
 	// motion — and a wrong id reports the flag under test as unnamed when the real refusal is
 	// about a gap called "placeholder".
-	if f.Name == "script" {
-		return scriptPath
+	if f.Name == "dir" {
+		return bundleDir
 	}
 	// A FLAG THAT DECLARES A FORM GETS A VALUE IN THAT FORM, read off the flag's own type. A value
 	// the flag refuses is refused BEFORE the missing flag is looked for, and the refusal is then
@@ -293,7 +293,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 	case "citation-anchor":
 		return "C-00000000"
 	case "sha256":
-		return proofSHA
+		return computationSHA
 	}
 	if f.Name == "id" {
 		// THE SHAPE DECIDES, NOT THE PATH. A flag declares the id kind it accepts
@@ -307,9 +307,9 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		case strings.HasPrefix(joined, "motion") && !strings.HasSuffix(joined, "file"):
 			return "M1"
 		case joined == "lens reproduce":
-			// A PROOF SHA, not a gap id. Passing G1 made the proof lookup fail first and
-			// the gate reported --as as unnamed when the refusal was about a missing proof.
-			return proofSHA
+			// A COMPUTATION SHA, not a gap id. Passing G1 made the computation lookup fail first and
+			// the gate reported --as as unnamed when the refusal was about a missing computation.
+			return computationSHA
 		}
 		return "G1"
 	}
@@ -344,9 +344,12 @@ func seatRunForContracts(t *testing.T) string {
 		}
 	}
 	seedBlueReport(t, runDir)
-	// A REAL SCRIPT ON DISK, because `blue prove` RUNS what --script names.
-	scriptPath = filepath.Join(recordtest.TmpRun(t), "contract-proof.py")
-	if err := os.WriteFile(scriptPath, []byte("print('contract seed')\n"), 0o644); err != nil {
+	// A REAL BUNDLE ON DISK, because `blue compute` RUNS the command in a copy of what --dir names.
+	bundleDir = filepath.Join(recordtest.TmpRun(t), "contract-computation")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundleDir, "contract-computation.py"), []byte("print('contract seed')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
@@ -368,36 +371,36 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the motion a probe's --id names"); err != nil {
 		t.Fatalf("seed motion: %v", err)
 	}
-	// A RECORDED PROOF, so `lens reproduce --id` names one.
+	// A RECORDED COMPUTATION, so `lens reproduce --id` names one.
 	//
 	// The sha comes from the RECORD, not from parsing stdout: a human-readable line is not an
 	// interface, and reading a fact out of prose is the shape this suite exists to remove. The
 	// first draft regexed a 64-hex out of the message, found nothing, and the gate then reported
 	// `--as` as unnamed when the real refusal was a missing --id.
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "a quoted sentence", "--script", scriptPath,
-		"--reason", "the computation a probe re-runs"); err != nil {
-		t.Fatalf("seed proof: %v", err)
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond",
+		"--quote", "a quoted sentence", "--dir", bundleDir,
+		"--reason", "the computation a probe re-runs", "--", "python3", "contract-computation.py"); err != nil {
+		t.Fatalf("seed computation: %v", err)
 	}
 	b, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if pf, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && pf.GetProofSha() != "" {
-			proofSHA = pf.GetProofSha()
+		if pf, ok := recordpb.BodyAs[*recordpb.Computation](e); ok && pf.GetBundleSha() != "" {
+			computationSHA = pf.GetBundleSha()
 		}
 	}
-	if proofSHA == "" {
-		t.Fatal("no proof landed on the record — `lens reproduce --id` would then be probed with an empty id, and the gate would measure the wrong refusal")
+	if computationSHA == "" {
+		t.Fatal("no computation landed on the record — `lens reproduce --id` would then be probed with an empty id, and the gate would measure the wrong refusal")
 	}
 	return runDir
 }
 
-// scriptPath and proofSHA are seeded once by seatRunForContracts and read by placeholderFor.
+// bundleDir and computationSHA are seeded once by seatRunForContracts and read by placeholderFor.
 var (
-	scriptPath string
-	proofSHA   string
+	bundleDir      string
+	computationSHA string
 )
 
 // A SUMMARY LINE THAT RESTATES A SET MUST RESTATE IT CORRECTLY.
@@ -467,8 +470,8 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 
 // flagToken matches a `--flag` reference inside a refusal message.
 //
-// THE LEADING BOUNDARY IS LOAD-BEARING. Without it this matched `--proof` inside the anchor
-// token `<!--proof:p-…-->`, and reported `lens reproduce` — whose message is correct — for a
+// THE LEADING BOUNDARY IS LOAD-BEARING. Without it this matched `--computation` inside the anchor
+// token `<!--computation:K-…-->`, and reported `lens reproduce` — whose message is correct — for a
 // flag it never named. A seat types a flag after a space, a backtick, a quote or an open
 // paren; nothing else introduces one. Go's regexp has no lookbehind, so the boundary is a
 // non-capturing alternation and the NAME is group 1.

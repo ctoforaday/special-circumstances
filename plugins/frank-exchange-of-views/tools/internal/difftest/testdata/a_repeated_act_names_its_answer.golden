@@ -49,7 +49,7 @@ stdout:
 manifest row recorded for GAP001
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded computation
 exit 2
 stderr:
 feov-record: manifest-row: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
@@ -135,7 +135,7 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded computation
 exit 0
 stdout:
 manifest row recorded for GAP001
@@ -189,7 +189,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, no
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --reason --verified-against --verified-by --verified-with: --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP001"},"motion_id":"MOTION004"},"seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_MOTION"}
 {"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":18,"type":"EVENT_TYPE_REGISTER"}
-{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":19,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded computation"},"seat_id":"blue-respond","ts":19,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":20,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#2","position":{"text":"the board is clean going in"},"seat_id":"red-chair","ts":21,"type":"EVENT_TYPE_POSITION"}
 

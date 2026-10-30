@@ -283,7 +283,7 @@ func TestAResumedAssemblySittingTakesItsActsAfterTheOutcome(t *testing.T) {
 }
 
 // THE CLOSED RECORD IS THE FIRST REFUSAL A SEAT HEARS. `lens close` on a computation gap with no
-// proof refuses on a check of its own — "settled by blue's prove" — and after the outcome that is
+// computation refuses on a check of its own — "settled by blue's compute" — and after the outcome that is
 // advice about an act the run no longer takes: the seat is told the run ended.
 func TestAfterTheOutcomeTheClosedRecordIsTheFirstRefusal(t *testing.T) {
 	// The lens is bound before the outcome, so after it the verb reaches its own checks: what the
@@ -296,13 +296,13 @@ func TestAfterTheOutcomeTheClosedRecordIsTheFirstRefusal(t *testing.T) {
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "blue says it checked"}
 	if _, err := runAt(t, closeArgs...); err == nil || !strings.Contains(err.Error(), "check-kind computation") {
-		t.Fatalf("before the outcome the close is refused for its missing proof, so this test measures nothing: %v", err)
+		t.Fatalf("before the outcome the close is refused for its missing computation, so this test measures nothing: %v", err)
 	}
 	assembleAndStamp(t, runDir, "agent_bench")
 	as(t, "agent_lens")
 	_, err := runAt(t, closeArgs...)
 	if err == nil || !strings.Contains(err.Error(), closedRefusal) || strings.Contains(err.Error(), "check-kind computation") {
-		t.Fatalf("after the outcome the close = %v, want the closed record's refusal and not the proof's", err)
+		t.Fatalf("after the outcome the close = %v, want the closed record's refusal and not the computation's", err)
 	}
 	if !strings.Contains(err.Error(), "Nothing a seat records now reaches the run but the bench's assembly sitting; a log entry still lands") {
 		t.Errorf("a lens's refusal after the outcome does not say what it may still do: %v", err)

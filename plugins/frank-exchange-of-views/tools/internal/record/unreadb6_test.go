@@ -71,7 +71,7 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 	}
 	run = archiveAt(t, b6Archive, whole, 177)
 	lens := Identity{Run: run, SeatID: evLens}
-	mint := aboutProof("G-1", unread[0])
+	mint := aboutComputation("G-1", unread[0])
 	mint.Severity = recordpb.Grade_GRADE_HIGH.Enum()
 	mint.Problem = proto.String("the cited source could not be read, and the report still cites it")
 	mustAppend(t, lens, mint)

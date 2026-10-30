@@ -338,7 +338,8 @@ WHERE r."claim_kept" = 1;
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
--- and the research direction it states, which the DocketRuling CHECKs require of a remand.
+-- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
+-- proposition it settles, empty where it settles none.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -349,7 +350,8 @@ CREATE VIEW "remand" AS
 SELECT md."gap_id"                          AS "gap_id",
        mr."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rd."direction"                       AS "direction"
+       rd."direction"                       AS "direction",
+       rd."settled"                         AS "settled"
 FROM "motion_docket" md
 JOIN "motion" mo ON mo."event_id" = md."event_id"
 JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
@@ -560,14 +562,14 @@ SELECT
   gg."likelihood"                                                                     AS "current_likelihood",
   gg."impact"                                                                         AS "current_impact",
   gg."complexity_cost"                                                                AS "current_complexity_cost",
-  -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
-  -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
+  -- THE COMPUTATION JOIN, answered where every asker can share it: a 'computation' gap closes on
+  -- a recorded computation naming it in --answers, and "awaiting computation" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
   -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
-  EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id")                      AS "proof_answered",
+  EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id")                      AS "computation_answered",
   (cx."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
-     AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
+     AND NOT EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id"))          AS "awaiting_computation",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
   -- bench and to key the bench's sitting on the filing; remanded and unruled_docket_motion (outer
@@ -591,6 +593,10 @@ SELECT
   -- its exchange.
   (SELECT r."direction" FROM "remand" r WHERE r."gap_id" = m."gap_id"
    ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_direction",
+  -- AND THE PROPOSITION THAT REMAND SETTLES: a remand closes nothing, and may still bar a party
+  -- from re-asserting what the bench decided on the way to sending the gap back.
+  (SELECT r."settled" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_settled",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.
@@ -778,7 +784,7 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event: every act that places a marker — a finding, a gap, a
---            citation, a proof, a corroboration — appends one after its own event, so where an
+--            citation, a computation, a corroboration — appends one after its own event, so where an
 --            id is placed is read from one table.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; exact=0.

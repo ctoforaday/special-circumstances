@@ -38,7 +38,7 @@ feov-record: close: requires --as, --reason, --verified-against, --verified-by, 
 
       --as as-value               REQUIRED — HOW the gap ended — the same words the bench's dispositions use
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
+      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in
       --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
       --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
 

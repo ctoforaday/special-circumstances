@@ -46,11 +46,9 @@ func eraEntries() Registry {
 			drops{"ended": "how a run ended is the verdict's to say — CEILING is derived from the board and deadlock is per gap (plans/roundless.md §III.B); Outcome.ended (7) is reserved"}, nil),
 		"close": mapped("close", ren{"reason": "prose"}, nil,
 			vals{"closure_class": dispositionRename}),
-		// The era's proof carried its output INLINE beside its sha; the current record keeps
-		// the bytes in the content-addressed proofs/ store, which the channel copy preserves,
-		// and proof_sha is the tie. Carrying the bytes twice is the two-copies shape.
-		"proof": mapped("proof", ren{"reason": "text", "sha256": "proof_sha"},
-			drops{"output": "the output's bytes live in the copied proofs/ store under this proof's sha; a second inline copy is a fork waiting to disagree"}, nil),
+		// The era's proof carried its output INLINE beside its sha; it is the act's stored output
+		// (computations.go), and the record carries no second copy.
+		"proof": {Translate: proofEntry},
 		// The shard era's inquiry: the same lifecycle and fields, its text the record's question.
 		"line_of_inquiry": inquiryEntry(ren{"line": "question"}),
 		// inquiry-support became inquiry-review, and the schema's own history says why the

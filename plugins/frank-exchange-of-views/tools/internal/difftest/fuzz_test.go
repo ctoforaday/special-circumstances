@@ -230,15 +230,19 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP002",
 			"--reason", "contested, and not red's to close"}},
 	}
-	// A RECORDED PROOF, for a sequence with a reproduce in it — and only for one, so the sequences
+	// A RECORDED COMPUTATION, for a sequence with a reproduce in it — and only for one, so the sequences
 	// that name none start from the board they always did. Its anchor is read off the record.
 	vars := map[string]string{}
-	if namesVar(cmds, "{PROOF}") {
-		if err := os.WriteFile(filepath.Join(runDir, "fuzz-proof.js"), []byte("console.log('fuzz proof');\n"), 0o644); err != nil {
+	if namesVar(cmds, "{COMPUTATION}") {
+		bundle := filepath.Join(runDir, "fuzz-computation")
+		if err := os.MkdirAll(bundle, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		prologue = append(prologue, cmd{verb: "prove", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
-			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", "the computation a lens re-runs"}})
+		if err := os.WriteFile(filepath.Join(bundle, "fuzz-computation.js"), []byte("console.log('fuzz computation');\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		prologue = append(prologue, cmd{verb: "compute", args: []string{"--run", "{RUN}", "--seat-id", "blue-respond",
+			"--quote", "A claim sits under S2.", "--dir", "{RUN}/fuzz-computation", "--reason", "the computation a lens re-runs", "--", "node", "fuzz-computation.js"}})
 	}
 	for _, pre := range prologue {
 		inv := runGo(bin, runDir, m, pre)
@@ -252,8 +256,8 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	setup := collect(t, runDir, m).events
 	setupEvents := len(setup)
 	for _, ev := range setup {
-		if p, ok := ev["proof"].(map[string]any); ok {
-			vars["{PROOF}"], _ = p["proof_id"].(string)
+		if p, ok := ev["computation"].(map[string]any); ok {
+			vars["{COMPUTATION}"], _ = p["computation_id"].(string)
 		}
 	}
 	res := replayResult{setup: setupEvents}
@@ -452,9 +456,9 @@ var tourArms = []fuzzArm{
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--url", fuzzSourceURL("/corr"), "--source-span", "a source the fuzz cites at /corr", "--title", t}
 		}, nil),
-	tourArm("blue prove", []string{"blue-respond"}, []string{"prove"},
+	tourArm("blue compute", []string{"blue-respond"}, []string{"compute"},
 		func(t string) []string {
-			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
+			return []string{"--quote", "A claim sits under S2.", "--dir", "{RUN}/fuzz-computation", "--reason", t, "--", "node", "fuzz-computation.js"}
 		}, nil),
 	tourArm("chair position", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
 	// A CLOSING IS A PARTY'S, ON A DOCKETING: GAP002 is before the bench from the prologue, minted
@@ -478,7 +482,7 @@ var tourArms = []fuzzArm{
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),
 	tourArm("lens reproduce", []string{"red-lens-evidence"}, []string{"reproduce"},
-		func(t string) []string { return []string{"--anchor", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
+		func(t string) []string { return []string{"--anchor", "{COMPUTATION}", "--as", "sound", "--reason", t} }, nil),
 	tourArm("bench declare", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
 	tourArm("bench certify", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
 	tourArm("lens close", []string{"red-lens-evidence"}, []string{"close"},
@@ -545,9 +549,9 @@ func namesVar(cmds []cmd, v string) bool {
 	return false
 }
 
-// fillVars substitutes the placeholders a correction arm names — {KEY}, {MOTION}, {PROOF} — into a
+// fillVars substitutes the placeholders a correction arm names — {KEY}, {MOTION}, {COMPUTATION} — into a
 
-// fillVars substitutes the placeholders a tour arm names — {MOTION}, {PROOF} — into a COPY of the
+// fillVars substitutes the placeholders a tour arm names — {MOTION}, {COMPUTATION} — into a COPY of the
 // arguments, since both replays of a sequence share its commands.
 func fillVars(args []string, vars map[string]string) []string {
 	out := make([]string, len(args))

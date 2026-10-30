@@ -192,12 +192,12 @@ func (m *nonceMapper) observe(recordsDir string) {
 // idRe matches a record id of any of the six kinds. The letters are written here rather than read
 // from the tool: a kind this harness does not know stays raw in a transcript, and a raw random id
 // is a golden that differs on every run — the loud failure, not a silent one.
-var idRe = regexp.MustCompile(`\b[FCPGQM]-[0-9a-f]{8}\b`)
+var idRe = regexp.MustCompile(`\b[FCKGQM]-[0-9a-f]{8}\b`)
 
-var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'P': "PROOF", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION"}
+var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'K': "COMPUTATION", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION"}
 
 // placeholderRe matches what normalize writes, which is what a script writes to name an id.
-var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|PROOF|GAP|INQUIRY|MOTION)\d{3,}\b`)
+var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|COMPUTATION|GAP|INQUIRY|MOTION)\d{3,}\b`)
 
 // normalize replaces every id in s with its placeholder, ASSIGNING one to an id it has not seen.
 // The order strings reach it in is therefore the numbering: each command's stdout, then its
@@ -345,7 +345,7 @@ func collect(t *testing.T, runDir string, m *nonceMapper) state {
 		if err != nil {
 			t.Fatalf("difftest: rendering event %s: %v", ev.GetKey(), err)
 		}
-		// THE RUN DIRECTORY DIFFERS BY CONSTRUCTION, here as in normalizeOutput: a proof records the
+		// THE RUN DIRECTORY DIFFERS BY CONSTRUCTION, here as in normalizeOutput: a computation records the
 		// path of the script it ran, and two replays run in two directories. Replaced in each form
 		// it takes inside JSON — as given, slashed, and with a Windows separator escaped.
 		s := string(b)

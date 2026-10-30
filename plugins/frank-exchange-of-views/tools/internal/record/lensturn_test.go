@@ -220,7 +220,7 @@ func TestEarlyLensDispatchesAreTheEngagementsBeforeBlue(t *testing.T) {
 	}
 }
 
-// THE BENCH'S REMAND IS THE FLOOR OF THE LENS'S TURN. G1 reached impasse with blue's proof the last
+// THE BENCH'S REMAND IS THE FLOOR OF THE LENS'S TURN. G1 reached impasse with blue's computation the last
 // act on it, after the lens's kept grade; the bench heard that answer and remanded G1. Blue's answer
 // before the ruling does not give the lens its turn: the plan readies blue alone on the gap.
 func TestARemandRulingIsTheFloorOfTheLensTurn(t *testing.T) {
