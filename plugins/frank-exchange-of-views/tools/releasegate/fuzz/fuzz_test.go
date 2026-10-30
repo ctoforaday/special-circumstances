@@ -528,9 +528,9 @@ type runner struct {
 	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
 	// grounds and admitted on a proof recorded since (benchorders_test.go). forceBenchOrders is
 	// benchOrdersSeed's run, which takes every arm. The sweep gates each count at zero.
-	benchSet                                                     map[string]map[string]string
+	benchSet                                                    map[string]map[string]string
 	benchRegrades, lockRefused, groundsRefused, groundsAdmitted int
-	forceBenchOrders                                             bool
+	forceBenchOrders                                            bool
 	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
 	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
 	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
@@ -4622,9 +4622,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 		})
 	}
 }
-
-// arr / obj are goja-friendly envelope builders.
-func arr(v ...any) []any { return append([]any{}, v...) }
 
 // envelopeFor performs the seat's tool acts and returns the envelope debate.js expects. The
 // randomisation here is what drives debate.js's control flow: red's verdict and gap count

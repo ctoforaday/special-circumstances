@@ -1,19 +1,16 @@
 package surface
 
 import (
-	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
@@ -25,40 +22,6 @@ import (
 // refuses, and a plan field the schema does not carry, cannot be committed. Two things are still
 // authored, and each has its test here: the envelope shapes other than the plan, which nothing in
 // Go declares; and the Go readers that index a returned envelope by key.
-
-// planJSON is a plan as `dispatch next` prints it: record.Plan through its own JSON tags, with
-// every list the verb always prints an array and never null, so a schedule relays the shape the
-// verb does and holds no key list of its own.
-func planJSON(t *testing.T, p record.Plan) map[string]any {
-	t.Helper()
-	var arrays func(v reflect.Value)
-	arrays = func(v reflect.Value) {
-		for i := range v.NumField() {
-			f := v.Field(i)
-			if f.Kind() != reflect.Slice {
-				continue
-			}
-			if f.IsNil() && !strings.Contains(v.Type().Field(i).Tag.Get("json"), "omitempty") {
-				f.Set(reflect.MakeSlice(f.Type(), 0, 0))
-			}
-			for j := range f.Len() {
-				if f.Index(j).Kind() == reflect.Struct {
-					arrays(f.Index(j))
-				}
-			}
-		}
-	}
-	arrays(reflect.ValueOf(&p).Elem())
-	b, err := json.Marshal(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out map[string]any
-	if err := json.Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
-	}
-	return out
-}
 
 func containsWord(ws []string, w string) bool {
 	for _, x := range ws {

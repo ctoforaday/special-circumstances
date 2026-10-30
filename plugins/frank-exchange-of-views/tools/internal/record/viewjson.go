@@ -998,12 +998,12 @@ type WorkGapState struct {
 	// remandLimit is the place of the gap's remand at impasse where the bench's remand of it now
 	// would be refused as its second (remandPastLimit), 0 where a remand is admitted: the bench's
 	// item on a docket motion says so before it rules.
-	remandLimit                      int64
-	Fate                             string // the last closer's word; closed gaps only
+	remandLimit int64
+	Fate        string // the last closer's word; closed gaps only
 	// benchRuling is the bench's closing ruling the gap view names (`bench_close_event`); nil where
 	// the bench never closed the gap. Its settled, reopens_on and final reach the estopped row.
-	benchRuling *recordpb.DocketRuling
-	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
+	benchRuling                      *recordpb.DocketRuling
+	closedEpoch                      int // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
 	// Material, ClassMaterial, Stranded and SupersededBy are the view's columns the PASS gate

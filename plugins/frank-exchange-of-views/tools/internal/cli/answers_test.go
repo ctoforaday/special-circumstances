@@ -263,7 +263,9 @@ func answerDrives() []answerDrive {
 		// it: the next sitting's correction moves the axis again, and keeping it is refused.
 		{name: "regrade, the bench", row: rowRegrade, helps: []string{"bench regrade"}, drive: func(d drive) {
 			d.docketMotion("docket G1", "blue-respond")
-			regrade := func(sev, why string) []string { return []string{"regrade", "--id", "G1", "--severity", sev, "--reason", why} }
+			regrade := func(sev, why string) []string {
+				return []string{"regrade", "--id", "G1", "--severity", sev, "--reason", why}
+			}
 			d.admitted("the first", "judge", regrade("high", "the first")...)
 			d.endsWithRow(d.refused("a second in the sitting", "judge", regrade("certain", "the second")...), rowRegrade)
 			d.nextSitting("judge")

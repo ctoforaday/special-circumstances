@@ -51,14 +51,14 @@ var deliveryExpectations = map[string]string{}
 // reason. Being on this list is a DECISION — it says somebody looked — which is the whole
 // difference between a reasoned absence and an unnoticed one.
 var deliveryNotForwarded = map[string]string{
-	"red.log":                      "deliberate — a seat's log entries are on the record and no envelope schema declares `log`; a seat that returns one anyway is read by nobody, and a prompt carrying it is the envelope channel back (#1267)",
-	"blue.log":                     "as above, from the other party",
-	"judge.dispositions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
+	"red.log":                       "deliberate — a seat's log entries are on the record and no envelope schema declares `log`; a seat that returns one anyway is read by nobody, and a prompt carrying it is the envelope channel back (#1267)",
+	"blue.log":                      "as above, from the other party",
+	"judge.dispositions.rationale":  "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
 	"judge.dispositions.settled":    "deliberate — no envelope schema declares it: a closing ruling's settled proposition is on the ruling, and every seat's work list carries it on the gap's estopped row",
 	"judge.dispositions.reopens_on": "deliberate — as settled: what would reopen a closing ruling is on the ruling and on every seat's estopped row",
 	"judge.rulings.relief":          "deliberate — no envelope schema declares it: a grant's relief is on its ruling, and every seat's work list carries it with whom it binds",
-	"judge.holdings":               "deliberate — no envelope schema declares it: a holding binds as a declaration on the record, which every seat's work list carries with the board's status beside each gap it names. One returned on the envelope anyway is read by nobody, and a prompt carrying it would relay bench prose about a gap's status that does not move when the gap does",
-	"red.notes":                    "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
+	"judge.holdings":                "deliberate — no envelope schema declares it: a holding binds as a declaration on the record, which every seat's work list carries with the board's status beside each gap it names. One returned on the envelope anyway is read by nobody, and a prompt carrying it would relay bench prose about a gap's status that does not move when the gap does",
+	"red.notes":                     "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
 }
 
 // TestEveryEnvelopeFieldThatMustTravelReachesAReader drives the shipped debate.js and reports,
