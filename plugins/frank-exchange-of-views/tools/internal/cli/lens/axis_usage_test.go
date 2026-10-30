@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -22,7 +23,8 @@ func TestEveryGradeAxisFlagPrintsItsAxisMeaning(t *testing.T) {
 		axes int
 	}{
 		{newMint(), 4},
-		{newRegrade(), 4},
+		{seat.Regrade("regrade"), 4},
+		{seat.Regrade("regrade-bench"), 4},
 		{newFinding(), 3}, // a finding grades the defect; what the fix costs is the gap's question
 	} {
 		carried := 0

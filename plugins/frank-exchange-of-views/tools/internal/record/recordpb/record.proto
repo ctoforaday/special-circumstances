@@ -1895,6 +1895,15 @@ message DocketMotion {
     references: "mint.gap_id"
     why: "which gap is being put before the bench — a docket motion that names no gap is an escalation of nothing"
   }];
+
+  // THE NEW GROUNDS A RECONSIDERATION RESTS ON, located the way every act locates what it is about:
+  // an anchor or record id the seats already read (a finding's, a gap's, a citation's or a computation's),
+  // or a quote of the report's current text. Required, exactly one of the two, when the bench has
+  // already ruled the gap closed, and refused otherwise (record.requireNewGrounds): the act it names
+  // is recorded after that ruling and is about this gap, or the motion relitigates what the ruling
+  // settled. A remand closes nothing, so a gap back before the bench after one needs none.
+  optional string grounds = 2;
+  optional string grounds_quote = 3 [(prose) = false, (sql) = { flag: "quote" }];
 }
 
 // DocketRuling is the bench's disposition of a docketed gap: the word that decides its fate, and
@@ -2112,6 +2121,12 @@ message MotionRule {
   // the old table could not police: the filing's copy of the enum loop had always existed and
   // the ruling's did not, so the first enumerated field to appear on a ruling was unenforced.
   optional RulingBinds binds = 4;
+
+  // relief is the OPERATIVE part of a granted petition: the order, in the bench's words, that binds
+  // the seats `binds` names. A grant states both and a denial neither (validate), and every seat's
+  // work list carries each grant's relief from here, so an order reaches the seats it binds from the
+  // record and not from an engine's copy of the bench's account.
+  optional string relief = 5 [(prose) = true];
 }
 
 // WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.

@@ -32,7 +32,7 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ motion petition rule --run {RUN} --seat-id judge --id MOTION001 --as granted --binds both --reason the relief binds the coming seats
+$ motion petition rule --run {RUN} --seat-id judge --id MOTION001 --as granted --relief Halt the run and escalate to a human before the next round. --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
 motion MOTION001 ruled granted
@@ -50,7 +50,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"MOTION001","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"MOTION001","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"judge:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"MOTION001","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","relief":"Halt the run and escalate to a human before the next round."},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
 {"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge:halt:#1","seat_id":"judge","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══

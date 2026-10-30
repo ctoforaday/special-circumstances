@@ -260,6 +260,21 @@ func answerDrives() []answerDrive {
 			d.nextSitting(lensSeat)
 			d.refused("a regrade of a closed gap", lensSeat, "regrade", "--id", "G1", "--severity", "low", "--reason", "the first was wrong")
 		}},
+		// THE BENCH'S REGRADE SETS A GRADE BY MOVING IT, while a docket motion on the gap stands before
+		// it: the next sitting's correction moves the axis again, and keeping it is refused.
+		{name: "regrade, the bench", row: rowRegrade, helps: []string{"bench regrade"}, drive: func(d drive) {
+			d.docketMotion("docket G1", "blue-respond")
+			regrade := func(sev, why string) []string {
+				return []string{"regrade", "--id", "G1", "--severity", sev, "--reason", why}
+			}
+			d.admitted("the first", "judge", regrade("high", "the first")...)
+			d.endsWithRow(d.refused("a second in the sitting", "judge", regrade("certain", "the second")...), rowRegrade)
+			d.nextSitting("judge")
+			d.admitted("the next sitting's", "judge", regrade("certain", "the first was wrong")...)
+			d.closeG1(lensSeat)
+			d.nextSitting("judge")
+			d.refused("a regrade of a closed gap", "judge", regrade("low", "the first was wrong")...)
+		}},
 		{name: "verify", row: rowVerify, helps: []string{"lens verify"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/v": []byte("<html>the source</html>")}})
 			d.admitted("cite", "blue-respond", "cite", "--quote", quoteTwo, "--url", "https://src/v", "--title", "T")
@@ -401,7 +416,7 @@ func answerDrives() []answerDrive {
 			m := motionID(d.t, d.run, "motion", "petition", "file", "--seat-id", lensSeat,
 				"--class", "safety", "--relief", "halt before the next exchange", "--reason", "a consent gate is missing")
 			d.admitted("the ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
-			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--reason", "again"), rowPetition)
+			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "again"), rowPetition)
 			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the petition was wrong, and this is what holds")
 		}},
 		{name: "a ruling on a position", row: rowPositionRule, helps: []string{"bench motion position rule"}, drive: func(d drive) {

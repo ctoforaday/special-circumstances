@@ -71,7 +71,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	mount(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — at the next chair sitting, before any party of that epoch sits",
-		[]string{flags.Class, flags.Relief}, nil))
+		[]string{flags.Class, flags.Relief}, []string{flags.Relief}))
 	mount(subject(actingRole, "docket",
 		"put a GAP before the bench: any seat but the bench files, the BENCH rules, and its disposition decides the gap's fate",
 		[]string{flags.ID},

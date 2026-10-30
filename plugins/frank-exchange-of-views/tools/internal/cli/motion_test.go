@@ -66,7 +66,7 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	}
 	// A petition is the BENCH's to rule. The chair filing it may not also decide it.
 	_, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "granted", "--reason", "granting my own petition")
+		"--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "granting my own petition")
 	if err == nil {
 		t.Fatal("the chair ruled a petition; a motion is ruled by ONE seat, and that asymmetry is the mechanism")
 	}
@@ -76,7 +76,7 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 		}
 	}
 	if _, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
-		"--id", "M1", "--as", "granted", "--reason", "the objection is sound"); err != nil {
+		"--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the objection is sound"); err != nil {
 		t.Fatalf("the bench must be able to rule a petition: %v", err)
 	}
 }

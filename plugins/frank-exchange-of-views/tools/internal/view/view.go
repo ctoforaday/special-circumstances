@@ -763,20 +763,16 @@ func debateMD(in Input) []byte {
 				if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 					continue
 				}
-				// THE RELIEF LINE IS GONE BECAUSE IT NEVER RENDERED. `relief` is a field of the
-				// FILING (Motion.relief, written by `motion … file`); a motion-rule event has
-				// carried only motion_id, subject, ruling, opinion and binds since the verb
-				// existed, so `Str("relief")` was empty on every ruling ever recorded and this
-				// paragraph's own header — "including granted relief meant to bind the next
-				// epoch" — described output the code could not produce. Rendering it needs a JOIN
-				// to the motion by id, which record.Motions already resolves; that is new
-				// behaviour, not a conversion, so it is REPORTED rather than done here.
-				binds := ""
+				// A GRANT CARRIES ITS ORDER: the relief the ruling records, and whom it binds.
+				binds, relief := "", ""
 				if b := recordpb.Word(t.GetBinds()); b != "" {
 					binds = " — binds **" + b + "**"
 				}
-				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s",
-					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion()))
+				if r := t.GetRelief(); r != "" {
+					relief = "\n**Relief ordered:** " + r
+				}
+				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s%s",
+					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion(), relief))
 			}
 		}
 		if len(ops) > 0 {

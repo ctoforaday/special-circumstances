@@ -26,12 +26,9 @@ const (
 // record's own — the list its write path resolves against — so the envelope cannot offer a word
 // the tool refuses or omit one it accepts.
 type vocabulary struct {
-	grades          []string // recordpb.GradeWords
-	dimensions      []string // a grade motion's `dimension`
-	petitionRulings []string // a petition motion's ruling
-	reliefBinds     []string // a petition ruling's `binds`
-	dispositions    []string // a docket motion's ruling
-	outcomes        []string // the run's outcome, in capitals
+	grades     []string // recordpb.GradeWords
+	dimensions []string // a grade motion's `dimension`
+	outcomes   []string // the run's outcome, in capitals
 
 	// benchSeat and lensOrBlue are the seats a plan's party can name (record.PartySeats), in the
 	// two shapes a party takes; dispatchOccasions is what the bench's party can carry.
@@ -51,9 +48,6 @@ func vocabularyFromTheRecord() (vocabulary, error) {
 	v := vocabulary{
 		grades:            recordpb.GradeWords(),
 		dimensions:        seatWords(record.MotionFields["grade"]["dimension"]),
-		petitionRulings:   seatWords(record.MotionVerdicts["petition"]),
-		reliefBinds:       seatWords(record.MotionFields["petition"]["binds"]),
-		dispositions:      seatWords(record.MotionVerdicts["docket"]),
 		dispatchOccasions: record.DispatchOccasions(),
 		plan:              record.PlanFields(),
 		party:             reflect.TypeFor[record.Party](),
@@ -95,9 +89,6 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 	}{
 		{"GRADE", "the grade scale", v.grades},
 		{"DISPUTE_DIMENSION", "a grade motion's dimensions", v.dimensions},
-		{"RULING_ON_PETITION", "a petition's rulings", v.petitionRulings},
-		{"RELIEF_BINDS", "whom a petition's relief binds", v.reliefBinds},
-		{"DISPOSITION", "the docket's dispositions", v.dispositions},
 		{"RUN_OUTCOME", "the run's outcomes", v.outcomes},
 	}
 	for _, s := range sets {

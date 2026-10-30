@@ -510,6 +510,8 @@ CREATE TABLE "motion_inquiry" (
 CREATE TABLE "motion_docket" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
   "gap_id" TEXT NOT NULL,
+  "grounds" TEXT,
+  "grounds_quote" TEXT,
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
@@ -523,6 +525,7 @@ CREATE TABLE "motion_rule" (
   "motion_id" TEXT NOT NULL,
   "opinion" TEXT NOT NULL,
   "binds" TEXT,
+  "relief" TEXT,
   "grade" TEXT,
   "petition" TEXT,
   "inquiry" TEXT,
@@ -1270,10 +1273,11 @@ WHERE r."claim_kept" = 1;
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
--- and the research direction it states, which the DocketRuling CHECKs require of a remand — and every
--- gap an upheld ruling on the chair's withheld PASS sends back for one more exchange, one row per gap
--- (gblock, 2026-10-30): that is a remand too, on the ruling's direction, and the gap's one remand at
--- impasse like any other.
+-- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
+-- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
+-- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
+-- remand too, on the ruling's direction, settling nothing, and the gap's one remand at impasse like
+-- any other.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -1284,7 +1288,8 @@ CREATE VIEW "remand" AS
 SELECT md."gap_id"                          AS "gap_id",
        mr."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rd."direction"                       AS "direction"
+       rd."direction"                       AS "direction",
+       rd."settled"                         AS "settled"
 FROM "motion_docket" md
 JOIN "motion" mo ON mo."event_id" = md."event_id"
 JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
@@ -1296,7 +1301,8 @@ UNION ALL
 SELECT pg."value"                           AS "gap_id",
        mr."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rp."direction"                       AS "direction"
+       rp."direction"                       AS "direction",
+       NULL                                 AS "settled"
 FROM "motion_rule_position_gap_ids" pg
 JOIN "motion_rule_position" rp ON rp."event_id" = pg."event_id"
 JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
@@ -1536,6 +1542,10 @@ SELECT
   -- its exchange.
   (SELECT r."direction" FROM "remand" r WHERE r."gap_id" = m."gap_id"
    ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_direction",
+  -- AND THE PROPOSITION THAT REMAND SETTLES: a remand closes nothing, and may still bar a party
+  -- from re-asserting what the bench decided on the way to sending the gap back.
+  (SELECT r."settled" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_settled",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.

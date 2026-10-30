@@ -16,8 +16,7 @@ func sampleVocabulary() vocabulary {
 	party := reflect.TypeFor[sampleParty]()
 	return vocabulary{
 		grades: []string{"low", "high"}, dimensions: []string{"severity"},
-		petitionRulings: []string{"granted", "denied"}, reliefBinds: []string{"blue"},
-		dispositions: []string{"repaired", "moot"}, outcomes: []string{"VERIFIED"},
+		outcomes:  []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
 		dispatchOccasions: []string{"docket"},
 		party:             party,
@@ -51,9 +50,6 @@ func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 	}
 	want := `const GRADE = { type: 'string', enum: ['low', 'high'] }
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
-const RULING_ON_PETITION = { type: 'string', enum: ['granted', 'denied'] }
-const RELIEF_BINDS = { type: 'string', enum: ['blue'] }
-const DISPOSITION = { type: 'string', enum: ['repaired', 'moot'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
@@ -117,7 +113,7 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 		spoil func(*vocabulary)
 		want  string
 	}{
-		{"an empty set", func(v *vocabulary) { v.dispositions = nil }, "no word for the docket's dispositions"},
+		{"an empty set", func(v *vocabulary) { v.outcomes = nil }, "no word for the run's outcomes"},
 		{"no party seat", func(v *vocabulary) { v.lensOrBlue = nil }, "no seat a plan's party can be"},
 		{"no dispatch occasion", func(v *vocabulary) { v.dispatchOccasions = nil }, "for no occasion"},
 		{"a plan with no parties", func(v *vocabulary) { v.plan = v.plan[:1] }, "no list of parties"},

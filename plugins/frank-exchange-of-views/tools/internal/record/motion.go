@@ -231,6 +231,9 @@ type Motion struct {
 	Principle string
 	// Work is what an upheld ruling on a position names; zero on every other ruling.
 	Work PositionWork
+	// RulingRelief and RulingBinds are a granted petition's order: what the bench ordered, and
+	// whom it binds (blue | red | both). Every other ruling leaves both "".
+	RulingRelief, RulingBinds string
 
 	// Subject-specific payload, carried rather than re-derived.
 	Fields map[string]string
@@ -381,6 +384,13 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 					m.Fields["gap_id"] = fil.Docket.GetGapId()
 					m.GapID = fil.Docket.GetGapId()
 				}
+				// A RECONSIDERATION'S NEW GROUNDS, as the filer located them (requireNewGrounds).
+				if fil.Docket.Grounds != nil {
+					m.Fields["grounds"] = fil.Docket.GetGrounds()
+				}
+				if fil.Docket.GroundsQuote != nil {
+					m.Fields["grounds_quote"] = fil.Docket.GetGroundsQuote()
+				}
 			case *recordpb.Motion_Position:
 				// NOTHING WRITES THIS ARM: the position is the filing (the Position case above). An
 				// arm a stored motion carries anyway is folded as what it says.
@@ -457,6 +467,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		if h := f.GetPosition(); h != nil {
 			m.Work = PositionWork{Lens: h.GetLens(), GapIDs: h.GetGapIds(), Direction: h.GetDirection()}
 		}
+		m.RulingRelief, m.RulingBinds = f.GetRelief(), recordpb.Word(f.GetBinds())
 		if seq != nil {
 			m.ruled = seq[i]
 		}
