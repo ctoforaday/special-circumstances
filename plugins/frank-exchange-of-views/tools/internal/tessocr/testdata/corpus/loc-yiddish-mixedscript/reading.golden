@@ -1,46 +1,297 @@
-loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@dcf601ddbdb1 · rendered at 300.00 DPI (native 300.00), 5144x7345 px
-table: true · rules: detector · rotated: false · grid intersections: 20030 · repaired crossings: 0 · length: 5715 · ink: 15.060%
+loc-yiddish-mixedscript · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@484e7942d3c4+tessocr@605c3c75d37a · rendered at 300.00 DPI (native 300.00), 5144x7345 px
+table: true · rules: detector · rotated: false · grid intersections: 20030 · repaired crossings: 0 · length: 3991 · ink: 15.060%
 marks: 1 columns, 1 subcolumns, 1 rows, 1 of 10 placed, psm disagreement 0.00
-text cells: 1 tables, 17 bands, 25 rows, 19 columns, 98 cells, 1125 words placed, 1142 read
 fell back: reconstruction placed 1 of 10 marks, below the 0.80 placement threshold; page kept as plain text
-removed lines: 13
+text cells fell back: a paragraph runs on from one cell into the cell under it 4 times (at most 1): these rules frame prose, they do not separate a table's rows
+removed lines: 4
 removed: Ss ey OG
 removed: a |
 removed: (7 7
 removed: a © & Oy & 0 em Oy OQ ON oy 7 em
-removed: ne
-removed: a
-removed: ee
-removed: — i
-removed: ee ae sen
-removed: a
-removed: | mo |
-removed: ee
-removed: iti! NTE <i aIeiimcaaeh
 ---
-|  | OCTOBER 14, 191 |  |||||||||||||||||
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|  | MONDAY — —————— |  |||||||||||||||||
-|  | — eee ata |  |||||||||||||||||
-|  | — |  |||||||||||||||||
-|  |  |  |  ||||||||||||||||
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |||
-|  | “is | IY | TNS |  |  | TS | NT |  |  |  | yay |  |  |  | payne |  |  |  |
-|  | ESN “TA ya"? |  |||||||||||||||||
-|  |  |  |  |  |  |  |  ||||||||||||
-|  |  | & A ES hat str 10 SS yy dn |v a mT SLE ria pan! Se “VY =sS U wi al oy | axe bee ie hp ae: ) 4% rh t ht, & yp 2 N32 DIP WTS A LY adel hee, “J82 Sa |  ||||||||||||||||
-|  |  | m8 Ha > | A SES ms 5S 2% & whe: make Oh ? ‘Ay mem bY tas ha ip ar, j Pd if é be aA Seem mh “TS .2 * |  ||||||||||||||||
-|  |  | PRY ee b> hype) me ve ple ete \— leer ed $10 — S3383 $100 Soy" AN a S&S om em, cry Ey rei me (ome ae \ ear m“ @ s eae \ rx, } 1813 21 i $20 sehet) ohm bere be gigs ame | lew law ner s aS [> Na e« ; > & 1918 ,13 awe & ue . = i $29 le say = Pesto an |e | ba dart -ohpeten be te a an a & ries “aS Ss Pasa sy PP =>) is i9i9 1919 16 30 ath #4 wo $20 $30 oll |  ||||||||||||||||
-|  |  | tip - “TS 3 Be soa8 = mam, ky » ja hy, an ph ahha. iy? as ny abel“ tue o_o, A \- BGre shyt Be chy Fe ase Dt ee less | Vw PD lp é owe ad i\- NS asa } 17 «3 vist ala | ¢ aw | ay i AJ } eee 53 lf EIS i ma aq gymense's Bae & Yavayas | IN fae Qs $590 | =“ 9106 [ze PER e { ie (7 a eae 3333 } why Pe ais | ya sen m1 |  ||||||||||||||||
-|  |  | Sis $10 pau oa $g—=ss3 $50 S85 aly; $4 — to 6 tomy 4 teas, ery oem, tom Ky amy 7 tm tom aoe sk Be | of one et =823 $1008 A" $4 — A382 $80 § FON S2— 93 "85 1 tee ti | me &S upbeles wEOpoht se» ( law od 7 AS AS ) BES eTeta bhai? a iS asks seq lies ue Yar yi! @esee bad yn ®& SS pM WINIYI BI YS j 7 6% we Sy Grate s6 qlee, pq pree Was ein 2 ya cweyey)| sae ‘ ) |  ||||||||||||||||
-|  |  | atl 4 = axe @ & Gay Pa eK, oe = nteaa hs See al } ) | | dew Ne — ewene | 4 NSS ST aban > en abe & ) ad é om © & eG Rae Ee oR Vie WW laVi- eeemggey 8A SOO if may gupes ay he aby, aha \j— ata SW fm” Os lao? LN orn ris | ae me Ne = & Osh rs SVo genial “VOY MS phe a ee Nay itt \ @™ ae = hw Aree “VIS peht, im bad Wy at “1 atNen wm i SS Fe lan a= ee woe em by Oe Qe om STN MD APIS OUD “ess Bom em 6 & a & Ge Beoon & QaN mite ISSEY | ya os baw» lew av go | ee = é |  ||||||||||||||||
-|  |  | =~ eee & om 6 Ba | —_ =, on Gm | \ anor ease we So ® wag we Ue % ia PAN ae fac) an eee @ fa eye syns a5 SN she ae Sick ie ee ad eee om aA ge { t- om Go oye ~ 8ae we aa: aan tae & & abe ey: MWS 7382 on YEN abba TTS Par . oe Geom aae TS reece sage mae ria eee am iy | ane ay" sss" be pd al +) P | hes ob pf | | me A Bai OSD on 648 eq “i Ales Bes “SNe ys ow j a6 ae |  ||||||||||||||||
-|  |  | 8 yi an | EPP ISI SST? AWAD TIS EDIT BRP |  ||||||||||||||||
-|  |  | tk < he d epee eA eem BOsN ne | ee = Ins & Y leva NE iis ad Som eee - N sR sli dh de de oh ent DS - = he i} ivy |  ||||||||||||||||
-|  |  | ‘f AMERICAN EXCHANGE NATIONAL BANK ATLANTIC NATIONAL BANK OF THE CITY OF NEW YORK PANK OF AMERICA BANK, OF CUBA IN NEW YORK BANK OF EUROPE BANK OF THE MANHATTAN CO BANK OF NEW YORK, NATIONAL BANKING ASSOCIATION BANK OF THE UNITED STATES BANKERS TRUST COMPANY BANK OF WASHINGTON HEIGHTS BATTERY PARK NATIONAL BANK OF NEW YORK BOWERY BANK OF NEW YORK BROADWAY CENTRAL BANK, BROOKLYN TRUST CO BRYANT PARK BANK EMPIRE TRUST CO EQUITABLE TRUST CO. OF NEW YORK FARMERS LOAN & TRUST CO FIDELITY TRUST CO FIFTH AVENUE BANK OF NEW YORK FIFTH NATIONAL BANK FIRST NATIONAL BANK FRANKLIN TRUST CO FULTON TRUST COMPANY OF NEW YORK GARFIELD NATIONAL BANK GOTHAM NATIONAL BANK OF NEW YORK GREENWICH BANK OF THE CITY OF NEW YORK GUARANTY TRUST COMPANY OF NEW YORK HANOVER NATIONAL BANK OF THE CITY OF NEW YORK HARRIMAN NATIONAL BANK NATIONAL BANK OF COMMERCE INN. Y. NATIONAL BUTCHERS & DROVERS BANK NATIONAL CITY BANK OF NEW YORK NATIONAL PARK BANK OF NEW YOBK NEW NETHERLANDS BANK OF NEW YORK NEW YORK COUNTY NATIONAL BANK NEW YORK PRODUCE EXCHANGE BANK NEW YORK TRUST COMPANY PACIFIC BANK PHILIPPINE NATIONAL BANK PUBLIC NATIONAL BANK OF NEW YORK SCANDINAVIAN TRUST CO. SEABOARD NATIONAL BANK SECOND NATIONAL BANK OF THE CITY OF N. Y. SHERMAN NATIONAL BANK CENTRAL MERCANTILE BANK OF NEW YORK CENTRAL UNION TRUST CO. OF NEW YORK CHASE NATIONAL BANK CHATHAM & PHENIX NATIONAL BANK OF NEW YORK CHELSEA EXCHANGE BAN CHEMICAL NATIONAL BANK CITIZENS NATIONAL BANK OF NEW YORK HENRY J. SCHNITZER STATE BANK HUDSON TRUST CO IMPORTERS AND TRADERS NATIONAL BANK OF NEW YORK INTERNATIONAL BAN IRVING NATIONAL BANK IRVING TRUST CO LAWYERS TITLE & TRUST CO STATE BANK TITLE GUARANTEE & TRUST CO. UNION EXCHANGE NATIONAL BANK OF NEW YORK UNITED STATES MORTGAGE & TRUST CO. UNITED STATES TRUST COMPANY OF NEW YORK YORKVILLE BANK W. R. GRACE & CO.’S BANK COAL & IRON NATIONAL BANK OF THE CITY OF NEW YORK LIBERTY NATIONAL BANK OF NEW YORK CITY OF NEW YORK |  ||||||||||||||||
-|  |  | COLONIAL BANK LINCOLN NATIONAL BANK OF THE COLUMBIA BANK LINCOLN TRUST CO COLUMBIA TRUST CO MANUFACTURERS TRUST CO oF THE Crry COMMERCIAL EXCHANGE BANK MECHANICS AND METALS NATIONAL BAN OF NEW YORK | Lend _ re i ees |  |  |  |||||||||||||
-|  |  | COMMERCIAL TRUST CO. OF NEW YORK MERCANTILE TRUST & DEPOS!T CO COMMONWEALTH BANK, NEW YORK CITY 1ERCHANTS NATIONAL BANK OF THE CITY OF NEW YORK CONTINENTAL BANK METROPOLITAN BANK CORN EXCHANGE BANK METROPOLITAN TRUST CO. OF THE CITY OF NEW YORK | at Loy bi DORC:5 |  |  |  |||||||||||||
-|  |  | EAST RIVER NATIONAL BA MUTUAL BANK LIBERTY LOAN COMMITTEE Second Federal Reserve Diatrict 120 BROADWAY. NEW YORK CITY a |  ||||||||||||||||
-|  |  |  |  ||||||||||||||||
-|  |  | FOVDF NM a ME Te Pek gag |||||||||||||||||
-|  | A wR a ||||||||||||||||||
+__ MONDAY,
+
+OCTOBER 14, 191%, |
+
+SEIYIINS WS NT payne
+euN3 “2 ya"?
+
+eA a © Rom Gm ory GN mR,
+
+ea ore pe |
+
+eA A Bem om Gm Oy
+ia ely a heen age
+
+de ey =e of ta
+
+aT Gre shyt ae chy Fe a
+Lay erm §,. 49 =
+
+z
+a
+
+eae 3333
+
+(Yo |
+
+fas qs
+
+rot es
+Prelim j
+
+why
+
+. met ee $100 & ayes
+“582 $100 8 ATS $4 —
+
+7 BEESS eye s Pubin be ba ben fie eas qe
+(ej las | ie ta iS pane
+
+™ RS ES hem aa
+
+: aha gamit
+
+o/ ad é
+
+sey
+“SYM INS?
+
+eee emt & om wig we
+
+{Wal SS cow fs hc oy
+OT ae lel be SS ick
+
+PA PA SN
+
+Tes oye
+
+AMERICAN EXCHANGE NATIONAL BANK
+ATLANTIC NATIONAL BANK OF THE CITY OF NEW YORK
+BANK OF AMERICA
+
+BANK, OF CUBA IN NEW YORK
+
+BANK OF EUROPE
+
+BANK OF THE MANHATTAN CO.
+
+BANK OF NEW YORK, NATIONAL BANKING ASSOCIATION
+BANK OF THE UNITED STATES
+
+BANKERS TRUST COMPANY
+
+BANK OF WASHINGTON HEIGHTS
+
+BATTERY PARK NATIONAL BANK OF NEW YORK
+BOWERY BANK OF NEW YORK
+
+BROADWAY CENTRAL BANK.
+
+BROOKLYN TRUST CO.
+
+BRYANT PARK BANK
+
+CENTRAL MERCANTILE BANK OF NEW YORK
+CENTRAL UNION TRUST CO. OF NEW YORK
+CHASE NATIONAL BANK
+
+CHATHAM & PHENIX NATIONAL BANK OF NEW YORK
+CHELSEA EXCHANGE BANK
+
+CHEMICAL NATIONAL BANK
+
+CITIZENS NATIONAL BANK OF NEW YORK
+
+COAL & IRON NATIONAL BANK OF THE CITY OF NEW YORK
+COLONIAL BANK
+
+COLUMBIA BANK
+
+COLUMBIA TRUST CO.
+
+COMMERCIAL EXCHANGE BANK
+
+COMMERCIAL TRUST CO. OF NEW YORK
+COMMONWEALTH BANK, NEW YORK CITY
+CONTINENTAL BANK
+
+CORN EXCHANGE BANK
+
+EAST RIVER NATIONAL BANK
+
+mae
+< he d
+
+$8— “iN. $50 SF
+“aN2 $50 & FNS . — PONT 23 TH TP rOsyayn
+
+* @esee
+
+peavey bad yn N)
+
+& am, oe aes ie
+mn %
+
+4% rh
+a>
+
+myth y mbipk pay apy ree?! vy,
+
+By bee b> oy rpo} mee la: ap ohne
+
+| pf acm \— leer
+
+ss 1918 .21 TS
+
+vs (1918 19 37
+
+“ss 71919 16 .3N"
+1919 ,30 .ss"
+
+$2)
+$29
+$20
+$30
+
+ye
+
+mene 5)
+
+vs $4 — | Df cue a ee
+
+er Sh haptani onl va oe “s)
+
+is nme ha) YAY Wayp Was ici IND ve cleyey)|
+
+sont
+eee ed
+
+“eee say ng SS
+| Sf baa a! low aw of | mw
+
+S35 DMT TEN TS OSS TTD
+
+|\aw ij jis ob ew ad Sf |
+
+ma vee piyp
+
+ody aipe rahe mee 6A 4 oe om aghp hs hs syst}
+
+WOINSY. Lei “TS 1
+=INa 7
+
+Darla BO ATS 2
+
+$10 — STI83 $100 Duy. AN
+
+“TS .3
+Psyayso7s
+ie Sat
+
+NEI i
+
+at “Ts
+“aay yOys I es S
+Spstgh iP
+pam TN SNE TS
+
+we ige ee Gas ea oy a an 24 iQ seem Gy
+
+* abe
+| \j=
+
+NS WEN? HDS IN TT HET mya
+
+al SS ein) seme eg eka gem Ge my © @ ee FOR ETM OF8G Ss & S5qe See SHO Ss Sh heed
+TABN DCINSE PUWPICNE PS sow Ns he ech ahmal YA ge eos
+
+EMPIRE TRUST CO.
+
+EQUITABLE TRUST CO. OF NEW YORK
+FARMERS LOAN & TRUST CO.
+
+FIDELITY TRUST CO.
+
+FIFTH AVENUE BANK OF NEW YORK
+
+FIFTH NATIONAL BANK
+
+FIRST NATIONAL BANK
+
+FRANKLIN TRUST CO.
+
+FULTON TRUST COMPANY OF NEW YORK
+GARFIELD NATIONAL BANK
+
+GOTHAM NATIONAL BANK OF NEW YORK
+GREENWICH BANK OF THE CITY OF NEW YORK
+GUARANTY TRUST COMPANY OF NEW YORK
+HANOVER NATIONAL BANK OF THE CITY OF NEW YORK
+HARRIMAN NATIONAL BANK
+
+HENRY J. SCHNITZER STATE BANK
+
+HUDSON TRUST CO.
+
+IMPORTERS AND TRADERS NATIONAL BANK OF NEW YORK
+INTERNATIONAL BANK
+
+IRVING NATIONAL BANK
+
+IRVING TRUST CO.
+
+LAWYERS TITLE & TRUST CO.
+
+LIBERTY NATIONAL BANK OF NEW YORK
+LINCOLN NATIONAL BANK OF THE CITY OF NEW YORK
+LINCOLN TRUST CO.
+MANUFACTURERS TRUST CO.
+MECHANICS AND METALS NATIONAL BANK
+MERCANTILE TRUST & DEPOSIT CO.
+MERCHANTS NATIONALBANK OF THE CITY OF NEW YORK
+METROPOLITAN BANK
+
+METROPOLITAN TRUST CO. OF THE CITY OF NEW YORK
+MUTUAL BANK
+
+oF THE CIry
+OF NEW YORK
+
+NATIONAL BANK OF COMMERCE INN. Y.
+NATIONAL BUTCHERS & DROVERS BANK
+NATIONAL CITY BANK OF NEW YORK
+NATIONAL PARK BANK OF NEW YOBK
+NEW NETHERLANDS BANK OF NEW YORK
+NEW YORK COUNTY NATIONAL BANK
+NEW YORK PRODUCE EXCHANGE BANK
+NEW YORK TRUST COMPANY
+
+PACIFIC BANK
+
+PHILIPPINE NATIONAL BANK
+
+PUBLIC NATIONAL BANK OF NEW YORK
+SCANDINAVIAN TRUST CO.
+
+SEABOARD NATIONAL BANK
+
+SECOND NATIONAL BANK OF THE CITY OF N. Y.
+SHERMAN NATIONAL BANK
+
+STATE BANK
+
+TITLE GUARANTEE & TRUST CO.
+
+UNION EXCHANGE NATIONAL BANK OF NEW YORK
+UNITED STATES MORTGAGE & TRUST CO.
+UNITED STATES TRUST COMPANY OF NEW YORK
+YORKVILLE BANK
+
+W. R. GRACE & CO.’S BANK
+
+LIBERTY LOAN COMMITTEE
+
+Second Federal Reserve Diatrict
+
+120 BROADWAY. NEW YORK CITY
