@@ -500,7 +500,7 @@ func petitionMotionProbe() entityProbe {
 		{"file", []string{"motion", "petition", "file", "--class", "safety",
 			"--relief", "halt before the next round",
 			"--reason", "continuing would require asserting a consent gate that does not exist"}},
-		{"rule", []string{"motion", "petition", "rule", "--id", "M1", "--as", "granted",
+		{"rule", []string{"motion", "petition", "rule", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue",
 			"--reason", "granted on the papers"}},
 	}, []string{"unfiled", "filed", "ruled"},
 		map[string]string{"filed": "file", "ruled": "rule"},

@@ -103,7 +103,7 @@ var (
 		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
+		DocketMotion.grounds InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
@@ -111,14 +111,14 @@ var (
 		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
-		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion
+		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key Cite.copy_url
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
-		Close.anchor_seat Close.carried_from
+		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
 		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
 		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type

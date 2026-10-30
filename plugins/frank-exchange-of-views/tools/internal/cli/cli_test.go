@@ -453,10 +453,11 @@ func TestRoleHelpCarriesTheLogFooter(t *testing.T) {
 	}
 }
 
-// The board verbs exist in the lens role and NOWHERE else. Mint, close and regrade are the
-// originating lens's acts (plans/roundless.md §III.B.3): the chair carries, spot-checks, dispatches
-// and gives the verdict, and the bench disposes through docket rulings. This is the claim the whole
-// engine rests on, so it is asserted over the actual command trees.
+// The board verbs exist in the lens role and NOWHERE else, but for the bench's regrade. Mint, close
+// and regrade are the originating lens's acts (plans/roundless.md §III.B.3): the chair carries,
+// spot-checks, dispatches and gives the verdict, and the bench disposes through docket rulings —
+// setting, by its own regrade, the grade a ruling rules on (record/benchgrade.go). This is the claim
+// the whole engine rests on, so it is asserted over the actual command trees.
 func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 	// ASKED OF FOUR TREES, not of four groups in one. The claim is stronger for it: a board verb is
 	// absent from the chair's SURFACE, not merely absent from a namespace the chair could still
@@ -474,6 +475,12 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
+			if other == "bench" && board == "regrade" {
+				if !verbs[other][board] {
+					t.Errorf("the bench role is missing %q — a ruling would rule on a grade it holds wrong, with no act to set it", board)
+				}
+				continue
+			}
 			if verbs[other][board] {
 				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
 			}

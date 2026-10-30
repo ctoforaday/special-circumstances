@@ -899,7 +899,7 @@
     },
     {
       "term": "grade movement",
-      "definition": "Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.",
+      "definition": "Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.",
       "seats": [
         "lens",
         "chair",
@@ -936,6 +936,37 @@
           "pattern": "grade_disputes"
         }
       ],
+      "collisions": []
+    },
+    {
+      "term": "relief",
+      "definition": "Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "relief sought",
+          "resolution": "the petitioner's ask, on the filing; relief is what the bench ordered on the ruling"
+        }
+      ]
+    },
+    {
+      "term": "new grounds",
+      "definition": "New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
       "collisions": []
     },
     {

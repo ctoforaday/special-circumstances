@@ -264,7 +264,7 @@ func scenarios() []scenario {
 					"--reason", "the design erodes a consent gate", "--relief", "halt and escalate"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
-					"--as", "granted", "--binds", "both", "--reason", "the relief binds the coming seats"),
+					"--as", "granted", "--relief", "Halt the run and escalate to a human before the next round.", "--binds", "both", "--reason", "the relief binds the coming seats"),
 				base("halt", "--run", "{RUN}", "--seat-id", "judge", "--reason", "continuing would compromise the consent gate"),
 			},
 		},

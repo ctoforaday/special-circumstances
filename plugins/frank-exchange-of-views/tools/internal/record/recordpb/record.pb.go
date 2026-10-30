@@ -5734,8 +5734,16 @@ func (x *PetitionMotion) GetClass() PetitionClass {
 // ask whether a gap that reached the bench was ever answered. Here the ask names the gap once, the
 // answer names the ask, and the pair is recoverable from either end.
 type DocketMotion struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	GapId         *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	GapId *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	// THE NEW GROUNDS A RECONSIDERATION RESTS ON, located the way every act locates what it is about:
+	// an anchor or record id the seats already read (a finding's, a gap's, a citation's or a proof's),
+	// or a quote of the report's current text. Required, exactly one of the two, when the bench has
+	// already ruled the gap closed, and refused otherwise (record.requireNewGrounds): the act it names
+	// is recorded after that ruling and is about this gap, or the motion relitigates what the ruling
+	// settled. A remand closes nothing, so a gap back before the bench after one needs none.
+	Grounds       *string `protobuf:"bytes,2,opt,name=grounds,proto3,oneof" json:"grounds,omitempty"`
+	GroundsQuote  *string `protobuf:"bytes,3,opt,name=grounds_quote,json=groundsQuote,proto3,oneof" json:"grounds_quote,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5773,6 +5781,20 @@ func (*DocketMotion) Descriptor() ([]byte, []int) {
 func (x *DocketMotion) GetGapId() string {
 	if x != nil && x.GapId != nil {
 		return *x.GapId
+	}
+	return ""
+}
+
+func (x *DocketMotion) GetGrounds() string {
+	if x != nil && x.Grounds != nil {
+		return *x.Grounds
+	}
+	return ""
+}
+
+func (x *DocketMotion) GetGroundsQuote() string {
+	if x != nil && x.GroundsQuote != nil {
+		return *x.GroundsQuote
 	}
 	return ""
 }
@@ -5977,7 +5999,12 @@ type MotionRule struct {
 	// binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
 	// the old table could not police: the filing's copy of the enum loop had always existed and
 	// the ruling's did not, so the first enumerated field to appear on a ruling was unenforced.
-	Binds         *RulingBinds `protobuf:"varint,4,opt,name=binds,proto3,enum=feov.record.v1.RulingBinds,oneof" json:"binds,omitempty"`
+	Binds *RulingBinds `protobuf:"varint,4,opt,name=binds,proto3,enum=feov.record.v1.RulingBinds,oneof" json:"binds,omitempty"`
+	// relief is the OPERATIVE part of a granted petition: the order, in the bench's words, that binds
+	// the seats `binds` names. A grant states both and a denial neither (validate), and every seat's
+	// work list carries each grant's relief from here, so an order reaches the seats it binds from the
+	// record and not from an engine's copy of the bench's account.
+	Relief        *string `protobuf:"bytes,5,opt,name=relief,proto3,oneof" json:"relief,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6074,6 +6101,13 @@ func (x *MotionRule) GetBinds() RulingBinds {
 		return *x.Binds
 	}
 	return RulingBinds_RULING_BINDS_UNSPECIFIED
+}
+
+func (x *MotionRule) GetRelief() string {
+	if x != nil && x.Relief != nil {
+		return *x.Relief
+	}
+	return ""
 }
 
 type isMotionRule_Ruling interface {
@@ -7966,10 +8000,15 @@ const file_record_proto_rawDesc = "" +
 	"\t_proposed\"T\n" +
 	"\x0ePetitionMotion\x128\n" +
 	"\x05class\x18\x01 \x01(\x0e2\x1d.feov.record.v1.PetitionClassH\x00R\x05class\x88\x01\x01B\b\n" +
-	"\x06_class\"\xbb\x01\n" +
+	"\x06_class\"\xb3\x02\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
-	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xed\x13\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x1d\n" +
+	"\agrounds\x18\x02 \x01(\tH\x01R\agrounds\x88\x01\x01\x129\n" +
+	"\rgrounds_quote\x18\x03 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x02R\fgroundsQuote\x88\x01\x01B\t\n" +
+	"\a_gap_idB\n" +
+	"\n" +
+	"\b_groundsB\x10\n" +
+	"\x0e_grounds_quote\"\xed\x13\n" +
 	"\fDocketRuling\x12\xfd\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xb8\x01\x82\xb5\x18\xb3\x01\b\x01\x12\x02as\x1a\xaa\x01the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xc1\x01\n" +
@@ -8001,7 +8040,7 @@ const file_record_proto_rawDesc = "" +
 	"\rInquiryMotion\x12\"\n" +
 	"\n" +
 	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01B\r\n" +
-	"\v_inquiry_id\"\xca\x05\n" +
+	"\v_inquiry_id\"\xf8\x05\n" +
 	"\n" +
 	"MotionRule\x12\xb3\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12\xaa\x01\n" +
@@ -8011,13 +8050,15 @@ const file_record_proto_rawDesc = "" +
 	"\bpetition\x18\v \x01(\x0e2\x1e.feov.record.v1.PetitionRulingH\x00R\bpetition\x129\n" +
 	"\ainquiry\x18\f \x01(\x0e2\x1d.feov.record.v1.InquiryRulingH\x00R\ainquiry\x126\n" +
 	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketRulingH\x00R\x06docket\x126\n" +
-	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x03R\x05binds\x88\x01\x01B\b\n" +
+	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x03R\x05binds\x88\x01\x01\x12!\n" +
+	"\x06relief\x18\x05 \x01(\tB\x04\xc0\xb5\x18\x01H\x04R\x06relief\x88\x01\x01B\b\n" +
 	"\x06rulingB\f\n" +
 	"\n" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_opinionB\b\n" +
-	"\x06_bindsJ\x04\b\x02\x10\x03R\asubject\"\x90\x03\n" +
+	"\x06_bindsB\t\n" +
+	"\a_reliefJ\x04\b\x02\x10\x03R\asubject\"\x90\x03\n" +
 	"\bRegister\x12&\n" +
 	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12&\n" +
 	"\fhook_version\x18\a \x01(\tH\x01R\vhookVersion\x88\x01\x01\x12\x1e\n" +

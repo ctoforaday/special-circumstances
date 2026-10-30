@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -22,7 +23,7 @@ import (
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
-	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.",
+	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nON A GAP THE BENCH HAS RULED CLOSED IT IS A RECONSIDERATION, ADMITTED ON NEW GROUNDS ONLY: give --grounds or --quote, and the tool checks that what they locate was recorded after that ruling and is about this gap, refusing the filing and saying which failed. The gap's row in your work list's `estopped` states the ruling — what it settled, and what would reopen it or that it is final; a final ruling still admits new grounds. A gap the bench remanded is back in the debate and needs none.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
@@ -141,9 +142,13 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 				}
 				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-				body.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{
-					GapId: proto.String(seat.Str(cmd, flags.ID)),
-				}}
+				// THE NEW GROUNDS, AS GIVEN: the record decides whether the gap needs them and
+				// whether these are new and about it (record.requireNewGrounds).
+				d := &recordpb.DocketMotion{GapId: proto.String(seat.Str(cmd, flags.ID)), Grounds: seat.OptStr(cmd, flags.Grounds)}
+				if seat.Given(cmd, flags.Quote) {
+					d.GroundsQuote = proto.String(seat.Location(cmd))
+				}
+				body.Filing = &recordpb.Motion_Docket{Docket: d}
 			default:
 				// A SUBJECT WITH NO ARM WROTE A MOTION WITH NO SUBSTANCE, SILENTLY. `validate`
 				// checks a filing that is PRESENT; it cannot check one that was never set. So a
@@ -158,7 +163,13 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 				body.Relief = proto.String(r)
 			}
 			write := func(guards ...record.Guard) error {
-				_, err := record.Append(s.Identity(), body, append([]record.Guard{record.HeardInTime(subj)}, guards...)...)
+				guards = append([]record.Guard{record.HeardInTime(subj)}, guards...)
+				// A QUOTE OF NEW GROUNDS IS THE REPORT'S CURRENT TEXT, held to the report the motion
+				// lands on as every quote is.
+				if q := body.GetDocket().GetGroundsQuote(); q != "" {
+					guards = append(guards, seat.Places("", q, groundsQuoteRefusal))
+				}
+				_, err := record.Append(s.Identity(), body, guards...)
 				return err
 			}
 			switch subj {
@@ -213,6 +224,12 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// marker and cobra's refusal are written here so the page says it before the call is spent.
 		seat.Require(c, f)
 	}
+	// A RECONSIDERATION'S NEW GROUNDS: the two ways to locate them, neither required by the flag —
+	// the record requires one exactly where the bench has ruled the gap closed.
+	if subject == "docket" {
+		c.Flags().Var(flags.AnchorID(), flags.Grounds, "on a gap the bench has ruled closed, and required there unless --quote is given: the id of the new grounds — "+record.GroundsKinds+", recorded after the ruling")
+		flags.Text(c, flags.Quote, "on a gap the bench has ruled closed, the other way to give the new grounds — report text an edit answering the gap wrote after the ruling, given as "+flags.DescQuoteAlone)
+	}
 	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
 	// seat.New, so they carried no `records` annotation — and the contract gate joins commands to
 	// their declared requirements through exactly that. Three verbs sat outside it: nothing checked
@@ -264,7 +281,9 @@ func payloadKey(flag string) string {
 // lying about what it accepts, and the help IS the contract a seat reads.
 // ruleDetail is what a subject's ruling page says of that subject alone.
 var ruleDetail = map[string]string{
-	"docket": "\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
+	"docket": "\n\nWHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE: `regrade` the gap while this motion stands unruled, then rule — your ruling rules on the grade you set, and the minting lens may not move an axis you moved. " +
+		"A MOTION THAT NAMES NEW GROUNDS reconsiders a gap you ruled closed: its `grounds` on `inquest motions` locate what was recorded since that ruling, and the tool admitted it because that is new and about the gap — whether it changes your ruling is yours to decide." +
+		"\n\nA DOCKET THE DISPATCH FILES SAYS WHY IN ITS BASIS: the gap is at impasse, or the open gaps' grade movement is past its threshold. " +
 		record.GradeMovementRule + ". The ruling decides the gap's fate as any docket ruling does, and the gap's grades and every regrade, with its reason, are on the BOARD beside it." +
 		"\n\nA REMAND SENDS AN OPEN GAP BACK for one more exchange between its minting lens and blue, on --direction, whether or not the gap is material, and a PASS is refused until that exchange has been had: the exchange begins only when blue records an act on the gap — the minting lens's act alone begins nothing — and each seat's sitting cannot end until it has acted on it. " +
 		"A REMAND PAST THE LIMIT IS REFUSED — " + record.RemandLimitRule + ". So a gap you remanded at impasse, back before you at impasse — or docketed again while its exchange is owed — takes a disposition that closes it; the refusal names them, and your work list says so on the motion before you rule. A second motion on the gap remanded in the sitting that remanded it is the same hearing, and is admitted. " +
@@ -393,9 +412,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// word is what tells the reader the binary is behind its own schema.
 				return nil, feov.Errorf(feov.Conflict, "this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged")
 			}
-			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
-			// because a denial binds nobody — and a grant that names no addressee is exactly the
-			// state the bench filed friction about: a direction issued knowing it had no carrier.
+			// THE ORDER A GRANT MAKES, and whom it binds: the record requires both of a grant and
+			// refuses both on a denial (record.requirePetitionOrder).
+			body.Relief = seat.OptStr(cmd, flags.Relief)
 			if w := seat.Str(cmd, flags.Binds); w != "" {
 				b, ok := enumOf[recordpb.RulingBinds](recordpb.RulingBinds(0).Descriptor(), w)
 				if !ok {
@@ -427,7 +446,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		}
 	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
-		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
+		enumhelp.Flag(c, flags.Binds, be, "on a grant, and required there: whom --relief binds")
 	}
 	// The record type, for the contract gate — see newFile. AND THE ARM: the ruling this verb
 	// writes fills the oneof arm named for its subject, so what that arm's message requires — a
@@ -522,6 +541,7 @@ var ruleFlagHelp = map[string]string{
 	flags.ReopensOn:  "on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this",
 	flags.Final:      "on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this",
 	flags.Direction:  "on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this",
+	flags.Relief:     "on a grant, and required there: the ORDER, written as an instruction the seats it binds can follow without reading your opinion — every seat's work list carries it. A denial orders nothing, so it never passes this",
 }
 
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a
@@ -546,4 +566,9 @@ func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 		return flags.GapID()
 	}
 	return flags.MotionID()
+}
+
+// groundsQuoteRefusal is the refusal for a grounds quote the report does not carry as given.
+func groundsQuoteRefusal(err error) error {
+	return feov.Errorf(feov.Validation, "--quote, the new grounds, is not the report's current text as given: %v", anchortext.Refusal(err))
 }

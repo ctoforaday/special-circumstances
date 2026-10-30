@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH (gblock, 2026-10-20).
@@ -38,7 +39,7 @@ const GradeMovementThreshold = 2.0
 
 // GradeMovementRule is the rule as every page that needs it states it — the regrade a lens files,
 // the dispatch that dockets, the docket ruling that rules on it.
-var GradeMovementRule = fmt.Sprintf("GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. "+
+var GradeMovementRule = fmt.Sprintf("GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. "+
 	"Once the open gaps' movement that no docket ruling on its gap has followed totals more than %.1f, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each: that ruling rules on the gap's movement", GradeMovementThreshold)
 
 // gradeMove is one axis one regrade moved.
@@ -105,7 +106,9 @@ func gradeMovementOf(evs []*Event, ids []int64, win WindowIndex, open map[string
 				}
 				mv := gradeMove{at: ids[i], seat: e.GetSeatId(), axis: recordpb.Word(axes[k]), from: cur[k], to: w, mass: math.Abs(MASS[w] - MASS[cur[k]])}
 				cur[k] = w
-				if !open[g] || ruled[g] > mv.at || mv.mass == 0 {
+				// THE PARTIES' MOVEMENT. The bench's regrade is the grade its ruling sets, so it is
+				// ruled on by the ruling it precedes, and it counts toward no docket of its own.
+				if !open[g] || ruled[g] > mv.at || mv.mass == 0 || seatclass.RoleOfSeat(mv.seat) == "bench" {
 					continue
 				}
 				if len(out.moves[g]) == 0 {

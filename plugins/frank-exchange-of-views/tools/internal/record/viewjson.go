@@ -667,6 +667,9 @@ type WorkJSON struct {
 	// board's status for it — on every seat's list, because a holding binds every seat. See
 	// DeclarationJSON.
 	Declarations []DeclarationJSON `json:"declarations"`
+	// Relief is every granted petition's order, with whom it binds — on every seat's list, as the
+	// declarations are. See ReliefJSON.
+	Relief []ReliefJSON `json:"relief"`
 }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
@@ -840,6 +843,9 @@ type WorkGapJSON struct {
 	// on the direction and not on the flag: false is a real answer, "" is the absence of one.
 	Remanded        bool   `json:"remanded"`
 	DocketDirection string `json:"docket_direction,omitempty"`
+	// DocketSettled is what the latest remand settles — the proposition a party may no longer
+	// assert though the gap is back in the debate; absent where it settles none.
+	DocketSettled string `json:"docket_settled,omitempty"`
 	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
@@ -916,6 +922,13 @@ type EstoppedJSON struct {
 	// fates settle the first while leaving the second. Carried here so a seat reading its
 	// board can tell "fixed" from "shipping broken, knowingly" without decoding a word.
 	ArtifactState string `json:"artifact_state"`
+	// Settled, ReopensOn and Final are the ruling's own answers, off the ruling the bench recorded:
+	// the proposition the losing party may no longer assert (empty where the ruling barred none),
+	// and what would reopen the gap — the condition, or Final where nothing would. A docket motion
+	// on the gap is a reconsideration, admitted on new grounds only (requireNewGrounds).
+	Settled   string `json:"settled"`
+	ReopensOn string `json:"reopens_on,omitempty"`
+	Final     bool   `json:"final"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -970,6 +983,9 @@ type WorkGapState struct {
 	// never remanded the gap. It is the SUBSTANCE of the remand: without it a seat is told the gap
 	// came back from the bench and not what to do about it.
 	DocketDirection string
+	// DocketSettled is the proposition the latest remand settles, "" where it settles none or the
+	// bench never remanded the gap — the gap view's `docket_settled`.
+	DocketSettled string
 	// remand is where the gap stands against the bench's counted remands, and route what the
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
@@ -984,6 +1000,9 @@ type WorkGapState struct {
 	// item on a docket motion says so before it rules.
 	remandLimit                      int64
 	Fate                             string // the last closer's word; closed gaps only
+	// benchRuling is the bench's closing ruling the gap view names (`bench_close_event`); nil where
+	// the bench never closed the gap. Its settled, reopens_on and final reach the estopped row.
+	benchRuling *recordpb.DocketRuling
 	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
@@ -1042,7 +1061,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
-	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_direction",
+	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
@@ -1055,7 +1074,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, classMaterial, supersededBy sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, remandSettled, classMaterial, supersededBy sql.NullString
 		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
@@ -1063,7 +1082,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		// remanded/docket_direction here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.Remanded, &reopensOn,
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.Remanded, &reopensOn, &remandSettled,
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
@@ -1072,7 +1091,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
-		g.DocketDirection = reopensOn.String
+		g.DocketDirection, g.DocketSettled = reopensOn.String, remandSettled.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
@@ -1109,7 +1128,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
 		if c != nil {
-			g.Fate, g.closedEpoch = c.reason(), c.closedEpoch
+			g.Fate, g.closedEpoch, g.benchRuling = c.reason(), c.closedEpoch, c.lastBenchClosure
 		}
 		out = append(out, g)
 	}
@@ -1210,7 +1229,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
-	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}}
+	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}, Relief: []ReliefJSON{}}
 	for _, g := range gaps {
 		if g.Open {
 			item := WorkGapJSON{
@@ -1232,7 +1251,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				YoursToClose: reader != "" && g.MintedBy == reader,
 				RegradesOwed: []OwedRegradeJSON{},
 				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
-				Remanded: g.Remanded, DocketDirection: g.DocketDirection, RemandStage: remandStageWords[g.remand],
+				Remanded: g.Remanded, DocketDirection: g.DocketDirection, DocketSettled: g.DocketSettled, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
 			}
@@ -1249,7 +1268,8 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 			continue
 		}
 		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
-			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
+			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate,
+			Settled: g.benchRuling.GetSettled(), ReopensOn: g.benchRuling.GetReopensOn(), Final: g.benchRuling.GetFinal()}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
 			ci.ArtifactState = string(s)
 		} else {
@@ -1440,6 +1460,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	if w.Declarations, err = declarationsOf(evs, win, gaps); err != nil {
 		return WorkJSON{}, err
 	}
+	w.Relief = reliefOf(evs, win)
 	return w, nil
 }
 

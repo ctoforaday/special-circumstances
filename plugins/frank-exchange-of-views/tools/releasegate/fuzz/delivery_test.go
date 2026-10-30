@@ -42,10 +42,10 @@ func deliverySentinel(field string) string {
 // deliveryExpectations are the fields whose only job is to reach another seat, with the reason
 // each is asserted. A field NOT listed here is reported and not asserted — the difference
 // between "this must travel" and "this was measured".
-var deliveryExpectations = map[string]string{
-	"judge.dispositions.settled":    "the barred proposition — red's estoppel line is built from it (#517) and blue's duty is statable only through it (#524)",
-	"judge.dispositions.reopens_on": "the other assertable answer to what would reopen a ruling; a seat that cannot see it cannot honour or contest the bar",
-}
+//
+// None does now: the bench's rulings and orders reach the seats from the record, on their work lists
+// (gblock, 2026-10-30), so no envelope field of the bench's has a reader to reach.
+var deliveryExpectations = map[string]string{}
 
 // deliveryNotForwarded are marked fields that legitimately reach no prompt, each with its
 // reason. Being on this list is a DECISION — it says somebody looked — which is the whole
@@ -54,6 +54,9 @@ var deliveryNotForwarded = map[string]string{
 	"red.log":                      "deliberate — a seat's log entries are on the record and no envelope schema declares `log`; a seat that returns one anyway is read by nobody, and a prompt carrying it is the envelope channel back (#1267)",
 	"blue.log":                     "as above, from the other party",
 	"judge.dispositions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
+	"judge.dispositions.settled":    "deliberate — no envelope schema declares it: a closing ruling's settled proposition is on the ruling, and every seat's work list carries it on the gap's estopped row",
+	"judge.dispositions.reopens_on": "deliberate — as settled: what would reopen a closing ruling is on the ruling and on every seat's estopped row",
+	"judge.rulings.relief":          "deliberate — no envelope schema declares it: a grant's relief is on its ruling, and every seat's work list carries it with whom it binds",
 	"judge.holdings":               "deliberate — no envelope schema declares it: a holding binds as a declaration on the record, which every seat's work list carries with the board's status beside each gap it names. One returned on the envelope anyway is read by nobody, and a prompt carrying it would relay bench prose about a gap's status that does not move when the gap does",
 	"red.notes":                    "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
 }
@@ -71,6 +74,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	settled := mark("judge.dispositions.settled")
 	reopens := mark("judge.dispositions.reopens_on")
 	rationale := mark("judge.dispositions.rationale")
+	relief := mark("judge.rulings.relief")
 	redNotes := mark("red.notes")
 	redLog := mark("red.log")
 	blueLog := mark("blue.log")
@@ -97,6 +101,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			e["log"] = []any{blueLog}
 		case strings.HasPrefix(seatID, "judge"):
 			e["holdings"] = []any{holding}
+			e["rulings"] = []any{map[string]any{"petitioner": "blue-respond", "class": "safety", "ruling": "granted", "relief": relief, "binds": "both"}}
 			e["dispositions"] = []any{map[string]any{
 				"gap_id": "G1", "disposition": "not_a_defect",
 				"settled": settled, "reopens_on": reopens, "rationale": rationale,

@@ -22,10 +22,9 @@ import (
 // Every closed set a seat's envelope offers, and the schema of the plan the chair relays, are
 // written into debate.js from the record's own declarations (devcmd/enginegen), and
 // `enginegen -check` fails a region that is stale or edited by hand: an envelope word the record
-// refuses, and a plan field the schema does not carry, cannot be committed. Three things are
-// still authored, and each has its test here: the DUTY the engine hands blue for each fate the
-// bench can rule; the envelope shapes other than the plan, which nothing in Go declares; and the
-// Go readers that index a returned envelope by key.
+// refuses, and a plan field the schema does not carry, cannot be committed. Two things are still
+// authored, and each has its test here: the envelope shapes other than the plan, which nothing in
+// Go declares; and the Go readers that index a returned envelope by key.
 
 // planJSON is a plan as `dispatch next` prints it: record.Plan through its own JSON tags, with
 // every list the verb always prints an array and never null, so a schedule relays the shape the
@@ -61,134 +60,6 @@ func planJSON(t *testing.T, p record.Plan) map[string]any {
 	return out
 }
 
-const rulingsMarker = "GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: "
-
-// EVERY FATE THE BENCH CAN RULE REACHES BLUE WITH A DUTY OF ITS OWN.
-//
-// Agreeing on the WORDS is not agreeing on the CONSEQUENCE. The disposition vocabulary is
-// generated, so the envelope offers exactly the record's fates; what each obliges of blue is
-// BLUE_DUTY_BY_DISPOSITION, authored text keyed by fate, and a fate with no entry falls through to
-// `UNMAPPED DISPOSITION` — a seat told to go and find its own instruction, on a run nobody is
-// watching. Adding `moot` to the record forced it onto the envelope and required nothing of the
-// duty map (#847).
-//
-// THE SCRIPT IS RUN: the bench rules one gap under each fate the record's docket ruling accepts —
-// and `remanded` twice, once with the exchange the plan still owes and once without — and blue's
-// next prompt is read for each row's duty.
-func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
-	fates := record.Names(record.SeatFilable(record.MotionVerdicts["docket"]))
-	if len(fates) == 0 {
-		t.Fatal("the record's docket ruling accepts no fate — nothing would be ruled, which reads as every fate carrying a duty")
-	}
-	const remanded, direction = "remanded", "READ THE PRIMARY SOURCE AT THE LEAF"
-	gapOf := map[string]string{}
-	var gaps []string
-	var rulings []any
-	rule := func(gap, fate string) {
-		gaps = append(gaps, gap)
-		gapOf[gap] = fate
-		rulings = append(rulings, map[string]any{"gap_id": gap, "disposition": fate, "rationale": "r", "settled": "the proposition " + gap + " settles"})
-	}
-	for i, f := range fates {
-		rule("G-"+strconv.Itoa(i+1), f)
-	}
-	const owed, notOwed = "G-1000", "G-1001"
-	rule(owed, remanded)
-	rule(notOwed, remanded)
-	if gapOf["G-"+strconv.Itoa(len(fates))] == "" || !containsWord(fates, remanded) {
-		t.Fatalf("the record's docket fates %v hold no %q — the remand arms of this schedule are measuring nothing", fates, remanded)
-	}
-
-	chair := 0
-	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"rulings": []any{}, "dispositions": []any{},
-			"manifest": []any{}, "found_closed": []any{}, "saturation_reached": false, "open_gaps": 0}
-		switch {
-		case seatID == "red-chair":
-			chair++
-			switch chair {
-			case 1:
-				e.Relay(planJSON(t, record.Plan{Head: 2, Docket: gaps,
-					Parties:  []record.Party{{SeatID: "judge", GapIDs: gaps, Occasions: []string{"docket"}}},
-					Blockers: []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}}))
-			case 2:
-				e.Relay(planJSON(t, record.Plan{Head: 2,
-					Parties:    []record.Party{{SeatID: "blue-respond", GapIDs: gaps}},
-					RemandOwed: []record.RemandOwed{{GapID: owed, Direction: direction}},
-					Blockers:   []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}}))
-			default:
-				e.Relay(planJSON(t, record.Plan{Head: 2, PassPermitted: true}))
-				e["verdict"] = "PASS"
-			}
-		case seatID == "judge" && debatejs.OccasionOf(prompt) == "docket":
-			e["dispositions"] = rulings
-		}
-		return e
-	}
-	script, err := repotree.DebateJS()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ds, _, err := debatejs.CaptureRun(script, debatejs.Config{Topic: "disposition schedule", Lanes: 3, Model: "m-bulk", JudgmentModel: "m-judgment",
-		RunDir: t.TempDir(), BinDir: t.TempDir(), Backend: backend})
-	if err != nil {
-		t.Fatal(err)
-	}
-	blue, err := debatejs.Last(ds, "blue-respond")
-	if err != nil {
-		t.Fatal(err)
-	}
-	at := strings.Index(blue.Prompt, rulingsMarker)
-	if at < 0 {
-		t.Fatalf("blue's prompt after the bench ruled carries no rulings (%q) — the schedule reached no ruled gap, which reads as every fate carrying a duty", rulingsMarker)
-	}
-	var rows []map[string]any
-	if err := json.NewDecoder(strings.NewReader(blue.Prompt[at+len(rulingsMarker):])).Decode(&rows); err != nil {
-		t.Fatalf("the rulings blue is handed are not a list of rows: %v", err)
-	}
-	if len(rows) != len(gaps) {
-		t.Fatalf("the bench ruled %d gap(s) and blue is handed %d row(s)", len(gaps), len(rows))
-	}
-
-	dutyOf := map[string]string{} // fate -> the duty its row carries
-	byGap := map[string]map[string]any{}
-	for _, r := range rows {
-		gap, _ := r["gap_id"].(string)
-		fate, _ := r["disposition"].(string)
-		duty, _ := r["your_duty"].(string)
-		byGap[gap] = r
-		if fate != gapOf[gap] {
-			t.Errorf("%s was ruled %q and blue's row says %q", gap, gapOf[gap], fate)
-		}
-		if strings.TrimSpace(duty) == "" || strings.Contains(duty, "UNMAPPED DISPOSITION") {
-			t.Errorf("the bench can rule %q, and the engine hands blue no duty for it (%q) — BLUE_DUTY_BY_DISPOSITION has no entry for the fate", fate, duty)
-		}
-		if gap != notOwed {
-			dutyOf[fate] = duty
-		}
-	}
-	// A FATE'S DUTY IS ITS OWN: a new fate keyed onto another's sentence tells blue the wrong thing
-	// in the right shape.
-	seen := map[string]string{}
-	for _, f := range fates {
-		if other, dup := seen[dutyOf[f]]; dup {
-			t.Errorf("%q and %q hand blue the same duty: %q", other, f, dutyOf[f])
-		}
-		seen[dutyOf[f]] = f
-	}
-	// A REMAND'S DUTY LASTS AS LONG AS ITS EXCHANGE IS OWED: the plan's direction on the gap it
-	// readies, and neither the direction nor the remand's duty on the one it does not.
-	if got, _ := byGap[owed]["direction"].(string); got != direction {
-		t.Errorf("the plan owes %s's remand exchange with direction %q, and blue's row carries %q", owed, direction, got)
-	}
-	if _, has := byGap[notOwed]["direction"]; has {
-		t.Errorf("the plan owes no exchange on %s, and blue's row carries a direction: %v", notOwed, byGap[notOwed]["direction"])
-	}
-	if byGap[owed]["your_duty"] == byGap[notOwed]["your_duty"] {
-		t.Errorf("a remand whose exchange is owed and one whose exchange is not hand blue the same duty: %v", byGap[owed]["your_duty"])
-	}
-}
-
 func containsWord(ws []string, w string) bool {
 	for _, x := range ws {
 		if x == w {
@@ -222,10 +93,10 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 			keys[k] = true
 		}
 	}
-	// The plan is the chair's envelope and a disposition is under the bench's: a walk that reaches
-	// neither read no schema, and every key would then be "undeclared" or "absent".
-	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["disposition"] {
-		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the bench's disposition — this is measuring nothing", schemas, len(keys))
+	// The plan is the chair's envelope and a halt is the bench's: a walk that reaches neither read no
+	// schema, and every key would then be "undeclared" or "absent".
+	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["halt"] {
+		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the bench's halt — this is measuring nothing", schemas, len(keys))
 	}
 	return keys
 }
@@ -238,6 +109,11 @@ var recordCarried = map[string]string{
 	"log":                     "a seat's log entry is a log event",
 	"claim_count":             "the report's claim count is counted from the report",
 	"sitting_record_appended": "what a sitting put on the record is read off the record",
+	"rulings":                 "a petition ruling is a motion ruling on the record, with a grant's relief and whom it binds, and every seat's work list carries the relief",
+	"relief":                  "a grant's relief is on its ruling, and every seat's work list carries it",
+	"dispositions":            "a docket ruling is a motion ruling on the record, and every seat's work list carries what a closing ruling settled and what would reopen it",
+	"settled":                 "a docket ruling's settled proposition is on the ruling, and every seat's work list carries it",
+	"infra_debts":             "a defect_owed_elsewhere ruling is on the record, and the judgments render it",
 }
 
 // NO ENVELOPE RESTATES A FACT THE RECORD CARRIES. The petition channel was an envelope field

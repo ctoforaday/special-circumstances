@@ -1,4 +1,4 @@
-prompt sha256: f7e1eabf71ed321721d38ef5c4827c0e09af59b6646f996a07870afbed7fa6b7
+prompt sha256: 89d866cc63a7df3b2b75baf1f4f72a1d85efedee39b746404ce347094d58405b
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help.
@@ -19,7 +19,7 @@ SEAT_ID: frontier.
 RUN DIRECTORY: research/2026-01-01_golden.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
+THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD, ITS RULINGS AND ORDERS WHAT YOU DO; each is on your work list, and the board, not a holding, says where a gap stands.
 One command's page prints at "/opt/feov/bin/feov-record" --seat-id frontier <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help alone is authoritative; this prompt names the JOB, never the flags.

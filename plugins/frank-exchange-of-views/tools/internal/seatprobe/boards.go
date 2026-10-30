@@ -649,7 +649,9 @@ No material downside was identified.
 					"reports the absence of a finding as the absence of a risk, and the two are only the same " +
 					"if a search happened. Blue has not said what was searched, over what corpus, or with " +
 					"what stopping rule — so a reader cannot tell a thorough review from a sentence nobody " +
-					"checked. The repair is one clause and blue has declined it twice.",
+					"checked. The repair is one clause and blue has declined it twice. I graded its severity " +
+					"`certain` on first read, and that overstates it: the sentence misleads, it does not assert a " +
+					"falsehood, and on the record as it stands it is a `medium` defect.",
 				BlueClosing: "The section is a summary of the risk review above it, and that review names " +
 					"its sources. Red is asking for a methods paragraph inside a TL;DR, which is a house-style " +
 					"preference dressed as a correctness gap. If the bench holds that a negative claim owes " +
@@ -676,6 +678,11 @@ No material downside was identified.
 			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
 			// skim the whole board.
 			{Seat: "judge", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `remanded` is the one value that sends the gap back to the debate for one more exchange instead of closing it — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
+			{Seat: "judge", Verb: "regrade", Because: "Red's own closing concedes the gap's severity is overstated — `certain` " +
+				"for a sentence that misleads without asserting a falsehood — and the ruling rules on the grade the gap carries. " +
+				"A bench that holds a grade wrong sets it with its own regrade while the docket motion stands, then rules; a " +
+				"ruling over a grade it holds wrong records a fate on a gap the record still grades as something else, and " +
+				"only the bench's regrade binds the lens not to move it back."},
 			{Seat: "judge", Verb: "motion petition rule", Because: "A petition convenes the bench at the next chair sitting, before any party of that epoch sits, and the run cannot end in a verdict while one stands. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
