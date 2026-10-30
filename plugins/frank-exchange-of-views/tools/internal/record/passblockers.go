@@ -55,7 +55,7 @@ type Blocker struct {
 	// reads — and "" where no seat on the record can.
 	Owner string
 	// Detail is what the wording needs beyond the subject: a stranded gap's successor, a motion's
-	// subject and gavel, a stale area's pin, an unchecked or failed-check proof's sha256 (""
+	// subject and gavel, a stale area's pin, an unchecked or failed-check computation's sha256 (""
 	// for a citation), a contradiction's claim.
 	Detail string
 	// About is the gap an unruled motion is about, "" for a motion about no gap.
@@ -70,12 +70,12 @@ type Blocker struct {
 	// wording can name its edit; 0 for the other kinds.
 	since int64
 	// placed is the events.id of the act that put an unchecked anchor on the record, which dispatch
-	// readies its owner off (a cite or a proof moves no report head); 0 for every other blocker.
+	// readies its owner off (a cite or a computation moves no report head); 0 for every other blocker.
 	placed int64
 	// lastCheck is the events.id of an unchecked anchor's latest check, which does not clear it, 0
 	// when it has none.
 	lastCheck int64
-	// rerun is an unchecked proof's script state (unchecked.rerun), "" for every other blocker.
+	// rerun is an unchecked computation's script state (unchecked.rerun), "" for every other blocker.
 	rerun string
 	// raisedBy is the finding that raised a contradiction, "" until one has, and raiser the seat
 	// that recorded it.
@@ -160,7 +160,7 @@ func contradictionFact(b Blocker) string { return "contradiction " + b.Subject }
 func uncheckedFact(b Blocker) string {
 	switch {
 	case b.since == 0 && b.Detail != "":
-		return "proof " + b.Subject + " is on the record and nobody has judged whether its script establishes the sentence it backs"
+		return "computation " + b.Subject + " is on the record and nobody has judged whether its script establishes the sentence it backs"
 	case b.since == 0:
 		return "citation " + b.Subject + " is on the record and nobody has read its source against the sentence it backs"
 	case b.lastCheck == 0:
@@ -170,13 +170,13 @@ func uncheckedFact(b Blocker) string {
 }
 
 // uncheckedAct is the check an unchecked blocker is owed, in the order the act needs: a citation's
-// source read against its sentence; a proof's script read and, where it has no re-run, re-run, then
+// source read against its sentence; a computation's script read and, where it has no re-run, re-run, then
 // its sentence judged. A re-run belongs to the script, so a script with one is never re-run again,
 // whatever it showed, and the act turns on that alone.
 //
-// THE PROOF ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor` takes
+// THE COMPUTATION ITEM CARRIES THE ID THE VERB TAKES: the computation's anchor, which `reproduce --anchor` takes
 // and the seat reads in the report. When the verb took the script's sha256 and the item named the
-// anchor, three lenses on universe-m11 spent 22 proof-file reads and 14 filesystem hunts translating
+// anchor, three lenses on universe-m11 spent 22 computation-file reads and 14 filesystem hunts translating
 // one into the other, for 12 re-runs. AND IT SAYS WHERE THE SCRIPT IS READ FIRST: an item that handed
 // over the re-run's id let a lens record a verdict on a script it had not read (wave A, 2026-10-09:
 // three placeholder verdicts, each of which stands).
@@ -219,7 +219,7 @@ const uncheckedOwner = "the lens that owns it"
 // check failed and how, and where it is on the record.
 func failedFact(b Blocker) string {
 	if b.Detail != "" {
-		return fmt.Sprintf("%s judged the sentence proof %s backs unsound at event %d, and that judgement stands", ownerOr(b, failedChecker), b.Subject, b.since)
+		return fmt.Sprintf("%s judged the sentence computation %s backs unsound at event %d, and that judgement stands", ownerOr(b, failedChecker), b.Subject, b.since)
 	}
 	return fmt.Sprintf("%s's check of citation %s at event %d read nothing of its source — it was unreachable, or the copy read was not the work — and no check of the sentence as it stands has read it", ownerOr(b, failedChecker), b.Subject, b.since)
 }
@@ -227,7 +227,7 @@ func failedFact(b Blocker) string {
 // failedClears is what clears a failed-check blocker, stated by every wording of it.
 func failedClears(b Blocker) string {
 	if b.Detail != "" {
-		return "it clears when the proof is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's edit changed the sentence, since an edit leaves it unchecked — or when blue retires it; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing"
+		return "it clears when the computation is judged sound again — by the judging lens's own later judgement, or by a judgement from a sitting opened after blue's edit changed the sentence, since an edit leaves it unchecked — or when blue retires it; another lens's `sound` beside a standing `unsound` is a disagreement and clears nothing"
 	}
 	return "it clears when a lens reads the source — any result but `unreachable`, of a copy that is the work — or when blue retires the citation, or edits its sentence, which leaves it unchecked; the gap that carries it does not close while it stands, and no bench ruling clears it"
 }
@@ -238,7 +238,7 @@ const failedChecker = "a lens"
 // failedRemedy is blue's act on a failed check.
 func failedRemedy(b Blocker) string {
 	if b.Detail != "" {
-		return "fixes the proof or retires it"
+		return "fixes the computation or retires it"
 	}
 	return "retires the citation or cites a source a lens can read"
 }
@@ -259,7 +259,7 @@ func blueFailedItem(b Blocker) string {
 		carried = "gap " + b.answeredBy + " states the defect and its fix"
 	}
 	if b.Detail != "" {
-		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the script shows, which leaves the proof unchecked for a fresh judgement, or a new proof with this one retired — or retire the claim it backs", failedFact(b), carried)
+		return fmt.Sprintf("%s — PASS is refused while it does, and %s. Fix it — an edit that makes its sentence say what the script shows, which leaves the computation unchecked for a fresh judgement, or a new computation with this one retired — or retire the claim it backs", failedFact(b), carried)
 	}
 	retire := "Retire the citation"
 	if b.answeredBy != "" {
@@ -361,16 +361,16 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: a source %s read contradicts or does not support %q and it is unanswered — %s", contradictionFact(b), ownerOr(b, contradictionReader), b.Detail, planHold(b, "PASS is not permitted until it is answered"))
 		},
 	},
-	// A CITATION OR PROOF NOBODY HAS CHECKED AS IT STANDS HOLDS THE PASS (unchecked.go). The owner is
+	// A CITATION OR COMPUTATION NOBODY HAS CHECKED AS IT STANDS HOLDS THE PASS (unchecked.go). The owner is
 	// the anchor's (anchorOwnerOf) whichever lens made any earlier check: a citation's is the evidence
-	// lens, a proof's the computation lens. The owner owes the check, so it is not retired, and the
+	// lens, a computation's the computation lens. The owner owes the check, so it is not retired, and the
 	// act that placed or changed the anchor moved the head past its last sitting: dispatch readies it.
 	//
 	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check clears the blocker, so
 	// each wording says both: the check that clears it, and the seat that owes it and is readied.
 	{
 		kind:  BlockerUnchecked,
-		gloss: "a citation or proof with no check of the sentence the report carries",
+		gloss: "a citation or computation with no check of the sentence the report carries",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("%s — PASS is refused until a lens checks it%s, by %s. %s",
 				uncheckedFact(b), uncheckedAfter(b), uncheckedAct(b), uncheckedOwed(b))
@@ -380,9 +380,9 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				named = append(named, uncheckedFact(b)+" — "+ownerOr(b, uncheckedOwner)+" owes the check and is the seat readied for it")
 			}
-			return fmt.Sprintf("%d citation(s) or proof(s) have no check of the sentence the report carries:\n  %s\n"+
-				"A citation nobody has read against its sentence, or a proof nobody has judged, is a claim nothing on the record backs yet; a check of a sentence an edit has since replaced is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or a `reproduce` naming the proof's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
+			return fmt.Sprintf("%d citation(s) or computation(s) have no check of the sentence the report carries:\n  %s\n"+
+				"A citation nobody has read against its sentence, or a computation nobody has judged, is a claim nothing on the record backs yet; a check of a sentence an edit has since replaced is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
+				"A `verify` of the citation that reads its source (any result but `unreachable`, of a copy that is the work) or a `reproduce` naming the computation's anchor — from a sitting opened after the edit, where an edit changed the sentence — clears it, whichever lens records it; "+
 				"PASS waits for the check, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
@@ -390,12 +390,12 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s — %s", uncheckedFact(b), planHold(b, "PASS is not permitted until a lens checks it"+uncheckedAfter(b)+". "+uncheckedOwed(b)))
 		},
 	},
-	// A CHECK THAT FAILED AND STANDS HOLDS THE PASS (failedcheck.go): a proof judged unsound, a
+	// A CHECK THAT FAILED AND STANDS HOLDS THE PASS (failedcheck.go): a computation judged unsound, a
 	// citation whose source no check could read. Its owner is the seat whose check failed, which owes
 	// the gap that carries it to blue; blue's remedy, or a check that holds, clears it.
 	{
 		kind:  BlockerFailedCheck,
-		gloss: "a citation whose source no check could read, or a proof a lens's standing judgement calls unsound",
+		gloss: "a citation whose source no check could read, or a computation a lens's standing judgement calls unsound",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("%s — PASS is refused while it stands; %s. %s", failedFact(b), failedClears(b), failedOwed(b))
 		},
@@ -412,16 +412,16 @@ var blockerKinds = []blockerKind{
 				}
 				named = append(named, fmt.Sprintf("%s (%s by %s at event %d; %s)", b.Subject, how, ownerOr(b, failedChecker), b.since, gap))
 			}
-			return fmt.Sprintf("%d citation(s) or proof(s) stand on a failed check:\n  %s\n"+
-				"A PASS would certify a sentence whose proof the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the proof, or retires the citation or cites a source a lens can read. "+
-				"A proof clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the gap does not close while the check stands, and no bench ruling clears it. "+
+			return fmt.Sprintf("%d citation(s) or computation(s) stand on a failed check:\n  %s\n"+
+				"A PASS would certify a sentence whose computation the record calls unsound, or whose cited source nobody could read. The lens whose check failed mints its gap about the anchor (the lens's `mint --about-kind anchor --about <its anchor>`, which takes no mint of its budget), and blue fixes or retires the computation, or retires the citation or cites a source a lens can read. "+
+				"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the gap does not close while the check stands, and no bench ruling clears it. "+
 				"`show evidence --anchor <id>` reads each check. PASS waits for that, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
 			until := "a lens reads its source or blue retires the citation"
 			if b.Detail != "" {
-				until = "the proof is judged sound again or retired"
+				until = "the computation is judged sound again or retired"
 			}
 			return fmt.Sprintf("%s — %s", failedFact(b), planHold(b, "PASS is not permitted until "+until))
 		},
@@ -663,7 +663,7 @@ func kindRank(k BlockerKind) int {
 }
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
-// contradiction no gap answers, a citation or proof with no check of the sentence the report
+// contradiction no gap answers, a citation or computation with no check of the sentence the report
 // carries, a standing failed check of one, no
 // ingested report, an unruled motion, no inquiry review since the report or its inquiries last
 // changed. ids is evs's places, aligned with it.
@@ -679,7 +679,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since, raisedBy: c.raisedBy, raiser: c.raiser})
 	}
 	for _, u := range uncheckedAnchors(evs, win) {
-		out = append(out, Blocker{Kind: BlockerUnchecked, Subject: u.anchor, Owner: anchorOwnerOf(u.proof), Detail: u.sha, since: u.edit, placed: u.placed, lastCheck: u.lastCheck, rerun: u.rerun})
+		out = append(out, Blocker{Kind: BlockerUnchecked, Subject: u.anchor, Owner: anchorOwnerOf(u.computation), Detail: u.sha, since: u.edit, placed: u.placed, lastCheck: u.lastCheck, rerun: u.rerun})
 	}
 	for _, f := range failedChecksOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerFailedCheck, Subject: f.anchor, Owner: f.owner, Detail: f.sha, since: f.since, answeredBy: f.answeredBy, answeredAt: f.answeredAt})

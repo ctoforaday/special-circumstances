@@ -119,7 +119,7 @@ func TestViewWritersHasNoStaleEntries(t *testing.T) {
 // NO MESSAGE NAMES A VIEW THAT DOES NOT EXIST.
 //
 // The inverse of the contract above, and it caught a real one: `lens reproduce --id` told a seat
-// the proofs were listed by `show --view proofs`. There is no `proofs` view. A seat following that
+// the computations were listed by `show --view computations`. There is no `computations` view. A seat following that
 // runs a command which is refused, and the refusal it gets — "unknown view" — reads as its own
 // mistake rather than the tool's.
 //
@@ -234,4 +234,4 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 // retiredViews are projection names that existed and do not any more. Every rename adds one, and
 // the entry is the whole point: a name nobody is watching for is how a stale reference survives a
 // rename in prose that compiles fine.
-var retiredViews = []string{"citation-ledger", "ledger", "archive", "changelog", "proofs"}
+var retiredViews = []string{"citation-ledger", "ledger", "archive", "changelog", "computations"}

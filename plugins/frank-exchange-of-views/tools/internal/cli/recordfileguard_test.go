@@ -47,7 +47,7 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 				t.Fatalf("the open record has no write-ahead log to name: %v", err)
 			}
 			script := path(t, runDir, db)
-			before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF)
+			before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION)
 
 			out, err := run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", sentence,
 				"--script", script, "--reason", "trial division settles it")
@@ -55,8 +55,8 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 				t.Errorf("compute --script %s was not refused as the record: err=%v\n%s", script, err, out)
 			}
 			requireRecordLocked(t, db, "the refused compute")
-			if after := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); after != before {
-				t.Errorf("a refused compute recorded %d proof(s)", after-before)
+			if after := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); after != before {
+				t.Errorf("a refused compute recorded %d computation(s)", after-before)
 			}
 		})
 	}

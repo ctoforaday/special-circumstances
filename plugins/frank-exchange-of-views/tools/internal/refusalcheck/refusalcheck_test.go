@@ -23,7 +23,7 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		{"mint", "mint refused — the first sentence prints in the report", true},
 		{"mint", "--supersedes names G-1, which no mint event has created", false},
 		{"compute", "blue's `compute` --answers names gap G-1, which no mint event created", true},
-		{"reproduce", "the proof is blue's `compute` and its script is gone", false},
+		{"reproduce", "the computation is blue's `compute` and its script is gone", false},
 		{"edit", "No act of blue's adds a row; blue's `edit` answering the gap is what takes it out", false},
 		{"regrade", "red-lens-evidence has already recorded a regrade on \"G-1\" this sitting", false},
 		{"edit", "your old span carries finding anchor <!--fx:F-1--> (its claim leaves by `edit` down to the bare anchor, then `retire`)", false},

@@ -24,17 +24,17 @@ import (
 // The constitution tells red to re-read the exact bytes blue cited (`fetch --url <the cited
 // url>`) — with no path from the anchor in front of it to that url. And `lens reproduce --id
 // <sha256>` ASSERTED the way through: "every proof is listed in the report beside the sentence
-// it backs". The report lists no sha. It carries `p-<hex>`.
+// it backs". The report lists no sha. It carried an anchor id.
 //
 // This is the class that keeps paying out: the tool computes something, discards it, and asks
 // the seat to reconstruct it.
 //
 // # Why one view and not two
 //
-// A citation and a proof are the same act at different strengths — blue offers evidence for a
-// sentence, anchors it, and red checks it. Splitting them into `citations` and `proofs` would
-// have grown the surface by two to answer one question ("what does this token point to"), and
-// left a seat holding a `p-` id to guess which view took it. `citation-ledger` — red's
+// A citation and a computation are the same act at different strengths — blue offers evidence for
+// a sentence, anchors it, and red checks it. Splitting them into two views would have grown the
+// surface by two to answer one question ("what does this token point to"), and left a seat
+// holding a `K-` id to guess which view took it. `citation-ledger` — red's
 // verifications, and nothing of what blue cited — is subsumed here: anchored checks attach to the
 // source they name, and red's own corroboration is the `independent` array.
 //
@@ -51,8 +51,8 @@ import (
 // anchor to join on and never will; they are the `independent` array, and that is a different
 // fact from an unverified citation rather than a missing one.
 //
-// PROOFS carry the same join through `reproduce`'s `anchor`, and the re-run of the script through
-// its sha: `rerun: not_rerun` means nobody re-ran the script, `soundness: not_judged` that nobody
+// COMPUTATIONS carry the same join through `reproduce`'s `anchor`, and the re-run of the bundle
+// through its sha: `rerun: not_rerun` means nobody re-ran the bundle, `soundness: not_judged` that nobody
 // judged this sentence. Every absence in this view is a stated field, because an unaudited thing
 // and a clean thing are otherwise the same empty space.
 
@@ -158,51 +158,41 @@ func sourceTextOf(c *recordpb.Cite) *EvidenceSourceText {
 	}
 }
 
-// EvidenceProofJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
-type EvidenceProofJSON struct {
-	// Anchor is the P-<hex> in the report and what `lens reproduce --anchor` takes; Sha256 is the
-	// script's, which every proof on the same script shares.
-	Anchor string `json:"anchor"`
-	Sha256 string `json:"sha256"`
-	Basis  string `json:"basis"`
+// EvidenceComputationJSON is one computation blue recorded, keyed by its anchor, WITH red's re-run.
+type EvidenceComputationJSON struct {
+	// Anchor is the K-<hex> in the report and what `lens reproduce --anchor` takes; Sha256 is the
+	// bundle's, which every computation on the same bundle shares.
+	Anchor string   `json:"anchor"`
+	Sha256 string   `json:"sha256"`
+	Argv   []string `json:"argv"`
+	Basis  string   `json:"basis"`
 	// Cites is the citation anchor of the METHOD this computation applies, when blue named one —
 	// the link between the two evidence classes, and the only one on the record.
 	Cites string `json:"cites"`
-	// Drift is WHAT MOVED when the tool's two runs of the same script disagreed, which makes the
-	// result a measurement of a moving system rather than a proof. Empty means they agreed.
-	// It was briefly reduced to a boolean while the sentence lived in the proof cache's
-	// meta.json; that file is gone and `Proof.drift` carries the sentence itself.
-	Drift  string `json:"drift"`
-	SeatID string `json:"seat_id"`
-	Epoch  int    `json:"epoch"`
+	// Drift is WHAT MOVED when the tool's two runs of the bundle disagreed, and Invariant what blue
+	// stated holds across them; both are empty on a reproducible computation.
+	Drift     string `json:"drift"`
+	Invariant string `json:"invariant"`
+	SeatID    string `json:"seat_id"`
+	Epoch     int    `json:"epoch"`
 
-	// THREE FIELDS ARE GONE FROM THIS ROW AND THAT IS A LOSS, NOT A TIDY-UP.
-	//
-	//   script, exit — the frozen key census rules both OFF the record: the script is a file in
-	//   the proof cache and the exit status belongs to proof.Result, the in-process execution
-	//   struct. Rendering `"exit": 0` from a field nothing can write would state success on
-	//   every proof ever recorded. The script's TEXT is read at the proof's anchor, from the
-	//   store: see EvidenceProofAtJSON.
-	//
-	//   location — `Proof` carries no span at all. A citation's anchor resolves to the sentence
-	//   it backs; a proof's no longer does, which is half of what this view was built for. It is
-	//   reported rather than rendered as an empty string, because "" and "nobody wrote one down"
-	//   are the plausible zero this file exists to refuse.
+	// The bundle's files and this act's output are read at the computation's anchor, from the
+	// store: see EvidenceComputationAtJSON. They are content, and every seat pulls this table.
 
 	// THE VERDICT IS FLAT ON THE ROW, IN TWO HALVES (gblock, 2026-10-12: the anchor is about the
-	// quote, the proof is about the proof itself). It was one nested `verified` object keyed by the
-	// script, and it trapped readers twice over: two chair sittings filtered the row for
+	// quote, the computation is about itself). It was one nested `verified` object keyed by the
+	// sha, and it trapped readers twice over: two chair sittings filtered the row for
 	// `{reproduced, sound}` and read nulls, and a lens's `unsound` on one sentence was overwritten by
-	// another lens's `sound` on another sentence over the same script (#1358).
+	// another lens's `sound` on another sentence over the same bundle (#1358).
 	//
-	// Rerun is the SCRIPT's standing re-run, shared by every proof on the sha: reproduced | differs |
-	// calls_the_tool, or not_rerun when nobody re-ran it.
+	// Rerun is the BUNDLE's standing re-run, shared by every computation on the sha: reproduced |
+	// differs | calls_the_tool, or not_rerun when nobody re-ran it.
 	Rerun string `json:"rerun"`
 	// Soundness is THIS ANCHOR's sentence: sound | unsound | not_judged | reopened (an edit changed
 	// the sentence after it was judged). A standing `unsound` from any seat reads unsound here until
 	// that seat judges it again or an edit reopens the sentence.
 	Soundness string `json:"soundness"`
-	// Verified is the conjunction a reader asks for: the script reproduced AND this sentence is
+	// Verified is the conjunction a reader asks for: the bundle reproduced AND this sentence is
 	// judged sound.
 	Verified bool `json:"verified"`
 	// Checks is every `reproduce` naming this anchor, in record order, each marked whether it still
@@ -210,13 +200,15 @@ type EvidenceProofJSON struct {
 	Checks []EvidenceReproductionJSON `json:"checks"`
 }
 
-// EvidenceReproductionJSON is one `reproduce` of one proof anchor — the two axes kept apart.
+// EvidenceReproductionJSON is one `reproduce` of one computation anchor — the two axes kept apart.
 type EvidenceReproductionJSON struct {
-	// Rerun is what this act did with the script (COMPUTED by the tool): reproduced | differs |
-	// calls_the_tool, or not_run when it judged the sentence on the script's standing re-run.
-	// Soundness is RED'S JUDGEMENT of this anchor's sentence from reading the script. A script that
-	// prints its conclusion reproduces forever, so the mechanical half alone establishes nothing.
+	// Rerun is what this act's comparison found (COMPUTED by the tool): reproduced | differs |
+	// calls_the_tool; Ran is whether the act executed the bundle, or compared against the bundle's
+	// standing re-run. Soundness is RED'S JUDGEMENT of this anchor's sentence from reading the
+	// program. A program that prints its conclusion reproduces forever, so the mechanical half alone
+	// establishes nothing.
 	Rerun     string `json:"rerun"`
+	Ran       bool   `json:"ran"`
 	Soundness string `json:"soundness"`
 	// Standing is whether this verdict still stands on the anchor: it is its seat's latest, from a
 	// sitting opened after the latest edit of the sentence.
@@ -290,14 +282,14 @@ func (v EvidenceVerificationJSON) Refuted() bool {
 
 // EvidenceJSON is the whole evidence layer of the report.
 type EvidenceJSON struct {
-	Sources []EvidenceSourceJSON `json:"sources"`
-	Proofs  []EvidenceProofJSON  `json:"proofs"`
+	Sources []EvidenceSourceJSON      `json:"sources"`
+	Computations []EvidenceComputationJSON `json:"computations"`
 	// Independent is red's corroboration — sources it went and found, which blue never cited and
 	// which therefore have no anchor. A separate array rather than anchorless rows mixed into the
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`
-	// Unchecked are the citations and proofs with no check of the sentence the report carries
+	// Unchecked are the citations and computations with no check of the sentence the report carries
 	// (uncheckedAnchors): nobody has checked it, or an edit changed the sentence and no sitting
 	// opened since has — the reference stands and its referent changed, so its check is of a
 	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
@@ -321,11 +313,11 @@ type EvidenceJSON struct {
 	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
 	Counts                   struct {
 		Sources int `json:"sources"`
-		Proofs  int `json:"proofs"`
-		// ProofsUnverified is the count whose `verified` is false: the script not reproduced, or the
+		Computations int `json:"computations"`
+		// ComputationsUnverified is the count whose `verified` is false: the script not reproduced, or the
 		// sentence not judged sound. It is stated because the honest zero and the unchecked case are
 		// otherwise the same empty space.
-		ProofsUnverified int `json:"proofs_unverified"`
+		ComputationsUnverified int `json:"computations_unverified"`
 		// SourcesUnverified is its citation twin: cited, and no reading of the sentence the report
 		// carries has reached it — unchecked, or checked and nothing read (anchorStanding.state).
 		SourcesUnverified int `json:"sources_unverified"`
@@ -352,7 +344,7 @@ type EvidenceContradictionJSON struct {
 	RaisedBy string `json:"raised_by"`
 }
 
-// EvidenceUncheckedJSON is one unchecked citation or proof. Edit and LastCheck are events.id: the
+// EvidenceUncheckedJSON is one unchecked citation or computation. Edit and LastCheck are events.id: the
 // edit that changed its sentence, 0 when none did, and its latest check, 0 when it has none, which
 // does not clear it.
 type EvidenceUncheckedJSON struct {
@@ -365,7 +357,7 @@ type EvidenceUncheckedJSON struct {
 func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	out := EvidenceJSON{
 		Sources:     []EvidenceSourceJSON{},
-		Proofs:      []EvidenceProofJSON{},
+		Computations: []EvidenceComputationJSON{},
 		Independent: []EvidenceVerificationJSON{},
 	}
 	out.UnansweredContradictions = []EvidenceContradictionJSON{}
@@ -450,14 +442,14 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		byAnchor[v.Anchor] = append(byAnchor[v.Anchor], v)
 	}
 
-	// Red's checks of each proof: the script's re-run by sha, the sentence's verdicts by anchor.
+	// Red's checks of each computation: the bundle's re-run by sha, the sentence's verdicts by anchor.
 	ledger := anchorChecksOf(evs, win)
-	reruns := scriptRerunsOf(evs)
+	reruns := bundleRerunsOf(evs)
 
 	for _, e := range evs {
 		w := win.Of(e)
 		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
-		// one walk of the events, and an event is a cite or a proof or neither.
+		// one walk of the events, and an event is a cite or a computation or neither.
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -502,11 +494,11 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				OCREngine:          bd.GetOcrEngine(),
 				OCRTextSha:         bd.GetOcrTextSha(),
 			})
-		case *recordpb.Proof:
-			// The anchor's verdict is read off the ledger by anchor; the script's re-run by the
-			// proof_sha the record spells once, on the Proof and on each Reproduce of it.
-			s := ledger.at(bd.GetProofId())
-			v := proofVerdictOf(s, reruns)
+		case *recordpb.Computation:
+			// The anchor's verdict is read off the ledger by anchor; the bundle's re-run by the
+			// bundle_sha the record spells once, on the Computation and on each Reproduce of it.
+			s := ledger.at(bd.GetComputationId())
+			v := computationVerdictOf(s, reruns)
 			checks := []EvidenceReproductionJSON{}
 			if s != nil {
 				standing := map[int64]bool{}
@@ -516,17 +508,23 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 				for _, c := range s.checks {
 					r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
 					checks = append(checks, EvidenceReproductionJSON{
-						Rerun: recordpb.Word(r.GetRerun()), Soundness: recordpb.Word(c.soundness), Standing: standing[c.id],
+						Rerun: recordpb.Word(r.GetRerun()), Ran: r.GetRan(), Soundness: recordpb.Word(c.soundness), Standing: standing[c.id],
 						Note: r.GetNote(), SeatID: c.seat, Epoch: win.Of(c.ev).Epoch,
 					})
 				}
 			}
-			out.Proofs = append(out.Proofs, EvidenceProofJSON{
-				Anchor:    bd.GetProofId(),
-				Sha256:    bd.GetProofSha(),
-				Basis:     bd.GetProofBasis(),
+			argv := bd.GetArgv()
+			if argv == nil {
+				argv = []string{}
+			}
+			out.Computations = append(out.Computations, EvidenceComputationJSON{
+				Anchor:    bd.GetComputationId(),
+				Sha256:    bd.GetBundleSha(),
+				Argv:      argv,
+				Basis:     recordpb.Word(bd.GetBasis()),
 				Cites:     bd.GetCites(),
 				Drift:     bd.GetDrift(),
+				Invariant: bd.GetInvariant(),
 				SeatID:    e.GetSeatId(),
 				Epoch:     w.Epoch,
 				Rerun:     v.rerunWord(),
@@ -545,14 +543,14 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	}
 
 	out.Counts.Sources = len(out.Sources)
-	out.Counts.Proofs = len(out.Proofs)
-	for _, p := range out.Proofs {
+	out.Counts.Computations = len(out.Computations)
+	for _, p := range out.Computations {
 		if !p.Verified {
-			out.Counts.ProofsUnverified++
+			out.Counts.ComputationsUnverified++
 		}
 	}
 	for _, s := range ledger.order {
-		if st := s.state(); !s.proof && (st == stateUnchecked || st == stateUnread) {
+		if st := s.state(); !s.computation && (st == stateUnchecked || st == stateUnread) {
 			out.Counts.SourcesUnverified++
 		}
 	}
@@ -560,13 +558,13 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	return out
 }
 
-// evidenceView is the evidence read from the record: the sources, proofs and their checks, the
+// evidenceView is the evidence read from the record: the sources, computations and their checks, the
 // findings that raise a contradicting check and the mints that answer it (unanswered_contradictions), and the edits that
 // change an anchor's sentence with the retires that take one out of the report (unchecked).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
-	recordpb.EventType_EVENT_TYPE_PROOF,
+	recordpb.EventType_EVENT_TYPE_COMPUTATION,
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
 	recordpb.EventType_EVENT_TYPE_MINT,
@@ -582,42 +580,47 @@ func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(
 // IT IS A SECOND SHAPE BECAUSE IT ANSWERS A SECOND QUESTION. The table says what backs the report
 // and what has been checked of it; this says what ONE anchor points at, in full. Narrowing the
 // table's own arrays to one row would leave its run-wide counts and its unanswered contradictions
-// beside a single entry, where "0 proofs unverified" reads as a fact about that entry.
+// beside a single entry, where "0 computations unverified" reads as a fact about that entry.
 type EvidenceAtJSON struct {
 	Anchor string `json:"anchor"`
-	// Source is set when the anchor is a citation's (or a labelled corroboration's), Proof when
-	// it is a computation's. Exactly one is present.
-	Source *EvidenceSourceJSON  `json:"source,omitempty"`
-	Proof  *EvidenceProofAtJSON `json:"proof,omitempty"`
+	// Source is set when the anchor is a citation's (or a labelled corroboration's), Computation
+	// when it is a computation's. Exactly one is present.
+	Source      *EvidenceSourceJSON        `json:"source,omitempty"`
+	Computation *EvidenceComputationAtJSON `json:"computation,omitempty"`
 	// Unchecked is the anchor's row of the table's `unchecked`, absent when it owes no check — the
 	// PASS refusal sends a seat here for an unchecked anchor, and this is where it reads which edit
 	// and which check.
 	Unchecked *EvidenceUncheckedJSON `json:"unchecked,omitempty"`
 }
 
-// EvidenceProofAtJSON is a proof's row WITH THE COMPUTATION ITSELF: the script the lens's
-// `reproduce` executes and the output blue's run recorded.
+// EvidenceComputationAtJSON is a computation's row WITH THE COMPUTATION ITSELF: the bundle the lens's
+// `reproduce` executes and the output this act recorded.
 //
 // THE RECORD HOLDS NEITHER, AND THIS DOES NOT CHANGE THAT. They are content, addressed by the
-// sha256 the `Proof` event carries and read from the proof store when a seat asks — the same join
-// the assembler makes for the human's evidence document. They are here and not on the table's
-// rows because every seat pulls the table, and a run's scripts in every context is a cost the
-// read at one anchor does not impose.
+// bundle_sha and the computation_id the `Computation` event carries and read from the store when a
+// seat asks — the same join the assembler makes for the human's evidence document. They are here
+// and not on the table's rows because every seat pulls the table, and a run's programs in every
+// context is a cost the read at one anchor does not impose.
 //
 // PLAIN STRINGS, ALWAYS PRESENT. An artifact the store does not hold is refused before this type
-// is filled (proof.Stored), so "" here means the stored bytes are empty and never that nobody
+// is filled (compute.Stored), so "" here means the stored bytes are empty and never that nobody
 // could find them.
-type EvidenceProofAtJSON struct {
-	EvidenceProofJSON
-	// ScriptFile is the name the script is stored under; its extension is what picks the
-	// interpreter the re-run uses.
-	ScriptFile     string `json:"script_file"`
-	Script         string `json:"script"`
-	RecordedOutput string `json:"recorded_output"`
+type EvidenceComputationAtJSON struct {
+	EvidenceComputationJSON
+	// Files is the bundle, each file by its path in the bundle.
+	Files []EvidenceFileJSON `json:"files"`
+	// Output is what this act's first run wrote.
+	Output string `json:"output"`
 }
 
-// EvidenceAt resolves one document anchor to the evidence entry it names. A proof comes back
-// without its script: the artifact is the caller's to read, because the store is not the record.
+// EvidenceFileJSON is one file of a computation's bundle.
+type EvidenceFileJSON struct {
+	Path string `json:"path"`
+	Body string `json:"body"`
+}
+
+// EvidenceAt resolves one document anchor to the evidence entry it names. A computation comes back
+// without its bundle: the artifact is the caller's to read, because the store is not the record.
 //
 // A MISS IS AN ERROR. The table answers "nothing here" with an empty array, which is right for a
 // table and wrong for a lookup: a seat that asked what one anchor points at and received an empty
@@ -633,9 +636,9 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 			at.Unchecked = &ev.Unchecked[i]
 		}
 	}
-	for i := range ev.Proofs {
-		if ev.Proofs[i].Anchor == id {
-			at.Proof = &EvidenceProofAtJSON{EvidenceProofJSON: ev.Proofs[i]}
+	for i := range ev.Computations {
+		if ev.Computations[i].Anchor == id {
+			at.Computation = &EvidenceComputationAtJSON{EvidenceComputationJSON: ev.Computations[i]}
 			return at, nil
 		}
 	}
@@ -645,10 +648,10 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 			return at, nil
 		}
 	}
-	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or proof this record
-	// does not hold. An id of the wrong shape, a proof's sha256 among them, never reaches this: the
+	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or computation this
+	// record does not hold. An id of the wrong shape, a computation's sha256 among them, never reaches this: the
 	// flag that takes the anchor refuses it (flags.AnchorID).
-	return EvidenceAtJSON{}, fmt.Errorf("no source or proof is at anchor %q on this record (%d source(s), %d proof(s)). "+
-		"--anchor takes the id inside a citation or proof token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
-		id, len(ev.Sources), len(ev.Proofs))
+	return EvidenceAtJSON{}, fmt.Errorf("no source or computation is at anchor %q on this record (%d source(s), %d computation(s)). "+
+		"--anchor takes the id inside a citation or computation token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
+		id, len(ev.Sources), len(ev.Computations))
 }

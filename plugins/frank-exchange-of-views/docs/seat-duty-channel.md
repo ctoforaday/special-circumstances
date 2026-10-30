@@ -105,7 +105,7 @@ sitting over any other missing lens act, and the scorecard scores no lens parity
 would be an invented obligation, and `complete: false` on a seat no gate would hold is precisely the
 disagreement that teaches a seat to trust neither surface.
 
-The acts a lens genuinely has open to it — verifying a citation nobody checked, re-running a proof
+The acts a lens genuinely has open to it — verifying a citation nobody checked, re-running a computation
 nobody re-ran — are affordances, and they live in `AvailableOf`, where they carry no claim about
 being finished.
 

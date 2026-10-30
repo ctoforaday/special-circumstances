@@ -69,18 +69,18 @@ func TestTheInterpreterIsResolvedAcrossCandidates(t *testing.T) {
 
 // A MISS IS LOUD, AND IT NAMES THE WAY OUT.
 //
-// A proof that cannot RUN must never produce something a reader takes for a proof that FAILED.
+// A computation that cannot RUN must never produce something a reader takes for a computation that FAILED.
 // And the environment is often not the seat's to change — a fresh cloud container comes back
 // the same way every time — while the EXTENSION is, so the refusal routes rather than just
 // refusing.
 func TestAnUnresolvableInterpreterRefusesAndRoutes(t *testing.T) {
-	// python absent, node and bash present: the seat can reach a working proof by changing
+	// python absent, node and bash present: the seat can reach a working computation by changing
 	// language, and nothing else was going to tell it so.
 	_, err := fakeLook("node", "bash").interpreterFor("compute.py")
 	if err == nil {
-		t.Fatal("a .py proof was accepted with no python on PATH")
+		t.Fatal("a .py computation was accepted with no python on PATH")
 	}
-	for _, want := range []string{"compute.py", "python3", "python", "node", "bash", "write the proof in a language"} {
+	for _, want := range []string{"compute.py", "python3", "python", "node", "bash", "write the computation in a language"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not carry %q:\n%v", want, err)
 		}
@@ -90,7 +90,7 @@ func TestAnUnresolvableInterpreterRefusesAndRoutes(t *testing.T) {
 	// the only honest move left is to say so on the record.
 	_, err = fakeLook().interpreterFor("compute.py")
 	if err == nil {
-		t.Fatal("a .py proof was accepted with an empty PATH")
+		t.Fatal("a .py computation was accepted with an empty PATH")
 	}
 	if !strings.Contains(err.Error(), "in the log as a request") {
 		t.Errorf("with no interpreter at all the seat is not pointed at the log:\n%v", err)
@@ -105,14 +105,14 @@ func TestAnUnresolvableInterpreterRefusesAndRoutes(t *testing.T) {
 func TestAnUnknownExtensionIsRefusedOnItsOwnTerms(t *testing.T) {
 	_, err := fakeLook("python3", "node", "bash", "go").interpreterFor("compute.rb")
 	if err == nil {
-		t.Fatal("a .rb proof was accepted")
+		t.Fatal("a .rb computation was accepted")
 	}
 	if !strings.Contains(err.Error(), "no known interpreter") {
 		t.Errorf("an unknown extension is reported as an environment miss:\n%v", err)
 	}
 }
 
-// PATH IS PROBED ONCE PER NAME. Every proof runs TWICE by design and a debate carries dozens,
+// PATH IS PROBED ONCE PER NAME. Every computation runs TWICE by design and a debate carries dozens,
 // so an unmemoised lookup turns one answer into hundreds of identical syscalls — and a
 // confirmed MISS is cached too, because that answer is just as stable.
 func TestPathIsProbedOncePerName(t *testing.T) {

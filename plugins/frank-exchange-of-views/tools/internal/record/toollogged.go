@@ -2,7 +2,7 @@ package record
 
 import "errors"
 
-// ToolLogged marks a refusal whose log entry the tool has ALREADY written — an estoppel, a proof
+// ToolLogged marks a refusal whose log entry the tool has ALREADY written — an estoppel, a computation
 // that would not run, a source that could not be fetched. The refusal logger records every other
 // refusal a seat receives; these carry a more specific entry of their own, and a second, generic
 // one beside it would count the same event twice.

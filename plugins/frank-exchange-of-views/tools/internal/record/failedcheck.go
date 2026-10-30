@@ -7,13 +7,13 @@ import (
 )
 
 // A FAILED CHECK IS A PASS BLOCKER. Two states of the anchor ledger (anchorchecks.go) are a check
-// that was made and failed: a proof whose sentence a lens's standing judgement calls unsound, and a
+// that was made and failed: a computation whose sentence a lens's standing judgement calls unsound, and a
 // citation whose every check since its sentence last changed read nothing — its source was
 // unreachable, or the copy read was not the work.
 //
-// THE PROOF RULING (gblock, 2026-10-24): "The judging lens is readied to mint its gap, and blue to
+// THE COMPUTATION RULING (gblock, 2026-10-24): "The judging lens is readied to mint its gap, and blue to
 // fix or retire the proof. It clears when the proof is re-run sound or retired." universe-m32 ended
-// UNVERIFIED with pass_permitted true: the computation lens judged a proof's sentence unsound, minted
+// UNVERIFIED with pass_permitted true: the computation lens judged a computation's sentence unsound, minted
 // no gap, and retired; nothing readied anybody for it.
 //
 // THE CITATION RULING (gblock, 2026-10-25): "A citation that isn't checked is a lie in waiting - the
@@ -34,10 +34,10 @@ import (
 // failedCheck is one standing failed check of one anchor.
 type failedCheck struct {
 	anchor string
-	// proof is whether the anchor is a proof's; sha is then its proof_sha, "" for a citation.
-	proof bool
+	// computation is whether the anchor is a computation's; sha is then its bundle_sha, "" for a citation.
+	computation bool
 	sha   string
-	// owner is the seat whose check failed — a proof's judge, a citation's first reader since the
+	// owner is the seat whose check failed — a computation's judge, a citation's first reader since the
 	// edit — and since that check's events.id.
 	owner string
 	since int64
@@ -51,7 +51,7 @@ type failedCheck struct {
 }
 
 // failedChecksOf is every standing failed check on the record, in the order the record placed the
-// anchors and, within a proof, its standing unsound judgements. win supplies each event's events.id
+// anchors and, within a computation, its standing unsound judgements. win supplies each event's events.id
 // and sitting.
 func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 	type aboutMint struct {
@@ -66,7 +66,7 @@ func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 	}
 	var out []failedCheck
 	add := func(s *anchorStanding, c anchorCheck) {
-		f := failedCheck{anchor: s.anchor, proof: s.proof, sha: s.sha, owner: c.seat, since: c.id}
+		f := failedCheck{anchor: s.anchor, computation: s.computation, sha: s.sha, owner: c.seat, since: c.id}
 		// A GAP MINTED IN THE CHECK'S OWN SITTING ANSWERS IT, before or after the check: the seat read
 		// the same sentence for both. One from an earlier sitting carried an earlier check of a
 		// sentence an edit has since replaced.
@@ -118,7 +118,7 @@ func answersOwnFailedCheck(evs []*Event, win WindowIndex, seatID string, kind re
 	return ""
 }
 
-// A REPEAT FAILED CHECK IS REFUSED (gblock, 2026-10-24, for the proof): a lens whose failed check of
+// A REPEAT FAILED CHECK IS REFUSED (gblock, 2026-10-24, for the computation): a lens whose failed check of
 // an anchor stands — its `unsound` judgement, or its reading that read nothing — and whose gap about
 // the anchor, minted from that check's sitting on, is open, is refused the same failed check again,
 // and the refusal names the gap.
@@ -151,11 +151,11 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 			if closed {
 				continue
 			}
-			if f.proof {
+			if f.computation {
 				return feov.Errorf(feov.Conflict,
-					"you judged the sentence proof %s backs unsound at event %d, the sentence has not changed since that judgement, and gap %s, which you minted about the proof, is still open — "+
+					"you judged the sentence computation %s backs unsound at event %d, the sentence has not changed since that judgement, and gap %s, which you minted about the computation, is still open — "+
 						"that gap stands for the judgement, so `--as unsound` is not recorded again and no second gap is owed. Nothing is recorded. "+
-						"The judgement and its gap stand until blue edits the sentence, which leaves the proof unchecked for a fresh judgement, or retires the proof; "+
+						"The judgement and its gap stand until blue edits the sentence, which leaves the computation unchecked for a fresh judgement, or retires the computation; "+
 						"`--as sound`, where your reading of the sentence has changed, is recorded and clears the judgement",
 					f.anchor, f.since, g)
 			}
@@ -188,10 +188,10 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 			if g != b.GetGapId() {
 				continue
 			}
-			if f.proof {
+			if f.computation {
 				return feov.Errorf(feov.Conflict,
-					"gap %s carries proof %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so the gap does not close. Nothing is recorded. "+
-						"It closes once the proof is judged sound again, blue edits its sentence (the proof is then owed a fresh judgement) or blue retires it; a close that hands the defect on names its successor with `--superseded-by`",
+					"gap %s carries computation %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so the gap does not close. Nothing is recorded. "+
+						"It closes once the computation is judged sound again, blue edits its sentence (the computation is then owed a fresh judgement) or blue retires it; a close that hands the defect on names its successor with `--superseded-by`",
 					g, f.anchor, f.owner, f.since)
 			}
 			return feov.Errorf(feov.Conflict,

@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-// A KEY IS ONE PROGRAM'S NAME, AND ScriptSha IS WHAT LETS compute SAY SO.
+// A KEY IS ONE PROGRAM'S NAME, AND ScriptBundle IS WHAT LETS compute SAY SO.
 //
 // Crash-retry and key collision are indistinguishable at the key and are opposite facts: one is
 // the same program arriving twice, the other a DIFFERENT program under a key an earlier dispatch
 // already burned. The second used to take the retry path — "already recorded as <sha>", recording
-// nothing — so a seat that believed the message shipped a report claiming a proof it does not
+// nothing — so a seat that believed the message shipped a report claiming a computation it does not
 // hold. Measured in research/2026-09-02_quadratic-formula, blue-respond, --key P1.
-func TestScriptShaDistinguishesARetryFromACollision(t *testing.T) {
+func TestScriptBundleDistinguishesARetryFromACollision(t *testing.T) {
 	run := t.TempDir()
 	dir := filepath.Join(run, "blue", "candidates")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -28,20 +28,20 @@ func TestScriptShaDistinguishesARetryFromACollision(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shaA, err := ScriptSha(run, a)
+	shaA, err := scriptBundle(t, run, a)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// The same bytes hash the same however they arrive — that is the retry, and it must stay
 	// cheap: no execution, just a read.
-	again, err := ScriptSha(run, a)
+	again, err := scriptBundle(t, run, a)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if shaA != again {
 		t.Errorf("the same script hashed differently on a second read: %s vs %s", shaA, again)
 	}
-	shaB, err := ScriptSha(run, b)
+	shaB, err := scriptBundle(t, run, b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,13 +52,20 @@ func TestScriptShaDistinguishesARetryFromACollision(t *testing.T) {
 
 // It must not need the script to RUN. A collision is decided before any execution, which is what
 // makes refusing it cheaper than the wrong answer.
-func TestScriptShaDoesNotExecute(t *testing.T) {
+func TestScriptBundleDoesNotExecute(t *testing.T) {
 	run := t.TempDir()
 	script := filepath.Join(run, "boom.py")
 	if err := os.WriteFile(script, []byte("import sys\nsys.exit(3)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ScriptSha(run, script); err != nil {
+	if _, err := scriptBundle(t, run, script); err != nil {
 		t.Errorf("hashing a script that would exit non-zero failed: %v", err)
 	}
+}
+
+// scriptBundle is ScriptBundle's identity alone.
+func scriptBundle(t *testing.T, run, script string) (string, error) {
+	t.Helper()
+	sha, _, _, err := ScriptBundle(run, script)
+	return sha, err
 }

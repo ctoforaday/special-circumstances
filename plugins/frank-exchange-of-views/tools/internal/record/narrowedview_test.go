@@ -68,15 +68,15 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
-		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofId: str("P-00000001"), ProofSha: str("abc"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
+		recordtest.Event(t, "blue-respond", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000001"), BundleSha: str("abc")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ComputationId: str("K-00000001"), BundleSha: str("abc"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(true),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
-		// An edit that reopened the anchor and the proof (its text leaves G3's location where it is),
-		// and a retire that takes the proof out of the report, so it owes no re-run.
+		// An edit that reopened the anchor and the computation (its text leaves G3's location where it is),
+		// and a retire that takes the computation out of the report, so it owes no re-run.
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("elsewhere"), New: str("elsewhere, revised"),
-			Text: str("why"), Reopened: []string{"C-0a0a0a0a", "P-00000001"}}),
-		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the proof backed"), Reason: str("superseded"),
-			Anchors: []string{"P-00000001"}}),
+			Text: str("why"), Reopened: []string{"C-0a0a0a0a", "K-00000001"}}),
+		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
+			Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: str("red's position")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: str("blue's position")}),
@@ -88,13 +88,13 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: str("no verb renders a gap's lineage in one read"),
 			Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		// A second regrade, position, log and proof, each its seat's own act.
+		// A second regrade, position, log and computation, each its seat's own act.
 		recordtest.At(t, "red-chair", "red-chair:regrade:#9", &recordpb.Regrade{GapId: str("G2"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: str("misread")}),
 		recordtest.At(t, "red-chair", "red-chair:position:#9", &recordpb.Position{Text: str("red's position, misworded")}),
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		recordtest.At(t, "blue-respond", "blue-respond:proof:#9", &recordpb.Proof{ProofId: str("P-00000002"), ProofSha: str("def"), ProofBasis: str("basis, misstated")}),
+		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),

@@ -69,7 +69,7 @@ func InvokedAs() string {
 func seatVerbs(role string) ([]*cobra.Command, string) {
 	switch role {
 	case "lens":
-		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them."
+		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them."
 	case "chair":
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":

@@ -27,7 +27,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 
 // The marker verbs (cite/compute/finding) record their act and then an Anchor, and the projection
 // re-places the marker from the Anchor alone. This is the fidelity guard for that path: a base with
-// a citation, a proof and a finding replays to exactly what write-time InsertAnchor would have
+// a citation, a computation and a finding replays to exactly what write-time InsertAnchor would have
 // produced, markers in record order — and an act recorded with no Anchor places nothing.
 func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -41,18 +41,18 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append base: %v", err)
 	}
 
-	const citeID, proofID, findID = "C-cafef00d", "P-12345678", "F-deadbeef"
-	// cite anchors the first sentence, proof the first too (two markers, one sentence), finding
+	const citeID, computationID, findID = "C-cafef00d", "K-12345678", "F-deadbeef"
+	// cite anchors the first sentence, computation the first too (two markers, one sentence), finding
 	// the second. Recorded in this order; replay must honour it.
 	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String(citeID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append cite: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Proof{
-		ProofId: proto.String(proofID), ProofSha: proto.String("sha-" + proofID), Location: proto.String("The estimate is stable across the range"),
+	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+		ComputationId: proto.String(computationID), BundleSha: proto.String("sha-" + computationID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
-		t.Fatalf("append proof: %v", err)
+		t.Fatalf("append computation: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
@@ -62,9 +62,9 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append corroboration: %v", err)
 	}
 	if got, err := RenderFromRecord(runtest.Open(t, runDir)); err != nil || got != base {
-		t.Fatalf("a cite, a proof and a corroboration with no Anchor event rendered a marker: %q, %v", got, err)
+		t.Fatalf("a cite, a computation and a corroboration with no Anchor event rendered a marker: %q, %v", got, err)
 	}
-	for _, id := range []string{citeID, proofID} {
+	for _, id := range []string{citeID, computationID} {
 		if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Anchor{
 			Id: proto.String(id), Location: proto.String("The estimate is stable across the range"),
 		}); err != nil {
@@ -90,7 +90,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 
 	want := base
 	want = insertHelper(t, want, "The estimate is stable across the range", anchor.Token(citeID))
-	want = insertHelper(t, want, "The estimate is stable across the range", anchor.Token(proofID))
+	want = insertHelper(t, want, "The estimate is stable across the range", anchor.Token(computationID))
 	want = insertHelper(t, want, "Demand grows steadily over the period", anchor.Token(findID))
 	if got != want {
 		t.Fatalf("marker replay drifted from write-time placement:\n  want %q\n  got  %q", want, got)
@@ -102,7 +102,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Errorf("a second anchor for %s was not refused as a duplicate id: %v", citeID, err)
 	}
 	// Every marker present, exactly once.
-	for _, id := range []string{citeID, proofID, findID} {
+	for _, id := range []string{citeID, computationID, findID} {
 		if n := strings.Count(got, anchor.Token(id)); n != 1 {
 			t.Errorf("marker %s appears %d times, want 1", anchor.Token(id), n)
 		}

@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// refuseInsideComputeRerun answers a call made by a proof's script while a checker runs it: the call
+// refuseInsideComputeRerun answers a call made by a computation's script while a checker runs it: the call
 // is appended to the marker file the re-run named (seatenv.VarComputeRerun) and refused, before any
-// verb runs — a read included, because a proof that reads the debate's record measures the run as
+// verb runs — a read included, because a computation that reads the debate's record measures the run as
 // it stood for its author, which is not a computation anyone else can repeat.
 //
 // THE MARKER IS THE SIGNAL, THE REFUSAL IS FOR WHOEVER READS THE SCRIPT'S OUTPUT. A script may
@@ -20,7 +20,7 @@ func refuseInsideComputeRerun(marker string, argv []string) {
 		fmt.Fprintln(f, line)
 		f.Close()
 	}
-	fmt.Fprintf(os.Stderr, "%s: refused — this call was made by a proof's script while a checker runs it. "+
-		"A proof is a computation anyone can run again; a script that calls the debate's tool reads or writes the run as it stood for its author, which no checker can repeat, "+
+	fmt.Fprintf(os.Stderr, "%s: refused — this call was made by a computation's script while a checker runs it. "+
+		"A computation is a computation anyone can run again; a script that calls the debate's tool reads or writes the run as it stood for its author, which no checker can repeat, "+
 		"so every such call is refused and the re-run records that the script cannot be checked\n", InvokedAs())
 }

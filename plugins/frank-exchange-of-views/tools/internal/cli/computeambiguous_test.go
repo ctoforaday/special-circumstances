@@ -17,7 +17,7 @@ func TestComputeRefusesAnAmbiguousQuoteNamingEachOccurrence(t *testing.T) {
 	_, err := run(t, "compute", "--run", runDir, "--seat-id", "blue-respond", "--quote", "91 is 7 times 13",
 		"--script", script(t, runDir, "f.js", "console.log(7*13)"), "--reason", "r")
 	if err == nil {
-		t.Fatal("compute placed a proof on a quote that occurs twice")
+		t.Fatal("compute placed a computation on a quote that occurs twice")
 	}
 	for _, want := range []string{
 		"occurs more than once in the report",

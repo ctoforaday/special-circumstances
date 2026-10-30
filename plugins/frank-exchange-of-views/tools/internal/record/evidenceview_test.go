@@ -19,7 +19,7 @@ func evidenceBoard(events ...*Event) []*Event { return events }
 // fixture could state a key the verb does not write and the projection would simply never see it —
 // the miss reading as "the view does not surface this". Two of the fixtures below did exactly
 // that: `reference` on a verify (retired when the verify verbs stopped writing it) and `sha256` on
-// a proof, whose field is `proof_sha` and is the key the reproduce join is on.
+// a computation, whose field is `bundle_sha` and is the key the reproduce join is on.
 func evidenceEvent(t *testing.T, round int, seat string, body proto.Message) *Event {
 	t.Helper()
 	return recordtest.Event(t, seat, body)
@@ -63,39 +63,38 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 	}
 }
 
-// A PROOF CARRIES BOTH IDS: the anchor the seat reads in the report and `reproduce --anchor` takes,
-// and the script's sha256 every proof on that script shares.
+// A COMPUTATION CARRIES BOTH IDS: the anchor the seat reads in the report and `reproduce --anchor` takes,
+// and the script's sha256 every computation on that script shares.
 func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
-		ProofId: proto.String("p-deadbeef"), ProofSha: proto.String("f00d"),
-		ProofBasis: proto.String("reproducible"), Script: proto.String("proofs/trial.py"),
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+		ComputationId: proto.String("p-deadbeef"), BundleSha: proto.String("f00d"),
 		// exit 0 is the SUCCESS status, and it is set explicitly: an implicit-presence encoding
-		// would drop exactly the case that says the proof worked.
+		// would drop exactly the case that says the computation worked.
 		Exit: proto.Int32(0),
 	}))
 
 	got := evidenceJSONT(t, b)
-	if len(got.Proofs) != 1 {
-		t.Fatalf("Proofs = %d, want 1", len(got.Proofs))
+	if len(got.Computations) != 1 {
+		t.Fatalf("Computations = %d, want 1", len(got.Computations))
 	}
-	p := got.Proofs[0]
+	p := got.Computations[0]
 	if p.Anchor != "p-deadbeef" || p.Sha256 != "f00d" {
 		t.Errorf("anchor/sha = %q/%q", p.Anchor, p.Sha256)
 	}
 	if p.Rerun != RerunNone || p.Soundness != SoundnessNotJudged || p.Verified || len(p.Checks) != 0 {
-		t.Errorf("an unchecked proof reads rerun=%q soundness=%q verified=%v checks=%d, want not_rerun, not_judged, false, 0", p.Rerun, p.Soundness, p.Verified, len(p.Checks))
+		t.Errorf("an unchecked computation reads rerun=%q soundness=%q verified=%v checks=%d, want not_rerun, not_judged, false, 0", p.Rerun, p.Soundness, p.Verified, len(p.Checks))
 	}
-	if got.Counts.ProofsUnverified != 1 {
-		t.Errorf("ProofsUnverified = %d, want 1", got.Counts.ProofsUnverified)
+	if got.Counts.ComputationsUnverified != 1 {
+		t.Errorf("ComputationsUnverified = %d, want 1", got.Counts.ComputationsUnverified)
 	}
 }
 
 // UNVERIFIED IS A STATED FIELD, NOT AN OMISSION — and it must survive the JSON, because a reader
-// that cannot tell "nobody re-ran it" from "it reproduced" rates an unaudited proof as an audited
+// that cannot tell "nobody re-ran it" from "it reproduced" rates an unaudited computation as an audited
 // one. `omitempty` on any of the three would erase exactly the distinction.
-func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
-	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
-		ProofId: proto.String("p-1"), ProofSha: proto.String("s1"),
+func TestEvidence_UnverifiedComputationSaysSoInTheJSON(t *testing.T) {
+	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), 
+		ComputationId: proto.String("p-1"), BundleSha: proto.String("s1"),
 	}))
 	out, err := json.Marshal(evidenceJSONT(t, b))
 	if err != nil {
@@ -103,7 +102,7 @@ func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 	}
 	for _, want := range []string{`"rerun":"not_rerun"`, `"soundness":"not_judged"`, `"verified":false`, `"checks":[]`} {
 		if !strings.Contains(string(out), want) {
-			t.Errorf("the JSON of an un-re-run proof lacks %s:\n%s\n\nAn absent field reads as a clean proof; that is the plausible zero this view exists to remove", want, out)
+			t.Errorf("the JSON of an un-re-run computation lacks %s:\n%s\n\nAn absent field reads as a clean computation; that is the plausible zero this view exists to remove", want, out)
 		}
 	}
 }
@@ -112,15 +111,15 @@ func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 // forever, so a re-run that matched and a judgement of `unsound` read as exactly that.
 func TestEvidence_ReproduceJoinsItsAnchorAndKeepsTheAxesApart(t *testing.T) {
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("p-1"), ProofSha: proto.String("s1")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("p-1"), BundleSha: proto.String("s1")}),
 		evidenceEvent(t, 2, "lens-r2", &recordpb.Reproduce{
-			ProofId: proto.String("p-1"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
+			ComputationId: proto.String("p-1"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(true),
 			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_UNSOUND),
 			Note:      proto.String("it prints its conclusion"),
 		}),
 	)
 	got := evidenceJSONT(t, b)
-	p := got.Proofs[0]
+	p := got.Computations[0]
 	if p.Rerun != "reproduced" {
 		t.Errorf("Rerun = %q, want reproduced (the tool computed it)", p.Rerun)
 	}
@@ -130,48 +129,48 @@ func TestEvidence_ReproduceJoinsItsAnchorAndKeepsTheAxesApart(t *testing.T) {
 	if len(p.Checks) != 1 || !p.Checks[0].Standing || p.Checks[0].Note != "it prints its conclusion" {
 		t.Errorf("Checks = %+v, want the one standing judgement with its note", p.Checks)
 	}
-	if got.Counts.ProofsUnverified != 1 {
-		t.Errorf("ProofsUnverified = %d, want 1 — an unsound proof is not verified", got.Counts.ProofsUnverified)
+	if got.Counts.ComputationsUnverified != 1 {
+		t.Errorf("ComputationsUnverified = %d, want 1 — an unsound computation is not verified", got.Counts.ComputationsUnverified)
 	}
 }
 
-// THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). Two
-// proofs on one script: one re-run reproduces the script for both, and each sentence carries its
+// THE ANCHOR IS ABOUT THE QUOTE, THE COMPUTATION IS ABOUT THE COMPUTATION ITSELF (gblock, 2026-10-12). Two
+// computations on one script: one re-run reproduces the script for both, and each sentence carries its
 // own judgement. A later `sound` on one anchor, from another lens, does not overwrite an `unsound`
-// on the other — keyed by sha it did, in 11 of 15 archived runs with proofs.
+// on the other — keyed by sha it did, in 11 of 15 archived runs with computations.
 func TestEvidence_AScriptsReRunIsSharedAndEachSentenceKeepsItsOwnVerdict(t *testing.T) {
 	b := evidenceBoard(
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1")}),
-		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000002"), ProofSha: proto.String("s1")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-00000001"), BundleSha: proto.String("s1")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-00000002"), BundleSha: proto.String("s1")}),
 		evidenceEvent(t, 2, "red-lens-logic", &recordpb.Reproduce{
-			ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
+			ComputationId: proto.String("K-00000001"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(true),
 			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_UNSOUND), Note: proto.String("computes the other leg"),
 		}),
 		evidenceEvent(t, 2, "red-lens-evidence", &recordpb.Reproduce{
-			ProofId: proto.String("P-00000002"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_NOT_RUN.Enum(),
+			ComputationId: proto.String("K-00000002"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(false),
 			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_SOUND), Note: proto.String("computes this leg"),
 		}),
 	)
 	got := evidenceJSONT(t, b)
-	p1, p2 := got.Proofs[0], got.Proofs[1]
+	p1, p2 := got.Computations[0], got.Computations[1]
 	if p1.Rerun != "reproduced" || p2.Rerun != "reproduced" {
-		t.Errorf("rerun = %q/%q, want reproduced on both: one re-run stands for every proof on the script", p1.Rerun, p2.Rerun)
+		t.Errorf("rerun = %q/%q, want reproduced on both: one re-run stands for every computation on the script", p1.Rerun, p2.Rerun)
 	}
 	if p1.Soundness != SoundnessUnsound || p1.Verified {
-		t.Errorf("P-00000001 reads %q verified=%v, want unsound — another anchor's sound verdict overwrote it", p1.Soundness, p1.Verified)
+		t.Errorf("K-00000001 reads %q verified=%v, want unsound — another anchor's sound verdict overwrote it", p1.Soundness, p1.Verified)
 	}
 	if p2.Soundness != SoundnessSound || !p2.Verified {
-		t.Errorf("P-00000002 reads %q verified=%v, want sound and verified", p2.Soundness, p2.Verified)
+		t.Errorf("K-00000002 reads %q verified=%v, want sound and verified", p2.Soundness, p2.Verified)
 	}
 }
 
 // A STANDING UNSOUND STAYS VISIBLE: another seat's later `sound` on the same anchor does not answer
 // it, the seat's own later verdict does, and an edit of the sentence reopens it.
 func TestEvidence_AStandingUnsoundIsAnsweredOnlyByItsSeatOrAnEdit(t *testing.T) {
-	proof := evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1")})
+	computation := evidenceEvent(t, 1, "blue-r1", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("K-00000001"), BundleSha: proto.String("s1")})
 	judge := func(seat string, snd recordpb.Soundness) *Event {
-		return evidenceEvent(t, 2, seat, &recordpb.Reproduce{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1"),
-			Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Soundness: recordtest.P(snd), Note: proto.String("read")})
+		return evidenceEvent(t, 2, seat, &recordpb.Reproduce{ComputationId: proto.String("K-00000001"), BundleSha: proto.String("s1"),
+			Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(true), Soundness: recordtest.P(snd), Note: proto.String("read")})
 	}
 	unsound := judge("red-lens-logic", recordpb.Soundness_SOUNDNESS_UNSOUND)
 	for _, c := range []struct {
@@ -179,10 +178,10 @@ func TestEvidence_AStandingUnsoundIsAnsweredOnlyByItsSeatOrAnEdit(t *testing.T) 
 		evs  []*Event
 		want string
 	}{
-		{"another seat's sound", []*Event{proof, unsound, judge("red-lens-evidence", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessUnsound},
-		{"its own seat's sound", []*Event{proof, unsound, judge("red-lens-logic", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessSound},
+		{"another seat's sound", []*Event{computation, unsound, judge("red-lens-evidence", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessUnsound},
+		{"its own seat's sound", []*Event{computation, unsound, judge("red-lens-logic", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessSound},
 	} {
-		if got := evidenceJSONT(t, evidenceBoard(c.evs...)).Proofs[0].Soundness; got != c.want {
+		if got := evidenceJSONT(t, evidenceBoard(c.evs...)).Computations[0].Soundness; got != c.want {
 			t.Errorf("%s after an unsound: soundness = %q, want %q", c.name, got, c.want)
 		}
 	}
@@ -291,7 +290,7 @@ func TestEvidence_EmptyRunRendersArraysNotNulls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"sources":[]`, `"proofs":[]`, `"independent":[]`} {
+	for _, want := range []string{`"sources":[]`, `"computations":[]`, `"independent":[]`} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("empty evidence view is missing %s:\n%s", want, out)
 		}

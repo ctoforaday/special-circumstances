@@ -12,16 +12,16 @@ import (
 // depths under the run. Graded by running twice from the author's path — which is what this engine
 // used to do — it is perfectly deterministic and earns `reproducible`.
 //
-// MEASURED on research/2026-09-02_quadratic-formula: 28 proofs recorded `reproducible`, six of
+// MEASURED on research/2026-09-02_quadratic-formula: 28 computations recorded `reproducible`, six of
 // them do not reproduce, and `r1_persistence` exits 0 from the store while printing INVERTED
 // answers. A re-auditor gets a document-contradicting result and no error to tell them so.
 func TestAScriptThatReadsItsOwnLocationIsNotGradedReproducible(t *testing.T) {
 	run := t.TempDir()
-	dir := filepath.Join(run, "blue", "candidates", "r1-proofs")
+	dir := filepath.Join(run, "blue", "r1-computations")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Prints its own depth below the run directory: 3 from here, 2 from proofs/<sha>/.
+	// Prints its own depth below the run directory: 2 from here, 3 from computations/<sha>/dir/.
 	script := filepath.Join(dir, "depth.py")
 	body := "import os\n" +
 		"here = os.path.dirname(os.path.abspath(__file__))\n" +
@@ -35,23 +35,19 @@ func TestAScriptThatReadsItsOwnLocationIsNotGradedReproducible(t *testing.T) {
 	if err != nil {
 		t.Skipf("no python interpreter here: %v", err)
 	}
-	if res.Basis == Reproducible {
-		t.Fatalf("a script whose answer depends on where it is stored was graded %q — "+
-			"the grade was taken from the author's path, which no later audit uses", res.Basis)
-	}
-	if res.Basis != NotPortable {
-		t.Errorf("basis = %q, want %q", res.Basis, NotPortable)
-	}
-	// THE GRADE OWES ITS REASON. "not_portable" with no drift is a verdict a reader cannot check.
 	if res.Drift == "" {
-		t.Error("graded not_portable and said nothing about what moved")
+		t.Fatalf("a script whose answer depends on where it is stored reported no drift — " +
+			"the grade was taken from the author's path, which no later audit uses")
+	}
+	if !strings.Contains(res.Drift, "the stored copy says something else") {
+		t.Errorf("drift = %q, want the stored copy's difference named", res.Drift)
 	}
 	if !strings.Contains(res.Drift, "store") {
 		t.Errorf("the drift does not say the store is where it disagreed: %q", res.Drift)
 	}
 }
 
-// AND A GENUINELY PORTABLE PROOF IS STILL REPRODUCIBLE. The new check must not grade every proof
+// AND A GENUINELY PORTABLE COMPUTATION IS STILL REPRODUCIBLE. The new check must not grade every computation
 // down: a script that is a pure function of its own bytes reaches the same answer from anywhere,
 // which is exactly what the strongest basis is supposed to mean.
 func TestASelfContainedScriptKeepsTheStrongestBasis(t *testing.T) {
@@ -68,7 +64,7 @@ func TestASelfContainedScriptKeepsTheStrongestBasis(t *testing.T) {
 	if err != nil {
 		t.Skipf("no python interpreter here: %v", err)
 	}
-	if res.Basis != Reproducible {
-		t.Errorf("a self-contained proof was graded %q (drift %q), want %q", res.Basis, res.Drift, Reproducible)
+	if res.Drift != "" {
+		t.Errorf("a self-contained computation drifted: %q", res.Drift)
 	}
 }

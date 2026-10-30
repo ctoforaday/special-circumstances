@@ -57,7 +57,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1", "https://grass/1")
 	sky := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	grass := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
-	proof := computeSentence(t, runDir, "Fire is hot.")
+	computation := computeSentence(t, runDir, "Fire is hot.")
 	retire := func(anchors string) error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", anchors, "--reason", "unreadable")
 		return err
@@ -75,7 +75,7 @@ func TestACitationAloneRetiresOnlyACitationOnASentence(t *testing.T) {
 	}
 	retires := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
 	refused("two citations", retire(sky+","+grass), "names 2", sky, grass)
-	refused("a proof", retire(proof), proof+" is a proof anchor", "--quote")
+	refused("a computation", retire(computation), computation+" is a computation anchor", "--quote")
 	if n := countEvents(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != retires {
 		t.Errorf("%d retire(s) recorded by refused retires", n-retires)
 	}

@@ -1,6 +1,6 @@
 package report
 
-// A SHIPPED .md HOLDS NO `<` OUTSIDE CODE BUT A PROOF'S ANCHOR.
+// A SHIPPED .md HOLDS NO `<` OUTSIDE CODE BUT A COMPUTATION'S ANCHOR.
 //
 // A shipped document is composed from units — the report's text, and each section a seat's words
 // fill — and a markdown viewer parses it WHOLE: a fence one unit leaves open flips the next unit's
@@ -39,14 +39,14 @@ package report
 // line after it is no code block (viewerList).
 //
 // THE TOOL'S HTML IS THE TOOL'S BY CONSTRUCTION. The one element the tool writes into a .md is a
-// proof's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
+// computation's anchor in evidence.md (proofanchor.go): evidenceDoc writes a mark no record text holds,
 // and resolveMarkSpans makes it the anchor and returns its span. A `<` inside such a span is the
 // tool's and is never escaped; the same tag typed anywhere is a seat's. Assembly strips every anchor
 // token as text enters composition, but those the weave turns into notes (stripTokens), and the weave
 // takes the rest, so a token in a shipped document is a seat's text.
 //
 // WHAT A READER IS GUARANTEED. A reader that agrees with codeReader on where code is — pinned against
-// cmark-gfm 0.29.0.gfm.13, GitHub's parser — finds no HTML in the file but the proofs' anchors, and
+// cmark-gfm 0.29.0.gfm.13, GitHub's parser — finds no HTML in the file but the computations' anchors, and
 // prints each `&lt;` ship wrote as the `<` typed, but one a bare URL runs into. A viewer that does not
 // parse the file as CommonMark finds no `<` in its prose either; what it takes for code is its own.
 //
@@ -70,7 +70,7 @@ import (
 )
 
 // codeReader is the reading ship takes of where a shipped .md's code is: pageReader's grammar with no
-// HTML grammar and no proof's anchor, its code read as cmark-gfm reads it.
+// HTML grammar and no computation's anchor, its code read as cmark-gfm reads it.
 var codeReader = goldmark.New(goldmark.WithParser(parser.NewParser(
 	parser.WithBlockParsers(append(codeBlockParsers(),
 		util.Prioritized(viewerFootnote{extension.NewFootnoteBlockParser()}, 999))...),
@@ -231,7 +231,7 @@ func stdReaders() readers { return readers{page: parsePage, code: parseCode} }
 // ship is md as its .md ships (readers.ship).
 func ship(md string) string { return stdReaders().ship(md) }
 
-// ship is md as its .md ships: its line endings `\n` (lineEnds), its proofs' anchors in place, and
+// ship is md as its .md ships: its line endings `\n` (lineEnds), its computations' anchors in place, and
 // every other `<` outside code written ltEntity. Which `<` stand in code is read from the text with
 // all of them escaped: escaping a `<` outside code changes how a reader reads the text around it — an
 // autolink, an angle-bracket destination or a tag that held a backtick is text, and the backtick may
@@ -339,9 +339,9 @@ func escapeAt(src []byte, at []int) ([]byte, []int) {
 	return append(out, src[last:]...), pos
 }
 
-// proofLabel reports whether label is a proof id: the anchor package reads the id shape, from the
+// computationLabel reports whether label is a computation id: the anchor package reads the id shape, from the
 // token it would spell.
-func proofLabel(label string) bool {
+func computationLabel(label string) bool {
 	tok := anchor.Token(label)
-	return anchor.Kind(label) == "proof" && anchor.SkipRun(tok, 0) == len(tok)
+	return anchor.Kind(label) == "computation" && anchor.SkipRun(tok, 0) == len(tok)
 }

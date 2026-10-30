@@ -22,7 +22,7 @@ import (
 //
 //	<!--fx:F-…-->     STRIPPED           (stripTokens, docs.go)
 //	<!--cite:C-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
-//	<!--proof:P-…--> -> [^PN] + definitions    (weaveComputationRefs, proofs.go)
+//	<!--computation:K-…--> -> [^KN] + definitions    (weaveComputationRefs, computations.go)
 //
 // What was tested was each fate ALONE: FuzzWeaveCitations drives weaveCitations over one string,
 // TestStripTokens drives stripTokens over one string, and TestNoDocumentInTheSetShipsA
@@ -33,7 +33,7 @@ import (
 // documents and the weaves are applied PER DOCUMENT. A document whose composition path misses one
 // of them — an eighth document added to the set, a section routed around the weave — ships the raw
 // token. And an HTML comment is INVISIBLE in rendered markdown, so the failure is silent in
-// exactly the way the assembled report's dangling `[^P1]` was loud: the reader sees prose with a
+// exactly the way the assembled report's dangling `[^K1]` was loud: the reader sees prose with a
 // hole where the evidence layer should be, and nothing anywhere says so.
 //
 // This asks the question of the ARTIFACT rather than of the three functions: after Assemble, does
@@ -41,7 +41,7 @@ import (
 func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "feed0000face2222"
-	seedProof(t, runDir, sha, "console.log('interleavings:', 0);", "interleavings: 0\n")
+	seedStore(t, runDir, sha, "K-00000001", "console.log('interleavings:', 0);", "interleavings: 0\n")
 
 	// ALL THREE CLASSES, IN BLUE'S AUDITED REPORT — which is the surface that ships as WRITTEN, so it
 	// is the one where a missed weave would show up first.
@@ -49,7 +49,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		"# Whether the eviction path is safe — research report",
 		"",
 		"## TL;DR",
-		"The eviction path is safe<!--cite:C-00000001-->, and the interleaving was model-checked<!--proof:P-00000001-->.",
+		"The eviction path is safe<!--cite:C-00000001-->, and the interleaving was model-checked<!--computation:K-00000001-->.",
 		"",
 		"## Analysis",
 		"Red's objection to the read lock was withdrawn<!--fx:F-0000a1f1--> after the counter-example<!--cite:C-00000001-->.",
@@ -79,7 +79,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	}
 
 	// Ingest the round-0 report so Assemble can render it (#709): the report is the record
-	// projection now, and the marker tokens are already in `blue`, so the location-less cite/proof
+	// projection now, and the marker tokens are already in `blue`, so the location-less cite/computation
 	// events below add no marker of their own (the report_op view excludes them).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
@@ -88,9 +88,8 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		Sha256: proto.String("deadbeef"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-09-05"),
 	})
-	add("blue-synthesize", &recordpb.Proof{
-		ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
-		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
+	add("blue-synthesize", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
+		ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),
 		Text: proto.String("the model check settles the interleaving"),
 	})
 	// ANCHORS IN RECORD-DERIVED TEXT TOO, not only in the report's own sections. A seat's own prose
@@ -110,7 +109,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	add("red-chair", &recordpb.Position{
-		Text: proto.String("the PASS is withheld: the interleaving is model-checked<!--proof:P-00000001--> and G1 still stands"),
+		Text: proto.String("the PASS is withheld: the interleaving is model-checked<!--computation:K-00000001--> and G1 still stands"),
 	})
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
@@ -124,7 +123,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// EVERY *.md IN THE RUN, not reportdoc.Files(). A document dropped from docOrder but still
 	// written would be exactly the carrier this test exists to find, and asking the list would
 	// hide it — the list is the thing under suspicion.
-	anchorTok := regexp.MustCompile(`<!--(fx|cite|proof):[^>]*-->`)
+	anchorTok := regexp.MustCompile(`<!--(fx|cite|computation):[^>]*-->`)
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +141,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		if raw := anchorTok.FindAllString(string(body), -1); len(raw) > 0 {
 			withAnchors++
 			t.Errorf("%s ships %d raw anchor token(s): %s\n"+
-				"Each class has a fate at assembly — fx is stripped, cite becomes [^N], proof becomes [^PN] — "+
+				"Each class has a fate at assembly — fx is stripped, cite becomes [^N], computation becomes [^KN] — "+
 				"and a token that survives means this document's composition path missed one. An HTML comment "+
 				"renders as nothing, so a reader sees prose with a hole where the evidence layer should be.",
 				e.Name(), len(raw), strings.Join(raw, ", "))
@@ -164,7 +163,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	}
 	for _, want := range []struct{ what, probe string }{
 		{"a citation woven to a footnote reference", "[^1]"},
-		{"a proof woven to a footnote reference", "[^P1]"},
+		{"a computation woven to a footnote reference", "[^K1]"},
 		{"the sentence a stripped finding-marker was attached to", "Red's objection to the read lock was withdrawn"},
 	} {
 		if !strings.Contains(string(report), want.probe) {

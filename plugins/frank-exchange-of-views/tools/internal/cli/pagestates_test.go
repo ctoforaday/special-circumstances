@@ -125,16 +125,16 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	}
 }
 
-// THE EVIDENCE PAGE SAYS WHERE A PROOF'S VERDICT LIVES. Two chair sittings rebuilt
-// `{reproduced, sound}` from the proof ROW of a nested `verified` object, read null on every proof,
-// and recorded verified proofs as unverified while `counts.proofs_unverified` on the same output
+// THE EVIDENCE PAGE SAYS WHERE A COMPUTATION'S VERDICT LIVES. Two chair sittings rebuilt
+// `{reproduced, sound}` from the computation ROW of a nested `verified` object, read null on every computation,
+// and recorded verified computations as unverified while `counts.computations_unverified` on the same output
 // said 0. The verdict is flat on the row now, in its two halves.
-func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
+func TestTheEvidencePageSaysWhereAComputationsVerdictLives(t *testing.T) {
 	page := seat.HelpText(cmdAt(NewRootFor("red-chair"), []string{"show", "evidence"}))
 	for _, says := range []string{
-		"A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES", "`rerun` is the SCRIPT's", "`soundness` is THIS ANCHOR's sentence",
-		"`verified` is true when the script reproduced AND this sentence is judged sound",
-		"`counts.proofs_unverified` is how many proofs are not verified",
+		"A COMPUTATION'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES", "`rerun` is the BUNDLE's", "`soundness` is THIS ANCHOR's sentence",
+		"`verified` is true when the bundle reproduced AND this sentence is judged sound",
+		"`counts.computations_unverified` is how many computations are not verified",
 		"`--about-kind contradiction --about <id>`",
 	} {
 		if !strings.Contains(page, says) {
@@ -142,17 +142,17 @@ func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
 		}
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
-	for _, shape := range []string{"proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,soundness,standing,",
-		"unanswered_contradictions:[{id,claim,reader,anchor,raised_by}]", "counts:{sources,proofs,proofs_unverified,"} {
+	for _, shape := range []string{"computations:[{anchor,sha256,argv:[string],basis,cites,drift,invariant,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,ran,soundness,standing,",
+		"unanswered_contradictions:[{id,claim,reader,anchor,raised_by}]", "counts:{sources,computations,computations_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)
 		}
 	}
 }
 
-// A PROOF'S SCRIPT IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS PROOF STORE. The page names
-// the relative path a seat passes for a draft there, and the stored copy is the proof: the draft can
-// go and the proof still reads. An absolute path is still read where it lies.
+// A COMPUTATION'S SCRIPT IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS COMPUTATION STORE. The page names
+// the relative path a seat passes for a draft there, and the stored copy is the computation: the draft can
+// go and the computation still reads. An absolute path is still read where it lies.
 func TestComputeTakesAScriptFromTheRunsScratch(t *testing.T) {
 	runDir := actFixture(t)
 	body := []byte("echo 0\n")
@@ -171,9 +171,13 @@ func TestComputeTakesAScriptFromTheRunsScratch(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
-	stored, err := os.ReadFile(filepath.Join(runDir, compute.StoredScript(hex.EncodeToString(sum[:]), "remainder.sh")))
-	if err != nil || !bytes.Equal(stored, body) {
-		t.Fatalf("with scratch/ gone, the proof store does not hold the script's bytes (%v): %q", err, stored)
+	argv, err := compute.ScriptArgv("remainder.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := compute.Bundle(runDir, compute.BundleSha(argv, []compute.FileSum{{Path: argv[len(argv)-1], Sha256: hex.EncodeToString(sum[:])}}))
+	if err != nil || len(stored) != 1 || !bytes.Equal(stored[0].Body, body) {
+		t.Fatalf("with scratch/ gone, the computation store does not hold the script's bytes (%v): %v", err, stored)
 	}
 
 	pad := filepath.Join(t.TempDir(), "blue-respond-elsewhere.sh")
@@ -187,7 +191,7 @@ func TestComputeTakesAScriptFromTheRunsScratch(t *testing.T) {
 	}
 
 	u := cmdAt(NewRootFor("blue-respond"), []string{"compute"}).Flags().Lookup("script").Usage
-	for _, says := range []string{"A relative path is read from the run directory", "drafted in the run's scratch/ is passed as scratch/", "an absolute path is read where it lies", "the proof does not depend on the draft"} {
+	for _, says := range []string{"A relative path is read from the run directory", "drafted in the run's scratch/ is passed as scratch/", "an absolute path is read where it lies", "the computation does not depend on the draft"} {
 		if !strings.Contains(u, says) {
 			t.Errorf("compute --script does not say %q:\n%s", says, u)
 		}

@@ -44,7 +44,7 @@ func (b *stage) exchangeOn(gap string) *stage {
 }
 
 // actingExchangeOn is one exchange on gap in which both parties act on it without moving it: the
-// minting lens keeps the grade, and blue records a proof answering it. It is the remand's exchange
+// minting lens keeps the grade, and blue records a computation answering it. It is the remand's exchange
 // when one is owed, because blue acted in it.
 func (b *stage) actingExchangeOn(gap string) *stage {
 	b.lensActs(gap)
@@ -67,10 +67,10 @@ func (b *stage) lensActs(gap string) *stage {
 	return b.registerAs(evLens, agent).served(evLens, b.head()).keepGrade(evLens, gap, keptReason).stop(agent)
 }
 
-// blueComputes is blue recording a proof answering gap: an act on it that moves nothing.
+// blueComputes is blue recording a computation answering gap: an act on it that moves nothing.
 func (b *stage) blueComputes(gap string) *stage {
-	return b.add("blue-respond", &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("P-%d", b.n+1)),
-		ProofSha: proto.String(fmt.Sprintf("sha-%d", b.n+1)), Answers: proto.String(gap)})
+	return b.add("blue-respond", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String(fmt.Sprintf("K-%d", b.n+1)),
+		BundleSha: proto.String(fmt.Sprintf("sha-%d", b.n+1)), Answers: proto.String(gap)})
 }
 
 // docketAndRemand is the chair's verb docketing gap at impasse as motion, and the bench sitting for

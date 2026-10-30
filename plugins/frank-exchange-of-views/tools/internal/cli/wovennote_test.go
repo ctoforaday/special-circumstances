@@ -15,7 +15,7 @@ import (
 
 // A FOOTNOTE TYPED UNDER A LABEL THE WEAVE WRITES IS REFUSED AT THE WRITE, through the real verbs.
 //
-// Assembly numbers a citation's note [^1], [^2] … and a proof's [^P1], [^P2] …, and writes them
+// Assembly numbers a citation's note [^1], [^2] … and a computation's [^K1], [^K2] …, and writes them
 // into the report's text as it stands. A hand note under one of those labels shipped beside the
 // tool's on a copy of universe-m20: report.md held two definitions of [^1] and report.html one
 // entry for it, so the reader got one note and nothing said the other existed. The author reads
@@ -30,11 +30,11 @@ func refusesTheNote(t *testing.T, out string, err error, label string) {
 	msg := err.Error() + "\n" + out
 	for _, w := range []string{
 		`the footnote label "` + label + `"`,
-		"`[^1]`, `[^2]` … for citations and `[^P1]`, `[^P2]` … for proofs",
-		"in report.md, from the citations and proofs anchored in the text",
+		"`[^1]`, `[^2]` … for citations and `[^K1]`, `[^K2]` … for computations",
+		"in report.md, from the citations and computations anchored in the text",
 		"a reader is shown one of the two",
 		"NOTHING IS RECORDED",
-		"HOW CONTENT REACHES IT: Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word.",
+		"HOW CONTENT REACHES IT: Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a computation on the sentence it establishes. No note is typed by hand under a number, or under K and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word.",
 		"WHAT TO DO: take every reference of that shape this write adds, and the `[^…]:` line that defines it, out of the text. A source or a computation goes by the way above.",
 		"Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there",
 	} {
@@ -48,9 +48,9 @@ func TestIngestRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 	const head = "# On 91\n\n## TL;DR\n\n"
 	for _, tc := range []struct{ name, body, label string }{
 		{"a citation's label, reference and definition", "91 is 7 x 13.[^1]\n\n[^1]: A note about seven.\n", "[^1]"},
-		{"a proof's label, the definition alone", "91 is 7 x 13.\n\n[^P2]: A note about thirteen.\n", "[^P2]"},
+		{"a computation's label, the definition alone", "91 is 7 x 13.\n\n[^K2]: A note about thirteen.\n", "[^K2]"},
 		{"a reference with no definition", "91 is 7 x 13[^12].\n", "[^12]"},
-		{"a proof's label in lower case", "91 is 7 x 13[^p1].\n\n[^p1]: A note.\n", "[^p1]"},
+		{"a computation's label in lower case", "91 is 7 x 13[^k1].\n\n[^k1]: A note.\n", "[^k1]"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -78,7 +78,7 @@ func TestIngestRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 
 func TestEditRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.[^scope] It is odd. The draft read [^P3 sic.\n\n[^scope]: Of the natural numbers.\n")
+	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.[^scope] It is odd. The draft read [^K3 sic.\n\n[^scope]: Of the natural numbers.\n")
 	registerBlue(t, runDir)
 
 	// The label whole, in --new.
@@ -87,8 +87,8 @@ func TestEditRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 	refusesTheNote(t, out, err, "[^2]")
 	// And a label the edit COMPLETES: no whole label is in --new, so only the planned document shows it.
 	out, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E2",
-		"--quote", "P3 sic", "--new", "P3]", "--reason", "renumber")
-	refusesTheNote(t, out, err, "[^P3]")
+		"--quote", "K3 sic", "--new", "K3]", "--reason", "renumber")
+	refusesTheNote(t, out, err, "[^K3]")
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("the refused edits recorded %d edit(s)", n)
 	}
@@ -101,7 +101,7 @@ func TestEditRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 
 // A FOOTNOTE OF THE REPORT'S OWN, UNDER A LABEL OF ANOTHER SHAPE, SHIPS AND RESOLVES. Only the
 // weave's labels can meet the weave's notes; this one is ingested, stands through a citation and
-// a proof placed beside it, and reaches the reader once in each tier with its own definition.
+// a computation placed beside it, and reaches the reader once in each tier with its own definition.
 func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.[^scope] Trial division finds 7. Thirteen is prime.\n\n[^scope]: Of the natural numbers.\n")
@@ -126,7 +126,7 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 			shipped = d.Body
 		}
 	}
-	for _, want := range []string{"91 is 7 x 13.[^scope]", "\n[^scope]: Of the natural numbers.\n", "finds 7[^1].", "\n[^1]: Division tables.", "is prime[^P1].", "\n[^P1]: thirteen has no divisor below four"} {
+	for _, want := range []string{"91 is 7 x 13.[^scope]", "\n[^scope]: Of the natural numbers.\n", "finds 7[^1].", "\n[^1]: Division tables.", "is prime[^K1].", "\n[^K1]: thirteen has no divisor below four"} {
 		if n := strings.Count(shipped, want); n != 1 {
 			t.Errorf("report.md carries %q %d time(s), want once:\n%s", want, n, shipped)
 		}
@@ -136,7 +136,7 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := report.RenderSite(set, record.Family{})
-	for id, text := range map[string]string{"fn-scope": "Of the natural numbers.", "fn-1": "Division tables.", "fn-P1": "thirteen has no divisor below four"} {
+	for id, text := range map[string]string{"fn-scope": "Of the natural numbers.", "fn-1": "Division tables.", "fn-K1": "thirteen has no divisor below four"} {
 		li := `<li id="` + id + `">`
 		if n := strings.Count(html, li); n != 1 || !strings.Contains(html, li+text) {
 			t.Errorf("report.html holds %d entr(ies) %s, want one that reads %q", n, li, text)
@@ -160,7 +160,7 @@ func TestAFootnoteOfTheReportsOwnShipsBesideTheWovenNotes(t *testing.T) {
 // that adds a claim, a second copy of one the record holds included, is refused.
 func TestAnEditIsRefusedForWhatItAddsNotForWhatTheRecordHolds(t *testing.T) {
 	runDir := newRun(t)
-	const held = "# On 91\n\n## TL;DR\n\n91 is 7 x 13.[^1] It is odd.[^P2] Thirteen is prime.\n\n## The board\n\nSeven divides it. Nothing else does[^3].\n\n## The debate\n\nNone.\n\n[^1]: A hand note about seven.\n"
+	const held = "# On 91\n\n## TL;DR\n\n91 is 7 x 13.[^1] It is odd.[^K2] Thirteen is prime.\n\n## The board\n\nSeven divides it. Nothing else does[^3].\n\n## The debate\n\nNone.\n\n[^1]: A hand note about seven.\n"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestAnEditIsRefusedForWhatItAddsNotForWhatTheRecordHolds(t *testing.T) {
 	}
 	// One that moves a label, and ones that take the claims out, each with the others standing.
 	for _, e := range [][3]string{
-		{"E6", "It is odd.[^P2] Thirteen", "It is odd. Thirteen[^p2]"},
+		{"E6", "It is odd.[^K2] Thirteen", "It is odd. Thirteen[^p2]"},
 		{"E7", "91 is 7 x 13.[^1] It is odd. Thirteen[^p2] is", "91 is 7 x 13. It is odd. Thirteen is"},
 		{"E8", "## The board", "## THE  BOARD"}, // the same claim, spelled another way
 		{"E10", "## THE  BOARD", "## What divides it"},

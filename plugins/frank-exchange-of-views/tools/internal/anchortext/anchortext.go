@@ -88,7 +88,7 @@ func Visible(s string) string { return normalizeQuote(s) }
 // of the invisible layer and the line breaks out (Visible).
 //
 // A TOKEN IN A LOG ENTRY IS A MARKER, NOT A MENTION. Every document that renders the log strips a
-// finding's or a gap's token and weaves a citation's or a proof's into a note, so a refusal naming
+// finding's or a gap's token and weaves a citation's or a computation's into a note, so a refusal naming
 // one read "anchor G-ec5568ed () is not in the report" on universe-m28. The bare id is how every
 // shipped document names an anchor, and nothing that reads the annotation layer takes it for one.
 //

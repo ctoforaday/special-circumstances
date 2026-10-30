@@ -170,11 +170,11 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 	}
 
-	// PROOFS, so a lens has something to RE-RUN rather than only something to read. The tool
+	// COMPUTATIONS, so a lens has something to RE-RUN rather than only something to read. The tool
 	// executes the script twice and records whether it reproduced, which is the whole point of
 	// the verb the board is about to demand.
-	for i, pr := range b.Proofs {
-		script := filepath.Join(runDir, fmt.Sprintf("probe-proof-%d.py", i+1))
+	for i, pr := range b.Computations {
+		script := filepath.Join(runDir, fmt.Sprintf("probe-computation-%d.py", i+1))
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}

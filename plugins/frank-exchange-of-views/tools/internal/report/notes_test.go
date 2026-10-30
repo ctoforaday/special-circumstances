@@ -16,14 +16,14 @@ import (
 // regex, printed in the run document.
 func TestEscapeNotesMakesEveryNoteOpenerText(t *testing.T) {
 	for _, c := range []struct{ name, in, want string }{
-		{"a label quoted from another document", "the one footnote [^P5] cites, still types the constants", `the one footnote \[^P5] cites, still types the constants`},
+		{"a label quoted from another document", "the one footnote [^K5] cites, still types the constants", `the one footnote \[^K5] cites, still types the constants`},
 		{"a regex character class", "the form grep -o '[^<>]{0,120}term[^<>]{0,120}', fails", `the form grep -o '\[^<>]{0,120}term\[^<>]{0,120}', fails`},
 		{"a definition typed at a line's start", "first\n[^1]: a source nobody cited", "first\n\\[^1]: a source nobody cited"},
 		{"two in a row", "[^1][^2]", `\[^1]\[^2]`},
 		{"a code span is left alone", "run `grep '[^<>]'` and read [^3]", "run `grep '[^<>]'` and read \\[^3]"},
-		{"a fence is left alone", "```\n[^P1] in output\n```\nand [^P1] in prose", "```\n[^P1] in output\n```\nand \\[^P1] in prose"},
-		{"one already escaped is left alone", `a \[^P5] and a [^P6]`, `a \[^P5] and a \[^P6]`},
-		{"a backslash that is itself escaped does not escape", `a \\[^P5]`, `a \\\[^P5]`},
+		{"a fence is left alone", "```\n[^K1] in output\n```\nand [^K1] in prose", "```\n[^K1] in output\n```\nand \\[^K1] in prose"},
+		{"one already escaped is left alone", `a \[^K5] and a [^K6]`, `a \[^K5] and a \[^K6]`},
+		{"a backslash that is itself escaped does not escape", `a \\[^K5]`, `a \\\[^K5]`},
 		{"nothing to escape", "no note here [x] ^", "no note here [x] ^"},
 	} {
 		got := stdReaders().escapeNotes(c.in)
@@ -39,11 +39,11 @@ func TestEscapeNotesMakesEveryNoteOpenerText(t *testing.T) {
 // THE HTML TIER READS THE ESCAPE: the seat's five characters, and no citation link. Unescaped, the
 // same words are a reference — which is what the weave's own notes are.
 func TestAnEscapedNoteIsTextInTheHTMLTier(t *testing.T) {
-	got := inline(`the one footnote \[^P5] cites`, map[string]string{"P5": "P5"}, FileReport)
-	if !strings.Contains(got, "the one footnote [^P5] cites") || strings.Contains(got, "fnref") || strings.Contains(got, `\`) {
+	got := inline(`the one footnote \[^K5] cites`, map[string]string{"K5": "K5"}, FileReport)
+	if !strings.Contains(got, "the one footnote [^K5] cites") || strings.Contains(got, "fnref") || strings.Contains(got, `\`) {
 		t.Errorf("an escaped note did not render as the text the seat typed: %s", got)
 	}
-	if woven := inline("the norms multiply[^P5].", map[string]string{"P5": "P5"}, FileReport); !strings.Contains(woven, `<sup class="fnref"><a class="idref" data-doc="report.md" href="#fn-P5">P5</a></sup>`) {
+	if woven := inline("the norms multiply[^K5].", map[string]string{"K5": "K5"}, FileReport); !strings.Contains(woven, `<sup class="fnref"><a class="idref" data-doc="report.md" href="#fn-K5">K5</a></sup>`) {
 		t.Errorf("the weave's own reference no longer renders as one: %s", woven)
 	}
 }
@@ -51,13 +51,13 @@ func TestAnEscapedNoteIsTextInTheHTMLTier(t *testing.T) {
 // A TOOL-COMPOSED BLOCK IS ESCAPED WHERE IT IS COMPOSED, and the report's own text is not: a
 // footnote under a label that is not the weave's is the report's to write.
 func TestOnlyWhatAssemblyComposesIsEscaped(t *testing.T) {
-	says := func(*assembly, Section) string { return "a seat wrote [^P5] here" }
+	says := func(*assembly, Section) string { return "a seat wrote [^K5] here" }
 	tool := Section{Heading: "The board", Composer: Tool, compose: says}.block(&assembly{rd: stdReaders()})
-	if !strings.Contains(tool, `a seat wrote \[^P5] here`) {
+	if !strings.Contains(tool, `a seat wrote \[^K5] here`) {
 		t.Errorf("a tool-composed block ships a seat's words as a footnote reference:\n%s", tool)
 	}
 	blue := Section{Heading: "Body", Composer: Blue, compose: says}.block(&assembly{rd: stdReaders()})
-	if blue != "a seat wrote [^P5] here" {
+	if blue != "a seat wrote [^K5] here" {
 		t.Errorf("the report's own text was changed on its way into the set:\n%s", blue)
 	}
 }
@@ -152,7 +152,7 @@ func TestEscapeNotesReadsCodeAsTheShippedReadingsDo(t *testing.T) {
 	}
 }
 
-// A FRAGMENT IS READ WHERE IT STANDS. A citation's title and a proof's reason are spliced into the
+// A FRAGMENT IS READ WHERE IT STANDS. A citation's title and a computation's reason are spliced into the
 // middle of a note's line, where they are inline text: read alone as a document, "```[^9] spec" opens
 // a fence whose info string holds the `[^9]`, and it was left as code; in place it is prose and opened
 // a footnote. A code span the fragment holds whole is code in place too, and is left as it is.
@@ -173,9 +173,9 @@ func TestAFragmentIsEscapedAsItReadsInPlace(t *testing.T) {
 	if !strings.Contains(cited, "[^1]: ```\\[^9] spec. [https://example.invalid/a](https://example.invalid/a)") {
 		t.Errorf("the citation's note does not escape the title's [^9]:\n%s", cited)
 	}
-	proved, _ := weaveComputationRefs("A claim<!--proof:P-00000001-->.\n", []record.Proof{{Label: "P-00000001", Reason: "```[^9] spec"}})
-	if !strings.Contains(proved, "[^P1]: ```\\[^9] spec — ") {
-		t.Errorf("the proof's note does not escape the reason's [^9] as it reads in place:\n%s", proved)
+	proved, _ := weaveComputationRefs("A claim<!--computation:K-00000001-->.\n", []record.Computation{{Label: "K-00000001", Reason: "```[^9] spec"}})
+	if !strings.Contains(proved, "[^K1]: ```\\[^9] spec — ") {
+		t.Errorf("the computation's note does not escape the reason's [^9] as it reads in place:\n%s", proved)
 	}
 }
 

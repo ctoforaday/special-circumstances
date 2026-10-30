@@ -14,17 +14,17 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A PROOF'S SCRIPT IS READ THROUGH THE RECORD'S PROJECTION.
+// A COMPUTATION'S SCRIPT IS READ THROUGH THE RECORD'S PROJECTION.
 //
 // The lens owes a soundness verdict that rests on READING the script, and `reproduce` records that
 // verdict in the act that re-runs — so the read has to come first and has to be somewhere. Wave A
 // (2026-10-09) had no such place: six log entries from five lenses say the evidence view gave only
-// the sha256, and each found the file by listing a `proofs/` directory nothing had told it about,
+// the sha256, and each found the file by listing a `computations/` directory nothing had told it about,
 // against a prompt that says every read is a projection. One filed three placeholder verdicts
 // instead.
 
-// provenRun records one proof and returns its anchor and sha256 as the unscoped table lists them.
-// Its cast seats every lens; the proofs are the computation lens's.
+// provenRun records one computation and returns its anchor and sha256 as the unscoped table lists them.
+// Its cast seats every lens; the computations are the computation lens's.
 func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 	t.Helper()
 	runDir = newRun(t)
@@ -39,16 +39,16 @@ func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
-	p := lastBody(t, runDir, &recordpb.Proof{})
+	p := lastBody(t, runDir, &recordpb.Computation{})
 	for _, lens := range []string{"red-lens-evidence", "red-lens-computation"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return runDir, p.GetProofId(), p.GetProofSha()
+	return runDir, p.GetComputationId(), p.GetBundleSha()
 }
 
-func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
+func TestAComputationReadAtItsAnchorCarriesItsBundleAndRecordedOutput(t *testing.T) {
 	const body = "let d=[];for(let i=2;i<7;i++)if(7%i===0)d.push(i);\nconsole.log('divisors of 7 in 2..6:', d.length);\n"
 	runDir, anchor, sha := provenRun(t, body)
 
@@ -62,7 +62,7 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 		t.Errorf("the unscoped evidence table carries a script; it is a lookup table, and the script is read at one anchor:\n%s", table)
 	}
 
-	// THE WORK ITEM THAT SENDS A LENS TO THE PROOF SAYS WHERE ITS SCRIPT IS READ, before it names
+	// THE WORK ITEM THAT SENDS A LENS TO THE COMPUTATION SAYS WHERE ITS SCRIPT IS READ, before it names
 	// the act that re-runs it and records the verdict.
 	work, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-computation", "work")
 	if err != nil {
@@ -70,7 +70,7 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 	}
 	read, rerun := strings.Index(work, "show evidence --anchor "+anchor), strings.Index(work, "reproduce --anchor "+anchor)
 	if read < 0 || rerun < 0 || read > rerun {
-		t.Errorf("the lens's work item for an un-re-run proof must name the read at its anchor BEFORE the act that re-runs it (read at %d, re-run at %d):\n%s", read, rerun, work)
+		t.Errorf("the lens's work item for an un-re-run computation must name the read at its anchor BEFORE the act that re-runs it (read at %d, re-run at %d):\n%s", read, rerun, work)
 	}
 
 	// BOTH PARTIES READ IT: the lens that judges the script, and blue, who wrote it and answers for it.
@@ -80,60 +80,60 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 			t.Fatalf("%s: show evidence --anchor %s: %v", seat, anchor, err)
 		}
 		var got struct {
-			Anchor string `json:"anchor"`
-			Proof  *struct {
-				Anchor         string  `json:"anchor"`
-				Sha256         string  `json:"sha256"`
-				ScriptFile     string  `json:"script_file"`
-				Script         *string `json:"script"`
-				RecordedOutput *string `json:"recorded_output"`
-			} `json:"proof"`
+			Anchor      string `json:"anchor"`
+			Computation *struct {
+				Anchor string `json:"anchor"`
+				Sha256 string `json:"sha256"`
+				Files  []struct {
+					Path string `json:"path"`
+					Body string `json:"body"`
+				} `json:"files"`
+				Output *string `json:"output"`
+			} `json:"computation"`
 			Source json.RawMessage `json:"source"`
 		}
 		if err := json.Unmarshal([]byte(out), &got); err != nil {
 			t.Fatalf("%s: the scoped read is not JSON: %v\n%s", seat, err, out)
 		}
-		if got.Proof == nil {
-			t.Fatalf("%s: a proof's anchor resolved to no proof:\n%s", seat, out)
+		if got.Computation == nil {
+			t.Fatalf("%s: a computation's anchor resolved to no computation:\n%s", seat, out)
 		}
-		if got.Anchor != anchor || got.Proof.Anchor != anchor || got.Proof.Sha256 != sha {
-			t.Errorf("%s: asked for %s (%s), got anchor %q / proof %q (%s)", seat, anchor, sha, got.Anchor, got.Proof.Anchor, got.Proof.Sha256)
+		if got.Anchor != anchor || got.Computation.Anchor != anchor || got.Computation.Sha256 != sha {
+			t.Errorf("%s: asked for %s (%s), got anchor %q / computation %q (%s)", seat, anchor, sha, got.Anchor, got.Computation.Anchor, got.Computation.Sha256)
 		}
 		// THE BYTES `reproduce` EXECUTES, not a summary of them.
-		if got.Proof.Script == nil || *got.Proof.Script != body {
-			t.Errorf("%s: the script is not the stored bytes:\n got %v\nwant %q", seat, got.Proof.Script, body)
+		// The file keeps its extension: it is what says which interpreter the command names.
+		if fs := got.Computation.Files; len(fs) != 1 || fs[0].Path != "script.js" || fs[0].Body != body {
+			t.Errorf("%s: the bundle is not the stored bytes:\n got %+v\nwant script.js %q", seat, fs, body)
 		}
-		if got.Proof.RecordedOutput == nil || !strings.Contains(*got.Proof.RecordedOutput, "divisors of 7 in 2..6: 0") {
-			t.Errorf("%s: the recorded output is not the stored bytes: %v", seat, got.Proof.RecordedOutput)
-		}
-		if got.Proof.ScriptFile != "script.js" {
-			t.Errorf("%s: script_file = %q; the extension is what says which interpreter runs it", seat, got.Proof.ScriptFile)
+		if got.Computation.Output == nil || !strings.Contains(*got.Computation.Output, "divisors of 7 in 2..6: 0") {
+			t.Errorf("%s: the recorded output is not the stored bytes: %v", seat, got.Computation.Output)
 		}
 		if len(got.Source) != 0 {
-			t.Errorf("%s: a proof's anchor also returned a source: %s", seat, got.Source)
+			t.Errorf("%s: a computation's anchor also returned a source: %s", seat, got.Source)
 		}
 	}
 }
 
-// A MISSING ARTIFACT IS A REFUSAL, NEVER AN EMPTY SCRIPT. `"script": ""` reads exactly like a
-// script that does nothing, and a lens would judge it unsound — a verdict about the store,
+// A MISSING ARTIFACT IS A REFUSAL, NEVER AN EMPTY BUNDLE. `"files": []` reads exactly like a
+// program that does nothing, and a lens would judge it unsound — a verdict about the store,
 // recorded as a verdict about blue's computation.
-func TestAProofWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
-	for _, gone := range []string{"script.js", "output"} {
+func TestAComputationWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
+	for _, gone := range []string{"dir/script.js", "acts/<id>/output"} {
 		t.Run(gone, func(t *testing.T) {
 			runDir, anchor, sha := provenRun(t, "console.log('no divisors in 2..6');")
-			path := filepath.Join(runDir, "proofs", sha, gone)
+			path := filepath.Join(runDir, "computations", sha, filepath.FromSlash(strings.Replace(gone, "<id>", anchor, 1)))
 			if err := os.Remove(path); err != nil {
 				t.Fatalf("the fixture's artifact is not where the store puts it: %v", err)
 			}
 			out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", anchor)
 			if err == nil {
-				t.Fatalf("a proof with no %s in the store was shown as if whole:\n%s", gone, out)
+				t.Fatalf("a computation with no %s in the store was shown as if whole:\n%s", gone, out)
 			}
 			if strings.TrimSpace(out) != "" {
 				t.Errorf("the refusal also printed a document a pipeline would read as the answer:\n%s", out)
 			}
-			for _, want := range []string{"not found", filepath.Join(runDir, "proofs", sha), sha[:12]} {
+			for _, want := range []string{"not found", filepath.Join(runDir, "computations", sha), sha[:12]} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("the refusal does not say %q: %v", want, err)
 				}
@@ -147,20 +147,20 @@ func TestAProofWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
 func TestEvidenceAtAnAnchorNothingIsAtIsRefused(t *testing.T) {
 	runDir, _, _ := provenRun(t, "console.log('no divisors in 2..6');")
 
-	if out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", "P-0000dead"); err == nil {
+	if out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", "K-0000dead"); err == nil {
 		t.Errorf("an anchor on no entry was answered:\n%s", out)
-	} else if !strings.Contains(err.Error(), "P-0000dead") {
+	} else if !strings.Contains(err.Error(), "K-0000dead") {
 		t.Errorf("the refusal does not name the anchor it was given: %v", err)
 	}
 }
 
 // ONE ANCHOR FLAG, ON BOTH READS THAT TAKE AN ANCHOR. The report read and the evidence read take the
-// same id, so an id of the wrong shape — an old-case prefix, a proof's sha256, a word — is refused by
+// same id, so an id of the wrong shape — an old-case prefix, a computation's sha256, a word — is refused by
 // the one declaration in the same words on each, and a token pasted whole from the report is the id
 // inside it on each.
 func TestBothAnchorReadsRefuseAMalformedIDInTheSameWords(t *testing.T) {
 	runDir, id, sha := provenRun(t, "console.log('no divisors in 2..6');")
-	for _, bad := range []string{"p-0000dead", sha, "the-proof"} {
+	for _, bad := range []string{"p-0000dead", sha, "the-computation"} {
 		shared := flags.AnchorID().Set(bad)
 		if shared == nil {
 			t.Fatalf("the fixture id %q is a well-formed anchor", bad)
@@ -176,7 +176,7 @@ func TestBothAnchorReadsRefuseAMalformedIDInTheSameWords(t *testing.T) {
 	}
 	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", anchor.Token(id))
 	if err != nil {
-		t.Fatalf("the proof's token, pasted whole, is refused: %v", err)
+		t.Fatalf("the computation's token, pasted whole, is refused: %v", err)
 	}
 	if !strings.Contains(out, `"anchor": "`+id+`"`) {
 		t.Errorf("the token did not read the entry at %s:\n%s", id, out)
@@ -184,7 +184,7 @@ func TestBothAnchorReadsRefuseAMalformedIDInTheSameWords(t *testing.T) {
 }
 
 // A SOURCE'S ANCHOR READS ITS ONE ROW. The flag is the document anchor, and the evidence layer
-// holds two kinds of them; an anchor that scoped proofs and was refused for citations would be a
+// holds two kinds of them; an anchor that scoped computations and was refused for citations would be a
 // lookup table that answers half its keys.
 func TestASourceReadAtItsAnchorIsItsOneRow(t *testing.T) {
 	runDir := citedRun(t, "https://example.org/primes")
@@ -199,7 +199,7 @@ func TestASourceReadAtItsAnchorIsItsOneRow(t *testing.T) {
 			Anchor string `json:"anchor"`
 			URL    string `json:"url"`
 		} `json:"source"`
-		Proof json.RawMessage `json:"proof"`
+		Computation json.RawMessage `json:"computation"`
 	}
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("not JSON: %v\n%s", err, out)
@@ -207,7 +207,7 @@ func TestASourceReadAtItsAnchorIsItsOneRow(t *testing.T) {
 	if got.Source == nil || got.Source.Anchor != label || got.Source.URL != "https://example.org/primes" {
 		t.Errorf("the citation's anchor did not resolve to its row:\n%s", out)
 	}
-	if len(got.Proof) != 0 {
-		t.Errorf("a citation's anchor also returned a proof: %s", got.Proof)
+	if len(got.Computation) != 0 {
+		t.Errorf("a citation's anchor also returned a computation: %s", got.Computation)
 	}
 }

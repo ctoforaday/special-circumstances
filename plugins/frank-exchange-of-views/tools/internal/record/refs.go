@@ -96,50 +96,50 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 	}
 }
 
-// ProofExists resolves a proof anchor: `reproduce --anchor` names the proof whose sentence it judges.
-func ProofExists(runDir, flag, id string) error {
+// ComputationExists resolves a computation anchor: `reproduce --anchor` names the computation whose sentence it judges.
+func ComputationExists(runDir, flag, id string) error {
 	db, err := recordOfDir(runDir)
 	if err != nil {
 		return err
 	}
-	_, err = requireProofAnchor(db, id, flag)
+	_, err = requireComputationAnchor(db, id, flag)
 	return err
 }
 
-// requireProofAnchor is the proof at an anchor, by its script's sha — the one fact a check of that
-// anchor derives from it. A proof anchor no Proof carries is refused by name.
-func requireProofAnchor(q recordsql.Querier, id, flag string) (sha string, err error) {
+// requireComputationAnchor is the computation at an anchor, by its script's sha — the one fact a check of that
+// anchor derives from it. A computation anchor no Computation carries is refused by name.
+func requireComputationAnchor(q recordsql.Querier, id, flag string) (sha string, err error) {
 	var s sql.NullString
-	found, err := queryRowAt(q, []any{&s}, `SELECT "proof_sha" FROM "proof" WHERE "proof_id" = ? ORDER BY "event_id" LIMIT 1`, id)
+	found, err := queryRowAt(q, []any{&s}, `SELECT "bundle_sha" FROM "computation" WHERE "computation_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
 		return "", err
 	}
 	if !found {
-		return "", fmt.Errorf("%s names %s, which no proof on this record carries — it takes the id inside a `%s` token in the report; `show evidence` lists every proof by its anchor", flag, id, anchor.Token("P-…"))
+		return "", fmt.Errorf("%s names %s, which no computation on this record carries — it takes the id inside a `%s` token in the report; `show evidence` lists every computation by its anchor", flag, id, anchor.Token("K-…"))
 	}
 	return s.String, nil
 }
 
-// requireAboutAnchor refuses an act about an anchor that names no citation or proof on the record:
+// requireAboutAnchor refuses an act about an anchor that names no citation or computation on the record:
 // the anchor is checked at the write, as every other reference here is, so a gap about an anchor
 // always reaches one.
 func requireAboutAnchor(q recordsql.Querier, kind recordpb.AboutKind, ref string) error {
 	if kind != recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 		return nil
 	}
-	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "proof" WHERE "proof_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? UNION ALL SELECT 1 FROM "verify" WHERE "label" = ? AND COALESCE("claim", '') != '' LIMIT 1`, ref, ref, ref)
+	found, err := queryRowAt(q, []any{new(int)}, `SELECT 1 FROM "computation" WHERE "computation_id" = ? UNION ALL SELECT 1 FROM "cite" WHERE "label" = ? UNION ALL SELECT 1 FROM "verify" WHERE "label" = ? AND COALESCE("claim", '') != '' LIMIT 1`, ref, ref, ref)
 	if err != nil {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("--about names %s, which no citation or proof on this record carries — it takes the id inside a `%s` or `%s` token in the report; `show evidence` lists every citation and proof by its anchor", ref, anchor.Token("C-…"), anchor.Token("P-…"))
+		return fmt.Errorf("--about names %s, which no citation or computation on this record carries — it takes the id inside a `%s` or `%s` token in the report; `show evidence` lists every citation and computation by its anchor", ref, anchor.Token("C-…"), anchor.Token("K-…"))
 	}
 	return nil
 }
 
-// ComputeCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's
+// ComputeCitesAdvice is what a computation naming no citation is told, by the flag check and by validate's
 // copy of the same refusal alike: blue's own act, in blue's words.
-const ComputeCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
+const ComputeCitesAdvice = "The method is cited first, with blue's `cite`; a computation pointing at a citation that does not exist claims a provenance it does not have"
 
 // THE REFERENCE AND STATE CHECKS BELOW ASK q, which on the write path is the writing transaction
 // (writeView): a gap that closes, or is minted, between a check and the insert it admits is the
@@ -171,14 +171,14 @@ func requireGaps(q recordsql.Querier, ids []string, flag string) error {
 // requireClosureAnchors refuses a closure's anchor the record holds no act for, and the gap the
 // closure closes.
 //
-// WHAT A CLOSURE RESTS ON: an anchor of the report — a citation, a proof, a finding, another gap — or
+// WHAT A CLOSURE RESTS ON: an anchor of the report — a citation, a computation, a finding, another gap — or
 // an inquiry, whose fate is a record act a closure can rest on as surely as a citation's reading.
 // The gap being closed is none of these: a closure is verified WITH something other than the gap,
 // and naming the gap itself attests to nothing a reader could check.
 func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag string) error {
 	for _, id := range ids {
 		if id == gapID {
-			return fmt.Errorf("%s names %s, the gap this closes — an anchor is what you verified the closure WITH, and a gap is not evidence of its own repair. Name the citations, proofs, findings, other gaps or inquiries you checked, or none", flag, id)
+			return fmt.Errorf("%s names %s, the gap this closes — an anchor is what you verified the closure WITH, and a gap is not evidence of its own repair. Name the citations, computations, findings, other gaps or inquiries you checked, or none", flag, id)
 		}
 		found, err := HoldsAnchor(q, id)
 		if err != nil {
@@ -197,11 +197,11 @@ func requireClosureAnchors(q recordsql.Querier, gapID string, ids []string, flag
 }
 
 // HoldsAnchor is whether an act on q's record carries the anchor id: an anchor id is the id its
-// placing act minted — a finding's, a gap's, a citation's, a proof's or a corroboration's.
+// placing act minted — a finding's, a gap's, a citation's, a computation's or a corroboration's.
 func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
 	return queryRowAt(q, []any{new(int)},
 		`SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint"
-		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "proof_id" FROM "proof"
+		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "computation_id" FROM "computation"
 		   UNION ALL SELECT "label" FROM "verify") WHERE "id" = ? LIMIT 1`, id)
 }
 
@@ -232,7 +232,7 @@ func requireFindings(q recordsql.Querier, ids []string, flag string) error {
 // requireCitation refuses a citation label that names no `blue cite` on the record.
 //
 // `blue compute --cites` names the METHOD a computation applies — "the source that says trial
-// division decides primality". It was set into the payload and never checked, so a proof could
+// division decides primality". It was set into the payload and never checked, so a computation could
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
 // axis, one verb over.

@@ -94,7 +94,7 @@ var referenceChecks = []struct {
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
 	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "C-deadbeef",
 		extra: []string{"--as", "supports", "--confidence", "high", "--reason", "r"}},
-	{verb: []string{"reproduce"}, flag: "--anchor", against: "the proofs on the record", bogus: "P-deadbeef",
+	{verb: []string{"reproduce"}, flag: "--anchor", against: "the computations on the record", bogus: "K-deadbeef",
 		extra: []string{"--as", "sound", "--reason", "r"}},
 	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
 	// gap references and needs its own fixture — which is the whole point of deriving this gate

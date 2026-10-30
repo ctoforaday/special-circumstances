@@ -65,7 +65,7 @@ func graphEdges(p processTally) (seats int, edges int, reached map[string][]stri
 var referenceKinds = map[string]string{
 	"gap-id":          "a board gap, checked with record.GapExists",
 	"citation-anchor": "a citation anchor id, checked with record.CitationExists",
-	"proof-anchor":    "a proof anchor id, checked with record.ProofExists",
+	"computation-anchor":    "a computation anchor id, checked with record.ComputationExists",
 	"inquiry-id":      "an inquiry, checked with record.InquiryExists",
 }
 

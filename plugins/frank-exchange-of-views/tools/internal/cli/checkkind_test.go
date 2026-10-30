@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// writeScript lays a proof script under the run directory, where `blue compute` resolves it.
+// writeScript lays a computation script under the run directory, where `blue compute` resolves it.
 func writeScript(t *testing.T, runDir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(runDir, name), []byte(body+"\n"), 0o644); err != nil {
@@ -43,7 +43,7 @@ func mintComputation(t *testing.T, runDir, key string) {
 // A computation check cannot be closed on prose. This is the round the smoke actually spent:
 // G1 asked blue to test a false claim, blue ASSERTED the test had happened, and red's G2
 // correctly refused it — a full round for something three lines settle.
-func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
+func TestAComputationCheckCannotBeClosedWithoutAComputation(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
@@ -52,7 +52,7 @@ func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "blue says it checked; looks right to me")
 	if err == nil {
-		t.Fatal("a computation gap closed with no proof — red accepted the one kind of evidence it declared insufficient")
+		t.Fatal("a computation gap closed with no computation — red accepted the one kind of evidence it declared insufficient")
 	}
 	// THE WAY OUT IS A PATH A SEAT CAN TYPE: the verb as blue's surface lists it, with the flag it
 	// registers. It said `blue compute --location`, and neither the role word nor the flag exists.
@@ -63,9 +63,9 @@ func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 	}
 }
 
-// A proof that NAMES the gap closes it. The join is a field, not a gap id mentioned in prose
+// A computation that NAMES the gap closes it. The join is a field, not a gap id mentioned in prose
 // — the convention blue_edit's --answers replaced after measuring 73% reliable.
-func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
+func TestAComputationAnsweringTheGapClosesIt(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
@@ -78,15 +78,15 @@ func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "lens reproduce",
-		"--verified-against", "proofs/", "--reason", "re-ran the proof; same bytes"); err != nil {
+		"--verified-against", "computations/", "--reason", "re-ran the computation; same bytes"); err != nil {
 		t.Fatalf("a proved computation gap would not close: %v", err)
 	}
 }
 
-// A proof that answers a DIFFERENT gap does not close this one. Otherwise any computation
+// A computation that answers a DIFFERENT gap does not close this one. Otherwise any computation
 // anywhere in the run would satisfy every computation check, which is the join being
 // decorative.
-func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
+func TestAComputationForAnotherGapDoesNotClose(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\nNine is composite.\n")
 	mintComputation(t, runDir, "G1")
@@ -100,13 +100,13 @@ func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
 	}
 	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
-		"--verified-against", "x", "--reason", "there is a proof in this run"); err == nil {
-		t.Error("a proof answering G2 closed G1 — the --answers join is not being read")
+		"--verified-against", "x", "--reason", "there is a computation in this run"); err == nil {
+		t.Error("a computation answering G2 closed G1 — the --answers join is not being read")
 	}
 }
 
 // A DOCUMENT check is unaffected. The guard is scoped to the kind that declared prose
-// insufficient; making every closure need a proof would be a different (and wrong) rule.
+// insufficient; making every closure need a computation would be a different (and wrong) rule.
 func TestADocumentCheckStillClosesOnProse(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")

@@ -46,33 +46,33 @@ func TestComputeAnchorsAndRecordsTheComputation(t *testing.T) {
 		t.Errorf("a deterministic computation was not graded reproducible: %q", out)
 	}
 	// The anchor binds the computation to the sentence, like a citation.
-	if !strings.Contains(readReport(t, runDir), "<!--proof:P-") {
-		t.Error("no proof anchor was spliced, so nothing connects the script to the claim")
+	if !strings.Contains(readReport(t, runDir), "<!--computation:K-") {
+		t.Error("no computation anchor was spliced, so nothing connects the script to the claim")
 	}
-	ev := lastBody(t, runDir, &recordpb.Proof{})
-	if ev.GetProofBasis() != "reproducible" {
-		t.Errorf("basis = %q", ev.GetProofBasis())
+	ev := lastBody(t, runDir, &recordpb.Computation{})
+	if ev.GetBasis() != recordpb.Basis_BASIS_REPRODUCIBLE {
+		t.Errorf("basis = %q", ev.GetBasis())
 	}
 	// THE OUTPUT IS IN THE CACHE, NOT ON THE EVENT, and that is a decision rather than a drop —
 	// compute.go states it: "content is not a fact about the debate", the output is addressed by
-	// `proof_sha`, and report/proofs.go renders script, exit, basis and drift. This asserted
+	// `bundle_sha`, and report/computations.go renders script, exit, basis and drift. This asserted
 	// `text` carried the answer, which is the field the SEAT's prose lands in.
 	//
 	// What must hold is the JOIN: the event names a sha, and the sha addresses the output an
 	// auditor re-runs against. A sha on the event with nothing behind it is a citation to
 	// evidence that does not exist.
-	if ev.GetProofSha() == "" {
-		t.Fatal("the proof event names no sha — nothing addresses the output an auditor would re-run against")
+	if ev.GetBundleSha() == "" {
+		t.Fatal("the computation event names no sha — nothing addresses the output an auditor would re-run against")
 	}
 	if !strings.Contains(ev.GetText(), "trial division settles it") {
 		t.Errorf("the seat's own prose did not reach the event: %q", ev.GetText())
 	}
 }
 
-// THE PROOF ANCHOR IS IMMORTAL, exactly as a finding marker and a citation anchor are: an
+// THE COMPUTATION ANCHOR IS IMMORTAL, exactly as a finding marker and a citation anchor are: an
 // edit may carry it across but never drop it. Evidence a seat produced by RUNNING something
 // must not be removable by rewriting a sentence.
-func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
+func TestBlueEditCannotDropAComputationAnchor(t *testing.T) {
 	runDir := newRun(t)
 	// Text FOLLOWS the anchored sentence so the anchor sits MID-span: it splices after the
 	// quoted sentence, so a span ending at that sentence never crosses it. The replacement rewrites
@@ -87,15 +87,15 @@ func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 		"--key", "E1", "--quote", "by trial division. The protocol therefore rejects it",
 		"--new", "by sieving. The protocol rejects it", "--reason", "shorter")
 	if err == nil {
-		t.Fatal("an edit dropped a proof anchor; the computation backing the claim would vanish silently")
+		t.Fatal("an edit dropped a computation anchor; the computation backing the claim would vanish silently")
 	}
-	if !strings.Contains(err.Error(), "proof anchor") {
+	if !strings.Contains(err.Error(), "computation anchor") {
 		t.Errorf("the refusal must name the anchor CLASS so the seat knows what it disturbed: %v", err)
 	}
 }
 
 // RED RE-RUNS RATHER THAN RE-READS. This is the audit no citation can offer.
-func TestRedReproducesAProof(t *testing.T) {
+func TestRedReproducesAComputation(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", "console.log('no divisors in 2..6');")
@@ -103,11 +103,11 @@ func TestRedReproducesAProof(t *testing.T) {
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
-	proofAnchor := lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+	computationAnchor := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
-	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", proofAnchor,
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", computationAnchor,
 		"--as", "sound", "--reason", "trial division to sqrt(n); it computes primality rather than asserting it")
 	if err != nil {
 		t.Fatalf("reproduce: %v", err)
@@ -117,30 +117,45 @@ func TestRedReproducesAProof(t *testing.T) {
 		t.Errorf("the soundness judgement must be recorded, got %q", ev.GetSoundness())
 	}
 	if !strings.Contains(out, "REPRODUCES") {
-		t.Errorf("red re-ran the proof and did not confirm it: %q", out)
+		t.Errorf("red re-ran the computation and did not confirm it: %q", out)
 	}
 }
 
-// A MOVING RESULT IS RECORDED AS A MEASUREMENT, not refused and not laundered as a proof.
-// The network choice makes this the routine case.
-func TestAMovingProofIsGradedObserved(t *testing.T) {
+// A MOVING RESULT IS RECORDED ONLY WITH WHAT HOLDS ACROSS IT. Output that differs between the two
+// runs is refused until the seat makes it deterministic or states the invariant with --variance;
+// with one it is recorded `variant`, and --variance over runs that agreed is refused.
+func TestAMovingComputationIsRecordedVariantOnlyWithItsInvariant(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
+	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system"}
 
-	out, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
-		"--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system")
-	if err != nil {
-		t.Fatalf("a non-deterministic computation was refused; it is a measurement, not an error: %v", err)
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION)
+	out, err := run(t, args...)
+	if err == nil || !strings.Contains(err.Error()+out, "--variance") {
+		t.Fatalf("a moving computation with no invariant was recorded, or its refusal does not name --variance: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "observed") || !strings.Contains(out, "NOT reproducible") {
-		t.Errorf("the seat was not told its evidence is a measurement rather than a proof: %q", out)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); n != before {
+		t.Errorf("the refused computation recorded %d event(s)", n-before)
+	}
+	out, err = run(t, append(args, "--variance", "a number in [0, 1)")...)
+	if err != nil || !strings.Contains(out, "variant") {
+		t.Fatalf("a moving computation with its invariant stated was not recorded variant: %v\n%s", err, out)
+	}
+	if c := lastBody(t, runDir, &recordpb.Computation{}); c.GetBasis() != recordpb.Basis_BASIS_VARIANT || c.GetInvariant() != "a number in [0, 1)" || c.GetDrift() == "" {
+		t.Errorf("the record holds basis=%s invariant=%q drift=%q", c.GetBasis(), c.GetInvariant(), c.GetDrift())
+	}
+
+	steady := script(t, runDir, "steady.js", "console.log(7);")
+	out, err = run(t, "compute", "--run", runDir, "--seat-id", seat, "--quote", "The sampled value varies between runs.", "--script", steady, "--reason", "r", "--variance", "seven")
+	if err == nil {
+		t.Errorf("--variance over runs that agreed was recorded:\n%s", out)
 	}
 }
 
-// A proof that cannot run is not evidence, and the failure is a capability signal — the same
+// A computation that cannot run is not evidence, and the failure is a capability signal — the same
 // treatment `blue cite` gives an unreachable source.
-func TestAnUnrunnableProofIsRefusedAndLogged(t *testing.T) {
+func TestAnUnrunnableComputationIsRefusedAndLogged(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "mystery.rb", "puts 1")
@@ -152,26 +167,26 @@ func TestAnUnrunnableProofIsRefusedAndLogged(t *testing.T) {
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
 		t.Error("the refusal wrote no log entry, so the missing capability is invisible to the retool loop")
 	}
-	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF) != 0 {
-		t.Error("a refused proof still landed on the record")
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION) != 0 {
+		t.Error("a refused computation still landed on the record")
 	}
 }
 
-// A proof must anchor to text that is actually there — the same rule a citation follows.
+// A computation must anchor to text that is actually there — the same rule a citation follows.
 func TestComputeRefusesAMisquotedLocation(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "ok.js", "console.log('x');")
 	if _, err := run(t, "compute", "--run", runDir, "--seat-id", seat,
 		"--quote", "a sentence that is not in the report", "--script", s, "--reason", "r"); err == nil {
-		t.Fatal("a proof anchored to text the report does not contain was accepted")
+		t.Fatal("a computation anchored to text the report does not contain was accepted")
 	}
 }
 
-// A PROOF'S KEY NAMES ONE PROOF, not one program: a retry under it states the sentence, its note and
+// A COMPUTATION'S KEY NAMES ONE COMPUTATION, not one program: a retry under it states the sentence, its note and
 // the gap it answers again, and a retry stating any of them otherwise is refused naming the stored
 // statement, recording nothing.
-func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
+func TestAComputationRetryIsHeldToEverythingItStated(t *testing.T) {
 	runDir := newRun(t)
 	const first, second = "Nine is composite.", "Ten is composite."
 	seat := computeSeat(t, runDir, "# H\n\n"+first+"\n\n"+second+"\n")
@@ -181,7 +196,7 @@ func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
 		t.Fatalf("compute: %v", err)
 	}
 	if out, err := run(t, args...); err != nil || !strings.Contains(out, "idempotent") {
-		t.Errorf("an identical retry = %q, %v; want the stored proof, idempotent", out, err)
+		t.Errorf("an identical retry = %q, %v; want the stored computation, idempotent", out, err)
 	}
 	for flag, swap := range map[string][2]string{
 		"--quote":  {first, second},
@@ -193,13 +208,13 @@ func TestAProofRetryIsHeldToEverythingItStated(t *testing.T) {
 				retry[i] = swap[1]
 			}
 		}
-		before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF)
+		before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION)
 		_, err := run(t, retry...)
 		if err == nil || !strings.Contains(err.Error(), flag+` "`+swap[0]+`"`) {
 			t.Errorf("a retry with another %s = %v; want a conflict naming the stored %s", flag, err, flag)
 		}
-		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); n != before {
-			t.Errorf("the refused retry recorded %d proof(s)", n-before)
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); n != before {
+			t.Errorf("the refused retry recorded %d computation(s)", n-before)
 		}
 	}
 }
@@ -215,7 +230,7 @@ func TestExpectErrorOnACleanRunIsRefused(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "drop --expect-error") {
 		t.Errorf("--expect-error on a clean run = %v; want it refused", err)
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF); n != 0 {
-		t.Errorf("the refused proof recorded %d proof(s)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION); n != 0 {
+		t.Errorf("the refused computation recorded %d computation(s)", n)
 	}
 }

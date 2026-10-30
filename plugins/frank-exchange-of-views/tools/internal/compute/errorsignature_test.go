@@ -4,7 +4,7 @@ import "testing"
 
 // THE TWO ARTIFACTS THIS CHECK WAS BUILT FOR both exited 0, so nothing about the exit code could
 // have caught them. Their outputs are quoted here from the 2026-08-23 plan run's archive.
-func TestErrorSignatureCatchesTheShippedWrongCwdProofs(t *testing.T) {
+func TestErrorSignatureCatchesTheShippedWrongCwdComputations(t *testing.T) {
 	buildstate := `== actual sleeper-service tree ==
 find: './plugins/sleeper-service': No such file or directory
 
@@ -28,7 +28,7 @@ ABSENT   commands/self-improve.md
 }
 
 func TestErrorSignatureIgnoresAScriptTalkingAboutErrors(t *testing.T) {
-	// A proof about error handling says these words on purpose; the signatures are the shell's
+	// A computation about error handling says these words on purpose; the signatures are the shell's
 	// and the interpreter's, never the script's vocabulary.
 	for _, out := range []string{
 		"checked 12 error paths, all handled\n",

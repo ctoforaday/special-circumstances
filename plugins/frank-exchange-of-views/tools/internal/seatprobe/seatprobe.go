@@ -157,7 +157,7 @@ var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE:    "motion rule",
-	recordpb.EventType_EVENT_TYPE_PROOF:          "compute",
+	recordpb.EventType_EVENT_TYPE_COMPUTATION:          "compute",
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:     "spot-check",
 }
 

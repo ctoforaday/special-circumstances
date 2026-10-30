@@ -81,7 +81,7 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 }
 
 // THE EVENT TYPE IS NOT THE VERB, and reading it as one would report every seat as having skipped
-// the verbs it actually used. `blue edit` writes `blue_edit`; `blue compute` writes `proof`.
+// the verbs it actually used. `blue edit` writes `blue_edit`; `blue compute` writes `computation`.
 func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 	runDir := writeRun(t, []struct {
 		seat    string
@@ -179,7 +179,7 @@ func TestEveryBoardExpectationArguesItsCase(t *testing.T) {
 			// A computation-kind gap that baits anything but `compute` is a contradiction: the
 			// write path refuses to close it on prose, so no other verb can discharge it.
 			if g.CheckKind == "computation" && g.Baits != "compute" {
-				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes ONLY on a proof", name, g.Key, g.Baits)
+				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes ONLY on a computation", name, g.Key, g.Baits)
 			}
 		}
 	}

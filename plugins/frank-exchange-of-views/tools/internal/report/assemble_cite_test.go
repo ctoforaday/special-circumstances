@@ -94,7 +94,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		Label:      proto.String("C-00000001"),
 		Url:        proto.String("https://ex/coherence"),
 		Sha256:     proto.String("deadbeef"),
-		Title:      proto.String("Coherence Proof"),
+		Title:      proto.String("Coherence Computation"),
 		AccessDate: proto.String("2026-08-03"),
 	}
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synth-r0"}, cite); err != nil {
@@ -118,7 +118,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if !strings.Contains(got, "The cache is coherent[^1].") {
 		t.Errorf("citation not woven into the TL;DR:\n%s", got)
 	}
-	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)") {
+	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Computation. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)") {
 		t.Errorf("composed bibliography missing:\n%s", got)
 	}
 }
@@ -291,7 +291,7 @@ func TestALongTitlesCitationIsWovenIntoTheQuestionLine(t *testing.T) {
 		&recordpb.BaseIngest{Text: proto.String(blue)},
 		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 			Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"), Sha256: proto.String("deadbeef"),
-			Title: proto.String("Coherence Proof"), AccessDate: proto.String("2026-08-03")},
+			Title: proto.String("Coherence Computation"), AccessDate: proto.String("2026-08-03")},
 	} {
 		if _, err := record.Append(id, body); err != nil {
 			t.Fatalf("append %T: %v", body, err)
@@ -310,7 +310,7 @@ func TestALongTitlesCitationIsWovenIntoTheQuestionLine(t *testing.T) {
 		"# Does the cache stay coherent under every interleaving the protocol permits, and…\n",
 		"**Question:** Does the cache stay coherent under every interleaving the protocol permits[^1], and at what cost to the write path\n",
 		"## Bibliography",
-		"[^1]: Coherence Proof. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)",
+		"[^1]: Coherence Computation. [https://ex/coherence](https://ex/coherence) (accessed 2026-08-03)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("report.md does not carry %q:\n%s", want, got)

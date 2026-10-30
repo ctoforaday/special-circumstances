@@ -22,7 +22,7 @@ import (
 
 // AN ANCHORED CLAIM LEAVES THROUGH RETIRE, AND ITS ANCHOR LEAVES WITH IT.
 //
-// An edit may carry an anchor but never drop one, so the way to delete a sentence a finding, proof
+// An edit may carry an anchor but never drop one, so the way to delete a sentence a finding, computation
 // or gap marks is to edit it down to the bare anchor and retire it; a citation never stands bare,
 // so a cited sentence loses its citation to a retire first and is then prose an edit may cut. Before the retire named the anchors that
 // exit with the claim, that bare anchor stood forever: an orphan [^N] with a live bibliography
@@ -50,7 +50,7 @@ func citeSentence(t *testing.T, runDir, sentence, url string) string {
 
 // gutToAnchor edits an anchored sentence down to its bare anchor — the only edit that removes
 // the sentence, because an edit may not drop the anchor. A citation's anchor is never left bare
-// (TestACitedSentenceIsNotCutToItsAnchor), so the anchor gutted is a proof's.
+// (TestACitedSentenceIsNotCutToItsAnchor), so the anchor gutted is a computation's.
 func gutToAnchor(t *testing.T, runDir, sentence, tok string) {
 	t.Helper()
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -68,7 +68,7 @@ func retireClaim(t *testing.T, runDir, claim string) *recordpb.Retire {
 	return lastBody(t, runDir, &recordpb.Retire{})
 }
 
-// computeSentence backs one sentence with a proof and returns its anchor id: a marker an edit may
+// computeSentence backs one sentence with a computation and returns its anchor id: a marker an edit may
 // leave bare, for the retire to take out with its claim.
 func computeSentence(t *testing.T, runDir, sentence string) string {
 	t.Helper()
@@ -77,7 +77,7 @@ func computeSentence(t *testing.T, runDir, sentence string) string {
 		"--script", s, "--reason", "the computation settles it"); err != nil {
 		t.Fatalf("compute %q: %v", sentence, err)
 	}
-	return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+	return lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 }
 
 // countEvents is how many events of one type the record holds.
@@ -218,8 +218,8 @@ func TestACitationRetireAnsweringAGapIsInItsChangeLog(t *testing.T) {
 		t.Errorf("the changelog's retirements do not name the gap the retire answers (%v):\n%s", err, changelog)
 	}
 
-	proof := computeSentence(t, runDir, "The grass is green.")
-	gutToAnchor(t, runDir, "The grass is green.", anchor.Token(proof))
+	computation := computeSentence(t, runDir, "The grass is green.")
+	gutToAnchor(t, runDir, "The grass is green.", anchor.Token(computation))
 	_, err = run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The grass is green.",
 		"--answers", gap, "--reason", "refuted")
 	if err == nil || !strings.Contains(err.Error(), "the edit that cut it") {
@@ -276,13 +276,13 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 				gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
 			case "citation":
 				id = citeSentence(t, runDir, sentence, "https://water/1")
-			case "proof":
+			case "computation":
 				s := script(t, runDir, "wet.js", "console.log('wet');")
 				if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", sentence,
 					"--script", s, "--reason", "the computation settles it"); err != nil {
 					t.Fatalf("compute: %v", err)
 				}
-				id = lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+				id = lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 			case "gap":
 				id = mint("--key", "itself", "--quote", sentence)
 				gap = id

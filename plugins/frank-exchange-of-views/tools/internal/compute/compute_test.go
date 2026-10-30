@@ -30,7 +30,7 @@ func hasNode(t *testing.T) {
 // THE POINT OF THE VERB: a computation settles the question and leaves an artifact. This is
 // the smoke's G1 done properly — red asked "test the protocol on a false claim, is 9
 // prime"; blue answered in prose and G2 refused it for showing no evidence.
-func TestReproducibleProofRunsAndRecordsItself(t *testing.T) {
+func TestReproducibleComputationRunsAndRecordsItself(t *testing.T) {
 	hasNode(t)
 	runDir := t.TempDir()
 	s := write(t, runDir, "nine.js", `
@@ -42,52 +42,62 @@ console.log("9 divisors in 2..8:", d.join(","), "-> composite:", d.length > 0);
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if res.Basis != Reproducible {
-		t.Errorf("basis = %q, want %q (drift: %s)", res.Basis, Reproducible, res.Drift)
+	if res.Drift != "" {
+		t.Errorf("two runs of a deterministic program differed: %s", res.Drift)
 	}
 	if !strings.Contains(res.Output, "composite: true") {
 		t.Errorf("the computation's own answer is missing from the record: %q", res.Output)
 	}
-	// The artifact must survive the turn — that is the whole difference from a Bash call.
-	//
-	// CONTENT ONLY. `meta.json` was in this list and is deliberately gone: it held sha, exit,
-	// script and drift — facts ABOUT the debate, in a JSON file beside the record that exists to
-	// hold facts about the debate, where nothing could refuse a wrong value. Those fields are on
-	// `Result` now, and the assertions below are what replaced the stat: a reader gets the facts
-	// from a typed field rather than from a file that could disagree with the event.
-	for _, f := range []string{"script.js", "output"} {
-		if _, err := os.Stat(filepath.Join(runDir, "proofs", res.SHA, f)); err != nil {
-			t.Errorf("%s was not cached, so the auditor has nothing to re-run: %v", f, err)
-		}
+	// The bundle must survive the turn — that is the whole difference from a Bash call — and its
+	// identity is over the command as well as the file.
+	if want := []string{"node", "script.js"}; strings.Join(res.Argv, " ") != strings.Join(want, " ") {
+		t.Errorf("argv = %q, want %q", res.Argv, want)
 	}
-	// The facts meta.json used to carry, asserted where they actually live.
-	if res.SHA == "" {
-		t.Error("no sha on the result — it is the artifact's address AND the id red re-runs by")
+	files, err := Bundle(runDir, res.Bundle)
+	if err != nil {
+		t.Fatalf("the bundle was not stored, so the auditor has nothing to re-run: %v", err)
+	}
+	if len(files) != 1 || files[0].Path != "script.js" {
+		t.Errorf("the bundle holds %+v, want the one program as script.js", files)
+	}
+	if res.Bundle != BundleSha(res.Argv, Sums(files)) {
+		t.Errorf("bundle %s is not the identity of what the store holds", res.Bundle)
 	}
 	if res.Exit != 0 {
 		t.Errorf("exit = %d, want 0: the script says 9 is composite and says it successfully", res.Exit)
 	}
-	if res.Script != "nine.js" {
-		t.Errorf("script = %q, want nine.js — a reader must be able to name what was run", res.Script)
-	}
-	// And the artifact directory holds NOTHING ELSE: a fact that creeps back into a file here is
-	// a fact nothing can refuse, and it would read as a richer record rather than a weaker one.
-	ents, err := os.ReadDir(filepath.Join(runDir, "proofs", res.SHA))
+	// An act's output is the caller's to store, under the id it mints: Run stores only the bundle.
+	ents, err := os.ReadDir(filepath.Join(runDir, StoreDir, res.Bundle))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ents) != 2 {
-		var names []string
-		for _, e := range ents {
-			names = append(names, e.Name())
-		}
-		t.Errorf("the proof directory holds %v — content is cached here, FACTS belong on the record", names)
+	var names []string
+	for _, e := range ents {
+		names = append(names, e.Name())
+	}
+	if strings.Join(names, ",") != "dir" {
+		t.Errorf("the bundle's directory holds %v — Run stores the bundle, and nothing else", names)
 	}
 }
 
-// A MOVING RESULT IS STILL EVIDENCE, and must be labelled rather than refused or laundered.
-// This is the case the network choice makes routine.
-func TestMovingOutputIsGradedObservedNotRefused(t *testing.T) {
+// THE IDENTITY IS FRAMED: every field is length-prefixed, so an argument holding a newline or a
+// space and one splitting it differently are different bundles.
+func TestTheBundleIdentityIsFramed(t *testing.T) {
+	f := []FileSum{{Path: "script.py", Sha256: "00"}}
+	if BundleSha([]string{"python3", "a b"}, f) == BundleSha([]string{"python3", "a", "b"}, f) {
+		t.Error("an argument with a space and two arguments hash alike")
+	}
+	if BundleSha([]string{"python3", "a\nb"}, f) == BundleSha([]string{"python3", "a", "b"}, f) {
+		t.Error("an argument with a newline and two arguments hash alike")
+	}
+	if BundleSha([]string{"python3", "x"}, f) == BundleSha([]string{"python3", "x"}, []FileSum{{Path: "script.py", Sha256: "01"}}) {
+		t.Error("two bundles with different file bytes hash alike")
+	}
+}
+
+// A MOVING RESULT IS REPORTED, never laundered: Run says what moved, and the caller decides whether
+// the seat accepted it. This is the case the network choice makes routine.
+func TestMovingOutputReportsItsDrift(t *testing.T) {
 	hasNode(t)
 	runDir := t.TempDir()
 	s := write(t, runDir, "moves.js", "console.log(Math.random());")
@@ -95,9 +105,6 @@ func TestMovingOutputIsGradedObservedNotRefused(t *testing.T) {
 	res, err := Run(runDir, s)
 	if err != nil {
 		t.Fatalf("a non-deterministic script was REFUSED; it is a measurement, not an error: %v", err)
-	}
-	if res.Basis != Observed {
-		t.Errorf("basis = %q, want %q — output that moves must not be recorded as a proof", res.Basis, Observed)
 	}
 	if res.Drift == "" {
 		t.Error("drift is unstated, so a reader cannot tell a live measurement from an unseeded random")
@@ -123,7 +130,7 @@ func TestAFailingCheckIsARecordedResultNotAnError(t *testing.T) {
 	}
 }
 
-// RED'S AUDIT IS RE-EXECUTION. A cited source is re-read and believed; a proof is re-run and
+// RED'S AUDIT IS RE-EXECUTION. A cited source is re-read and believed; a computation is re-run and
 // compared, which is the stronger check and the one G1 wanted.
 func TestReproduceReRunsAndAgrees(t *testing.T) {
 	hasNode(t)
@@ -133,17 +140,20 @@ func TestReproduceReRunsAndAgrees(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rr, err := Reproduce(runDir, res.SHA)
+	if err := WriteAct(runDir, res.Bundle, "K-00000001", []byte(res.Output)); err != nil {
+		t.Fatal(err)
+	}
+	rr, err := Reproduce(runDir, res.Bundle, res.Argv, "K-00000001", res.Exit)
 	if err != nil {
 		t.Fatalf("Reproduce: %v", err)
 	}
 	if !rr.Matches || len(rr.ToolCalls) != 0 {
-		t.Errorf("a reproducible proof did not reproduce: got %q want %q (tool calls %q)", rr.Got, rr.Want, rr.ToolCalls)
+		t.Errorf("a reproducible computation did not reproduce: got %q want %q (tool calls %q)", rr.Got, rr.Want, rr.ToolCalls)
 	}
 }
 
 // A script the tool cannot run is refused rather than guessed at: the wrong interpreter
-// produces a confident error that reads exactly like a failed proof.
+// produces a confident error that reads exactly like a failed computation.
 func TestUnknownInterpreterIsRefused(t *testing.T) {
 	runDir := t.TempDir()
 	s := write(t, runDir, "mystery.rb", "puts 1")
@@ -163,7 +173,7 @@ func TestEmptyScriptIsRefused(t *testing.T) {
 	}
 }
 
-// A SCRIPT THAT CALLS THE TOOL NEVER REPRODUCES, AND IS GRADED AS ONE NO CHECKER CAN RUN. The
+// A SCRIPT THAT CALLS THE TOOL NEVER REPRODUCES, AND RUN NAMES THE CALL. The
 // stand-in does what feov-record does under a checker's run — appends its call to the marker the
 // run names (seatenv.VarComputeRerun) — and prints the same 0 either way, as a script piping the
 // tool's refusal through `jq` does. Its output alone could never tell the re-run anything.
@@ -177,10 +187,13 @@ console.log("0");`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Basis != NotPortable || !strings.Contains(res.Drift, "calls feov-record (feov-record show board --json)") {
-		t.Errorf("compute graded a script that calls the tool %q (%q), want not_portable naming the call", res.Basis, res.Drift)
+	if len(res.Calls) != 1 || res.Calls[0] != "feov-record show board --json" {
+		t.Errorf("Run reports the stored copy's tool calls as %q, want the one call", res.Calls)
 	}
-	rr, err := Reproduce(runDir, res.SHA)
+	if err := WriteAct(runDir, res.Bundle, "K-00000001", []byte(res.Output)); err != nil {
+		t.Fatal(err)
+	}
+	rr, err := Reproduce(runDir, res.Bundle, res.Argv, "K-00000001", res.Exit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,8 +207,8 @@ console.log("0");`)
 }
 
 // Reproducing something never recorded must fail loudly, not report agreement with nothing.
-func TestReproduceRefusesAnUnknownProof(t *testing.T) {
-	if _, err := Reproduce(t.TempDir(), "deadbeef"); err == nil {
-		t.Fatal("reproducing a proof that was never recorded reported success")
+func TestReproduceRefusesAnUnknownComputation(t *testing.T) {
+	if _, err := Reproduce(t.TempDir(), "deadbeef", []string{"node", "script.js"}, "K-00000001", 0); err == nil {
+		t.Fatal("reproducing a computation that was never recorded reported success")
 	}
 }

@@ -27,29 +27,29 @@ func seededRun(t *testing.T, evs ...*record.Event) (string, record.Run) {
 	return dir, runtest.Open(t, dir)
 }
 
-// proofEvent is a proof labelled label of the script stored under sha, for the sentence reason.
-func proofEvent(t *testing.T, label, sha, reason string) *record.Event {
+// computationEvent is a computation labelled label of the script stored under sha, for the sentence reason.
+func computationEvent(t *testing.T, label, sha, reason string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-synthesize", &recordpb.Proof{
-		ProofId: proto.String(label), ProofSha: proto.String(sha),
-		ProofBasis: proto.String("reproducible"), Script: proto.String("check.js"), Text: proto.String(reason),
+	return recordtest.Event(t, "blue-synthesize", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
+		ComputationId: proto.String(label), BundleSha: proto.String(sha),
+		Text: proto.String(reason),
 	})
 }
 
-// A VALUE SPLICED INTO A LINE THE TOOL WRITES OPENS NO BLOCK. A proof's reason is evidence.md's
+// A VALUE SPLICED INTO A LINE THE TOOL WRITES OPENS NO BLOCK. A computation's reason is evidence.md's
 // heading for it; written as the seat typed it, "checks X" and a fence on the next line opened code
-// that ran to the end of the document, the anchors of every later proof inside it: report.html wrote
+// that ran to the end of the document, the anchors of every later computation inside it: report.html wrote
 // no element for them, so their notes linked to nothing, and the .md held them as code. Both tiers.
-func TestASeatsFenceLeavesEveryLaterProofAnchorLive(t *testing.T) {
-	const first, second = "P-00000001", "P-00000002"
+func TestASeatsFenceLeavesEveryLaterComputationAnchorLive(t *testing.T) {
+	const first, second = "K-00000001", "K-00000002"
 	dir, run := seededRun(t,
 		recordtest.Event(t, "blue-synthesize", &recordpb.BaseIngest{Text: proto.String(
-			"# On 91 — research report\n\n## TL;DR\n\nOne<!--proof:" + first + "--> and two<!--proof:" + second + "-->.\n")}),
-		proofEvent(t, first, "aaaa0000aaaa0000", "checks X\n````\nand the rest"),
-		proofEvent(t, second, "bbbb0000bbbb0000", "checks Y"),
+			"# On 91 — research report\n\n## TL;DR\n\nOne<!--computation:" + first + "--> and two<!--computation:" + second + "-->.\n")}),
+		computationEvent(t, first, "aaaa0000aaaa0000", "checks X\n````\nand the rest"),
+		computationEvent(t, second, "bbbb0000bbbb0000", "checks Y"),
 	)
-	seedProof(t, dir, "aaaa0000aaaa0000", "console.log(1)", "1\n")
-	seedProof(t, dir, "bbbb0000bbbb0000", "console.log(2)", "2\n")
+	seedStore(t, dir, "aaaa0000aaaa0000", first, "console.log(1)", "1\n")
+	seedStore(t, dir, "bbbb0000bbbb0000", second, "console.log(2)", "2\n")
 	if _, err := Assemble(run); err != nil {
 		t.Fatal(err)
 	}
@@ -70,8 +70,8 @@ func TestASeatsFenceLeavesEveryLaterProofAnchorLive(t *testing.T) {
 			t.Errorf("report.html places %s's anchor %d time(s), want once", label, n)
 		}
 	}
-	if !strings.Contains(string(evidence), "### P1 — checks X ```` and the rest\n") {
-		t.Errorf("the proof's heading is not its reason on one line:\n%s", evidence)
+	if !strings.Contains(string(evidence), "### K1 — checks X ```` and the rest\n") {
+		t.Errorf("the computation's heading is not its reason on one line:\n%s", evidence)
 	}
 }
 
@@ -271,7 +271,7 @@ func TestStripTokens(t *testing.T) {
 		{"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\n- <!--gap:G-00000001-->.\nprose<!--fx:F-00000001--> `x<!--cite:C-00000002-->`\n", false,
 			"```\n- <!--gap:G-00000001-->\necho <!--fx:F-00000001-->\n```\nprose `x<!--cite:C-00000002-->`\n"},
 		{"    indented <!--fx:F-00000001-->\n", false, "    indented <!--fx:F-00000001-->\n"},
-		{"one<!--proof:P-00000003--> two", true, "one<!--proof:P-00000003--> two"},
+		{"one<!--computation:K-00000003--> two", true, "one<!--computation:K-00000003--> two"},
 		{"A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n", true, "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"},
 		{"- kept\n- <!--fx:F-1-->.\n- **<!--cite:C-…-->**\n|---|<!--gap:G-1-->\n", true, "- kept\n|---|\n"},
 	} {
@@ -409,13 +409,13 @@ func TestAProseValueKeepsItsBlocksInsideItsItem(t *testing.T) {
 	}
 }
 
-// RED'S NOTES ON A PROOF KEEP THEIR BLOCKS. Notes of one line share the judgement's line; where one runs
+// RED'S NOTES ON A COMPUTATION KEEP THEIR BLOCKS. Notes of one line share the judgement's line; where one runs
 // to several, each is a paragraph of the judgement's item in evidence.md, and a fence one leaves open
 // closes where it ends rather than taking the next note as code.
 func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "abc123def4567890"
-	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	seedStore(t, runDir, sha, "K-deadbeef", "print(91 % 7)", "0\n")
 	for _, c := range []struct {
 		notes []string
 		want  string
@@ -423,13 +423,13 @@ func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 		{[]string{"one", "two<!--gap:G-00000001-->"}, "establishes this sentence — one / two\n"},
 		{[]string{"one\n```\nx", "two\n\nthree"}, "establishes this sentence — one\n  ```\n  x\n  ```\n\n  two\n\n  three\n"},
 	} {
-		var js []record.ProofJudgement
+		var js []record.ComputationJudgement
 		for _, n := range c.notes {
-			js = append(js, record.ProofJudgement{SeatID: "red-lens-evidence", Sound: true, Note: n})
+			js = append(js, record.ComputationJudgement{SeatID: "red-lens-evidence", Sound: true, Note: n})
 		}
-		proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
+		computations := []record.Computation{{Label: "K-deadbeef", SHA: sha, Basis: "reproducible", Argv: []string{"python3", "script.py"}, Reason: "trial division",
 			Soundness: record.SoundnessSound, Judgements: js}}
-		if ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true}); !strings.Contains(ev, c.want) {
+		if ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true}); !strings.Contains(ev, c.want) {
 			t.Errorf("notes %q: evidence.md does not hold %q:\n%s", c.notes, c.want, ev)
 		}
 	}

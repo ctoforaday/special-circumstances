@@ -146,12 +146,12 @@ func writeSetup(path string, data []byte) error {
 	return nil
 }
 
-// writeScript writes a proof script into the run directory. A write that fails fails the run: the
-// proof it was for is never driven, and the drive would otherwise skip it in silence.
+// writeScript writes a computation script into the run directory. A write that fails fails the run: the
+// computation it was for is never driven, and the drive would otherwise skip it in silence.
 func (r *runner) writeScript(name, body string) error {
 	err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644)
 	if err != nil {
-		r.noteActErr("write the proof script " + name + ": " + err.Error())
+		r.noteActErr("write the computation script " + name + ": " + err.Error())
 	}
 	return err
 }

@@ -95,6 +95,6 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 	if failed {
 		t.Errorf("verify reports register-before-append after closing a computation gap:\n%s\n\n"+
-			"closeGap computes as blue-respond, and `blue compute` records an event, so that seat must be registered before the proof is appended", out)
+			"closeGap computes as blue-respond, and `blue compute` records an event, so that seat must be registered before the computation is appended", out)
 	}
 }

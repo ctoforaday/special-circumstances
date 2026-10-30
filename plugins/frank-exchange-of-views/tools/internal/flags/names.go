@@ -116,11 +116,14 @@ const (
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
 
-	// The proof axis. --script is the program that settles a claim; --cites names the METHOD
+	// The computation axis. --script is the program that settles a claim; --cites names the METHOD
 	// citation it applies — the source that says trial division decides primality. The method
 	// is cited; the instance is computed.
 	Script = "script"
 	Cites  = "cites"
+	// --variance is what holds across two runs of a computation that differed: the seat's statement
+	// of the invariant, which is what makes a moving result evidence of anything.
+	Variance = "variance"
 
 	// Disposition and justification.
 	//
@@ -130,9 +133,9 @@ const (
 	// through enumhelp.
 	As = "as"
 
-	// ExpectError says a proof's subject IS a failing command, so `blue compute` records the
-	// environment error rather than refusing it. Without it, an error signature in a proof's
-	// output is a refusal: two proofs shipped as evidence in the 2026-08-23 plan run had run
+	// ExpectError says a computation's subject IS a failing command, so `blue compute` records the
+	// environment error rather than refusing it. Without it, an error signature in a computation's
+	// output is a refusal: two computations shipped as evidence in the 2026-08-23 plan run had run
 	// from the wrong working directory, printed the shell's complaint, exited 0, and were cited
 	// as re-runnable enumerations of something they never enumerated.
 	ExpectError = "expect-error"
@@ -215,7 +218,7 @@ const (
 	VerifiedAgainst = "verified-against"
 
 	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
-	// `<!--proof:p-…-->` token — naming a place in the report by identity rather than by
+	// `<!--computation:p-…-->` token — naming a place in the report by identity rather than by
 	// quoting it. Where --quote says the text, this says the marker.
 	//
 	// Two verbs take it and each narrows the CLASS it accepts, which is the per-verb
@@ -316,7 +319,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceSpan, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, Variance, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,

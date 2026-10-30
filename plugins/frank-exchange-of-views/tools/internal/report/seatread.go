@@ -16,7 +16,7 @@ import (
 //
 // # Why it does NOT resolve the anchors, though assembly does
 //
-// The first draft stripped finding-markers and wove citations and proofs into footnotes, on the
+// The first draft stripped finding-markers and wove citations and computations into footnotes, on the
 // argument that the tool already knows how to render this document for a human and was making
 // each seat read past `<!--fx:…-->` tokens by hand.
 //

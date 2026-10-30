@@ -73,7 +73,7 @@ const (
 	EventType_EVENT_TYPE_MOTION_RULE       EventType = 19
 	EventType_EVENT_TYPE_OUTCOME           EventType = 22
 	EventType_EVENT_TYPE_POSITION          EventType = 23
-	EventType_EVENT_TYPE_PROOF             EventType = 24
+	EventType_EVENT_TYPE_COMPUTATION       EventType = 24
 	EventType_EVENT_TYPE_REGRADE           EventType = 25
 	EventType_EVENT_TYPE_REPRODUCE         EventType = 26
 	EventType_EVENT_TYPE_RETIRE            EventType = 27
@@ -115,7 +115,7 @@ var (
 		19: "EVENT_TYPE_MOTION_RULE",
 		22: "EVENT_TYPE_OUTCOME",
 		23: "EVENT_TYPE_POSITION",
-		24: "EVENT_TYPE_PROOF",
+		24: "EVENT_TYPE_COMPUTATION",
 		25: "EVENT_TYPE_REGRADE",
 		26: "EVENT_TYPE_REPRODUCE",
 		27: "EVENT_TYPE_RETIRE",
@@ -154,7 +154,7 @@ var (
 		"EVENT_TYPE_MOTION_RULE":       19,
 		"EVENT_TYPE_OUTCOME":           22,
 		"EVENT_TYPE_POSITION":          23,
-		"EVENT_TYPE_PROOF":             24,
+		"EVENT_TYPE_COMPUTATION":       24,
 		"EVENT_TYPE_REGRADE":           25,
 		"EVENT_TYPE_REPRODUCE":         26,
 		"EVENT_TYPE_RETIRE":            27,
@@ -911,9 +911,9 @@ func (Confidence) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{10}
 }
 
-// Soundness: REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures
+// Soundness: REPRODUCING IS NOT PROVING. Re-running a program and getting the same bytes measures
 // determinism; `print("7 is prime")` reproduces perfectly forever. UNSOUND is the dangerous
-// cell, because a proof that re-runs clean and establishes nothing looks maximally credible.
+// cell, because a computation that re-runs clean and establishes nothing looks maximally credible.
 type Soundness int32
 
 const (
@@ -963,14 +963,14 @@ func (Soundness) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{11}
 }
 
-// Rerun is what one `reproduce` did with the proof's SCRIPT, which every proof anchor on that
-// script shares. The tool writes it; a seat never states it. Soundness is the other half, judged
-// per anchor, because one script can back several sentences and only one of them may be what it
-// computes.
+// Rerun is what one `reproduce` found when it compared THIS act's recorded result — its output and
+// exit — against its bundle's re-run. The tool writes it; a seat never states it. Soundness is the
+// other half, judged per anchor, because one bundle can back several sentences and only one of
+// them may be what it computes.
 //
-// NOT_RUN IS A VALUE AND NOT AN ABSENCE. A bool `reproduced` read false both where the script
-// printed something else and where nothing re-ran it, and a reader of the record could not tell a
-// failed check from a judgement made on an earlier re-run.
+// WHETHER THE ACT EXECUTED THE BUNDLE IS `ran`, NOT A VALUE HERE. A reproduce on a bundle another
+// reproduce already re-ran executes nothing and compares against that re-run; the comparison is
+// still this act's, so it carries a value of this set, and `ran` = false says nothing executed.
 type Rerun int32
 
 const (
@@ -978,7 +978,6 @@ const (
 	Rerun_RERUN_REPRODUCED     Rerun = 1
 	Rerun_RERUN_DIFFERS        Rerun = 2
 	Rerun_RERUN_CALLS_THE_TOOL Rerun = 3
-	Rerun_RERUN_NOT_RUN        Rerun = 4
 )
 
 // Enum value maps for Rerun.
@@ -988,14 +987,12 @@ var (
 		1: "RERUN_REPRODUCED",
 		2: "RERUN_DIFFERS",
 		3: "RERUN_CALLS_THE_TOOL",
-		4: "RERUN_NOT_RUN",
 	}
 	Rerun_value = map[string]int32{
 		"RERUN_UNSPECIFIED":    0,
 		"RERUN_REPRODUCED":     1,
 		"RERUN_DIFFERS":        2,
 		"RERUN_CALLS_THE_TOOL": 3,
-		"RERUN_NOT_RUN":        4,
 	}
 )
 
@@ -1043,7 +1040,7 @@ const (
 	InquiryStatus_INQUIRY_STATUS_REFUTED  InquiryStatus = 7
 	InquiryStatus_INQUIRY_STATUS_DEFERRED InquiryStatus = 3 // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
 	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
-	// record holds no link from a proof or a section to an inquiry, so no write can tell a declined
+	// record holds no link from a computation or a section to an inquiry, so no write can tell a declined
 	// inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
 	InquiryStatus_INQUIRY_STATUS_DECLINED  InquiryStatus = 4
 	InquiryStatus_INQUIRY_STATUS_ABANDONED InquiryStatus = 5 // what stopped it is the part a future run needs: it stops a later run re-walking it
@@ -1663,6 +1660,56 @@ func (CopySubstitution) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
+// Basis is what running a bundle twice found.
+type Basis int32
+
+const (
+	Basis_BASIS_UNSPECIFIED  Basis = 0
+	Basis_BASIS_REPRODUCIBLE Basis = 1
+	Basis_BASIS_VARIANT      Basis = 2
+)
+
+// Enum value maps for Basis.
+var (
+	Basis_name = map[int32]string{
+		0: "BASIS_UNSPECIFIED",
+		1: "BASIS_REPRODUCIBLE",
+		2: "BASIS_VARIANT",
+	}
+	Basis_value = map[string]int32{
+		"BASIS_UNSPECIFIED":  0,
+		"BASIS_REPRODUCIBLE": 1,
+		"BASIS_VARIANT":      2,
+	}
+)
+
+func (x Basis) Enum() *Basis {
+	p := new(Basis)
+	*p = x
+	return p
+}
+
+func (x Basis) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Basis) Descriptor() protoreflect.EnumDescriptor {
+	return file_record_proto_enumTypes[23].Descriptor()
+}
+
+func (Basis) Type() protoreflect.EnumType {
+	return &file_record_proto_enumTypes[23]
+}
+
+func (x Basis) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Basis.Descriptor instead.
+func (Basis) EnumDescriptor() ([]byte, []int) {
+	return file_record_proto_rawDescGZIP(), []int{23}
+}
+
 // LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
 // one enum: the old `FrictionKind` mixed a tool-emitted refusal in with a seat's own report, so a
 // "seat reports only" filter had to know which VALUES were tool values. Splitting them means a new
@@ -1706,11 +1753,11 @@ func (x LogSource) String() string {
 }
 
 func (LogSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[23].Descriptor()
+	return file_record_proto_enumTypes[24].Descriptor()
 }
 
 func (LogSource) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[23]
+	return &file_record_proto_enumTypes[24]
 }
 
 func (x LogSource) Number() protoreflect.EnumNumber {
@@ -1719,7 +1766,7 @@ func (x LogSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogSource.Descriptor instead.
 func (LogSource) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{23}
+	return file_record_proto_rawDescGZIP(), []int{24}
 }
 
 // LogType is WHAT THE ENTRY ASSERTS, and it is a FIELD rather than something a reader infers from
@@ -1780,11 +1827,11 @@ func (x LogType) String() string {
 }
 
 func (LogType) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[24].Descriptor()
+	return file_record_proto_enumTypes[25].Descriptor()
 }
 
 func (LogType) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[24]
+	return &file_record_proto_enumTypes[25]
 }
 
 func (x LogType) Number() protoreflect.EnumNumber {
@@ -1793,7 +1840,7 @@ func (x LogType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogType.Descriptor instead.
 func (LogType) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{24}
+	return file_record_proto_rawDescGZIP(), []int{25}
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
@@ -1844,11 +1891,11 @@ func (x GradeDimension) String() string {
 }
 
 func (GradeDimension) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[25].Descriptor()
+	return file_record_proto_enumTypes[26].Descriptor()
 }
 
 func (GradeDimension) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[25]
+	return &file_record_proto_enumTypes[26]
 }
 
 func (x GradeDimension) Number() protoreflect.EnumNumber {
@@ -1857,7 +1904,7 @@ func (x GradeDimension) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GradeDimension.Descriptor instead.
 func (GradeDimension) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{25}
+	return file_record_proto_rawDescGZIP(), []int{26}
 }
 
 // THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
@@ -1911,11 +1958,11 @@ func (x PetitionClass) String() string {
 }
 
 func (PetitionClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[26].Descriptor()
+	return file_record_proto_enumTypes[27].Descriptor()
 }
 
 func (PetitionClass) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[26]
+	return &file_record_proto_enumTypes[27]
 }
 
 func (x PetitionClass) Number() protoreflect.EnumNumber {
@@ -1924,7 +1971,7 @@ func (x PetitionClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PetitionClass.Descriptor instead.
 func (PetitionClass) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{26}
+	return file_record_proto_rawDescGZIP(), []int{27}
 }
 
 // WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
@@ -1979,11 +2026,11 @@ func (x RulingBinds) String() string {
 }
 
 func (RulingBinds) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[27].Descriptor()
+	return file_record_proto_enumTypes[28].Descriptor()
 }
 
 func (RulingBinds) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[27]
+	return &file_record_proto_enumTypes[28]
 }
 
 func (x RulingBinds) Number() protoreflect.EnumNumber {
@@ -1992,7 +2039,7 @@ func (x RulingBinds) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RulingBinds.Descriptor instead.
 func (RulingBinds) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{27}
+	return file_record_proto_rawDescGZIP(), []int{28}
 }
 
 // Occasion is WHAT A SITTING WAS CONVENED TO DO — the question put to the seat, as against the
@@ -2049,11 +2096,11 @@ func (x Occasion) String() string {
 }
 
 func (Occasion) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[28].Descriptor()
+	return file_record_proto_enumTypes[29].Descriptor()
 }
 
 func (Occasion) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[28]
+	return &file_record_proto_enumTypes[29]
 }
 
 func (x Occasion) Number() protoreflect.EnumNumber {
@@ -2062,7 +2109,7 @@ func (x Occasion) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Occasion.Descriptor instead.
 func (Occasion) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{28}
+	return file_record_proto_rawDescGZIP(), []int{29}
 }
 
 // SqlCheck is one table-level rule and what it protects.
@@ -2292,7 +2339,7 @@ type Event struct {
 	//	*Event_Anchor
 	//	*Event_Cite
 	//	*Event_Verify
-	//	*Event_Proof
+	//	*Event_Computation
 	//	*Event_Reproduce
 	//	*Event_Inquiry
 	//	*Event_BlueEdit
@@ -2542,10 +2589,10 @@ func (x *Event) GetVerify() *Verify {
 	return nil
 }
 
-func (x *Event) GetProof() *Proof {
+func (x *Event) GetComputation() *Computation {
 	if x != nil {
-		if x, ok := x.Body.(*Event_Proof); ok {
-			return x.Proof
+		if x, ok := x.Body.(*Event_Computation); ok {
+			return x.Computation
 		}
 	}
 	return nil
@@ -2780,8 +2827,8 @@ type Event_Verify struct {
 	Verify *Verify `protobuf:"bytes,41,opt,name=verify,proto3,oneof"`
 }
 
-type Event_Proof struct {
-	Proof *Proof `protobuf:"bytes,42,opt,name=proof,proto3,oneof"`
+type Event_Computation struct {
+	Computation *Computation `protobuf:"bytes,42,opt,name=computation,proto3,oneof"`
 }
 
 type Event_Reproduce struct {
@@ -2888,7 +2935,7 @@ func (*Event_Cite) isEvent_Body() {}
 
 func (*Event_Verify) isEvent_Body() {}
 
-func (*Event_Proof) isEvent_Body() {}
+func (*Event_Computation) isEvent_Body() {}
 
 func (*Event_Reproduce) isEvent_Body() {}
 
@@ -4583,59 +4630,65 @@ func (x *Verify) GetCopyUrl() string {
 	return ""
 }
 
-// Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
-// `drift` records that the two runs disagreed, which makes it a measurement of a moving system
-// rather than a proof.
-type Proof struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	ProofId *string                `protobuf:"bytes,1,opt,name=proof_id,json=proofId,proto3,oneof" json:"proof_id,omitempty"`
-	// proof_key is typed --key: the flag word is declared so a refusal names what a seat can type.
-	ProofKey *string `protobuf:"bytes,2,opt,name=proof_key,json=proofKey,proto3,oneof" json:"proof_key,omitempty"`
-	ProofSha *string `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
-	// proof_basis is written by blue/compute.go and read at eight sites; found by the frozen key
-	// census for the same reason as Outcome's three.
-	ProofBasis *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
-	Answers    *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
-	Cites      *string `protobuf:"bytes,5,opt,name=cites,proto3,oneof" json:"cites,omitempty"`
+// Computation is a program blue ran twice on a bundle, and what it wrote — the citation model with
+// the last mile walked: the METHOD is cited, the instance is computed.
+//
+// THE BASIS IS DERIVED, never claimed: the tool runs the bundle twice. REPRODUCIBLE is two runs
+// that wrote the same bytes; VARIANT is two runs that differed, which the seat accepted by stating
+// what holds across them (`invariant`), and `drift` is what the tool saw move. Each is present
+// exactly when the basis is VARIANT — the check below — so a reader never meets a moving
+// measurement that reads as a reproducible one.
+//
+// THE PROGRAM'S BYTES ARE CONTENT, NOT FACTS. The bundle lives under `computations/<bundle_sha>/dir/`
+// and this act's output under `computations/<bundle_sha>/acts/<computation_id>/`; the record holds
+// what ran (`argv`, `bundle_sha`), its exit and its basis, which is what a reader refuses on.
+type Computation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ComputationId *string                `protobuf:"bytes,1,opt,name=computation_id,json=computationId,proto3,oneof" json:"computation_id,omitempty"`
+	// key is typed --key: the flag word is declared so a refusal names what a seat can type.
+	Key *string `protobuf:"bytes,2,opt,name=key,proto3,oneof" json:"key,omitempty"`
+	// bundle_sha is the bundle's identity: sha256 over its argv and its files, each length-prefixed
+	// (compute.BundleSha), computed without running it.
+	BundleSha *string `protobuf:"bytes,3,opt,name=bundle_sha,json=bundleSha,proto3,oneof" json:"bundle_sha,omitempty"`
+	Answers   *string `protobuf:"bytes,4,opt,name=answers,proto3,oneof" json:"answers,omitempty"`
+	// cites is the METHOD's citation.
+	Cites *string `protobuf:"bytes,5,opt,name=cites,proto3,oneof" json:"cites,omitempty"`
 	// drift is WHAT MOVED between the two runs, not merely that something did.
-	//
-	// It was a bool, and the sentence describing the divergence lived in the proof cache's
-	// meta.json instead. That split put a fact about the debate in a JSON file beside the record
-	// that exists to hold it — and the report renders the sentence, so the record was the one
-	// party to the exchange that could not say what happened. Absent means the two runs agreed.
 	Drift *string `protobuf:"bytes,6,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
-	// text is the proof's note, printed as its footnote — the seat's own wording. What ran, its hash,
-	// exit and anchoring site are the execution's facts.
+	// text is the computation's note, printed as its footnote — the seat's own wording.
 	Text *string `protobuf:"bytes,7,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	// script and exit are the execution's own facts, and they belong here for the same reason:
-	// `report/proofs.go` renders both, and a reader of the record should not have to open a
-	// second store to learn how a proof ran. The script BODY and its output stay in the cache as
-	// CONTENT, addressed by proof_sha — content is not a fact about the debate.
-	Script *string `protobuf:"bytes,9,opt,name=script,proto3,oneof" json:"script,omitempty"`
-	Exit   *int32  `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
-	// location is the anchoring quote this proof backs — the same `--quote` cite and finding record.
-	// The Anchor appended after the proof carries it and places the marker; held here as well, it is
-	// the proof's own statement of its site, which a retry places an owed Anchor at and every reader
-	// of the proof reads without a join.
-	Location      *string `protobuf:"bytes,11,opt,name=location,proto3,oneof" json:"location,omitempty"`
+	// exit is the first run's.
+	Exit *int32 `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
+	// location is the anchoring quote this computation backs — the same `--quote` cite and finding
+	// record. The Anchor appended after it carries it and places the marker; held here as well, it is
+	// the computation's own statement of its site, which a retry places an owed Anchor at.
+	Location *string `protobuf:"bytes,11,opt,name=location,proto3,oneof" json:"location,omitempty"`
+	// argv is the command that ran, in the bundle's copy.
+	Argv []string `protobuf:"bytes,12,rep,name=argv,proto3" json:"argv,omitempty"`
+	// toolchain_path is argv[0] resolved, with its sha256; absent when argv[0] is a bundle file.
+	ToolchainPath   *string `protobuf:"bytes,13,opt,name=toolchain_path,json=toolchainPath,proto3,oneof" json:"toolchain_path,omitempty"`
+	ToolchainSha256 *string `protobuf:"bytes,18,opt,name=toolchain_sha256,json=toolchainSha256,proto3,oneof" json:"toolchain_sha256,omitempty"`
+	Basis           *Basis  `protobuf:"varint,14,opt,name=basis,proto3,enum=feov.record.v1.Basis,oneof" json:"basis,omitempty"`
+	// invariant is what the seat states holds across two runs that differed.
+	Invariant     *string `protobuf:"bytes,15,opt,name=invariant,proto3,oneof" json:"invariant,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Proof) Reset() {
-	*x = Proof{}
+func (x *Computation) Reset() {
+	*x = Computation{}
 	mi := &file_record_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Proof) String() string {
+func (x *Computation) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Proof) ProtoMessage() {}
+func (*Computation) ProtoMessage() {}
 
-func (x *Proof) ProtoReflect() protoreflect.Message {
+func (x *Computation) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4647,117 +4700,144 @@ func (x *Proof) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Proof.ProtoReflect.Descriptor instead.
-func (*Proof) Descriptor() ([]byte, []int) {
+// Deprecated: Use Computation.ProtoReflect.Descriptor instead.
+func (*Computation) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *Proof) GetProofId() string {
-	if x != nil && x.ProofId != nil {
-		return *x.ProofId
+func (x *Computation) GetComputationId() string {
+	if x != nil && x.ComputationId != nil {
+		return *x.ComputationId
 	}
 	return ""
 }
 
-func (x *Proof) GetProofKey() string {
-	if x != nil && x.ProofKey != nil {
-		return *x.ProofKey
+func (x *Computation) GetKey() string {
+	if x != nil && x.Key != nil {
+		return *x.Key
 	}
 	return ""
 }
 
-func (x *Proof) GetProofSha() string {
-	if x != nil && x.ProofSha != nil {
-		return *x.ProofSha
+func (x *Computation) GetBundleSha() string {
+	if x != nil && x.BundleSha != nil {
+		return *x.BundleSha
 	}
 	return ""
 }
 
-func (x *Proof) GetProofBasis() string {
-	if x != nil && x.ProofBasis != nil {
-		return *x.ProofBasis
-	}
-	return ""
-}
-
-func (x *Proof) GetAnswers() string {
+func (x *Computation) GetAnswers() string {
 	if x != nil && x.Answers != nil {
 		return *x.Answers
 	}
 	return ""
 }
 
-func (x *Proof) GetCites() string {
+func (x *Computation) GetCites() string {
 	if x != nil && x.Cites != nil {
 		return *x.Cites
 	}
 	return ""
 }
 
-func (x *Proof) GetDrift() string {
+func (x *Computation) GetDrift() string {
 	if x != nil && x.Drift != nil {
 		return *x.Drift
 	}
 	return ""
 }
 
-func (x *Proof) GetText() string {
+func (x *Computation) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
 	}
 	return ""
 }
 
-func (x *Proof) GetScript() string {
-	if x != nil && x.Script != nil {
-		return *x.Script
-	}
-	return ""
-}
-
-func (x *Proof) GetExit() int32 {
+func (x *Computation) GetExit() int32 {
 	if x != nil && x.Exit != nil {
 		return *x.Exit
 	}
 	return 0
 }
 
-func (x *Proof) GetLocation() string {
+func (x *Computation) GetLocation() string {
 	if x != nil && x.Location != nil {
 		return *x.Location
 	}
 	return ""
 }
 
-// Reproduce is red checking ONE PROOF ANCHOR. REPRODUCING IS NOT PROVING: `rerun` is COMPUTED by
-// the tool and is never claimed by the seat, while `soundness` is red's JUDGEMENT of whether the
-// script establishes THIS anchor's sentence.
+func (x *Computation) GetArgv() []string {
+	if x != nil {
+		return x.Argv
+	}
+	return nil
+}
+
+func (x *Computation) GetToolchainPath() string {
+	if x != nil && x.ToolchainPath != nil {
+		return *x.ToolchainPath
+	}
+	return ""
+}
+
+func (x *Computation) GetToolchainSha256() string {
+	if x != nil && x.ToolchainSha256 != nil {
+		return *x.ToolchainSha256
+	}
+	return ""
+}
+
+func (x *Computation) GetBasis() Basis {
+	if x != nil && x.Basis != nil {
+		return *x.Basis
+	}
+	return Basis_BASIS_UNSPECIFIED
+}
+
+func (x *Computation) GetInvariant() string {
+	if x != nil && x.Invariant != nil {
+		return *x.Invariant
+	}
+	return ""
+}
+
+// Reproduce is red checking ONE COMPUTATION ANCHOR. REPRODUCING IS NOT PROVING: `rerun` is
+// COMPUTED by the tool and is never claimed by the seat, while `soundness` is red's JUDGEMENT of
+// whether the program establishes THIS anchor's sentence.
 //
-// THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). One
-// script can back several sentences — `compute` of a script already proved records a new anchor over
-// the same sha — so a re-run belongs to the script and answers for every anchor on it, while a
-// soundness verdict belongs to the one sentence it was judged against. Keyed by sha alone, a lens's
-// `unsound` on one sentence was overwritten by another lens's `sound` on another in 11 of 15
-// archived runs with proofs.
+// THE ANCHOR IS ABOUT THE QUOTE, THE COMPUTATION IS ABOUT ITSELF (gblock, 2026-10-12). One bundle
+// can back several sentences, so a soundness verdict belongs to the one sentence it was judged
+// against. Keyed by sha alone, a lens's `unsound` on one sentence was overwritten by another lens's
+// `sound` on another in 11 of 15 archived runs with proofs.
 //
-// The seat names the proof by its anchor; the tool derives `proof_sha` from it, and the write
-// refuses a sha that is not that proof's. The two joins are spelled as Proof spells them —
-// `proof_id` for the anchor, `proof_sha` for the script.
+// The seat names the computation by its anchor; the tool derives `bundle_sha` from it, and the
+// write refuses a sha that is not that computation's. The two joins are spelled as Computation
+// spells them — `computation_id` for the anchor, `bundle_sha` for the bundle.
+//
+// `ran` says whether this act executed the bundle. One that did not compared against the bundle's
+// standing re-run. `rerun_exit` is that execution's exit, and `rerun_sha` names the execution this
+// act compared against; neither is present on a reproduce migrated from a record that kept no raw
+// re-run.
 //
 // NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
 // its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's
 // latest, so a retried write repeats a verdict and changes nothing.
 type Reproduce struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ProofSha       *string                `protobuf:"bytes,1,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
-	Soundness      *Soundness             `protobuf:"varint,3,opt,name=soundness,proto3,enum=feov.record.v1.Soundness,oneof" json:"soundness,omitempty"`
-	RecordedOutput *string                `protobuf:"bytes,4,opt,name=recorded_output,json=recordedOutput,proto3,oneof" json:"recorded_output,omitempty"`
-	ObservedOutput *string                `protobuf:"bytes,5,opt,name=observed_output,json=observedOutput,proto3,oneof" json:"observed_output,omitempty"`
-	Note           *string                `protobuf:"bytes,6,opt,name=note,proto3,oneof" json:"note,omitempty"`
-	ProofId        *string                `protobuf:"bytes,7,opt,name=proof_id,json=proofId,proto3,oneof" json:"proof_id,omitempty"`
-	Rerun          *Rerun                 `protobuf:"varint,8,opt,name=rerun,proto3,enum=feov.record.v1.Rerun,oneof" json:"rerun,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BundleSha     *string                `protobuf:"bytes,1,opt,name=bundle_sha,json=bundleSha,proto3,oneof" json:"bundle_sha,omitempty"`
+	Soundness     *Soundness             `protobuf:"varint,3,opt,name=soundness,proto3,enum=feov.record.v1.Soundness,oneof" json:"soundness,omitempty"`
+	Note          *string                `protobuf:"bytes,6,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	ComputationId *string                `protobuf:"bytes,7,opt,name=computation_id,json=computationId,proto3,oneof" json:"computation_id,omitempty"`
+	Rerun         *Rerun                 `protobuf:"varint,8,opt,name=rerun,proto3,enum=feov.record.v1.Rerun,oneof" json:"rerun,omitempty"`
+	Ran           *bool                  `protobuf:"varint,9,opt,name=ran,proto3,oneof" json:"ran,omitempty"`
+	RerunExit     *int32                 `protobuf:"varint,10,opt,name=rerun_exit,json=rerunExit,proto3,oneof" json:"rerun_exit,omitempty"`
+	// drift is what differs between this act's recorded result and the re-run.
+	Drift         *string `protobuf:"bytes,11,opt,name=drift,proto3,oneof" json:"drift,omitempty"`
+	RerunSha      *string `protobuf:"bytes,12,opt,name=rerun_sha,json=rerunSha,proto3,oneof" json:"rerun_sha,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Reproduce) Reset() {
@@ -4790,9 +4870,9 @@ func (*Reproduce) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *Reproduce) GetProofSha() string {
-	if x != nil && x.ProofSha != nil {
-		return *x.ProofSha
+func (x *Reproduce) GetBundleSha() string {
+	if x != nil && x.BundleSha != nil {
+		return *x.BundleSha
 	}
 	return ""
 }
@@ -4804,20 +4884,6 @@ func (x *Reproduce) GetSoundness() Soundness {
 	return Soundness_SOUNDNESS_UNSPECIFIED
 }
 
-func (x *Reproduce) GetRecordedOutput() string {
-	if x != nil && x.RecordedOutput != nil {
-		return *x.RecordedOutput
-	}
-	return ""
-}
-
-func (x *Reproduce) GetObservedOutput() string {
-	if x != nil && x.ObservedOutput != nil {
-		return *x.ObservedOutput
-	}
-	return ""
-}
-
 func (x *Reproduce) GetNote() string {
 	if x != nil && x.Note != nil {
 		return *x.Note
@@ -4825,9 +4891,9 @@ func (x *Reproduce) GetNote() string {
 	return ""
 }
 
-func (x *Reproduce) GetProofId() string {
-	if x != nil && x.ProofId != nil {
-		return *x.ProofId
+func (x *Reproduce) GetComputationId() string {
+	if x != nil && x.ComputationId != nil {
+		return *x.ComputationId
 	}
 	return ""
 }
@@ -4837,6 +4903,34 @@ func (x *Reproduce) GetRerun() Rerun {
 		return *x.Rerun
 	}
 	return Rerun_RERUN_UNSPECIFIED
+}
+
+func (x *Reproduce) GetRan() bool {
+	if x != nil && x.Ran != nil {
+		return *x.Ran
+	}
+	return false
+}
+
+func (x *Reproduce) GetRerunExit() int32 {
+	if x != nil && x.RerunExit != nil {
+		return *x.RerunExit
+	}
+	return 0
+}
+
+func (x *Reproduce) GetDrift() string {
+	if x != nil && x.Drift != nil {
+		return *x.Drift
+	}
+	return ""
+}
+
+func (x *Reproduce) GetRerunSha() string {
+	if x != nil && x.RerunSha != nil {
+		return *x.RerunSha
+	}
+	return ""
 }
 
 // InquiryReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
@@ -5077,7 +5171,7 @@ type BlueEdit struct {
 	// on it: red may not open a clean slate against its own words.
 	AppliedVerbatim *bool `protobuf:"varint,6,opt,name=applied_verbatim,json=appliedVerbatim,proto3,oneof" json:"applied_verbatim,omitempty"`
 	// reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
-	// proofs whose referent moved under them.
+	// computations whose referent moved under them.
 	//
 	// THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
 	// lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.
@@ -7479,7 +7573,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\x8d\x12\n" +
+	"\a_unique\"\x9f\x12\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x122\n" +
@@ -7504,8 +7598,8 @@ const file_record_proto_rawDesc = "" +
 	"\afinding\x18% \x01(\v2\x17.feov.record.v1.FindingH\x00R\afinding\x120\n" +
 	"\x06anchor\x18' \x01(\v2\x16.feov.record.v1.AnchorH\x00R\x06anchor\x12*\n" +
 	"\x04cite\x18( \x01(\v2\x14.feov.record.v1.CiteH\x00R\x04cite\x120\n" +
-	"\x06verify\x18) \x01(\v2\x16.feov.record.v1.VerifyH\x00R\x06verify\x12-\n" +
-	"\x05proof\x18* \x01(\v2\x15.feov.record.v1.ProofH\x00R\x05proof\x129\n" +
+	"\x06verify\x18) \x01(\v2\x16.feov.record.v1.VerifyH\x00R\x06verify\x12?\n" +
+	"\vcomputation\x18* \x01(\v2\x1b.feov.record.v1.ComputationH\x00R\vcomputation\x129\n" +
 	"\treproduce\x18+ \x01(\v2\x19.feov.record.v1.ReproduceH\x00R\treproduce\x123\n" +
 	"\ainquiry\x18, \x01(\v2\x17.feov.record.v1.InquiryH\x00R\ainquiry\x127\n" +
 	"\tblue_edit\x18- \x01(\v2\x18.feov.record.v1.BlueEditH\x00R\bblueEdit\x120\n" +
@@ -7821,54 +7915,70 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\x87\x04\n" +
-	"\x05Proof\x12\x1e\n" +
-	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12+\n" +
-	"\tproof_key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\bproofKey\x88\x01\x01\x12 \n" +
-	"\tproof_sha\x18\x03 \x01(\tH\x02R\bproofSha\x88\x01\x01\x12$\n" +
-	"\vproof_basis\x18\b \x01(\tH\x03R\n" +
-	"proofBasis\x88\x01\x01\x12\x1d\n" +
-	"\aanswers\x18\x04 \x01(\tH\x04R\aanswers\x88\x01\x01\x12\x19\n" +
-	"\x05cites\x18\x05 \x01(\tH\x05R\x05cites\x88\x01\x01\x12\x19\n" +
-	"\x05drift\x18\x06 \x01(\tH\x06R\x05drift\x88\x01\x01\x12)\n" +
-	"\x04text\x18\a \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12\x1b\n" +
-	"\x06script\x18\t \x01(\tH\bR\x06script\x88\x01\x01\x12\x17\n" +
+	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
+	"\vComputation\x12*\n" +
+	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
+	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"bundle_sha\x18\x03 \x01(\tH\x02R\tbundleSha\x88\x01\x01\x12\x1d\n" +
+	"\aanswers\x18\x04 \x01(\tH\x03R\aanswers\x88\x01\x01\x12\x19\n" +
+	"\x05cites\x18\x05 \x01(\tH\x04R\x05cites\x88\x01\x01\x12\x19\n" +
+	"\x05drift\x18\x06 \x01(\tH\x05R\x05drift\x88\x01\x01\x12)\n" +
+	"\x04text\x18\a \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x06R\x04text\x88\x01\x01\x12\x17\n" +
 	"\x04exit\x18\n" +
-	" \x01(\x05H\tR\x04exit\x88\x01\x01\x120\n" +
-	"\blocation\x18\v \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\n" +
-	"R\blocation\x88\x01\x01B\v\n" +
-	"\t_proof_idB\f\n" +
-	"\n" +
-	"_proof_keyB\f\n" +
-	"\n" +
-	"_proof_shaB\x0e\n" +
-	"\f_proof_basisB\n" +
+	" \x01(\x05H\aR\x04exit\x88\x01\x01\x120\n" +
+	"\blocation\x18\v \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\bR\blocation\x88\x01\x01\x12\x12\n" +
+	"\x04argv\x18\f \x03(\tR\x04argv\x12*\n" +
+	"\x0etoolchain_path\x18\r \x01(\tH\tR\rtoolchainPath\x88\x01\x01\x12.\n" +
+	"\x10toolchain_sha256\x18\x12 \x01(\tH\n" +
+	"R\x0ftoolchainSha256\x88\x01\x01\x12\x85\x01\n" +
+	"\x05basis\x18\x0e \x01(\x0e2\x15.feov.record.v1.BasisBS\x82\xb5\x18O\b\x01\x1aKevery computation ran twice, and its basis says whether the two runs agreedH\vR\x05basis\x88\x01\x01\x125\n" +
+	"\tinvariant\x18\x0f \x01(\tB\x12\x82\xb5\x18\n" +
+	"\x12\bvariance\xc0\xb5\x18\x01H\fR\tinvariant\x88\x01\x01:\x87\x03\x92\xb5\x18\x82\x03\n" +
+	"\xdf\x01(\"basis\" = 'variant' AND coalesce(trim(\"drift\", ' ' || char(9, 10, 13)), '') <> '' AND coalesce(trim(\"invariant\", ' ' || char(9, 10, 13)), '') <> '') OR (\"basis\" = 'reproducible' AND \"drift\" IS NULL AND \"invariant\" IS NULL)\x12\x9d\x01a VARIANT computation states what moved between its two runs and what holds across them; a REPRODUCIBLE one wrote the same bytes twice, so it carries neitherB\x11\n" +
+	"\x0f_computation_idB\x06\n" +
+	"\x04_keyB\r\n" +
+	"\v_bundle_shaB\n" +
 	"\n" +
 	"\b_answersB\b\n" +
 	"\x06_citesB\b\n" +
 	"\x06_driftB\a\n" +
-	"\x05_textB\t\n" +
-	"\a_scriptB\a\n" +
+	"\x05_textB\a\n" +
 	"\x05_exitB\v\n" +
-	"\t_location\"\xce\x04\n" +
-	"\tReproduce\x12 \n" +
-	"\tproof_sha\x18\x01 \x01(\tH\x00R\bproofSha\x88\x01\x01\x12<\n" +
-	"\tsoundness\x18\x03 \x01(\x0e2\x19.feov.record.v1.SoundnessH\x01R\tsoundness\x88\x01\x01\x12,\n" +
-	"\x0frecorded_output\x18\x04 \x01(\tH\x02R\x0erecordedOutput\x88\x01\x01\x12,\n" +
-	"\x0fobserved_output\x18\x05 \x01(\tH\x03R\x0eobservedOutput\x88\x01\x01\x12)\n" +
-	"\x04note\x18\x06 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x04R\x04note\x88\x01\x01\x12\xb1\x01\n" +
-	"\bproof_id\x18\a \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x06anchor\x1a\x7fthe proof whose sentence you judged, by its anchor — a soundness verdict is about one sentence, and a script can back severalH\x05R\aproofId\x88\x01\x01\x120\n" +
-	"\x05rerun\x18\b \x01(\x0e2\x15.feov.record.v1.RerunH\x06R\x05rerun\x88\x01\x01B\f\n" +
+	"\t_locationB\x11\n" +
+	"\x0f_toolchain_pathB\x13\n" +
+	"\x11_toolchain_sha256B\b\n" +
+	"\x06_basisB\f\n" +
 	"\n" +
-	"_proof_shaB\f\n" +
+	"_invariantJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"R\vproof_basisR\x06script\"\xfe\b\n" +
+	"\tReproduce\x12\"\n" +
 	"\n" +
-	"_soundnessB\x12\n" +
-	"\x10_recorded_outputB\x12\n" +
-	"\x10_observed_outputB\a\n" +
-	"\x05_noteB\v\n" +
-	"\t_proof_idB\b\n" +
-	"\x06_rerunJ\x04\b\x02\x10\x03R\n" +
-	"reproduced\"=\n" +
+	"bundle_sha\x18\x01 \x01(\tH\x00R\tbundleSha\x88\x01\x01\x12<\n" +
+	"\tsoundness\x18\x03 \x01(\x0e2\x19.feov.record.v1.SoundnessH\x01R\tsoundness\x88\x01\x01\x12)\n" +
+	"\x04note\x18\x06 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x02R\x04note\x88\x01\x01\x12\xc4\x01\n" +
+	"\x0ecomputation_id\x18\a \x01(\tB\x97\x01\x82\xb5\x18\x92\x01\b\x01\x12\x06anchor\x1a\x85\x01the computation whose sentence you judged, by its anchor — a soundness verdict is about one sentence, and a bundle can back severalH\x03R\rcomputationId\x88\x01\x01\x120\n" +
+	"\x05rerun\x18\b \x01(\x0e2\x15.feov.record.v1.RerunH\x04R\x05rerun\x88\x01\x01\x12v\n" +
+	"\x03ran\x18\t \x01(\bB_\x82\xb5\x18[\b\x01\x1aWwhether this act executed the bundle, or compared against a re-run another act executedH\x05R\x03ran\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"rerun_exit\x18\n" +
+	" \x01(\x05H\x06R\trerunExit\x88\x01\x01\x12\x19\n" +
+	"\x05drift\x18\v \x01(\tH\aR\x05drift\x88\x01\x01\x12 \n" +
+	"\trerun_sha\x18\f \x01(\tH\bR\brerunSha\x88\x01\x01:\xdf\x02\x92\xb5\x18\xc6\x01\n" +
+	"S(\"rerun\" = 'differs') = (coalesce(trim(\"drift\", ' ' || char(9, 10, 13)), '') <> '')\x12oa re-run that differs from this act's recorded result says what differs, and one that does not carries no drift\x92\xb5\x18\x8f\x01\n" +
+	"?\"rerun_exit\" IS NULL OR (\"ran\" = 1 AND \"rerun_sha\" IS NOT NULL)\x12La re-run's exit is the exit of an execution this act ran, named by rerun_shaB\r\n" +
+	"\v_bundle_shaB\f\n" +
+	"\n" +
+	"_soundnessB\a\n" +
+	"\x05_noteB\x11\n" +
+	"\x0f_computation_idB\b\n" +
+	"\x06_rerunB\x06\n" +
+	"\x04_ranB\r\n" +
+	"\v_rerun_exitB\b\n" +
+	"\x06_driftB\f\n" +
+	"\n" +
+	"_rerun_shaJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\n" +
+	"reproducedR\x0frecorded_outputR\x0fobserved_output\"=\n" +
 	"\rInquiryReview\x12!\n" +
 	"\x06reason\x18\x01 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01B\t\n" +
 	"\a_reason\"\xc0\x04\n" +
@@ -8119,7 +8229,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\xfa%\n" +
+	"\b_holding*\xbd&\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -8140,10 +8250,10 @@ const file_record_proto_rawDesc = "" +
 	"\x11EVENT_TYPE_MOTION\x10\x11\x1aV\x8a\xb5\x18Ra motion filed: a grade contested, a petition to the bench, or an inquiry proposed\x12W\n" +
 	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a;\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\x12f\n" +
 	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aN\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\x12Z\n" +
-	"\x13EVENT_TYPE_POSITION\x10\x17\x1aA\x8a\xb5\x18=the chair's argument to the bench on what is about no one gap\x12y\n" +
-	"\x10EVENT_TYPE_PROOF\x10\x18\x1ac\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\x12P\n" +
-	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12j\n" +
-	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aP\x8a\xb5\x18Lan attempt to re-run a recorded proof, and whether what it computes is sound\x12b\n" +
+	"\x13EVENT_TYPE_POSITION\x10\x17\x1aA\x8a\xb5\x18=the chair's argument to the bench on what is about no one gap\x12\xa0\x01\n" +
+	"\x16EVENT_TYPE_COMPUTATION\x10\x18\x1a\x83\x01\x8a\xb5\x18\x7fa program blue ran twice on a bundle, with the bundle's hash, its exit and its basis — the answer a computation check demands\x12P\n" +
+	"\x12EVENT_TYPE_REGRADE\x10\x19\x1a8\x8a\xb5\x184a gap's grade changed, with the basis for the change\x12\x84\x01\n" +
+	"\x14EVENT_TYPE_REPRODUCE\x10\x1a\x1aj\x8a\xb5\x18fred checking a recorded computation against its bundle's re-run, and whether what it computes is sound\x12b\n" +
 	"\x11EVENT_TYPE_RETIRE\x10\x1b\x1aK\x8a\xb5\x18Ga claim retired from the report, with the reason and what supersedes it\x12n\n" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12b\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aJ\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\x12x\n" +
@@ -8180,21 +8290,21 @@ const file_record_proto_rawDesc = "" +
 	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x9e\x02\n" +
 	"\x13RUN_OUTCOME_CEILING\x10\x02\x1a\x84\x02\x8a\xb5\x18\xff\x01the run stopped at a limit of its terms, with nobody it could still dispatch and PASS not permitted: its epoch limit, as the derivation's reason states; NOT a judged failure to verify: what stays open on the board, and its re-audit, travels OUT of the run\x12f\n" +
 	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa1\x05\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xa7\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
-	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xea\x02\n" +
-	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xcd\x02\x8a\xb5\x18\xc8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
+	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\xf0\x02\n" +
+	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xd3\x02\x8a\xb5\x18\xce\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a computation answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind\x12\x89\x01\n" +
 	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xba\x03\n" +
 	"\rClassMaterial\x12\x1e\n" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
-	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xddU\n" +
+	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\x89V\n" +
 	"\bGapClass\x12\x19\n" +
-	"\x15GAP_CLASS_UNSPECIFIED\x10\x00\x12\xd3\x02\n" +
-	"%GAP_CLASS_CROSS_SECTION_CONTRADICTION\x10\x01\x1a\xa7\x02\x8a\xb5\x18}two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for themص\x18\x01\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18~are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?\x12\xb6\x03\n" +
-	"&GAP_CLASS_CLAIM_CONTRADICTS_OWN_RECORD\x10\x02\x1a\x89\x03\x8a\xb5\x18\xdf\x01the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a proof's result — or a record entry contradicts what the report shows was doneص\x18\x01\xe2\xb5\x18\x1bcross_section_contradiction\xea\xb5\x18~are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a proof's output?\x12\xce\x02\n" +
+	"\x15GAP_CLASS_UNSPECIFIED\x10\x00\x12\xda\x02\n" +
+	"%GAP_CLASS_CROSS_SECTION_CONTRADICTION\x10\x01\x1a\xae\x02\x8a\xb5\x18}two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for themص\x18\x01\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18\x84\x01are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?\x12\xc3\x03\n" +
+	"&GAP_CLASS_CLAIM_CONTRADICTS_OWN_RECORD\x10\x02\x1a\x96\x03\x8a\xb5\x18\xe5\x01the report and the run's own record disagree: the report states what the record contradicts — an inquiry's fate, method or reason, an edit, a computation's result — or a record entry contradicts what the report shows was doneص\x18\x01\xe2\xb5\x18\x1bcross_section_contradiction\xea\xb5\x18\x84\x01are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?\x12\xce\x02\n" +
 	"!GAP_CLASS_READER_CHANNEL_MISMATCH\x10\x03\x1a\xa6\x02\x8a\xb5\x18\xb0\x01a fact the reader needs is held — in the record or elsewhere in the report — but not where the reader who needs it reads, so a reader acting on that section acts without itص\x18\x03\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18Ido the two places disagree, or does one simply lack what the other holds?\x12\x80\x03\n" +
 	"'GAP_CLASS_INCOMPLETE_REPAIR_PROPAGATION\x10\x04\x1a\xd2\x02\x8a\xb5\x18\x98\x01a repair fixed a defect at some of its sites and left it standing at others — a sibling sentence, row or section still carries what the repair removedص\x18\x01\xe2\xb5\x18\x1bcross_section_contradiction\xea\xb5\x18\x8d\x01does the disagreement exist because a repair reached only part of one defect's sites, or do two passages disagree with no repair behind them?\x12\xb8\x02\n" +
 	" GAP_CLASS_MISSING_ROOT_INVARIANT\x10\x05\x1a\x91\x02\x8a\xb5\x18\x84\x01one fact is restated in several places with nothing tying the copies to a single source, so they have drifted or can drift unnoticedص\x18\x03\xe2\xb5\x18\x1dincomplete_repair_propagation\xea\xb5\x18_is the defect that no single source governs the copies, or that one repair missed some of them?\x12\x90\x03\n" +
@@ -8204,8 +8314,8 @@ const file_record_proto_rawDesc = "" +
 	"%GAP_CLASS_EXHAUSTIVE_SWEEP_OMITS_CASE\x10\t\x1a\xf2\x01\x8a\xb5\x18]a list, survey, search or sweep the report presents as complete omits a member it should holdص\x18\x01\xe2\xb5\x18\x0ffalse_universal\xea\xb5\x18vis it a rule about the subject stated too broadly, or a list or search presented as complete that leaves a member out?\x12\xbc\x02\n" +
 	" GAP_CLASS_RISK_COVERAGE_OMISSION\x10\n" +
 	"\x1a\x95\x02\x8a\xb5\x18zthe report's account of risk leaves out a risk, or a combination of risks, that its own analysis or its subject makes liveص\x18\x03\xe2\xb5\x18\x1bexhaustive_sweep_omits_case\xea\xb5\x18pis the missing member a risk the case against owes a grade, or any other member of a list presented as complete?\x12\xeb\x02\n" +
-	"%GAP_CLASS_DERIVATION_STATUS_OVERCLAIM\x10\v\x1a\xbf\x02\x8a\xb5\x18\xaf\x01a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shownص\x18\x01\xe2\xb5\x18\x1cverification_scope_blindspot\xea\xb5\x18cis the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?\x12\x89\x03\n" +
-	"&GAP_CLASS_VERIFICATION_SCOPE_BLINDSPOT\x10\f\x1a\xdc\x02\x8a\xb5\x18\xcd\x01a check, experiment or proof covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentenceص\x18\x01\xe2\xb5\x18\x1bderivation_status_overclaim\xea\xb5\x18cis the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?\x12\xbd\x02\n" +
+	"%GAP_CLASS_DERIVATION_STATUS_OVERCLAIM\x10\v\x1a\xbf\x02\x8a\xb5\x18\xaf\x01a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shownص\x18\x01\xe2\xb5\x18\x1cverification_scope_blindspot\xea\xb5\x18cis the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?\x12\x8f\x03\n" +
+	"&GAP_CLASS_VERIFICATION_SCOPE_BLINDSPOT\x10\f\x1a\xe2\x02\x8a\xb5\x18\xd3\x01a check, experiment or computation covers less than the claim it is credited with — a read test cited for a write path, one artifact's check credited to its siblings, a proof that establishes half its sentenceص\x18\x01\xe2\xb5\x18\x1bderivation_status_overclaim\xea\xb5\x18cis the claim's STATUS overstated, or is real evidence spent on a claim broader than what it covers?\x12\xbd\x02\n" +
 	"\x1aGAP_CLASS_SELF_ATTESTATION\x10\r\x1a\x9c\x02\x8a\xb5\x18\x92\x01the report asserts its own checking — that it verified, re-ran, searched or matched something — and the record does not bear the assertion outص\x18\x01\xe2\xb5\x18\x1bderivation_status_overclaim\xea\xb5\x18^is the overstated claim about the report's own verification or research, or about the subject?\x12\xcd\x02\n" +
 	" GAP_CLASS_UNVERIFIED_COMPOSITION\x10\x0e\x1a\xa6\x02\x8a\xb5\x18ra property of a whole is claimed because its parts were each checked, and the combination itself was never checkedص\x18\x01\xe2\xb5\x18\x1bderivation_status_overclaim\xea\xb5\x18\x88\x01does the claim rest on combining separately checked parts whose combination nobody examined, or overstate how one claim was established?\x12\xff\x02\n" +
 	"\x1bGAP_CLASS_INVALID_INFERENCE\x10\x0f\x1a\xdd\x02\x8a\xb5\x18\xcc\x01a reason the report offers for a conclusion does not entail it — the step fails even where every stated fact is true, including a check that gives the same result on the case the conclusion must excludeص\x18\x03\xe2\xb5\x18\x1bderivation_status_overclaim\xea\xb5\x18eis the reason irrelevant to the conclusion, or relevant and stated with more certainty than it earns?\x12\xc3\x02\n" +
@@ -8219,10 +8329,10 @@ const file_record_proto_rawDesc = "" +
 	"\x1eGAP_CLASS_FIGURE_RECOUNT_FAILS\x10\x17\x1a\x98\x02\x8a\xb5\x18\x7fa figure, count or computed result the report states differs from what an independent recount, recomputation or re-run producesص\x18\x01\xe2\xb5\x18\x11metric_conflation\xea\xb5\x18xis the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?\x12\xee\x02\n" +
 	"\x1bGAP_CLASS_METRIC_CONFLATION\x10\x18\x1a\xcc\x02\x8a\xb5\x18\xaf\x01two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitionsص\x18\x01\xe2\xb5\x18\x14figure_recount_fails\xea\xb5\x18xis the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?\x12\xbe\x03\n" +
 	"(GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION\x10\x19\x1a\x8f\x03\x8a\xb5\x18\x80\x02a cited source does not say what the report attributes to it — the figure, statement or support is absent from or contradicted by its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not aboutص\x18\x01\xe2\xb5\x18\x0funsourced_claim\xea\xb5\x18ois a source recorded against the claim that says something else, or is there no source behind the claim at all?\x12\xf3\x02\n" +
-	"0GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION\x10\x1a\x1a\xbc\x02\x8a\xb5\x18\xb0\x01the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is droppedص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18]does the source state the result, under a condition the report drops, or not state it at all?\x12\xd1\x02\n" +
-	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xaf\x02\x8a\xb5\x18\xa1\x01a claim or proof rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xcd\x02\n" +
-	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xa7\x02\x8a\xb5\x18\x9d\x01an artifact a reader needs to check the report — a proof, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x89\x03\n" +
-	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xe9\x02\x8a\xb5\x18\xcb\x01a claim of fact or a quotation the report states with no source or proof behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never namesص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18ois a source recorded against the claim that says something else, or is there no source behind the claim at all?\x12\x86\x01\n" +
+	"0GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION\x10\x1a\x1a\xbc\x02\x8a\xb5\x18\xb0\x01the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is droppedص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18]does the source state the result, under a condition the report drops, or not state it at all?\x12\xd7\x02\n" +
+	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xb5\x02\x8a\xb5\x18\xa7\x01a claim or computation rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xd3\x02\n" +
+	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xad\x02\x8a\xb5\x18\xa3\x01an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x8f\x03\n" +
+	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xef\x02\x8a\xb5\x18\xd1\x01a claim of fact or a quotation the report states with no source or computation behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never namesص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18ois a source recorded against the claim that says something else, or is there no source behind the claim at all?\x12\x86\x01\n" +
 	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03*\xf4\r\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
@@ -8254,17 +8364,16 @@ const file_record_proto_rawDesc = "" +
 	"\x16CONFIDENCE_UNSPECIFIED\x10\x00\x12i\n" +
 	"\x0fCONFIDENCE_HIGH\x10\x01\x1aT\x8a\xb5\x18Pyou read the source at the leaf and would defend this determination as it stands\x12\xad\x01\n" +
 	"\x11CONFIDENCE_MEDIUM\x10\x02\x1a\x95\x01\x8a\xb5\x18\x90\x01you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement\x12\xcf\x01\n" +
-	"\x0eCONFIDENCE_LOW\x10\x03\x1a\xba\x01\x8a\xb5\x18\xb5\x01your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further*\xfa\x01\n" +
+	"\x0eCONFIDENCE_LOW\x10\x03\x1a\xba\x01\x8a\xb5\x18\xb5\x01your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further*\xfb\x01\n" +
 	"\tSoundness\x12\x19\n" +
-	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
-	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12z\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\x99\x05\n" +
+	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12W\n" +
+	"\x0fSOUNDNESS_SOUND\x10\x01\x1aB\x8a\xb5\x18>you READ the program and it computes what it claims to compute\x12z\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xcb\x03\n" +
 	"\x05Rerun\x12\x15\n" +
-	"\x11RERUN_UNSPECIFIED\x10\x00\x12l\n" +
-	"\x10RERUN_REPRODUCED\x10\x01\x1aV\x8a\xb5\x18Rthis act re-ran the stored script and it printed the recorded output byte for byte\x12p\n" +
-	"\rRERUN_DIFFERS\x10\x02\x1a]\x8a\xb5\x18Ythis act re-ran the stored script and it printed something other than the recorded output\x12\xd7\x01\n" +
-	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\xbc\x01\x8a\xb5\x18\xb7\x01this act re-ran the stored script and the script called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\x12\xbe\x01\n" +
-	"\rRERUN_NOT_RUN\x10\x04\x1a\xaa\x01\x8a\xb5\x18\xa5\x01this act did not run the script: an earlier re-run of the same script stands for every proof on it, and this act judged its own anchor's sentence against that re-run*\xe9\r\n" +
+	"\x11RERUN_UNSPECIFIED\x10\x00\x12f\n" +
+	"\x10RERUN_REPRODUCED\x10\x01\x1aP\x8a\xb5\x18Lthe bundle's re-run wrote this act's recorded output and exit, byte for byte\x12z\n" +
+	"\rRERUN_DIFFERS\x10\x02\x1ag\x8a\xb5\x18cthe bundle's re-run wrote something other than this act's recorded output or exit; drift names what\x12\xb1\x01\n" +
+	"\x14RERUN_CALLS_THE_TOOL\x10\x03\x1a\x96\x01\x8a\xb5\x18\x91\x01the bundle called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced\"\x04\b\x04\x10\x04*\rRERUN_NOT_RUN*\xe9\r\n" +
 	"\rInquiryStatus\x12\x1e\n" +
 	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\x93\x01\n" +
 	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1av\x8a\xb5\x18rput forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate\x12\xc7\x01\n" +
@@ -8295,11 +8404,11 @@ const file_record_proto_rawDesc = "" +
 	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xb3\t\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xae\x02\n" +
-	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x95\x02\x8a\xb5\x18\x8c\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xb0\x02\n" +
+	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x97\x02\x8a\xb5\x18\x8e\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\x8a\x03\n" +
-	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xeb\x02\x8a\xb5\x18\xe2\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12\x9b\x01\n" +
-	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x83\x01\x8a\xb5\x18{a citation or proof, by its anchor, whose check failed: a proof judged unsound, or a citation whose cited work was not readе\x18\x01*\xb3\x04\n" +
+	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xeb\x02\x8a\xb5\x18\xe2\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00\x12\x99\x01\n" +
+	"\x11ABOUT_KIND_ANCHOR\x10\x05\x1a\x81\x01\x8a\xb5\x18ya citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unreadе\x18\x01*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x1bSOURCE_TEXT_ORIGIN_EMBEDDED\x10\x01\x1aU\x8a\xb5\x18Qthe retrieved bytes carry the text: markup, plain text, or a PDF's own text layer\x12\xb1\x01\n" +
@@ -8330,7 +8439,11 @@ const file_record_proto_rawDesc = "" +
 	"\x1dCOPY_SUBSTITUTION_FULLER_COPY\x10\x04\x1a\xc6\x01\x8a\xb5\x18\xc1\x01the typed url's page was not known to carry the work's body, and the tool took a copy carrying more of it from another source, at copy_url — another copy of the work, possibly another version\x12\x85\x02\n" +
 	"\x1fCOPY_SUBSTITUTION_NAMED_BACKEND\x10\x05\x1a\xdf\x01\x8a\xb5\x18\xda\x01a fetch that named a backend cached its answer under the typed url: the cited bytes came from that backend, at copy_url. With no copy_url the bytes are the tool's own statement of what the backend found, not a document\x12l\n" +
 	"\x1eCOPY_SUBSTITUTION_NOT_RECORDED\x10\x06\x1aH\x8a\xb5\x18Dthis citation or reading predates the field; written only by migrate\x12\xd7\x02\n" +
-	"\x1cCOPY_SUBSTITUTION_NOT_CACHED\x10\a\x1a\xb4\x02\x8a\xb5\x18\xaf\x02a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records*\xbe\x01\n" +
+	"\x1cCOPY_SUBSTITUTION_NOT_CACHED\x10\a\x1a\xb4\x02\x8a\xb5\x18\xaf\x02a reading only: this run's fetch cache held no copy of the url when red recorded it — red read the source outside the tool, or the cache that held it is gone — so the tool cannot say whose bytes were read. It says NOTHING about the copy, and a citation never carries it: cite fetches what it records*\xc9\x01\n" +
+	"\x05Basis\x12\x15\n" +
+	"\x11BASIS_UNSPECIFIED\x10\x00\x12S\n" +
+	"\x12BASIS_REPRODUCIBLE\x10\x01\x1a;\x8a\xb5\x187both runs wrote the same output and exit, byte for byte\x12T\n" +
+	"\rBASIS_VARIANT\x10\x02\x1aA\x8a\xb5\x18=the two runs differed, and blue stated what holds across them*\xbe\x01\n" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
@@ -8393,7 +8506,7 @@ func file_record_proto_rawDescGZIP() []byte {
 	return file_record_proto_rawDescData
 }
 
-var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 29)
+var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 30)
 var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_record_proto_goTypes = []any{
 	(EventType)(0),                        // 0: feov.record.v1.EventType
@@ -8419,110 +8532,111 @@ var file_record_proto_goTypes = []any{
 	(WorkStatus)(0),                       // 20: feov.record.v1.WorkStatus
 	(SourceCompleteness)(0),               // 21: feov.record.v1.SourceCompleteness
 	(CopySubstitution)(0),                 // 22: feov.record.v1.CopySubstitution
-	(LogSource)(0),                        // 23: feov.record.v1.LogSource
-	(LogType)(0),                          // 24: feov.record.v1.LogType
-	(GradeDimension)(0),                   // 25: feov.record.v1.GradeDimension
-	(PetitionClass)(0),                    // 26: feov.record.v1.PetitionClass
-	(RulingBinds)(0),                      // 27: feov.record.v1.RulingBinds
-	(Occasion)(0),                         // 28: feov.record.v1.Occasion
-	(*SqlCheck)(nil),                      // 29: feov.record.v1.SqlCheck
-	(*Sql)(nil),                           // 30: feov.record.v1.Sql
-	(*Event)(nil),                         // 31: feov.record.v1.Event
-	(*TelemetryLine)(nil),                 // 32: feov.record.v1.TelemetryLine
-	(*NewMint)(nil),                       // 33: feov.record.v1.NewMint
-	(*ClassTally)(nil),                    // 34: feov.record.v1.ClassTally
-	(*SeverityTally)(nil),                 // 35: feov.record.v1.SeverityTally
-	(*RepairRegression)(nil),              // 36: feov.record.v1.RepairRegression
-	(*EdgeDeltas)(nil),                    // 37: feov.record.v1.EdgeDeltas
-	(*Mint)(nil),                          // 38: feov.record.v1.Mint
-	(*Close)(nil),                         // 39: feov.record.v1.Close
-	(*Closing)(nil),                       // 40: feov.record.v1.Closing
-	(*Regrade)(nil),                       // 41: feov.record.v1.Regrade
-	(*SpotCheck)(nil),                     // 42: feov.record.v1.SpotCheck
-	(*Finding)(nil),                       // 43: feov.record.v1.Finding
-	(*Anchor)(nil),                        // 44: feov.record.v1.Anchor
-	(*Cite)(nil),                          // 45: feov.record.v1.Cite
-	(*Verify)(nil),                        // 46: feov.record.v1.Verify
-	(*Proof)(nil),                         // 47: feov.record.v1.Proof
-	(*Reproduce)(nil),                     // 48: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),                 // 49: feov.record.v1.InquiryReview
-	(*Inquiry)(nil),                       // 50: feov.record.v1.Inquiry
-	(*BaseIngest)(nil),                    // 51: feov.record.v1.BaseIngest
-	(*BlueEdit)(nil),                      // 52: feov.record.v1.BlueEdit
-	(*Retire)(nil),                        // 53: feov.record.v1.Retire
-	(*ManifestRow)(nil),                   // 54: feov.record.v1.ManifestRow
-	(*Log)(nil),                           // 55: feov.record.v1.Log
-	(*Motion)(nil),                        // 56: feov.record.v1.Motion
-	(*GradeMotion)(nil),                   // 57: feov.record.v1.GradeMotion
-	(*PetitionMotion)(nil),                // 58: feov.record.v1.PetitionMotion
-	(*DocketMotion)(nil),                  // 59: feov.record.v1.DocketMotion
-	(*DocketRuling)(nil),                  // 60: feov.record.v1.DocketRuling
-	(*InquiryMotion)(nil),                 // 61: feov.record.v1.InquiryMotion
-	(*MotionRule)(nil),                    // 62: feov.record.v1.MotionRule
-	(*Register)(nil),                      // 63: feov.record.v1.Register
-	(*SittingOpen)(nil),                   // 64: feov.record.v1.SittingOpen
-	(*SittingClose)(nil),                  // 65: feov.record.v1.SittingClose
-	(*SittingLimit)(nil),                  // 66: feov.record.v1.SittingLimit
-	(*Cast)(nil),                          // 67: feov.record.v1.Cast
-	(*Dispatch)(nil),                      // 68: feov.record.v1.Dispatch
-	(*Plan)(nil),                          // 69: feov.record.v1.Plan
-	(*Stale)(nil),                         // 70: feov.record.v1.Stale
-	(*ReportRead)(nil),                    // 71: feov.record.v1.ReportRead
-	(*EnvelopeAdmitted)(nil),              // 72: feov.record.v1.EnvelopeAdmitted
-	(*Gate)(nil),                          // 73: feov.record.v1.Gate
-	(*Outcome)(nil),                       // 74: feov.record.v1.Outcome
-	(*Position)(nil),                      // 75: feov.record.v1.Position
-	(*Halt)(nil),                          // 76: feov.record.v1.Halt
-	(*Certify)(nil),                       // 77: feov.record.v1.Certify
-	(*Declare)(nil),                       // 78: feov.record.v1.Declare
-	(*descriptorpb.FieldOptions)(nil),     // 79: google.protobuf.FieldOptions
-	(*descriptorpb.EnumValueOptions)(nil), // 80: google.protobuf.EnumValueOptions
-	(*descriptorpb.MessageOptions)(nil),   // 81: google.protobuf.MessageOptions
+	(Basis)(0),                            // 23: feov.record.v1.Basis
+	(LogSource)(0),                        // 24: feov.record.v1.LogSource
+	(LogType)(0),                          // 25: feov.record.v1.LogType
+	(GradeDimension)(0),                   // 26: feov.record.v1.GradeDimension
+	(PetitionClass)(0),                    // 27: feov.record.v1.PetitionClass
+	(RulingBinds)(0),                      // 28: feov.record.v1.RulingBinds
+	(Occasion)(0),                         // 29: feov.record.v1.Occasion
+	(*SqlCheck)(nil),                      // 30: feov.record.v1.SqlCheck
+	(*Sql)(nil),                           // 31: feov.record.v1.Sql
+	(*Event)(nil),                         // 32: feov.record.v1.Event
+	(*TelemetryLine)(nil),                 // 33: feov.record.v1.TelemetryLine
+	(*NewMint)(nil),                       // 34: feov.record.v1.NewMint
+	(*ClassTally)(nil),                    // 35: feov.record.v1.ClassTally
+	(*SeverityTally)(nil),                 // 36: feov.record.v1.SeverityTally
+	(*RepairRegression)(nil),              // 37: feov.record.v1.RepairRegression
+	(*EdgeDeltas)(nil),                    // 38: feov.record.v1.EdgeDeltas
+	(*Mint)(nil),                          // 39: feov.record.v1.Mint
+	(*Close)(nil),                         // 40: feov.record.v1.Close
+	(*Closing)(nil),                       // 41: feov.record.v1.Closing
+	(*Regrade)(nil),                       // 42: feov.record.v1.Regrade
+	(*SpotCheck)(nil),                     // 43: feov.record.v1.SpotCheck
+	(*Finding)(nil),                       // 44: feov.record.v1.Finding
+	(*Anchor)(nil),                        // 45: feov.record.v1.Anchor
+	(*Cite)(nil),                          // 46: feov.record.v1.Cite
+	(*Verify)(nil),                        // 47: feov.record.v1.Verify
+	(*Computation)(nil),                   // 48: feov.record.v1.Computation
+	(*Reproduce)(nil),                     // 49: feov.record.v1.Reproduce
+	(*InquiryReview)(nil),                 // 50: feov.record.v1.InquiryReview
+	(*Inquiry)(nil),                       // 51: feov.record.v1.Inquiry
+	(*BaseIngest)(nil),                    // 52: feov.record.v1.BaseIngest
+	(*BlueEdit)(nil),                      // 53: feov.record.v1.BlueEdit
+	(*Retire)(nil),                        // 54: feov.record.v1.Retire
+	(*ManifestRow)(nil),                   // 55: feov.record.v1.ManifestRow
+	(*Log)(nil),                           // 56: feov.record.v1.Log
+	(*Motion)(nil),                        // 57: feov.record.v1.Motion
+	(*GradeMotion)(nil),                   // 58: feov.record.v1.GradeMotion
+	(*PetitionMotion)(nil),                // 59: feov.record.v1.PetitionMotion
+	(*DocketMotion)(nil),                  // 60: feov.record.v1.DocketMotion
+	(*DocketRuling)(nil),                  // 61: feov.record.v1.DocketRuling
+	(*InquiryMotion)(nil),                 // 62: feov.record.v1.InquiryMotion
+	(*MotionRule)(nil),                    // 63: feov.record.v1.MotionRule
+	(*Register)(nil),                      // 64: feov.record.v1.Register
+	(*SittingOpen)(nil),                   // 65: feov.record.v1.SittingOpen
+	(*SittingClose)(nil),                  // 66: feov.record.v1.SittingClose
+	(*SittingLimit)(nil),                  // 67: feov.record.v1.SittingLimit
+	(*Cast)(nil),                          // 68: feov.record.v1.Cast
+	(*Dispatch)(nil),                      // 69: feov.record.v1.Dispatch
+	(*Plan)(nil),                          // 70: feov.record.v1.Plan
+	(*Stale)(nil),                         // 71: feov.record.v1.Stale
+	(*ReportRead)(nil),                    // 72: feov.record.v1.ReportRead
+	(*EnvelopeAdmitted)(nil),              // 73: feov.record.v1.EnvelopeAdmitted
+	(*Gate)(nil),                          // 74: feov.record.v1.Gate
+	(*Outcome)(nil),                       // 75: feov.record.v1.Outcome
+	(*Position)(nil),                      // 76: feov.record.v1.Position
+	(*Halt)(nil),                          // 77: feov.record.v1.Halt
+	(*Certify)(nil),                       // 78: feov.record.v1.Certify
+	(*Declare)(nil),                       // 79: feov.record.v1.Declare
+	(*descriptorpb.FieldOptions)(nil),     // 80: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 81: google.protobuf.EnumValueOptions
+	(*descriptorpb.MessageOptions)(nil),   // 82: google.protobuf.MessageOptions
 }
 var file_record_proto_depIdxs = []int32{
 	0,   // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
-	63,  // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	73,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
-	74,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
-	75,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
-	76,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
-	77,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
-	78,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
-	56,  // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
-	62,  // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
-	38,  // 10: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
-	39,  // 11: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
-	40,  // 12: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
-	41,  // 13: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
-	42,  // 14: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
-	43,  // 15: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
-	44,  // 16: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
-	45,  // 17: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
-	46,  // 18: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
-	47,  // 19: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
-	48,  // 20: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
-	50,  // 21: feov.record.v1.Event.inquiry:type_name -> feov.record.v1.Inquiry
-	52,  // 22: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
-	53,  // 23: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
-	54,  // 24: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
-	55,  // 25: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
-	49,  // 26: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
-	51,  // 27: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
-	64,  // 28: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
-	65,  // 29: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
-	67,  // 30: feov.record.v1.Event.cast:type_name -> feov.record.v1.Cast
-	68,  // 31: feov.record.v1.Event.dispatch:type_name -> feov.record.v1.Dispatch
-	66,  // 32: feov.record.v1.Event.sitting_limit:type_name -> feov.record.v1.SittingLimit
-	69,  // 33: feov.record.v1.Event.plan:type_name -> feov.record.v1.Plan
-	70,  // 34: feov.record.v1.Event.stale:type_name -> feov.record.v1.Stale
-	71,  // 35: feov.record.v1.Event.report_read:type_name -> feov.record.v1.ReportRead
-	72,  // 36: feov.record.v1.Event.envelope_admitted:type_name -> feov.record.v1.EnvelopeAdmitted
+	64,  // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
+	74,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
+	75,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
+	76,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
+	77,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
+	78,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
+	79,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
+	57,  // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
+	63,  // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
+	39,  // 10: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
+	40,  // 11: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
+	41,  // 12: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
+	42,  // 13: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
+	43,  // 14: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
+	44,  // 15: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
+	45,  // 16: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
+	46,  // 17: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
+	47,  // 18: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
+	48,  // 19: feov.record.v1.Event.computation:type_name -> feov.record.v1.Computation
+	49,  // 20: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
+	51,  // 21: feov.record.v1.Event.inquiry:type_name -> feov.record.v1.Inquiry
+	53,  // 22: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
+	54,  // 23: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
+	55,  // 24: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
+	56,  // 25: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
+	50,  // 26: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
+	52,  // 27: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
+	65,  // 28: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
+	66,  // 29: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
+	68,  // 30: feov.record.v1.Event.cast:type_name -> feov.record.v1.Cast
+	69,  // 31: feov.record.v1.Event.dispatch:type_name -> feov.record.v1.Dispatch
+	67,  // 32: feov.record.v1.Event.sitting_limit:type_name -> feov.record.v1.SittingLimit
+	70,  // 33: feov.record.v1.Event.plan:type_name -> feov.record.v1.Plan
+	71,  // 34: feov.record.v1.Event.stale:type_name -> feov.record.v1.Stale
+	72,  // 35: feov.record.v1.Event.report_read:type_name -> feov.record.v1.ReportRead
+	73,  // 36: feov.record.v1.Event.envelope_admitted:type_name -> feov.record.v1.EnvelopeAdmitted
 	1,   // 37: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
-	33,  // 38: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
-	36,  // 39: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
-	37,  // 40: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
-	35,  // 41: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	34,  // 42: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.ClassTally
+	34,  // 38: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
+	37,  // 39: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
+	38,  // 40: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
+	36,  // 41: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
+	35,  // 42: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.ClassTally
 	6,   // 43: feov.record.v1.ClassTally.class:type_name -> feov.record.v1.GapClass
 	1,   // 44: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
 	6,   // 45: feov.record.v1.Mint.class:type_name -> feov.record.v1.GapClass
@@ -8552,49 +8666,50 @@ var file_record_proto_depIdxs = []int32{
 	21,  // 69: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
 	9,   // 70: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
 	22,  // 71: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	11,  // 72: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	12,  // 73: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	13,  // 74: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	24,  // 75: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	23,  // 76: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	57,  // 77: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	58,  // 78: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 79: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	59,  // 80: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	25,  // 81: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 82: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	26,  // 83: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 84: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	15,  // 85: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	16,  // 86: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	17,  // 87: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	60,  // 88: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	27,  // 89: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	28,  // 90: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	28,  // 91: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	2,   // 92: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 93: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	79,  // 94: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	79,  // 95: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	80,  // 96: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	80,  // 97: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	80,  // 98: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	80,  // 99: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	80,  // 100: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	80,  // 101: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	80,  // 102: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	80,  // 103: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	80,  // 104: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	80,  // 105: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	81,  // 106: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	30,  // 107: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	5,   // 108: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
-	29,  // 109: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	110, // [110:110] is the sub-list for method output_type
-	110, // [110:110] is the sub-list for method input_type
-	107, // [107:110] is the sub-list for extension type_name
-	94,  // [94:107] is the sub-list for extension extendee
-	0,   // [0:94] is the sub-list for field type_name
+	23,  // 72: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
+	11,  // 73: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	12,  // 74: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	13,  // 75: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	25,  // 76: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	24,  // 77: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	58,  // 78: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	59,  // 79: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	62,  // 80: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	60,  // 81: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	26,  // 82: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 83: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	27,  // 84: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 85: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	15,  // 86: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	16,  // 87: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	17,  // 88: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	61,  // 89: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	28,  // 90: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	29,  // 91: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	29,  // 92: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	2,   // 93: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 94: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	80,  // 95: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	80,  // 96: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	81,  // 97: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	81,  // 98: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	81,  // 99: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	81,  // 100: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	81,  // 101: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	81,  // 102: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	81,  // 103: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	81,  // 104: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	81,  // 105: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	81,  // 106: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	82,  // 107: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	31,  // 108: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	5,   // 109: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
+	30,  // 110: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	111, // [111:111] is the sub-list for method output_type
+	111, // [111:111] is the sub-list for method input_type
+	108, // [108:111] is the sub-list for extension type_name
+	95,  // [95:108] is the sub-list for extension extendee
+	0,   // [0:95] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -8623,7 +8738,7 @@ func file_record_proto_init() {
 		(*Event_Anchor)(nil),
 		(*Event_Cite)(nil),
 		(*Event_Verify)(nil),
-		(*Event_Proof)(nil),
+		(*Event_Computation)(nil),
 		(*Event_Reproduce)(nil),
 		(*Event_Inquiry)(nil),
 		(*Event_BlueEdit)(nil),
@@ -8703,7 +8818,7 @@ func file_record_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
-			NumEnums:      29,
+			NumEnums:      30,
 			NumMessages:   50,
 			NumExtensions: 13,
 			NumServices:   0,

@@ -37,8 +37,8 @@ const (
 	Strip Assembly = iota
 	// WeaveSource rewrites the token to a visible [^N] footnote on its source.
 	WeaveSource
-	// WeaveProof rewrites the token to a visible [^P<n>] reference to its computation.
-	WeaveProof
+	// WeaveComputation rewrites the token to a visible [^K<n>] reference to its computation.
+	WeaveComputation
 )
 
 // kind is one row of the kinds table: what an anchor of the kind MEANS.
@@ -60,7 +60,7 @@ type kind struct {
 var kinds = []kind{
 	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
 	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
-	{name: "proof", prefix: "P-", tag: "proof", label: "proof anchor", assembly: WeaveProof, backs: true},
+	{name: "computation", prefix: "K-", tag: "computation", label: "computation anchor", assembly: WeaveComputation, backs: true},
 	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
 }
 

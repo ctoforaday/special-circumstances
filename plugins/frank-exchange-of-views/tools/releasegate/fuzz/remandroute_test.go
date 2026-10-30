@@ -74,7 +74,7 @@ func (r *runner) closeDocketed(seatID string) {
 }
 
 // closableNow is the lens arm's close condition on gap id, by its scenario: satisfied once blue has
-// sat on it, a proof once it has reproduced, a dispute red loses once blue has argued it.
+// sat on it, a computation once it has reproduced, a dispute red loses once blue has argued it.
 func (r *runner) closableNow(id string) bool {
 	switch d := r.scenarioOf(id); {
 	case satisfied(d):
@@ -213,7 +213,7 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 // A REMAND'S ITEM HOLDS EACH SEAT IT READIES UNTIL THAT SEAT ACTS ON THE GAP (gblock, 2026-10-25).
 //
 // answerRemands is the act each owes before its envelope (record.EnvelopeRefusal refuses it while
-// the item blocks): blue a proof answering the gap — an act that moves nothing, so a gap the scenario
+// the item blocks): blue a computation answering the gap — an act that moves nothing, so a gap the scenario
 // leaves unanswered still stalls, goes back to the bench and is closed there — and the minting lens a
 // regrade that keeps the grade. It acts on a gap only where the item blocks this seat's list, so a
 // seat that already acted, or whose dispatch was made before the ruling, is held to nothing here.
@@ -235,7 +235,7 @@ func (r *runner) answerRemands(seatID string) {
 		if role == "blue" {
 			name := "fuzz-remand-" + g.ID + ".js"
 			if err := r.writeScript(name, "console.log('the remand direction for "+g.ID+"');"); err != nil {
-				r.noteActErr("the remand's proof script could not be written: " + err.Error())
+				r.noteActErr("the remand's computation script could not be written: " + err.Error())
 				continue
 			}
 			_, ok = r.admit("compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--script", name, "--answers", g.ID,

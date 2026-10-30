@@ -43,6 +43,9 @@ type Result struct {
 	ReportOrder        string                        // what became of the order of the report's text (order.go)
 	ProseRewrites      []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 
+	computations []migratedComputation // every computation written, and where its artifact is (computations.go)
+	reruns       map[string][]string   // bundle -> the rerun_sha of each reproduce written that names one
+
 	base string // the report's base as the source wrote it
 }
 
@@ -118,6 +121,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 
 	evs, res.Serialized = serializeInstances(evs)
 	rm := newRemap(res.SourceHash)
+	rm.archivedNotes = true
+	if sq, ok := src.(*SQLiteSource); ok {
+		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
+			rm.archivedNotes = false
+		}
+	}
 	// THE CAST IS SYNTHESIZED FIRST (plans/roundless.md §III.A.5): an archived run had no cast
 	// event, and the live write path checks every register and dispatch against one. Its cast is
 	// the seats that registered, translated — a fact the record already holds, restated as the
@@ -204,7 +213,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
-	proofAnchors := map[string][]string{} // proof_sha -> the anchors of the proofs written on it, in order
+	computationAnchors := map[string][]string{}  // bundle_sha -> the anchors of the computations written on it, in order
+	bundleOf := map[string]string{}              // archived script sha -> the bundle_sha its computation was written with
+	standing := map[string]*recordpb.Reproduce{} // bundle_sha -> the latest reproduce written that ran it
+	res.reruns = map[string][]string{}
 	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
 	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
 	for _, old := range evs {
@@ -245,7 +257,16 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
-		if bodies, err = reproduceAnchors(bodies, proofAnchors); err != nil {
+		// AN ARCHIVED REPRODUCE NAMES ITS SCRIPT BY THE SCRIPT'S SHA, and the record names a bundle:
+		// the computation written on that script says which.
+		for _, b := range bodies {
+			if r, ok := b.(*recordpb.Reproduce); ok {
+				if nb, mapped := bundleOf[r.GetBundleSha()]; mapped {
+					r.BundleSha = proto.String(nb)
+				}
+			}
+		}
+		if bodies, err = reproduceAnchors(bodies, computationAnchors); err != nil {
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
@@ -270,7 +291,28 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// replayed (events_w."epoch"), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
+			// A RE-RUN'S DRIFT IS THE PROGRAM'S BYTES, which are not the debate's wording: an anchor
+			// token a program printed is what it printed, so it is kept through the respelling.
+			repro, _ := body.(*recordpb.Reproduce)
+			var drift *string
+			if repro != nil {
+				drift = repro.Drift
+			}
 			rm.apply(body, src.Fields["label"])
+			if repro != nil {
+				repro.Drift = drift
+				// AN ACT THAT RAN NOTHING STANDS ON ITS BUNDLE'S RE-RUN and states that re-run's
+				// comparison, which the archive left to the reader (`not_run`).
+				if !repro.GetRan() && repro.Rerun == nil {
+					st, ok := standing[repro.GetBundleSha()]
+					if !ok {
+						res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word,
+							Err: fmt.Sprintf("this reproduce of %s ran nothing, and no reproduce before it ran its bundle — there is no re-run for it to stand on", repro.GetComputationId())})
+						continue
+					}
+					repro.Rerun, repro.Drift = st.Rerun, st.Drift
+				}
+			}
 			if q, ok := body.(*recordpb.Inquiry); ok {
 				carryInquiryMethod(q, proposalMethod)
 			}
@@ -417,8 +459,25 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if fill != nil {
 				res.StatedFills = append(res.StatedFills, *fill)
 			}
-			if p, ok := body.(*recordpb.Proof); ok && p.GetProofSha() != "" {
-				proofAnchors[p.GetProofSha()] = append(proofAnchors[p.GetProofSha()], p.GetProofId())
+			if p, ok := body.(*recordpb.Computation); ok && p.GetBundleSha() != "" {
+				computationAnchors[p.GetBundleSha()] = append(computationAnchors[p.GetBundleSha()], p.GetComputationId())
+				mc := migratedComputation{id: p.GetComputationId(), bundle: p.GetBundleSha(), argv: p.GetArgv()}
+				if old, archived := archivedSha(src); archived {
+					mc.oldSha = old
+					bundleOf[old] = p.GetBundleSha()
+					if out, inline := src.Fields["output"].(string); inline {
+						mc.output = &out
+					}
+				}
+				res.computations = append(res.computations, mc)
+			}
+			if r, ok := body.(*recordpb.Reproduce); ok {
+				if r.GetRan() {
+					standing[r.GetBundleSha()] = r
+				}
+				if r.GetRerunSha() != "" {
+					res.reruns[r.GetBundleSha()] = append(res.reruns[r.GetBundleSha()], r.GetRerunSha())
+				}
 			}
 			if _, seen := newID[old.ID]; !seen {
 				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
@@ -553,36 +612,47 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Batch, dst re
 
 // reproduceAnchors carries a reproduce written before epoch 28 — keyed by its script's sha, with no
 // anchor — to the anchors it judged (gblock, 2026-10-12: reproduced per sha, sound per anchor).
-// Every proof on that script written before it gets the reproduce's soundness and note: its
-// verdict was the only one any of those sentences had. The re-run is the script's, so the first
-// anchor carries it with its outputs, and each other anchor is judged on that re-run (not_run).
-// A proof on the script written after it gets nothing: it was never judged.
+// Every computation on that bundle written before it gets the reproduce's soundness and note: its
+// verdict was the only one any of those sentences had. The re-run is the bundle's, so the first
+// anchor carries it (`ran`), and each other anchor ran nothing and states that re-run's comparison.
+// A computation on the bundle written after it gets nothing: it was never judged.
 //
-// A reproduce with no proof of its script before it has no sentence to carry its verdict to, and
-// is refused by name. A reproduce that names its anchor passes as written.
-func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) ([]proto.Message, error) {
+// A reproduce with no computation of its bundle before it has no sentence to carry its verdict to,
+// and is refused by name. A reproduce that names its anchor passes as written.
+func reproduceAnchors(bodies []proto.Message, computationAnchors map[string][]string) ([]proto.Message, error) {
 	var out []proto.Message
 	for _, b := range bodies {
 		r, ok := b.(*recordpb.Reproduce)
-		if !ok || r.ProofId != nil {
+		if !ok || r.ComputationId != nil {
 			out = append(out, b)
 			continue
 		}
-		anchors := proofAnchors[r.GetProofSha()]
+		anchors := computationAnchors[r.GetBundleSha()]
 		if len(anchors) == 0 {
-			return nil, fmt.Errorf("this reproduce re-ran script %s, and no proof on that script was written before it — there is no anchor to carry its verdict to", r.GetProofSha())
+			return nil, fmt.Errorf("this reproduce re-ran script %s, and no proof on that script was written before it — there is no anchor to carry its verdict to", r.GetBundleSha())
 		}
 		for i, a := range anchors {
 			c := proto.Clone(r).(*recordpb.Reproduce)
-			c.ProofId = proto.String(a)
-			if i > 0 {
-				c.Rerun = recordpb.Rerun_RERUN_NOT_RUN.Enum()
-				c.RecordedOutput, c.ObservedOutput = nil, nil
-			}
+			c.ComputationId = proto.String(a)
+			c.Ran = proto.Bool(i == 0)
 			out = append(out, c)
 		}
 	}
 	return out, nil
+}
+
+// archivedSha is the script sha an archived proof names, when src is one: a source written before
+// epoch 49 records a proof, whose artifact is under proofs/<sha>/.
+func archivedSha(src OldEvent) (string, bool) {
+	if src.Word != "proof" {
+		return "", false
+	}
+	for _, col := range []string{"proof_sha", "sha256"} {
+		if v, ok := src.Fields[col].(string); ok && v != "" {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 // contradictionRef translates a finding's contradiction reference — a source events.id — to the

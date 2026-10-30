@@ -69,7 +69,7 @@ Flags:
 $ feov-record --seat-id red-lens-evidence --help
 exit 0
 stdout:
-feov-record — red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
+feov-record — red lens seats — findings, source verification and corroboration, computation re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -93,7 +93,7 @@ Available Commands:
   register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
-  reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
+  reproduce   re-run a recorded computation and judge whether it establishes the sentence it is attached to
   verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:

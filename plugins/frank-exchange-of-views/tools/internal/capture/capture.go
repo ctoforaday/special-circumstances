@@ -380,7 +380,7 @@ func ContextUse(transcripts []record.Transcript) Audit {
 // footnotes, which is the design and is why AssemblyScreen screens the url rather than the
 // anchor. The 2026-08-23 runs prove that weave can be LOSSY on one class and sound on another
 // in the same pass: 11 citation anchors became `[^1]`–`[^11]` with a complete bibliography,
-// while 6 proof anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
+// while 6 computation anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
 // headings written as `### [^P1] …` — which markdown reads as a second reference, not a
 // heading. Both reports shipped and rendered literal `[^P1]` at every site: 12 broken
 // references in one, 4 in the other.
@@ -823,7 +823,7 @@ type Claim struct {
 // it (it came back in the call's result) or NAMED it (it is in the call's input), other than the
 // calls that recorded the sitting's closes. The audit searched every call of every transcript, and
 // the close itself carries every anchor it names, so no anchored closure could fail: m30's
-// G-968365ad named two proofs and reconciled on its own `close --anchor`. A close is located in its
+// G-968365ad named two computations and reconciled on its own `close --anchor`. A close is located in its
 // sitting's transcript by its stamp, inside the window from the call to its result; a close no
 // call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
@@ -1990,9 +1990,9 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
-		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
+		// the run's own computations, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
-		ProofRerunAudit(run, proofRerunSample),
+		ComputationRerunAudit(run, computationRerunSample),
 		// Synthesis's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
@@ -2088,7 +2088,7 @@ func copyFile(src, dst string) error {
 // artifact. The record they were derived from — the thing each audit re-reads, and the only thing
 // that can answer a question nobody has thought of yet — was left behind.
 //
-// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and computations/: 49 KB gzipped for a fifteen-seat run, so
 // keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
 // bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
 // already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
@@ -2128,7 +2128,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	add := func(root, prefix string) error {
 		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
-				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+				return nil // a missing computations/ is ordinary; a missing records/ is caught below
 			}
 			rel, rerr := filepath.Rel(root, p)
 			if rerr != nil {
@@ -2148,7 +2148,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		return "", err
 	}
 	shards := len(files)
-	_ = add(filepath.Join(run.Dir(), "proofs"), "proofs/")
+	_ = add(filepath.Join(run.Dir(), "computations"), "computations/")
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ

@@ -9,21 +9,21 @@ import (
 )
 
 // m20Archive is universe-m20: 502 events at the epoch this binary reads. Blue's edit at event 446
-// reopened proof P-9e198e9a, last judged at event 411.
+// reopened computation K-9e198e9a, last judged at event 411.
 const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 
-// THE PROOF'S OWNER IS READIED FOR A REOPENED PROOF, AND ANY LENS'S LATER CHECK CLEARS IT.
+// THE COMPUTATION'S OWNER IS READIED FOR A REOPENED COMPUTATION, AND ANY LENS'S LATER CHECK CLEARS IT.
 //
 // In m20 two lenses opened sittings after the edit (the dark-side lens at event 461, the evidence
-// lens at 462). The dark-side lens judged the proof at event 464 and the evidence lens at 468.
+// lens at 462). The dark-side lens judged the computation at event 464 and the evidence lens at 468.
 // Every surface said the PASS waited "until red-lens-evidence re-runs it" while the fold had
 // cleared the anchor three events earlier, on another seat's check. The fold is the rule: a check
 // is a reading from a sitting opened after the edit, whichever lens makes it. What the surfaces
-// state is who owes it and is readied, and what clears it — both, in the same sentence. The proof is
+// state is who owes it and is readied, and what clears it — both, in the same sentence. The computation is
 // the computation lens's (anchorOwnerOf), and neither lens that sat owes it.
 //
 // The event ids are this archive's rows, read by SQL outside the fold (blue_edit_reopened, and
-// reproduce joined to events on the proof's anchor).
+// reproduce joined to events on the computation's anchor).
 func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	whole := archivedEvents(t, m20Archive)
 	if len(whole) != 502 || whole[445].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
@@ -32,9 +32,9 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 		t.Fatalf("the archive is not the m20 this test reads: %d events, 446 a %s, 464 %s's %s, 468 %s's %s", len(whole),
 			whole[445].GetType(), whole[463].GetSeatId(), whole[463].GetType(), whole[467].GetSeatId(), whole[467].GetType())
 	}
-	const fact = "P-9e198e9a's sentence changed at edit 446 and no sitting opened since has checked it (its last check is event 411)"
+	const fact = "K-9e198e9a's sentence changed at edit 446 and no sitting opened since has checked it (its last check is event 411)"
 
-	// After both lenses opened their sittings, before either re-ran the proof.
+	// After both lenses opened their sittings, before either re-ran the computation.
 	run := archiveAt(t, m20Archive, whole, 463)
 	var owners []string
 	for _, b := range mustBlockers(t, run) {
@@ -42,9 +42,9 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 			owners = append(owners, b.Subject+" "+b.Owner)
 		}
 	}
-	// P-337c380d is a proof nobody has judged yet, and is unchecked as well (gblock, 2026-10-25).
-	if !slices.Equal(owners, []string{"P-9e198e9a " + computationSeat, "P-337c380d " + computationSeat}) {
-		t.Fatalf("before any re-run the unchecked blockers are %q, want P-9e198e9a and P-337c380d owned by %s", owners, computationSeat)
+	// K-337c380d is a computation nobody has judged yet, and is unchecked as well (gblock, 2026-10-25).
+	if !slices.Equal(owners, []string{"K-9e198e9a " + computationSeat, "K-337c380d " + computationSeat}) {
+		t.Fatalf("before any re-run the unchecked blockers are %q, want K-9e198e9a and K-337c380d owned by %s", owners, computationSeat)
 	}
 	// The plan readies the owner, and the chair's item says, in the words a seat reads, who owes the
 	// check and that the owner is not the only seat whose check clears.
@@ -53,7 +53,7 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, ready := partyOf(plan, computationSeat); !ready {
-		t.Errorf("the plan readies %+v, want %s for the proof it owns", plan.Parties, computationSeat)
+		t.Errorf("the plan readies %+v, want %s for the computation it owns", plan.Parties, computationSeat)
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
 	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its script establishes THIS sentence",
@@ -64,7 +64,7 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	}
 	// Neither lens open since the edit owes it, so neither's work list blocks on it.
 	for _, seat := range []string{evLens, "red-lens-dark-side"} {
-		if other := strings.Join(blockingItems(sittingOfRunT(t, run, "lens", seat)), "\n"); strings.Contains(other, "P-9e198e9a") {
+		if other := strings.Join(blockingItems(sittingOfRunT(t, run, "lens", seat)), "\n"); strings.Contains(other, "K-9e198e9a") {
 			t.Errorf("%s's work list blocks on an anchor it does not owe:\n%s", seat, other)
 		}
 	}
@@ -72,7 +72,7 @@ func TestM20AnotherLensClearsWhatTheOwnerIsReadiedFor(t *testing.T) {
 	// The dark-side lens's judgement, event 464: the anchor is checked, four events before the
 	// evidence lens's own.
 	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 464)) {
-		if b.Kind == BlockerUnchecked && b.Subject == "P-9e198e9a" {
+		if b.Kind == BlockerUnchecked && b.Subject == "K-9e198e9a" {
 			t.Errorf("%s still holds the PASS after the dark-side lens re-ran it from a sitting opened after the edit", b.Subject)
 		}
 	}

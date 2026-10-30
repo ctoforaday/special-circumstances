@@ -258,19 +258,19 @@ test('CEILING: the run at its epoch limit — the stamp says so and names no dea
   assert.ok(!/deadlock/i.test(asm) || /not a judged/i.test(asm), 'deadlock is per gap and on the record, not a run-level stamp')
 })
 
-// A CEILING over an unchecked citation or proof, or one on a failed check, names it in the reason the
+// A CEILING over an unchecked citation or computation, or one on a failed check, names it in the reason the
 // run ends on, and names no other blocker; with none standing, each reason is the sentence it is
 // without the rule. The record's derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
-test('CEILING: the reason names each unchecked citation or proof and each on a failed check, and only those', async () => {
+test('CEILING: the reason names each unchecked citation or computation and each on a failed check, and only those', async () => {
   const ended = async (chair) => {
     const world = makeWorld(makeResponder({ chair }))
     await world.run(script, ARGS)
     return world.logs.find((m) => m.startsWith('debate ended: CEILING')).replace(/^.*? chair sitting\(s\) — /, '')
   }
-  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('P-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
+  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'unchecked'), blocker('K-cd9f4c5a', 'red-lens-evidence', 'unchecked'), blocker('C-0b0e0d0a', 'red-lens-evidence', 'failed_check'), blocker('C-0b0e0d0a', 'blue-respond', 'failed_check')] }
   const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
   const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
-  const clause = '; unchecked: C-706fda63, P-cd9f4c5a; on a failed check: C-0b0e0d0a'
+  const clause = '; unchecked: C-706fda63, K-cd9f4c5a; on a failed check: C-0b0e0d0a'
   assert.equal(await ended(toTheLimit(limitPlan(none))), term)
   assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
 })
@@ -518,7 +518,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // sections as they ship before it grades one.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
-    assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
+    assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a computation contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
       `${seat} is not told that an inquiry contradicting the report is a gap`)
     assert.ok(/read them in the report's assembled form before you grade an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
     assert.ok(/A contradiction left as a finding ships: a finding about an inquiry is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an inquiry contradiction as a finding`)

@@ -104,8 +104,8 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 		t.Errorf("a sibling link survived as a file path — it opens nothing in a single-file site:\n%s", html)
 	}
 	files := map[string]bool{FileEvidence: true}
-	got := renderOne("[P](evidence.md#P-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files).html
-	if !strings.Contains(got, `<a class="idref" data-doc="evidence.md" href="#P-00000001"`) {
+	got := renderOne("[P](evidence.md#K-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files).html
+	if !strings.Contains(got, `<a class="idref" data-doc="evidence.md" href="#K-00000001"`) {
 		t.Errorf("a fragment link into a sibling document was not rewritten: %s", got)
 	}
 	if !strings.Contains(got, `<a href="https://example.invalid/x">`) {
@@ -117,8 +117,8 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 // read as a reference to somewhere else.
 func TestFootnoteLabelsAreNotIdLinked(t *testing.T) {
 	anchor := anchors{}
-	ev := renderOne("### P1 — the computation\n", FileEvidence, anchor, map[string]int{}, nil)
-	rep := renderOne("A claim[^P1].\n\n[^P1]: the computation.\n", FileReport, anchor, map[string]int{}, nil)
+	ev := renderOne("### K1 — the computation\n", FileEvidence, anchor, map[string]int{}, nil)
+	rep := renderOne("A claim[^K1].\n\n[^K1]: the computation.\n", FileReport, anchor, map[string]int{}, nil)
 	got := linkIDs(rep, anchor, FileReport)
 	if strings.Contains(got, `<span class="fnlabel" data-nolink=""><a`) {
 		t.Errorf("the footnote label was turned into a link to somewhere else:\n%s", got)
@@ -132,8 +132,8 @@ func TestFootnoteLabelsAreNotIdLinked(t *testing.T) {
 // Each tab's notes link among themselves, and the label a reader sees is the one written.
 func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 	docs := []Doc{
-		{File: FileReport, Nav: "Report", Body: "## Fn 1\n\nA claim[^1], again[^1], a proof[^P1] and an aside[^scope].\n\n[^1]: The first source.\n[^P1]: The computation.\n[^scope]: Of the naturals.\n"},
-		{File: FileDebate, Nav: "Debate", Body: "A position[^1] on the proof[^P1].\n\n[^1]: Another source.\n[^P1]: The computation.\n"},
+		{File: FileReport, Nav: "Report", Body: "## Fn 1\n\nA claim[^1], again[^1], a computation[^K1] and an aside[^scope].\n\n[^1]: The first source.\n[^K1]: The computation.\n[^scope]: Of the naturals.\n"},
+		{File: FileDebate, Nav: "Debate", Body: "A position[^1] on the computation[^K1].\n\n[^1]: Another source.\n[^K1]: The computation.\n"},
 		{File: FileRun, Nav: "Run", Body: "A third[^1].\n\n[^1]: A third source.\n"},
 	}
 	html := RenderSite(stdReaders().shipSet("# T", docs), record.Family{})
@@ -157,9 +157,9 @@ func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 		}
 	}
 	for doc, wants := range map[string][]string{
-		FileReport: {`<h2 id="fn-1">`, `id="fnref-1-2" href="#fn-1-2"`, `<li id="fn-1-2">The first source.`, `href="#fnref-1-2"`, `<li id="fn-P1">`, `<li id="fn-scope">`,
+		FileReport: {`<h2 id="fn-1">`, `id="fnref-1-2" href="#fn-1-2"`, `<li id="fn-1-2">The first source.`, `href="#fnref-1-2"`, `<li id="fn-K1">`, `<li id="fn-scope">`,
 			`<a class="cite" href="#fn-1-2" title="1 — The first source.">[1]</a>`, `<span class="fnlabel" data-nolink="">1</span>`},
-		FileDebate: {`id="fnref-1-3" href="#fn-1-3"`, `<li id="fn-1-3">Another source.`, `href="#fnref-1-3"`, `id="fnref-P1-2" href="#fn-P1-2" title="P1 — The computation."`, `<li id="fn-P1-2">`, `<span class="fnlabel" data-nolink="">P1</span>`},
+		FileDebate: {`id="fnref-1-3" href="#fn-1-3"`, `<li id="fn-1-3">Another source.`, `href="#fnref-1-3"`, `id="fnref-K1-2" href="#fn-K1-2" title="K1 — The computation."`, `<li id="fn-K1-2">`, `<span class="fnlabel" data-nolink="">K1</span>`},
 		FileRun:    {`id="fnref-1-4" href="#fn-1-4"`, `<li id="fn-1-4">A third source.`},
 	} {
 		for _, a := range arts {

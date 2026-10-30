@@ -80,9 +80,31 @@ var notFields = map[string]string{
 	"distinguisher": "a coined class's distinguisher; each GapClass value's (distinguisher) option carries it",
 
 	// NEVER A PAYLOAD KEY.
-	"script": "a FILENAME in the proof cache (proof.go:191,225), not a recorded field — the proof's script lives on disk and the record carries its sha256",
-	"exit":   "a field of proof.Result (proof.go:64), the in-process execution struct — never written to a shard",
-	"output": "a field of proof.Result (proof.go:63); the record carries recorded_output/observed_output on Reproduce instead",
+	"script": "a FILENAME in the store, not a recorded field — a computation's program lives on disk under computations/<bundle_sha>/dir/, and the record carries its bundle_sha and argv",
+	"exit":   "a field of the in-process execution result — never written to a shard; Computation.exit is the record's",
+	"output": "a field of the in-process execution result; an act's output is in the store, " + actOutputPath + ", and the record carries none",
+
+	// A PROOF IS A COMPUTATION (epoch 49). Each key is migrate's to translate, onto the field named.
+	"proof_id":        "Computation.computation_id and Reproduce.computation_id — the anchor id, `K-` and the same hex",
+	"proof_key":       "Computation.key",
+	"proof_sha":       "Computation.bundle_sha and Reproduce.bundle_sha — the bundle's identity over its argv and files, which migrate computes from the archived script",
+	"proof_basis":     "Computation.basis, the Basis enum: reproducible stays reproducible, observed and not_portable are variant with their drift as the invariant",
+	"recorded_output": "the act's own output, in the store at " + actOutputPath + " — a reproduce carries no copy of it",
+	"observed_output": "Reproduce.drift: a re-run that differed carries what it wrote there",
+}
+
+// actOutputPath is where the store holds one act's output.
+const actOutputPath = "computations/<bundle_sha>/acts/<K-id>/output"
+
+// AN ACT'S OUTPUT IS IN THE STORE, and the census entry for `output` says where: the record held a
+// copy of it on Reproduce once, and a reason that still said so would excuse the key with a fact
+// that is no longer true.
+func TestTheOutputKeySaysTheStoreHoldsTheActsOutput(t *testing.T) {
+	for _, k := range []string{"output", "recorded_output"} {
+		if !strings.Contains(notFields[k], actOutputPath) {
+			t.Errorf("notFields[%q] = %q, want it to name %s", k, notFields[k], actOutputPath)
+		}
+	}
 }
 
 func TestEveryPreMigrationKeyIsAccountedFor(t *testing.T) {

@@ -29,8 +29,8 @@ import (
 // module. Importing across that boundary is a bigger decision than this fix; the shape is
 // duplicated here deliberately and narrowly, and this comment is the record of why.
 //
-// AND PROOFS ARE NOT DECLARED not-applicable IN A CLOUD SESSION, which is the tempting move
-// and the wrong one: `blue compute` anchors a claim to a computation, so excusing proofs where
+// AND COMPUTATIONS ARE NOT DECLARED not-applicable IN A CLOUD SESSION, which is the tempting move
+// and the wrong one: `blue compute` anchors a claim to a computation, so excusing computations where
 // the interpreter is missing would silently thin every such run's evidence base while every
 // gate stayed green. That is the defect one level up. They stay required, and an absent
 // interpreter is LOUD.
@@ -49,7 +49,7 @@ var argvFor = map[string][]string{"go": {"run"}}
 // python.org installer ships, and it is the reliable way to reach 3.x there.
 var windowsExtra = map[string][]string{".py": {"py"}}
 
-// resolver caches PATH lookups for the life of the process. A run executes every proof script
+// resolver caches PATH lookups for the life of the process. A run executes every computation script
 // twice by design, and a debate can carry dozens, so re-probing PATH per invocation would turn
 // one answer into hundreds of identical syscalls.
 type resolver struct {
@@ -108,7 +108,7 @@ func candidatesFor(ext string) []string {
 //
 // BY EXTENSION, deliberately: a shebang does not work on Windows and this suite runs there.
 // An unknown extension is REFUSED rather than guessed, because running a file under the wrong
-// interpreter produces a confident error that reads exactly like a failed proof — and the same
+// interpreter produces a confident error that reads exactly like a failed computation — and the same
 // sentence is why an UNRESOLVABLE one is refused here rather than attempted.
 func interpreterFor(path string) ([]string, error) {
 	return defaultResolver.interpreterFor(path)
@@ -118,7 +118,7 @@ func (r *resolver) interpreterFor(path string) ([]string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	tried := candidatesFor(ext)
 	if len(tried) == 0 {
-		return nil, fmt.Errorf("%s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
+		return nil, fmt.Errorf("%s has no known interpreter — a computation script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
 	}
 	for _, name := range tried {
 		if p := r.resolve(name); p != "" {
@@ -131,17 +131,17 @@ func (r *resolver) interpreterFor(path string) ([]string, error) {
 			return argv, nil
 		}
 	}
-	// THE MISS IS LOUD, AND IT SAYS WHAT WOULD WORK. A proof that cannot RUN must never
-	// produce something a reader takes for a proof that FAILED, and a seat told only "no" will
+	// THE MISS IS LOUD, AND IT SAYS WHAT WOULD WORK. A computation that cannot RUN must never
+	// produce something a reader takes for a computation that FAILED, and a seat told only "no" will
 	// rewrite the same script in the same language. The environment is often not the seat's to
 	// change — it is a fresh container — but the EXTENSION is, so the way out is named here.
 	msg := fmt.Sprintf("cannot run %s — no interpreter for %s in this environment (tried %s)",
 		filepath.Base(path), ext, strings.Join(tried, ", "))
 	if avail := r.available(); len(avail) > 0 {
-		msg += fmt.Sprintf(". This environment DOES have %s — write the proof in a language one of those runs, and it will execute here",
+		msg += fmt.Sprintf(". This environment DOES have %s — write the computation in a language one of those runs, and it will execute here",
 			strings.Join(avail, ", "))
 	} else {
-		msg += ". This environment has NONE of the supported interpreters, so no proof can run in it at all — record that in the log as a request rather than dropping the proof silently"
+		msg += ". This environment has NONE of the supported interpreters, so no computation can run in it at all — record that in the log as a request rather than dropping the computation silently"
 	}
 	return nil, fmt.Errorf("%s", msg)
 }

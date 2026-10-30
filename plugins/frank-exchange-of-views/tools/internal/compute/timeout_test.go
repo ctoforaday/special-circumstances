@@ -35,7 +35,7 @@ func TestATimeoutSeparatesLaunchFromWait(t *testing.T) {
 }
 
 // A SCRIPT THAT EXITS WHILE A CHILD STILL HOLDS ITS OUTPUT IS NAMED, not waited on: the output the
-// tool records is the output at exit, and a child writing after it is not part of the proof.
+// tool records is the output at exit, and a child writing after it is not part of the computation.
 func TestAChildHoldingTheOutputIsNamed(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "forks.sh")

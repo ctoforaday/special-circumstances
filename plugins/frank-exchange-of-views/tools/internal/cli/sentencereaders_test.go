@@ -62,7 +62,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 			"--script", s, "--reason", "the computation settles it"); err != nil {
 			t.Fatalf("compute %q: %v", sentence, err)
 		}
-		return lastBody(t, runDir, &recordpb.Proof{}).GetProofId()
+		return lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
 	}
 	c3 := compute("Gone soon")
 	c4 := compute("Gone item")

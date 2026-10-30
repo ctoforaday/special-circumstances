@@ -13,8 +13,8 @@ import (
 
 // ONLY THE WEAVE OPENS A FOOTNOTE IN WHAT ASSEMBLY COMPOSES.
 //
-// A footnote reference is two characters and a label — `[^P5]` — and a seat types those in prose
-// for its own reasons: a finding that names the report's footnote ("the one footnote [^P5] cites"),
+// A footnote reference is two characters and a label — `[^K5]` — and a seat types those in prose
+// for its own reasons: a finding that names the report's footnote ("the one footnote [^K5] cites"),
 // a log entry that quotes a regex (`grep -o '[^<>]{0,120}'`). Assembly printed that text as the
 // seat wrote it, into documents whose footnotes are the tool's, and markdown has one reading of
 // `[^x]`: in the board document the finding's words became a reference to a note the document does
@@ -23,7 +23,7 @@ import (
 //
 // So text assembly composes is escaped where it is composed (Section.block, and the three places
 // outside the table that print a seat's words: the inquiries document, the evidence document, and
-// the notes and Bibliography entries the weave writes) — `\[^P5]`, which every markdown reader prints as the five
+// the notes and Bibliography entries the weave writes) — `\[^K5]`, which every markdown reader prints as the five
 // characters the seat typed — and the weave, which runs after, is then the one writer of an
 // unescaped `[^` in a tool-composed block. The report's own text is not escaped: a footnote under
 // a label that is not the weave's is the report's to write (WovenNoteIn refuses the others at the
@@ -61,7 +61,7 @@ func (rd readers) escapeNotesRead(md string, code [][2]int, read bool) string {
 }
 
 // escapeNotesInLine is escapeNotes for a fragment assembly writes on a line after the line's own
-// label — a citation's title, after `[^N]: ` or `- `, and a proof's reason — each value in it made
+// label — a citation's title, after `[^N]: ` or `- `, and a computation's reason — each value in it made
 // one line. In place the fragment is inline text of that line, so the only code in it is a code span
 // it holds whole, and each tier reads it as one line of a paragraph (lineReader, codeLineReader), never
 // as a document of its own: read alone, "```[^1] spec" opens a fence whose info string holds the

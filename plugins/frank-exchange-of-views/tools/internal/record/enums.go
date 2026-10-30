@@ -303,7 +303,7 @@ var EnumFields = map[string][]EnumField{
 	},
 	"reproduce": {{
 		Key: "soundness", Flag: flags.As, Values: evsOf(recordpb.Soundness(0).Descriptor()),
-		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
+		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a computation that looks maximally credible and establishes nothing",
 	}},
 	// The values are the schema's spelling, underscores included: it was `supports-with-bridge`
 	// here once, the only hyphenated value in any set, offered by --help and refused by the write

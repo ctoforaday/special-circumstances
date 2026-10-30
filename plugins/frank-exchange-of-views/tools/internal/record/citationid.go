@@ -265,17 +265,18 @@ func ExistingCiteByKey(run Run, seatID, key string) (*recordpb.Cite, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// ExistingProofByKey gives `blue compute` crash-retry idempotency: the proof this seat recorded under
-// key, or nil. A seat whose message died after the event landed re-runs the same key and is held to
-// the proof it repeats rather than executing the script a second time and splicing a second anchor.
-func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
+// ExistingComputationByKey gives `blue compute` crash-retry idempotency: the computation this seat
+// recorded under key, or nil. A seat whose message died after the event landed re-runs the same key
+// and is held to the computation it repeats rather than executing the bundle a second time and
+// splicing a second anchor.
+func ExistingComputationByKey(run Run, seatID, key string) (*recordpb.Computation, error) {
 	if key == "" {
 		return nil, nil
 	}
 	var id sql.NullString
 	if _, err := queryRow(run, []any{&id},
-		`SELECT p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
-		  WHERE e."seat_id" = ? AND p."proof_key" = ? ORDER BY p."event_id" LIMIT 1`,
+		`SELECT p."computation_id" FROM "computation" p JOIN "events" e ON e."id" = p."event_id"
+		  WHERE e."seat_id" = ? AND p."key" = ? ORDER BY p."event_id" LIMIT 1`,
 		seatID, key); err != nil || id.String == "" {
 		return nil, err
 	}
@@ -284,120 +285,118 @@ func ExistingProofByKey(run Run, seatID, key string) (*recordpb.Proof, error) {
 		return nil, err
 	}
 	for _, e := range m.Events {
-		if p := e.GetProof(); p != nil && p.GetProofId() == id.String {
+		if p := e.GetComputation(); p != nil && p.GetComputationId() == id.String {
 			return p, nil
 		}
 	}
 	return nil, nil
 }
 
-// Proof is one recorded computation, drawn from a blue `compute` event — the composer input
-// for the assembled report's Proofs section and the handle red re-runs.
-type Proof struct {
-	Label  string // the proof anchor id
-	SHA    string
-	Basis  string
-	Script string
+// Computation is one recorded computation, drawn from a blue `compute` event — the composer input
+// for the assembled report's Computations section and the handle red re-runs.
+type Computation struct {
+	Label  string // the computation anchor id
+	SHA    string // the bundle's
+	Basis  string // the Basis word
+	Argv   []string
 	Exit   int
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
 
-	// Drift is WHAT MOVED between the two runs — the sentence, not a bool. It lived in the proof
-	// cache's meta.json while the report rendered it, so the record was the one party to the
-	// exchange that could not say what happened. That file is gone and this is a field.
-	Drift string
+	// Drift is WHAT MOVED between the two runs, and Invariant what the seat stated holds across them;
+	// both are present exactly when the basis is variant.
+	Drift, Invariant string
 
-	// Rerun is the SCRIPT's standing re-run (#343): the latest `reproduce` of this sha that ran it,
-	// shared by every proof on the script. Nil when nobody re-ran it — and that absence is itself
-	// information the reader needs, so the report says so rather than omitting it.
-	Rerun *ProofRerun
+	// Rerun is the BUNDLE's standing re-run (#343): the latest `reproduce` of this sha that ran it,
+	// shared by every computation on the bundle. Nil when nobody re-ran it — and that absence is
+	// itself information the reader needs, so the report says so rather than omitting it.
+	Rerun *ComputationRerun
 	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — and Judgements
-	// are the standing verdicts it is read from, one per seat (proofverdict.go).
+	// are the standing verdicts it is read from, one per seat (computationverdict.go).
 	Soundness  string
-	Judgements []ProofJudgement
+	Judgements []ComputationJudgement
 }
 
-// ProofRerun is one `reproduce` that RAN a proof's script. The result is COMPUTED by the tool, not
-// claimed by the seat — which is the whole reason re-running beats re-reading.
-type ProofRerun struct {
+// ComputationRerun is one `reproduce` that RAN a computation's bundle. The result is COMPUTED by the
+// tool, not claimed by the seat — which is the whole reason re-running beats re-reading.
+type ComputationRerun struct {
 	SeatID  string
 	Epoch   int
 	Sitting int
 	Rerun   recordpb.Rerun
-	// Recorded and Observed are the two outputs, kept only where the re-run differed.
-	Recorded, Observed string
+	// Drift is what the re-run wrote that differs from the recorded result, present where it differed.
+	Drift string
 }
 
-// ProofJudgement is one standing soundness verdict on a proof's anchor: red's JUDGEMENT, made by
-// reading the script, of whether it establishes that sentence.
-type ProofJudgement struct {
+// ComputationJudgement is one standing soundness verdict on a computation's anchor: red's JUDGEMENT,
+// made by reading the program, of whether it establishes that sentence.
+type ComputationJudgement struct {
 	SeatID string
 	Epoch  int
 	Sound  bool
 	Note   string
 }
 
-// RecordedProofs returns every proof on the record, in event order, each with its script's re-run
-// and its own sentence's verdict.
+// RecordedComputations returns every computation on the record, in event order, each with its
+// bundle's re-run and its own sentence's verdict.
 //
-// The OUTPUT and the SCRIPT BODY are deliberately not here: they live on disk under
-// <run>/proofs/<sha256>/ and can be large. The assembler reads them from the artifact so the
+// The OUTPUT and the BUNDLE are deliberately not here: they live on disk under
+// <run>/computations/<bundle_sha>/ and can be large. The assembler reads them from the store so the
 // report shows the exact bytes that ran, rather than a copy the record made of them.
-func RecordedProofs(run Run) ([]Proof, error) {
+func RecordedComputations(run Run) ([]Computation, error) {
 	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
 	ledger := anchorChecksOf(m.Events, m.At)
-	reruns := scriptRerunsOf(m.Events)
-	var out []Proof
+	reruns := bundleRerunsOf(m.Events)
+	var out []Computation
 	for _, e := range m.Events {
-		pf, isProof := recordpb.BodyAs[*recordpb.Proof](e)
-		if !isProof {
+		pf, isComputation := recordpb.BodyAs[*recordpb.Computation](e)
+		if !isComputation {
 			continue
 		}
-		v := proofVerdictOf(ledger.at(pf.GetProofId()), reruns)
-		p := Proof{
-			Label: pf.GetProofId(),
-			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
-			SHA:    pf.GetProofSha(),
-			Basis:  pf.GetProofBasis(),
-			Script: pf.GetScript(),
-			Exit:   int(pf.GetExit()),
-			Cites:  pf.GetCites(),
-			// --reason lands on Proof.text, the message's only prose channel — the same
+		v := computationVerdictOf(ledger.at(pf.GetComputationId()), reruns)
+		p := Computation{
+			Label: pf.GetComputationId(),
+			SHA:   pf.GetBundleSha(),
+			Basis: recordpb.Word(pf.GetBasis()),
+			Argv:  pf.GetArgv(),
+			Exit:  int(pf.GetExit()),
+			Cites: pf.GetCites(),
+			// --reason lands on Computation.text, the message's only prose channel — the same
 			// flag/field split recordpb/required.go records for Verify.text.
 			Reason:    pf.GetText(),
 			Drift:     pf.GetDrift(),
+			Invariant: pf.GetInvariant(),
 			Soundness: v.soundness,
 		}
 		if r := v.rerun; r != nil {
 			w := m.At.Of(r.ev)
-			p.Rerun = &ProofRerun{SeatID: r.ev.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.rerun,
-				Recorded: r.recorded, Observed: r.observed}
+			p.Rerun = &ComputationRerun{SeatID: r.ev.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.rerun, Drift: r.drift}
 		}
 		for _, c := range v.judgements {
 			r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
-			p.Judgements = append(p.Judgements, ProofJudgement{SeatID: c.seat, Epoch: m.At.Of(c.ev).Epoch, Sound: c.holds, Note: r.GetNote()})
+			p.Judgements = append(p.Judgements, ComputationJudgement{SeatID: c.seat, Epoch: m.At.Of(c.ev).Epoch, Sound: c.holds, Note: r.GetNote()})
 		}
 		out = append(out, p)
 	}
 	return out, nil
 }
 
-// ProofAt is the recorded proof at one anchor, with its script's re-run and its sentence's verdict —
-// what `reproduce --anchor` acts on. An anchor no proof carries is refused by name.
-func ProofAt(run Run, anchorID string) (Proof, error) {
-	proofs, err := RecordedProofs(run)
+// ComputationAt is the recorded computation at one anchor, with its bundle's re-run and its sentence's
+// verdict — what `reproduce --anchor` acts on. An anchor no computation carries is refused by name.
+func ComputationAt(run Run, anchorID string) (Computation, error) {
+	computations, err := RecordedComputations(run)
 	if err != nil {
-		return Proof{}, err
+		return Computation{}, err
 	}
-	for _, p := range proofs {
+	for _, p := range computations {
 		if p.Label == anchorID {
 			return p, nil
 		}
 	}
-	return Proof{}, fmt.Errorf("--anchor names %s, which no proof on this record carries (%d proof(s)) — it takes the id inside a proof's token in the report; `show evidence` lists every proof by its anchor", anchorID, len(proofs))
+	return Computation{}, fmt.Errorf("--anchor names %s, which no computation on this record carries (%d computation(s)) — it takes the id inside a computation's token in the report; `show evidence` lists every computation by its anchor", anchorID, len(computations))
 }
 
 // ExistingCorroboration returns the labelled corroboration this seat already recorded for the same

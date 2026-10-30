@@ -10,7 +10,7 @@ import (
 // A RUN CARRIED TO THE END OF A LONGER REPLACEMENT IS REFUSED WITH WHAT EACH ANCHOR MARKS, through
 // the verbs: one sentence holding an anchor of every kind is split in two with the whole run typed
 // after the second. The refusal prints, beside each token, the text the record holds about it — the
-// finding's argument, the citation's title and argument, the proof's argument, the gap's problem —
+// finding's argument, the citation's title and argument, the computation's argument, the gap's problem —
 // and the replacement's sentences, numbered; it never prints the sentence the run stood on, which
 // is every anchor's stored location and tells them apart by nothing. Nothing reaches the record,
 // and the same split with the anchors written on the sentences they belong to applies.

@@ -253,8 +253,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return fmt.Errorf("the board carries closings on %s and no docket motion of its own puts it before the bench — a closing argues a docketing", ref)
 	}
 
-	for i, pr := range b.Proofs {
-		script := filepath.Join(run.Dir(), fmt.Sprintf("probe-proof-%d.py", i+1))
+	for i, pr := range b.Computations {
+		script := filepath.Join(run.Dir(), fmt.Sprintf("probe-computation-%d.py", i+1))
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}

@@ -72,16 +72,16 @@ const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
 // Absent from every --help surface, like the other two: a seat never types it.
 const VarHookVersion = "FEOV_HOOK_VERSION"
 
-// VarComputeRerun names a file, and its presence says the process is a proof's script running under
-// a re-run or under `compute`'s check from the proof store. feov-record refuses EVERY call made while
+// VarComputeRerun names a file, and its presence says the process is a computation's script running under
+// a re-run or under `compute`'s check from the computation store. feov-record refuses EVERY call made while
 // it is set and appends that call to the file, so the run that set it learns the script called the
 // tool whatever the script did with the refusal.
 //
-// WHY THE TOOL REFUSES RATHER THAN THE RE-RUN PARSING OUTPUT. On a smoke run a blue proof's script
+// WHY THE TOOL REFUSES RATHER THAN THE RE-RUN PARSING OUTPUT. On a smoke run a blue computation's script
 // called the tool as blue; in a lens's re-run that call was refused, the script piped the refusal
-// through `jq` into a 0, the output matched, and the proof was recorded as reproducing byte for
+// through `jq` into a 0, the output matched, and the computation was recorded as reproducing byte for
 // byte while its check never ran. Nothing in the output can tell a 0 the computation printed from
-// one a refusal became. A file the tool writes can: a proof is a computation a checker can run,
+// one a refusal became. A file the tool writes can: a computation is a computation a checker can run,
 // and one that reads the debate's record is not.
 //
 // Absent from every --help surface: a seat never types it.

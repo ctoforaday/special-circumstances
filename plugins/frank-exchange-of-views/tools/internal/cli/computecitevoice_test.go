@@ -9,11 +9,11 @@ import (
 
 // THE BIBLIOGRAPHY PRINTS SEAT TEXT, SO COMPUTE AND CITE MEET THE VOICE ADVISORY.
 //
-// A proof's --reason prints word for word as a [^PN] footnote, and a cite's --title prints the same
+// A computation's --reason prints word for word as a [^KN] footnote, and a cite's --title prints the same
 // way as its entry, so both meet the voice advisory. These drive the real verbs, because a guard
 // that exists and is never called survives any test of the helper.
 
-const voicedProofNote = "Recomputed trial division from scratch this sitting rather than trusting the lane draft"
+const voicedComputationNote = "Recomputed trial division from scratch this sitting rather than trusting the lane draft"
 
 func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	runDir := newRun(t)
@@ -21,19 +21,19 @@ func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
 	args := []string{"compute", "--run", runDir, "--seat-id", seat, "--key", "P1",
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
-		"--script", s, "--reason", voicedProofNote}
+		"--script", s, "--reason", voicedComputationNote}
 
 	out, err := run(t, args...)
 	if err != nil {
-		t.Fatalf("the advisory refused a proof — it must refuse nothing: %v\n%s", err, out)
+		t.Fatalf("the advisory refused a computation — it must refuse nothing: %v\n%s", err, out)
 	}
-	for _, want := range []string{"proof P-", "process-voice", "not a refusal", "footnote", "re-voiced"} {
+	for _, want := range []string{"computation K-", "process-voice", "not a refusal", "footnote", "re-voiced"} {
 		if !strings.Contains(out, want) {
-			t.Errorf("the proof's result does not carry %q:\n%s", want, out)
+			t.Errorf("the computation's result does not carry %q:\n%s", want, out)
 		}
 	}
 	// ADVICE, NOT A REWRITE: the record keeps exactly what the seat wrote.
-	if got := lastBody(t, runDir, &recordpb.Proof{}).GetText(); got != voicedProofNote {
+	if got := lastBody(t, runDir, &recordpb.Computation{}).GetText(); got != voicedComputationNote {
 		t.Errorf("the advisory altered the recorded note: got %q", got)
 	}
 	// A crash-retry hears the same note, not a fast path that drops it.
@@ -46,7 +46,7 @@ func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	}
 }
 
-func TestACleanProofNoteCarriesNoNote(t *testing.T) {
+func TestACleanComputationNoteCarriesNoNote(t *testing.T) {
 	runDir := newRun(t)
 	seat := computeSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
 	s := script(t, runDir, "nine.js", "console.log('divisors: 3');")
@@ -57,7 +57,7 @@ func TestACleanProofNoteCarriesNoNote(t *testing.T) {
 		t.Fatalf("compute: %v\n%s", err, out)
 	}
 	if strings.Contains(out, "NOTE") {
-		t.Errorf("a clean proof note carries an advisory:\n%s", out)
+		t.Errorf("a clean computation note carries an advisory:\n%s", out)
 	}
 }
 

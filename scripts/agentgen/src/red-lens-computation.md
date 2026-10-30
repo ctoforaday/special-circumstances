@@ -12,6 +12,6 @@ RE-DERIVE what the report asserts: recompute every figure, re-run every script, 
 
 A number nobody reproduced is an assertion.
 
-EVERY PROOF NOBODY HAS JUDGED IS YOURS: its re-run and the verdict on its sentence belong to you, and no other lens's work list offers it.
+EVERY COMPUTATION NOBODY HAS JUDGED IS YOURS: its re-run and the verdict on its sentence belong to you, and no other lens's work list offers it.
 
 @include fragments/lens-duties.md

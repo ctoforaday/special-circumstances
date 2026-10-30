@@ -145,7 +145,7 @@ const (
 	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
-	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
+	rowReproduce   = "a new judgement of the same computation anchor — a seat's latest judgement of a sentence is its verdict on it"
 	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
 )
 
@@ -429,8 +429,8 @@ func answerDrives() []answerDrive {
 		{name: "reproduce", row: rowReproduce, helps: []string{"lens reproduce"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
 			d.admitted("compute", "blue-respond", "compute", "--quote", quoteThree, "--script", s, "--reason", "the computation")
-			proofAnchor := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofId()
-			twice(lensSeat, "reproduce", "--anchor", proofAnchor, "--as", "sound")(d)
+			computationAnchor := lastBody(d.t, d.run, &recordpb.Computation{}).GetComputationId()
+			twice(lensSeat, "reproduce", "--anchor", computationAnchor, "--as", "sound")(d)
 		}},
 		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
 		{name: "log", row: "a new log entry", helps: []string{"blue log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
@@ -438,7 +438,7 @@ func answerDrives() []answerDrive {
 				twice(s, "log", "--type", "defect")(d)
 			}
 		}},
-		{name: "proof", row: "a new proof", helps: []string{"blue compute"}, drive: func(d drive) {
+		{name: "computation", row: "a new computation", helps: []string{"blue compute"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
 			twice("blue-respond", "compute", "--quote", quoteThree, "--script", s)(d)
 		}},
