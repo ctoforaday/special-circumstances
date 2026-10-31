@@ -618,9 +618,12 @@ type runner struct {
 	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
 	// plan it relays is the one it asks for after it (chairEnvelope).
 	positionFiled bool
-	// positionForms is the sweep's ledger of the bench rulings still owed (positionheard_test.go), nil
-	// outside the sweep.
-	positionForms                                    *positionFormLedger
+	// forcePosition is the bench ruling a position seed's run is forced to (positionFormOf): its
+	// chair withholds its first permitted PASS, and its bench rules the position this way. "" in
+	// every other run. positionForced is set once that chair has withheld, and heldTrifle once the
+	// gaps run's lens has minted the gap it holds open for the bench to name (mintHeldTrifle).
+	forcePosition                                    string
+	positionForced, heldTrifle                       bool
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
 	positionRulingsRefused, repeatedPositionsRefused int
@@ -3308,7 +3311,11 @@ func (r *runner) mint(seatID string) string { return r.mintFrom(seatID, "") }
 
 // mintFrom mints as mint does, naming foundBy in --found-by when it is set: the gap that answers
 // a contradiction the finding foundBy raised.
-func (r *runner) mintFrom(seatID, foundBy string) string {
+func (r *runner) mintFrom(seatID, foundBy string) string { return r.mintWith(seatID, foundBy, "") }
+
+// mintWith mints as mintFrom does, under the gap class class where it is set and the drawn class
+// where it is "".
+func (r *runner) mintWith(seatID, foundBy, class string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
 	// computation branch — a gap that CANNOT be closed without a computation answering it — driven by
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
@@ -3396,12 +3403,14 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	// So each `always`/`never` class is minted ONCE per sweep, deliberately, outside the forced
 	// runs, whose verdicts are their drive. ONE MINT IN TEN takes the catch-all `unclassified` (also
 	// `by_grade`), and half of those first try it without --reason, which the record refuses.
-	unclassified := r.coin(10)
+	unclassified := r.coin(10) && class == ""
 	driven := ""
-	if !unclassified && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
+	if !unclassified && class == "" && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
 		driven, _ = takeClassDrive()
 	}
 	switch {
+	case class != "":
+		args = append(args, "--class", class)
 	case unclassified:
 		args = append(args, "--class", "unclassified")
 	case driven != "":
@@ -3458,7 +3467,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	// A FORCED RUN'S GAPS ARE ITS VERDICT'S DRIVE, so its lens takes a pool class no open gap holds on
 	// the subject: a mint the one-gap rule refuses is a gap the forced verdict does not get, and the
 	// rule is driven by every other run.
-	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
+	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified && class == "" {
 		r.freeClass(args)
 	}
 	// A SUCCESSOR CARRIES THE BENCH'S GRADE on every axis the bench set on its ancestor.
@@ -4728,8 +4737,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		// A CHAIR MAY WITHHOLD A PASS THE BOARD PERMITS, and its position then says why — the one
 		// sitting the position is owed at (record.PositionSittings). The bench hears it next. Drawn
-		// rarely, never in a forced run, and never where an overruling decided the objection.
-		if permitted && overruled == "" && !r.forcedVerdict() && (r.owesWithhold() || r.coin(5)) {
+		// rarely, never where an overruling decided the objection, and in a forced run only where it
+		// is forced to a position (withholdsForced).
+		if permitted && overruled == "" && r.withholds() {
 			r.chairPosition(seatID, true)
 			return r.chairEnvelope(seatID, "", "", responses)
 		}
@@ -5080,6 +5090,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.mintHeldTrifle(seatID)
 		fresh := r.rng.Intn(3)
 		if len(engaged) > 0 {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
@@ -6095,7 +6106,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
-	r.positionForms = sweepPositionForms
+	r.forcePosition = positionFormOf(seed)
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
@@ -7681,7 +7692,7 @@ func TestFuzzDebate(t *testing.T) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			began := time.Now()
-			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
 			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, firstLine(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that

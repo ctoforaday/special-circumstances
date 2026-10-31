@@ -3,13 +3,13 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // WHEN THE CHAIR HOLDS BACK A PASS ITS PLAN PERMITS, THE BENCH HEARS ITS POSITION (gblock,
@@ -49,83 +49,106 @@ func (r *runner) unruledPositions() []string {
 	return ids
 }
 
-// THE THREE RULINGS ARE DRIVEN IN EVERY SWEEP, NOT DRAWN. A withheld PASS is rare on its own (one in
-// forty runs), and a coin over a rare event drove neither upheld form in a whole sweep, so `--ids`
-// went unpassed and the tally failed. Each sweep process owes each ruling — upheld naming a lens,
-// upheld naming open gaps, and overruled — once: while one is owed, a chair whose plan permits the
-// PASS withholds it (owesWithhold), and the bench rules the ruling still owed (rulePositions). Once
-// all three are driven, both fall back to the coin. The sweep's tally gates each count at zero.
-//
-// The ledger is the SWEEP's: runOne hands sweepPositionForms to the runs it drives. A runner built
-// for a deterministic test holds none, owes nothing, and draws on the coin alone, so no test's
-// outcome depends on which tests ran before it in the process.
-type positionFormLedger struct {
-	mu                    sync.Mutex
-	lens, gaps, overruled bool
-}
+// THE THREE RULINGS ARE FORCED, ONE RUN EACH, NOT DRAWN. A drawn run rarely reaches a plan that
+// permits the PASS (38 of 40 end CEILING), so a coin over it drove one withheld PASS in a sweep and
+// neither upheld form: `motion position rule --ids` went unpassed. Each position seed's run is a
+// forced-VERIFIED run, which reaches a permitted PASS by construction; its chair withholds the first
+// one, and its bench rules the position the way the seed names.
+const (
+	positionLensSeed      = 10
+	positionGapsSeed      = 11
+	positionOverruledSeed = 12
+)
 
-var sweepPositionForms = &positionFormLedger{}
-
-// owed reports which rulings the ledger has not yet seen driven; a nil ledger owes none.
-func (l *positionFormLedger) owed() (lens, gaps, overruled bool) {
-	if l == nil {
-		return false, false, false
+// positionFormOf is the ruling a seed's run forces its bench to: "lens" (upheld naming a lens),
+// "gaps" (upheld naming open gaps) or "overruled"; "" for a seed that forces none.
+func positionFormOf(seed int64) string {
+	switch seed {
+	case positionLensSeed:
+		return "lens"
+	case positionGapsSeed:
+		return "gaps"
+	case positionOverruledSeed:
+		return "overruled"
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return !l.lens, !l.gaps, !l.overruled
+	return ""
 }
 
-func (l *positionFormLedger) driven(form string) {
-	if l == nil {
+// withholds is whether a chair whose plan permits the PASS withholds it. A run forced to a position
+// withholds its first permitted PASS, and the gaps run only once a gap stands open for the bench to
+// name; every other forced run never withholds, and a drawn run on a coin.
+func (r *runner) withholds() bool {
+	if r.forcePosition == "" {
+		return !r.forcedVerdict() && r.coin(5)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.positionForced || (r.forcePosition == "gaps" && !r.heldTrifle) {
+		return false
+	}
+	r.positionForced = true
+	return true
+}
+
+// mintHeldTrifle is the gaps run's lens minting, once, a gap of a class that is never material, at
+// a sitting after the first where it holds no gap of its own open (the budget refuses a second
+// open one). A gap that is not material readies no seat and holds no PASS, so it stands open, with
+// no exchange on it, at the chair's next permitted PASS — the open gap the bench names. The bench's
+// remand of it readies its lens and blue, who answer and close it, and the run then passes.
+func (r *runner) mintHeldTrifle(seatID string) {
+	if r.forcePosition != "gaps" || r.firstEpoch() {
 		return
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	switch form {
-	case "lens":
-		l.lens = true
-	case "gaps":
-		l.gaps = true
-	case "overruled":
-		l.overruled = true
+	open := r.openGaps()
+	r.mu.Lock()
+	if r.heldTrifle || slices.ContainsFunc(open, func(id string) bool { return r.minter[id] == seatID }) {
+		r.mu.Unlock()
+		return
+	}
+	r.heldTrifle = true
+	r.mu.Unlock()
+	class := neverMaterialClass()
+	if class == "" {
+		r.noteActErr("the gap class vocabulary holds no class that is never material, so the gaps run has no gap to hold open for the bench to name")
+		return
+	}
+	if r.mintWith(seatID, "", class) == "" {
+		r.mu.Lock()
+		r.heldTrifle = false
+		r.mu.Unlock()
 	}
 }
 
-// owesWithhold reports whether a chair whose plan permits the PASS withholds it to reach a ruling
-// still owed: upheld on a lens or overruled, always; upheld on gaps only where open gaps stand for
-// the bench to name.
-func (r *runner) owesWithhold() bool {
-	lens, gaps, overruled := r.positionForms.owed()
-	return lens || overruled || (gaps && len(r.openGaps()) > 0)
+// neverMaterialClass is the first gap class whose material_default is `never`, read off the enum.
+func neverMaterialClass() string {
+	vals := recordpb.GapClass(0).Descriptor().Values()
+	for i := 0; i < vals.Len(); i++ {
+		c := recordpb.GapClass(vals.Get(i).Number())
+		if recordpb.MaterialDefault(c) == recordpb.ClassMaterial_CLASS_MATERIAL_NEVER {
+			return recordpb.Word(c)
+		}
+	}
+	return ""
 }
 
-// rulePositions rules every position the bench hears, at the sitting of the given occasion. A forced
-// run's bench overrules. Otherwise the bench rules what this sweep still owes — upheld on open gaps
-// where some stand, upheld on a lens, overruled — and past those, upheld or overruled on a coin.
-// Upheld names open gaps the tool accepts, or a cast lens.
+// rulePositions rules every position the bench hears, at the sitting of the given occasion. A run
+// forced to a position rules it the way it is forced; any other forced run's bench overrules, and a
+// drawn run's rules on a coin. Upheld names open gaps the tool accepts, or a cast lens.
 func (r *runner) rulePositions(seatID, occasion string) {
 	if r.positionRuledAt == nil {
 		r.positionRuledAt = map[string]string{}
 	}
 	for _, id := range r.unruledPositions() {
 		const opinion = "fuzz: the bench's reasoning on the PASS withheld"
-		owedLens, owedGaps, owedOverruled := r.positionForms.owed()
 		open := r.openGaps()
 		var form string
 		switch {
+		case r.forcePosition != "":
+			form = r.forcePosition
 		// A FORCED RUN'S BENCH OVERRULES, and drives no refusal: its chair's next sitting decides on
 		// the PASS, so the forced run keeps the exit it is forced to (UNVERIFIED: its chair leaves its
 		// own motions unruled, so that verdict is a FAIL or none).
-		case r.forcedVerdict():
-			form = "overruled"
-		case owedGaps && len(open) > 0:
-			form = "gaps"
-		case owedLens:
-			form = "lens"
-		case owedOverruled:
-			form = "overruled"
-		case r.coin(50):
+		case r.forcedVerdict(), r.coin(50):
 			form = "overruled"
 		case len(open) > 0 && r.coin(50):
 			form = "gaps"
@@ -143,7 +166,6 @@ func (r *runner) rulePositions(seatID, occasion string) {
 				r.noteActErr(fmt.Sprintf("the bench's overruling of position %s was refused: %v", id, err))
 				continue
 			}
-			r.positionForms.driven("overruled")
 			r.mu.Lock()
 			r.positionRuledAt[id] = occasion
 			r.positionsOverruled++
@@ -159,14 +181,21 @@ func (r *runner) rulePositions(seatID, occasion string) {
 		if form == "gaps" {
 			// THE FIRST OPEN GAP THE TOOL ACCEPTS: one remanded at impasse already, or standing
 			// docketed unruled, is refused, and the next is named instead.
-			form = "lens"
+			named := false
 			for _, g := range open {
 				if _, err := r.exec("motion", "position", "rule", "--seat-id", seatID, "--id", id, "--as", "upheld",
 					"--ids", g, "--direction", direction, "--reason", opinion); err == nil {
-					form = "gaps"
+					named = true
 					r.remandRouted(g)
 					break
 				}
+			}
+			switch {
+			case !named && r.forcePosition == "gaps":
+				r.noteActErr(fmt.Sprintf("the gaps run's bench could name none of the open gaps %v in its upholding of position %s", open, id))
+				continue
+			case !named:
+				form = "lens"
 			}
 		}
 		if form == "lens" {
@@ -176,7 +205,6 @@ func (r *runner) rulePositions(seatID, occasion string) {
 				continue
 			}
 		}
-		r.positionForms.driven(form)
 		r.mu.Lock()
 		r.positionRuledAt[id] = occasion
 		if form == "gaps" {
@@ -326,18 +354,31 @@ func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 	}
 }
 
-// THE SWEEP'S LEDGER PICKS THE RULING, not the coin: a bench whose sweep still owes one ruling makes
-// that one, and marks it driven, so a sweep reaches each ruling however rarely a PASS is withheld.
-func TestTheDrivesBenchRulesTheRulingTheSweepOwes(t *testing.T) {
-	// EACH ROW'S COIN LANDS AGAINST ITS RULING — every coin heads where lens is owed, every coin tails
-	// where overruled is — so the coin alone would rule the other way, and only the ledger rules this.
-	for owed, draw := range map[string]int64{"lens": 0, "overruled": 99} {
-		t.Run(owed, func(t *testing.T) {
+// A RUN FORCED TO A POSITION RULES IT THAT WAY, whatever its coins: the sweep's gate on each ruling
+// holds a forced seed to it (positionFormOf), so the drive must rule the form the seed names.
+func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
+	for _, form := range []string{"lens", "gaps", "overruled"} {
+		t.Run(form, func(t *testing.T) {
 			r, _ := converseRun(t, redClosesAndWithholds)
-			r.rng = &lockedRand{r: rand.New(fixedSource(draw))}
-			r.positionForms = &positionFormLedger{lens: owed != "lens", gaps: true, overruled: owed != "overruled"}
-			if !r.owesWithhold() {
-				t.Fatalf("a sweep owing the %s ruling does not withhold a permitted PASS", owed)
+			r.forcePosition = form
+			// THE GAPS RUN'S LENS HOLDS A GAP OPEN for the bench to name: one of a class never
+			// material, minted at a sitting after the first where it holds none of its own.
+			if form == "gaps" {
+				r.dispatchSits("lens", converseLens)
+				r.mintHeldTrifle(converseLens)
+				r.dispatchReturns(converseLens, false)
+				if !r.heldTrifle || len(r.openGaps()) != 1 {
+					t.Fatalf("the lens held %v open (minted: %t; %s), want the one gap it mints for the bench to name", r.openGaps(), r.heldTrifle, r.actErr)
+				}
+				bs, err := record.PassBlockers(r.run())
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, b := range bs {
+					if b.Subject == r.openGaps()[0] {
+						t.Fatalf("the gap held open holds the PASS as %s; it must be one no plan waits on", b.Kind)
+					}
+				}
 			}
 			r.positionsHeard = r.unruledPositions()
 			r.dispatchSits("bench", "judge", "terminal")
@@ -347,18 +388,31 @@ func TestTheDrivesBenchRulesTheRulingTheSweepOwes(t *testing.T) {
 				t.Fatalf("the drive's ruling: %s", r.actErr)
 			}
 			got := map[string]int{"lens": r.positionsUpheldLens, "gaps": r.positionsUpheldGaps, "overruled": r.positionsOverruled}
-			if got[owed] != 1 || got["lens"]+got["gaps"]+got["overruled"] != 1 {
-				t.Errorf("rulings %v, want the one %s ruling the sweep owed", got, owed)
-			}
-			if r.owesWithhold() {
-				t.Errorf("the ledger still owes a ruling after the %s ruling was driven", owed)
+			if got[form] != 1 || got["lens"]+got["gaps"]+got["overruled"] != 1 {
+				t.Errorf("rulings %v, want the one %s ruling the run is forced to", got, form)
 			}
 		})
 	}
 }
 
-// fixedSource draws n on every Intn(100): its 31-bit draw is n, below every rejection bound.
-type fixedSource int64
-
-func (f fixedSource) Int63() int64 { return int64(f) << 32 }
-func (fixedSource) Seed(int64)     {}
+// A FORCED CHAIR WITHHOLDS ONCE, and the gaps run's only once its lens holds a gap open to name.
+func TestTheForcedChairWithholdsItsFirstPermittedPass(t *testing.T) {
+	r := &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "lens"}
+	if !r.withholds() || r.withholds() {
+		t.Error("the lens run's chair must withhold its first permitted PASS, and only that one")
+	}
+	r = &runner{rng: newLockedRand(1), forceVerified: true, forcePosition: "gaps"}
+	if r.withholds() {
+		t.Error("the gaps run's chair withheld before its lens minted the gap it holds open")
+	}
+	r.heldTrifle = true
+	if !r.withholds() {
+		t.Error("the gaps run's chair did not withhold once the gap stood open")
+	}
+	r = &runner{rng: newLockedRand(1), forceVerified: true}
+	for range 50 {
+		if r.withholds() {
+			t.Fatal("a forced run with no position to force withheld a permitted PASS")
+		}
+	}
+}

@@ -835,12 +835,12 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.closingsFiled == 0 || f.closingsRefused == 0 || f.closingWaits == 0 {
 			t.Errorf("fuzz filed %d closing(s), was refused %d envelope(s) while one stood and saw %d plan(s) keep the bench waiting on one, across %d runs — each must be nonzero, or the closing duty is unexercised (false green)", f.closingsFiled, f.closingsRefused, f.closingWaits, f.completed)
 		}
-		// THE POSITION-RULING GATE. A withheld PASS is rare on its own, so each sweep process withholds
-		// a permitted PASS and the bench rules it each way it can — upheld naming a lens, upheld naming
-		// open gaps, overruled — until all three are driven (positionheard_test.go's positionForms). A
-		// count at zero is a ruling the sweep never made, and its flag goes unexercised behind a green.
+		// THE POSITION-RULING GATE. A drawn run rarely reaches a plan that permits the PASS, so each
+		// ruling has a forced run of its own (positionFormOf): its chair withholds its first permitted
+		// PASS and its bench rules the position that way. A count at zero is a forced run that did not
+		// deliver its ruling, and that ruling's flag goes unexercised behind a green.
 		if f.positionsUpheldLens == 0 || f.positionsUpheldGaps == 0 || f.positionsOverruled == 0 {
-			t.Errorf("chair sittings that withheld a permitted PASS: %d across %d runs; the bench upheld %d naming a lens, %d naming open gaps, and overruled %d — each ruling must be nonzero, or it is unexercised (false green)", f.positionsWithheld, f.completed, f.positionsUpheldLens, f.positionsUpheldGaps, f.positionsOverruled)
+			t.Errorf("chair sittings that withheld a permitted PASS: %d across %d runs; the bench upheld %d naming a lens (forced on seed %d), %d naming open gaps (seed %d), and overruled %d (seed %d) — each ruling must be nonzero, or it is unexercised (false green)", f.positionsWithheld, f.completed, f.positionsUpheldLens, positionLensSeed, f.positionsUpheldGaps, positionGapsSeed, f.positionsOverruled, positionOverruledSeed)
 		}
 		// THE SECTION-ORDER GATE. The generators here write the report's text in order, so the
 		// refusal that holds it is reached only by the drive that writes a section out of place.
