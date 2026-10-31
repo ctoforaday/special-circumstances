@@ -1795,7 +1795,9 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	// A FORCED RUN'S CHAIR FILES NO PETITION. A petition readies the bench, so a chair sitting whose
 	// plan readied nobody re-arms the run with one, one coin per sitting: the forced run would end
 	// when the coin first misses rather than one march after its first sitting (findsFresh).
-	if !r.forcedVerdict() {
+	// A CHAIR WHOSE PLAN SAYS HALTED FILES NOTHING: the bench has ended the run, nobody sits to hear
+	// a petition, and the assembly stamps the halt over a record that holds none unruled.
+	if halted, _ := r.planThisSitting["halted"].(bool); !r.forcedVerdict() && !halted {
 		r.maybePetition(seatID)
 	}
 	r.mu.Lock()
@@ -2898,6 +2900,30 @@ func (r *runner) unchecked() []anchorRef {
 		out = append(out, anchorRef{Anchor: it.Anchor, Sha: sha[it.Anchor]})
 	}
 	return out
+}
+
+// readiesNobodyElse is whether plan defers the board's readiness: it says halted, or it convenes
+// the bench alone to hear a petition or a position (record dispatch: the party heard alone). Read
+// off the plan's own fields.
+func readiesNobodyElse(plan map[string]any) bool {
+	if halted, _ := plan["halted"].(bool); halted {
+		return true
+	}
+	parties, _ := plan["parties"].([]any)
+	if len(parties) != 1 {
+		return false
+	}
+	m, _ := parties[0].(map[string]any)
+	occasions, _ := m["occasions"].([]any)
+	if m["seat_id"] != "judge" || len(occasions) == 0 {
+		return false
+	}
+	for _, o := range occasions {
+		if w := fmt.Sprint(o); w != recordpb.Word(recordpb.Occasion_OCCASION_PETITION) && w != recordpb.Word(recordpb.Occasion_OCCASION_POSITION) {
+			return false
+		}
+	}
+	return true
 }
 
 // readiedForReopened reports whether plan holds a reopened blocker, and whether it readies the
@@ -4807,9 +4833,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
-		r.tallyOwed(plan)
-		r.tallyTrifleRoutes(plan)
-		r.tallyLensTurns(plan)
+		// A PLAN THAT READIES THE BOARD'S PARTIES IS HELD TO READYING THEM. One that hears the bench
+		// alone, or says the bench halted the run, readies nobody else by design: the parties sit at
+		// the plan after the ruling, or never.
+		if !readiesNobodyElse(plan) {
+			r.tallyOwed(plan)
+			r.tallyTrifleRoutes(plan)
+			r.tallyLensTurns(plan)
+		}
 		r.mu.Lock()
 		r.blueSatSincePlan = false
 		r.mu.Unlock()
@@ -8592,7 +8623,10 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		t.Fatalf("unverified run did not settle cleanly: %s", settledErr)
 	}
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
-		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run", v)
+		// HOW IT ENDED INSTEAD is the termination the workflow returned and the chair's last refused
+		// PASS: a run that verified passed somewhere, and the plan's reasons name where.
+		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run; epochs %v, termination %v, the last PASS refusal %q",
+			v, result["epochs"], result["termination"], r.lastPassRefusal)
 	}
 	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
 	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
