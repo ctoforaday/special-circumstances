@@ -322,8 +322,8 @@ var blockerKinds = []blockerKind{
 	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (ruled by
 	// gblock 2026-10-24). A material gap holds it as material_gap
 	// whatever its remand; this row is the one a gap below material holds once the bench has sent it
-	// back, so the plan that readies its minting lens and blue never reads as permitting a PASS over
-	// the exchange it readies them for (routeOf).
+	// back, so the plan that readies blue for the exchange never reads as permitting a PASS over it
+	// (routeOf).
 	{
 		kind:  BlockerRemandOwed,
 		gloss: "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
@@ -331,7 +331,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies them. PASS waits for it; `--as FAIL` does not",
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it; `--as FAIL` does not",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},

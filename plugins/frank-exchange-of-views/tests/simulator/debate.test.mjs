@@ -543,6 +543,22 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
+// THE ORDER IS THE RECORD'S, NOT THE SCRIPT'S (ruled by gblock 2026-10-30): a lens's turn on a gap
+// comes with blue's act, and the plan says when. An epoch whose plan engages blue alone on a fresh gap
+// sits no lens; the next, whose plan engages the minting lens on it after blue's answer, sits the lens
+// on it with the gap named, and blue after it.
+test('a plan that engages blue alone on a gap sits no lens, and the lens sits on it when the plan engages it', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }),
+      chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const seats = world.calls.map((c) => c.opts.label.replace(/ #\d+.*$/, '')).filter((l) => l === 'red-chair' || l === 'blue-respond' || l.startsWith('red-lens-'))
+  assert.deepEqual(seats, ['red-chair', 'blue-respond', 'red-chair', 'red-lens-logic', 'blue-respond', 'red-chair'], 'each epoch sits exactly the parties its plan names')
+  const [lens] = labelsOf(world, 'red-lens-logic').map((c) => c.prompt)
+  assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
+})
+
 test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
@@ -1065,7 +1081,9 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
   for (const area of LENS_AREAS) {
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
-    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on. Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on.') &&
+      md.includes('Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes("On a gap you minted, your turn comes with blue's: the record readies you on it once blue has acted on it since your own last act there, your mint included, and never before"), `red-lens-${area}: a lens's turn on its gap comes with blue's act`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)
     assert.ok(md.includes("a corroborating source's title ships in the source's note and Bibliography entry") && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
   }

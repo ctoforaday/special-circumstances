@@ -846,13 +846,15 @@ type WorkGapJSON struct {
 	// DocketSettled is what the latest remand settles — the proposition a party may no longer
 	// assert though the gap is back in the debate; absent where it settles none.
 	DocketSettled string `json:"docket_settled,omitempty"`
-	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
-	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
-	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
-	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
-	// impasse or not), "spent" (that exchange has been had: one in which blue acted on the gap).
-	// "" when the bench has ruled no remand while the gap was at impasse — a remand of a material
-	// gap's docket filed before impasse spends nothing.
+	// RemandStage is where the gap stands against the bench's remands, read off the dispatch's own
+	// route (stageOnRoute), so a seat reads the stage the plan acts on rather than matching it out of
+	// the work list's sentence: "owed" (the plan readies its one more exchange, which begins with
+	// blue's act — and for a gap that is not material, after any remand, at impasse or not), "spent"
+	// (that exchange has been had: one in which blue acted on the gap). "" when the bench has ruled
+	// no remand while the gap was at impasse — a remand of a material gap's docket filed before
+	// impasse spends nothing — and while the dispatch sends a gap whose exchange is unhad to the
+	// bench instead: a docket motion on it stands unruled, or its grade movement is past the
+	// threshold.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -986,9 +988,9 @@ type WorkGapState struct {
 	// DocketSettled is the proposition the latest remand settles, "" where it settles none or the
 	// bench never remanded the gap — the gap view's `docket_settled`.
 	DocketSettled string
-	// remand is where the gap stands against the bench's counted remands, and route what the
-	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
-	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
+	// route is what the dispatch does with the gap (routeOf) — the plan's own predicate over the
+	// plan's own fold (exchangesOf) — and remand the stage the work list states, read off the route
+	// (stageOnRoute), so the stage, the remand items and the plan say one thing. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
 	remand           remandStage
 	route            gapRoute
@@ -1155,14 +1157,10 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.route = routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.remand = stageOnRoute(g.route, x.Remand)
 		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
 		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))
-		// A REMAND OF A GAP THAT IS NOT MATERIAL IS OWED ITS EXCHANGE whether or not the bench ruled it
-		// at impasse (routeOf), so the stage says what the route does.
-		if g.route == routeRemandOwed {
-			g.remand = remandOwed
-		}
 	}
 	return out, nil
 }
