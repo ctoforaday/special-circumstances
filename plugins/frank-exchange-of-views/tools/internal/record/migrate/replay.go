@@ -337,14 +337,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 					b.Text = proto.String(report.Ordered(b.GetText()))
 				}
 			}
-			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before
-			// epoch 19 the chair readied the bench only on a docketed gap, and a petition was heard
-			// off an envelope with no row. The write refuses a bench row naming no occasion, so the
-			// row says what it always meant; one with no gap was never written then, and the write
-			// refuses it rather than this guessing.
-			if d, ok := body.(*recordpb.Dispatch); ok && len(d.GetOccasions()) == 0 && record.SeatOwesOccasion(d.GetSeatId()) {
-				d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
-			}
 			if d, ok := body.(*recordpb.Dispatch); ok && d.Pin != nil {
 				to, landed := newID[d.GetPin()]
 				if !landed {
@@ -379,6 +371,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanParties(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanKinds(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue

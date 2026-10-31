@@ -329,8 +329,13 @@ func TestAMotionTheBenchLeftUnruledIsNotTheEpochLimit(t *testing.T) {
 			if tc.withGap {
 				argue(t, runDir)
 			}
-			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); len(plan.Parties) != 1 || plan.Parties[0].SeatID != "judge" {
-				t.Fatalf("the plan at epoch 4 of 5 = %+v, want the bench alone dispatched", plan)
+			// A docket is on the plan; a petition is owed by the record's read and on no plan.
+			wantOnPlan := 0
+			if tc.withGap {
+				wantOnPlan = 1
+			}
+			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); len(plan.Parties) != wantOnPlan {
+				t.Fatalf("the plan at epoch 4 of 5 = %+v, want %d parties", plan, wantOnPlan)
 			}
 			asSeat(t, runDir, "judge", "register", "--occasion", tc.occasion) // the bench sits, and leaves the motion
 			tc.sitting(t, runDir)
@@ -385,6 +390,38 @@ func TestABenchRulingAtAnExitBeforeTheLastEpochIsNotTheEpochLimit(t *testing.T) 
 			asSeat(t, runDir, "judge", "outcome", "--as", "UNVERIFIED", "--reason", "the debate stopped with the bench dispatched and unsat")
 			if verdict, basis, _ := outcomeOf(t, runDir); verdict != "UNVERIFIED" || basis != record.VerdictAsserted {
 				t.Errorf("the outcome on the record = (%q, %q), want UNVERIFIED asserted", verdict, basis)
+			}
+		})
+	}
+}
+
+// A HEARING OWED AT THE FINAL SITTING IS THE EPOCH LIMIT. No seat is dispatched after that sitting, so
+// the filing is heard by the bench at the exit, and the run ended because its term ran out: the plan
+// names nobody and still says the limit was reached. The same sitting with nothing owed and nobody
+// ready is not at the limit; a filing one epoch earlier is heard in its turn, and is no limit either.
+func TestAHearingOwedAtTheFinalSittingReachesTheEpochLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		limit int
+		file  bool
+		want  bool
+	}{
+		{"a petition at the final sitting", 5, true, true},
+		{"nothing owed at the final sitting", 5, false, false},
+		{"a petition before it", 6, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := newRun(t)
+			stageRetiredLens(t, runDir, false)
+			setEpochLimit(t, runDir, tc.limit)
+			asSeat(t, runDir, "red-chair", "register")
+			if tc.file {
+				asSeat(t, runDir, "red-chair", "motion", "petition", "file", "--class", "integrity",
+					"--relief", "strike the lens's last finding", "--reason", "the finding quotes a source nobody fetched")
+			}
+			plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
+			if len(plan.Parties) != 0 || plan.EpochLimitReached != tc.want {
+				t.Fatalf("the plan at epoch %d of %d = %+v, want nobody on it and epoch_limit_reached %v", plan.Epoch, tc.limit, plan, tc.want)
 			}
 		})
 	}

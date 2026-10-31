@@ -31,7 +31,7 @@ func TestEveryPlanFieldIsOneASchemaCanCarry(t *testing.T) {
 // optional is one the verb omits when empty, and no other is.
 func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 	full := Plan{
-		Parties:    []Party{{SeatID: "judge", GapIDs: []string{"G-1"}, Occasions: []string{"docket"}}},
+		Parties:    []Party{{SeatID: "judge", GapIDs: []string{"G-1"}}},
 		Docket:     []string{"G-1"},
 		RemandOwed: []RemandOwed{{GapID: "G-1", Direction: "d"}},
 		Exchanges:  []ExchangeCount{{GapID: "G-1"}},

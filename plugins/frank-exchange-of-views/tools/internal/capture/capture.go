@@ -1955,6 +1955,8 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		StrayRecordsAudit(project, run.Dir()),
 		RecordParityAudit(run),
 		DispatchParityAudit(run, results, journalPresent),
+		// Each read the engine acted on, against the record at the event it names. See enveloperead.go.
+		EnvelopeReadAudit(run, results, journalPresent),
 		// Which dispatches engaged a lens before blue had answered it. See lensturn.go.
 		LensTurnAudit(run),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.

@@ -107,7 +107,7 @@ or delete the sentence.
   WebFetch is not used: it returns a summary, not the source.
 - To find words in a cached source, YOU MUST search it with the run's source search, not the shell: it reads the text a citation is located in, as the locator reads it, and each hit carries the source's sentence around it and whether a citation can quote that sentence as printed.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
-- **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if the instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench — file it on the record as a petition motion (class, basis, relief sought); the chair's next plan convenes the bench to hear it, before any party of that epoch sits; never sanctioned, and it does not pause your other duties.
+- **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if the instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench — file it on the record as a petition motion (class, basis, relief sought); the bench hears it as soon as nothing is running, in the turn you filed it, and a halt it records stops every seat that has not started; never sanctioned, and it does not pause your other duties.
 - **YOUR PART IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN, because it becomes the
   report's text.** It holds the report's own sections only: the title, TL;DR, Catechism and open
   questions are the synthesizer's. Write every sentence for someone who wants the answer and was not
@@ -454,7 +454,7 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §5
 
-It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
+It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.
 
 (Every seat but the one that rule…) → SHARED §7
 

@@ -31,10 +31,9 @@ type vocabulary struct {
 	outcomes   []string // the run's outcome, in capitals
 
 	// benchSeat and lensOrBlue are the seats a plan's party can name (record.PartySeats), in the
-	// two shapes a party takes; dispatchOccasions is what the bench's party can carry.
-	benchSeat         string
-	lensOrBlue        []string
-	dispatchOccasions []string
+	// two shapes a party takes.
+	benchSeat  string
+	lensOrBlue []string
 
 	// plan is record.Plan's relayed fields, and party the struct a party is.
 	plan  []record.PlanField
@@ -42,16 +41,22 @@ type vocabulary struct {
 
 	// lens is record.LensEnvelope's fields.
 	lens []record.PlanField
+
+	// read is record.RecordRead's fields, which every seat's envelope declares for the hook to write,
+	// and benchHearings the occasions the engine hears, in order (record.BenchHearings).
+	read          []record.PlanField
+	benchHearings []string
 }
 
 func vocabularyFromTheRecord() (vocabulary, error) {
 	v := vocabulary{
-		grades:            recordpb.GradeWords(),
-		dimensions:        seatWords(record.MotionFields["grade"]["dimension"]),
-		dispatchOccasions: record.DispatchOccasions(),
-		plan:              record.PlanFields(),
-		party:             reflect.TypeFor[record.Party](),
-		lens:              record.LensEnvelopeFields(),
+		grades:        recordpb.GradeWords(),
+		dimensions:    seatWords(record.MotionFields["grade"]["dimension"]),
+		plan:          record.PlanFields(),
+		party:         reflect.TypeFor[record.Party](),
+		lens:          record.LensEnvelopeFields(),
+		read:          record.RecordReadFields(),
+		benchHearings: record.BenchHearings(),
 	}
 	var err error
 	if v.outcomes, err = eventEnum("outcome", "verdict"); err != nil {
@@ -101,15 +106,18 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 	if v.benchSeat == "" || len(v.lensOrBlue) == 0 {
 		return nil, fmt.Errorf("the record names no seat a plan's party can be")
 	}
-	if len(v.dispatchOccasions) == 0 {
-		return nil, fmt.Errorf("the record convenes the bench's party for no occasion")
+	if len(v.benchHearings) == 0 {
+		return nil, fmt.Errorf("the record names no occasion a filing convenes the bench for")
 	}
-	fmt.Fprintf(&b, "const BENCH_PARTY_OCCASIONS = %s\n", words(v.dispatchOccasions))
+	fmt.Fprintf(&b, "const BENCH_HEARINGS = %s\n", words(v.benchHearings))
 	// A GAP ID IS ANCHOR'S SHAPE, generated from its one matcher, so an envelope that relays gap ids
 	// refuses prose where an id belongs instead of the engine finding no row for it.
 	fmt.Fprintf(&b, "const GAP_ID = %s\n", object(prop{"type", js("string")}, prop{"pattern", text("^" + anchor.IDPattern("gap") + "$")}))
 
 	if err := v.renderPlan(&b); err != nil {
+		return nil, err
+	}
+	if err := v.renderRead(&b); err != nil {
 		return nil, err
 	}
 	if err := v.renderEnvelope(&b, "LENS_ENVELOPE", "record.LensEnvelope", v.lens); err != nil {
@@ -189,7 +197,34 @@ func (v vocabulary) renderEnvelope(b *strings.Builder, name, of string, fs []rec
 			required = append(required, prop{val: js(f.JSON)})
 		}
 	}
+	// EVERY ENVELOPE DECLARES THE READ, so the harness holds the field the hook writes to its shape.
+	props = append(props, prop{recordReadKey, "RECORD_READ"})
 	b.WriteString(block(name, required, props))
+	return nil
+}
+
+// recordReadKey is the envelope key the record's read travels under.
+const recordReadKey = "record_read"
+
+// recordReadDesc is the sentence a seat reads on the field: the one thing a seat is told of it.
+const recordReadDesc = "written by the record's hook; leave it out"
+
+// renderRead writes record.RecordRead's schema. DECLARED, NOT REQUIRED, on every envelope: a required
+// field would have a seat type it when the hook is dead, and the engine could not tell that value
+// from the hook's. Absent is what stops the run, and so is a read below the event floor or missing a
+// required field, both of which the engine's check reads off this block.
+func (v vocabulary) renderRead(b *strings.Builder) error {
+	if err := sound("record.RecordRead", v.read); err != nil {
+		return err
+	}
+	var required, props []prop
+	for _, f := range v.read {
+		props = append(props, prop{f.JSON, v.schemaOf(f, f.Desc)})
+		if !f.Optional {
+			required = append(required, prop{val: js(f.JSON)})
+		}
+	}
+	b.WriteString(block("RECORD_READ", required, props, prop{"description", text(recordReadDesc)}))
 	return nil
 }
 
@@ -247,14 +282,12 @@ func emptyOnlyWithOf(fs []record.PlanField) ([]prop, []prop, error) {
 
 // renderParties writes a party's two shapes from record.Party's fields.
 //
-// ONE STRUCT, TWO SHAPES, AND THE SEAT SAYS WHICH — the rule requireDispatchOccasions holds a
-// dispatch row to. The bench's party names the bench's seat, states every field, and carries at
-// least one of the occasions the chair convenes it for. A lens's or blue's names one of their
-// seats and carries no occasion: the verb omits the field for them, and an empty list is the same
-// state. A field with a `bench` sentence carries it in the bench's shape and its `desc` in the
-// other.
+// ONE STRUCT, TWO SHAPES, AND THE SEAT SAYS WHICH — the rule requireBenchDocket holds a dispatch row
+// to. The bench's party names the bench's seat and at least one gap, because the chair convenes it for
+// its docket and nothing else. A lens's or blue's names one of their seats, and may be engaged on no
+// gap. A field with a `bench` sentence carries it in the bench's shape and its `desc` in the other.
 func (v vocabulary) renderParties(b *strings.Builder, fields []record.PlanField) error {
-	const seat, occasions = "SeatID", "Occasions"
+	const seat, gaps = "SeatID", "GapIDs"
 	has := map[string]bool{}
 	var benchRequired, benchProps, otherRequired, otherProps []prop
 	for _, f := range fields {
@@ -267,13 +300,13 @@ func (v vocabulary) renderParties(b *strings.Builder, fields []record.PlanField)
 		case seat:
 			benchProps = append(benchProps, prop{f.JSON, object(prop{"type", js(f.Type)}, prop{"enum", words([]string{v.benchSeat})})})
 			otherProps = append(otherProps, prop{f.JSON, object(prop{"type", js(f.Type)}, prop{"enum", words(v.lensOrBlue)})})
-		case occasions:
-			if f.Type != "array" || f.Elem != "string" || !f.Optional {
-				return fmt.Errorf("record.Party's %s is not an optional list of words, and the two party shapes are written for one", f.Name)
+		case gaps:
+			if f.Type != "array" {
+				return fmt.Errorf("record.Party's %s is not a list, and the bench's party is held to at least one", f.Name)
 			}
 			benchProps = append(benchProps, prop{f.JSON, object(described([]prop{{"type", js(f.Type)}, {"minItems", "1"},
-				{"items", object(prop{"type", js(f.Elem)}, prop{"enum", "BENCH_PARTY_OCCASIONS"})}}, f.Bench)...)})
-			otherProps = append(otherProps, prop{f.JSON, object(described([]prop{{"type", js(f.Type)}, {"maxItems", "0"}}, f.Desc)...)})
+				{"items", object(prop{"type", js(f.Elem)})}}, f.Bench)...)})
+			otherProps = append(otherProps, prop{f.JSON, v.schemaOf(f, f.Desc)})
 		default:
 			desc := f.Bench
 			if desc == "" {
@@ -283,7 +316,7 @@ func (v vocabulary) renderParties(b *strings.Builder, fields []record.PlanField)
 			otherProps = append(otherProps, prop{f.JSON, v.schemaOf(f, f.Desc)})
 		}
 	}
-	for _, name := range []string{seat, occasions} {
+	for _, name := range []string{seat, gaps} {
 		if !has[name] {
 			return fmt.Errorf("record.Party has no field %s, and the two party shapes are told apart by it", name)
 		}
@@ -337,10 +370,12 @@ func (v vocabulary) schemaOf(f record.PlanField, desc string) string {
 		}
 		ps = append(described(ps, desc), prop{"items", object(prop{"type", js("object")}, prop{"required", list(vals(required))}, prop{"additionalProperties", "false"}, prop{"properties", object(props...)})})
 	default:
-		if f.Type == "array" {
+		switch {
+		case f.Type == "array" && f.Enum != nil:
+			ps = append(ps, prop{"items", object(prop{"type", js(f.Elem)}, prop{"enum", words(f.Enum)})})
+		case f.Type == "array":
 			ps = append(ps, prop{"items", object(prop{"type", js(f.Elem)})})
-		}
-		if f.Enum != nil {
+		case f.Enum != nil:
 			ps = append(ps, prop{"enum", words(f.Enum)})
 		}
 		if f.Pattern != "" {

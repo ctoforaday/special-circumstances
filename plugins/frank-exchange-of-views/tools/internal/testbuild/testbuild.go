@@ -95,7 +95,14 @@ func Main(m *testing.M, after ...func() error) {
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
 		os.Exit(1)
 	}
+	restoreClient, err := stubClient()
+	if err != nil {
+		restore()
+		fmt.Fprintln(os.Stderr, "testbuild:", err)
+		os.Exit(1)
+	}
 	code := m.Run()
+	restoreClient()
 	restore()
 	for _, check := range after {
 		if err := check(); err != nil {
@@ -107,6 +114,36 @@ func Main(m *testing.M, after ...func() error) {
 	}
 	Cleanup()
 	os.Exit(code)
+}
+
+// stubClient puts a `claude` first on PATH that prints a version and nothing else: `setup` refuses a
+// client it cannot read, and CI has none. A test of that refusal injects its own Exec.
+func stubClient() (func(), error) {
+	dir, err := os.MkdirTemp("", "sc-testclient-")
+	if err != nil {
+		return nil, fmt.Errorf("no directory for the stub client: %w", err)
+	}
+	name, body := "claude", "#!/bin/sh\necho '99.0.0 (Claude Code)'\n"
+	if runtime.GOOS == "windows" {
+		name, body = "claude.bat", "@echo 99.0.0 (Claude Code)\r\n"
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("writing the stub client: %w", err)
+	}
+	old, had := os.LookupEnv("PATH")
+	if err := os.Setenv("PATH", dir+string(os.PathListSeparator)+old); err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("putting the stub client on PATH: %w", err)
+	}
+	return func() {
+		if had {
+			_ = os.Setenv("PATH", old)
+		} else {
+			_ = os.Unsetenv("PATH")
+		}
+		_ = os.RemoveAll(dir)
+	}, nil
 }
 
 // homeKey is the environment variable os.UserHomeDir reads on this platform.

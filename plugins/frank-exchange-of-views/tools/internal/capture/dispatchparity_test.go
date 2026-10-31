@@ -23,11 +23,7 @@ func TestDispatchedPartiesAndSittingsAgree(t *testing.T) {
 	}
 	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
 	dispatch := func(seat string, gaps ...string) *record.Event {
-		d := &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps}
-		if seat == "judge" {
-			d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
-		}
-		return at("red-chair", d)
+		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps})
 	}
 	head := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
@@ -103,11 +99,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	}
 	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
 	dispatch := func(seat string, gaps ...string) *record.Event {
-		d := &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps}
-		if seat == "judge" {
-			d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
-		}
-		return at("red-chair", d)
+		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(seat), GapIds: gaps})
 	}
 	lenses := []string{"red-lens-evidence", "red-lens-logic", "red-lens-voice"}
 	warm := func(voiceSits, voiceLate bool) []*record.Event {
@@ -193,7 +185,7 @@ func TestABenchThatOnlySatForItsBookendsDidNotAnswerItsDispatch(t *testing.T) {
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
 		at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 		reg("red-chair"),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}, Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}}),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}}),
 	}
 
 	// The bench sits ONLY for its bookends. Both are its own, both are in the window, and neither
@@ -233,12 +225,11 @@ func TestABenchThatOnlySatForItsBookendsDidNotAnswerItsDispatch(t *testing.T) {
 	}
 }
 
-// A BENCH DISPATCHED FOR A PETITION IS ANSWERED BY A PETITION SITTING. The plan convenes the bench for
-// petitions with no gap, and the row says so; the bench's petition register answers that row, and a
-// docket register is not asked for. Convened for both, it owes a sitting of each — the petition
-// sitting does not answer the docket. And a petition register no row convened is a stray: the chair
-// dispatches the petition sitting now, so the engine convening one on its own is a departure.
-func TestABenchIsAnsweredByASittingOfEachOccasionItsRowConvened(t *testing.T) {
+// A HEARING IS ANSWERED BY A FILING, AND A DOCKET BY A DOCKET SITTING. The engine convenes a hearing off
+// a close's read, with no row: a petition sitting with a petition unheard at its opening is the
+// engine's, inside a dispatch window or outside one. With none it is a stray. A hearing does not answer
+// the bench's docket row either.
+func TestAHearingIsAnsweredByAFilingAndADocketByADocketSitting(t *testing.T) {
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
 		n++
@@ -247,13 +238,19 @@ func TestABenchIsAnsweredByASittingOfEachOccasionItsRowConvened(t *testing.T) {
 	benchReg := func(occ recordpb.Occasion) *record.Event {
 		return at("judge", &recordpb.Register{Occasion: occ.Enum()})
 	}
-	bench := func(gaps []string, occ ...recordpb.Occasion) []*record.Event {
+	head := func() []*record.Event {
 		return []*record.Event{
 			at("harness", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
 			at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 			at("red-chair", &recordpb.Register{}),
-			at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: gaps, Occasions: occ}),
 		}
+	}
+	row := func(gaps ...string) *record.Event {
+		return at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: gaps})
+	}
+	petition := func() *record.Event {
+		return at("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
+			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}})
 	}
 	audit := func(evs ...*record.Event) Audit {
 		dir := t.TempDir()
@@ -263,15 +260,15 @@ func TestABenchIsAnsweredByASittingOfEachOccasionItsRowConvened(t *testing.T) {
 	pet, dock := recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_DOCKET
 	terminal, assemble := benchReg(recordpb.Occasion_OCCASION_TERMINAL), benchReg(recordpb.Occasion_OCCASION_ASSEMBLE)
 
-	if a := audit(append(bench(nil, pet), benchReg(pet), terminal, assemble)...); a.Verdict != "PASS" {
-		t.Errorf("a petition-only bench dispatch answered by its petition sitting = %s: %s", a.Verdict, a.Detail)
+	if a := audit(append(head(), row("G1"), petition(), benchReg(pet), benchReg(dock), terminal, assemble)...); a.Verdict != "PASS" {
+		t.Errorf("a hearing of a filing inside the window, and the docket answered = %s: %s", a.Verdict, a.Detail)
 	}
-	a := audit(append(bench([]string{"G1"}, pet, dock), benchReg(pet), terminal, assemble)...)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge was named in dispatch 1 for docket and recorded no docket sitting") || strings.Contains(a.Detail, "for petition and") {
-		t.Errorf("a bench convened for both that sat only to hear petitions = %s: %s", a.Verdict, a.Detail)
+	a := audit(append(head(), row("G1"), petition(), benchReg(pet), terminal, assemble)...)
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge was named in dispatch 1 for docket and recorded no docket sitting") {
+		t.Errorf("a bench whose docket was answered only by a hearing = %s: %s", a.Verdict, a.Detail)
 	}
-	a = audit(append(bench([]string{"G1"}, dock), benchReg(dock), benchReg(pet), terminal, assemble)...)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge sat for petition after dispatch 1, whose row convened it for [docket]") {
-		t.Errorf("a petition sitting no row convened = %s: %s", a.Verdict, a.Detail)
+	a = audit(append(head(), row("G1"), benchReg(dock), benchReg(pet), terminal, assemble)...)
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge sat for petition after dispatch 1, whose row convened it for its docket, and no filing stood unheard") {
+		t.Errorf("a petition sitting with nothing to hear = %s: %s", a.Verdict, a.Detail)
 	}
 }

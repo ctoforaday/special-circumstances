@@ -33,7 +33,7 @@ func main() {
 	case sittingwrite.Limit:
 		err = sittingwrite.WriteLimit(*run, *agentID, *sitting, *limit)
 	case sittingwrite.Envelope:
-		err = sittingwrite.WriteEnvelopeRefusal(*run, *agentID, os.Stdout)
+		err = sittingwrite.WriteEnvelopeAnswer(*run, *agentID, os.Stdout)
 	case sittingwrite.Admission:
 		err = sittingwrite.WriteAdmission(*run, *agentID)
 	case sittingwrite.Refusal, sittingwrite.Failure:

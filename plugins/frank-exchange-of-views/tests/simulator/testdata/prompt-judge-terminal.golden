@@ -1,4 +1,4 @@
-prompt sha256: 05dd37e5ffa939fb0ef1eba69bc6cacadf4680f12f0560ce8919b83283fa2d5b
+prompt sha256: 545ee3d918ad321b3469555d53f0223291b8560ffbdc12ca9f96ded455f8008f
 
 Terminal disposition for topic "the seat prompt contract" (debate ended VERIFIED after 4 chair sitting(s); this sitting fires at the exit boundary). 1 motion(s) whose gavel is yours stand unruled on the record: M-00000001 — each is on your work list.
 Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand.
@@ -6,7 +6,7 @@ NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to reman
 A PETITION among them is ruled granted | denied, a grant with its relief and whom it binds.
 A POSITION among them — the chair held back a PASS its plan permitted at its final sitting — is ruled upheld | overruled with your opinion: upheld names the work — a lens to audit its area, or open gaps — and the direction it owes, overruled names nothing, and the run ends at its ceiling however you rule it.
 A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a petition, and both can be true at once — rule the petition on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity.
-Record the halt, and ALSO return the envelope's `halt` object carrying that same opinion, which is what stamps the run HALTED.
+Record the halt, which stamps the run HALTED.
 LAW: read the law your work list names before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.

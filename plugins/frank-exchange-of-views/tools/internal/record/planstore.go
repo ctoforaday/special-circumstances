@@ -47,8 +47,7 @@ func (p Plan) Printed() string {
 
 // ReadPlan reads raw as a plan — every key one record.Plan declares, every value of its declared
 // type — and returns it with its printing. A relayed plan read this way prints as the stored one
-// exactly when it is the same plan: the key order, the spacing and a lens's `occasions` (absent and
-// empty are one state) are the encoding's, never the plan's.
+// exactly when it is the same plan: the key order and the spacing are the encoding's, never the plan's.
 func ReadPlan(raw []byte) (Plan, string, error) {
 	var p Plan
 	dec := json.NewDecoder(bytes.NewReader(raw))

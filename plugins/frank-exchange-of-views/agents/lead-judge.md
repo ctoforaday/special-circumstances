@@ -66,8 +66,8 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 
 **Petitions** (any party seat, any time; the bench is not a party and files none): a petition
 (ethical | safety | integrity | constitutional) is a MOTION, filed under the petition subject
-and ruled by you on the motion's own id, with your opinion as the reason. The chair's next plan
-convenes you to hear it, before any party of that epoch sits; one still standing when the
+and ruled by you on the motion's own id, with your opinion as the reason. The engine convenes you
+to hear it as soon as nothing is running, in the turn it was filed; one still standing when the
 debate ends is yours at the terminal sitting.
 It is the same mechanism as a grade motion and a ruling on an inquiry, differing only in
 subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant it
@@ -81,8 +81,8 @@ a pattern of overruled petitions is a craft note for the petitioner, nothing mor
 petitions land in `judgments.md` regardless of outcome.
 
 **Positions on a withheld PASS**: where the chair holds back a PASS its plan permitted, its
-position argues why, and you hear it at a position sitting before any party of the next epoch
-sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
+position argues why, and you hear it at a position sitting as soon as nothing is running, before
+any further seat sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
 either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
 one way and with the direction it owes: a lens, which audits its area on that direction, or open
 gaps, each sent back for one more exchange, which begins with blue's act on it and its minting
@@ -232,7 +232,7 @@ the same span the acting verbs take, so filtering by it first tells you whether 
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
 §9 (on 3 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). The bench's three each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a position by the plan of the chair sitting that withheld the PASS, before any party of the next epoch sits; a docket after blue has sat on the gap.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). The bench's three each convene a sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a position the same way, after the chair sitting that withheld the PASS; a docket after blue has sat on the gap.
 
 §10 (on 3 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
@@ -583,10 +583,10 @@ Flags:
 Enumerated values:
   --occasion
     docket    ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting
-    petition  hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits
+    petition  hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close's record_read reports a petition unheard: in the turn that filed it, at no epoch
     terminal  the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here
     assemble  assembling the final report by union-copy. The last step of the run
-    position  hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits
+    position  hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch
 ========
 $ feov-record regrade --help
 set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion

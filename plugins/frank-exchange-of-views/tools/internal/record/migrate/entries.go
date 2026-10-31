@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -75,7 +76,8 @@ func Entries() Registry {
 		// A DISPATCH ROW BEFORE EPOCH 31 NAMED THE GAPS WHOSE REMAND EXCHANGE IT READIED. The record
 		// stores the plan the row was written from, whose remand_owed names them with the direction,
 		// and keeps no copy on the row; an archived row's list is not carried, and its plan was never
-		// stored, so the gaps are read off the remand rulings the record replays.
+		// stored, so the gaps are read off the remand rulings the record replays. A ROW BEFORE EPOCH 53
+		// NAMED ITS OCCASIONS, and a bench row now convenes the bench for its docket and nothing else.
 		"dispatch": {Translate: dispatchEntry},
 		// A SOURCE BEFORE EPOCH 52 HOLDS THE REPORT AS ONE INGESTED TEXT, written before every other
 		// report op. It is the report's one part, under its author's seat, with its text unchanged: a
@@ -233,16 +235,20 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 	return []proto.Message{c}, nil
 }
 
-// dispatchEntry: a dispatch row is kept word for word but its remand_owed list.
+// dispatchEntry: a dispatch row is kept word for word but its remand_owed and occasions lists. A bench
+// row with no gap convened a hearing alone: the engine convenes a hearing off a close's read, with no
+// row, so it translates to no event. The hearing it convened is kept, and capture answers it by the
+// filing that stood unheard.
 func dispatchEntry(old OldEvent) ([]proto.Message, error) {
-	if _, ok := old.Lists["remand_owed"]; ok {
-		lists := map[string][]string{}
-		for k, v := range old.Lists {
-			if k != "remand_owed" {
-				lists[k] = v
-			}
+	lists := map[string][]string{}
+	for k, v := range old.Lists {
+		if k != "remand_owed" && k != "occasions" {
+			lists[k] = v
 		}
-		old.Lists = lists
+	}
+	old.Lists = lists
+	if seat, _ := old.Fields["seat_id"].(string); record.SeatOwesOccasion(seat) && len(lists["gap_ids"]) == 0 {
+		return nil, nil
 	}
 	body, err := identityBody(old)
 	if err != nil {

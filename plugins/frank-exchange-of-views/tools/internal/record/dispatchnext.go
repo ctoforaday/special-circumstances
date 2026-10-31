@@ -129,18 +129,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			break
 		}
 		wrote = true
-		// THE OCCASIONS ARE ON THE ROW: the bench's sitting for each is the one whose register states
-		// it, and capture holds the bench's registers to the row.
-		var occasions []recordpb.Occasion
-		for _, w := range p.Occasions {
-			o, ok := OccasionOf(w)
-			if !ok {
-				return emptyPlan(), false, feov.Errorf(feov.Internal, "the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
-			}
-			occasions = append(occasions, o)
-		}
 		if err := write(&recordpb.Dispatch{
-			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
+			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs,
 		}); err != nil {
 			return emptyPlan(), false, err
 		}

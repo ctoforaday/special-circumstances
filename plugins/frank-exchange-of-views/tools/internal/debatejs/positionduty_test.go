@@ -42,7 +42,7 @@ func TestTheArgumentDutiesAreStatedOnlyToTheSeatThatOwesThem(t *testing.T) {
 		return map[string]any{"kind": string(record.BlockerClosingOwed), "subject": "G1", "owner": seat}
 	}
 	blockers := []any{owedBy("red-lens-logic"), owedBy("blue-respond"), map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
-	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G2"}, "occasions": []any{"docket"}}
+	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G2"}}
 	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, blueParty, docketBench}, blockers)}, nil)
 
 	seen := map[string]bool{}
