@@ -196,7 +196,8 @@ func (r *runner) laneResearches(seatID string) {
 	if ok {
 		if id := inquiryIDOf(out); id != "" {
 			r.noteInquiry(id)
-			r.admit("inquiry", "record", "--seat-id", seatID, "--id", id, "--as", "underway", "--reason", "fuzz: the lane takes it up")
+			r.admit("inquiry", "record", "--seat-id", seatID, "--id", id, "--as", "underway", "--reason", "fuzz: the lane takes it up",
+				"--method", "fuzz-method")
 		} else {
 			r.noteInquiryIDErr(seatID + "'s propose named no inquiry id: " + firstLine(out))
 		}

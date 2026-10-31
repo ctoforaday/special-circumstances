@@ -930,7 +930,7 @@ func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
 	for _, read := range []struct {
 		seat string
 		by   []string
-	}{{seatID, blueBy}, {seatOfRole("lens"), lensBy}} {
+	}{{seatID, blueBy}, {seatOfRole("lens"), lensBy}, {seatOfRole("lane"), blueBy}} {
 		out, ok := r.searchCitedSource(read.seat, label, span, append(append([]string{}, read.by...), pattern...))
 		if !ok {
 			return
@@ -6405,7 +6405,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
 	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
-		"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge",
+		"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge", "lane": seatclass.LaneSeatPrefix + "1",
 	} {
 		// EACH VIEW UNDER ITS OWN GROUP, FOR THE ROLES THAT CARRY IT. This drove everything as
 		// `show` for all four roles, and when the bench's raw-record projections moved to `inquest`
@@ -6517,7 +6517,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
 		// the binary builds the OPERATOR surface, where `show` does not exist at all.
 		for _, sid := range map[string]string{
-			"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge",
+			"blue": "blue-respond", "lens": "red-lens-evidence", "chair": "red-chair", "bench": "judge", "lane": seatclass.LaneSeatPrefix + "1",
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
@@ -6540,7 +6540,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// checked against the other: a section it says ships carries text, one it says does not carries
 	// none, and the report's own text holds no section the tool composes — the write refuses one,
 	// and a generator here that wrote one would have its ingest or edit refused.
-	for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge"} {
+	for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge", seatclass.LaneSeatPrefix + "1"} {
 		if out, err := drive(bin, "show", "report", "--assembled", "--run", runDir, "--seat-id", sid); err != nil || !strings.Contains(string(out), "## Risk matrix") {
 			res.err = sid + " show report --assembled failed, or lists no risk matrix:\n" + truncate(string(out))
 			return res
@@ -6585,7 +6585,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = fmt.Sprintf("computation %s is on the record and its store is not: %v / %v", anchor, ferr, oerr)
 			return res
 		}
-		for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge"} {
+		for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge", seatclass.LaneSeatPrefix + "1"} {
 			args := []string{"show", "evidence", "--anchor", anchor, "--run", runDir, "--seat-id", sid}
 			out, err := drive(bin, args...)
 			if err != nil {
@@ -8542,7 +8542,7 @@ func fieldStr(t *testing.T, e *record.Event, name string) string {
 func seatOfRole(role string) string {
 	return map[string]string{
 		"blue": "blue-respond", "lens": "red-lens-evidence",
-		"chair": "red-chair", "bench": "judge",
+		"chair": "red-chair", "bench": "judge", "lane": seatclass.LaneSeatPrefix + "1",
 	}[role]
 }
 
