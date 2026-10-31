@@ -46,7 +46,12 @@ func call(t *testing.T, dir, stdin string, args ...string) (stdout, stderr strin
 // withNote builds a project dir holding a live checkpoint at the fallback path.
 func withNote(t *testing.T, body string) string {
 	t.Helper()
-	dir := t.TempDir()
+	return withNoteIn(t, t.TempDir(), body)
+}
+
+// withNoteIn is withNote with the project at dir, which it creates.
+func withNoteIn(t *testing.T, dir, body string) string {
+	t.Helper()
 	cp := filepath.Join(dir, ".claude", "checkpoints")
 	if err := os.MkdirAll(cp, 0o755); err != nil {
 		t.Fatal(err)
@@ -121,7 +126,12 @@ func TestRestoreFiresOnEverySourceThatContinuesWork(t *testing.T) {
 // actions puts two live sessions on one piece of work. Measured: both fork-elicitation interviews
 // of the 2026-09-17 smoke run answered checkpoint duty instead of the interview questions.
 func TestForkGetsAPointerNotTheDigest(t *testing.T) {
-	dir := withNote(t, note)
+	checkForkPointer(t, t.TempDir())
+}
+
+func checkForkPointer(t *testing.T, dir string) string {
+	t.Helper()
+	withNoteIn(t, dir, note)
 	stdout, _, _ := call(t, dir, `{"source":"fork"}`)
 	got := injected(t, stdout)
 	if got == "" {
@@ -145,6 +155,7 @@ func TestForkGetsAPointerNotTheDigest(t *testing.T) {
 	if !strings.Contains(got, "("+forkPointerReason+")") {
 		t.Errorf("the pointer does not say why it is a pointer:\n%s", got)
 	}
+	return got
 }
 
 // THE BOUNDARY THIS FIX MUST NOT CROSS. `compact` is the one seam the whole design exists for,
@@ -428,11 +439,16 @@ func TestBeyondPlanSurvives(t *testing.T) {
 // writes "Next steps" where the schema says "Next intended steps", and silence
 // there is total continuity loss with no symptom.
 func TestOffSchemaHeadingsStillRestore(t *testing.T) {
+	checkOffSchemaHeadings(t, t.TempDir())
+}
+
+func checkOffSchemaHeadings(t *testing.T, dir string) string {
+	t.Helper()
 	off := "---\nschema: 3\nobjective: \"ship it\"\n---\n" +
 		"## Checks\n1. make verify → green\n" +
 		"## Next steps\n1. wire the hook\n" +
 		"## Files touched\n- main.go\n"
-	dir := withNote(t, off)
+	withNoteIn(t, dir, off)
 	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
 	got := injected(t, stdout)
 	if !strings.Contains(got, "make verify") {
@@ -441,6 +457,7 @@ func TestOffSchemaHeadingsStillRestore(t *testing.T) {
 	if hasLine(got, "- main.go") {
 		t.Errorf("fallback pulled in low-value recovery detail:\n%s", got)
 	}
+	return got
 }
 
 // The fallback must not fire when the schema headings DID match — otherwise
@@ -510,7 +527,12 @@ func TestVersion(t *testing.T) {
 // WatchTargets refuses to register a path it cannot stat.
 func withTree(t *testing.T, body string) string {
 	t.Helper()
-	dir := t.TempDir()
+	return withTreeIn(t, t.TempDir(), body)
+}
+
+// withTreeIn is withTree with the project at dir, which it creates.
+func withTreeIn(t *testing.T, dir, body string) string {
+	t.Helper()
 	for _, d := range []string{filepath.Join(".claude", "checkpoints"), "tools", "manifest"} {
 		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
 			t.Fatal(err)
@@ -597,7 +619,12 @@ objective: "prose surfaces"
 // Re-armed checks are surfaced, because a compacted agent reading `last run:
 // pass` off its own note is exactly the failure I2 exists to catch.
 func TestRearmedChecksAppearInTheDigest(t *testing.T) {
-	dir := withTree(t, watchNote)
+	checkRearmedChecks(t, t.TempDir())
+}
+
+func checkRearmedChecks(t *testing.T, dir string) string {
+	t.Helper()
+	withTreeIn(t, dir, watchNote)
 	state := checkpoint.RearmState{Rearmed: map[string]checkpoint.Rearm{
 		"1": {Index: 1, Check: "1. `go test ./...`", By: "tools/x.go", Event: "change", At: "2026-07-29T12:00:00Z"},
 	}}
@@ -615,21 +642,34 @@ func TestRearmedChecksAppearInTheDigest(t *testing.T) {
 	if len(entries) != 1 || entries[0] != want {
 		t.Errorf("re-arm entries = %q, want [%q]:\n%s", entries, want, got)
 	}
+	return got
 }
 
 // Nothing re-armed says nothing: a clean start must not spend tokens reporting
 // the absence of a problem.
 func TestNoRearmsIsSilentOnTheSubject(t *testing.T) {
-	dir := withTree(t, watchNote)
+	checkNoRearms(t, t.TempDir())
+}
+
+func checkNoRearms(t *testing.T, dir string) string {
+	t.Helper()
+	withTreeIn(t, dir, watchNote)
 	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
-	if got := injected(t, stdout); hasRearmNotice(got) {
+	got := injected(t, stdout)
+	if hasRearmNotice(got) {
 		t.Errorf("reported staleness with no re-arms recorded:\n%s", got)
 	}
+	return got
 }
 
 // Corrupt re-arm state must not cost a session start.
 func TestCorruptRearmStateDegradesToSilence(t *testing.T) {
-	dir := withTree(t, watchNote)
+	checkCorruptRearms(t, t.TempDir())
+}
+
+func checkCorruptRearms(t *testing.T, dir string) string {
+	t.Helper()
+	withTreeIn(t, dir, watchNote)
 	if err := os.WriteFile(checkpoint.RearmPath(dir), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -637,9 +677,11 @@ func TestCorruptRearmStateDegradesToSilence(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if got := injected(t, stdout); got == "" || hasRearmNotice(got) {
+	got := injected(t, stdout)
+	if got == "" || hasRearmNotice(got) {
 		t.Errorf("corrupt state changed the digest:\n%s", got)
 	}
+	return got
 }
 
 // rearmNotice recovers the re-arm notice by its structure: the heading line, then one
@@ -677,43 +719,38 @@ func hasLine(got, want string) bool {
 	return false
 }
 
-// pathWords names a temp root holding words the digest's assertions look for. The digest
+// pathWords names a directory holding words the digest's assertions look for. The digest
 // echoes the note's path, so an assertion a path can satisfy or break passes or fails on
-// the name of the temp directory.
+// the name of the directory the project sits in.
 const pathWords = "stale-fork-main.go"
 
 // THE REGRESSION: these tests passed or failed on the name of TMPDIR, because they
 // asserted a bare word over a digest that echoes a path under it. Each runs again here
-// with every temp directory under a path that holds those words.
+// with its project placed explicitly under a directory named for those words.
+//
+// The directory is built and handed to each check rather than reached by setting TMPDIR:
+// t.TempDir reads GOTMPDIR before TMPDIR, so a caller that sets GOTMPDIR keeps every
+// t.TempDir out of a TMPDIR the test sets.
 func TestDigestAssertionsIgnoreTheTempPath(t *testing.T) {
-	root, err := os.MkdirTemp("", "pc-restore-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(root) })
-	hostile := filepath.Join(root, pathWords)
-	if err := os.MkdirAll(hostile, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for _, v := range []string{"TMPDIR", "TMP", "TEMP"} {
-		t.Setenv(v, hostile)
-	}
+	hostile := filepath.Join(t.TempDir(), pathWords)
 	for _, tc := range []struct {
-		name string
-		fn   func(*testing.T)
+		name  string
+		check func(*testing.T, string) string
 	}{
-		{"no re-arms", TestNoRearmsIsSilentOnTheSubject},
-		{"corrupt re-arms", TestCorruptRearmStateDegradesToSilence},
-		{"re-armed check", TestRearmedChecksAppearInTheDigest},
-		{"fork pointer", TestForkGetsAPointerNotTheDigest},
-		{"off-schema heading", TestOffSchemaHeadingsStillRestore},
+		{"no-rearms", checkNoRearms},
+		{"corrupt-rearms", checkCorruptRearms},
+		{"rearmed-check", checkRearmedChecks},
+		{"fork-pointer", checkForkPointer},
+		{"off-schema-heading", checkOffSchemaHeadings},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// A temp root that did not move makes the subtest vacuous; refuse it.
-			if d := t.TempDir(); !strings.Contains(d, pathWords) {
-				t.Fatalf("t.TempDir() = %q is not under the hostile TMPDIR %q", d, hostile)
+			dir := filepath.Join(hostile, tc.name)
+			got := tc.check(t, dir)
+			// A digest that does not carry the hostile path never put the words in front of
+			// the assertions, and the subtest measured nothing; refuse it.
+			if !strings.Contains(got, dir) {
+				t.Fatalf("the hook's output does not echo the project path %q, so the path words never reached the assertions:\n%s", dir, got)
 			}
-			tc.fn(t)
 		})
 	}
 }
