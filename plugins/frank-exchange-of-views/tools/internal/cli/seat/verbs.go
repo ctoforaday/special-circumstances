@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/jsonshape"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -295,6 +296,7 @@ var views = []struct {
 		"`counts.computations_unverified` is how many computations are not verified: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level. `counts.sources_unverified` is how many citations no reading of the sentence the report carries has reached: unchecked, or checked and nothing read. `counts.sources_refuted` is how many citations red finds against NOW: a `refutes` or `absent` check of the sentence the report carries that still stands. A refutation of a sentence an edit has since replaced, or that a later check of the citation backs, or of a retired citation, is in the rows and not in the count.\n\n" +
 		"`unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding and its gap, and the citation `anchor` the reading checked (empty for a corroboration). " +
 		"Only a finding naming it — `--about-kind contradiction --about <id>` — raises it, whether or not the report still holds the sentence; a finding whose quote contains the claim raises nothing. `raised_by` names the raising finding, and a source read against the claim after it opens a new one. The gap minted from the raising finding, naming it in its `found_by` as the finding that surfaced it, answers it; the finding alone does not. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.\n\nAn `unchecked` ROW IS A CITATION OR COMPUTATION WITH NO CHECK OF THE SENTENCE THE REPORT CARRIES: nobody has checked it, or an edit changed its sentence and no sitting opened since has checked it. `edit` and `last_check` are event ids: the edit (0 where none changed the sentence), and the anchor's latest check (0 where it has none), which does not clear it. A `verify` of the citation that reads its source, or a `reproduce` naming the computation's anchor — from a sitting opened after `edit`, where there is one — removes the row, whichever lens records it. A verify `--as unreachable`, or one of a copy the tool stamped not_the_work, reads nothing: it removes the row and leaves the citation on a failed check, which holds the PASS as the row did. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a computation is the computation lens's. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a computation's `" + anchor.Token("K-…") + "` id that is the computation's row WITH THE COMPUTATION ITSELF: `files` is the stored bundle, each file by its `path` with its `body` — the bytes the lens's `reproduce` executes with the row's `argv` — and `output` is what this computation's run printed. The table carries no program, so THIS IS HOW A PROGRAM IS READ BEFORE IT IS JUDGED. A bundle or output the computation store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `unchecked` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `compute`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
+	{"source", "WHERE ONE CACHED SOURCE'S TEXT SAYS SOMETHING — every place a pattern matches the text, each with the source's sentence around it and whether blue's `cite --source-span` takes that sentence. Read from the run's source cache, which `fetch` fills", sourceLong, "", true, fetchcache.SourceSearch{}, false},
 	{"inquiries", "WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`", "the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question and its hypothesis, its current fate, and the reason and method recorded with that fate. The fate is the `status` key, one of " + strings.Join(record.Names(record.MustEnum("inquiry", "status").Values), ", ") + " — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `reason` and `method` are the latest fate's, `epoch` the epoch it was recorded in, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`", "", false, record.InquiriesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
@@ -591,6 +593,10 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		if v.inquest {
 			continue // the bench's own group; see Inquest
 		}
+		// A SOURCE'S TEXT IS READ BY THE SEATS THAT READ SOURCES, as `fetch` is; "" builds every page.
+		if v.name == sourceView && role != "" && !ReadsSources(role) {
+			continue
+		}
 		v := v
 		sub := &cobra.Command{
 			Use: v.name,
@@ -679,6 +685,9 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
 		// and both take a token pasted whole: there it reads the text around the anchor, here it
 		// reads what the anchor points at.
+		if v.name == sourceView {
+			addSourceFlags(sub)
+		}
 		if v.name == "evidence" {
 			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
 				"read the ONE entry at this anchor `id` rather than the table — a computation's (K-…) with its bundle's files and recorded output, or a source's (C-…)")
@@ -929,6 +938,9 @@ func renderView(cmd *cobra.Command, want string) error {
 		// what it kept of what there was, so a pattern that matched nothing is distinguishable from a
 		// board that holds nothing.
 		return WriteSelected(cmd, b)
+	}
+	if want == sourceView {
+		return showSource(cmd, run)
 	}
 	// findings is served as JSON too, and for the same reason: the chair ACTS on it
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must

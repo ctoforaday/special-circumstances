@@ -243,11 +243,25 @@ func opensTag(text string, k int) bool {
 }
 
 // sentenceAround is the source's sentence a span at [start, end) sits in, its whitespace folded
-// to single spaces: from the nearest sentence start at or before start to the first sentence end
-// at or after end, each looked for no further than spanReach bytes away, an ellipsis marking
-// where the search stopped.
+// to single spaces, an ellipsis marking where sentenceBounds stopped looking.
 func sentenceAround(text string, start, end int) string {
-	a, cutA := start, false
+	a, z, cutA, cutZ := sentenceBounds(text, start, end)
+	s := strings.Join(strings.Fields(text[a:z]), " ")
+	if cutA {
+		s = "…" + s
+	}
+	if cutZ {
+		s += "…"
+	}
+	return s
+}
+
+// sentenceBounds is where the source's sentence a span at [start, end) sits in starts and ends:
+// from the nearest sentence start at or before start to the first sentence end at or after end,
+// each looked for no further than spanReach bytes away. cutA and cutZ say the search stopped
+// there rather than at the sentence's edge.
+func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
+	a = start
 	for a > 0 {
 		if start-a > spanReach {
 			cutA = true
@@ -259,7 +273,7 @@ func sentenceAround(text string, start, end int) string {
 		_, n := utf8.DecodeLastRuneInString(text[:a])
 		a -= n
 	}
-	z, cutZ := end, false
+	z = end
 	for z < len(text) {
 		if z-end > spanReach {
 			cutZ = true
@@ -271,14 +285,7 @@ func sentenceAround(text string, start, end int) string {
 		_, n := utf8.DecodeRuneInString(text[z:])
 		z += n
 	}
-	s := strings.Join(strings.Fields(text[a:z]), " ")
-	if cutA {
-		s = "…" + s
-	}
-	if cutZ {
-		s += "…"
-	}
-	return s
+	return a, z, cutA, cutZ
 }
 
 // spanReach is how far sentenceAround looks for a sentence's start or end: a text with no
