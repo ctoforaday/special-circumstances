@@ -1,4 +1,4 @@
-prompt sha256: 53919c36c8390d88f1538e9943008bcb80394847323b3e254ea173605e700d9b
+prompt sha256: ea5414d0ad732199c3a4f2d139af61c9ba4e1295f3bf0e1ca1e5424cfe2a3468
 
 Blue synthesis for topic: "the seat prompt contract".
 The lanes have recorded their parts of the report, and the report is those parts, joined in the order they were recorded.
@@ -18,7 +18,7 @@ Do NOT write a `**Outcome:**` line ANYWHERE either — the outcome is decided af
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
-The lanes name their sources in prose beside each claim: cite each one with the tool, and take the prose naming it out of the text.
+The lanes name their sources in prose beside each claim, and the program behind each figure by its path: cite each source and record each program as a computation with the tool, and take the prose naming it out of the text.
 THE REPORT IS ON THE RECORD, NOT IN A FILE: read it and change it by your seat's own acts, and every change you make is on the record with its reason.
 A part is a lane's, and your seat records none.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.

@@ -1,10 +1,10 @@
-prompt sha256: 590badc3eb2eae567a3eae766ace178f4ecd6b344c19f2680e8af09184422787
+prompt sha256: 0a4e2d8e587f316a1f934e091df806f0b91635af03cef0a508c8db6585a6e2ff
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `inquiries` projection — where each carries an id and its hypothesis.
 Research your assigned slice to saturation per your constitution (spend at least one search in five on disconfirming evidence; note each source inline with its URL, title, and access date).
 Your assigned METHOD: adversarial-disconfirming-first (hunt evidence AGAINST the frontier hypotheses before evidence for them) — work primarily through this method's source class; take hypothesis 1 first, then breadth.
-YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
+YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date), and the program behind each figure by its path under scratch/, so the synthesizer can record each once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
 YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY, each under a `## ` heading of its own: no title, no TL;DR, Catechism or open questions, and no list of sources — the synthesizer writes those, and a part carrying one is refused.
 Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/blue-lane-1.md, then record it — the act your seat's help lists for your part of the report, which takes that file and no other.

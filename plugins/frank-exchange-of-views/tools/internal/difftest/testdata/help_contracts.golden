@@ -174,7 +174,6 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       record your part of the report — once per lane, before the report's first change
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
