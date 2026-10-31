@@ -1,4 +1,4 @@
-prompt sha256: 11e4353d0d4844b5aed7941bd578e77641813fdc5c03b668f595495077e971a5
+prompt sha256: 086f1c7f1f993afdc8976f7606373e758fb1add78d09497c0b4d7c4d84d4d8af
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -20,10 +20,7 @@ DID BLUE ACTUALLY DO WHAT YOU ASKED?
 Otherwise re-read the report where each is anchored, put your required fix and what blue did side by side rather than inferring, and act: regrade on what you now see, or close with the verification triple where the repair holds.
 On a gap you are engaged on, a sitting with neither a regrade nor a close is a NULL TURN, and it ends the exchange all the same — silence is a turn taken.
 A gap you hold and are not engaged on asks nothing of you this sitting: its turn has not come, and the row says so.
-WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED, and the bench rules it once you and the other party to it have each filed yours.
-For EACH, argue in ~120 words why it should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case.
-This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
-A docketed gap asks nothing else of you until the bench has ruled it, and it is off your list but for that closing.
+WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.

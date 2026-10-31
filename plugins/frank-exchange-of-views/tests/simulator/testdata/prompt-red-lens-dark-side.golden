@@ -1,4 +1,4 @@
-prompt sha256: a2a25b51f77140fbe25fbf7f22e253df50e380c7c9d2e2312bf1d505a956b025
+prompt sha256: 5f274604cf1e1c5d994f0907efe6612e00fe6e60a7bf58e7f964c3c9850b90df
 
 Red lens sitting, area dark-side, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -11,10 +11,7 @@ A contradiction left as a finding ships: a finding about an inquiry is on no sea
 An inquiry still at `proposed`, or at `underway` with NO fate recorded this sitting, is a decision nobody made, and that is a finding.
 Re-recording `underway` WITH what it learned is a legitimate reaffirmation and settles the inquiry for that sitting — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 An inquiry declared in the first epoch and never revisited is the common case, and there 'underway' means only 'I intend to' — nothing falsifies it.
-WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED, and the bench rules it once you and the other party to it have each filed yours.
-For EACH, argue in ~120 words why it should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case.
-This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
-A docketed gap asks nothing else of you until the bench has ruled it, and it is off your list but for that closing.
+WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.

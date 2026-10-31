@@ -1,4 +1,4 @@
-prompt sha256: ee509246fa72ae78a4401dbaac1420a35b5ba4c44111e47fc1b7c92b4cfe81a8
+prompt sha256: 1902ff30119a5f20fdf3da8e70d156810aa4202874ecc978e19a07e3b348dd3a
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -14,10 +14,7 @@ VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small mode
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through `gh issue view <n> --comments`), and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.
 If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.
-WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED, and the bench rules it once you and the other party to it have each filed yours.
-For EACH, argue in ~120 words why it should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case.
-This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
-A docketed gap asks nothing else of you until the bench has ruled it, and it is off your list but for that closing.
+WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED: file it, and the gap asks nothing else of you until the bench has ruled it.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.
 `first`: audit the report in full — whole and in context, never a diff; over one Read call, read it whole in consecutive windows.
 `behind`: the head moved past your pin (head H; pin P) — audit it as it now stands, in full, likewise.

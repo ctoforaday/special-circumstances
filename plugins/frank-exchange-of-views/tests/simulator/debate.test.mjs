@@ -584,9 +584,13 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   // WHICH CLOSINGS ARE OWED IS THE WORK LIST'S, read live: the prompt is composed from the plan at the
   // epoch's start, which a seat sitting earlier in the epoch can already have overtaken.
   for (const prompt of [first, second]) {
-    assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED/.test(prompt) && /argue in ~120 words/.test(prompt), 'blue is not told what a closing is')
+    assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED/.test(prompt), 'blue is not sent to its list for its closing')
   }
   assert.ok(!/G-00000002/.test(first), 'blue is told the closings it owes from the plan')
+  for (const seat of ['blue-researcher', 'red-lens-logic']) {
+    const md = readFileSync(new URL(`../../agents/${seat}.md`, import.meta.url), 'utf8')
+    assert.ok(/A closing argues in ~120 words/.test(md), `${seat}'s constitution does not say what a closing argues`)
+  }
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.

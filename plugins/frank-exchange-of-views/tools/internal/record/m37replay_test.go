@@ -12,8 +12,10 @@ import (
 )
 
 // m37Archive is universe-m37: 1263 events, CEILING at epoch 12 under k-max 2, six dockets filed by the
-// dispatch and six rulings on them.
-const m37Archive = "2026-10-31_is-91-prime-m37.tar.gz"
+// dispatch and six rulings on them. It holds the bundle store (computations/<bundle>/), which the
+// migrate package's archive census does not read as the proof store of every run in run-archive/, so
+// it stands in a directory of its own.
+const m37Archive = "bundle-store/2026-10-31_is-91-prime-m37.tar.gz"
 
 // UNIVERSE-M37, REPLAYED (ruled by gblock 2026-10-31). Each of the run's six dockets is folded again on
 // the record as it stood before the plan that filed it. On all six the plan now files nothing and
