@@ -18,8 +18,8 @@ import (
 //   - Holding back a permitted PASS — a chair sitting whose last stored plan permitted PASS, that
 //     records none, and that files the owed position (heardPositionsOf) — readies the bench on that
 //     position. The position is a motion of subject `position` whose filing is the position itself,
-//     so it holds the PASS as an unruled motion and the plan convenes the bench for a position
-//     sitting (benchSittingFor), as a petition convenes one.
+//     so it holds the PASS as an unruled motion and the record's read reports the hearing owed
+//     (RecordRead.BenchOwed), and the engine convenes the position sitting, as for a petition.
 //   - UPHELD: the bench names the work, and the debate continues on it. A lens or open gaps, chosen
 //     per ruling (gblock, 2026-10-30): the lens owes an audit of its area on the ruling's direction
 //     (an upheld_position blocker it owns, which readies it until it is served the report in a
@@ -31,7 +31,7 @@ import (
 //     while the PASS is permitted repeats the decided objection and is refused
 //     (requireNoRepeatedPosition); and a sitting that closes with no verdict is short
 //     (PositionVerdictMissing, which capture's record-parity audit fails).
-//   - AT THE EPOCH LIMIT the chair's final sitting dispatches nobody, so the terminal bench hears the
+//   - AT THE EPOCH LIMIT the chair's final sitting convenes nobody, so the terminal bench hears the
 //     position at the exit and the run ends CEILING however it rules (epochLimitHeldTheBench).
 //
 // Either way the objection is decided, not dropped.

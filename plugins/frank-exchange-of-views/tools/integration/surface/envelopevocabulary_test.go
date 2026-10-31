@@ -56,10 +56,10 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 			keys[k] = true
 		}
 	}
-	// The plan is the chair's envelope and a halt is the bench's: a walk that reaches neither read no
+	// The plan is the chair's envelope and the read every seat's: a walk that reaches neither read no
 	// schema, and every key would then be "undeclared" or "absent".
-	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["halt"] {
-		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the bench's halt — this is measuring nothing", schemas, len(keys))
+	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["bench_owed"] {
+		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the record's read — this is measuring nothing", schemas, len(keys))
 	}
 	return keys
 }
@@ -67,7 +67,8 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 // recordCarried is each fact the record carries that an envelope once restated, with where the
 // record holds it.
 var recordCarried = map[string]string{
-	"petitions":               "a petition is a motion on the record, and the chair's plan convenes the bench for it",
+	"petitions":               "a petition is a motion on the record, and the read on a close reports its hearing owed",
+	"halt":                    "a halt is on the record, and the read on a close reports it",
 	"unruled_motions":         "what stands unruled is the plan's blockers",
 	"log":                     "a seat's log entry is a log event",
 	"claim_count":             "the report's claim count is counted from the report",

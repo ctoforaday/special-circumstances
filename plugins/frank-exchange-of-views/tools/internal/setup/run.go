@@ -64,7 +64,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the fail-fast gates (runDir→1; model tiers, launching session,
-// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary preflight→2),
+// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
 // then the run-dir build + mirrors + marker, then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -237,6 +237,19 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
 		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
 		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-run costs a seat its whole record)")
+		return 2
+	}
+	floor, err := clientFloor(recordBin)
+	if err != nil {
+		fmt.Fprintln(stderr, "run-setup: CLIENT PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %v\n", err)
+		fmt.Fprintln(stderr, "  remedy: reinstall the plugin so its requirements.json sits beside the binary")
+		return 2
+	}
+	if pre := PreflightClient(floor, cfg.Exec); !pre.OK {
+		fmt.Fprintln(stderr, "run-setup: CLIENT PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
+		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
 		return 2
 	}
 

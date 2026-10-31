@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"io"
 	"os"
 	"os/exec"
@@ -91,24 +92,33 @@ func Failure(runDir, agentID, text string) error {
 	return toolEntry(runDir, phaseFailure, agentID, text)
 }
 
-// Envelope asks the writer whether the record refuses the envelope the agent is returning, and
-// returns the refusal, "" when there is none. The PreToolUse hook denies the call with it.
+// Envelope asks the writer about the envelope the agent is returning. The PreToolUse hook denies the
+// call with the refusal, or writes the read onto the call.
 //
-// THE WRITER'S STDOUT IS THE REFUSAL, kept even when the writer exits non-zero: it prints the
-// refusal before it logs it, so a failed log reaches the caller as the error beside a refusal that
-// still stands.
-func Envelope(runDir, agentID string) (string, error) {
+// THE WRITER'S STDOUT IS THE ANSWER, kept even when the writer exits non-zero: it prints a refusal
+// before it logs it, so a failed log reaches the caller as the error beside a refusal that still
+// stands.
+func Envelope(runDir, agentID string) (hookgate.EnvelopeAnswer, error) {
 	writer := writerPath()
 	if writer == "" {
-		return "", fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
+		return hookgate.EnvelopeAnswer{}, fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
 	}
 	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(stderr.String()))
+	runErr := cmd.Run()
+	var answer hookgate.EnvelopeAnswer
+	var decodeErr error
+	if stdout.Len() > 0 {
+		decodeErr = json.Unmarshal(stdout.Bytes(), &answer)
 	}
-	return strings.TrimSpace(stdout.String()), nil
+	if runErr != nil {
+		return answer, fmt.Errorf("%s: %v: %s", writerName, runErr, strings.TrimSpace(stderr.String()))
+	}
+	if decodeErr != nil {
+		return hookgate.EnvelopeAnswer{}, fmt.Errorf("%s printed an answer that does not parse: %v", writerName, decodeErr)
+	}
+	return answer, nil
 }
 
 // Admission hands the writer a seat's envelope the harness accepted: the PostToolUse hook calls it

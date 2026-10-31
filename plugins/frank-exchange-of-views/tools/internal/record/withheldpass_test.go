@@ -78,16 +78,16 @@ func partySeats(p Plan) []string {
 	return out
 }
 
-// HOLDING BACK A PERMITTED PASS READIES THE BENCH ON THE POSITION (gblock, 2026-10-30). The position
-// the chair files where its plan permitted the PASS is a motion the bench rules: the plan convenes the
-// bench for a position sitting, the PASS is refused while it stands, and the position is the sitting's
-// duty discharged. A position at a sitting whose plan permitted none, or after the PASS, readies
+// HOLDING BACK A PERMITTED PASS OWES THE POSITION A HEARING (gblock, 2026-10-30). The position the
+// chair files where its plan permitted the PASS is a motion the bench rules: the record's read reports
+// a position sitting owed, the PASS is refused while it stands, and the position is the sitting's duty
+// discharged. A position at a sitting whose plan permitted none, or after the PASS, readies
 // nobody.
 func TestAWithheldPassReadiesTheBenchOnThePosition(t *testing.T) {
 	b := permittingBoard(t)
 	if p := runPlan(t, b.withhold(heardID).seed()); true {
-		if p.PassPermitted || !slices.Equal(partySeats(p), []string{benchSeat}) || !slices.Equal(p.Parties[0].Occasions, []string{occasionPosition}) {
-			t.Fatalf("plan after the withheld PASS = %+v, want the bench alone, convened for a position sitting", p)
+		if p.PassPermitted || len(p.Parties) != 0 {
+			t.Fatalf("plan after the withheld PASS = %+v, want nobody ready and no PASS: the hearing is on no plan", p)
 		}
 		if !slices.Contains(p.Blockers, PlanBlocker{Kind: BlockerUnruledMotion, Subject: heardID, Owner: benchSeat}) {
 			t.Errorf("blockers = %+v, want the position unruled, the bench's to rule", p.Blockers)

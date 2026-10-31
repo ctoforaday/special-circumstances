@@ -1511,7 +1511,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGaps(q, b.GetGapIds(), "--seat"); err != nil {
 			return err
 		}
-		if err := requireDispatchOccasions(b); err != nil {
+		if err := requireBenchDocket(b); err != nil {
 			return err
 		}
 		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and

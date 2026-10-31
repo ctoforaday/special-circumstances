@@ -51,7 +51,7 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 	case seatclass.RoleOfSeat(b.Seat) == "lens", b.Seat == "blue-respond":
 		engaged = append(engaged, map[string]any{"seat_id": b.Seat, "gap_ids": ids})
 	case seatclass.RoleOfSeat(b.Seat) == "bench":
-		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids, "occasions": []any{"docket"}})
+		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids})
 		docket = ids
 	}
 	plan := func(parties []any, pass bool, dk []any) map[string]any {

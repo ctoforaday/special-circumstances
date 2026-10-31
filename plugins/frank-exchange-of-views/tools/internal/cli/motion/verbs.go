@@ -22,7 +22,7 @@ import (
 // `inquiry` has none: proposing the inquiry is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
-	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
+	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.",
 	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade. Each party to the gap then owes a closing on it; a filing on a gap you filed your closing on in this sitting is refused, because this sitting holds one closing per gap and could not end owing a second — file it in a later sitting.\n\nON A GAP THE BENCH HAS RULED CLOSED IT IS A RECONSIDERATION, ADMITTED ON NEW GROUNDS ONLY: give --grounds or --quote, and the tool checks that what they locate was recorded after that ruling and is about this gap, refusing the filing and saying which failed. The gap's row in your work list's `estopped` states the ruling — what it settled, and what would reopen it or that it is final; a final ruling still admits new grounds. A gap the bench remanded is back in the debate and needs none.",
 }
 
@@ -323,8 +323,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		Long: "rule on " + what + " — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's three each convene a " +
-			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
-			"sits; a position by the plan of the chair sitting that withheld the PASS, before any party of the next epoch sits; a docket after blue has sat on the gap." + ruleDetail[subject],
+			"sitting of their own: a petition as soon as nothing is running, in the turn it was filed; a " +
+			"position the same way, after the chair sitting that withheld the PASS; a docket after blue has sat on the gap." + ruleDetail[subject],
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()

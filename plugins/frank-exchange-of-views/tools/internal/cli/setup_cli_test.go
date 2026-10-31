@@ -40,7 +40,7 @@ func buildSetupBinary(t *testing.T) string {
 	}
 	// The epoch the binary itself compiles in, so the fixture agrees with the binary rather
 	// than pinning a number that would have to move with it.
-	manifest := fmt.Sprintf(`{"eventSchema":%d}`+"\n", record.EventSchema)
+	manifest := fmt.Sprintf(`{"eventSchema":%d,"tools":[{"name":"claude","min_version":"2.1.305"}]}`+"\n", record.EventSchema)
 	if err := os.WriteFile(filepath.Join(root, "requirements.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}

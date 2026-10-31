@@ -61,6 +61,14 @@ refusal is logged under the seat. A check that cannot run refuses the envelope n
 gate admits nothing: an envelope it lets through still faces the harness's schema check, which runs
 inside the tool's own call, after every PreToolUse hook. The admission is PostToolUse's.
 
+THE RECORD'S READ goes on the same call. An envelope the record does not refuse is allowed with the
+input it carried and `record_read` set to what feov-sitting-write answers (`record.RecordRead`: the
+event read at, the hearings owed, whether the bench has halted, the outcome once stamped), overwriting
+anything the seat typed there. The engine runs in a sandbox with no tools, and this field is the only
+thing it learns of the record, so an envelope that comes back without it stops the run UNVERIFIED and
+names the seat. `capture`'s envelope-read audit recomputes each read at the event it names. Claude Code
+2.1.305 is the floor (`requirements.json`), which `sc-doctor` and `setup` both hold.
+
 ## PostToolUse
 
 MATCHER `StructuredOutput`: the binary is spawned for the call that returns a seat's envelope and for

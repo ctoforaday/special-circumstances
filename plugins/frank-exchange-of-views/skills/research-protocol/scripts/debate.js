@@ -350,11 +350,8 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue
 // THE PLAN THE CHAIR RELAYS is record.Plan: its schema (PLAN) is written from that struct's
 // fields, types and tags, and so are the two tables requirePlan walks (PLAN_FIELD_TYPES,
 // PLAN_ITEM_TYPES). A PARTY IS ONE OF TWO SHAPES, AND THE SCHEMA SAYS WHICH BY ITS SEAT
-// (BENCH_PARTY, LENS_OR_BLUE_PARTY, over record.PartySeats): the bench's carries at least one of
-// BENCH_PARTY_OCCASIONS, and a lens's or blue's carries none. AN EMPTY `occasions` ON A LENS OR
-// BLUE IS NOTHING: the verb omits the field for them, the record's dispatch row holds a repeated
-// field with no presence — empty and absent are one state there — and nothing routes on it. Both
-// shapes accept it; neither accepts a word in it. EVERY OBJECT OF THE
+// (BENCH_PARTY, LENS_OR_BLUE_PARTY, over record.PartySeats): the bench's names at least one gap,
+// because the chair convenes it for its docket and nothing else. EVERY OBJECT OF THE
 // PLAN IS CLOSED: the verb prints exactly the keys record.Plan declares, so a key it does not is a
 // relay altered on the way. PLAN_EMPTY_ONLY_WITH is each list the record states empty only while a
 // boolean of the plan is true — `blockers`, empty only when a PASS is permitted — and PLAN's
@@ -365,6 +362,11 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue
 // dispatched so that a lens ends its sitting through the call the record refuses while a blocking
 // item on its own work list stands — the gate every other seat's envelope already passes.
 //
+// THE READ EVERY ENVELOPE DECLARES is record.RecordRead (RECORD_READ). The PreToolUse hook writes it
+// onto the seat's returning call, overwriting anything the seat typed, and this script learns what it
+// knows of the record from it (readOf) and from nothing a seat composed. BENCH_HEARINGS is the
+// occasions its bench_owed can name, in the order the engine hears them.
+//
 // A word added to an enum, a lens area, or a field added to the plan or to a lens's envelope is an
 // edit to the record's declaration and a regeneration; a region that is stale or edited by hand fails
 // `enginegen -check`.
@@ -372,16 +374,15 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — what you argue
 const GRADE = { type: 'string', enum: ['trivial', 'low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized'] }
 const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
-const BENCH_PARTY_OCCASIONS = ['docket', 'petition', 'position']
+const BENCH_HEARINGS = ['petition', 'position']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
 const BENCH_PARTY = {
   type: 'object',
-  required: ['seat_id', 'gap_ids', 'occasions'],
+  required: ['seat_id', 'gap_ids'],
   additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['judge'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps docketed for the bench; empty when it is convened for a petition or a position alone' },
-    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: BENCH_PARTY_OCCASIONS }, description: "what the bench is convened for — petition (before any other party sits), position (the chair's position on a PASS it withheld, before any other party sits), docket (its gap_ids, after blue)" },
+    gap_ids: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else' },
   },
 }
 const LENS_OR_BLUE_PARTY = {
@@ -391,7 +392,6 @@ const LENS_OR_BLUE_PARTY = {
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
     gap_ids: { type: 'array', items: { type: 'string' }, description: "the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" },
-    occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
   },
 }
 const PLAN = {
@@ -428,11 +428,24 @@ const PLAN_ITEM_TYPES = {
   stale_areas: { seat_id: 'string', pin: 'integer' },
   blockers: { kind: 'string', subject: 'string', owner: 'string' },
 }
+const RECORD_READ = {
+  type: 'object',
+  required: ['event', 'bench_owed', 'halted'],
+  additionalProperties: false,
+  properties: {
+    event: { type: 'integer', minimum: 0, description: 'the events.id the record was read at' },
+    bench_owed: { type: 'array', items: { type: 'string', enum: ['petition', 'position'] }, description: 'each sitting of the bench that a filing on the record is owed and has not had' },
+    halted: { type: 'boolean', description: 'the bench has halted the run' },
+    outcome: { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'], description: 'the outcome stamped on the record; absent while none is' },
+  },
+  description: "written by the record's hook; leave it out",
+}
 const LENS_ENVELOPE = {
   type: 'object',
   required: [],
   additionalProperties: false,
   properties: {
+    record_read: RECORD_READ,
   },
 }
 // END GENERATED ENVELOPE VOCABULARY
@@ -463,32 +476,12 @@ const LENS_ENVELOPE = {
 
 // W2c — the petition right (constitutional, record-routed): any party seat may petition the
 // bench, and the petition is a motion ON THE RECORD — the one channel every seat has, the lanes
-// included, whose returns are prose, and the lenses, whose envelope carries nothing. The chair's plan relays it: `dispatch next` readies the
-// bench with occasion `petition` for each petition no petition sitting has heard, and this script
-// convenes that sitting before any other party of the epoch sits. Petitions are never sanctioned
-// and do not pause the petitioner's duties. ALL petitions land on the judicial record regardless of
-// outcome, and a grant's relief with them: the ruling records the order and whom it binds, and every
-// seat's work list carries it from there. This script relays no ruling.
-//
-// HALT_ENVELOPE is what a sitting that hears a petition or a position returns: the petition
-// sitting's, the position sitting's, and the terminal sitting's, which hears either one standing at
-// the exit.
-const HALT_ENVELOPE = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    // THE SAFETY BOUNDARY, ON ITS OWN CHANNEL. A halt is not a ruling on a petition — it is the
-    // bench ending the run, and it is recorded through `bench halt`, which is where the opinion
-    // lives. This field is the ENGINE SIGNAL ONLY: its presence stops the debate. The opinion is
-    // repeated here so the returned envelope is self-describing to the operator, and capture
-    // relays the RECORDED one verbatim.
-    halt: {
-      type: 'object',
-      required: ['opinion'],
-      properties: { opinion: { type: 'string' } },
-    },
-  },
-}
+// included, whose returns are prose, and the lenses, whose envelope carries nothing. The record's read
+// on a close says a hearing is owed, and this script convenes that sitting as soon as nothing is
+// running (hearOwed). Petitions are never sanctioned and do not pause the petitioner's duties. ALL
+// petitions land on the judicial record regardless of outcome, and a grant's relief with them: the
+// ruling records the order and whom it binds, and every seat's work list carries it from there. This
+// script relays no ruling.
 // W2e — the bench reads law at every sitting. Precedent is ARGUMENT, never
 // evidence: the leaf always wins a conflict (flag it for human review). A
 // precedent either party cites MUST be addressed in the opinion. PERSUASIVE
@@ -516,14 +509,15 @@ const declareClause = ''
 // closure is authored too — all but the lens's, LENS_ENVELOPE, generated closed from its
 // declaration; the simulator holds every dispatched schema to it.
 //
-// EMPTY_ENVELOPE is a sitting's that returns nothing the engine threads, and two do. The synthesizer's:
+// EMPTY_ENVELOPE is a sitting's that returns nothing a seat composes: it declares only the read the hook
+// writes, and five sittings return it: a hearing's, the terminal sitting's, and these two. The synthesizer's:
 // what it wrote, cited, computed and re-voiced is on the record as events, and replaying synthesis
 // sittings with and without each former key (2026-10-20) changed no first return. The bench's docket
 // sitting's: its rulings are on the record — a ruling that closed a gap is on every seat's work list
 // with what it settled and what would reopen it, and a remand's direction is on the work lists of
 // the two seats the plan readies for its exchange. Each is dispatched with it so that the seat ends
 // its sitting through the call the record refuses while its owed work stands.
-const EMPTY_ENVELOPE = { type: 'object', additionalProperties: false, properties: {} }
+const EMPTY_ENVELOPE = { type: 'object', additionalProperties: false, properties: { record_read: RECORD_READ } }
 
 const BLUE_ENVELOPE = {
   type: 'object',
@@ -564,6 +558,7 @@ const BLUE_ENVELOPE = {
     // this epoch on them, at most once per successor; the record, not this list, is what capture and
     // the next plan read.
     successors: { type: 'array', items: GAP_ID, description: 'the id of each successor you engaged your next sitting on this sitting — ids only; empty when you engaged none' },
+    record_read: RECORD_READ,
   },
 }
 
@@ -577,8 +572,7 @@ const BLUE_ENVELOPE = {
 // else is here: the record holds it and every seat reads it through the tool.
 //
 // A PARTY IS ONE OF TWO SHAPES (BENCH_PARTY, LENS_OR_BLUE_PARTY, generated). requirePlan below refuses a
-// bench party with no occasion, a lens or blue carrying one, and a seat this workflow has no
-// sitting for; a relay the schema accepted and the check then threw on ended a run at its sixth
+// bench party with no gap and a seat this workflow has no sitting for; a relay the schema accepted and the check then threw on ended a run at its sixth
 // chair sitting, with every sitting before it paid for. So each refusal there is a shape in the
 // schema: the harness hands a mis-shaped relay back to the chair to send again, and the run goes on.
 //
@@ -588,10 +582,6 @@ const BLUE_ENVELOPE = {
 // prints every field and every array as an array, so a plan that fails here was altered in transit.
 // The fields and their types are the record's: PLAN_FIELD_TYPES for the plan's own, PLAN_ITEM_TYPES
 // for each entry of each of its lists.
-//
-// THE BENCH IS CONVENED FOR AN OCCASION, AND THE PLAN SAYS WHICH. Its one seat id cannot say whether
-// it hears a petition or rules a docket, so the bench party carries `occasions` and this script
-// routes on it; an empty gap list is never read as "a petition". No other party carries one.
 //
 // EVERY REFUSAL BELOW IS A SHAPE THE ENVELOPE SCHEMA ALREADY REFUSES, so none of them is reached by
 // a relay the harness accepted: they stand behind the schema, not beside it. The simulator's
@@ -607,14 +597,10 @@ const requirePlan = (plan, epoch) => {
       for (const [f, t] of Object.entries(types)) if (!x || !typeOk(x[f], t)) refuse(`${list}[${i}].${f}`, x && x[f], t)
     })
   }
+  // THE CHAIR CONVENES THE BENCH FOR ITS DOCKET AND NOTHING ELSE, so a bench party with no gap was
+  // altered on the way.
   plan.parties.forEach((p) => {
-    const bench = roleOfSeat(p.seat_id) === 'bench'
-    if (bench && !(typeOk(p.occasions, 'array') && p.occasions.length && p.occasions.every((o) => BENCH_PARTY_OCCASIONS.includes(o)))) {
-      throw new Error(`red-chair sitting ${epoch} relayed a bench party whose \`occasions\` is ${JSON.stringify(p.occasions)}, not a non-empty list of ${BENCH_PARTY_OCCASIONS.join(' | ')} — the plan is \`dispatch next\`'s JSON, relayed verbatim`)
-    }
-    // ABSENT AND EMPTY ARE ONE STATE for a lens or blue (see LENS_OR_BLUE_PARTY): nothing is read
-    // from it and nothing is refused. A WORD in it is a party the relay altered.
-    if (!bench && !(p.occasions === undefined || (Array.isArray(p.occasions) && p.occasions.length === 0))) throw new Error(`red-chair sitting ${epoch} relayed ${p.seat_id} with \`occasions\` ${JSON.stringify(p.occasions)} — only the bench is convened for an occasion; the plan is \`dispatch next\`'s JSON, relayed verbatim`)
+    if (roleOfSeat(p.seat_id) === 'bench' && !p.gap_ids.length) throw new Error(`red-chair sitting ${epoch} relayed a bench party with no gap — the bench is a party for its docket; the plan is \`dispatch next\`'s JSON, relayed verbatim`)
   })
   // A REMAND'S DIRECTION IS THE RECORD'S, and the record refuses it blank on a remand: a blank one
   // here was lost on the way, and blue would be handed a remand owing nothing.
@@ -639,7 +625,9 @@ const requirePlan = (plan, epoch) => {
 //
 // NOTES IS THE CHAIR'S LINE TO THE OPERATOR, printed on its progress line below. It carries no
 // description: described, it drew more wrapping than bare in the m28 replay (2 of 12 against 0 of 16).
-const CHAIR_ENVELOPE = { ...PLAN, properties: { ...PLAN.properties, notes: { type: 'string' } } }
+// THE READ IS THE HOOK'S, beside the plan and no part of it: capture strips it, as it does `notes`,
+// before comparing the relay with the plan the record stored.
+const CHAIR_ENVELOPE = { ...PLAN, properties: { ...PLAN.properties, notes: { type: 'string' }, record_read: RECORD_READ } }
 
 // THE STRATEGIC AREAS (#771). Each is a distinct kind of attack on the report and each gets
 // exactly one seat, named for what it audits: `found_by` labels are <area>-F<n> and every
@@ -677,6 +665,34 @@ const LANE_METHODS = [
 // W2c petition machinery: a halt ends the run (verdict HALTED — capture relays the opinion
 // verbatim, never smoothed); a ruling, and a grant's relief, stay on the record.
 
+// THE ENGINE READS THE RECORD OFF A SEAT'S CLOSE, AND NOWHERE ELSE (gblock, 2026-10-31). This sandbox
+// can run no tool, so the PreToolUse hook writes `record_read` onto every envelope a seat returns, and
+// a seat cannot supply or change it. A judge's envelope once carried a halt the seat composed, and
+// "Not halted…" read as HALTED.
+//
+// ABSENT IS NOT EMPTY. A read with `bench_owed: []` is a record that owes no hearing. An envelope with
+// no read is a hook that did not run, so the envelope gate did not run either: readOf stops the run
+// UNVERIFIED, naming the seat. Every read goes through readOf, so absent never reads as empty, and a
+// halt on any read stops whoever has not started.
+//
+// A seat that died returned no envelope: the record still holds its filing, and the next close reads it.
+let halted = false
+let readStop = null // { seat } when a seat's envelope came back with no record_read
+const stopped = () => halted || readStop !== null
+function readOf(seat, env) {
+  const read = env.record_read
+  if (read === undefined) {
+    if (!readStop) readStop = { seat }
+    log(`${seat}: the envelope came back with no record_read — the record's read did not come back, so the hook did not run and neither did the envelope gate; the run stops UNVERIFIED`)
+    return null
+  }
+  if (read.halted && !halted) {
+    halted = true
+    log(`JUDICIAL HALT — on the record at event ${read.event}, read at ${seat}'s close`)
+  }
+  return read
+}
+
 // A SEAT'S FAILED SITTING DOES NOT STOP THE RUN (ruled by gblock 2026-10-27/28). A seat dispatched
 // with an envelope schema can end without one: the harness throws when it ends with text after its
 // nudge — the envelope gate refused it until it stopped — and agent() returns null when the agent
@@ -707,8 +723,6 @@ async function sit(dispatch, opts) {
   }
   return null
 }
-let halted = false
-let haltOpinion = null
 // THE BENCH IS ONE SEAT, AND A PETITION IS A QUESTION PUT TO IT.
 //
 // The bench rules a docket, rules what still stands at the exit, hears a petition and assembles
@@ -723,57 +737,61 @@ let haltOpinion = null
 // SEAT_ID out of each prompt this script renders and holds the dispatch's agent type and model to
 // the roster's row for that seat.
 
-// THE PETITIONS COME FROM THE RECORD, RELAYED IN THE PLAN. A lens, a lane and the frontier return
-// prose, so an envelope field could never carry their petitions — the record is the one channel
-// every party seat has. `dispatch next` readies the bench with occasion `petition` for the petitions
-// no petition sitting has heard since they were filed; this sitting runs before any other party of
-// the epoch, and the bench reads each petition — its filer, class, basis and relief — off its own
-// work list, where each one is named.
+// THE PETITIONS COME FROM THE RECORD. A lens, a lane and the frontier return prose, so an envelope
+// field could never carry their petitions — the record is the one channel every party seat has. The
+// bench reads each petition — its filer, class, basis and relief — off its own work list, where each
+// one is named.
 // A HALT IS ASKED THE SAME WAY WHEREVER THE BENCH HEARS A PETITION — the petition sitting, and the
-// terminal sitting a petition still standing at the exit reaches. `effect` says what the envelope's
-// halt does from that sitting.
-const haltClause = (effect, filing = 'petition') => `A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a ${filing}, and both can be true at once — rule the ${filing} on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, and ALSO return the envelope's \`halt\` object carrying that same opinion, which is what ${effect}.`
-
-// takeHalt carries a sitting's halt into the engine — the one handler for every sitting that can
-// hear a petition or a position, so a halt reaches the stamp from any of them. The bench records it
-// through `bench halt`, and this only tells the engine to stop.
-function takeHalt(sitting) {
-  if (sitting.halt && sitting.halt.opinion) { halted = true; haltOpinion = sitting.halt.opinion }
-  if (halted) log(`JUDICIAL HALT — ${haltOpinion ? haltOpinion.slice(0, 200) : ''}`)
-  return halted
-}
+// terminal sitting a petition still standing at the exit reaches. `effect` says what the halt does from
+// that sitting.
+const haltClause = (effect, filing = 'petition') => `A HALT IS A DIFFERENT DECISION FROM A RULING: it is you ending the RUN, not disposing of a ${filing}, and both can be true at once — rule the ${filing} on its merits and halt as well where continuing would itself compromise safety, consent gates, corpus integrity, or participant integrity. Record the halt, which ${effect}.`
+const HALT_STOPS = 'stops the run before any seat that has not started sits'
 
 async function hearPetitions() {
   const seatID = 'judge'
-  log(`epoch ${epoch}: the plan convenes the bench to hear the petitions on the record — before any party of this epoch sits`)
-  const sitting = await sit((o) => agent(
-    `Petition sitting, topic "${topic}". The record holds petitions no petition sitting has heard: your work list names each unruled motion whose gavel is yours, and the motions projection carries each petition's filer, class, basis and relief. Rule EVERY PETITION among them; a docket motion there waits for the sitting its docket convenes. Petitions are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. A GRANT RECORDS TWO THINGS, AND THEY DO DIFFERENT WORK: your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and the RELIEF is the OPERATIVE part: the order as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion, with whom it binds. The seats it binds read it on their work lists. A denial orders nothing. Read the transcript for context. ${haltClause('stops the engine')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.petition)} Return the petition-ruling envelope.`, o),
+  log(`epoch ${epoch}: the bench hears the petitions the record's read says are owed`)
+  return sit((o) => agent(
+    `Petition sitting, topic "${topic}". The record holds petitions no petition sitting has heard: your work list names each unruled motion whose gavel is yours, and the motions projection carries each petition's filer, class, basis and relief. Rule EVERY PETITION among them; a docket motion there waits for the sitting its docket convenes. Petitions are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. A GRANT RECORDS TWO THINGS, AND THEY DO DIFFERENT WORK: your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and the RELIEF is the OPERATIVE part: the order as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion, with whom it binds. The seats it binds read it on their work lists. A denial orders nothing. Read the transcript for context. ${haltClause(HALT_STOPS)}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.petition)} Return your envelope.`, o),
     // The label heads with the seat and carries which question this sitting was, for a human
     // reading a dashboard.
-    { ...dispatchAs(seatID), label: `judge · ${OCCASION.petition} · ${slug}`, phase: 'Debate', schema: HALT_ENVELOPE })
-  // A FILED PETITION IS NEVER DROPPED: it stands on the record unheard, and the next plan convenes
-  // the bench for it again.
-  if (!sitting) return false
-  return takeHalt(sitting)
+    { ...dispatchAs(seatID), label: `judge · ${OCCASION.petition} · ${slug}`, phase: 'Debate', schema: EMPTY_ENVELOPE })
 }
-// A POSITION SITTING HEARS THE CHAIR'S POSITION ON A PASS IT WITHHELD (gblock, 2026-10-30): a chair
-// sitting whose plan permitted the PASS, that recorded none, and that filed the position readies the
-// bench on it, and this script convenes that sitting where it convenes a petition's — before any
-// other party of the epoch sits. The ruling is on the record; the envelope carries only the halt,
-// because what the ruling sets in motion — the work an upheld ruling names, or the verdict an
-// overruled one sends back to the chair — reaches the coming seats through the record's plan and
+// A POSITION SITTING HEARS THE CHAIR'S POSITION ON A PASS IT WITHHELD (gblock, 2026-10-30), convened
+// as a petition's is. What the ruling sets in motion — the work an upheld ruling names, or the verdict
+// an overruled one sends back to the chair — reaches the coming seats through the record's plan and
 // their work lists, never through this script.
 
 async function hearPositions() {
   const seatID = 'judge'
-  log(`epoch ${epoch}: the plan convenes the bench to hear the chair's position on the PASS it withheld — before any party of this epoch sits`)
-  const sitting = await sit((o) => agent(
-    `Position sitting, topic "${topic}". The chair held back a PASS its plan permitted, and its position argues why: your work list names each such position whose gavel is yours, and the motions projection carries the position's text. Read the report, the board and the position, and rule EACH position upheld | overruled, with your opinion — the reasoning, the principle applied, why the objection does or does not hold. EITHER WAY THE OBJECTION IS DECIDED, NOT DROPPED. UPHELD: the objection holds, and your ruling NAMES THE WORK the debate continues on, one way: a lens, to audit its area, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a gap sent back this way is its one remand at impasse, as a docket remand is — and in either case the DIRECTION that work owes, written as a directive a seat can act on. OVERRULED: the objection does not hold; you name no work, and the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict on it. Read the transcript for context. ${haltClause('stops the engine', 'position')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.position)} Return your envelope.`, o),
-    { ...dispatchAs(seatID), label: `judge · ${OCCASION.position} · ${slug}`, phase: 'Debate', schema: HALT_ENVELOPE })
-  // A HEARD POSITION IS NEVER DROPPED: it stands on the record unruled, and the next plan convenes
-  // the bench for it again.
-  if (!sitting) return false
-  return takeHalt(sitting)
+  log(`epoch ${epoch}: the bench hears the chair's position on the PASS it withheld, which the record's read says is owed`)
+  return sit((o) => agent(
+    `Position sitting, topic "${topic}". The chair held back a PASS its plan permitted, and its position argues why: your work list names each such position whose gavel is yours, and the motions projection carries the position's text. Read the report, the board and the position, and rule EACH position upheld | overruled, with your opinion — the reasoning, the principle applied, why the objection does or does not hold. EITHER WAY THE OBJECTION IS DECIDED, NOT DROPPED. UPHELD: the objection holds, and your ruling NAMES THE WORK the debate continues on, one way: a lens, to audit its area, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a gap sent back this way is its one remand at impasse, as a docket remand is — and in either case the DIRECTION that work owes, written as a directive a seat can act on. OVERRULED: the objection does not hold; you name no work, and the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict on it. Read the transcript for context. ${haltClause(HALT_STOPS, 'position')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause(seatID, OCCASION.position)} Return your envelope.`, o),
+    { ...dispatchAs(seatID), label: `judge · ${OCCASION.position} · ${slug}`, phase: 'Debate', schema: EMPTY_ENVELOPE })
+}
+
+// THE BENCH HEARS WHENEVER NOTHING IS RUNNING (gblock, 2026-10-31): the one step at every barrier —
+// after the chair, after the lens group, after each blue sitting, after the docket bench. A hearing has
+// no turn of its own: it is the end-state of the turn that asked for it, so no chair sits for it, one
+// chair sitting stays one epoch, and no bound on hearings is added. The epoch limit ends a chair that
+// files every turn, and the parties sit each turn all the same.
+//
+// `reads` is every close since the last barrier, and a hearing is owed when ANY of them says so: a filing
+// commits before its seat's close, so a close that came before it says nothing about it, and the last
+// close alone would read nothing when that seat died. A filing no close reports is late by one barrier,
+// never lost: the record holds it, and the next close reads it. A hearing that fails leaves its filing
+// unheard, so the next close reports it again.
+//
+// A HEARING'S OWN CLOSE IS READ ONLY FOR THE HALT, and does not re-enter: a filing it reports waits for
+// the next close. A halted run stops whoever has not started; a seat already in flight in a parallel
+// group finishes, because nothing here can cancel it.
+const HEARINGS = { [OCCASION.petition]: hearPetitions, [OCCASION.position]: hearPositions }
+async function hearOwed(reads) {
+  for (const occasion of BENCH_HEARINGS.filter((o) => reads.some((r) => r && r.bench_owed.includes(o)))) {
+    if (stopped()) break
+    const sitting = await HEARINGS[occasion]()
+    if (sitting) readOf('judge', sitting)
+  }
+  return stopped()
 }
 // ---- Frontier ----
 phase('Frontier')
@@ -812,14 +830,17 @@ for (let failures = 0; !blueEnv;) {
     break
   }
 }
+// NOTHING IS HEARD BEFORE THE FIRST CHAIR: a filing from the frontier, a lane or the synthesis reaches
+// the bench off the first chair's close, before any party sits. This read is only for what stops the run.
+if (blueEnv) readOf('blue-synthesize', blueEnv)
 // ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
 // ─── THE DEBATE: chair sits → the record says who sits → they sit → the chair sits again ───────────
 //
 // There are no rounds (plans/roundless.md §III.B.1). Each chair sitting opens an epoch: the chair
 // runs `dispatch next`, which computes readiness FROM THE BOARD and records one dispatch per party;
 // the chair's envelope is the verb's JSON; this loop dispatches what the plan says and nothing
-// else. A bench convened for petitions sits first, then red parties (in parallel), then blue, then
-// the bench on its docket — an exchange is a red-party
+// else: red parties (in parallel), then blue, then the bench on its docket, and the bench hears what a
+// close says is owed whenever nothing is running (hearOwed) — an exchange is a red-party
 // sitting followed by a blue-party sitting, and the record counts them (impasse.go). Empty is the
 // termination signal: pass_permitted (the chair issues PASS → VERIFIED), ceiling (the run's epoch
 // limit reached → CEILING), or
@@ -848,6 +869,7 @@ let samePlan = { key: null, epochs: 0 }
 let noProgress = null // { epochs, head, parties } when the valve stopped the debate
 let epoch = 0
 let lastPlan = null
+let limitHeldTheHearing = false // the last epoch's close reported a hearing its relayed plan did not hold the limit for
 
 const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its re-run and verdict; an unjudged one looks clean until checked. A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS your work list says its sentence changed since, OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through \`gh issue view <n> --comments\`), and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
 // THE LENS: it audits its area and puts what it finds on the board ITSELF (plans/roundless.md
@@ -885,7 +907,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the position on a PASS it withholds, the spot-check, the rulings on blue's motions and
 // on its inquiries, and the review of the inquiries, are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose pin the report head has moved past, blue on every open material gap below its limits and its lens once blue has acted since the lens did, the bench for every gap at impasse (it dockets those itself) once its two closings are in, and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises. Your envelope IS the object it prints, its fields copied VERBATIM; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with it, so anything you drop, add or alter fails its dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose pin the report head has moved past, blue on every open material gap below its limits and its lens once blue has acted since the lens did, the bench for every gap at impasse (it dockets those itself) once its two closings are in, and the seat that owes a blocker another seat must clear — the lens that read a contradicting source no finding raises. Your envelope IS the object it prints, its fields copied VERBATIM; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with it, so anything you drop, add or alter fails its dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is.
 WHEN THE REPORT OR AN INQUIRY HAS CHANGED SINCE YOUR LAST READ, ANSWER EVERY INQUIRY ON ONE READ: read the report ONCE and answer every inquiry against that pass, the way anyone checks a document against a list — not once per inquiry, and from THIS read, because the report is rewritten between sittings; where neither has changed, your last read stands and nothing is owed. RULE ON BLUE'S INQUIRIES: a ruling is an ARGUMENT, not a command — it needs a reason, and blue decides what becomes of the inquiry with that reason in front of it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.
@@ -909,7 +931,7 @@ const labelFor = (seat) => { sittings[seat] = (sittings[seat] || 0) + 1; return 
 // the next. NO_PROGRESS_EPOCHS failures in a row stop the debate (seatStop) UNVERIFIED, naming the chair:
 // without the chair nothing is dispatched, so the loop would only spend.
 let chairFailures = 0
-while (!halted && !seatStop) {
+while (!stopped() && !seatStop) {
   epoch++
   const chairEnv = await sit((o) => agent(chairPrompt(), o), { ...dispatchAs('red-chair'), label: labelFor('red-chair'), phase: 'Red', schema: CHAIR_ENVELOPE })
   if (!chairEnv) {
@@ -923,18 +945,27 @@ while (!halted && !seatStop) {
     continue
   }
   chairFailures = 0
+  const read = readOf('red-chair', chairEnv)
+  if (!read) break
   const plan = chairEnv
   requirePlan(plan, epoch)
   lastPlan = plan
   log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${plan.verdict ? `, chair recorded ${plan.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
+  if (halted) break
   if (plan.verdict === 'PASS') break
   // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
   // nobody. A relayed plan that says the limit is reached ends the debate whatever parties it lists.
-  if (plan.epoch_limit_reached) {
+  // A HEARING OWED AT THE LAST EPOCH IS THE TERMINAL SITTING'S: no hearing is convened there, and the
+  // run ends CEILING however it is ruled (gblock, 2026-10-30). A plan asked before the filing does not
+  // say the limit is reached, and the read on its close does.
+  if (plan.epoch_limit_reached || (plan.final_sitting && read.bench_owed.length)) {
+    limitHeldTheHearing = !plan.epoch_limit_reached
     log(`epoch ${epoch}: the epoch limit (${plan.max_epochs}) is reached — nobody further is dispatched`)
     break
   }
-  if (plan.parties.length === 0) break
+  // NOBODY READY AND NOTHING OWED IS THE RECORD'S WORD THAT THE RUN IS OVER. A hearing owed is more of
+  // this turn: the bench hears it below, and the next chair's plan carries what its ruling set in motion.
+  if (plan.parties.length === 0 && read.bench_owed.length === 0) break
   const key = plan.key
   samePlan = key === samePlan.key ? { key, epochs: samePlan.epochs + 1 } : { key, epochs: 1 }
   if (samePlan.epochs >= NO_PROGRESS_EPOCHS) {
@@ -957,16 +988,13 @@ while (!halted && !seatStop) {
   const strays = plan.parties.filter((p) => roleOfParty(p) === 'stray')
   if (strays.length) throw new Error(`epoch ${epoch}: the plan names ${strays.map((p) => p.seat_id).join(', ')}, which this workflow has no sitting for — the cast and the workflow disagree`)
 
-  // A PETITION IS HEARD BEFORE ANY PARTY OF THE EPOCH SITS — the epoch after its filing, because
-  // the record reaches this script only through the chair's plan. A halt ends the run here.
-  if (benches.some((p) => p.occasions.includes(OCCASION.petition)) && await hearPetitions()) break
-  // THE CHAIR'S POSITION ON A PASS IT WITHHELD IS HEARD THERE TOO, on the same terms.
-  if (benches.some((p) => p.occasions.includes(OCCASION.position)) && await hearPositions()) break
+  if (await hearOwed([read])) break
 
   if (lenses.length) {
     log(`epoch ${epoch}: dispatching ${lenses.length} red lens(es): ${lenses.map((p) => `${SEATS[p.seat_id].area}${p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')}`)
-    await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids, owesClosing(plan, p.seat_id)),
+    const lensEnvs = await parallel(lenses.map((p) => () => agent(lensPrompt(p.seat_id, p.gap_ids, owesClosing(plan, p.seat_id)),
       { ...dispatchAs(p.seat_id), label: labelFor(p.seat_id), phase: 'Red', schema: LENS_ENVELOPE })))
+    if (await hearOwed(lensEnvs.flatMap((env, i) => (env ? [readOf(lenses[i].seat_id, env)] : [])))) break
   }
   // BLUE SITS AGAIN ON A SUCCESSOR (gblock's ruling R2): a gap blue found closed whose successor the
   // record names engages blue's next sitting on it, and blue relays the ids. THE BOUND: one more
@@ -976,6 +1004,7 @@ while (!halted && !seatStop) {
   const blueSittings = blues.map((p) => ({ gap_ids: p.gap_ids, again: false }))
   const blueEngaged = new Set(blues.flatMap((p) => p.gap_ids))
   for (const p of blueSittings) {
+    if (stopped()) break
     phase('Debate')
     const blueEnv2 = await sit((o) => agent(bluePrompt(p.gap_ids, !p.again && owesClosing(plan, 'blue-respond')), o), { ...dispatchAs('blue-respond'), label: labelFor('blue-respond'), phase: 'Debate', schema: BLUE_ENVELOPE })
     // A FAILED BLUE SITTING ANSWERED NOTHING the engine can read; what it owes stays on its work list,
@@ -1014,15 +1043,19 @@ while (!halted && !seatStop) {
     if (foundClosed.size) log(`epoch ${epoch}: blue found ${[...foundClosed].join(', ')} closed before it sat — no manifest row owed (capture re-derives this from the record)`)
     if (uncovered.length) log(`epoch ${epoch}: manifest rows named for ${open.length - uncovered.length}/${open.length} gap(s) open when blue sat — no row for: ${uncovered.join(', ')} (owed where this sitting's edit answered it; scored at capture)`)
     log(`epoch ${epoch}: blue responded${p.gap_ids.length ? ` on ${p.gap_ids.join(', ')}` : ''}`)
+    await hearOwed([readOf('blue-respond', blueEnv2)])
   }
-  for (const p of benches.filter((b) => b.occasions.includes(OCCASION.docket))) {
+  for (const p of benches) {
+    if (stopped()) break
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)
     const judge = await sit((o) => agent(benchPrompt(p.gap_ids), o), { ...dispatchAs('judge'), label: labelFor('judge'), phase: 'Debate', schema: EMPTY_ENVELOPE })
     // A FAILED BENCH SITTING RULED NOTHING the engine can read: the docket stands on the record, and
     // the plan convenes the bench on it again in the next epoch.
     if (!judge) {
       log(`epoch ${epoch}: the bench's sitting on ${p.gap_ids.join(', ')} failed — the docket stands, and the plan convenes it again`)
+      continue
     }
+    await hearOwed([readOf('judge', judge)])
   }
 }
 
@@ -1041,9 +1074,10 @@ const outcomeWord = (w) => {
 // run that stopped before its record reached a terminal state, and the why says what stopped it.
 // The outcome is read twice: at the end of the debate, and again if the terminal sitting halts.
 const verdictNow = () => halted ? outcomeWord('HALTED')
+  : readStop ? outcomeWord('UNVERIFIED')
   : (lastPlan && lastPlan.verdict === 'PASS') ? outcomeWord('VERIFIED')
   : (noProgress || seatStop) ? outcomeWord('UNVERIFIED')
-  : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
+  : (lastPlan && (lastPlan.ceiling || limitHeldTheHearing)) ? outcomeWord('CEILING')
   : outcomeWord('UNVERIFIED')
 // A RUN THAT ENDS OVER AN UNCHECKED CITATION OR COMPUTATION, OR ONE ON A FAILED CHECK, NAMES IT, as the
 // record's own derived reason does (verdict.go anchorsStanding): the run ends with an anchor nobody
@@ -1055,6 +1089,7 @@ const anchorsStanding = (plan) => {
   return (unchecked.length ? `; unchecked: ${unchecked.join(', ')}` : '') + (failed.length ? `; on a failed check: ${failed.join(', ')}` : '')
 }
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
+  : readStop ? `no read of the record: the envelope ${readStop.seat} returned carries no record_read, so the hook that writes it did not run, and neither did the envelope gate — the engine stopped rather than dispatch on a record it cannot read`
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : seatStop ? `seat failure: ${seatStop.seat} failed ${seatStop.failures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}), each ending without its envelope — the engine stopped the debate rather than dispatch it again`
   : noProgress ? `no progress: the dispatch plan was the same for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head}, its parties, docket, exchange counts and standing blockers unchanged — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
@@ -1073,19 +1108,21 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // while a bench-owned motion stands, so one filed after it is ruled at assembly.
 //
 // A PETITION STANDING HERE IS HEARD HERE, and its ruling and a halt travel as the petition sitting's
-// do (takeHalt): a halt stamps the run HALTED. A POSITION STANDING HERE — the chair withheld the
+// do: a halt the close reads stamps the run HALTED. A STOP ON A MISSING READ HAS NO TERMINAL SITTING:
+// it can land mid-turn, where the last plan's blockers are stale, and the assembly rules what stands. A POSITION STANDING HERE — the chair withheld the
 // PASS at its final sitting — is heard here as well, and the run ends at its ceiling however it is
 // ruled (gblock, 2026-10-30): no sitting follows to do the work or decide on the PASS.
 const benchBlockers = lastPlan ? lastPlan.blockers.filter((b) => b.kind === 'unruled_motion' && roleOfSeat(b.owner) === 'bench') : []
-if (!halted && benchBlockers.length) {
+if (!stopped() && benchBlockers.length) {
   const terminalJudge = await sit((o) => agent(
     `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, a grant with its relief and whom it binds. A POSITION among them — the chair held back a PASS its plan permitted at its final sitting — is ruled upheld | overruled with your opinion: upheld names the work — a lens to audit its area, or open gaps — and the direction it owes, overruled names nothing, and the run ends at its ceiling however you rule it. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`, o),
-    { ...dispatchAs('judge'), label: `judge · ${OCCASION.terminal} · ${slug}`, phase: 'Assemble', schema: HALT_ENVELOPE })
+    { ...dispatchAs('judge'), label: `judge · ${OCCASION.terminal} · ${slug}`, phase: 'Assemble', schema: EMPTY_ENVELOPE })
   if (terminalJudge) {
-    if (takeHalt(terminalJudge)) {
+    readOf('judge', terminalJudge)
+    if (stopped()) {
       verdict = verdictNow()
       terminationWhy = terminationWhyOf(verdict)
-      log(`the terminal sitting halted the run: ${verdict} — ${terminationWhy}`)
+      log(`the terminal sitting stopped the run: ${verdict} — ${terminationWhy}`)
     }
   }
 }
@@ -1096,37 +1133,50 @@ const ASSEMBLE_ENVELOPE = {
   required: ['open_gaps'],
   properties: {
     open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
+    record_read: RECORD_READ,
   },
 }
 phase('Assemble')
 const assemblyPrompt = () =>
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${epoch} chair sitting(s) — ${terminationWhy}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL HALT — carry the opinion verbatim: ${haltOpinion}` : ''}${verdict === 'CEILING' ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ''}${verdict === 'UNVERIFIED' ? (seatStop ? `, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: ${terminationWhy}. It is not CEILING: no term ran out` : noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it. A RESUMED ASSEMBLY SITTING — one sat again after an earlier one stamped the outcome and stopped before it assembled — finds that outcome already on the record, and the record refuses a second: the stamp is done, so go on to what follows.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? ', ended by JUDICIAL HALT — the opinion is on the record, and capture relays it verbatim' : ''}${verdict === 'CEILING' ? `, ended at the CEILING: ${terminationWhy} — a limit the run was set up with, NOT a judged failure to verify` : ''}${verdict === 'UNVERIFIED' ? (readStop ? `, ended UNVERIFIED — the engine stopped: ${terminationWhy}. It is not CEILING: no term ran out` : seatStop ? `, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: ${terminationWhy}. It is not CEILING: no term ran out` : noProgress ? `, ended UNVERIFIED — the engine stopped a debate that was making no progress: ${terminationWhy}. It is not CEILING: no term ran out; the parties were still ready` : `, ended UNVERIFIED — nobody was ready and neither PASS nor CEILING held; the plan's reasons are the account: ${terminationWhy}`) : ''}. Record it as the run's outcome — ${verdict}${verdict === 'CEILING' ? ', ended at the ceiling' : ''} — with WHY this outcome is the right read of the board as the reason — the judgement, never a recap of the sitting; the verdict is derived from the record and the stamp must agree with it. A RESUMED ASSEMBLY SITTING — one sat again after an earlier one stamped the outcome and stopped before it assembled — finds that outcome already on the record, and the record refuses a second: the stamp is done, so go on to what follows.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
 THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the inquiries, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.${lawClause}${speedClause}${recordClause('judge', OCCASION.assemble)} Return your envelope: open_gaps from the board.`
 // THE ASSEMBLY SITTING IS SAT AGAIN, IN PLACE, WHEN IT FAILS: it is the run's last sitting, and a
-// resumed assembly sitting finds an outcome its failed one stamped and goes on to assemble.
+// resumed assembly sitting finds an outcome its failed one stamped and goes on to assemble. A SITTING
+// WHOSE CLOSE READS NO OUTCOME HAS FAILED TOO: the assembly seat records the outcome, and the run's
+// verdict is what its close reads there, never a word this script or a seat states.
 // NO_PROGRESS_EPOCHS FAILURES IN A ROW STOP THE RUN — the one stop left to the engine: the assembly
 // seat is the one that records the outcome and writes the documents, so an envelope returned without
 // its word would state a verdict nobody confirmed is on the record, with `gaps_outstanding` null
 // beside it. The lead records the error, and capture reads a run the engine stopped.
+//
+// A MISSING READ HERE IS readOf's STOP, not a failed sitting: sitting it again does not bring the hook
+// back. The verdict is then the engine's own UNVERIFIED, with `read_stop` naming the seat.
 let assembleEnv = null
+let assembleRead = null
 for (let failures = 0; !assembleEnv;) {
   assembleEnv = await sit((o) => agent(assemblyPrompt(), o), { ...dispatchAs('judge'), label: `judge · ${OCCASION.assemble} · ${slug}`, schema: ASSEMBLE_ENVELOPE })
+  if (assembleEnv) {
+    assembleRead = readOf('judge', assembleEnv)
+    if (assembleRead && !assembleRead.outcome) {
+      log('the assembly sitting closed with no outcome on the record — it is sat again')
+      assembleEnv = null
+    }
+  }
   if (!assembleEnv && ++failures >= NO_PROGRESS_EPOCHS) {
     throw new Error(`the assembly sitting failed ${failures} sittings in a row — it records the run's outcome and assembles the report, and neither is confirmed; the debate had ended ${verdict} (${terminationWhy})`)
   }
 }
 return {
   runDir,
-  verdict,
+  verdict: assembleRead ? assembleRead.outcome : verdictNow(),
   epochs: epoch,
   lanes,
-  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress, seat_stop: seatStop } : seatStop ? { seat_stop: seatStop } : null,
+  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress, seat_stop: seatStop, read_stop: readStop } : (seatStop || readStop) ? { seat_stop: seatStop, read_stop: readStop } : null,
   gaps_outstanding: Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   halted,
-  halt_opinion: haltOpinion,
 }

@@ -90,6 +90,10 @@ func recordPresent(run Run) error {
 // to the seats after it. A field here would be a second account of the record or a value no reader
 // reads. The envelope exists so that the sitting ends through the call EnvelopeRefusal answers.
 //
+// THE RECORD'S READ IS NOT A FIELD OF THIS DECLARATION, AND THE SCHEMA STILL CARRIES IT: every envelope
+// declares `record_read` for the hook to write (RecordRead). It is the tool's reading of the record,
+// which the seat cannot supply or change, not the seat's account of its sitting.
+//
 // THE ENGINE'S SCHEMA FOR IT IS GENERATED FROM THIS DECLARATION (LensEnvelopeFields), closed, so a
 // key it does not declare is refused by the harness and handed back to the lens.
 type LensEnvelope struct{}

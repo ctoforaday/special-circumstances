@@ -518,12 +518,12 @@ func TestTheBenchSittingIsItsStoredOpeningNotItsRegister(t *testing.T) {
 	joins := &recordpb.Register{AgentId: proto.String("bench-a"), Occasion: docket.Enum()}
 
 	if benchSat(t, func(b *stage) *stage {
-		return b.bracket(benchSeat, "bench-a").benchDispatch(2, []string{"G1"}, docket).add(benchSeat, joins)
+		return b.bracket(benchSeat, "bench-a").benchDispatch(2, []string{"G1"}).add(benchSeat, joins)
 	}) {
 		t.Error("a bench sitting the hook opened BEFORE the dispatch row answers it — the sitting was placed at the register that joined it, not at its stored opening")
 	}
 	if !benchSat(t, func(b *stage) *stage {
-		return b.benchDispatch(2, []string{"G1"}, docket).bracket(benchSeat, "bench-a").add(benchSeat, joins)
+		return b.benchDispatch(2, []string{"G1"}).bracket(benchSeat, "bench-a").add(benchSeat, joins)
 	}) {
 		t.Error("a bench sitting the hook opened AFTER the dispatch row does not answer it")
 	}

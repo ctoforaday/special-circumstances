@@ -150,10 +150,13 @@ func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testin
 	if err != nil {
 		t.Fatalf("capture refused a run with no journal: %v — so its live marker can never be cleared", err)
 	}
-	var parity *Audit
+	var parity, reads *Audit
 	for i := range audits {
 		if audits[i].Check == "dispatch-parity" {
 			parity = &audits[i]
+		}
+		if audits[i].Check == "envelope-read" {
+			reads = &audits[i]
 		}
 		// The seats' log entries are on the record alone; no audit reconciles an envelope copy.
 		if audits[i].Check == "log-parity" {
@@ -162,6 +165,9 @@ func TestARunWithNoJournalIsCapturedAndItsEnvelopeAuditsAreNotMeasured(t *testin
 	}
 	if parity == nil {
 		t.Fatal("no dispatch-parity audit in the result")
+	}
+	if reads == nil || reads.Verdict != "SKIP" || !strings.Contains(reads.Detail, "NOT MEASURED") {
+		t.Errorf("envelope-read = %+v, want it run and not measured: no journal holds a read to recompute", reads)
 	}
 	if parity.Verdict == "PASS" || !strings.Contains(parity.Detail, "no workflow journal") || !strings.Contains(parity.Detail, "NOT compared") {
 		t.Errorf("dispatch-parity = %s with no envelopes to compare — an absent input read as a clean pass: %s", parity.Verdict, parity.Detail)

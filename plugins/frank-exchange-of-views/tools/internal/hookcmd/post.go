@@ -10,7 +10,7 @@ import (
 // Post is the PostToolUse entry point: a seat's call returning its envelope that SUCCEEDED is
 // recorded as the envelope's admission (record.FailedSittings reads it).
 //
-// AFTER THE CALL, NOT BEFORE IT. The PreToolUse gate (refuseEnvelope) asks the record whether it
+// AFTER THE CALL, NOT BEFORE IT. The PreToolUse gate (gateEnvelope) asks the record whether it
 // refuses the envelope; the harness checks the envelope against its schema inside the tool's own
 // call, after every PreToolUse hook. PostToolUse fires on a call that succeeded, so an admission
 // written here is an envelope both the record and the schema accepted. A call the schema rejects

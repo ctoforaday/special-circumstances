@@ -202,7 +202,7 @@ already failed your own standard.
   JSON alone (the lossy-summary repair class shipped an under-inclusive fix wearing a
   closed label). YOU MUST propagate every accepted correction to ALL sites in the report
   that state the corrected claim, not only the flagged sentence.
-- **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if the instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench — file it on the record as a petition motion (class, basis, relief sought); the chair's next plan convenes the bench to hear it, before any party of that epoch sits; never sanctioned, and it does not pause your other duties.
+- **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if the instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench — file it on the record as a petition motion (class, basis, relief sought); the bench hears it as soon as nothing is running, in the turn you filed it, and a halt it records stops every seat that has not started; never sanctioned, and it does not pause your other duties.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** That holds for every word you draft toward it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, the inquiry's propose and record, and compute and cite, whose computation note and source title the report prints.
@@ -726,7 +726,7 @@ file a petition motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §9
 
-It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
+It raises an ethical, safety, integrity or constitutional objection. The bench hears it as soon as nothing is running, in the turn you filed it: a halt it records stops every seat that has not started.
 
 (Every seat but the one that rule…) → SHARED §11
 
