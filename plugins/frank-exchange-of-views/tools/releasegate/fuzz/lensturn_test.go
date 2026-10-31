@@ -101,7 +101,7 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, super
 
 // turnsOnGaps is acts with what else ends or begins a lens's turn: blue's edit of a sentence a gap is
 // anchored on, under whatever name it answers (the record's `reopened`), and the opening of each closed
-// sitting a seat was dispatched onto the gap for. A sitting nothing has closed yet is no turn taken.
+// sitting a lens was dispatched onto the gap for. A sitting nothing has closed yet is no turn taken.
 func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turns, sittings gapActs) {
 	turns, sittings = gapActs{}, gapActs{}
 	for g, as := range acts {
@@ -153,7 +153,9 @@ func turnsOnGaps(evs []*record.Event, at record.WindowIndex, acts gapActs) (turn
 		if !closed && agentOf[start] != "" {
 			_, closed = firstAfter(stops[agentOf[start]], start)
 		}
-		if closed {
+		// A LENS'S SITTING ONLY: a sitting of blue's opens nothing to audit. Its acts do, and they are read
+		// as acts.
+		if closed && seatclass.RoleOfSeat(d.GetSeatId()) == "lens" {
 			add(sittings, d.GetSeatId(), start, d.GetGapIds()...)
 			add(turns, d.GetSeatId(), start, d.GetGapIds()...)
 		}
