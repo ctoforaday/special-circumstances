@@ -19,7 +19,8 @@ import (
 // it names are the chair's sample of a closure index that is only as good as the last time anyone
 // looked.
 func newSpotCheck() *cobra.Command {
-	var ids, areas flags.CSV
+	ids := flags.IDList(flags.GapID)
+	var areas flags.CSV
 
 	c := seat.New("spot-check", spotCheckResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// THE CHANNEL, NOT THE FLAG. seat.Reason is the one resolver: it refuses a read of a
@@ -41,7 +42,7 @@ func newSpotCheck() *cobra.Command {
 		return spotCheckResult{Areas: areas.Value(), Sampled: ids.Value()}, nil
 	})
 
-	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
+	c.Flags().Var(ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
 	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose area you read the changes against this sitting — a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason")
 	// ONE PROSE CHANNEL, ALWAYS REQUIRED: what the spot-check found, or why it names nothing — the
 	// board says how much the archive held, and the reason says why none of it was re-read.

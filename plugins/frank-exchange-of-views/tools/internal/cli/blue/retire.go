@@ -48,7 +48,7 @@ import (
 // record and the report, never typed by a seat), and replay takes them out at this
 // event. Edit still PERFORMS the removal of prose; retire EXPLAINS it and closes it.
 func newRetire() *cobra.Command {
-	var named flags.CSV
+	named := flags.IDList(flags.AnchorID)
 	c := seat.Prose(seat.New("retire", retireResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		if _, err := s.Run(); err != nil {
 			return nil, err
@@ -160,7 +160,7 @@ func newRetire() *cobra.Command {
 	flags.Text(c, flags.New, "the claim that replaces it, when one does")
 	seat.RequiredUnless(c, flags.Quote, "unless --anchor alone retires a citation")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "with --anchor alone: the gap id this citation retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap. A claim retire takes none: the edit that cut the claim names the gap it answers")
-	c.Flags().Var(&named, flags.Anchor, "with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one citation to retire while its sentence stays in the report word for word")
+	c.Flags().Var(named, flags.Anchor, "with --quote: an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim. Alone, without --quote: the one citation to retire while its sentence stays in the report word for word")
 	return c
 }
 
@@ -185,9 +185,6 @@ func retireCitation(s seat.Context, body *recordpb.Retire, named []string) (seat
 		return nil, feov.Errorf(feov.Validation, "--anchor alone retires one citation and keeps its sentence, and this names %d: %s. Retire each citation in its own retire, or quote the claim with --quote to retire the claim with the anchors it held", len(named), strings.Join(named, ", "))
 	}
 	id := named[0]
-	if err := flags.AnchorID().Set(id); err != nil {
-		return nil, fmt.Errorf("--anchor %s: %w", id, err)
-	}
 	if k := anchor.Kind(id); k != "citation" {
 		return nil, feov.Errorf(feov.Validation, "--anchor alone retires a citation and keeps its sentence, and %s is a %s anchor — it leaves the report with its claim: edit the claim out, then retire it with --quote", id, k)
 	}
@@ -275,9 +272,6 @@ func heldAt(claim string, sp record.EditSpan) (held []string, in []string) {
 // stood on this claim in an edit that took the claim out, and no LATER edit put it back into prose —
 // a marker re-attached to text backs that text now, and leaves only with it.
 func namedExits(md, claim, id string, left map[string]int, spans []record.EditSpan) error {
-	if err := flags.AnchorID().Set(id); err != nil {
-		return fmt.Errorf("--anchor %s: %w", id, err)
-	}
 	tok := anchor.Token(id)
 	if !strings.Contains(md, tok) {
 		return feov.Errorf(feov.Validation, "--anchor %s: the report holds no %s — name a marker that stands where the claim was", id, tok)

@@ -1373,11 +1373,6 @@ type HarvestResult struct {
 	// as distinct from Count, the `declare` constructions the harvest files. The precedent harvest
 	// alone sets it.
 	Rulings int
-	// EnvelopeClaimed is how many rulings the SEATS said they made: the envelopes' dispositions
-	// and petition rulings, which have no field for a declaration. It is a cross-check, not a
-	// source, and it is compared to Rulings, the same set on the record — a field rather than a
-	// sentence, so a reader compares numbers without parsing prose (facts-are-fields).
-	EnvelopeClaimed int
 }
 
 var (
@@ -1485,22 +1480,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 	return out
 }
 
-// rulingsClaimedByEnvelopes counts what the seats SAID they ruled. Kept only as a cross-check
-// against the record: a divergence is a finding about the envelopes, the way record-parity
-// already treats one. It is never the harvest's source.
-func rulingsClaimedByEnvelopes(results []map[string]any) int {
-	n := 0
-	for _, r := range results {
-		for _, key := range []string{"dispositions", "rulings"} {
-			if rs, ok := r[key].([]any); ok {
-				n += len(rs)
-			}
-		}
-	}
-	return n
-}
-
-func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, evs []*record.Event) HarvestResult {
+func HarvestPrecedents(run record.Run, lawDir string, evs []*record.Event) HarvestResult {
 	slug := slugOf(run)
 	// ONLY A `declare` IS A CANDIDATE HOLDING, and every other ruling is dropped here.
 	//
@@ -1523,15 +1503,12 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	// existing holding (law/README.md) — written by a human who read the case, because that is the
 	// one part of this the harvest genuinely cannot do.
 	//
-	// TWO SETS, AND THE ENVELOPES ARE CHECKED AGAINST THE ONE THEY DESCRIBE. An envelope lists the
-	// bench's dispositions and petition rulings; it has no field for a declaration. Compared to the
-	// declarations, a run whose bench ruled one docket and declared nothing read "the record holds
-	// NO rulings while the envelopes claim 1" — universe m18, with the ruling at event 460.
+	// THE RECORD IS THE ONE COUNT. The bench's envelopes carry no ruling (debate.js's EMPTY_ENVELOPE),
+	// so a count of them is zero on every run and held against the record's rulings it reported a
+	// divergence wherever the bench ruled — the #1663 smoke, 5 rulings against 0.
 	all := rulingsFromRecord(evs)
 	rulings := declarationsOnly(all)
-	onRecord := len(all) - len(rulings)
-	claimed := rulingsClaimedByEnvelopes(results)
-	res := HarvestResult{Count: len(rulings), Rulings: onRecord, EnvelopeClaimed: claimed}
+	res := HarvestResult{Count: len(rulings), Rulings: len(all) - len(rulings)}
 	if len(rulings) == 0 {
 		return res
 	}
@@ -1605,31 +1582,23 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	return res
 }
 
-// precedentLine is the harvest's line in capture's report: what was filed, what the bench ruled,
-// and whether the envelopes agree about the rulings.
+// precedentLine is the harvest's line in capture's report: what was filed, and what the bench ruled.
 //
-// THE DIVERGENCE HAS TO REACH THE REPORT, and it is a statement about RULINGS. "0 filed" is the
-// output of an honest quiet run, of a run whose bench ruled and declared nothing, and of a harvest
-// that cannot see the rulings in front of it; the line tells the three apart by saying how many
-// rulings the record holds beside how many the envelopes claim.
+// "0 filed" is the output of an honest quiet run and of a run whose bench ruled and declared
+// nothing; the line tells the two apart by saying how many rulings the record holds.
 func precedentLine(prec HarvestResult) string {
-	divergence := ""
-	if prec.EnvelopeClaimed != prec.Rulings {
-		divergence = fmt.Sprintf(" [the record holds %d docket and petition ruling(s) and the envelopes claim %d — the record is the source, and this divergence is the finding]",
-			prec.Rulings, prec.EnvelopeClaimed)
-	}
 	switch {
 	case prec.Written:
-		return fmt.Sprintf("precedent harvest: %d declaration(s) -> %s (PERSUASIVE, awaiting review)%s", prec.Count, prec.Path, divergence)
+		return fmt.Sprintf("precedent harvest: %d declaration(s) -> %s (PERSUASIVE, awaiting review)", prec.Count, prec.Path)
 	case prec.Count > 0:
-		return fmt.Sprintf("precedent harvest: %d declaration(s), %s%s", prec.Count, prec.Reason, divergence)
+		return fmt.Sprintf("precedent harvest: %d declaration(s), %s", prec.Count, prec.Reason)
 	case prec.Rulings > 0:
 		// A DISPOSITION IS NOT A HOLDING (HarvestPrecedents says why), so a bench that ruled and
 		// declared nothing files nothing — and the line says the rulings are there.
-		return fmt.Sprintf("precedent harvest: no declaration this run — the record holds %d docket and petition ruling(s), each disposing of its gap or petition and stating no rule, so none is filed%s",
-			prec.Rulings, divergence)
+		return fmt.Sprintf("precedent harvest: no declaration this run — the record holds %d docket and petition ruling(s), each disposing of its gap or petition and stating no rule, so none is filed",
+			prec.Rulings)
 	default:
-		return "precedent harvest: no rulings this run" + divergence
+		return "precedent harvest: no rulings this run"
 	}
 }
 
@@ -2015,7 +1984,7 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(run, results, filepath.Join(project, "law"), famEvents(fam))
+	prec := HarvestPrecedents(run, filepath.Join(project, "law"), famEvents(fam))
 	lines = append(lines, precedentLine(prec))
 
 	markerLine, markerErr := closeRunLiveMarker(project, run.Dir())

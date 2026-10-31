@@ -797,6 +797,15 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	return c
 }
 
+// sentenceOrEdited is what an anchoring act quotes: the seeded sentence no edit touches, or, one act in
+// four, the one the edit drive rewrites.
+func (r *runner) sentenceOrEdited() string {
+	if r.coin(25) {
+		return "across the whole sampled corpus"
+	}
+	return "§ fuzz sentence"
+}
+
 // noteInquiry remembers a tool-assigned inquiry id so the --about drive can name a real one.
 func (r *runner) noteInquiry(id string) {
 	r.mu.Lock()
@@ -1029,22 +1038,18 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 }
 
-// closingsOwedBy is the gaps this epoch's plan says seatID owes a closing on: the plan's
-// closing_owed blockers it owns (record/closingowed.go) — read off the plan, as the workflow reads
-// them, never off the docket the chair's sitting filed.
+// closingsOwedBy is the gaps seatID owes a closing on as its work list names them when it sits: the
+// record's closing_owed blockers it owns (record/closingowed.go). The dispatch names none — the plan
+// is read at the epoch's start, and a lens that closes a gap before blue sits ends the duty.
 func (r *runner) closingsOwedBy(seatID string) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	bs, err := record.PassBlockers(r.runHandle)
+	if err != nil {
 		return out
 	}
-	bs, _ := r.planThisSitting["blockers"].([]any)
 	for _, b := range bs {
-		m, _ := b.(map[string]any)
-		if record.BlockerKind(fmt.Sprint(m["kind"])) != record.BlockerClosingOwed || fmt.Sprint(m["owner"]) != seatID {
-			continue
-		}
-		if g, ok := m["subject"].(string); ok {
-			out = append(out, g)
+		if b.Kind == record.BlockerClosingOwed && b.Owner == seatID {
+			out = append(out, b.Subject)
 		}
 	}
 	return out
@@ -3548,9 +3553,6 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	keyed := r.coin(40)
 	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
 	if r.coin(50) {
-		args = append(args, "--severity", r.g())
-	}
-	if r.coin(50) {
 		args = append(args, "--complexity", r.g())
 	}
 	if fl := r.someFinding(); foundBy != "" {
@@ -4577,15 +4579,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 				path = "/" + seatID
 			}
 			url := sourceURL(path)
+			// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
+			// seeded sentence no edit touches, no checked citation is ever reopened, and the
+			// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
+			// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
 			cite := r.do("cite", seatID).
-				set("--quote", "§ fuzz sentence").
+				set("--quote", r.sentenceOrEdited()).
 				set("--url", url).
 				set("--title", sourceTitle).
-				// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
-				// seeded sentence no edit touches, no checked citation is ever reopened, and the
-				// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
-				// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
-				on(25, "--quote", "across the whole sampled corpus").
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			// EVERY CITE OF A SOURCE WITH TEXT QUOTES WORDS THE TOOL FINDS IN IT. The sweep's sources
 			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span the tool
@@ -4692,8 +4693,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// only in the sentence no edit touches, no judged computation is ever reopened, and the
 			// routing of a reopened computation to its owner (anchorOwnerOf) is unreached.
 			pv := r.do("compute", seatID).
-				set("--quote", "§ fuzz sentence").
-				on(25, "--quote", "across the whole sampled corpus").
+				set("--quote", r.sentenceOrEdited()).
 				set("--dir", dir).
 				set("--reason", "fuzz: computing rather than arguing").
 				runs(argv)
@@ -4757,8 +4757,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// compliant blue would: every gap it is repairing this round.
 		for _, id := range open {
 			r.do("manifest-row", seatID).set("--id", id).
-				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
-				on(50, "--reason", "fuzz: the receipt's argument").admit()
+				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").admit()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).

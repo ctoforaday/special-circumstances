@@ -114,7 +114,13 @@ func Main(argv []string, stdout, stderr io.Writer) int {
 	c.SetArgs(argv)
 	c.SetOut(stdout)
 	c.SetErr(stderr)
-	err := c.Execute()
+	var err error
+	if repeat := flags.FirstRepeat(c, argv); repeat != nil {
+		_ = c.ParseFlags(argv)
+		err = feov.Errorf(feov.Validation, "%s", repeat.Said())
+	} else {
+		err = c.Execute()
+	}
 	if err == nil {
 		return 0
 	}
