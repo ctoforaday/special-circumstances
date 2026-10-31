@@ -559,7 +559,7 @@ test('a plan that engages blue alone on a gap sits no lens, and the lens sits on
   assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
 })
 
-test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and is told how to argue the closings its work list names', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
   const world = makeWorld(makeResponder({
@@ -581,10 +581,11 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
     assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
-  // THE CLOSINGS OWED ARE THE PLAN'S closing_owed BLOCKERS THIS SEAT OWNS — not the lens's, and not
-  // the docket the chair's sitting filed.
-  assert.ok(/YOUR CLOSING ARGUMENT IS OWED ON: G-00000002 — each is DOCKETED/.test(first) && /argue in ~120 words/.test(first))
-  assert.ok(!/YOUR CLOSING ARGUMENT IS OWED/.test(second), 'a docket with no closing the plan holds blue to owes none')
+  // THE WORK LIST NAMES THE CLOSINGS OWED; THE DISPATCH NAMES NONE. The plan is read at the epoch's
+  // start, and a lens that closes the gap before blue sits ends the duty (#1663 smoke, ev530, ev608).
+  assert.ok(/A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE/.test(first) && /argue in ~120 words/.test(first))
+  assert.ok(!/A CLOSING ARGUMENT IS OWED/.test(second), 'a plan that holds blue to no closing tells it of one')
+  for (const prompt of [first, second]) assert.ok(!/OWED ON/.test(prompt) && !/G-00000002/.test(prompt), 'the dispatch names a gap a closing is owed on')
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.
@@ -1040,6 +1041,17 @@ test('R2: blue sits a second time on the successor it engaged, once per successo
   assert.ok(blues[1].prompt.includes('You are engaged on: G-1ac85c33.'), blues[1].prompt.slice(0, 200))
   assert.ok(world.logs.some((l) => l.includes('engaged its next sitting on the successor(s) G-1ac85c33 — blue sits again this epoch')), world.logs.join(' | '))
   assert.ok(world.logs.some((l) => l.includes('G-00000003 it does not sit again on — this was its second sitting this epoch')), world.logs.join(' | '))
+})
+// THE CLOSING DUTY IS STATED ONCE AN EPOCH, at the sitting the plan dispatched, and not to blue's second
+// sitting on a successor: that sitting is engaged on the successor alone.
+test('R2: the closing duty is stated to the sitting the plan dispatched, and not to the second sitting', async () => {
+  const blockers = [{ kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' }]
+  const blueRespond = [blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }), blueEnv({ manifest: ['G-1ac85c33'] })]
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')], { blockers }) }), passChair()], blueRespond }))
+  await world.run(script, ARGS)
+  const [first, second] = world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).map((c) => c.prompt)
+  assert.ok(first.includes('A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE'), 'the dispatched sitting is not told how to argue a closing')
+  assert.ok(second && !second.includes('A CLOSING ARGUMENT IS OWED'), 'the second sitting is told of a closing')
 })
 test('R2: no second sitting without a gap found closed, or on a successor this epoch already engaged blue on', async () => {
   const sittings = async (env, ...gaps) => {
