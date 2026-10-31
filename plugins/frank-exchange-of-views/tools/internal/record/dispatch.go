@@ -84,11 +84,11 @@ type Plan struct {
 	// for last, and the parties of what this sitting docketed owe their closings on it.
 	Docket []string `json:"docket" desc:"gaps the verb docketed for the bench at this sitting"`
 	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
-	// each with the research direction the remand states: their minting lens and blue are among
-	// Parties for it. The workflow tells blue the remand's duty for these gaps and no others, so the
+	// each with the research direction the remand states: blue is among Parties for it, and its
+	// minting lens once blue has acted (lensTurnOn). The workflow tells blue the remand's duty for these gaps and no others, so the
 	// duty lasts exactly as long as the exchange is owed — and it quotes THIS direction, the
 	// record's, never the bench envelope's account of its own ruling.
-	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: their minting lens and blue are among the parties for it"`
+	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it, and its minting lens once blue has acted"`
 	// Exchanges is one entry per gap a party is engaged on, in the order the parties first name
 	// them. It is the engine's measure of movement that the head does not carry: a gap marching to
 	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
@@ -466,7 +466,7 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE. A gap the bench has not
 		// remanded at impasse goes to the bench; one it remanded goes back to the debate for one
-		// exchange between its minting lens and blue, carrying the ruling's direction, and back to the
+		// exchange that begins with blue's act, carrying the ruling's direction, and back to the
 		// bench if that exchange leaves it here — to be closed, since a second remand is refused
 		// (requireRemandWithinLimit).
 		case routeDocket:

@@ -745,8 +745,8 @@ func TestBlueRemandItemBlocksBeforeAndAfterRegister(t *testing.T) {
 	}
 }
 
-// A PLAN CAN OWE A REMAND BLUE HAS ALREADY ACTED ON. Blue sits on the remanded G1, records a proof
-// answering it, and its sitting never closes — a subagent that died before its stop. The sitting is
+// A PLAN CAN OWE A REMAND BLUE HAS ALREADY ACTED ON. Blue sits on the remanded G1, records a
+// computation answering it, and its sitting never closes — a subagent that died before its stop. The sitting is
 // not measured, so the round holding blue's act is not counted, and the next plan still owes G1's
 // exchange and engages blue on it; blue's item stays on its list and does not block, because blue
 // has acted since the ruling. The release fuzz's pre-register read held every owed remand to a
@@ -774,6 +774,36 @@ func TestAPlanOwesARemandBlueActedOnInASittingNotYetMeasured(t *testing.T) {
 	}
 	if len(after.RemandOwed) != 0 {
 		t.Errorf("blue's next sitting closes the open one, and the round holding its act is the remand's: remand_owed %+v, why %q", after.RemandOwed, after.Why)
+	}
+}
+
+// GRADE MOVEMENT OUTRANKS AN OWED REMAND, ON BLUE'S LIST AS IN THE PLAN (routeOf). The plan readies
+// blue on the remanded G1; before blue sits, the lens regrades G1 from high to trivial, 2.5 of
+// movement past the 2.0 the bench rules at. The gap's route is now the bench's, so blue's remand
+// item goes from its list while remand_stage still says the remand's exchange is owed — the stage
+// is where the gap stands against its remands, the route what the dispatch does next. The release
+// fuzz's pre-register read held every gap whose stage was owed to a blocking item, and failed on
+// this shape in 5 of 40 seeds.
+func TestGradeMovementOutranksAnOwedRemandOnBluesList(t *testing.T) {
+	st := remandedAtImpasse(t).register("red-chair").dispatch(2, "blue-respond", "G1")
+	run := st.seed()
+	if !remandItemBlocks(t, run, "blue", "blue-respond") {
+		t.Fatalf("setup: blue's remand item on G1 does not block before the regrade")
+	}
+	st.more().registerAs(evLens, "lens-regrades").regrade(evLens, "G1", "trivial").stop("lens-regrades").seed()
+	if got := remandStageOn(t, run, "blue", "blue-respond", "G1"); got != "owed" {
+		t.Fatalf("remand_stage = %q, want owed: blue has not acted on G1 since the ruling", got)
+	}
+	if remandItemBlocks(t, run, "blue", "blue-respond") || workMentions(t, run, "blue", "blue-respond", "was REMANDED by the bench") {
+		t.Errorf("G1's grade movement dockets it for the bench, and blue's list still carries its remand item")
+	}
+	st.more().register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.RemandOwed) != 0 || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+		t.Errorf("the plan readies blue on G1's remand past its grade movement: remand_owed %+v, why %q", plan.RemandOwed, plan.Why)
 	}
 }
 
