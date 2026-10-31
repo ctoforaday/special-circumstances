@@ -283,7 +283,7 @@ enum EventType {
   EVENT_TYPE_VERDICT = 30 [(means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
   EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the inquiries themselves, rather than of a finding"];
-  EVENT_TYPE_BASE_INGEST = 33 [(means) = "the report as blue ingested it, stored verbatim as the origin every recorded edit replays over"];
+  EVENT_TYPE_REPORT_PART = 33 [(means) = "a lane's part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them"];
   EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
   EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
@@ -741,7 +741,7 @@ message Event {
     ManifestRow manifest_row = 48;
     Log log = 49;
     InquiryReview inquiry_review = 51;
-    BaseIngest base_ingest = 52;
+    ReportPart report_part = 52;
     SittingOpen sitting_open = 53;
     SittingClose sitting_close = 54;
     Cast cast = 55;
@@ -755,7 +755,7 @@ message Event {
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
-  // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
+  // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
   // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, which is
   // what the reserve is for — the block shrinks and nothing is renumbered.
@@ -1589,19 +1589,18 @@ message Inquiry {
   optional string reason = 7 [(prose) = true];
 }
 
-// BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
-// KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
-// is reliable enough to look like a key and not reliable enough to be one.
-// BaseIngest is the frozen round-0 report, stored VERBATIM at ingest (issue #709) — the origin the
-// diff-stack replays over. `blue edit` records each change as a BlueEdit; the current report is
-// this text with those edits folded back on. Written ONCE and never rewritten (a second ingest is
-// refused and redirected to `blue edit`), so the report has no writable file — only this base event
-// and its edits. `text` is the whole report, undecomposed: every reader operates on the rendered
-// text, not a document model, so there is nothing to parse and nothing to lose.
-message BaseIngest {
+// ReportPart is one lane's part of the report, stored VERBATIM at ingest. The report is a fold of
+// the report_op view from the empty text: a part is its `append` op, at its event id, and every
+// edit, anchor and retire after it folds over the text the parts made. Its author is the event's
+// seat; `ingest` records one per lane, before the report's first other op. `text` is undecomposed:
+// every reader operates on the rendered text, not a document model.
+message ReportPart {
   optional string text = 1;
 }
 
+// BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
+// KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
+// is reliable enough to look like a key and not reliable enough to be one.
 message BlueEdit {
   optional string edit_key = 1;
   optional string answers = 2;
@@ -2336,7 +2335,7 @@ message SittingOpen {
   // seat_id is the seat that CONFIGURATION is dispatched as, resolved by the writer — which links
   // the record and can do the join the hook cannot. Present only where the configuration seats
   // exactly one seat, so it is a declared mapping rather than the guess the comment above refuses:
-  // blue-researcher covers three seats and gets no seat_id here.
+  // blue-researcher covers two seats and blue-lane every lane, so neither gets a seat_id here.
   //
   // It is on the body and NOT on the envelope, which still carries `harness`. The harness observed
   // the sitting; it did not sit. Recording who sat is a different statement from claiming to be
@@ -2492,7 +2491,7 @@ message ReportRead {
   optional int64 head = 1 [(sql) = {
     required: true
     references: "events.id"
-    why: "the events.id of the report head the text was served at — the latest blue_edit or base_ingest when the read's transaction ran"
+    why: "the events.id of the report head the text was served at — the latest blue_edit or report_part when the read's transaction ran"
   }];
 }
 

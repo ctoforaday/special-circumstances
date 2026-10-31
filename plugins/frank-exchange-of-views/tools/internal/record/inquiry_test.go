@@ -31,7 +31,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A report exists: before one does there is nothing to read, and no review is owed.
-	recordtest.Seed(t, dir, recordtest.At(t, "harness", "ingest", &recordpb.BaseIngest{Text: proto.String("# report")}))
+	recordtest.Seed(t, dir, recordtest.At(t, "harness", "ingest", &recordpb.ReportPart{Text: proto.String("# report")}))
 	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}
 	if _, err := Append(blue, &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"),

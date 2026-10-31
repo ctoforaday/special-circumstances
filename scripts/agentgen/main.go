@@ -80,6 +80,7 @@ var surfaceOf = map[string]struct{ role, sample string }{
 	"red-lens-voice":        {"lens", "red-lens-voice"},
 	"red-chair":             {"chair", "red-chair"},
 	"blue-researcher":       {"blue", "blue-respond"},
+	"blue-lane":             {"lane", "blue-lane-1"},
 	"blue-synthesizer":      {"blue", "blue-synthesize"},
 	"lead-judge":            {"bench", "judge"},
 }

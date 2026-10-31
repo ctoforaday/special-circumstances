@@ -31,14 +31,17 @@ const OperatorRole = seatclass.OperatorRole
 // gavelSeatOf resolves a motion's `ruled_by` role to the one seat that holds the gavel, through
 // the roster every other role question reads, so a gavel cannot rest with a seat the roster does
 // not give that role. A gavel rests with ONE seat: a role seated as a family of seats (the lenses,
-// blue) is an error, as is a word that names no role. Printing the word as though it were a seat
-// id would send the reader to a seat that does not exist.
+// blue, the lanes) is an error, as is a word that names no role. Printing the word as though it
+// were a seat id would send the reader to a seat that does not exist.
 func gavelSeatOf(ruler string) (string, error) {
+	if ruler == seatclass.Lane.Role {
+		return "", fmt.Errorf("its gavel is held by the %s role, which the roster seats as one seat per lane — a gavel rests with one seat", ruler)
+	}
 	seats := seatclass.SeatsOfRole(ruler)
 	if len(seats) == 0 {
 		return "", fmt.Errorf("its gavel is held by %q, which is no role in the roster — a motion nobody can rule", ruler)
 	}
-	if len(seats) == 1 && ruler != seatclass.Lane.Role {
+	if len(seats) == 1 {
 		return seats[0], nil
 	}
 	return "", fmt.Errorf("its gavel is held by the %s role, which the roster seats as more than one seat (%s) — a gavel rests with one seat", ruler, strings.Join(seats, ", "))
@@ -76,16 +79,17 @@ func RequireDispatchedSeat(seatID string) error {
 // goldens render — and picking the lowest id by sort would be a derivation that LOOKS principled
 // while quietly answering a question nobody asked.
 //
-// `blue` is a LANE on purpose. It is the one role whose sample can carry a lane id, and a surface
-// walk that never renders one stops covering the id shape that TierClassOfSeat and
-// dispatchableSeatID both still have to accept. TestEveryRoleHasADispatchableSample holds both
-// halves: every value here is an id the engine can produce, and every role on the roster has one.
+// `lane` is a lane id, which is what makes a surface walk render the generated id shape that
+// TierClassOfSeat and dispatchableSeatID both still have to accept. TestEveryRoleHasADispatchableSample
+// holds both halves: every value here is an id the engine can produce, and every role on the roster
+// has one.
 var roleSample = map[string]string{
-	"lens":       "red-lens-evidence",
-	"chair":      "red-chair",
-	"blue":       "blue-lane-1",
-	"bench":      "judge",
-	OperatorRole: OperatorRole,
+	"lens":              "red-lens-evidence",
+	"chair":             "red-chair",
+	"blue":              "blue-respond",
+	seatclass.Lane.Role: seatclass.LaneSeatPrefix + "1",
+	"bench":             "judge",
+	OperatorRole:        OperatorRole,
 }
 
 // SampleSeatOf is a seat id of the given role, or "" for a role the roster does not carry.

@@ -290,7 +290,7 @@ var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inq
 // audits a hand copy of a composed section as the reader's text unless it is told the section is
 // the tool's.
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	strings.Join(RefusedHeadings(), ", ") + ". A lane's `ingest` and blue's `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
 	"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a computation's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span."
@@ -606,6 +606,32 @@ func OutOfOrderIn(was, text ParsedText) (Misplaced, bool) {
 	}
 	return Misplaced{Line: c.text, Beside: c.beside, After: c.after, Belongs: belongs}, true
 }
+
+// PartSurfaceIn returns the first line by which a lane's part claims a row of the text other than
+// the report's own sections — the title line, or a section a row names — and that row's name. A part
+// holds only the report's own sections, so parts cannot contend for the title or the tail whatever
+// order the lanes record them in: the rest is the synthesizer's to write.
+func PartSurfaceIn(text ParsedText) (line, row string, found bool) {
+	all, rows, body := stands(text)
+	for _, s := range all {
+		if s.rank != body {
+			return s.line, orderName(rows[s.rank]), true
+		}
+	}
+	return "", "", false
+}
+
+// PartSurfaces names every row of the text a part may not hold (PartSurfaceIn), in the text's order.
+var PartSurfaces = func() string {
+	rows, body := textRows()
+	var names []string
+	for i, s := range rows {
+		if i != body {
+			names = append(names, orderName(s))
+		}
+	}
+	return strings.Join(names, ", ")
+}()
 
 // A stand is one thing the order places, where the text holds it: the title line, a section's
 // heading, or the first line of text before the first heading, which opens the body.

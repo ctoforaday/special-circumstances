@@ -99,6 +99,15 @@ type LensEnvelope struct{}
 func LensEnvelopeFields() []PlanField { return fieldsOf(reflect.TypeFor[LensEnvelope]()) }
 
 // WorkArrivesAsItems reports whether a seat's work reaches it as items on its work list: every seat
-// but the blue seats no plan names — the frontier, a lane and the synthesizer — which are dispatched
-// to write the inquiries, a draft and the report, and owe nothing that is ever an item.
-func WorkArrivesAsItems(role, seatID string) bool { return role != "blue" || seatID == blueRespondSeat }
+// but the lanes and the blue seats no plan names — the frontier and the synthesizer — which are
+// dispatched to write a part of the report, the inquiries and the report, and owe nothing that is
+// ever an item.
+func WorkArrivesAsItems(role, seatID string) bool {
+	switch role {
+	case seatclass.Lane.Role:
+		return false
+	case "blue":
+		return seatID == blueRespondSeat
+	}
+	return true
+}

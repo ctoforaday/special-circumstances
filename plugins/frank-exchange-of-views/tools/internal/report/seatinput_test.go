@@ -115,7 +115,7 @@ func assembleHostile(t *testing.T, h string) Shipped {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)
 		}
 	}
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(blue)})
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://example.invalid/" + h),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Title " + h), AccessDate: proto.String("2026-08-03"),
@@ -283,7 +283,7 @@ func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, body := range []proto.Message{
-		&recordpb.BaseIngest{Text: proto.String(blue)},
+		&recordpb.ReportPart{Text: proto.String(blue)},
 		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 			Label: proto.String("C-00000001"), Url: proto.String("https://example.invalid/a"),
 			Sha256: proto.String("deadbeef"), Title: proto.String("Coherence <!--gap:G-0000abcd-->Computation <!--cite:C-…-->\n\n    <!--gap:G-00000001-->"), AccessDate: proto.String("2026-08-03"),

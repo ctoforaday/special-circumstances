@@ -7,6 +7,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -40,52 +41,9 @@
           "pattern": "deliverables?"
         },
         {
-          "variant": "frozen base, diff-stack",
+          "variant": "blue/report.md",
           "kind": "GATED",
-          "pattern": "frozen base|diff stack",
-          "allow": [
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md",
-              "reason": "ingest is the act that freezes the base, and its own help says what it builds"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go",
-              "reason": "ingest's own refusals and result describe the base it builds"
-            }
-          ]
-        },
-        {
-          "variant": "blue/report.md after ingest",
-          "kind": "GATED",
-          "pattern": "blue/report\\.md",
-          "masks": [
-            {
-              "phrase": "synthesize ${runDir}/blue/report.md by UNION",
-              "reason": "the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it"
-            },
-            {
-              "phrase": "INTO ${runDir}/blue/report.md at synthesis",
-              "reason": "the synthesizer's own prompt, as above"
-            },
-            {
-              "phrase": "bash cp it to ${runDir}/blue/report.md, the one path ingest reads",
-              "reason": "the synthesizer's own prompt, at the write step: the path it copies its draft to before ingest"
-            }
-          ],
-          "allow": [
-            {
-              "path": "plugins/frank-exchange-of-views/agents/blue-synthesizer.md",
-              "reason": "the synthesizer writes blue/report.md before ingest; it is that seat's file"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/skills/research-protocol/references/run-directory.md",
-              "reason": "the operator's run-directory map describes the synthesizer's file and its removal at ingest"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go",
-              "reason": "ingest consumes blue/report.md and removes it; its refusal names the file it could not remove"
-            }
-          ]
+          "pattern": "blue/report\\.md"
         }
       ],
       "collisions": [
@@ -95,7 +53,7 @@
         },
         {
           "word": "report.md",
-          "resolution": "blue/report.md is the synthesizer's file until ingest removes it; report.md at the run root is the assembled report"
+          "resolution": "report.md at the run root is the assembled report; no seat writes blue/report.md"
         }
       ]
     },
@@ -106,6 +64,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -125,6 +84,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -164,6 +124,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -192,6 +153,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -217,6 +179,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -264,6 +227,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -277,6 +241,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -290,6 +255,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -315,6 +281,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -333,6 +300,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -351,7 +319,7 @@
       "collisions": [
         {
           "word": "merge",
-          "resolution": "blue's union of the lane drafts is a merge; the chair is the chair"
+          "resolution": "blue's union of the lanes' parts is a merge; the chair is the chair"
         }
       ]
     },
@@ -362,6 +330,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -388,6 +357,7 @@
       "definition": "A lane is one of blue's parallel first passes at the report, written by one researcher under one method.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -402,9 +372,10 @@
     },
     {
       "term": "synthesizer",
-      "definition": "The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.",
+      "definition": "The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -418,6 +389,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -460,6 +432,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -473,6 +446,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -517,6 +491,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -536,6 +511,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -555,6 +531,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -581,7 +558,8 @@
       "definition": "A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.",
       "seats": [
         "lens",
-        "blue"
+        "blue",
+        "lane"
       ],
       "bans": [],
       "collisions": []
@@ -591,7 +569,8 @@
       "definition": "A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.",
       "seats": [
         "lens",
-        "blue"
+        "blue",
+        "lane"
       ],
       "bans": [],
       "collisions": []
@@ -602,6 +581,7 @@
       "seats": [
         "lens",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -614,6 +594,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -627,6 +608,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -640,6 +622,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -664,6 +647,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -688,6 +672,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -701,6 +686,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -725,6 +711,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -743,6 +730,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -792,6 +780,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -857,6 +846,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -931,6 +921,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -955,6 +946,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -973,6 +965,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -986,6 +979,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -1039,6 +1033,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -1052,6 +1047,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -1073,6 +1069,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -1085,6 +1082,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],

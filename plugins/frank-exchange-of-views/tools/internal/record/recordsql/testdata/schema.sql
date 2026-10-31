@@ -88,7 +88,6 @@ CREATE TABLE "enum_event_type" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'a marker placed in the report');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
@@ -113,6 +112,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the c
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair''s argument to the bench on what is about no one gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_part', 'a lane''s part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'red checking a recorded computation against its bundle''s re-run, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
@@ -887,7 +887,7 @@ CREATE TABLE "inquiry_review" (
   "reason" TEXT
 ) STRICT;
 
-CREATE TABLE "base_ingest" (
+CREATE TABLE "report_part" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT
 ) STRICT;
@@ -1725,10 +1725,12 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
--- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
--- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
+-- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b, exact):
+--   append → a=a lane's part, as it ingested it; exact=0. On the empty text the part is the text;
+--            otherwise the text, its trailing newlines trimmed, a blank line, then the part.
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
@@ -1740,8 +1742,10 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
-  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
-         COALESCE(b."exact_span", 0) AS "exact"
+  SELECT e."id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+    FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  UNION ALL
+  SELECT e."id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0

@@ -35,11 +35,11 @@ import (
 //
 // SETUP WRITES NO FILE A SEAT FILLS. Untouched-but-present is the worst state a file can be in:
 // it reads as an artifact rather than an absence, and a reader takes it for the real thing.
-// `blue/report.md` is the synthesizer's to write and `ingest`'s to read; `report.md` is
-// `bench assemble`'s. Setup stubbed both, and in B7 the synthesizer copied its draft onto the
-// run-root stub while `ingest` froze the other one — 40 bytes of heading — as the report's base.
-// With neither stubbed, a report written to the wrong path is an ingest that cannot find its
-// file and says where it looked.
+// `blue/candidates/<lane>.md` is each lane's to write and `ingest`'s to read; `report.md` is
+// `bench assemble`'s. Setup stubbed the report files once, and in B7 a seat copied its draft onto the
+// run-root stub while `ingest` recorded the other one — 40 bytes of heading — as the report. With
+// none stubbed, a part written to the wrong path is an ingest that cannot find its file and says
+// where it looked.
 //
 // `scratch` is the seats' working files — drafts, programs, a spool a seat needs on disk — each
 // named for its seat. It is made here because a shell redirect into a missing directory fails,

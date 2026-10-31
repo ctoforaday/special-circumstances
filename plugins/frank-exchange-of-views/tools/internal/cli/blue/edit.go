@@ -20,15 +20,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// edit: the ONLY write path to blue/report.md for a response seat.
+// edit: the write path for the report's text once the lanes' parts are recorded.
 //
-// report.md is read-only to the response seat (the lockdown hook denies its raw Edit/Write
-// and Bash writes); it changes the report EXCLUSIVELY through this verb, which replaces the
-// exact current span --old with --new while PRESERVING every anchor, of every kind in the anchor
-// kinds table. An anchor the replacement leaves out is put back where its sentence survives word
-// for word, once; otherwise the edit is REJECTED, naming that sentence. Each applied edit appends a
-// `blue_edit` event — an append-only diff-stack that replays onto the round-0 report to equal the
-// current head.
+// It replaces the exact current span --old with --new while PRESERVING every anchor, of every kind
+// in the anchor kinds table. An anchor the replacement leaves out is put back where its sentence
+// survives word for word, once; otherwise the edit is REJECTED, naming that sentence. Each applied
+// edit appends a `blue_edit` event, a report op the render folds after the parts.
 //
 // PROVENANCE: --answers names the gap this edit responds to. It is validated against the
 // board like every other reference (refs.go), and it is what makes `required_fix` and the

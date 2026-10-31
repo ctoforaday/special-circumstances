@@ -66,7 +66,7 @@ func (b *stage) reopen(anchors ...string) *stage {
 // ingestCited ingests a report whose one sentence carries citation C-1 and the word reopen's edit
 // replaces, so the reopened citation is one a verify can reach (unverifiableIn).
 func (b *stage) ingestCited() *stage {
-	return b.add("harness", &recordpb.BaseIngest{Text: proto.String("# report\n\nThe claim stands before " + anchor.Token("C-1") + ".\n")})
+	return b.add("harness", &recordpb.ReportPart{Text: proto.String("# report\n\nThe claim stands before " + anchor.Token("C-1") + ".\n")})
 }
 
 // at is the events.id of the act last staged: the seed stores the acts in order from 1.

@@ -137,7 +137,7 @@ The learning plugin, designed to improve the suite while you sleep: a `/self-imp
 
 Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:research <topic> [--lanes N] [--k-max N] [--mint-budget N] [--max-epochs N]`). One end-to-end run:
 
-1. **Blue builds.** Parallel lanes research the topic, one method each; blue synthesizes them additively into the report, carrying a frontier of hypotheses and preserving the lane drafts.
+1. **Blue builds.** Parallel lanes research the topic, one method each; each lane records its part of the report and blue synthesizes the parts additively through the record, carrying a frontier of hypotheses.
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.
 3. **Blue repairs, epoch by epoch.** Gaps come back as obligations; blue revises; red re-audits the changed text. Repeat until red passes or the run deadlocks.
 4. **The bench rules** on whatever is still contested, in writing, and assembles the final report from the audited sources.
@@ -153,7 +153,7 @@ The run lands in `research/<date>_<slug>/`:
 | `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full and every reading of each citation; the log, record check and cost; the claims the report retired and every edit, with blue's reason |
 | `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
 | `records/record.db` | The record — one SQLite store, the authoritative account of every act |
-| `blue/`, `red/` | The seats' working surfaces — blue's lane drafts |
+| `blue/`, `red/` | The seats' working surfaces — a lane's part waits in `blue/candidates/` until it is recorded |
 | `scratch/` | The seats' working files — drafts and programs, each named for its seat; nothing composed or archived reads it |
 | `inputs/` | The brief, the pinned configuration, the scorecards — what the run was asked to do |
 | `trajectories/` | Per-seat execution journals |

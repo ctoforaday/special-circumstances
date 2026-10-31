@@ -13,14 +13,14 @@ import (
 // A record written before the write held the order (report.TextOrder) can hold its sections in
 // another: assembly placed three of them by name, so the order a seat read was not the one that
 // shipped. Assembly ships the text as written now, and the migrated record holds it in the order
-// the old assembly gave the reader: the base is reordered (report.Ordered), whole sections moved
-// and nothing else, and every later act is replayed over it as it was recorded.
+// the old assembly gave the reader: each part is reordered (report.Ordered), whole sections moved
+// and nothing else, and every later act is replayed over the parts as it was recorded.
 //
 // ONLY WHERE THE REPLAY IS THE SAME REPORT. The acts locate by the text they quote, so one whose
 // quote runs across two sections that are no longer neighbours does not replay, and an edit that
-// itself wrote a section out of order leaves the text out of order whatever the base holds. The
-// reordered record is kept when no act is refused and its acts, replayed over the base as its
-// author wrote it, give the same text section for section, every anchor on the sentence it was
+// itself wrote a section out of order leaves the text out of order whatever the parts hold. The
+// reordered record is kept when no act is refused and its acts, replayed over the parts as their
+// authors wrote them, give the same text section for section, every anchor on the sentence it was
 // on. Otherwise the record is replayed again as written: its text keeps its author's order,
 // nothing is lost, and the manifest says which it was.
 //
@@ -32,8 +32,8 @@ import (
 const (
 	OrderNoReport  = "no_report"  // the record holds no report text
 	OrderInOrder   = "in_order"   // the text stands in the order it ships in, as its author wrote it
-	OrderReordered = "reordered"  // the base was reordered and every act replayed over it
-	OrderAsWritten = "as_written" // the text is out of order and reordering the base does not replay it
+	OrderReordered = "reordered"  // the parts were reordered and every act replayed over them
+	OrderAsWritten = "as_written" // the text is out of order and reordering the parts does not replay it
 )
 
 // replayInOrder is Replay with the report's text brought into order where that replays cleanly.
@@ -60,13 +60,15 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 	if err != nil {
 		return nil, err
 	}
-	base, have, ops, err := record.ReportProjectionAt(batch.Querier())
+	ops, err := record.ReportProjectionAt(batch.Querier())
 	if err != nil {
 		return nil, err
 	}
-	if have && base != res.base {
-		now, nerr := reportproj.Replay(base, true, ops)
-		written, werr := reportproj.Replay(res.base, true, ops)
+	asWritten, moved := partsAsWritten(ops, res.parts)
+	have := len(res.parts) > 0
+	if moved {
+		now, nerr := reportproj.Replay("", false, ops)
+		written, werr := reportproj.Replay("", false, asWritten)
 		if len(res.Refusals) == 0 && nerr == nil && werr == nil && now == report.Ordered(written) {
 			if err := batch.Commit(); err != nil {
 				return nil, err
@@ -104,4 +106,22 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 		res.ReportOrder = OrderAsWritten
 	}
 	return res, nil
+}
+
+// partsAsWritten is ops with each part's text as the source wrote it, and whether any part was
+// written otherwise — the replay the reordered one is held to.
+func partsAsWritten(ops []record.ReportOp, parts []string) ([]record.ReportOp, bool) {
+	out := make([]record.ReportOp, len(ops))
+	copy(out, ops)
+	moved, k := false, 0
+	for i, op := range out {
+		if op.Kind != "append" || k >= len(parts) {
+			continue
+		}
+		if op.A != parts[k] {
+			out[i].A, moved = parts[k], true
+		}
+		k++
+	}
+	return out, moved
 }

@@ -161,6 +161,8 @@ type runTally struct {
 	LockLifted                 int                       `json:"lock_lifted"`
 	GroundsRefused             int                       `json:"grounds_refused"`
 	GroundsAdmitted            int                       `json:"grounds_admitted"`
+	PartRefused                map[string]int            `json:"part_refused"`
+	PartsRecorded              int                       `json:"parts_recorded"`
 }
 
 // tallyOf is the run's tally.
@@ -189,6 +191,7 @@ func tallyOf(o outcome) runTally {
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
+		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
 	}
 }
 
@@ -543,6 +546,8 @@ type sweepFold struct {
 	benchRegrades, lockRefused, lockLifted          int
 	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
+	partRefused                                     map[string]int
+	partsRecorded, multiPartRuns                    int
 }
 
 // foldRuns folds the sweep's runs, in any order.
@@ -550,7 +555,7 @@ func foldRuns(runs []runTally) sweepFold {
 	f := sweepFold{
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
-		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, verifiedExits: map[int64]forcedExit{},
+		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, partRefused: map[string]int{}, verifiedExits: map[int64]forcedExit{},
 	}
 	for _, r := range runs {
 		if r.Err != "" {
@@ -668,6 +673,13 @@ func foldRuns(runs []runTally) sweepFold {
 		f.lockLifted += r.LockLifted
 		f.groundsRefused += r.GroundsRefused
 		f.groundsAdmitted += r.GroundsAdmitted
+		for kind, n := range r.PartRefused {
+			f.partRefused[kind] += n
+		}
+		f.partsRecorded += r.PartsRecorded
+		if r.PartsRecorded >= 2 {
+			f.multiPartRuns++
+		}
 		for why, n := range r.EstoppelMisses {
 			f.estoppelMisses[why] += n
 		}
@@ -996,6 +1008,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		}
 		if f.groundsRefused == 0 || f.groundsAdmitted == 0 {
 			t.Errorf("fuzz drove %d reconsiderations refused for wanting new grounds and %d admitted on them across %d runs — both must be non-zero, or the new-grounds check is unexercised (false green)", f.groundsRefused, f.groundsAdmitted, f.completed)
+		}
+		// THE REPORT IS THE LANES' PARTS (parts_test.go): every lane records one, the report joins two or
+		// more of them, and each refusal of a part is driven, partsSeed's run driving every one.
+		t.Logf("parts: %d recorded across %d runs, %d run(s) joining two or more; refused %v", f.partsRecorded, f.completed, f.multiPartRuns, f.partRefused)
+		if f.partsRecorded == 0 || f.multiPartRuns == 0 {
+			t.Errorf("fuzz recorded %d part(s) and joined two or more in %d run(s) across %d runs — both must be non-zero, or the lanes' parts are unexercised (false green)", f.partsRecorded, f.multiPartRuns, f.completed)
+		}
+		for _, kind := range partRefusals {
+			if f.partRefused[kind] == 0 {
+				t.Errorf("fuzz drove ZERO part refusals for %s across %d runs — the refusal is unexercised (false green)", kind, f.completed)
+			}
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

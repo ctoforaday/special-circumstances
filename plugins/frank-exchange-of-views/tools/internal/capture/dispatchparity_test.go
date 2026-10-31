@@ -31,7 +31,7 @@ func TestDispatchedPartiesAndSittingsAgree(t *testing.T) {
 	}
 	head := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 		reg("frontier"), // the base phase: before the first dispatch, outside the window
 		reg("red-chair"), dispatch("red-lens-evidence"), dispatch("red-lens-logic"),
 		reg("red-lens-evidence"), reg("red-lens-logic"),
@@ -78,7 +78,7 @@ func TestAReportReadIsNoSittingToTheRelay(t *testing.T) {
 	read := func(seat string) *record.Event { return at(seat, &recordpb.ReportRead{Head: proto.Int64(2)}) }
 	evs := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 		reg("red-chair"), at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
 		reg("red-lens-evidence"), read("red-lens-evidence"), read("red-lens-logic"),
 		reg("red-chair"),
@@ -113,7 +113,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	warm := func(voiceSits, voiceLate bool) []*record.Event {
 		evs := []*record.Event{
 			at("harness", &recordpb.Cast{SeatIds: append([]string{"red-chair", "blue-respond", "judge"}, lenses...)}),
-			at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+			at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 			reg("red-chair"), // the chair's only register, all run
 		}
 		for i := 0; i < 2; i++ { // the plan asked for twice, in one sitting
@@ -191,7 +191,7 @@ func TestABenchThatOnlySatForItsBookendsDidNotAnswerItsDispatch(t *testing.T) {
 	}
 	head := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 		reg("red-chair"),
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}, Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}}),
 	}
@@ -250,7 +250,7 @@ func TestABenchIsAnsweredByASittingOfEachOccasionItsRowConvened(t *testing.T) {
 	bench := func(gaps []string, occ ...recordpb.Occasion) []*record.Event {
 		return []*record.Event{
 			at("harness", &recordpb.Cast{SeatIds: []string{"red-chair", "blue-respond", "judge"}}),
-			at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+			at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 			at("red-chair", &recordpb.Register{}),
 			at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: gaps, Occasions: occ}),
 		}

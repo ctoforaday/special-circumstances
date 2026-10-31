@@ -6,7 +6,7 @@ attach a source to a sentence, when a claim needs evidence a reader can follow t
 
 The tool fetches and caches the source and splices an invisible anchor at the sentence — you never type a footnote. It survives every later edit: `edit` refuses a replacement that drops one.
 
-The sentence is found in the report as the record holds it, so the report must be frozen into the record first; before that there is nothing to anchor in.
+The sentence is found in the report as the record holds it, so a lane must have recorded its part first; before that there is nothing to anchor in.
 
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 

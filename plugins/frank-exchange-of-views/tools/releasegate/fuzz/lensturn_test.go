@@ -91,7 +91,8 @@ func actsOnGaps(evs []*record.Event) (acts gapActs, minted map[string]int, super
 	return acts, minted, superseded
 }
 
-// remandRulings is the position of the bench's latest remand of each gap.
+// remandRulings is the position of the bench's latest remand of each gap: a docket ruled remanded,
+// and an upheld position naming the gap, which the engine reads as the same remand (blueanswered.go).
 func remandRulings(evs []*record.Event) map[string]int {
 	docketGap := map[string]string{} // docket motion id → its gap
 	out := map[string]int{}
@@ -101,6 +102,11 @@ func remandRulings(evs []*record.Event) map[string]int {
 		}
 		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket().GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 			if g := docketGap[r.GetMotionId()]; g != "" {
+				out[g] = i
+			}
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetPosition().GetRuling() == recordpb.PositionRuling_POSITION_RULING_UPHELD {
+			for _, g := range r.GetPosition().GetGapIds() {
 				out[g] = i
 			}
 		}

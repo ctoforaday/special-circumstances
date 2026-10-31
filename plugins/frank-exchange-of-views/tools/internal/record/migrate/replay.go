@@ -46,7 +46,7 @@ type Result struct {
 	computations []migratedComputation // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string   // bundle -> the rerun_sha of each reproduce written that names one
 
-	base string // the report's base as the source wrote it
+	parts []string // each part of the report as the source wrote it, in record order
 }
 
 // preFieldFillWhy is the reason a mint whose source predates class_material records for the
@@ -91,7 +91,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 // replay writes src's events through batch, which its caller began on dst, holds and commits, with
 // record.Migrating set; it pins record.Now per event and restores it on return, so each pass — the
 // reorder trial and the replay as written after it — starts from the clock its caller had. With
-// inOrder set, the report's base is written in the order its text ships in (order.go).
+// inOrder set, each part of the report is written in the order its text ships in (order.go).
 //
 // dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
 // record's one connection, and anything that takes dst and opens the record waits on it forever. So
@@ -331,10 +331,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			} else if drop {
 				continue
 			}
-			if b, ok := body.(*recordpb.BaseIngest); ok {
-				res.base = b.GetText()
+			if b, ok := body.(*recordpb.ReportPart); ok {
+				res.parts = append(res.parts, b.GetText())
 				if inOrder {
-					b.Text = proto.String(report.Ordered(res.base))
+					b.Text = proto.String(report.Ordered(b.GetText()))
 				}
 			}
 			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before

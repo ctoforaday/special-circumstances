@@ -19,7 +19,7 @@ func admissionRun(t *testing.T) string {
 	run := newRun(t)
 	recordtest.Seed(t, run,
 		recordtest.At(t, record.HarnessSeat, "cast", &recordpb.Cast{SeatIds: []string{"red-chair", "frontier", "blue-respond"}}),
-		recordtest.At(t, record.HarnessSeat, "base", &recordpb.BaseIngest{Text: proto.String("# report")}))
+		recordtest.At(t, record.HarnessSeat, "base", &recordpb.ReportPart{Text: proto.String("# report")}))
 	return run
 }
 

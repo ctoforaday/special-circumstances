@@ -485,7 +485,7 @@ func TestRetireTakesTwoProvedSentencesOutAtOnce(t *testing.T) {
 		t.Errorf("rendered report after retiring both:\n got %q", rep)
 	}
 
-	_, _, ops, err := record.ReportProjection(runtest.Open(t, runDir))
+	ops, err := record.ReportProjection(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

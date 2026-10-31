@@ -1,19 +1,25 @@
-// ingest: the one-time act that turns the report from a file into a record (issue #709).
+// ingest: a lane's act that turns its part of the report from a file into a record.
 //
-// Blue authors the round-0 report as a markdown file — the natural medium. `blue ingest` reads
-// it VERBATIM into a single BaseIngest event, PROVES the record renders back to exactly those
-// bytes, and then DELETES the file. After it there is no file: the report exists only as the base
-// plus its append-only diff-stack, reads go through the render, and every change is an event.
+// A lane writes its part as a markdown file — the natural medium — at the path the tool builds from
+// its seat (partPath). `ingest` reads it VERBATIM into a ReportPart event, PROVES the record renders
+// it where the join rule puts it, and then DELETES the file. The report is the lanes' parts, in the
+// order they were recorded, with every edit, anchor and retire after them folded on; reads go through
+// the render, and every change is an event.
 //
-// THREE GUARANTEES, each keyed on the record rather than a marker or a permission bit:
-//   - WRITE-ONCE: a second ingest is refused and redirected to `edit`. The base already
-//     exists on the record, so it cannot be overwritten — asked-and-answered by the events.
-//   - AUTHOR-ONLY: only the seat that authored the report (blue-synthesize) may ingest it. A
-//     response or red seat has no business freezing the base. (True surface-invisibility to other
-//     seats is a follow-up needing the synthesize/respond surface split; this is the runtime gate.)
-//   - VERIFY-BEFORE-DELETE: the file is removed ONLY after VerifyReproduction confirms the record
-//     reproduces it byte-for-byte. If it does not, the file is KEPT and the error tells blue to
-//     STOP — it is a tooling failure, not something an edit can fix.
+// WHO, WHEN AND WHAT, each keyed on the record rather than a marker or a permission bit:
+//   - LANES ONLY: a part is a lane's. The verb is on the lane's surface alone, and the cast names
+//     the lanes this run seats (record.LaneSeatsOf). The rule is this verb's, not the write path's,
+//     so an archived report the synthesizer ingested migrates as it stands.
+//   - ONCE PER LANE, AND BEFORE THE REPORT CHANGES: a lane records one part, and no part is recorded
+//     once the report holds an op other than a part — a part then would land after text the synthesis
+//     has reorganized. Both are asked again inside the write (Landing.PartStanding), so two writes
+//     cannot both pass them.
+//   - THE REPORT'S OWN SECTIONS ONLY: the title, TL;DR, Catechism and Open questions are the
+//     synthesizer's (report.PartSurfaceIn), so parts cannot contend for them.
+//   - VERIFY-BEFORE-DELETE: the file is removed ONLY after VerifyReproduction confirms the report, as
+//     it stood once this part was recorded, ends with the part as the join rule places it. If it does
+//     not, the file is KEPT and the error tells the lane to STOP — a tooling failure, not something an
+//     edit can fix.
 package blue
 
 import (
@@ -30,16 +36,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
-// authorSeat is the ONE seat allowed to ingest — the round-0 report's author.
-const authorSeat = "blue-synthesize"
+// partPath is where seat's part waits to be recorded: built from the seat, never named by it. The
+// path is a location the lane writes to; nothing reads a fact back out of the name.
+func partPath(run record.Run, seat string) string {
+	return filepath.Join(run.Dir(), "blue", "candidates", seat+".md")
+}
 
-// NO PROSE CHANNEL. BaseIngest carries the report and nothing else, so a --reason here had nowhere
-// to go: it was registered (seat.Prose), accepted, and recorded nowhere. The report IS the
-// artifact; a verb with no field for an argument does not accept one.
+// NO PROSE CHANNEL. ReportPart carries the part and nothing else, so a --reason here had nowhere
+// to go. The part IS the artifact; a verb with no field for an argument does not accept one.
 func newIngest() *cobra.Command {
 	return seat.New("ingest", ingestResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -47,86 +53,107 @@ func newIngest() *cobra.Command {
 			return nil, err
 		}
 
-		// AUTHOR-ONLY.
-		if s.SeatID != authorSeat {
-			return nil, feov.Errorf(feov.RoleViolation, "this act is the report's author's (%s) only — a %s seat does not freeze the base. Change the report through `edit`", authorSeat, s.SeatID)
-		}
-
-		// WRITE-ONCE — refuse-and-redirect if a base already exists (record-state, not a marker).
-		already, err := reportproj.BaseIngested(run)
+		lanes, err := record.LaneSeatsOf(run)
 		if err != nil {
 			return nil, err
 		}
-		if already {
-			return nil, feov.Errorf(feov.Conflict, "this run's report is already ingested — the base is frozen and cannot be re-ingested or overwritten. Make every change through `edit`, which appends to the diff-stack")
-		}
-
-		reportPath := filepath.Join(run.Dir(), "blue", "report.md")
-		if err := record.RefuseRecordFile(run, reportPath, "blue/report.md", "a report"); err != nil {
+		if err := laneRefusal(s.SeatID, lanes); err != nil {
 			return nil, err
 		}
-		content, err := os.ReadFile(reportPath)
+		recorded, changed, err := record.PartStanding(run, s.SeatID)
+		if err != nil {
+			return nil, err
+		}
+		if err := partStandingRefusal(s.SeatID, recorded, changed); err != nil {
+			return nil, err
+		}
+
+		path := partPath(run, s.SeatID)
+		if err := record.RefuseRecordFile(run, path, filepath.Join("blue", "candidates", s.SeatID+".md"), "a part of the report"); err != nil {
+			return nil, err
+		}
+		content, err := os.ReadFile(path)
 		if os.IsNotExist(err) {
-			// NOTHING WAITS AT THIS PATH, so a report written anywhere else is a refusal naming where
-			// ingest looked. Setup used to stub it, and B7's synthesizer copied its draft onto the
-			// run-root stub while this froze the other — 40 bytes of heading — as the report's base.
-			stray := ""
-			if _, serr := os.Stat(filepath.Join(run.Dir(), "report.md")); serr == nil {
-				stray = fmt.Sprintf(" A report.md exists at the run root (%s): that is the assembler's path, not this one — move it here.", filepath.Join(run.Dir(), "report.md"))
-			}
-			return nil, feov.Errorf(feov.NotFound, "there is no report at %s — ingest freezes that one file, so write the synthesized report there first.%s", reportPath, stray)
+			return nil, feov.Errorf(feov.NotFound, "there is no part at %s — ingest records that one file, the one named for your seat, so write your part there first", path)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("reading the report to ingest at %s: %w", reportPath, err)
+			return nil, fmt.Errorf("reading the part to ingest at %s: %w", path, err)
 		}
-		report := string(content)
-		if err := composedRefusal("", report); err != nil {
+		part := string(content)
+		if err := partSurfaceRefusal(part); err != nil {
+			return nil, err
+		}
+		if err := composedRefusal("", part); err != nil {
 			return nil, err
 		}
 
-		// THE VOICE CENSUS, over the WHOLE BASE. This is the largest authored artifact in a run —
-		// 16,874 characters on the measured one — and until #873 it was the only report text that
-		// reached the record without ever meeting the advisory. Every inline lane tag in that
-		// run's finished report came in through here.
-		//
-		// FindAll, not Find: `edit` advises on one span, where knowing a tell is PRESENT is
-		// the whole signal. A document needs the count and the places, or an author is told once
-		// that a lane tag exists and cannot reach the other five.
-		//
-		// It refuses nothing, and must not start. A pattern cannot tell a report narrating its own
-		// construction from a report quoting a source that narrates something, and a gate that
-		// cannot tell those apart would silently cost the second one. Red's voice lens holds the
-		// judgement; this says where to look.
-		census := voiceCensus(report)
-
-		// Record the base, then PROVE the record reproduces it before touching the file.
-		if _, err := record.Append(s.Identity(), &recordpb.BaseIngest{Text: proto.String(report)}); err != nil {
+		// Record the part, the lane's standing asked again under the write lock, then PROVE the record
+		// reproduces it before touching the file.
+		if _, err := record.Append(s.Identity(), &recordpb.ReportPart{Text: proto.String(part)},
+			record.Check(func(l *record.Landing) error {
+				recorded, changed, err := l.PartStanding(s.SeatID)
+				if err != nil {
+					return err
+				}
+				return partStandingRefusal(s.SeatID, recorded, changed)
+			})); err != nil {
 			return nil, err
 		}
-		rendered, err := reportproj.RenderFromRecord(run)
+		rendered, err := record.ReportAtPart(run, s.SeatID)
 		if err != nil {
-			return nil, fmt.Errorf("rendering the freshly-ingested base: %w — the file is UNTOUCHED", err)
+			return nil, fmt.Errorf("rendering the report with the part just recorded: %w — the file is UNTOUCHED", err)
 		}
-		if err := VerifyReproduction(report, rendered); err != nil {
-			// The base is on the record but the render did not reproduce it. The file is KEPT; the
-			// error already tells blue to STOP and escalate, not to edit.
+		if err := VerifyPart(part, rendered); err != nil {
+			// The part is on the record but the render did not reproduce it. The file is KEPT; the
+			// error already tells the lane to STOP and escalate, not to edit.
 			return nil, err
 		}
 
 		// Proven. Remove the file — from here the record is the only truth.
-		if err := os.Remove(reportPath); err != nil {
-			return nil, fmt.Errorf("the base is recorded and verified, but removing the file failed: %w — remove blue/report.md by hand; the record is authoritative", err)
+		if err := os.Remove(path); err != nil {
+			return nil, fmt.Errorf("the part is recorded and verified, but removing the file failed: %w — remove %s by hand; the record is authoritative", err, path)
 		}
-
-		return ingestResult{
-			Path:       reportPath,
-			Bytes:      len(report),
-			VoiceTells: census,
-		}, nil
+		return ingestResult{Path: path, Bytes: len(part)}, nil
 	})
 }
 
+// laneRefusal refuses a part from a lane the cast does not name. A seat that is no lane never reaches
+// it: `ingest` is on the lane's surface only.
+func laneRefusal(seatID string, lanes []string) error {
+	for _, l := range lanes {
+		if l == seatID {
+			return nil
+		}
+	}
+	return feov.Errorf(feov.RoleViolation, "%s records no part of the report: a part is one of this run's lanes', and they are %s. NOTHING IS RECORDED",
+		seatID, strings.Join(lanes, ", "))
+}
+
+// partStandingRefusal refuses a lane's second part, and any part once the report holds an op other
+// than a part.
+func partStandingRefusal(seatID string, recorded, changed bool) error {
+	switch {
+	case recorded:
+		return feov.Errorf(feov.Conflict, "%s has already recorded its part of the report, and a lane records one. NOTHING IS RECORDED and the file stands. Your part is in the report as recorded; the synthesizer works on it from here, so end your sitting", seatID)
+	case changed:
+		return feov.Errorf(feov.Conflict, "the report has already been changed, so a part recorded now would land after text the synthesis has reorganized. NOTHING IS RECORDED and the file stands. Your part is not in the report: say so in your log, with what it holds that the report lacks")
+	}
+	return nil
+}
+
+// partSurfaceRefusal refuses a part that holds a row of the text other than the report's own
+// sections (report.PartSurfaceIn).
+func partSurfaceRefusal(part string) error {
+	line, row, found := report.PartSurfaceIn(report.ParseText(part))
+	if !found {
+		return nil
+	}
+	return feov.Errorf(feov.Validation, "your part would carry %q, and %s is the synthesizer's to write, not a lane's: a part holds only the report's own sections, under headings of its own. NOTHING IS RECORDED and the file stands. Take that line and what stands under it out of your part; what it says belongs in a section of your own or to the synthesizer",
+		line, row)
+}
+
 func init() {
+	seat.HelpValues["PartSurfaces"] = report.PartSurfaces
 	seat.HelpValues["RefusedHeadings"] = strings.Join(report.RefusedHeadings(), ", ")
 	seat.HelpValues["SubjectHeadingsNote"] = report.SubjectHeadingsNote
 	seat.HelpValues["WovenNotesRule"] = report.WovenNotesRule
@@ -137,7 +164,7 @@ func init() {
 // (report.ComposedIn, which reads the assembler's own table of sections), or a footnote label of
 // the shape the weave numbers its notes with (report.WovenNoteIn); and text that holds a section
 // out of the order the report ships in (orderRefusal). It is asked of the document a
-// write would leave — the file ingest is about to freeze, the report an edit has planned — against
+// write would leave — the part ingest is about to record, the report an edit has planned — against
 // the report as it stood (was; empty at ingest), so a heading an edit completes from parts is
 // caught as one it writes whole, and a claim the record already holds is not laid on the edit that
 // leaves it or takes it out. It refuses before anything is recorded: the file stands and the edit
@@ -202,77 +229,20 @@ func orderRefusal(was, doc report.ParsedText) error {
 	return feov.Errorf(feov.Validation, "the report's text would carry %q %s %q, and %s. "+
 		"The report ships in the order its text is written, and its text stands in this order: %s. "+
 		"NOTHING IS RECORDED by this call. "+
-		"WHAT TO DO: move the section to its place, whole, with every line under it and every anchor it holds. In the file, before it is frozen, move the lines. "+
+		"WHAT TO DO: move the section to its place, whole, with every line under it and every anchor it holds. "+
 		"In an edit, quote the section and what stands between it and its place as one span, as `show report` prints them, and write the same text in --new with the section where it belongs: "+
 		"every anchor the span holds stays on its sentence. Where what stands on the wrong side is text this write adds, write that text on the right side instead. "+
 		"Where the section is a second one under its name, give it a heading of its own or join it to the first",
 		m.Line, side, string(beside), m.Belongs, report.TextOrder)
 }
 
-// voiceCensus renders the whole-document census as lines an author can act on.
-//
-// Grouped by class with the lines named, because that is how the work is done: an author fixing
-// six lane tags wants one item naming six places, not six items. The cap exists so a badly-voiced
-// base cannot bury the rest of the result, and it STATES that it capped — a truncated list
-// presented as a whole one is the defect this package is about.
-func voiceCensus(report string) []string {
-	occ := reportvoice.FindAll(report)
-	if len(occ) == 0 {
-		return nil
-	}
-	byClass := map[reportvoice.Class][]reportvoice.Occurrence{}
-	var order []reportvoice.Class
-	for _, o := range occ {
-		if _, seen := byClass[o.Class]; !seen {
-			order = append(order, o.Class)
-		}
-		byClass[o.Class] = append(byClass[o.Class], o)
-	}
-	const showPerClass = 8
-	var out []string
-	for _, c := range order {
-		os := byClass[c]
-		lines := make([]string, 0, len(os))
-		shown := os
-		if len(shown) > showPerClass {
-			shown = shown[:showPerClass]
-		}
-		for _, o := range shown {
-			lines = append(lines, fmt.Sprintf("%d", o.Line))
-		}
-		tail := ""
-		if len(os) > len(shown) {
-			tail = fmt.Sprintf(" (+%d more)", len(os)-len(shown))
-		}
-		out = append(out, fmt.Sprintf("%s ×%d at line %s%s — %s: %s",
-			c, len(os), strings.Join(lines, ", "), tail, quoteFirst(os), os[0].Redirect))
-	}
-	return out
-}
-
-func quoteFirst(os []reportvoice.Occurrence) string {
-	return fmt.Sprintf("first is %q", os[0].Match)
-}
-
-// ingestResult carries the census back with the confirmation.
+// ingestResult confirms the part recorded.
 type ingestResult struct {
-	// Path is the file that was frozen and removed, named so an author who wrote elsewhere sees
-	// which file the base came from.
+	// Path is the file that was recorded and removed.
 	Path  string `json:"path"`
 	Bytes int    `json:"bytes"`
-	// VoiceTells is ADVICE and the base is already frozen by the time it renders. Ingest is
-	// WRITE-ONCE and has just deleted the file, so unlike `edit` the author cannot re-do the
-	// act it advises on — the route from here is `edit`, and the message says so rather than
-	// implying a re-ingest that the record would refuse.
-	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r ingestResult) Human() string {
-	head := fmt.Sprintf("blue ingest: %s frozen into the record (%d bytes), verified byte-for-byte, and removed. The report is now the base plus its diff-stack; read it with `show report`, change it with `edit`.", r.Path, r.Bytes)
-	if len(r.VoiceTells) == 0 {
-		return head
-	}
-	return head + "\n\nNOTE — the base sounds in places like the run rather than the subject. It is\nrecorded and this is not a refusal; it may be wrong. Change any of it with\n`edit` — the base itself is frozen and cannot be re-ingested:\n  - " +
-		strings.Join(r.VoiceTells, "\n  - ") +
-		"\n\nSEPARATION, NEVER DELETION: where a tell carries a real limit on the CONCLUSION,\nit stays and is re-voiced as a limit on the subject — only the fact about the run\ngoes. Red's voice lens holds that judgement; these are the literal tells, and the\nleaks that matter most are the ones no pattern catches."
+	return fmt.Sprintf("ingest: %s recorded as your part of the report (%d bytes), verified, and removed. Read the report with `show report`.", r.Path, r.Bytes)
 }

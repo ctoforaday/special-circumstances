@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"maps"
@@ -167,7 +168,7 @@ func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err err
 	}
 }
 
-// seedBlueReport writes a blue/report.md whose prose contains the quoted sentences
+// seedBlueReport records a report whose prose contains the quoted sentences
 // the finding tests anchor to (slice 1b: a lens finding is rejected unless its
 // --quote quote is present in the report). One generous body covers the tokens
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
@@ -176,14 +177,7 @@ func seedBlueReport(t *testing.T, runDir string) {
 	body := "# One\n\n§1 first — a finding sits in sec 1 here.\n\n" +
 		"# Two\n\n§2 the finding prose lands in a quoted sentence.\n\n" +
 		"# Three\n\nthe parser accepts an empty body in this line.\n"
-	dir := filepath.Join(runDir, "blue")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ingestReport(t, runDir)
+	ingestReport(t, runDir, body)
 }
 
 // help captures a command's own help output, which cobra writes to its writer.
@@ -1064,7 +1058,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 // blue's verbs refuse the removals and empty inquiries the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "blue-lane-1"
+	seatID := "blue-respond"
 
 	t.Run("retire needs both the claim and the reason", func(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--reason", "refuted"); err == nil {
@@ -1073,11 +1067,11 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
-		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: this
-		// run has ingested no base, so nothing can say whether the claim ever stood or has left.
+		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: no lane
+		// of this run has recorded a part, so nothing can say whether the claim ever stood or has left.
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID,
 			"--quote", "the claim as it stood", "--reason", "refuted"); err == nil ||
-			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), "no base has been ingested") {
+			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), reportproj.NoPart) {
 			t.Errorf("a retirement over a run with no report was answered %v; want it refused, naming the read", err)
 		}
 	})
@@ -1892,7 +1886,7 @@ func setArmField(m protoreflect.Message, name string) (protoreflect.Message, pro
 
 // seedCast puts on runDir the cast setup writes before any seat registers: the four seats these
 // fixtures register — the evidence lens, the chair, blue and the bench — and blue-synthesize, the
-// seat that ingests the report. A verdict prints the plan the record folds (record.RecordVerdict),
+// seat that works on the report. A verdict prints the plan the record folds (record.RecordVerdict),
 // and the record folds a plan only on a cast.
 func seedCast(t *testing.T, runDir string) {
 	t.Helper()

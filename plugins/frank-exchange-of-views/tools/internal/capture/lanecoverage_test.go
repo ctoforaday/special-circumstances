@@ -16,7 +16,7 @@ import (
 )
 
 // laneRun declares `lanes` in run-config, writes the cast setup would write, and registers the
-// lane seats named.
+// lane seats named, each recording its part of the report.
 //
 // THE CAST IS PART OF THE FIXTURE NOW, because the lanes are a FIELD on it. A run whose record
 // never said which seats are lanes is a run this audit cannot check, and it says SKIP rather than
@@ -32,10 +32,27 @@ func laneRun(t *testing.T, lanes string, registered ...int) string {
 	for _, n := range registered {
 		seat := "blue-lane-" + strconv.Itoa(n)
 		evs = append(evs, recordtest.At(t, seat, seat+":register:#1",
-			&recordpb.Register{ToolVersion: proto.String("test")}))
+			&recordpb.Register{ToolVersion: proto.String("test")}),
+			recordtest.At(t, seat, seat+":ingest:#1", &recordpb.ReportPart{Text: proto.String("## " + seat + "\n\nA sentence.\n")}))
 	}
 	recordtest.Seed(t, run, evs...)
 	return run
+}
+
+// A LANE THAT SAT AND RECORDED NO PART IS NAMED: the report holds nothing it wrote, and before the
+// parts were on the record nothing could say so.
+func TestLaneCoverageNamesALaneThatRecordedNoPart(t *testing.T) {
+	run := laneRun(t, "2", 1)
+	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-2", "blue-lane-2:register:#1",
+		&recordpb.Register{ToolVersion: proto.String("test")}))
+	got := LaneCoverageAudit(runtest.Open(t, run))
+	want := "blue-lane-2 is a lane of this run's cast and recorded no part of the report: the report holds nothing it wrote"
+	if got.Verdict != "WARN" || !strings.Contains(got.Detail, want) {
+		t.Fatalf("got %s — %s", got.Verdict, got.Detail)
+	}
+	if strings.Contains(got.Detail, "blue-lane-1 is a lane") {
+		t.Errorf("a lane that recorded its part is named as one that did not:\n%s", got.Detail)
+	}
 }
 
 // THE DEFECT, SEEDED: a run configured for three lanes that only ever seated two. Before this

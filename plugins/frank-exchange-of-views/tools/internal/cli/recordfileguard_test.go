@@ -74,23 +74,23 @@ func TestAPathASeatNamesIsRefusedWhenItIsTheRecord(t *testing.T) {
 	}
 }
 
-func TestIngestRefusesAReportThatIsTheRecord(t *testing.T) {
+func TestIngestRefusesAPartThatIsTheRecord(t *testing.T) {
 	for _, target := range []string{"record.db", "record.db-shm"} {
 		t.Run(target, func(t *testing.T) {
-			runDir := newRun(t)
+			runDir := laneRun(t, 1)
 			db := filepath.Join(runtest.Open(t, runDir).Records(), "record.db")
-			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-lane-1"); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(partFile(runDir, "blue-lane-1")), 0o755); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(filepath.Join(filepath.Dir(db), target), filepath.Join(runDir, "blue", "report.md")); err != nil {
+			if err := os.Symlink(filepath.Join(filepath.Dir(db), target), partFile(runDir, "blue-lane-1")); err != nil {
 				t.Skipf("no symlinks here: %v", err)
 			}
-			out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+			out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-lane-1")
 			if err == nil || !strings.Contains(err.Error(), "this run's record") {
-				t.Errorf("ingest of a report linked to %s was not refused as the record: err=%v\n%s", target, err, out)
+				t.Errorf("ingest of a part linked to %s was not refused as the record: err=%v\n%s", target, err, out)
 			}
 			requireRecordLocked(t, db, "the refused ingest")
 		})

@@ -43,7 +43,7 @@ func (b *stage) cast(seats ...string) *stage {
 	return b.add("harness", &recordpb.Cast{SeatIds: seats})
 }
 func (b *stage) ingest() *stage {
-	return b.add("harness", &recordpb.BaseIngest{Text: proto.String("# report")})
+	return b.add("harness", &recordpb.ReportPart{Text: proto.String("# report")})
 }
 func (b *stage) mint(evLens, gap, severity string) *stage {
 	sev, _ := GradeOf(severity)

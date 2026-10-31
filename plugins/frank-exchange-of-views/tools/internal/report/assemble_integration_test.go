@@ -78,7 +78,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(blue)})
 
 	// Red mints a gap; the parties take positions; blue records one underway inquiry (an
 	// expansion) and one abandoned inquiry (an alternative considered); the bench opines;
@@ -404,7 +404,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	// Ingest the round-0 report so AssembleShipped renders it (#709): the report is the record
 	// projection now, and the marker tokens are already in `blue`, so the marker events below
 	// replay as no-ops (skip-if-present).
-	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+	add("blue-synthesize", &recordpb.ReportPart{Text: proto.String(blue)})
 
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), SourceSpan: proto.String("s"), SpanStart: proto.Int32(0), SpanEnd: proto.Int32(1), SpanTextSha: proto.String("t"), SourceMatched: proto.String("s"), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
 		Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"),
@@ -526,7 +526,7 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 		t.Errorf("a run with no report ingested does not ship the sections the tool composes:\n%s", docs[0].Body)
 	}
 
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(id, &recordpb.BlueEdit{EditKey: proto.String("e1"), Old: proto.String("a span the report never held"),
@@ -535,21 +535,6 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	}
 	if docs, err := shippedDocs(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report that does not replay: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
-	}
-
-	// A report the record cannot READ is the same failure: two bases is a record no replay starts from.
-	twice := runtest.Open(t, newRun(t))
-	id = record.Identity{Run: twice, SeatID: "blue-synthesize"}
-	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	for range 2 {
-		if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if docs, err := shippedDocs(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
-		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 }
 

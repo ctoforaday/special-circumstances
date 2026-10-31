@@ -37,7 +37,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		}
 	}
 	base := "The estimate is stable across the range. Demand grows steadily over the period."
-	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
 
@@ -119,7 +119,7 @@ func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 		}
 	}
 	base := "Demand grows steadily over the period."
-	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{

@@ -30,7 +30,7 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 		t.Fatal(err)
 	}
 	blue := "# On 91\n\nA line before any heading.\n\n## TL;DR\n\n**Question:** is 91 prime?\n\x00\n**Outcome:** it is not.\n\n## Appendix\n\n91 / 7 = 13.\n\x00\n## Risk matrix\n\n- a list typed by hand.\n\n## Bibliography\n\n- another.\n\n## Open questions\n\nWhether 13 is prime.\n"
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := Layout(run)
@@ -195,7 +195,7 @@ func TestEveryLayoutRowCarriesTextOrSaysWhyItHasNone(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\nIt is not prime.\n")}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String("# On 91\n\n## TL;DR\n\nIt is not prime.\n")}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := Layout(run)
@@ -247,7 +247,7 @@ func TestEachTextIsParsedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	blue := title + "\n\n## TL;DR\n\nIt is not.\n\n## Appendix\n\n91 / 7 = 13.\n\n## Open questions\n\nWhether 13 is prime.\n"
-	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+	if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
 	docs, err := shippedDocs(run)

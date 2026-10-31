@@ -97,15 +97,15 @@ feov-record: motion docket: a docket motion is ruled by the bench seat, so `rule
 
 ── grade motion filed by the chair, which rules it
 exit 2
-feov-record: motion grade: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
+feov-record: motion grade: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue, lane and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
 
 ── docket motion filed by the bench, which rules it
 exit 2
-feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one.
+feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair, lane and lens seats file one.
 
 ── petition filed by the bench, which rules it
 exit 2
-feov-record: motion petition: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one. Where the run itself must stop, `halt` is yours.
+feov-record: motion petition: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair, lane and lens seats file one. Where the run itself must stop, `halt` is yours.
 
 ── verdict in the wrong case
 exit 2
@@ -315,6 +315,96 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
+── a part from a seat that is no lane
+exit 2
+feov-record: "ingest" is not on your surface — it is the lane seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
+
+feov-record — blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with 'log', as a request — a missing
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
+  closing      blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  compute      settle a claim by RUNNING something, when computing the answer beats arguing about it
+  edit         change the report — the only path into report.md, and how every repair lands
+  engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
+  manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
+  register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+  retire       take a claim out of the report, when it cannot stand and no edit will save it
+
+Command groups — each holds commands THIS page does not list:
+  inquiry      propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
+  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
+── a lane's second part
+exit 2
+feov-record: ingest: blue-lane-1 has already recorded its part of the report, and a lane records one. NOTHING IS RECORDED and the file stands. Your part is in the report as recorded; the synthesizer works on it from here, so end your sitting
+
+── a lane's part after the report changed
+exit 2
+feov-record: ingest: the report has already been changed, so a part recorded now would land after text the synthesis has reorganized. NOTHING IS RECORDED and the file stands. Your part is not in the report: say so in your log, with what it holds that the report lacks
+
+── a lane changing the report
+exit 2
+feov-record: "edit" is not on your surface — it is the blue seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
+
+feov-record — a lane — researches, records inquiries, and records its part of the report, once; what becomes of the report after that is blue's.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with 'log', as a request — a missing
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  ingest      record your part of the report — once per lane, before the report's first change
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  register    NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
+
+Command groups — each holds commands THIS page does not list:
+  inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+
+Flags:
+  -h, --help             help for feov-record
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
+      --schema           print the event-schema epoch this binary writes, and exit
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
+  -v, --version          version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
+
 ── verb outside the blue role
 exit 2
 feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
@@ -339,7 +429,6 @@ Available Commands:
   engage       when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
-  ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
   register     NOT needed to look, only to RECORD — once per sitting, before your first record (a lens's whole read is one)
@@ -581,7 +670,7 @@ feov-record: closing: GAP001 is not before the bench: no docket motion on it sta
 ── blue puts GAP001 before the bench, so its closing argues a docketing
 exit 2
 feov-record: motion docket file: GAP001 changed after your sitting opened, and this act reads it as it stood then:
-  event 44, red-lens-evidence: regraded GAP001
+  event 50, red-lens-evidence: regraded GAP001
 
 Read GAP001 as it now stands and decide whether the act still holds. If it does, record it again: this refusal is where your next act on GAP001 reads from, so the same act is not refused for these changes twice
 

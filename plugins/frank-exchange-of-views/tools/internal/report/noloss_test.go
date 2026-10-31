@@ -46,7 +46,7 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 			if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+			if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(blue)}); err != nil {
 				t.Fatal(err)
 			}
 			set, err := AssembleShipped(run)

@@ -1029,8 +1029,6 @@ type workReads struct {
 	win                 WindowIndex
 	foundBy, supersedes map[int64][]string
 	edits               map[string][]GapEdit
-	reportBase          string
-	haveBase            bool
 	reportOps           []ReportOp
 	reportErr           error
 	gaps                []workGapRow
@@ -1062,7 +1060,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
+	r.reportOps, r.reportErr = ReportProjectionAt(q)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1118,7 +1116,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	}
 	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	located := newLocatedReport(renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr))
+	located := newLocatedReport(renderProjection(r.reportOps, r.reportErr))
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
@@ -1309,7 +1307,7 @@ func unverifiableIn(r workReads) unverifiableFunc {
 	return func(id string) string {
 		if !rendered {
 			rendered = true
-			report, renderErr = renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+			report, renderErr = renderProjection(r.reportOps, r.reportErr)
 			if renderErr == nil {
 				bare = claimcount.BareAnchorIDs(report)
 			}

@@ -37,7 +37,7 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 	}
 	evs := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}), served(),
 	}
 	if withGap {

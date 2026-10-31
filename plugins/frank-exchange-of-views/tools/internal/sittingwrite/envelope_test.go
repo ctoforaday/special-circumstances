@@ -30,7 +30,7 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	}
 	recordtest.Seed(t, runDir,
 		at(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		at(record.HarnessSeat, &recordpb.BaseIngest{Text: proto.String("# report")}),
+		at(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{AgentId: proto.String("agent-lens")}),
 		at("red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),

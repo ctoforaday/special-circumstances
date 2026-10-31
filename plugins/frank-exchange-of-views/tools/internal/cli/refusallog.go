@@ -53,7 +53,7 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		return
 	}
 	// A REFUSAL BEFORE THE SEAT'S FIRST SITTING IS LOGGED, in no sitting. The hook's bracket names no
-	// blue seat — blue-researcher is every blue seat's agent type — so a lane's sitting opens at its
+	// lane — blue-lane is every lane's agent type — so a lane's sitting opens at its
 	// register, and a read before it is in none; the entry opens none either, and the register that
 	// follows opens the lane's first (#1601 smoke: a lane's `show report` before the ingest, unlogged).
 	if captured, cerr := record.RunCaptured(run); cerr != nil || captured {

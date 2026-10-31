@@ -871,8 +871,16 @@ func Boards() map[string]Board {
 // filing verbs by role the way the RULING verbs already are, or accept the openness and say so
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
-	"lens motion docket file": "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
-	"lens motion grade file":  "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
+	// A LANE SITS ONCE, BEFORE ANY BOARD EXISTS: the boards here are debate states, and a lane's
+	// sitting precedes the first of them. Each of its acts is the same verb blue's boards demand.
+	"lane inquiry propose":      laneSitsBeforeAnyBoard,
+	"lane inquiry record":       laneSitsBeforeAnyBoard,
+	"lane log":                  laneSitsBeforeAnyBoard,
+	"lane motion docket file":   "a lane sits before any gap is minted, so it has no gap to put before the bench.",
+	"lane motion grade file":    "a lane sits before any gap is minted, so it has no grade to contest.",
+	"lane motion petition file": laneSitsBeforeAnyBoard,
+	"lens motion docket file":   "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
+	"lens motion grade file":    "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
 	"chair position": "possible and real — the chair withholds a PASS its plan permits, and its position says why — but a " +
 		"permitted PASS needs every cast lens to have sat at the report head, which no board here stages; capture's " +
 		"record-parity audit holds the duty instead.",
@@ -882,12 +890,16 @@ var NoSituation = map[string]string{
 		"which no board here stages for the same reason; record's withheldpass_test.go and cli's positionheard_test.go drive the ruling instead.",
 }
 
+// laneSitsBeforeAnyBoard is why a lane's act has no board: the boards are debate states, a lane's one
+// sitting comes before the first, and blue's boards demand the same verb.
+const laneSitsBeforeAnyBoard = "a lane sits once, before any board exists; the boards are debate states, and blue's boards demand the same verb."
+
 // AlwaysTaken are the verbs no board needs to bait, with why.
 //
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
-	"ingest":   "the synthesized report's ONE-TIME freeze into the record, run once by its author at synthesis. It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
+	"ingest":   "a lane's part of the report, recorded once by the lane before synthesis. It is not a response to board state — it happens before the chair ever sits, once per lane, so no board bakes for it any more than one bakes for register",
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately",

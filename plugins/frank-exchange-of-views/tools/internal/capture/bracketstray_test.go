@@ -30,7 +30,7 @@ func TestASeatThatSatByItsBracketAloneIsAStray(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-voice", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# r")}),
 		reg("red-chair"), dispatch("red-lens-evidence"),
 		reg("red-lens-evidence"))
 	if err := sittingwrite.Write(sittingwrite.Sitting{RunDir: dir, Phase: sittingwrite.Open,

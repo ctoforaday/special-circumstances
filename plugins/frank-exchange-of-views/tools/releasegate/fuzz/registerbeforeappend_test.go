@@ -1,11 +1,11 @@
 package fuzz
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -32,19 +32,15 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	// already been copied eight times without its release — this was the ninth, caught by the
 	// windows leg of CI and by nothing local.
 	runDir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	r := newRunner(bin, runDir, newLockedRand(7))
-	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
-	// the base and the file is deleted. blue-respond stays unregistered — this is a different seat.
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
+	// THE LANE'S PART, so mint's --quote check can render the report: the lane needs the cast that
+	// seats it. blue-respond stays unregistered — this is a different seat.
+	cast, lanes := record.CastFor(1)
+	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stagePart("A § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 
 	// ONLY RED'S SEATS. blue-respond is deliberately left unregistered: the whole point is that
