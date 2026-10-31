@@ -370,7 +370,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                  the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor. It is CHECKED against the record
+      --about reference               the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
       --about-kind about-kind-value   anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, a contradiction red recorded, or a computation; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it whether or not the report still holds the sentence, and the gap minted from the finding answers it. A finding about a computation answers no judgement of it: the gap about the computation carries an unsound one
       --impact grade                  how bad the consequence is if it lands
       --key string                    your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. A repeat under the handle with another --quote, --reason, grade or --about-kind/--about is refused: a handle names one finding. Only finding and mint take a handle: no other verb on this surface has this flag
@@ -448,7 +448,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor. It is CHECKED against the record
+      --about reference                          the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
       --about-kind about-kind-value              anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check

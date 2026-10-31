@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -66,7 +67,7 @@ func (r *runner) refuse(code feov.Code, args ...string) { r.refuseAs("", code, a
 
 // refuseAs is refuse under a harness agent id (execAs).
 func (r *runner) refuseAs(agent string, code feov.Code, args ...string) {
-	args = append(args, "--json")
+	args = withJSON(args)
 	out, err := r.execAs(agent, args...)
 	argv := strings.Join(args, " ")
 	if err == nil {
@@ -259,7 +260,7 @@ func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
 	seatID := seatOfArgs(args)
 	for {
 		before := r.readPointOf(seatID, gapID)
-		out, err := r.exec(append(append([]string(nil), args...), "--json")...)
+		out, err := r.exec(withJSON(args)...)
 		if err == nil {
 			return out, true
 		}
@@ -327,17 +328,45 @@ func contentKey(prefix string, stated []string) string {
 	return prefix + "-" + hex.EncodeToString(sum[:6])
 }
 
+// withJSON is args asking for the refusal envelope, once: a flag stated twice is itself refused.
+func withJSON(args []string) []string {
+	if slices.Contains(args, "--json") {
+		return args
+	}
+	return append(slices.Clone(args), "--json")
+}
+
+// repeatedFlagRefused states one of an act's single-value flags a second time, with another value.
+// The tool keeps neither: the act is refused as ill-formed, the refusal names both values, and the
+// caller's next act finds the record as it was.
+func (r *runner) repeatedFlagRefused(args []string, flag string) {
+	i := slices.Index(args, flag)
+	if i < 0 || i+1 >= len(args) {
+		r.noteActErr(strings.Join(args, " ") + ": the repeated-flag drive names " + flag + ", which the act does not carry")
+		return
+	}
+	then := args[i+1] + " again"
+	out, err := r.exec(append(slices.Clone(withJSON(args)), flag, then)...)
+	env, ok := refusalEnvelopeIn(out)
+	if err == nil || !ok || env.Code != string(feov.Validation) {
+		r.noteActErr(strings.Join(args, " ") + ": " + flag + " given twice was not refused as ill-formed: " + firstLine(out))
+		return
+	}
+	for _, value := range []string{args[i+1], then} {
+		if !strings.Contains(env.Error, strconv.Quote(value)) {
+			r.noteActErr(strings.Join(args, " ") + ": the refusal of " + flag + " given twice does not name " + value + ": " + firstLine(out))
+			return
+		}
+	}
+}
+
 // retryKeyed repeats a keyed act that landed. As it was, the tool answers with the act on the record;
 // with flag set to other, an asserted field the stored act holds otherwise, it is refused as a
 // conflict — and so is a repeat quoting other text, which states another location under the key.
 func (r *runner) retryKeyed(args []string, flag, other string) {
 	// READ BY THE FIELD, not the sentence: the --json envelope's `idempotent` is the fact that the
 	// call wrote nothing, and the human line is free to be reworded.
-	repeat := args
-	if !slices.Contains(args, "--json") {
-		repeat = append(slices.Clone(args), "--json")
-	}
-	if out, ok := r.admit(repeat...); ok {
+	if out, ok := r.admit(withJSON(args)...); ok {
 		var env struct {
 			Result struct {
 				Idempotent bool `json:"idempotent"`
@@ -347,6 +376,7 @@ func (r *runner) retryKeyed(args []string, flag, other string) {
 			r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
 		}
 	}
+	r.repeatedFlagRefused(args, flag)
 	if i := slices.Index(args, "--quote"); i >= 0 && i+1 < len(args) && flag != "--quote" && r.coin(50) {
 		elsewhere := slices.Clone(args)
 		elsewhere[i+1] = args[i+1] + " Elsewhere."

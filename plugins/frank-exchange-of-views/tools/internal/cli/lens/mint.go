@@ -32,7 +32,7 @@ import (
 // subject can use those words too.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	var supersedes, foundBy flags.CSV
+	supersedes, foundBy := flags.IDList(flags.GapID), flags.IDList(flags.FindingID)
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -268,7 +268,7 @@ func newMint() *cobra.Command {
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
@@ -278,8 +278,8 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
 	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
-	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
-	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
+	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
+	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
