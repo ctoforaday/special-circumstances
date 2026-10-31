@@ -9,8 +9,10 @@ round-5 text (read at `8236e3a17`) were carried forward by a `git diff -U0` line
 output beside the script). #1644 renamed proof to computation: a `P-` id is a `K-` id, `proof_id` is
 `computation_id`, and every sentence below that speaks of a proof's failed check speaks of a
 computation's. Implements gblock's ruling of 2026-10-30; every fork is RULED (gblock, 2026-10-30 and
-2026-10-31, §Forks). Round 7 (after audit round 6) re-checked `origin/main` (still `a31a7b06d`; no
-reference moved) and takes EventSchema 52, since #1663 takes 51.
+2026-10-31, §Forks). Round 7 (after audit round 6) takes EventSchema 52, since #1663 takes 51. `origin/main` then moved
+to `fe32aa7bc` (#1655: `anchor/anchor.go:111`, `flags/shapes.go`, `cli/lens/close.go`, the research
+skill's l.58 and the agents regenerated from them; epoch still 50); no file:line this plan cites is in
+a changed hunk, the generated agents stay REGENERATE, and every reference stands at `fe32aa7bc`.
 
 > **Owner ruling (gblock, 2026-10-30, his words):** "why isn't the contradiction recorded as a gap in
 > the first place like red would for any other problem it finds? We're letting it mint a weird
