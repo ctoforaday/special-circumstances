@@ -145,10 +145,16 @@ ORIGIN_STREAM="$WORKDIR/run-origin.jsonl"
 # on one record. It also survives a reboot: a recycled pid is rarely a session leader, so a stale pid
 # file reads as dead rather than as alive for as long as some unrelated process holds the number.
 process_state() {
-  local pid
+  local pid stat
   pid="$(cat "$PID_FILE" 2>/dev/null)"
   if [ -z "$pid" ]; then echo unknown; return; fi
-  if ps -o stat= -s "$pid" 2>/dev/null | grep -qv '^Z'; then echo running; else echo dead; fi
+  for stat in $(ps -o stat= -s "$pid" 2>/dev/null); do
+    case "$stat" in
+      Z*) ;;
+      *) echo running; return ;;
+    esac
+  done
+  echo dead
 }
 
 # The rc of the run's EXIT line in this log, or nothing when the log has none. The renderer's lines all
