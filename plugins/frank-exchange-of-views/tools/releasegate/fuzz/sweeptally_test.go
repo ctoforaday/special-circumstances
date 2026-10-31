@@ -83,72 +83,77 @@ func (p sweepPart) armsSweepDrives() bool { return p.K == 0 }
 
 // runTally is what the sweep's fold reads from one run.
 type runTally struct {
-	Seed                    int64                     `json:"seed"`
-	Err                     string                    `json:"err"`
-	Verdict                 string                    `json:"verdict"`
-	Why                     string                    `json:"why"`
-	Epochs                  int                       `json:"epochs"`
-	EpochLimit              bool                      `json:"epoch_limit"`
-	Dialectic               map[string]int            `json:"dialectic"`
-	BlueSittings            int                       `json:"blue_sittings"`
-	BlueAgain               int                       `json:"blue_again"`
-	CiteAnchors             int                       `json:"cite_anchors"`
-	CacheFiles              int                       `json:"cache_files"`
-	EditAnswers             int                       `json:"edit_answers"`
-	VerifiedBasis           int                       `json:"verified_basis"`
-	FoundByMints            int                       `json:"found_by_mints"`
-	VerbatimApplied         int                       `json:"verbatim_applied"`
-	TypedVerbatim           int                       `json:"typed_verbatim"`
-	EstoppelMisses          map[string]int            `json:"estoppel_misses"`
-	ApplyMisses             map[string]int            `json:"apply_misses"`
-	Estoppels               int                       `json:"estoppels"`
-	InquiryRecords          int                       `json:"inquiry_records"`
-	ClosingsFiled           int                       `json:"closings_filed"`
-	ClosingsRefused         int                       `json:"closings_refused"`
-	ClosingWaits            int                       `json:"closing_waits"`
-	PositionsWithheld       int                       `json:"positions_withheld"`
-	OrdersRefused           int                       `json:"orders_refused"`
-	SpansRefused            int                       `json:"spans_refused"`
-	CopiesRead              map[string]map[string]int `json:"copies_read"`
-	FragmentsDriven         int                       `json:"fragments_driven"`
-	TruncationsDriven       int                       `json:"truncations_driven"`
-	QuotesRefused           int                       `json:"quotes_refused"`
-	BridgesRefused          int                       `json:"bridges_refused"`
-	BridgesNamed            int                       `json:"bridges_named"`
-	ReopenedReadied         int                       `json:"reopened_readied"`
-	ReopenedPlans           int                       `json:"reopened_plans"`
-	UnsoundReadied          int                       `json:"unsound_readied"`
-	UnsoundPlans            int                       `json:"unsound_plans"`
-	UnsoundAnswers          int                       `json:"unsound_answers"`
-	UnsoundRepeats          int                       `json:"unsound_repeats"`
-	UnsoundOverOpen         int                       `json:"unsound_over_open"`
-	ProofReopenedReadied    map[string]int            `json:"proof_reopened_readied"`
-	OwedKept                int                       `json:"owed_kept"`
-	ProofOwedKept           int                       `json:"proof_owed_kept"`
-	OwedKeptBy              map[string]int            `json:"owed_kept_by"`
-	OwnerWhys               []string                  `json:"owner_whys,omitempty"`
-	OwnerOffered            int                       `json:"owner_offered"`
-	CitationsOffered        int                       `json:"citations_offered"`
-	UnreadAnswers           int                       `json:"unread_answers"`
-	UnreadRepeats           int                       `json:"unread_repeats"`
-	UnreadRetires           int                       `json:"unread_retires"`
-	UnreadRetiresJoined     int                       `json:"unread_retires_joined"`
-	UnreadClosesRefused     int                       `json:"unread_closes_refused"`
-	UnsoundClosesRefused    int                       `json:"unsound_closes_refused"`
-	RepeatsRefused          int                       `json:"repeats_refused"`
-	BudgetRefused           int                       `json:"budget_refused"`
-	OneGapRefused           int                       `json:"one_gap_refused"`
-	OneGapFindings          int                       `json:"one_gap_findings"`
-	OwnAnswers              int                       `json:"own_answers"`
-	UnclassifiedMinted      int                       `json:"unclassified_minted"`
-	UnclassifiedRefused     int                       `json:"unclassified_refused"`
-	RulerFilingsRefused     int                       `json:"ruler_filings_refused"`
-	ClosedRemandsRefused    int                       `json:"closed_remands_refused"`
-	TrifleRemandsRouted     int                       `json:"trifle_remands_routed"`
-	BlueRemandActs          int                       `json:"blue_remand_acts"`
-	LensRemandActs          int                       `json:"lens_remand_acts"`
-	PastLimitRemandsRefused int                       `json:"past_limit_remands_refused"`
-	LensFirstHolds          int                       `json:"lens_first_holds"`
+	Seed                       int64                     `json:"seed"`
+	Err                        string                    `json:"err"`
+	Verdict                    string                    `json:"verdict"`
+	Why                        string                    `json:"why"`
+	Epochs                     int                       `json:"epochs"`
+	EpochLimit                 bool                      `json:"epoch_limit"`
+	Dialectic                  map[string]int            `json:"dialectic"`
+	BlueSittings               int                       `json:"blue_sittings"`
+	BlueAgain                  int                       `json:"blue_again"`
+	CiteAnchors                int                       `json:"cite_anchors"`
+	CacheFiles                 int                       `json:"cache_files"`
+	EditAnswers                int                       `json:"edit_answers"`
+	VerifiedBasis              int                       `json:"verified_basis"`
+	FoundByMints               int                       `json:"found_by_mints"`
+	VerbatimApplied            int                       `json:"verbatim_applied"`
+	TypedVerbatim              int                       `json:"typed_verbatim"`
+	EstoppelMisses             map[string]int            `json:"estoppel_misses"`
+	ApplyMisses                map[string]int            `json:"apply_misses"`
+	Estoppels                  int                       `json:"estoppels"`
+	InquiryRecords             int                       `json:"inquiry_records"`
+	ClosingsFiled              int                       `json:"closings_filed"`
+	ClosingsRefused            int                       `json:"closings_refused"`
+	ClosingWaits               int                       `json:"closing_waits"`
+	PositionsWithheld          int                       `json:"positions_withheld"`
+	OrdersRefused              int                       `json:"orders_refused"`
+	SpansRefused               int                       `json:"spans_refused"`
+	CopiesRead                 map[string]map[string]int `json:"copies_read"`
+	FragmentsDriven            int                       `json:"fragments_driven"`
+	TruncationsDriven          int                       `json:"truncations_driven"`
+	QuotesRefused              int                       `json:"quotes_refused"`
+	BridgesRefused             int                       `json:"bridges_refused"`
+	BridgesNamed               int                       `json:"bridges_named"`
+	ReopenedReadied            int                       `json:"reopened_readied"`
+	ReopenedPlans              int                       `json:"reopened_plans"`
+	UnsoundReadied             int                       `json:"unsound_readied"`
+	UnsoundPlans               int                       `json:"unsound_plans"`
+	UnsoundAnswers             int                       `json:"unsound_answers"`
+	UnsoundRepeats             int                       `json:"unsound_repeats"`
+	UnsoundOverOpen            int                       `json:"unsound_over_open"`
+	ComputationReopenedReadied map[string]int            `json:"computation_reopened_readied"`
+	OwedKept                   int                       `json:"owed_kept"`
+	ComputationOwedKept        int                       `json:"computation_owed_kept"`
+	OwedKeptBy                 map[string]int            `json:"owed_kept_by"`
+	OwnerWhys                  []string                  `json:"owner_whys,omitempty"`
+	OwnerOffered               int                       `json:"owner_offered"`
+	CitationsOffered           int                       `json:"citations_offered"`
+	UnreadAnswers              int                       `json:"unread_answers"`
+	UnreadRepeats              int                       `json:"unread_repeats"`
+	UnreadRetires              int                       `json:"unread_retires"`
+	UnreadRetiresJoined        int                       `json:"unread_retires_joined"`
+	UnreadClosesRefused        int                       `json:"unread_closes_refused"`
+	UnsoundClosesRefused       int                       `json:"unsound_closes_refused"`
+	RepeatsRefused             int                       `json:"repeats_refused"`
+	BudgetRefused              int                       `json:"budget_refused"`
+	OneGapRefused              int                       `json:"one_gap_refused"`
+	OneGapFindings             int                       `json:"one_gap_findings"`
+	OwnAnswers                 int                       `json:"own_answers"`
+	UnclassifiedMinted         int                       `json:"unclassified_minted"`
+	UnclassifiedRefused        int                       `json:"unclassified_refused"`
+	RulerFilingsRefused        int                       `json:"ruler_filings_refused"`
+	ClosedRemandsRefused       int                       `json:"closed_remands_refused"`
+	TrifleRemandsRouted        int                       `json:"trifle_remands_routed"`
+	BlueRemandActs             int                       `json:"blue_remand_acts"`
+	LensRemandActs             int                       `json:"lens_remand_acts"`
+	PastLimitRemandsRefused    int                       `json:"past_limit_remands_refused"`
+	LensFirstHolds             int                       `json:"lens_first_holds"`
+	BenchRegrades              int                       `json:"bench_regrades"`
+	LockRefused                int                       `json:"lock_refused"`
+	LockLifted                 int                       `json:"lock_lifted"`
+	GroundsRefused             int                       `json:"grounds_refused"`
+	GroundsAdmitted            int                       `json:"grounds_admitted"`
 }
 
 // tallyOf is the run's tally.
@@ -166,7 +171,7 @@ func tallyOf(o outcome) runTally {
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
 		UnsoundAnswers: o.unsoundAnswers, UnsoundRepeats: o.unsoundRepeats, UnsoundOverOpen: o.unsoundOverOpen,
-		ProofReopenedReadied: o.proofReopenedReadied, OwedKept: o.owedKept, ProofOwedKept: o.proofOwedKept,
+		ComputationReopenedReadied: o.computationReopenedReadied, OwedKept: o.owedKept, ComputationOwedKept: o.computationOwedKept,
 		OwedKeptBy: o.owedKeptBy, OwnerWhys: o.ownerWhys, OwnerOffered: o.ownerOffered, CitationsOffered: o.citationsOffered,
 		UnreadAnswers: o.unreadAnswers, UnreadRepeats: o.unreadRepeats, UnreadRetires: o.unreadRetires, UnreadRetiresJoined: o.unreadRetiresJoined,
 		UnreadClosesRefused: o.unreadClosesRefused, UnsoundClosesRefused: o.unsoundClosesRefused, RepeatsRefused: o.repeatsRefused, BudgetRefused: o.budgetRefused, OwnAnswers: o.ownAnswers,
@@ -175,6 +180,7 @@ func tallyOf(o outcome) runTally {
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs, LensRemandActs: o.lensRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, LensFirstHolds: o.lensFirstHolds,
+		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 	}
 }
 
@@ -502,8 +508,8 @@ type sweepFold struct {
 	positionsWithheld                               int
 	fragmentsDriven, truncationsDriven              int
 	reopenedReadied, reopenedPlans                  int
-	proofReopenedReadied, owedKeptBy                map[string]int
-	owedKept, proofOwedKept                         int
+	computationReopenedReadied, owedKeptBy          map[string]int
+	owedKept, computationOwedKept                   int
 	ownerOfferedRuns, citationOfferedRuns           int
 	unreadAnswers, unreadRepeats                    int
 	unreadRetires                                   int
@@ -512,7 +518,7 @@ type sweepFold struct {
 	repeatsRefused, budgetRefused, ownAnswers       int
 	oneGapRefused, oneGapFindings                   int
 	unsoundReadied, unsoundPlans, unsoundAnswers    int
-	forcedUnsoundReadied, forcedProofOwedKept       int
+	forcedUnsoundReadied, forcedComputationOwedKept int
 	forcedOwnerWhys                                 []string
 	unsoundRepeats, unsoundOverOpen                 int
 	unclassifiedMinted, unclassifiedRefused         int
@@ -520,6 +526,8 @@ type sweepFold struct {
 	closedRemandsRefused, trifleRemandsRouted       int
 	blueRemandActs, lensRemandActs                  int
 	pastLimitRemandsRefused, lensFirstHolds         int
+	benchRegrades, lockRefused, lockLifted          int
+	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
 }
 
@@ -527,7 +535,7 @@ type sweepFold struct {
 func foldRuns(runs []runTally) sweepFold {
 	f := sweepFold{
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
-		copiesRead: map[string]map[string]int{}, proofReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
+		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
 		applyMisses: map[string]int{}, estoppelMisses: map[string]int{},
 	}
 	for _, r := range runs {
@@ -589,7 +597,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.bridgesNamed += r.BridgesNamed
 		f.reopenedReadied += r.ReopenedReadied
 		f.unsoundReadied += r.UnsoundReadied
-		if r.Seed == unsoundProofSeed {
+		if r.Seed == unsoundComputationSeed {
 			f.forcedUnsoundReadied += r.UnsoundReadied
 		}
 		f.unsoundPlans += r.UnsoundPlans
@@ -597,13 +605,13 @@ func foldRuns(runs []runTally) sweepFold {
 		f.unsoundRepeats += r.UnsoundRepeats
 		f.unsoundOverOpen += r.UnsoundOverOpen
 		f.reopenedPlans += r.ReopenedPlans
-		for k, v := range r.ProofReopenedReadied {
-			f.proofReopenedReadied[k] += v
+		for k, v := range r.ComputationReopenedReadied {
+			f.computationReopenedReadied[k] += v
 		}
 		f.owedKept += r.OwedKept
-		f.proofOwedKept += r.ProofOwedKept
-		if r.Seed == owedProofSeed {
-			f.forcedProofOwedKept += r.ProofOwedKept
+		f.computationOwedKept += r.ComputationOwedKept
+		if r.Seed == owedComputationSeed {
+			f.forcedComputationOwedKept += r.ComputationOwedKept
 			f.forcedOwnerWhys = r.OwnerWhys
 		}
 		for k, v := range r.OwedKeptBy {
@@ -635,6 +643,11 @@ func foldRuns(runs []runTally) sweepFold {
 		f.lensRemandActs += r.LensRemandActs
 		f.pastLimitRemandsRefused += r.PastLimitRemandsRefused
 		f.lensFirstHolds += r.LensFirstHolds
+		f.benchRegrades += r.BenchRegrades
+		f.lockRefused += r.LockRefused
+		f.lockLifted += r.LockLifted
+		f.groundsRefused += r.GroundsRefused
+		f.groundsAdmitted += r.GroundsAdmitted
 		for why, n := range r.EstoppelMisses {
 			f.estoppelMisses[why] += n
 		}
@@ -666,24 +679,24 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		f.completed, f.failed, f.verdicts, f.epochHist, f.whyHist, f.dcov, f.citeAnchors, f.cacheFiles, f.editAnswers, f.dcov["blue_edit"], f.verifiedBasis, f.dcov["mint"], f.verbatimApplied, f.typedVerbatim, f.estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", f.limitExits, f.completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", f.inquiryRecords, f.dcov["inquiry"])
-	t.Logf("proof owner: %d run(s) offered an unjudged proof to its owner, at a sitting or the run's end", f.ownerOfferedRuns)
+	t.Logf("computation owner: %d run(s) offered an unjudged computation to its owner, at a sitting or the run's end", f.ownerOfferedRuns)
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
-	t.Logf("unsound proofs: %d plan(s) readied the judge or blue for every unsound proof they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundProofSeed, f.unsoundAnswers)
+	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
-		t.Errorf("fuzz readied for an unsound proof in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-proof blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
+		t.Errorf("fuzz readied for an unsound computation in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-computation blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
 	}
 	// A REPEAT UNSOUND OVER THE JUDGE'S OPEN GAP IS REFUSED, and a gap minted over an open one of the
-	// judge's own about the same proof is what the refusal removes: a fresh judgement after blue's
+	// judge's own about the same computation is what the refusal removes: a fresh judgement after blue's
 	// edit, or one after the judge's own sound, is the only way to it.
-	t.Logf("unsound repeats: %d repeat unsound judgement(s) refused over the judge's open gap; %d gap(s) minted about a proof while the judge's own gap about the sentence as it stands was open", f.unsoundRepeats, f.unsoundOverOpen)
+	t.Logf("unsound repeats: %d repeat unsound judgement(s) refused over the judge's open gap; %d gap(s) minted about a computation while the judge's own gap about the sentence as it stands was open", f.unsoundRepeats, f.unsoundOverOpen)
 	if f.completed > 0 && f.unsoundRepeats == 0 {
 		t.Errorf("fuzz drew no repeat unsound judgement over an open gap across %d runs — the refusal is unexercised (false green)", f.completed)
 	}
-	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.proofReopenedReadied)
-	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof (%d in seed %d's forced run); by kind %v", f.owedKept, f.proofOwedKept, f.forcedProofOwedKept, owedProofSeed, f.owedKeptBy)
+	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened computations whose owner a plan readied: %v", f.reopenedReadied, f.reopenedPlans, f.computationReopenedReadied)
+	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged computation (%d in seed %d's forced run); by kind %v", f.owedKept, f.computationOwedKept, f.forcedComputationOwedKept, owedComputationSeed, f.owedKeptBy)
 	for i, w := range f.forcedOwnerWhys {
-		t.Logf("  seed %d's plan %d: %s", owedProofSeed, i+1, w)
+		t.Logf("  seed %d's plan %d: %s", owedComputationSeed, i+1, w)
 	}
 	t.Logf("unread citations: %d gap(s) minted about a citation the lens's reading could not read, %d repeat unread reading(s) refused over that gap, %d citation(s) blue retired off a sentence for it (%d of them answering that gap and listed in its change log), %d close(s) of that gap refused while the citation stood", f.unreadAnswers, f.unreadRepeats, f.unreadRetires, f.unreadRetiresJoined, f.unreadClosesRefused)
 	t.Logf("unsound closes: %d close(s) of a judge's gap refused while the unsound judgement it carries stood", f.unsoundClosesRefused)
@@ -763,23 +776,23 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz recorded ZERO fates by an id read from `inquiry propose` across %d runs (with %d inquiry events) — "+
 				"the propose result named no id the harness reads, or the tool refused every record; the inquiry lifecycle past `proposed` is unexercised by the proposing seat (false green)", f.completed, f.dcov["inquiry"])
 		}
-		// THE REOPENED GATE. A citation or proof whose sentence changed after its check is owed by
+		// THE REOPENED GATE. A citation or computation whose sentence changed after its check is owed by
 		// its owner, which is then not retired, and the edit moved the head: the plan readies it. A
-		// sweep that readied the computation lens for a reopened proof zero times leaves the proof
+		// sweep that readied the computation lens for a reopened computation zero times leaves the computation
 		// arm of anchorOwnerOf unexercised.
-		if f.reopenedReadied == 0 || f.proofReopenedReadied[proofOwner] == 0 {
-			t.Errorf("fuzz readied the owner of every reopened blocker in %d plan(s) (of %d holding one), and the owner of a reopened proof %v times by owner, across %d runs — a reopened proof's routing to the computation lens is unexercised (false green)", f.reopenedReadied, f.reopenedPlans, f.proofReopenedReadied, f.completed)
+		if f.reopenedReadied == 0 || f.computationReopenedReadied[computationOwner] == 0 {
+			t.Errorf("fuzz readied the owner of every reopened blocker in %d plan(s) (of %d holding one), and the owner of a reopened computation %v times by owner, across %d runs — a reopened computation's routing to the computation lens is unexercised (false green)", f.reopenedReadied, f.reopenedPlans, f.computationReopenedReadied, f.completed)
 		}
 		// THE DEBT GATE. A lens that owes is not retired; a sweep where no fold kept a lens with three
-		// barren sittings from retiring — or none for an unjudged proof — leaves the rule unexercised.
+		// barren sittings from retiring — or none for an unjudged computation — leaves the rule unexercised.
 		//
-		// THE UNJUDGED-PROOF DEBT IS FED BY CONSTRUCTION, not left to the draw (gblock, 2026-10-25): the
-		// draw rarely holds it, since the owner checks every proof it owes in the sitting it is offered
-		// one, and a sweep of 40 drew it zero times (#1604). owedProofSeed's run proves a fresh sentence
-		// in every blue sitting while the owner, which mints nothing in that run (mintsFresh), is barren, so a fold holds the owner for a proof it has
+		// THE UNJUDGED-COMPUTATION DEBT IS FED BY CONSTRUCTION, not left to the draw (gblock, 2026-10-25): the
+		// draw rarely holds it, since the owner checks every computation it owes in the sitting it is offered
+		// one, and a sweep of 40 drew it zero times (#1604). owedComputationSeed's run proves a fresh sentence
+		// in every blue sitting while the owner, which mints nothing in that run (mintsFresh), is barren, so a fold holds the owner for a computation it has
 		// not yet sat to judge. TestALensThatOwesIsNotRetired (internal/record) proves the rule itself.
-		if f.owedKept == 0 || f.proofOwedKept == 0 {
-			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged proof, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", f.owedKept, f.proofOwedKept, f.completed)
+		if f.owedKept == 0 || f.computationOwedKept == 0 {
+			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged computation, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", f.owedKept, f.computationOwedKept, f.completed)
 		}
 		// THE UNREAD-CITATION GATE. A reading that reads nothing leaves the citation on a failed check:
 		// the lens owes the gap about it, and blue's remedy is to retire the citation. A sweep where no
@@ -796,7 +809,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// it has just minted, once a run for each kind, so a sweep that refused none of either kind has
 		// lost the drive or the refusal.
 		if f.unreadClosesRefused == 0 || f.unsoundClosesRefused == 0 {
-			t.Errorf("fuzz had %d close(s) refused over an unread citation and %d over an unsound proof, across %d runs — the refusal of a close over a failed check that still stands is unexercised (false green)", f.unreadClosesRefused, f.unsoundClosesRefused, f.completed)
+			t.Errorf("fuzz had %d close(s) refused over an unread citation and %d over an unsound computation, across %d runs — the refusal of a close over a failed check that still stands is unexercised (false green)", f.unreadClosesRefused, f.unsoundClosesRefused, f.completed)
 		}
 		// THE ANCHOR-OWNER GATE. checkAnchorOffers reads each lens's list at each of its sittings, and
 		// anchorOffersAgree every lens's at each run's end; a sweep in which no owner was offered an
@@ -805,7 +818,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 			t.Errorf("fuzz offered no unverified citation to the evidence lens in any of %d runs — the citation routing is unexercised (false green)", f.completed)
 		}
 		if f.ownerOfferedRuns == 0 {
-			t.Errorf("fuzz offered no unjudged proof to its owner in any of %d runs — the proof routing is unexercised (false green)", f.completed)
+			t.Errorf("fuzz offered no unjudged computation to its owner in any of %d runs — the computation routing is unexercised (false green)", f.completed)
 		}
 		// THE CLOSING GATE. The `closing` verb gate above is satisfied by any one act, so a plan that
 		// stopped holding the bench for an awaited closing, or a drive that stopped leaving one unfiled,
@@ -933,6 +946,21 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("remands: %d item(s) held blue before its register after the minting lens acted first", f.lensFirstHolds)
 		if f.lensFirstHolds == 0 {
 			t.Errorf("fuzz drove ZERO remands in which the minting lens acted before blue and blue's item was read before its register, across %d runs — lens-first ordering under a remand is unexercised (false green)", f.completed)
+		}
+		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
+		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.
+		t.Logf("bench orders: %d bench regrade(s), %d lens move(s) of a locked axis refused, %d of a released axis admitted, %d reconsideration(s) refused for wanting new grounds, %d admitted on them", f.benchRegrades, f.lockRefused, f.lockLifted, f.groundsRefused, f.groundsAdmitted)
+		if f.benchRegrades == 0 {
+			t.Errorf("fuzz drove ZERO bench regrades across %d runs — the bench setting the grade its ruling rules on is unexercised (false green)", f.completed)
+		}
+		if f.lockRefused == 0 {
+			t.Errorf("fuzz drove ZERO moves of a bench-set axis refused across %d runs — the lock on the bench's grade is unexercised (false green)", f.completed)
+		}
+		if f.lockLifted == 0 {
+			t.Errorf("fuzz drove ZERO lens moves of an axis the bench released across %d runs — the bench's second move returning the axis to the lens is unexercised (false green)", f.completed)
+		}
+		if f.groundsRefused == 0 || f.groundsAdmitted == 0 {
+			t.Errorf("fuzz drove %d reconsiderations refused for wanting new grounds and %d admitted on them across %d runs — both must be non-zero, or the new-grounds check is unexercised (false green)", f.groundsRefused, f.groundsAdmitted, f.completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

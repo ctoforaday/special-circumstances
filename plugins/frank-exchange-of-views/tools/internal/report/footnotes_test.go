@@ -16,17 +16,17 @@ func TestFootnotesInReadsMarkdownNotAPattern(t *testing.T) {
 	}{
 		{"defined and resolved", "A claim[^1].\n\n[^1]: a source\n", nil},
 		{"undefined", "A claim[^1].\n", []string{"1"}},
-		{"after a fence that holds a shorter fence", "````\n```\n````\n\nA claim[^P1].\n", []string{"P1"}},
+		{"after a fence that holds a shorter fence", "````\n```\n````\n\nA claim[^K1].\n", []string{"K1"}},
 		// Markdown pairs a backtick with the next run of the same length, so the span is the first
 		// two and the reference after them is prose.
-		{"backticks pair as markdown pairs them", "a ` tick, then a claim[^P2] and `[^code]`.\n", []string{"code"}},
+		{"backticks pair as markdown pairs them", "a ` tick, then a claim[^K2] and `[^code]`.\n", []string{"code"}},
 		{"in a tilde fence", "~~~\n[^x]\n~~~\n", nil},
 		{"in an indented block", "Para.\n\n    [^x]\n", nil},
 		{"in a code span", "see `[^x]` here\n", nil},
 		{"escaped", "a class \\[^x] in prose\n", nil},
 		{"inside emphasis", "*claim[^e]*\n", []string{"e"}},
-		{"followed by a colon mid-line", "artifacts exist[^P1]: `skills/`\n", []string{"P1"}},
-		{"in a heading", "### [^P3] proof\n", []string{"P3"}},
+		{"followed by a colon mid-line", "artifacts exist[^K1]: `skills/`\n", []string{"K1"}},
+		{"in a heading", "### [^K3] computation\n", []string{"K3"}},
 		{"a definition indented in a list is not one", "- item\n\n  [^n]: a note\n\nsee[^n]\n", nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {

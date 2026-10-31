@@ -122,7 +122,7 @@ func TestVerifyRefusesAPageOnACorroboration(t *testing.T) {
 	}
 }
 
-// A CITE KEY NAMES ONE CITATION, as a prove key names one program.
+// A CITE KEY NAMES ONE CITATION, as a compute key names one program.
 func TestACiteKeyNamesOneCitation(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe measured latency is bounded.\n\nThe queue drains in order.\n")

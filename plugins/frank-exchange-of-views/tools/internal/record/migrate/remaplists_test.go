@@ -84,11 +84,11 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("mints names %s, which is not in the id list", field)
 		}
 	}
-	if motionArms != 9 {
-		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 9 — the walk stopped at the top-level bodies", motionArms)
+	if motionArms != 11 {
+		t.Errorf("walked %d string fields of Motion's nested filings and ruling, want 11 — the walk stopped at the top-level bodies", motionArms)
 	}
-	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "35 40 64" {
-		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 35 40 64", got)
+	if got := fmt.Sprint(len(idFields), len(argumentFields), len(dataFields)); got != "36 42 66" {
+		t.Errorf("the lists hold %s fields (id, seat-argument, source-data), want 36 42 66", got)
 	}
 }
 
@@ -131,10 +131,19 @@ func archivedSource(t *testing.T, runDir string) Source {
 }
 
 // anyToken is an anchor token in either spelling, the test's own reader; tokenless spells each as
-// its tag alone, so two texts that differ only in the ids their tokens carry compare equal.
-var anyToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):[A-Za-z0-9-]+-->`)
+// its tag alone — an archived `proof` token as the `computation` tag it translates to — so two texts
+// that differ only in the ids their tokens carry compare equal.
+var anyToken = regexp.MustCompile(`<!--(fx|cite|proof|computation|gap):[A-Za-z0-9-]+-->`)
 
-func tokenless(s string) string { return anyToken.ReplaceAllString(s, "<!--$1-->") }
+func tokenless(s string) string {
+	return anyToken.ReplaceAllStringFunc(s, func(tok string) string {
+		tag := anyToken.FindStringSubmatch(tok)[1]
+		if tag == "proof" {
+			tag = "computation"
+		}
+		return "<!--" + tag + "-->"
+	})
+}
 
 // eachString visits every set string value of a message, nested messages included, in schema order.
 func eachString(m protoreflect.Message, visit func(name, v string)) {
@@ -188,7 +197,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			t.Fatalf("G2 -> %q, want %q (the first eight hex of sha256(source hash ‖ archived id)); Q1 -> %q, Q2 -> %q", g2, want, q1, q2)
 		}
 		kept := []proto.Message{
-			&recordpb.Proof{Script: proto.String("quartile Q1")},
+			&recordpb.Computation{Argv: []string{"python3", "quartile Q1"}},
 			&recordpb.Cite{Title: proto.String("G2 summit")},
 			&recordpb.Retire{SupersededBy: proto.String("Q2 earnings")},
 			&recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), MintKey: proto.String("G2")},
@@ -211,24 +220,24 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		d := &recordpb.Dispatch{GapIds: []string{"G2", "G9"}}
 		m := &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G3"), Problem: proto.String("as G2 found"), Supersedes: []string{"G2"}}
 		mo := &recordpb.MotionRule{Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Principle: proto.String("G2 stands")}}}
-		p := &recordpb.Proof{ProofId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
+		p := &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String("p-0a1b2c3d"), Drift: proto.String("G2 drifted"), Location: proto.String("x<!--gap:G2--><!--cite:c-00112233-->")}
 		for _, b := range []proto.Message{l, d, m, mo, p} {
 			r.apply(b, "")
 		}
 		for what, got := range map[string]string{
-			"Log.text":               l.GetText(),
-			"Dispatch.gap_ids":       strings.Join(d.GetGapIds(), ","),
-			"Mint.problem":           m.GetProblem(),
-			"Mint.supersedes":        m.GetSupersedes()[0],
-			"DocketRuling.principle": mo.GetDocket().GetPrinciple(),
-			"Proof.drift":            p.GetDrift(),
-			"Proof.proof_id":         p.GetProofId(),
-			"Proof.location":         p.GetLocation(),
+			"Log.text":                   l.GetText(),
+			"Dispatch.gap_ids":           strings.Join(d.GetGapIds(), ","),
+			"Mint.problem":               m.GetProblem(),
+			"Mint.supersedes":            m.GetSupersedes()[0],
+			"DocketRuling.principle":     mo.GetDocket().GetPrinciple(),
+			"Computation.drift":          p.GetDrift(),
+			"Computation.computation_id": p.GetComputationId(),
+			"Computation.location":       p.GetLocation(),
 		} {
 			want := map[string]string{
 				"Log.text": "closes " + g2 + ", not G20 or G2x", "Dispatch.gap_ids": g2 + ",G9", "Mint.problem": "as " + g2 + " found",
-				"Mint.supersedes": g2, "DocketRuling.principle": g2 + " stands", "Proof.drift": g2 + " drifted",
-				"Proof.proof_id": "P-0a1b2c3d", "Proof.location": "x<!--gap:" + g2 + "--><!--cite:C-00112233-->",
+				"Mint.supersedes": g2, "DocketRuling.principle": g2 + " stands", "Computation.drift": g2 + " drifted",
+				"Computation.computation_id": "K-0a1b2c3d", "Computation.location": "x<!--gap:" + g2 + "--><!--cite:C-00112233-->",
 			}[what]
 			if got != want {
 				t.Errorf("%s = %q, want %q", what, got, want)
@@ -263,8 +272,8 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		hash, _ := hashEvents(evs)
 		evs, _ = serializeInstances(evs)
 		rm, reg := newRemap(hash), Entries()
-		// THE PROOF STORE STILL ANSWERS TO ITS SHA: a migrated proof names its script by the sha256 of
-		// the bytes the store holds under it.
+		// THE STORE STILL ANSWERS TO ITS SHA: a migrated computation names the bundle of the script
+		// the archived store holds — its bytes' sha256 under the command its extension names.
 		stored := map[string]bool{}
 		scripts, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "script*"))
 		for _, script := range scripts {
@@ -272,7 +281,9 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			stored[fmt.Sprintf("%x", sha256.Sum256(body))] = true
+			if _, _, bundle, err := archivedBundle(script, fmt.Sprintf("%x", sha256.Sum256(body))); err == nil {
+				stored[bundle] = true
+			}
 		}
 		for _, old := range evs { // the table is filled first, as Replay fills it
 			bodies, _ := reg.Translate(old)
@@ -289,10 +300,10 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 				names, was := values(body)
 				rm.apply(body, old.Fields["label"])
 				_, now := values(body)
-				if p, ok := body.(*recordpb.Proof); ok {
+				if p, ok := body.(*recordpb.Computation); ok {
 					proofs++
-					if !stored[p.GetProofSha()] {
-						t.Errorf("%s event %d: migrated proof %s names sha %s, and the store holds no script hashing to it", name, old.ID, p.GetProofId(), p.GetProofSha())
+					if !stored[p.GetBundleSha()] {
+						t.Errorf("%s event %d: migrated computation %s names bundle %s, and the store holds no script whose bundle it is", name, old.ID, p.GetComputationId(), p.GetBundleSha())
 					}
 				}
 				for i, field := range names {
@@ -328,8 +339,8 @@ var strayID = regexp.MustCompile(`\b([GQM]\d+|[fcp]-[0-9a-f]{8}|[a-z]+(?:-[a-z]+
 // NO ARCHIVED ID SURVIVES A MIGRATION (R9). Over every archived run, no string field of the
 // migrated record holds a whole value in an archived id shape — a missed id field fails here,
 // listed or not — and no seat-argument field holds, at a word boundary, an id the run minted.
-// `*_key` fields are a seat's own handles and are left as written: they hold such values (`G1`,
-// `logic-F1`) and name nothing on the record.
+// `*_key` fields and a computation's `key` are a seat's own handles and are left as written: they
+// hold such values (`G1`, `logic-F1`, `p-b3`) and name nothing on the record.
 func TestNoOldIdSurvivesMigration(t *testing.T) {
 	for _, name := range archivedRuns(t) {
 		res, toDir := MigratedArchive(t, name)
@@ -354,7 +365,7 @@ func TestNoOldIdSurvivesMigration(t *testing.T) {
 			}
 			eachString(body.ProtoReflect(), func(field, v string) {
 				switch {
-				case strings.HasSuffix(field, "_key"):
+				case strings.HasSuffix(field, "_key"), field == "Computation.key":
 				case oldShape.MatchString(v):
 					t.Errorf("%s event %s: %s holds the archived id %q", name, e.GetKey(), field, v)
 				case argumentFields[field] && len(olds) > 0 && mapped.MatchString(v):

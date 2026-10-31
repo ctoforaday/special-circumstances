@@ -59,7 +59,7 @@ func newCite() *cobra.Command {
 		// nothing — a real source's own title can legitimately carry a tell.
 		tells := spanVoiceTells(title)
 
-		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `prove`
+		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `compute`
 		// resolve theirs: a retry is the same act, judged on the same inputs.
 		why, err := seat.Reason(cmd)
 		if err != nil {
@@ -76,8 +76,7 @@ func newCite() *cobra.Command {
 			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source, under the same
 			// title, at the same span, for the same sentence and with the same argument, or it is a
 			// second citation reusing the name.
-			retry := &recordpb.Cite{SourceSpan: proto.String(span)}
-			citeFields(cmd, retry, why)
+			retry := citeRetry(cmd, why)
 			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
 				return nil, err
 			}
@@ -201,6 +200,13 @@ var citeAsserted = []seat.Asserted{
 	{Flag: flags.Title, Field: "title"},
 	{Flag: flags.SourceSpan, Field: "source_span"},
 	{Flag: flags.Reason, Field: "text"},
+}
+
+// citeRetry is what a retry under a cite's key states: every field citeFields writes, and the span.
+func citeRetry(cmd *cobra.Command, why string) *recordpb.Cite {
+	retry := &recordpb.Cite{SourceSpan: proto.String(seat.Str(cmd, flags.SourceSpan))}
+	citeFields(cmd, retry, why)
+	return retry
 }
 
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {

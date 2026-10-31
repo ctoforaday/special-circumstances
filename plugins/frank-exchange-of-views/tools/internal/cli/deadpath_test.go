@@ -22,7 +22,7 @@ import (
 // EVERY COMMAND PATH A SEAT IS TOLD TO TYPE MUST RESOLVE IN THE TREE IT WILL TYPE IT INTO.
 //
 // A refusal is the moment a seat learns what it should have done, and the instruction inside it is
-// prose: `blue prove --location …`, `chair carry --carried-from <epoch>`, `lens show evidence`. Nine
+// prose: `blue compute --location …`, `chair carry --carried-from <epoch>`, `lens show evidence`. Nine
 // of these named a path or a flag the binary no longer has — the role words left the command path
 // when the surface became seat-scoped, `--location` became `--quote` — and nothing failed, because a
 // string is not a symbol. Probed: `feov-record --seat-id red-chair chair carry` → `no command named
@@ -512,8 +512,8 @@ type sourceLiteral struct {
 
 // moduleLiterals is every interpreted string literal in the module's non-test, non-generated
 // sources outside notSeatFacing, with adjacent `+` operands joined — a long refusal is written as
-// several literals, and a span may straddle the seam ("Settle each with `blue prove … --script
-// <path> " + "--answers <gap>`"). A non-literal operand (a %s argument, a constant from another
+// several literals, and a span may straddle the seam ("Settle each with `blue compute … --dir
+// <bundle> " + "--answers <gap>`"). A non-literal operand (a %s argument, a constant from another
 // package, a function call) joins as one space, so a span that straddles one is read with a gap
 // where the value goes — `show --run %s --view <name>` still names its command and its flags.
 func moduleLiterals(t *testing.T) []sourceLiteral {

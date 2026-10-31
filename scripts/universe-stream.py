@@ -21,7 +21,7 @@ import time
 # The verbs worth seeing. A seat runs many more calls than these; these are the ones that MOVE the
 # debate, so the line count stays proportional to progress rather than to effort.
 INTERESTING = ("register", "mint", "close", "verdict", "outcome", "halt", "certify",
-               "position", "closing", "dispatch", "ingest", "edit", "prove", "cite",
+               "position", "closing", "dispatch", "ingest", "edit", "compute", "cite",
                "log", "regrade", "motion", "carry")
 
 

@@ -1084,7 +1084,7 @@ var ReasonIs = map[string]string{
 	"review":       "your one read of the report: what it SAYS where it accounts for the inquiries this run investigated — quote it — and where its body falls short of what an inquiry claims; one text covers every inquiry",
 	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
-	"prove":        "the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
+	"compute":      "the computation note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
@@ -1224,8 +1224,8 @@ func SplitGroups(root *cobra.Command) {
 // record holds an outcome, or an outcome is stamped outside the assembly sitting
 // (record.RequireSeatMayWrite) — BEFORE the verb's own checks run, and before register-first: a verb
 // that refuses on a check of its own first tells a seat after the outcome what else is wrong with
-// an act the run no longer takes (`lens close` on a computation gap with no proof was told to wait
-// for blue's proof). A verb that writes no event type has nothing to ask; the write asks again
+// an act the run no longer takes (`lens close` on a computation gap with no computation was told to wait
+// for blue's computation). A verb that writes no event type has nothing to ask; the write asks again
 // under its lock.
 //
 // A register states its occasion here, as its flag: the bench's register for the assemble occasion

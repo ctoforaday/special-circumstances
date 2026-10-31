@@ -16,23 +16,33 @@ import (
 )
 
 // A REPRODUCE BEFORE EPOCH 28 IS CARRIED TO EVERY ANCHOR ON ITS SCRIPT AT THAT POINT (gblock,
-// 2026-10-12): reproduction per sha is kept, and an old check's soundness goes to every proof on
-// the script written before it. The first such anchor carries the re-run — its result and its
-// outputs — and every other one is judged on that re-run (not_run), with the same soundness and
-// note. A proof written after the reproduce gets nothing: it was never judged.
+// 2026-10-12): reproduction per sha is kept, and an old check's soundness goes to every computation
+// on the bundle written before it. The first such anchor carries the re-run (`ran`), and every other
+// one ran nothing and states that re-run's comparison, with the same soundness and note. A
+// computation written after the reproduce gets nothing: it was never judged.
+//
+// AN ARCHIVED `not_run` IS AN ACT THAT RAN NOTHING (epoch 49): it states the comparison of its
+// bundle's standing re-run — the latest reproduce before it that ran the bundle.
 //
 // Asserted on every archive, in order, against the source read directly: the n-th source
-// reproduce becomes exactly the expected run of migrated reproduces.
+// reproduce becomes exactly the expected run of migrated reproduces, each on the bundle its
+// script's computation was written with.
 func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
-	type carried struct{ sha, rerun, soundness string }
-	fanned, shared, kept := 0, 0, 0
+	type carried struct {
+		bundle, rerun string
+		ran           bool
+		soundness     string
+	}
+	fanned, shared, kept, stood := 0, 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		t.Run(name, func(t *testing.T) {
 			evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
 			if err != nil {
 				t.Fatal(err)
 			}
-			proofsOn := map[string]int{} // sha -> proofs written so far
+			computationsOn := map[string]int{} // bundle -> computations written so far
+			bundleOf := map[string]string{}    // archived script sha -> bundle
+			standing := map[string]string{}    // bundle -> the comparison of the latest reproduce that ran it
 			var want []carried
 			var named []string // per want: the anchor a reproduce names as written, "" for one carried
 			for _, old := range evs {
@@ -42,15 +52,30 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 					if sha == "" {
 						sha, _ = old.Fields["sha256"].(string) // the shard era's spelling
 					}
-					proofsOn[sha]++
+					script, _ := old.Fields["script"].(string)
+					_, _, bundle, err := archivedBundle(script, sha)
+					if err != nil {
+						t.Fatal(err)
+					}
+					bundleOf[sha] = bundle
+					computationsOn[bundle]++
 				case "reproduce":
 					sha, _ := old.Fields["proof_sha"].(string)
+					bundle := bundleOf[sha]
 					// A reproduce written at epoch 28 or later names its anchor and passes as written.
 					if id, _ := old.Fields["proof_id"].(string); id != "" {
 						rerun, _ := old.Fields["rerun"].(string)
 						snd, _ := old.Fields["soundness"].(string)
-						want = append(want, carried{sha, rerun, snd})
-						named = append(named, id)
+						ran := rerun != "not_run"
+						if ran {
+							standing[bundle] = rerun
+						} else {
+							rerun = standing[bundle]
+							stood++
+						}
+						want = append(want, carried{bundle, rerun, ran, snd})
+						// The anchor it named keeps its hex under the computation's letter.
+						named = append(named, "K-"+id[len("P-"):])
 						continue
 					}
 					rerun := recordpb.Word(recordpb.Rerun_RERUN_DIFFERS)
@@ -58,12 +83,13 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 						rerun = recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED)
 					}
 					snd, _ := old.Fields["soundness"].(string)
-					for i := 0; i < proofsOn[sha]; i++ {
+					for i := 0; i < computationsOn[bundle]; i++ {
 						if i > 0 {
-							rerun = recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN)
 							shared++
+						} else {
+							standing[bundle] = rerun
 						}
-						want = append(want, carried{sha, rerun, snd})
+						want = append(want, carried{bundle, rerun, i == 0, snd})
 						named = append(named, "")
 					}
 				}
@@ -73,38 +99,36 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			anchorsOn := map[string][]string{} // sha -> migrated proof anchors, in order
-			used := map[string]int{}           // sha -> anchors used by the current reproduce's run
+			anchorsOn := map[string][]string{} // bundle -> migrated computation anchors, in order
+			used := map[string]int{}           // bundle -> anchors used by the current reproduce's run
 			var got []carried
-			var lastSrc string
 			for _, e := range m.Events {
-				if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
-					anchorsOn[p.GetProofSha()] = append(anchorsOn[p.GetProofSha()], p.GetProofId())
+				if p, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
+					anchorsOn[p.GetBundleSha()] = append(anchorsOn[p.GetBundleSha()], p.GetComputationId())
 				}
 				r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 				if !ok {
 					continue
 				}
-				got = append(got, carried{r.GetProofSha(), recordpb.Word(r.GetRerun()), recordpb.Word(r.GetSoundness())})
-				// A REPRODUCE THAT NAMED ITS ANCHOR KEEPS IT. A lens re-runs whichever proof on a shared
-				// script it is judging, so its anchor is not the script's next in order.
+				got = append(got, carried{r.GetBundleSha(), recordpb.Word(r.GetRerun()), r.GetRan(), recordpb.Word(r.GetSoundness())})
+				// A REPRODUCE THAT NAMED ITS ANCHOR KEEPS IT. A lens re-runs whichever computation on
+				// a shared bundle it is judging, so its anchor is not the bundle's next in order.
 				if j := len(got) - 1; j < len(named) && named[j] != "" {
-					if r.GetProofId() != named[j] {
-						t.Errorf("reproduce %d names %q; its source named %q", m.At.Of(e).ID, r.GetProofId(), named[j])
+					if r.GetComputationId() != named[j] {
+						t.Errorf("reproduce %d names %q; its source named %q", m.At.Of(e).ID, r.GetComputationId(), named[j])
 					}
 					kept++
 					continue
 				}
-				// The anchors of one carried run are the proofs on the script, in the order written.
-				if r.GetRerun() != recordpb.Rerun_RERUN_NOT_RUN || lastSrc != r.GetProofSha() {
-					used[r.GetProofSha()] = 0
+				// The anchors of one carried run are the computations on the bundle, in the order written.
+				if r.GetRan() {
+					used[r.GetBundleSha()] = 0
 				}
-				lastSrc = r.GetProofSha()
-				on := anchorsOn[r.GetProofSha()]
-				if k := used[r.GetProofSha()]; k >= len(on) || on[k] != r.GetProofId() {
-					t.Errorf("reproduce %d names %q; the proofs on its script so far are %q", m.At.Of(e).ID, r.GetProofId(), on)
+				on := anchorsOn[r.GetBundleSha()]
+				if k := used[r.GetBundleSha()]; k >= len(on) || on[k] != r.GetComputationId() {
+					t.Errorf("reproduce %d names %q; the computations on its bundle so far are %q", m.At.Of(e).ID, r.GetComputationId(), on)
 				}
-				used[r.GetProofSha()]++
+				used[r.GetBundleSha()]++
 			}
 			if fmt.Sprint(got) != fmt.Sprint(want) {
 				t.Errorf("the migrated reproduces are not the source's carried to their anchors:\n got  %d %v\n want %d %v", len(got), got, len(want), want)
@@ -112,10 +136,14 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 			fanned += len(want)
 		})
 	}
-	// THE TRANSLATION IS EXERCISED: archives hold proofs that share a script, so some reproduce
-	// is carried to more than one anchor. Without the carry this test reads the same either way.
+	// THE TRANSLATION IS EXERCISED: archives hold computations that share a bundle, so some
+	// reproduce is carried to more than one anchor, and archives hold `not_run` reproduces. Without
+	// either, this test reads the same either way.
 	if shared == 0 || fanned == 0 {
 		t.Errorf("no archived reproduce was carried to a second anchor (%d carried, %d shared) — the test checks nothing", fanned, shared)
+	}
+	if stood == 0 {
+		t.Error("no archived reproduce ran nothing — the check that it states its standing re-run checks nothing")
 	}
 	if kept == 0 {
 		t.Error("no archived reproduce named its anchor as written — the check that it keeps it checks nothing")
@@ -213,8 +241,8 @@ func (s sliceOf) Events() ([]OldEvent, error)   { return s, nil }
 func (s sliceOf) Files() []migration.SourceFile { return nil }
 func (s sliceOf) Close() error                  { return nil }
 
-// A REFERENCE MIGRATE CANNOT TRANSLATE IS A REFUSAL BY NAME, and a carried reproduce with no proof of
-// its script before it has nowhere to go.
+// A REFERENCE MIGRATE CANNOT TRANSLATE IS A REFUSAL BY NAME, and a carried reproduce with no
+// computation of its bundle before it has nowhere to go.
 func TestAnUntranslatableReferenceIsRefusedByName(t *testing.T) {
 	if _, err := contradictionRef("17", map[int64]int64{3: 4}); err == nil {
 		t.Error("a contradiction reference to a reading the replay wrote nothing for was translated")
@@ -222,7 +250,7 @@ func TestAnUntranslatableReferenceIsRefusedByName(t *testing.T) {
 	if got, err := contradictionRef("3", map[int64]int64{3: 4}); err != nil || got != "4" {
 		t.Errorf("contradictionRef(3) = %q, %v, want 4", got, err)
 	}
-	if _, err := reproduceAnchors([]proto.Message{&recordpb.Reproduce{ProofSha: proto.String("s1")}}, map[string][]string{}); err == nil {
-		t.Error("a reproduce of a script no proof was written on was carried to an anchor")
+	if _, err := reproduceAnchors([]proto.Message{&recordpb.Reproduce{BundleSha: proto.String("s1")}}, map[string][]string{}); err == nil {
+		t.Error("a reproduce of a bundle no computation was written on was carried to an anchor")
 	}
 }

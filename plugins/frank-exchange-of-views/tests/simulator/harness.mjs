@@ -99,8 +99,10 @@ export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-export const judgeEnv = (over = {}) => ({ dispositions: [], ...over })
-export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], ...over })
+// The docket sitting's envelope declares no field, and a petition sitting's carries only a halt: the
+// rulings are on the record, and no envelope relays one.
+export const judgeEnv = (over = {}) => ({ ...over })
+export const petitionRulingEnv = (over = {}) => ({ ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. A lens returns its empty
 // envelope; the frontier and the lanes answer in free text.
 export const assembleEnv = (over = {}) => ({ open_gaps: 0, ...over })

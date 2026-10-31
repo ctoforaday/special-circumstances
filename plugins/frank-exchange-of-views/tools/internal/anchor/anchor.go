@@ -10,7 +10,7 @@
 //
 // # Why it is a leaf
 //
-// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue prove`,
+// Each kind is placed by its own verb — `lens finding`, `lens mint`, `blue cite`, `blue compute`,
 // `lens corroborate` — and read back by the edit guard, the board, the assembly and every seat that
 // wants the live text at one. That is a vocabulary several layers share, so it depends on NOTHING
 // but the standard library. It was in `internal/bluedoc`, which reaches up into `internal/cli/lens`
@@ -37,8 +37,8 @@ const (
 	Strip Assembly = iota
 	// WeaveSource rewrites the token to a visible [^N] footnote on its source.
 	WeaveSource
-	// WeaveProof rewrites the token to a visible [^P<n>] reference to its computation.
-	WeaveProof
+	// WeaveComputation rewrites the token to a visible [^K<n>] reference to its computation.
+	WeaveComputation
 )
 
 // kind is one row of the kinds table: what an anchor of the kind MEANS.
@@ -60,7 +60,7 @@ type kind struct {
 var kinds = []kind{
 	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
 	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
-	{name: "proof", prefix: "P-", tag: "proof", label: "proof anchor", assembly: WeaveProof, backs: true},
+	{name: "computation", prefix: "K-", tag: "computation", label: "computation anchor", assembly: WeaveComputation, backs: true},
 	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
 }
 
@@ -108,7 +108,12 @@ func rowOf(id string) *kind {
 // Label, the edit guard's sweep — recovers the kind from it rather than from a field. It is
 // tolerable because the id and its token are minted together and never travel apart, and because
 // an id of no kind spells a token no reader recognises rather than another kind's.
-func Token(id string) string { return tokenOpen + rowOf(id).tag + ":" + id + tokenClose }
+func Token(id string) string { return tokenOpen + Tagged(id) + tokenClose }
+
+// Tagged is the text between a token's comment delimiters — the kind's tag, a colon, the id. It is
+// what a seat copies when it drops the delimiters and keeps the rest, so a message that names the
+// bare id can name this beside it as the form that is not one.
+func Tagged(id string) string { return rowOf(id).tag + ":" + id }
 
 // IDPattern is the one id matcher: a regular expression, unanchored and with no capture group,
 // matching an id of any of the named kinds — of any anchor kind when none is named. A name neither

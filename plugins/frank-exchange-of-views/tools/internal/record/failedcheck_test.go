@@ -11,20 +11,20 @@ import (
 )
 
 // A STANDING UNSOUND JUDGEMENT IS A PASS BLOCKER (gblock, 2026-10-24): the judging lens is readied to
-// mint its gap, blue to fix or retire the proof, and it clears when the proof is judged sound again or
+// mint its gap, blue to fix or retire the computation, and it clears when the computation is judged sound again or
 // retired. universe-m32 ended UNVERIFIED with pass_permitted true over exactly this board.
 
-// unsoundBoard is a run whose computation lens re-ran P-1 and judged its sentence unsound in its
+// unsoundBoard is a run whose computation lens re-ran K-1 and judged its sentence unsound in its
 // sitting, with the chair seated after it.
 func unsoundBoard(t *testing.T) *stage {
 	return newStage(t).cast(evLens, compLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		proof("P-1", "s1").
+		computation("K-1", "s1").
 		dispatch(2, compLens).register(compLens).
-		reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
+		reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
 }
 
-// aboutProof is a gap about proof anchor, graded low: not material, so it readies nobody itself.
-func aboutProof(gap, anchor string) *recordpb.Mint {
+// aboutComputation is a gap about computation anchor, graded low: not material, so it readies nobody itself.
+func aboutComputation(gap, anchor string) *recordpb.Mint {
 	m := budgetMint(gap)
 	m.Severity = recordpb.Grade_GRADE_LOW.Enum()
 	m.Problem = proto.String("the script does trial division, and the sentence calls it a sieve")
@@ -50,14 +50,14 @@ func unsoundOf(t *testing.T, run Run) []Blocker {
 func TestAStandingUnsoundJudgementHoldsThePass(t *testing.T) {
 	run := unsoundBoard(t).seed()
 	got := unsoundOf(t, run)
-	if len(got) != 1 || got[0].Subject != "P-1" || got[0].Owner != compLens {
-		t.Fatalf("unsound blockers = %+v, want P-1 owned by its judge %s", got, compLens)
+	if len(got) != 1 || got[0].Subject != "K-1" || got[0].Owner != compLens {
+		t.Fatalf("unsound blockers = %+v, want K-1 owned by its judge %s", got, compLens)
 	}
 	err := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if err == nil {
-		t.Fatal("the gate admits a PASS over a proof the record calls unsound")
+		t.Fatal("the gate admits a PASS over a computation the record calls unsound")
 	}
-	for _, want := range []string{"P-1", compLens, "judged unsound"} {
+	for _, want := range []string{"K-1", compLens, "judged unsound"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the PASS refusal does not name %q: %v", want, err)
 		}
@@ -78,20 +78,20 @@ func TestAnUnsoundJudgementClears(t *testing.T) {
 		clear bool
 	}{
 		{"its judge re-judges it sound", func(b *stage) {
-			b.reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, recordpb.Soundness_SOUNDNESS_SOUND)
+			b.reproduce(compLens, "K-1", "s1", notRun, recordpb.Soundness_SOUNDNESS_SOUND)
 		}, true},
-		{"blue retires the proof", func(b *stage) {
-			b.add("blue-respond", &recordpb.Retire{Claim: proto.String("the sentence"), Reason: proto.String("refuted"), Anchors: []string{"P-1"}})
+		{"blue retires the computation", func(b *stage) {
+			b.add("blue-respond", &recordpb.Retire{Claim: proto.String("the sentence"), Reason: proto.String("refuted"), Anchors: []string{"K-1"}})
 		}, true},
 		{"a sound judgement after blue's edit", func(b *stage) {
-			b.reopen("P-1").dispatch(b.at(), evLens).register(evLens).
-				reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, recordpb.Soundness_SOUNDNESS_SOUND)
+			b.reopen("K-1").dispatch(b.at(), evLens).register(evLens).
+				reproduce(evLens, "K-1", "s1", notRun, recordpb.Soundness_SOUNDNESS_SOUND)
 		}, true},
 		{"another lens's sound beside it", func(b *stage) {
 			b.dispatch(2, evLens).register(evLens).
-				reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, recordpb.Soundness_SOUNDNESS_SOUND)
+				reproduce(evLens, "K-1", "s1", notRun, recordpb.Soundness_SOUNDNESS_SOUND)
 		}, false},
-		{"the judge's gap alone", func(b *stage) { b.add(compLens, aboutProof("G-1", "P-1")) }, false},
+		{"the judge's gap alone", func(b *stage) { b.add(compLens, aboutComputation("G-1", "K-1")) }, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := unsoundBoard(t)
@@ -103,7 +103,7 @@ func TestAnUnsoundJudgementClears(t *testing.T) {
 	}
 }
 
-// THE JUDGE IS READIED TO MINT ITS GAP, AND BLUE TO FIX OR RETIRE THE PROOF — each once per cause.
+// THE JUDGE IS READIED TO MINT ITS GAP, AND BLUE TO FIX OR RETIRE THE COMPUTATION — each once per cause.
 func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	parties := func(p Plan) map[string]bool {
 		out := map[string]bool{}
@@ -126,23 +126,23 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !parties(plan)[compLens] || !says(plan, compLens+"'s check of proof P-1 judged it unsound and no gap of its carries that to blue — ready") {
+	if !parties(plan)[compLens] || !says(plan, compLens+"'s check of computation K-1 judged it unsound and no gap of its carries that to blue — ready") {
 		t.Errorf("the judge is not readied to mint its gap: parties %v, why %q", plan.Parties, plan.Why)
 	}
-	if !parties(plan)[blueRespondSeat] || !says(plan, "proof P-1 stands on a failed check by "+compLens+" — ready to remedy it: blue fixes the proof or retires it") {
-		t.Errorf("blue is not readied to fix or retire the proof: parties %v, why %q", plan.Parties, plan.Why)
+	if !parties(plan)[blueRespondSeat] || !says(plan, "computation K-1 stands on a failed check by "+compLens+" — ready to remedy it: blue fixes the computation or retires it") {
+		t.Errorf("blue is not readied to fix or retire the computation: parties %v, why %q", plan.Parties, plan.Why)
 	}
 	lens := sittingOfRunT(t, run, "lens", compLens)
-	if it, ok := itemNaming(lens, "proof P-1"); !ok || !it.Blocks {
-		t.Errorf("the judge's work list does not owe its gap about P-1: %+v", lens.Open)
+	if it, ok := itemNaming(lens, "computation K-1"); !ok || !it.Blocks {
+		t.Errorf("the judge's work list does not owe its gap about K-1: %+v", lens.Open)
 	}
 	blue := sittingOfRunT(t, run, "blue", blueRespondSeat)
-	if it, ok := itemNaming(blue, "proof P-1"); !ok || !it.Blocks || !strings.Contains(it.What, "retire") {
-		t.Errorf("blue's work list does not owe the fix or retire of P-1: %+v", blue.Open)
+	if it, ok := itemNaming(blue, "computation K-1"); !ok || !it.Blocks || !strings.Contains(it.What, "retire") {
+		t.Errorf("blue's work list does not owe the fix or retire of K-1: %+v", blue.Open)
 	}
 
 	// The judge mints its gap: it owes nothing more on it, and blue's cause moves to the mint.
-	minted := func() *stage { return unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")) }
+	minted := func() *stage { return unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1")) }
 	run = minted().seed()
 	plan, err = PlanDispatch(run)
 	if err != nil {
@@ -155,8 +155,8 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 		t.Errorf("blue is not readied once the gap is minted: parties %v", plan.Parties)
 	}
 	lens = sittingOfRunT(t, run, "lens", compLens)
-	if it, ok := itemNaming(lens, "proof P-1"); !ok || it.Blocks {
-		t.Errorf("the judge's item on P-1 still blocks once its gap is minted: %+v", lens.Open)
+	if it, ok := itemNaming(lens, "computation K-1"); !ok || it.Blocks {
+		t.Errorf("the judge's item on K-1 still blocks once its gap is minted: %+v", lens.Open)
 	}
 
 	// Blue sits after the mint and leaves it: not readied again for it.
@@ -166,7 +166,7 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !says(plan, blueRespondSeat+" has sat since proof P-1's check failed") {
+	if !says(plan, blueRespondSeat+" has sat since computation K-1's check failed") {
 		t.Errorf("blue is readied again for a cause it sat through: why %q", plan.Why)
 	}
 }
@@ -175,18 +175,18 @@ func TestAnUnsoundJudgementReadiesItsJudgeAndBlue(t *testing.T) {
 func TestTheGapAboutAnUnsoundJudgementTakesNoMint(t *testing.T) {
 	b := unsoundBoard(t)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
-	b.proof("P-2", "s2")
+	b.computation("K-2", "s2")
 	run := b.seed()
 	md := "# Report\n\nA paragraph that cites nothing."
 	withRenderer(t, renders(&md))
 	id := Identity{Run: run, SeatID: compLens}
-	// The computation lens's budget is max(1, ceil(2 proofs × 3 / 2)) = 3.
+	// The computation lens's budget is max(1, ceil(2 computations × 3 / 2)) = 3.
 	mustAppend(t, id, budgetMint("G-00000001"))
 	mustAppend(t, id, budgetMint("G-00000002"))
 	mustAppend(t, id, budgetMint("G-00000003"))
-	_, err := Append(id, aboutProof("G-00000004", "P-2"))
+	_, err := Append(id, aboutComputation("G-00000004", "K-2"))
 	mustRefuse(t, err, "admits no more")
-	mustAppend(t, id, aboutProof("G-00000005", "P-1"))
+	mustAppend(t, id, aboutComputation("G-00000005", "K-1"))
 	w, err := WorkOfSeat(run, "lens", compLens)
 	if err != nil {
 		t.Fatal(err)
@@ -194,47 +194,47 @@ func TestTheGapAboutAnUnsoundJudgementTakesNoMint(t *testing.T) {
 	if mb := w.Sitting.MintBudget; mb == nil || mb.Open != 3 || mb.Answering != 1 {
 		t.Errorf("mint_budget = %+v, want open 3, answering 1", mb)
 	}
-	_, err = Append(id, aboutProof("G-00000006", "P-1"))
+	_, err = Append(id, aboutComputation("G-00000006", "K-1"))
 	mustRefuse(t, err, "admits no more")
 }
 
-// A GAP OR FINDING ABOUT A PROOF NAMES ONE: the write refuses an anchor no proof carries.
-func TestAnActAboutAProofNamesOne(t *testing.T) {
+// A GAP OR FINDING ABOUT A COMPUTATION NAMES ONE: the write refuses an anchor no computation carries.
+func TestAnActAboutAComputationNamesOne(t *testing.T) {
 	run := unsoundBoard(t).seed()
-	_, err := Append(Identity{Run: run, SeatID: compLens}, aboutProof("G-1", "P-9"))
-	mustRefuse(t, err, "P-9", "no citation or proof on this record carries")
+	_, err := Append(Identity{Run: run, SeatID: compLens}, aboutComputation("G-1", "K-9"))
+	mustRefuse(t, err, "K-9", "no citation or computation on this record carries")
 }
 
 // A GAP MINTED IN THE JUDGEMENT'S OWN SITTING ANSWERS IT, before or after the reproduce; one from an
 // earlier sitting carried a judgement of a sentence since replaced, and answers nothing now.
 func TestTheJudgementsOwnSittingsGapAnswersIt(t *testing.T) {
 	b := newStage(t).cast(evLens, compLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		proof("P-1", "s1").dispatch(2, compLens).register(compLens).
-		add(compLens, aboutProof("G-1", "P-1")).
-		reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
+		computation("K-1", "s1").dispatch(2, compLens).register(compLens).
+		add(compLens, aboutComputation("G-1", "K-1")).
+		reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
 	if got := unsoundOf(t, b.seed()); len(got) != 1 || got[0].AnsweredBy() != "G-1" {
-		t.Errorf("unsound blockers = %+v, want P-1 answered by G-1, minted in the judgement's sitting", got)
+		t.Errorf("unsound blockers = %+v, want K-1 answered by G-1, minted in the judgement's sitting", got)
 	}
 	b = newStage(t).cast(evLens, compLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
-		proof("P-1", "s1").dispatch(2, compLens).register(compLens).
-		add(compLens, aboutProof("G-1", "P-1")).
+		computation("K-1", "s1").dispatch(2, compLens).register(compLens).
+		add(compLens, aboutComputation("G-1", "K-1")).
 		dispatch(2, compLens).register(compLens).
-		reproduce(compLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
+		reproduce(compLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
 	if got := unsoundOf(t, b.seed()); len(got) != 1 || got[0].AnsweredBy() != "" {
-		t.Errorf("unsound blockers = %+v, want P-1 answered by no gap: G-1 was minted in an earlier sitting", got)
+		t.Errorf("unsound blockers = %+v, want K-1 answered by no gap: G-1 was minted in an earlier sitting", got)
 	}
 }
 
 // A REPEAT UNSOUND JUDGEMENT IS REFUSED while the judge's earlier `unsound` of the sentence stands —
-// the sentence unchanged since — and the gap it minted about the proof is open. The refusal names the
+// the sentence unchanged since — and the gap it minted about the computation is open. The refusal names the
 // gap. A sound judgement, another lens's, a judgement after blue's edit, and one whose gap closed are
 // each admitted.
 func TestARepeatUnsoundJudgementIsRefused(t *testing.T) {
 	again := func(s recordpb.Soundness) *recordpb.Reproduce {
-		return &recordpb.Reproduce{ProofId: proto.String("P-1"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_NOT_RUN.Enum(),
+		return &recordpb.Reproduce{ComputationId: proto.String("K-1"), BundleSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Ran: proto.Bool(false),
 			Soundness: s.Enum(), Note: proto.String("read again")}
 	}
-	answered := func() *stage { return unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")) }
+	answered := func() *stage { return unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1")) }
 	for _, c := range []struct {
 		name   string
 		board  func() *stage
@@ -251,7 +251,7 @@ func TestARepeatUnsoundJudgementIsRefused(t *testing.T) {
 		{"before its gap is minted", func() *stage { return unsoundBoard(t) }, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
 		{"its gap closed", func() *stage { return answered().closeGap(compLens, "G-1") }, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
 		{"after blue's edit changed the sentence", func() *stage {
-			b := answered().reopen("P-1")
+			b := answered().reopen("K-1")
 			return b.dispatch(b.at(), compLens).register(compLens)
 		}, compLens, recordpb.Soundness_SOUNDNESS_UNSOUND, false},
 		{"by another lens", func() *stage {
@@ -266,7 +266,7 @@ func TestARepeatUnsoundJudgementIsRefused(t *testing.T) {
 				}
 				return
 			}
-			mustRefuse(t, err, "P-1", "gap G-1", "still open", "has not changed", "Nothing is recorded")
+			mustRefuse(t, err, "K-1", "gap G-1", "still open", "has not changed", "Nothing is recorded")
 		})
 	}
 }
@@ -281,12 +281,12 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 		}
 		ids := fam.At.IDs(fam.Events)
 		debts := lensOwesOf(fam.Events, ids, fam.At, nil, owedBlockersOf(fam.Events, ids, fam.At, nil))
-		return slices.Contains(debts[compLens], "failed_check P-1")
+		return slices.Contains(debts[compLens], "failed_check K-1")
 	}
 	before := owes(unsoundBoard(t).seed())
-	after := owes(unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")).seed())
+	after := owes(unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1")).seed())
 	if !before || after {
-		t.Errorf("the judge owes failed_check P-1 before its gap = %v, after = %v; want true, then false", before, after)
+		t.Errorf("the judge owes failed_check K-1 before its gap = %v, after = %v; want true, then false", before, after)
 	}
 }
 
@@ -295,13 +295,13 @@ func TestTheJudgeOwesItsGapAndNoMore(t *testing.T) {
 func TestBlueIsReadiedAgainByTheJudgesGap(t *testing.T) {
 	b := unsoundBoard(t)
 	b.dispatch(b.at(), blueRespondSeat).register(blueRespondSeat).register(compLens).
-		add(compLens, aboutProof("G-1", "P-1"))
+		add(compLens, aboutComputation("G-1", "K-1"))
 	plan, err := PlanDispatch(b.seed())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, w := range plan.Why {
-		if strings.HasPrefix(w, blueRespondSeat+": proof P-1 stands on a failed check") {
+		if strings.HasPrefix(w, blueRespondSeat+": computation K-1 stands on a failed check") {
 			return
 		}
 	}

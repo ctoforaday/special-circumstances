@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // THE RULES A SCAN ACTUALLY CARRIES, and the cells they bound.
@@ -460,6 +461,9 @@ type CellStats struct {
 	// segmentation drops a short word standing alone in a narrow column the same way it drops an
 	// isolated mark, and an empty cell beside a full one is where that shows.
 	WordsFromSparse int `json:"words_from_sparse,omitempty"`
+	// ProseContinuations counts the places a paragraph runs on from one cell into the cell directly
+	// under it (proseContinuations).
+	ProseContinuations int `json:"prose_continuations,omitempty"`
 }
 
 // WordsPerCell is the measure that separates a table of TEXT cells from a table of marks: a mark
@@ -481,6 +485,14 @@ const (
 	// boundaries its print leaves as space: a one-band table of two rows is a table.
 	MinTextCellRows = 2
 	MinWordsPerCell = 2.0
+	// MaxProseContinuations is how many times a paragraph may run on from one cell into the cell
+	// under it before the lattice is read as prose in a frame rather than a table (#1619). Column
+	// rules, boxes and slide frames bound prose that flows past a rule mid-sentence; a table's row
+	// rule ends one entry and starts another. On the 158 English OmniDocBench pages that emit a
+	// table it moves text edit distance 0.373 → 0.238 (38 pages better, none worse, no table of
+	// TEDS 0.3 or more lost), and all 289 IEEE 1012 table pages, whose cells are paragraphs, keep
+	// their tables. At 1, two IEEE pages (p3 p55 and p58) carry one run-on across a row rule.
+	MaxProseContinuations = 2
 )
 
 // fill puts each word in the cell that contains its centre, and reports what happened to the
@@ -711,6 +723,7 @@ func TextCells(lat Lattice, words, sparseWords, readWords, readSparse, prose []t
 		one.WordsRead = asRead.WordsPlaced + read[i].fillEmpty(readSparse)
 		t.splitBands()
 		one.Rows = t.Cells[len(t.Cells)-1].Row + 1
+		one.ProseContinuations = t.proseContinuations()
 		st = st.add(one)
 		blocks = append(blocks, block{t.Y0, strings.TrimRight(t.render(), "\n")})
 	}
@@ -735,6 +748,95 @@ func TextCells(lat Lattice, words, sparseWords, readWords, readSparse, prose []t
 		}
 	}
 	return strings.Join(parts, "\n\n"), st, ""
+}
+
+// Paragraph cells and how a run-on is recognised (proseContinuations): a cell is a paragraph
+// when it holds at least paragraphLines layout lines and paragraphWords words, and the cell under
+// it is DIRECTLY under it when its top edge and both sides sit within continuationSlack of the
+// first cell's bottom edge and sides — the 300-DPI pixels a rule and its gaps occupy.
+const (
+	paragraphLines    = 2
+	paragraphWords    = 8
+	continuationSlack = 30
+)
+
+// proseContinuations counts the pairs of paragraph cells, one directly under the other, where the
+// upper cell's last line does not finish a sentence (it ends in neither ".:;!?)" ) and the lower
+// cell's first line starts in lower case, or the upper cell's last line ends in a hyphen.
+func (t *Table) proseContinuations() int {
+	type para struct {
+		c           *Cell
+		first, last string
+	}
+	var ps []para
+	for i := range t.Cells {
+		c := &t.Cells[i]
+		lines := layoutLinesByTop(c.words)
+		if len(lines) < paragraphLines || len(c.words) < paragraphWords {
+			continue
+		}
+		ps = append(ps, para{c, lineText(lines[0]), lineText(lines[len(lines)-1])})
+	}
+	n := 0
+	for _, a := range ps {
+		for _, b := range ps {
+			if a.c == b.c || absi(b.c.Y0-a.c.Y1) > continuationSlack ||
+				absi(b.c.X0-a.c.X0) > continuationSlack || absi(b.c.X1-a.c.X1) > continuationSlack {
+				continue
+			}
+			end, start := strings.TrimSpace(a.last), strings.TrimSpace(b.first)
+			if end == "" || start == "" {
+				continue
+			}
+			last := []rune(end)[len([]rune(end))-1]
+			if strings.ContainsRune(".:;!?)", last) {
+				continue
+			}
+			if last == '-' || unicode.IsLower([]rune(start)[0]) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// layoutLinesByTop groups words by the layout line tesseract placed them in, ordered by each
+// line's top edge.
+func layoutLinesByTop(words []tsvWord) [][]tsvWord {
+	at := map[lineKey]int{}
+	var lines [][]tsvWord
+	var tops []int
+	for _, w := range words {
+		if strings.TrimSpace(w.text) == "" {
+			continue
+		}
+		i, ok := at[w.line]
+		if !ok {
+			i = len(lines)
+			at[w.line] = i
+			lines = append(lines, nil)
+			tops = append(tops, w.y)
+		}
+		lines[i] = append(lines[i], w)
+		tops[i] = mini(tops[i], w.y)
+	}
+	idx := make([]int, len(lines))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return tops[idx[a]] < tops[idx[b]] })
+	out := make([][]tsvWord, len(lines))
+	for i, j := range idx {
+		out[i] = lines[j]
+	}
+	return out
+}
+
+func absi(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
 }
 
 // inAnyTable reports whether a word's centre lies inside one of the tables' boxes.
@@ -790,6 +892,7 @@ func (s CellStats) add(o CellStats) CellStats {
 	s.WordsRead += o.WordsRead
 	s.WordsLoose += o.WordsLoose
 	s.WordsFromSparse += o.WordsFromSparse
+	s.ProseContinuations += o.ProseContinuations
 	s.Columns = maxi(s.Columns, o.Columns)
 	return s
 }
@@ -803,6 +906,8 @@ func (s CellStats) refuse() string {
 		return fmt.Sprintf("the page's rules bound %d column(s), and a table needs at least %d — this is a box or a rule, not a grid", s.Columns, MinTextCellColumns)
 	case s.Rows < MinTextCellRows:
 		return fmt.Sprintf("the page's rules bound %d row(s), and a table needs at least %d", s.Rows, MinTextCellRows)
+	case s.ProseContinuations >= MaxProseContinuations:
+		return fmt.Sprintf("a paragraph runs on from one cell into the cell under it %d times (at most %d): these rules frame prose, they do not separate a table's rows", s.ProseContinuations, MaxProseContinuations-1)
 	case s.WordsPerCell() < MinWordsPerCell:
 		return fmt.Sprintf("the rules bound %d cells holding %d words (%.2f per cell, under %.2f): these cells carry marks rather than text, and reading them as text would drop what they mean", s.Cells, s.WordsRead, s.WordsPerCell(), MinWordsPerCell)
 	}

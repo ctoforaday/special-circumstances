@@ -16,7 +16,7 @@ package report
 //
 // HTML IN THE TEXT IS TEXT. The renderer passes no HTML through: an inline tag, a comment, an HTML
 // block are each shown as typed, whoever wrote them. The one element the tool places in a document
-// that markdown cannot say — a proof's anchor — is a node only the tool can produce (proofanchor.go),
+// that markdown cannot say — a computation's anchor — is a node only the tool can produce (computationanchor.go),
 // so a seat's copy of it is HTML in the text like any other.
 //
 // EVERY VALUE IS WRITTEN FOR ITS CONTEXT. The renderer builds its HTML by hand, so each value it
@@ -49,11 +49,11 @@ var (
 	// pageReader is the dialect report.html reads a document in: CommonMark with GitHub's extensions
 	// and footnotes, and no HTML grammar, so no node of the tree is HTML and a tag, a comment or an
 	// unclosed `<!--` is text in the paragraph it stands in — it cannot take the lines after it into
-	// an HTML block — and with the proof's anchor, the one node only the tool's mark produces. The
+	// an HTML block — and with the computation's anchor, the one node only the tool's mark produces. The
 	// References list keeps a definition nothing references (citations).
 	pageReader = goldmark.New(goldmark.WithParser(parser.NewParser(
 		parser.WithBlockParsers(append(blockParsers(),
-			util.Prioritized(extension.NewFootnoteBlockParser(), 999), util.Prioritized(proofAnchorParser{}, 100))...),
+			util.Prioritized(extension.NewFootnoteBlockParser(), 999), util.Prioritized(computationAnchorParser{}, 100))...),
 		parser.WithInlineParsers(append(inlineParsers(),
 			util.Prioritized(extension.NewFootnoteParser(), 101))...),
 		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
@@ -67,7 +67,7 @@ var (
 			util.Prioritized(extension.NewStrikethroughParser(), 500))...),
 	)
 	// idToken matches the identifiers the record mints and every document quotes: gap, motion
-	// and finding ids, and a proof's footnote number (P1). They are the joins the single-file report
+	// and finding ids, and a computation's footnote number (P1). They are the joins the single-file report
 	// made a reader scroll for. An id that matches nothing renders exactly like an id nobody else
 	// mentioned, so the id shapes are read from the kinds table, never restated.
 	idToken = regexp.MustCompile(`\b(` + anchor.IDPattern("gap", "motion", "finding") + `|P\d+)\b`)
@@ -132,7 +132,7 @@ type rendered struct {
 //
 // seen counts the ids given out, ACROSS THE SET: the documents are tabs of one page, a fragment
 // resolves to the first element of that id on the page, and a hidden tab's element is no place
-// to scroll to. The report's own "## Proofs" and evidence.md's are "proofs" and "proofs-2", and
+// to scroll to. The report's own "## Computations" and evidence.md's are "computations" and "computations-2", and
 // the note each of two documents numbers 1 is "fn-1" in the first and "fn-1-2" in the second
 // (citations).
 //
@@ -174,7 +174,7 @@ type mdRender struct {
 	// looseRefs reads a footnote reference in the text (noteRefsIn), where no definition is in
 	// reach for the parser to resolve it to: one line of a title.
 	looseRefs bool
-	// anchored is the proofs whose anchor this document has placed: one element per label.
+	// anchored is the computations whose anchor this document has placed: one element per label.
 	anchored map[string]bool
 
 	refs     []string
@@ -213,12 +213,12 @@ func (r *mdRender) block(b *strings.Builder, n ast.Node) {
 			}
 		}
 		b.WriteString("<pre><code" + cls + ">" + escape(strings.TrimSuffix(r.lines(x), "\n")) + "</code></pre>\n")
-	case *proofAnchorNode:
-		// A proof's anchor, which only evidenceDoc's mark produces: once per label, and nothing for
-		// a label that is no proof id.
-		if proofLabel(x.label) && !r.anchored[x.label] {
+	case *computationAnchorNode:
+		// A computation's anchor, which only evidenceDoc's mark produces: once per label, and nothing for
+		// a label that is no computation id.
+		if computationLabel(x.label) && !r.anchored[x.label] {
 			r.anchored[x.label] = true
-			b.WriteString(proofAnchor(x.label) + "\n")
+			b.WriteString(computationAnchor(x.label) + "\n")
 		}
 	case *ast.Blockquote:
 		if p, ok := x.FirstChild().(*ast.Paragraph); ok && x.ChildCount() == 1 {

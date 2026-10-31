@@ -162,8 +162,8 @@ func TestTheBenchsEnvelopeIsHeldByWhatItsSittingIsConvenedToRule(t *testing.T) {
 }
 
 // BLUE-RESPOND'S ENVELOPE IS HELD BY WHAT ITS SITTING OWES: an `engage` on the successor of a gap it
-// found closed, and the proof a computation gap it is engaged on demands, until a recorded act — a
-// proof, a motion on the gap, a retire of its sentence — answers it. Prose does not.
+// found closed, and the computation a computation gap it is engaged on demands, until a recorded act — a
+// computation, a motion on the gap, a retire of its sentence — answers it. Prose does not.
 func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 	t.Run("an owed engage holds it, and engaging admits it", func(t *testing.T) {
 		_, run := m31Epoch10(t)
@@ -196,9 +196,9 @@ func TestBlueRespondsEnvelopeIsHeldByWhatItsSittingOwes(t *testing.T) {
 			t.Fatalf("want G1 alone holding blue's envelope: %q", r)
 		}
 	})
-	t.Run("a proof answering it admits it", func(t *testing.T) {
+	t.Run("a computation answering it admits it", func(t *testing.T) {
 		run := computation(t, "G1", func(b *stage) {
-			b.add(blueSeatID, &recordpb.Proof{Answers: proto.String("G1"), ProofSha: proto.String("sha"), Script: proto.String("s.py")})
+			b.add(blueSeatID, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), Answers: proto.String("G1"), BundleSha: proto.String("sha")})
 		})
 		if r := refusalOf(t, run, blueSeatID); r != "" {
 			t.Errorf("proved, blue's envelope is refused: %q", r)
@@ -289,7 +289,7 @@ func TestALenssEnvelopeIsHeldByWhatItsSittingCanClear(t *testing.T) {
 		if r := refusalOf(t, reopened(t, unread), evLens); !strings.Contains(r, "check of citation C-00000001") || !strings.Contains(r, "mint --about-kind anchor --about C-00000001") {
 			t.Errorf("an unreachable source does not hold the lens's envelope on the gap it owes: %q", r)
 		}
-		run := reopened(t, func(b *stage) { unread(b); b.add(evLens, aboutProof("G-1", "C-00000001")) })
+		run := reopened(t, func(b *stage) { unread(b); b.add(evLens, aboutComputation("G-1", "C-00000001")) })
 		if r := refusalOf(t, run, evLens); r != "" {
 			t.Errorf("its gap minted, the lens's envelope is refused: %q", r)
 		}
@@ -415,15 +415,15 @@ func TestADocketMotionAfterTheFilersClosingThisSittingIsRefused(t *testing.T) {
 }
 
 // AN UNSOUND JUDGEMENT HOLDS EACH PARTY'S ENVELOPE UNTIL THAT PARTY'S OWN ACT (m32): the judging lens's
-// until it mints its gap about the proof — the PASS stays held after it — and blue's until its edit
-// reopens the proof or its retire takes it out.
+// until it mints its gap about the computation — the PASS stays held after it — and blue's until its edit
+// reopens the computation or its retire takes it out.
 func TestAnUnsoundJudgementHoldsEachPartysEnvelopeUntilItsOwnAct(t *testing.T) {
-	const judged = "judged the sentence proof P-1 backs unsound"
+	const judged = "judged the sentence computation K-1 backs unsound"
 	t.Run("the judging lens, until its gap", func(t *testing.T) {
 		if r := refusalOf(t, unsoundBoard(t).seed(), compLens); !strings.Contains(r, judged) {
 			t.Fatalf("the unanswered judgement does not hold its judge's envelope: %q", r)
 		}
-		run := unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1")).seed()
+		run := unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1")).seed()
 		if r := refusalOf(t, run, compLens); r != "" {
 			t.Errorf("its gap minted, the judge's envelope is refused: %q", r)
 		}
@@ -432,7 +432,7 @@ func TestAnUnsoundJudgementHoldsEachPartysEnvelopeUntilItsOwnAct(t *testing.T) {
 		}
 	})
 	blueSat := func(t *testing.T) *stage {
-		b := unsoundBoard(t).add(compLens, aboutProof("G-1", "P-1"))
+		b := unsoundBoard(t).add(compLens, aboutComputation("G-1", "K-1"))
 		return b.dispatch(b.at(), blueRespondSeat).register(blueRespondSeat)
 	}
 	t.Run("blue, until its fix", func(t *testing.T) {
@@ -440,9 +440,9 @@ func TestAnUnsoundJudgementHoldsEachPartysEnvelopeUntilItsOwnAct(t *testing.T) {
 			t.Fatalf("the standing judgement does not hold blue's envelope: %q", r)
 		}
 		for name, fix := range map[string]func(b *stage){
-			"an edit that reopens the proof": func(b *stage) { b.reopen("P-1") },
+			"an edit that reopens the computation": func(b *stage) { b.reopen("K-1") },
 			"a retire that takes it out": func(b *stage) {
-				b.add(blueRespondSeat, &recordpb.Retire{Claim: proto.String("the sentence"), Reason: proto.String("refuted"), Anchors: []string{"P-1"}})
+				b.add(blueRespondSeat, &recordpb.Retire{Claim: proto.String("the sentence"), Reason: proto.String("refuted"), Anchors: []string{"K-1"}})
 			},
 		} {
 			b := blueSat(t)

@@ -1,38 +1,42 @@
 package migrate_test
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
-// THE PROOF LAYER SHIPS THE RUN'S OWN COPY OF EACH SCRIPT, NEVER THE PATH A SEAT RAN IT FROM.
+// THE SHIPPED SET NAMES EACH COMPUTATION BY ITS STORED COMMAND, NEVER THE PATH A SEAT RAN IT FROM.
 //
-// A proof's script field is the path blue handed `prove`, and on a real run that is a scratch file
-// in the operator's home directory: the archived m19 record holds eleven of them, and universe-m24
-// and m25 shipped nine and eleven in evidence.md (m24 dark-side ev548) beside a lead saying every
-// script is cached under proofs/<sha256>/. The record holds the sha, and the store keeps the script
-// under it; the shipped set names that copy, which a reader of the run directory can open.
+// An archived proof's script field is the path blue handed the tool, and on a real run that is a
+// scratch file in the operator's home directory: the archived m19 record holds eleven of them, and
+// universe-m24 and m25 shipped nine and eleven in evidence.md (m24 dark-side ev548). The record
+// holds the bundle and the command that names the stored file; the author's path is not carried,
+// and nothing a reader is shipped names it.
 //
-// The re-run is red's, and the document the report's proof notes point at says so in the party's
-// name — as report.md attributes nothing to a seat — rather than in a lens's seat id and sitting
-// (m24 dark-side ev547).
-func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsProofs(t *testing.T) {
-	_, dst := migrateArchive(t, "2026-10-10_is-91-prime-m19.tar.gz")
-	proofs, err := record.RecordedProofs(dst)
+// The re-run is red's, and the document the report's computation notes point at says so in the
+// party's name — as report.md attributes nothing to a seat — rather than in a lens's seat id and
+// sitting (m24 dark-side ev547).
+func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsComputations(t *testing.T) {
+	const name = "2026-10-10_is-91-prime-m19.tar.gz"
+	_, dst := migrateArchive(t, name)
+	computations, err := record.RecordedComputations(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var homed int
-	for _, p := range proofs {
-		if strings.HasPrefix(p.Script, "/home/") {
-			homed++
+	for _, p := range computations {
+		if strings.Contains(strings.Join(p.Argv, " "), "/home/") {
+			t.Errorf("computation %s's command names a home-directory path: %q", p.Label, p.Argv)
 		}
 	}
-	if homed == 0 {
+	homed := archivedScriptPaths(t, name)
+	if len(homed) == 0 {
 		t.Fatal("the archived record holds no proof run from a home-directory path, so this measures nothing")
 	}
 	docs, err := shippedDocs(dst)
@@ -42,9 +46,9 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsProofs(t *testing.T) {
 	seatID := regexp.MustCompile(`\b(red-lens-[a-z-]+|red-chair|blue-[a-z0-9-]+|judge)\b`)
 	var evidence string
 	for _, d := range docs {
-		for _, p := range proofs {
-			if strings.Contains(d.Body, p.Script) {
-				t.Errorf("%s carries the path proof %s was run from: %s", d.File, p.Label, p.Script)
+		for _, path := range homed {
+			if strings.Contains(d.Body, path) {
+				t.Errorf("%s carries the path an archived proof was run from: %s", d.File, path)
 				break
 			}
 		}
@@ -55,10 +59,10 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsProofs(t *testing.T) {
 	if evidence == "" {
 		t.Fatal("the shipped set holds no evidence document")
 	}
-	for _, p := range proofs {
-		want := "`proofs/" + p.SHA + "/script.py`"
+	for _, p := range computations {
+		want := report.Literal(strings.Join(p.Argv, " ")) + " (bundle sha256 `" + p.SHA[:12] + "`)"
 		if !strings.Contains(evidence, want) {
-			t.Errorf("evidence.md does not name proof %s's stored copy %s", p.Label, want)
+			t.Errorf("evidence.md does not name computation %s's stored command %s", p.Label, want)
 		}
 	}
 	for _, d := range docs {
@@ -87,4 +91,25 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsProofs(t *testing.T) {
 			}
 		}
 	}
+}
+
+// archivedScriptPaths is every home-directory script path the archive's proofs were run from.
+func archivedScriptPaths(t *testing.T, name string) []string {
+	t.Helper()
+	sq, err := migrate.OpenSQLite(filepath.Join(recordtest.ExtractArchive(t, name), "records"), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sq.Close()
+	evs, err := sq.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, e := range evs {
+		if s, _ := e.Fields["script"].(string); e.Word == "proof" && strings.HasPrefix(s, "/home/") {
+			out = append(out, s)
+		}
+	}
+	return out
 }

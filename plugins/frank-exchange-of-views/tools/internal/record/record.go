@@ -944,7 +944,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
 		// beside a stray comment in the report: the empty id and every such id are refused here.
 		if anchor.Kind(b.GetId()) == "" {
-			return fmt.Errorf("anchor requires id — the id of the finding, citation, proof or gap whose marker this places; %q is none of them", b.GetId())
+			return fmt.Errorf("anchor requires id — the id of the finding, citation, computation or gap whose marker this places; %q is none of them", b.GetId())
 		}
 		if b.GetLocation() == "" {
 			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
@@ -975,7 +975,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
-		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
+		// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
 		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
 		// were document probes. An optional field would be answered the same way the
 		// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
@@ -1029,30 +1029,33 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
-	case *recordpb.Proof:
-		// A PROOF NAMES ITS SCRIPT. The sha is the script's address in the proof store and the key
-		// every re-run and verdict joins on; a proof without one can never be re-run or judged, so
-		// the lens that owns proofs would owe it a check no act can record (lensOwesOf). `prove`
-		// derives it; a write that carries none is refused rather than held as an undischargeable
-		// debt.
-		if b.GetProofSha() == "" {
-			return fmt.Errorf("proof %s names no script: proof_sha is the sha256 `prove` derives from the script it ran, and a proof without one can never be re-run or judged", b.GetProofId())
+		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
+			return err
 		}
-		// The same key rule as blue_edit's --answers: a proof may name the gap it settles,
+	case *recordpb.Computation:
+		// A COMPUTATION NAMES ITS BUNDLE AND ITS COMMAND. The sha is the bundle's address in the store
+		// and the key every re-run and verdict joins on, and argv is what a re-run executes; a
+		// computation without either can never be re-run or judged, so the lens that owns computations
+		// would owe it a check no act can record (lensOwesOf). `compute` derives both; a write that
+		// carries none is refused rather than held as an undischargeable debt.
+		if b.GetBundleSha() == "" || len(b.GetArgv()) == 0 {
+			return fmt.Errorf("computation %s names no bundle or no command: bundle_sha and argv are what `compute` derives from the program it ran, and a computation without them can never be re-run or judged", b.GetComputationId())
+		}
+		// The same key rule as blue_edit's --answers: a computation may name the gap it settles,
 		// and a dangling reference is refused HERE rather than accepted and dropped at
-		// replay. It is optional — a proof can back a claim nobody challenged — but a
+		// replay. It is optional — a computation can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
 		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(q, b.GetCites(), "--cites", ProveCitesAdvice); err != nil {
+		if err := requireCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.Reproduce:
 		if err := validateReproduce(q, b); err != nil {
 			return err
 		}
-		if err := requireNotARepeatFailedCheck(q, seatID, b.GetProofId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
+		if err := requireNotARepeatFailedCheck(q, seatID, b.GetComputationId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
 			return err
 		}
 	case *recordpb.Finding:
@@ -1282,14 +1285,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
 		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
-		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
-			return err
+		//
+		// THE ORIGINATOR REGRADES, AND SO DOES THE BENCH WHILE IT HEARS THE GAP (benchgrade.go): the
+		// bench's regrade sets the grade its ruling rules on.
+		if seatclass.RoleOfSeat(seatID) != "bench" {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
+				return err
+			}
 		}
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 		if err := requireOpenGap(q, b.GetGapId(), "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
+			return err
+		}
+		if err := requireRegradeWithinBenchLock(w, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.Motion:
@@ -1324,6 +1335,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireGradeMotionAsksForAChange(q, b.GetGrade()); err != nil {
 				return err
 			}
+			if err := requireGradeMotionOffBenchLock(w, b.GetGrade()); err != nil {
+				return err
+			}
 		}
 		// A DOCKET MOTION IS ABOUT A GAP TOO, and this check came across with the verb.
 		//
@@ -1347,6 +1361,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
+			}
+			// Off under Migrating: an archived bench that ruled one gap twice ruled it, and the
+			// translated filing in front of its second ruling is the record of that.
+			if !Migrating {
+				if err := requireNewGrounds(q, b.GetDocket()); err != nil {
+					return err
+				}
 			}
 		}
 	case *recordpb.MotionRule:
@@ -1374,6 +1395,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
+		if err := requirePetitionOrder(b); err != nil {
+			return err
+		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
