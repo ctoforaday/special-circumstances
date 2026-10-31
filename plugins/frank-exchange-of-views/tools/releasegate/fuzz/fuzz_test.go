@@ -5000,14 +5000,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
-		// THE FORCED-UNVERIFIED RUN'S PETITION IS BLUE'S, filed once its grade motions are: the
-		// bench hears a petition alone in its epoch, and one filed at the first lens sitting cut blue
-		// out of the epoch it disputes in, so the chair's next sitting found the board permitting a
-		// PASS that no unruled grade motion held. Its petition sitting tries to end on it unruled and
-		// is refused (envelopeRefusedEarly).
-		if r.forceUnverified && r.petitionsFiledN() == 0 {
-			r.filePetition(seatID)
-		} else {
+		// A forced run's blue files no petition: one is heard alone in its epoch (see chairEnvelope).
+		if !r.forcedVerdict() {
 			r.maybePetition(seatID)
 		}
 		r.dischargeOwed(seatID)
@@ -5042,11 +5036,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 
 	case debatejs.OccasionOf(prompt) == "petition":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
-		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
-		// naming the petitions it was convened for: a petition sitting cannot end with one standing,
-		// so it then rules them like any other. The run's UNVERIFIED exit is the chair's unruled
-		// grade motions, which hold a PASS and not the chair's sitting.
-		if r.forceUnverified {
+		// THE FORCED-HALT RUN'S PETITION SITTING TRIES TO END RULING NOTHING, and the record refuses
+		// its envelope naming the petitions it was convened for: a petition sitting cannot end with
+		// one standing, so it then rules them like any other, and halts. The forced-UNVERIFIED run
+		// files no petition: one is heard alone in its epoch, which moves the dispute its exit rests on.
+		if r.forceHalt {
 			r.envelopeRefusedEarly(seatID, "motion ")
 		}
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events)
