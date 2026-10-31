@@ -241,48 +241,83 @@ func (r *runner) retryCorroboration(args []string, first string) {
 	}
 }
 
-// admitFresh runs an act about gapID that the drive expects admitted, as a seat
-// issues it: the record refuses an act on a gap another seat changed since the acting seat's read
-// point, records a Stale event moving that point, and admits the same act recorded again. A
-// refusal is that one only when it is a conflict AND the record gained a Stale event of this seat
-// on this gap; then the act is recorded again, up to twice. Any other refusal fails the run.
+// admitFresh runs an act about gapID that the drive expects admitted, as a seat issues it: the
+// record refuses an act on a gap another seat changed since the acting seat's read point, records a
+// Stale event moving that point to the last change it shows, and admits the same act recorded again
+// unless another seat changed the gap again in between. A refusal is that one only when it is a
+// conflict AND it moved the point to another seat's act (staleMoved); then the act is recorded
+// again. Any other refusal fails the run.
+//
+// NO COUNT ENDS THE RETRIES; THE OTHER SEATS' ACTS DO. Every refusal that moves the point names an
+// act another seat landed on the gap after the previous refusal, and a refusal lands nothing, so
+// the refusals one seat meets are bounded by what the seats sitting beside it land on that gap,
+// never by a number the drive picks. Each count that stood here was a guess at how many acts land
+// between two attempts, and concurrent lenses filing on one gap outran it. What the record promises
+// is that the same act is not refused for the same changes twice, and that is what each retry
+// checks.
 func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
-	return r.admitFreshWithin(3, gapID, args...)
-}
-
-// admitFreshWithin is admitFresh recording the act at most tries times.
-func (r *runner) admitFreshWithin(tries int, gapID string, args ...string) (string, bool) {
 	seatID := seatOfArgs(args)
-	for range tries {
-		before := r.staleReads(seatID, gapID)
+	for {
+		before := r.readPointOf(seatID, gapID)
 		out, err := r.exec(append(append([]string(nil), args...), "--json")...)
 		if err == nil {
 			return out, true
 		}
 		env, ok := refusalEnvelopeIn(out)
-		if !ok || env.Code != string(feov.Conflict) || r.staleReads(seatID, gapID) <= before {
+		if !ok || env.Code != string(feov.Conflict) || !r.staleMoved(seatID, gapID, before) {
 			r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 			return out, false
 		}
 		noteEither(args[:1], "an act on a gap another seat changed since this seat's read point, recorded again", false)
+		if r.betweenStaleRetries != nil {
+			r.betweenStaleRetries(seatID, gapID)
+		}
 	}
-	r.noteActErr(fmt.Sprintf("%s: refused as a stale read %d times running", strings.Join(args, " "), tries))
-	return "", false
 }
 
-// staleReads counts the Stale events seatID has on gapID.
-func (r *runner) staleReads(seatID, gapID string) int {
+// readPointOf is where the record has moved seatID's reading of gapID: the through of the newest
+// Stale event the seat has on the gap, 0 where it has none.
+func (r *runner) readPointOf(seatID, gapID string) int64 {
 	b, ok := r.board()
 	if !ok {
 		return 0
 	}
-	n := 0
+	var at int64
 	for _, e := range b.Events {
 		if st, ok := recordpb.BodyAs[*recordpb.Stale](e); ok && e.GetSeatId() == seatID && st.GetGapId() == gapID {
-			n++
+			at = max(at, st.GetThrough())
 		}
 	}
-	return n
+	return at
+}
+
+// staleMoved reports whether a refusal of seatID's act on gapID was the stale read the record
+// describes: it moved the seat's read point past before, to an act another seat recorded — never
+// the seat's own, and never a Stale event, which is a refusal and lands nothing. A refusal that
+// moves the point to anything else is noted as the run's failure here, with what the point names:
+// retried on it, the act would not be bounded by the other seats' acts.
+func (r *runner) staleMoved(seatID, gapID string, before int64) bool {
+	after := r.readPointOf(seatID, gapID)
+	if after <= before {
+		return false
+	}
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	for i, id := range b.At.IDs(b.Events) {
+		if id != after {
+			continue
+		}
+		e := b.Events[i]
+		if _, stale := recordpb.BodyAs[*recordpb.Stale](e); stale || e.GetSeatId() == seatID {
+			r.noteActErr(fmt.Sprintf("the record moved %s's read point on %s to event %d, a %s by %s, which is no other seat's change to the gap", seatID, gapID, after, recordpb.Word(e.GetType()), e.GetSeatId()))
+			return false
+		}
+		return true
+	}
+	r.noteActErr(fmt.Sprintf("the record moved %s's read point on %s to event %d, which is not on the record", seatID, gapID, after))
+	return false
 }
 
 // contentKey is a --key drawn from what the act states, so two acts under one key state the same

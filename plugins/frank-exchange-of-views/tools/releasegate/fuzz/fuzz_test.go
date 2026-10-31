@@ -551,6 +551,10 @@ type runner struct {
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	forceBenchOrders                                                        bool
 	benchOrders                                                             *benchOrderLedger
+	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
+	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
+	// concurrent seats land at will. nil in the sweep.
+	betweenStaleRetries func(seatID, gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -3759,9 +3763,8 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	// A gap another lens minted after this lens sat is a change since its read point, so the finding
 	// may meet the stale refusal first and is recorded again, as a seat does. The first-wave lenses
 	// file their findings about one gap concurrently, and each is a change since every sibling's read
-	// point, so a lens may meet one refusal per sibling: it records the act again once per lens in the
-	// cast, and once more.
-	if _, ok := r.admitFreshWithin(r.lensesCast()+1, held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
+	// point, so a lens may meet a refusal for each of them (admitFresh).
+	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
 		return
 	}
@@ -3789,21 +3792,6 @@ func (r *runner) freeClass(args []string) {
 			return
 		}
 	}
-}
-
-// lensesCast is how many lens seats the run's cast holds.
-func (r *runner) lensesCast() int {
-	cast, err := record.CastOf(r.run())
-	if err != nil {
-		return 0
-	}
-	n := 0
-	for _, s := range cast {
-		if strings.HasPrefix(s, "red-lens-") {
-			n++
-		}
-	}
-	return n
 }
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
