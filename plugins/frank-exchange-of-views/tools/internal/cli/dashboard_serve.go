@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -208,7 +209,10 @@ func selfSignedCert(ips []net.IP) (tls.Certificate, error) {
 //   - this run's row in the run-live marker is gone — the clean end, written by `capture`. The ROW,
 //     not the file: the file outlives this run while another run's row is in it.
 //   - the RECORD carries the bench's outcome — the run is decided, which holds even when nothing
-//     removed the row, because `capture` is optional and a killed run never reaches it (#270)
+//     removed the row, because `capture` is optional and a killed run never reaches it (#270). The
+//     ACT, never the verdict a board derives: a ceiling board derives CEILING from the final chair's
+//     register on, minutes before the terminal sitting and the assembly sitting have sat, and that
+//     run still has seats to watch.
 //   - the row is no longer live by runlive.StateOf — the predicate every marker reader shares
 //
 // It returns WHY as well as whether, so a watcher can tell the operator that a run ended without
@@ -221,8 +225,8 @@ func watchIsOver(projectDir string, run record.Run) (bool, string) {
 	// A record that cannot be read now is a run still being watched: the next tick asks again, and
 	// the row's removal ends the watch whatever the record says. The error is folded here, at the
 	// one site that means "keep watching", and nowhere upstream.
-	if v, err := record.TerminalVerdict(run); err == nil && v != "" {
-		return true, "the record holds this run's outcome (" + v + ") while its run-live marker row is still present — capture has not run"
+	if v, err := record.RecordedOutcome(run); err == nil && v != "" {
+		return true, "the record holds this run's outcome (" + strings.ToUpper(v) + ") while its run-live marker row is still present — capture has not run"
 	}
 	if s := runlive.StateOf(projectDir, row, runlive.Caller{}); s != runlive.RowLive {
 		return true, "this run's run-live marker row is no longer live — " + s.Why()

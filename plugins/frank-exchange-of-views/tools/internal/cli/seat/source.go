@@ -64,6 +64,9 @@ func showSource(cmd *cobra.Command, run record.Run) error {
 		if ev.Source == nil {
 			return feov.Errorf(feov.Validation, "%s names no citation on this record, so it names no source to search", at)
 		}
+		if ev.Source.Sha256 == "" {
+			return feov.Errorf(feov.Validation, "%s names a corroboration of %s, and this run's cache held no copy of that source when it was read, so the tool holds no text of it to search", at, ev.Source.URL)
+		}
 		sha = ev.Source.Sha256
 	case sha == "":
 		return feov.Errorf(feov.MissingField, "name the source to search: --sha (its sha256, from the fetch summary or `show evidence`) or --anchor (a citation's id)")

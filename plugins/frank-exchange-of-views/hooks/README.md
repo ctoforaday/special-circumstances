@@ -54,6 +54,12 @@ registered as a seat (the main session, an operator) is never counted. Under a h
 seat the payload carries no agent_id, so the identity and run come from FEOV_AGENT_ID and FEOV_RUN in
 the environment the hook inherits.
 
+THE WRAPPER IS NOT EDITED: a seat's `Edit` or `Write` inside the run's `.bin` is denied, and the refusal
+is logged under the seat. `setup` alone writes that directory, and the wrapper in it binds the run to
+every call a seat makes. The file's mode cannot refuse it: the client's edit tools write a temporary
+beside the file and rename it over, so a read-only file is replaced, and a read-only directory is one
+`rm -rf` and a re-run of `setup` cannot write into.
+
 THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelope with and that ends
 its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
 a blocking item on the seat's own work list stands, the call is denied naming each item, and the

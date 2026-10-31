@@ -240,7 +240,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   const out = await world.run(script, ARGS)
   assert.deepEqual({ verdict: out.verdict, epochs: out.epochs, gaps: out.gaps_outstanding, term: out.termination },
-    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, why: [], no_progress: null, seat_stop: null, read_stop: null } })
+    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, no_progress: null, seat_stop: null, read_stop: null } })
   assert.deepEqual(world.phases, ['Frontier', 'Blue', 'Red', 'Assemble'])
   assert.equal(labelsOf(world, 'blue-lane').length, 3)
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
@@ -279,9 +279,33 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], blockers: [blocker('M-00000001', 'judge')] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
-  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null, seat_stop: null, read_stop: null })
+  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, no_progress: null, seat_stop: null, read_stop: null })
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
+  assert.ok(/The terminal sitting ruled after that plan, so the board is what stands now/.test(asm), 'a reason the terminal sitting overtook says so')
+})
+
+test('UNVERIFIED with no terminal sitting: the plan\'s reasons stand unqualified', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: open, material — stalled'], blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }) })] }))
+  await world.run(script, ARGS)
+  const asm = firstPrompt(world, 'judge · assemble')
+  assert.ok(/ended UNVERIFIED/.test(asm) && /G-00000001: open, material — stalled/.test(asm), asm.slice(0, 600))
+  assert.ok(!/The terminal sitting ruled/.test(asm), 'no terminal sitting sat, so nothing overtook the plan')
+})
+
+// THE RETURN CARRIES NO REASON: the last plan's `why` said a motion stood unruled after the terminal
+// sitting had ruled it, and the lead repeated that to the operator (#1677's smoke). The reason is the
+// outcome the assembly sitting records.
+test('the return states no reason of the last plan\'s, however the run ended', async () => {
+  const ruled = plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 1,
+    why: ['G-00000001: docket motion M-00000001 stands unruled on a gap no longer open — the bench is ready'],
+    blockers: [blocker('M-00000001', 'judge')] })
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ruled })] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'CEILING')
+  assert.ok(labelsOf(world, 'judge · terminal').length > 0, 'the terminal sitting sat')
+  assert.ok(!('why' in out.termination), JSON.stringify(out.termination))
+  assert.ok(!/stands unruled/.test(JSON.stringify(out)), 'no word of the overtaken plan reaches the return')
 })
 
 // ── the no-progress valve: a plan whose key repeats stops the debate ──
@@ -368,7 +392,6 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
   const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan()) }))
   const out = await world.run(script, ARGS)
   assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
-  assert.ok(out.termination.why.some((w) => /epoch limit 4 reached/.test(w)), 'the record\'s reason travels in the termination')
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
   assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
