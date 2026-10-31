@@ -31,8 +31,10 @@ different experiment.
 ```sh
 scripts/universe.sh build            # build an ISOLATED environment from this checkout
 scripts/universe.sh build --live     # install into ~/.claude instead (shared with every session)
-scripts/universe.sh run "<topic>"    # one `claude -p`, invoking /research as a user would
-scripts/universe.sh watch [secs]     # the BOARD, live, read-only from the record
+scripts/universe.sh run "<topic>"    # one DETACHED `claude -p`, invoking /research as a user would, and follow its log
+scripts/universe.sh run --no-follow "<topic>"   # the same, and return at once
+scripts/universe.sh resume           # restart a run whose process died with no outcome
+scripts/universe.sh watch [secs]     # the BOARD, read-only from the record, until the process ends
 scripts/universe.sh shell            # interactive claude inside the universe
 scripts/universe.sh doctor           # what is installed, binaries per plugin, schema epoch
 ```
@@ -109,16 +111,22 @@ reports its sha. **Version-skew detection is inert in a universe run** — `tool
 means no output at all until it ends, so a working run and a wedged run look identical. Two views,
 answering different questions:
 
-**The harness view** — `universe.sh run` streams `--output-format stream-json --verbose` through
-`scripts/universe-stream.py`, which keeps the raw JSONL and prints dispatches, record verbs and tool
-errors as they happen:
+**The harness view** — `universe.sh run` has claude write `--output-format stream-json --verbose` to
+`stream-<stamp>.jsonl`, and tails that file through `scripts/universe-stream.py` into
+`run-<stamp>.log`, which prints dispatches, record verbs and tool errors as they happen. The view
+cannot harm the capture: the renderer reads a file claude writes, so nothing about it can stop claude
+or the raw stream.
 
 ```
 [  312s] DISPATCH  red-lens-voice #1
 [  318s]   verb    mint
 [  341s]   ERROR   refused: --quote is required
-[  902s] DONE  success  turns=42  $1.23
+[  902s] RESULT  success  turns=42  $1.23
 ```
+
+A `RESULT` line ends a turn, not the run, and there can be several. A resumed session's first one
+comes from a queued notification with `turns=0`, before the lead has read its prompt. Only `EXIT` says
+the run ended.
 
 **The debate does not outlive the `claude -p` process.** Print mode waits a bounded time for
 background tasks and then terminates them — `Background tasks still running after 600s;
@@ -129,15 +137,48 @@ found the workflow alive nine minutes after exit and concluded it survives; nine
 *inside* the ceiling, so it never reached the boundary it was taken to have tested. `universe.sh`
 sets `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` to wait indefinitely.
 
-**A truncated run and a running one look the same** — the board just stops. `watch` therefore
-reports the arithmetic that distinguishes them: every sitting the harness opens it also closes, so
-`opens > closes` means a seat was cut off, and a run with no outcome row did not finish. Check
-whether anything is still writing `records/record.db-wal` before reading a quiet board as progress.
+**A run outlasts the tool that launched it.** A debate can run for hours, longer than a launcher's
+own ceiling: m37 was started as an agent's Bash background task, which was killed at its 7200000 ms
+limit in epoch 11 of 12 and took the debate with it. So `run` detaches the debate into its own session
+(`setsid`, sharing no stdin or stdout with the caller) and what the caller holds is only a `tail` of
+the log. Killing it, or its whole process group, leaves the run running. `run` and `resume` print the
+paths; they are `$WORKDIR/run.pid`, `$WORKDIR/run-<stamp>.log` (with `run-current.log` pointing at the
+latest) and `$WORKDIR/stream-<stamp>.jsonl`.
+
+**To wait for a run, wait for its `EXIT` line.** The log's last line is `EXIT <rc>`, written when
+claude has ended, whichever way it ended. It is the only thing in the log that means the run is over.
+No line at all means the supervisor itself was killed, so a wait has to stop on that too, which a
+`tail` bound to the pid does:
+
+```sh
+W=~/.claude/scratch/universe
+tail -n +1 -f --pid="$(cat $W/run.pid)" $W/run-current.log | grep -m1 '^EXIT '
+```
+
+**`watch` reads the pid file, not the silence.** A truncated run and a running one look the same on
+the board, because it just stops. `watch` therefore checks whether the session named by `run.pid` has
+a live process and prints that beside the board. Once the process is gone, `watch` prints a last board
+and stops: `process: ended` with an outcome on the record, or `!! TRUNCATED` with none, which is exit
+status 3. The board's sitting arithmetic tells you what the kill interrupted: every sitting the
+harness opens it also closes, so `opens > closes` means a seat was cut off.
+
+**`resume` restarts a truncated run.** It resumes the lead's session with `claude -p --resume`, in the
+universe's environment, and tells it to invoke the Workflow tool with `resumeFromRunId` and the SAME
+args. The session, script, args and run id are read from the first Workflow call in the run's first
+stream (`run-origin.jsonl`) and that call's result, so nothing is retyped. It gets its own log and
+stream, and is waited on and watched the same way.
+
+`resume` refuses, with exit status 3, while the process is alive, when no pid file says it is dead,
+when the record already has an outcome or cannot be read, and when the stream holds no Workflow call.
+A process alive in the universe also makes `build` and `run` refuse, and `--force` does not override
+that. A session that holds only a stuck leftover is ended with the `pkill -s` the refusal prints.
 
 **A run that dispatched no `Workflow` fails, and says so.** The engine cannot research anything
 without one, so its absence is decidable from the stream — and `claude -p` exits 0 for it, because
-the assistant did produce an answer. `run` returns the renderer's status when claude's is clean, so
-"the plugins did not load" cannot arrive as a success with a quiet `0 dispatch(es)` line above it.
+the assistant did produce an answer. `EXIT` carries the renderer's status when claude's is clean, so
+"the plugins did not load" cannot arrive as a success with a quiet `0 dispatch(es)` line above it. A
+resume is held to the same bar: a resumed lead that dispatches no `Workflow` did not restart the
+debate, and says that instead of blaming the plugins.
 
 **The debate view** — `universe.sh watch` reads the record (SQLite `mode=ro`, so it cannot take a
 write lock on a live run) and prints the board: seats and their sitting counts, gaps minted and
