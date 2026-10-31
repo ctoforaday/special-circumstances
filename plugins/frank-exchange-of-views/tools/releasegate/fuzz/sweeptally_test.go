@@ -151,9 +151,11 @@ type runTally struct {
 	ClosedRemandsRefused       int                       `json:"closed_remands_refused"`
 	TrifleRemandsRouted        int                       `json:"trifle_remands_routed"`
 	BlueRemandActs             int                       `json:"blue_remand_acts"`
-	LensRemandActs             int                       `json:"lens_remand_acts"`
 	PastLimitRemandsRefused    int                       `json:"past_limit_remands_refused"`
-	LensFirstHolds             int                       `json:"lens_first_holds"`
+	RemandHolds                int                       `json:"remand_holds"`
+	RemandReleases             int                       `json:"remand_releases"`
+	LensTurns                  int                       `json:"lens_turns"`
+	LensWaits                  int                       `json:"lens_waits"`
 	BenchRegrades              int                       `json:"bench_regrades"`
 	LockRefused                int                       `json:"lock_refused"`
 	LockLifted                 int                       `json:"lock_lifted"`
@@ -184,8 +186,8 @@ func tallyOf(o outcome) runTally {
 		OneGapRefused: o.oneGapRefused, OneGapFindings: o.oneGapFindings,
 		UnclassifiedMinted: o.unclassifiedMinted, UnclassifiedRefused: o.unclassifiedRefused,
 		RulerFilingsRefused: o.rulerFilingsRefused, ClosedRemandsRefused: o.closedRemandsRefused,
-		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs, LensRemandActs: o.lensRemandActs,
-		PastLimitRemandsRefused: o.pastLimitRemandsRefused, LensFirstHolds: o.lensFirstHolds,
+		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
+		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 	}
 }
@@ -535,8 +537,9 @@ type sweepFold struct {
 	unclassifiedMinted, unclassifiedRefused         int
 	rulerFilingsRefused                             int
 	closedRemandsRefused, trifleRemandsRouted       int
-	blueRemandActs, lensRemandActs                  int
-	pastLimitRemandsRefused, lensFirstHolds         int
+	blueRemandActs, pastLimitRemandsRefused         int
+	remandHolds, remandReleases                     int
+	lensTurns, lensWaits                            int
 	benchRegrades, lockRefused, lockLifted          int
 	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
@@ -655,9 +658,11 @@ func foldRuns(runs []runTally) sweepFold {
 		f.closedRemandsRefused += r.ClosedRemandsRefused
 		f.trifleRemandsRouted += r.TrifleRemandsRouted
 		f.blueRemandActs += r.BlueRemandActs
-		f.lensRemandActs += r.LensRemandActs
 		f.pastLimitRemandsRefused += r.PastLimitRemandsRefused
-		f.lensFirstHolds += r.LensFirstHolds
+		f.remandHolds += r.RemandHolds
+		f.remandReleases += r.RemandReleases
+		f.lensTurns += r.LensTurns
+		f.lensWaits += r.LensWaits
 		f.benchRegrades += r.BenchRegrades
 		f.lockRefused += r.LockRefused
 		f.lockLifted += r.LockLifted
@@ -955,20 +960,27 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.trifleRemandsRouted == 0 {
 			t.Errorf("fuzz readied ZERO remands of a gap that is not material across %d runs — the route by which the bench's remand outranks materiality is unexercised (false green)", f.completed)
 		}
-		// THE REMAND'S ITEM BLOCKS, AND ONE REMAND AT IMPASSE IS THE LIMIT (gblock, 2026-10-25): each seat a
-		// remand readies is held until it acts on the gap, and a second remand at impasse is refused.
-		t.Logf("remands: %d act(s) by blue and %d by the minting lens on a remanded gap its item held them to; %d remand(s) past the limit refused", f.blueRemandActs, f.lensRemandActs, f.pastLimitRemandsRefused)
-		if f.blueRemandActs == 0 || f.lensRemandActs == 0 {
-			t.Errorf("fuzz drove %d blue and %d lens act(s) on a remanded gap whose item blocked the seat, across %d runs — the remand's blocking item is unexercised for a seat it holds (false green)", f.blueRemandActs, f.lensRemandActs, f.completed)
+		// THE REMAND'S ITEM HOLDS BLUE, AND ONE REMAND AT IMPASSE IS THE LIMIT (gblock, 2026-10-25): blue is
+		// held until it acts on the remanded gap, and a second remand at impasse is refused.
+		t.Logf("remands: %d act(s) by blue on a remanded gap its item held it to; %d remand(s) past the limit refused", f.blueRemandActs, f.pastLimitRemandsRefused)
+		if f.blueRemandActs == 0 {
+			t.Errorf("fuzz drove ZERO blue acts on a remanded gap whose item blocked blue, across %d runs — the remand's blocking item is unexercised (false green)", f.completed)
 		}
 		if f.pastLimitRemandsRefused == 0 {
 			t.Errorf("fuzz drove ZERO remands past the limit across %d runs — the refusal that names the dispositions that close the gap is unexercised (false green)", f.completed)
 		}
-		// THE LENS SITS FIRST AND BEGINS NOTHING (ruled by gblock 2026-10-27): a remanded gap the
-		// minting lens acted on before blue still holds blue, read before blue registers.
-		t.Logf("remands: %d item(s) held blue before its register after the minting lens acted first", f.lensFirstHolds)
-		if f.lensFirstHolds == 0 {
-			t.Errorf("fuzz drove ZERO remands in which the minting lens acted before blue and blue's item was read before its register, across %d runs — lens-first ordering under a remand is unexercised (false green)", f.completed)
+		// A REMAND'S EXCHANGE BEGINS WITH BLUE (ruled by gblock 2026-10-27): blue's item on a gap the plan
+		// owes a remand's exchange blocks its list read before blue registers.
+		t.Logf("remands: %d item(s) held blue before its register; %d released it, blue having acted since the ruling", f.remandHolds, f.remandReleases)
+		if f.remandHolds == 0 {
+			t.Errorf("fuzz read ZERO remand items on blue's list before its register, across %d runs — the item blue's dispatch owes is unexercised (false green)", f.completed)
+		}
+		// THE LENS'S TURN COMES WITH BLUE'S ACT (ruled by gblock 2026-10-30): every lens a relayed plan
+		// engaged on a gap had blue's act since its own (the oracle fails the run otherwise), and gaps
+		// whose lens waited were dispatched to blue alone.
+		t.Logf("lens turns: %d lens engagement(s) after blue's act; %d gap(s) dispatched to blue while their minting lens waited", f.lensTurns, f.lensWaits)
+		if f.lensTurns == 0 || f.lensWaits == 0 {
+			t.Errorf("fuzz drove %d lens engagement(s) after blue's act and %d wait(s) across %d runs — the lens-turn rule is unexercised on one side (false green)", f.lensTurns, f.lensWaits, f.completed)
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
 		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.

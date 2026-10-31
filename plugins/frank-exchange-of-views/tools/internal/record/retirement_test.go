@@ -82,16 +82,6 @@ func lensStateOf(t *testing.T, run Run) lensFold {
 	return g.lenses[0]
 }
 
-// gaplessParty reports whether the plan engages the lens with no gap: readied to audit the report.
-func gaplessParty(p Plan) bool {
-	for _, party := range p.Parties {
-		if party.SeatID == evLens {
-			return len(party.GapIDs) == 0
-		}
-	}
-	return false
-}
-
 // THE RULE: a lens with no gap engaged is readied when it has never sat or the report head has
 // moved since its last sitting, and not otherwise.
 func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
@@ -115,12 +105,13 @@ func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
 	}
 }
 
-// A lens that minted at the head is engaged on its gap there, and for nothing else: the mint does
-// not ready a second audit of the report it has just read.
-func TestALensThatMintedAtTheHeadIsEngagedOnItsGapAlone(t *testing.T) {
+// A lens that minted at the head is not readied by its mint: the mint does not ready a second audit
+// of the report it has just read, and its gap waits for blue's answer (lensTurnOn) — blue is engaged
+// on it, and the lens is not.
+func TestALensThatMintedAtTheHeadWaitsForBlue(t *testing.T) {
 	plan := planOf(t, retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")))
-	if !lensReady(plan) || gaplessParty(plan) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
-		t.Fatalf("a lens with an open material gap sits for the gap, and the head has not moved: %+v", plan)
+	if lensReady(plan) || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || !strings.Contains(whyOf(plan), "served the report at the head (pin 2)") {
+		t.Fatalf("a lens whose open material gap blue has not answered does not sit, and the head has not moved: %+v", plan)
 	}
 }
 
@@ -281,7 +272,7 @@ func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
 
 // A LENS AT ITS BUDGET MINTS NOTHING, so its sittings are barren, and holding the gaps that spent the
 // budget is not a debt: with nothing new on them it retires. Its material gap still engages it as a
-// party to that gap's dispute, which is what a held gap needs of it.
+// party to that gap's dispute once blue has acted on it, which is what a held gap needs of it.
 func TestBudgetExhaustedLensRetiresAndIsStillAPartyToItsGap(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens).sit(2, evLens)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
@@ -296,8 +287,15 @@ func TestBudgetExhaustedLensRetiresAndIsStillAPartyToItsGap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(gapsOf(plan, evLens), []string{"G1"}) {
-		t.Errorf("the retired lens is not a party to its material G1: %+v", plan.Parties)
+	if len(gapsOf(plan, evLens)) != 0 {
+		t.Errorf("the retired lens is a party to G1 before blue has acted on it: %+v", plan.Parties)
+	}
+	answered, err := PlanDispatch(b.more().blueComputes("G1").seed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(gapsOf(answered, evLens), []string{"G1"}) {
+		t.Errorf("the retired lens is not a party to its material G1 once blue has acted on it: %+v", answered.Parties)
 	}
 }
 

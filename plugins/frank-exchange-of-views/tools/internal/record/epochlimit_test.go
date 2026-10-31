@@ -5,7 +5,8 @@ import (
 	"testing"
 )
 
-// epochTwo is a record at its second chair sitting with the lens and blue ready on G1.
+// epochTwo is a record at its second chair sitting with blue ready on G1, which the lens minted and
+// blue has not yet acted on.
 func epochTwo(t *testing.T) *stage {
 	return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
@@ -36,12 +37,12 @@ func TestTheSittingThatOpensTheLastEpochDispatchesNobodyAndTheRunEndsCeiling(t *
 
 	// Under the limit the board's parties are dispatched as ever.
 	writeRunConfig(t, b.runDir, `{"maxEpochs":3}`)
-	if plan, _ := PlanDispatch(run); plan.EpochLimitReached || plan.Ceiling || len(plan.Parties) != 2 {
-		t.Errorf("plan at epoch 2 of 3 = %+v, want the lens and blue on G1", plan)
+	if plan, _ := PlanDispatch(run); plan.EpochLimitReached || plan.Ceiling || len(plan.Parties) != 1 {
+		t.Errorf("plan at epoch 2 of 3 = %+v, want blue on G1", plan)
 	}
 	// A run whose config states no limit is held to none.
 	writeRunConfig(t, b.runDir, `{"k":2}`)
-	if plan, _ := PlanDispatch(run); plan.EpochLimitReached || plan.MaxEpochs != 0 || len(plan.Parties) != 2 {
+	if plan, _ := PlanDispatch(run); plan.EpochLimitReached || plan.MaxEpochs != 0 || len(plan.Parties) != 1 {
 		t.Errorf("plan with no maxEpochs on the run = %+v, want no limit", plan)
 	}
 }

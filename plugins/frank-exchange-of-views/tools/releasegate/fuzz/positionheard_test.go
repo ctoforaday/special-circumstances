@@ -119,6 +119,23 @@ func (r *runner) mintHeldTrifle(seatID string) {
 	}
 }
 
+// closeNamedOnTurn is the minting lens's turn on a gap the bench named upholding a position: once
+// blue has answered it, the lens audits the answer and closes it as any satisfied gap is closed. A
+// gap that is not material is routed to nobody once its remand's exchange has begun, so the lens is
+// readied by blue's answer as news, not engaged on the gap, and the engaged loop never reaches it.
+func (r *runner) closeNamedOnTurn(seatID string, engaged []string) {
+	r.mu.Lock()
+	named := slices.Clone(r.positionNamedGaps)
+	r.mu.Unlock()
+	open := r.openGaps()
+	for _, g := range named {
+		if !slices.Contains(open, g) || slices.Contains(engaged, g) || r.minterOf(g) != seatID || !r.closableNow(g) {
+			continue
+		}
+		r.closeGap(seatID, g, false)
+	}
+}
+
 // neverMaterialClass is the first gap class whose material_default is `never`, read off the enum.
 func neverMaterialClass() string {
 	vals := recordpb.GapClass(0).Descriptor().Values()
@@ -391,6 +408,8 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 			// THE GAPS RUN'S LENS HOLDS A GAP OPEN for the bench to name: one of a class never
 			// material, minted at a sitting after the first where it holds none of its own.
 			if form == "gaps" {
+				// A forced-VERIFIED run's mint is one blue repairs and its lens closes.
+				r.forceVerified = true
 				r.dispatchSits("lens", converseLens)
 				r.mintHeldTrifle(converseLens)
 				r.dispatchReturns(converseLens, false)
@@ -425,6 +444,18 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 				t.Errorf("the oracle passed a named gap left open: named %v, %q", r.positionNamedGaps, m)
 			case form != "gaps" && m != "":
 				t.Errorf("the oracle fired over a %s ruling: %s", form, m)
+			}
+			// AND THE LENS'S TURN CLOSES IT: blue has answered the named gap, and its minting lens,
+			// readied on that news rather than engaged on the gap, audits the answer and closes it.
+			if form == "gaps" {
+				g := r.positionNamedGaps[0]
+				r.presented.add(g)
+				r.dispatchSits("lens", converseLens)
+				r.closeNamedOnTurn(converseLens, nil)
+				r.dispatchReturns(converseLens, false)
+				if m := r.forcedPositionOracle(); m != "" || r.actErr != "" {
+					t.Errorf("the lens's turn left the named gap open: %s %s", m, r.actErr)
+				}
 			}
 		})
 	}

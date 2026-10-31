@@ -151,8 +151,16 @@ func TestAnUpheldPositionReadiesTheWorkItNames(t *testing.T) {
 		if p.PassPermitted || !slices.Equal(p.RemandOwed, []RemandOwed{{GapID: "G1", Direction: direction}}) {
 			t.Fatalf("plan after the upheld ruling = %+v, want G1's one more exchange owed on the ruling's direction", p)
 		}
-		if seats := partySeats(p); !slices.Contains(seats, evLens) || !slices.Contains(seats, blueRespondSeat) {
-			t.Errorf("parties = %v, want G1's minting lens and blue", seats)
+		// BLUE ACTS FIRST, THEN THE LENS'S TURN, as on any remand: the ruling readies blue on G1, and
+		// its minting lens only once blue has acted on it — on G1's news, blue's answer, since a gap
+		// that is not material is routed to nobody once its remand's exchange has begun.
+		if !slices.Contains(gapsOf(p, blueRespondSeat), "G1") || slices.Contains(gapsOf(p, evLens), "G1") {
+			t.Errorf("parties = %+v, want blue on G1 and not its minting lens", p.Parties)
+		}
+		acted := b.blueSitsOn("G1", true).register("red-chair")
+		recordReset(t, acted)
+		if p := runPlan(t, acted.seed()); !slices.Contains(partySeats(p), evLens) || slices.Contains(p.RemandOwed, RemandOwed{GapID: "G1", Direction: direction}) {
+			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn and the remand's exchange begun", p.Parties, p.RemandOwed)
 		}
 	})
 }
@@ -265,4 +273,24 @@ func TestThePositionRulingIsRefusedWrongWork(t *testing.T) {
 	}
 	run := board(t)
 	mustAppend(t, sit(t, run, benchSeat), positionRuling(heardID, upheld, "", []string{"G2"}, direction))
+}
+
+// AN UPHELD POSITION NAMING A GAP IS THAT GAP'S REMAND, to every reader of a remand: blue's answer to
+// it is read after the ruling (remandFloorsOf), and the ruling is a change to the gap a seat that sat
+// before it has not read (staleOf).
+func TestAnUpheldPositionNamingAGapIsItsRemand(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").sit(2, evLens).sit(2, evLens).mint(evLens, "G1", "low").register("red-chair").
+		blueSitsOn("G1", true).register("red-chair").
+		withhold(heardID).benchRegister(recordpb.Occasion_OCCASION_POSITION).
+		add(benchSeat, positionRuling(heardID, upheld, "", []string{"G1"}, direction))
+	evs, win := mustEvents(t, b.seed())
+	ids := win.IDs(evs)
+	if a, ok := blueAnswersOf(evs, win, map[string]bool{"G1": true}, motionsAt(evs, ids, win))["G1"]; ok {
+		t.Errorf("blue's answer to G1 from before the bench remanded it is read as an answer to the remand: %+v", a)
+	}
+	ch := staleOf(evs, win, evLens, "G1")
+	if !slices.ContainsFunc(ch, func(c StaleChange) bool { return strings.Contains(c.What, "upholding position "+heardID) }) {
+		t.Errorf("changes to G1 since %s sat = %+v, want the bench's remand of it upholding %s", evLens, ch, heardID)
+	}
 }
