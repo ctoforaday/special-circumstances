@@ -179,16 +179,12 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	for _, v := range seat.JSONByNameViews() {
 		// THE GROUP COMES FROM THE TABLE. A bench projection is not on a chair's surface, so driving
 		// every view as one seat would test a tree nobody has.
-		group := seat.GroupOf(v)
-		who := "red-chair"
-		if group == "inquest" {
-			who = "judge"
-		}
-		bare, err := run(t, group, "--run", runDir, "--seat-id", who, v)
+		group, who, args := viewReader(t, runDir, v)
+		bare, err := run(t, append([]string{group, "--run", runDir, "--seat-id", who}, args...)...)
 		if err != nil {
 			t.Fatalf("%s %s: %v", group, v, err)
 		}
-		flagged, err := run(t, group, "--run", runDir, "--seat-id", who, v, "--json")
+		flagged, err := run(t, append([]string{group, "--run", runDir, "--seat-id", who}, append(args, "--json")...)...)
 		if err != nil {
 			t.Errorf("%s %s --json was refused; that view is already JSON, so the flag must change nothing: %v", group, v, err)
 			continue
@@ -213,11 +209,8 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	// EVERY PROJECTION ANSWERS --json. `report` was the last that refused it, and the shared flag is
 	// on its page as on every other: TestShowReportJSONIsTheSameLinesAtHead holds what it answers.
 	for _, v := range seat.ViewNames() {
-		group, who := seat.GroupOf(v), "red-chair"
-		if group == "inquest" {
-			who = "judge"
-		}
-		if _, err := run(t, group, "--run", runDir, "--seat-id", who, v, "--json"); err != nil {
+		group, who, args := viewReader(t, runDir, v)
+		if _, err := run(t, append([]string{group, "--run", runDir, "--seat-id", who}, append(args, "--json")...)...); err != nil {
 			t.Errorf("%s %s --json was refused, and the flag is on that page: %v", group, v, err)
 		}
 	}

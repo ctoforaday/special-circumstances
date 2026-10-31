@@ -426,6 +426,12 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
+	// sourceSearches counts the source searches whose hits round-tripped through `cite --source-span`
+	// (sourceSearchCited). The sweep gates it at zero. sourceSearchErr is the first search that was
+	// refused, found nothing, or printed a hit whose source_span is not the span cite took; it fails
+	// the run.
+	sourceSearches  int
+	sourceSearchErr string
 	// copiesRead counts, per reading verb, the copy words its results named (noteCopy). The sweep
 	// gates that corroborate named every seeded copy and verify a substituted one.
 	copiesRead map[string]map[string]int
@@ -871,6 +877,105 @@ func (r *runner) citeSpanRefused(seatID, out string, err error) {
 		}
 	default:
 		r.spansRefused++
+	}
+}
+
+// sourceSearchCited searches the source blue just cited, as blue and as a lens, and holds every hit
+// to the citation: each hit's source_span is the span cite took, and its matched bytes are the
+// source's at its offsets. The source is one sentence (sourceBody), so a hit's sentence is the whole
+// of it, and a hit printing any other span is one cite would place elsewhere or refuse.
+//
+// EACH ROLE NAMES THE SOURCE BOTH WAYS ACROSS A RUN: one seat by the citation's anchor, the other by
+// its sha256, and which is which turns on the citation's id — so blue and the lens each pass --anchor
+// and --sha, and the two reads of one source must print the same answer.
+//
+// IT DRAWS NOTHING FROM THE RUN'S RNG: the pattern and the split turn on the citation's id, so the
+// drive draws what it drew before. One search in two is the keyword-in-context shape m36's seats
+// could not run in their shell; the other is a literal.
+func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
+	// THE LABEL AND THE SHA ARE THE ENVELOPE'S RESULT FIELDS: --json wraps a verb's result as `result`.
+	var env struct {
+		Result struct {
+			Label  string `json:"label"`
+			Sha256 string `json:"sha256"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(citeOut), &env); err != nil || env.Result.Label == "" || env.Result.Sha256 == "" {
+		r.noteSourceSearch(fmt.Sprintf("%s's cite printed no result.label and result.sha256 to search its source by (%v): %s", seatID, err, truncate(citeOut)))
+		return
+	}
+	label, sha := env.Result.Label, env.Result.Sha256
+	pattern := []string{"--quote", "source body for"}
+	if label[len(label)-1]%2 == 0 {
+		pattern = []string{"--match", `.{0,20}source body.{0,40}`}
+	}
+	byAnchor, bySha := []string{"--anchor", label}, []string{"--sha", sha}
+	blueBy, lensBy := byAnchor, bySha
+	if label[len(label)-2]%2 == 0 {
+		blueBy, lensBy = bySha, byAnchor
+	}
+	first := ""
+	for _, read := range []struct {
+		seat string
+		by   []string
+	}{{seatID, blueBy}, {seatOfRole("lens"), lensBy}} {
+		out, ok := r.searchCitedSource(read.seat, label, span, append(append([]string{}, read.by...), pattern...))
+		if !ok {
+			return
+		}
+		if first == "" {
+			first = out
+		} else if out != first {
+			r.noteSourceSearch(fmt.Sprintf("%s's search of %s %v read another answer than %s's:\n%s\n%s", read.seat, label, read.by, seatID, out, first))
+			return
+		}
+	}
+	markViewDriven("source")
+	r.mu.Lock()
+	r.sourceSearches++
+	r.mu.Unlock()
+}
+
+// searchCitedSource runs one search of the source citation label cites and holds its hits to span,
+// the span cite took. ok is false when it recorded a failure.
+func (r *runner) searchCitedSource(seatID, label, span string, args []string) (string, bool) {
+	out, err := r.exec(append([]string{"show", "source", "--seat-id", seatID}, args...)...)
+	if err != nil {
+		r.noteSourceSearch(fmt.Sprintf("%s's search of the source %s cites %v was refused: %s", seatID, label, args, firstLine(out)))
+		return "", false
+	}
+	var s struct {
+		Hits []struct {
+			Start      int    `json:"start"`
+			End        int    `json:"end"`
+			Matched    string `json:"matched"`
+			SourceSpan string `json:"source_span"`
+			Why        string `json:"not_citeable"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal([]byte(out), &s); err != nil || len(s.Hits) == 0 {
+		r.noteSourceSearch(fmt.Sprintf("%s's search %v found nothing in the source %s cites (%v): %s", seatID, args, label, err, firstLine(out)))
+		return "", false
+	}
+	for _, h := range s.Hits {
+		switch {
+		case h.SourceSpan != span:
+			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed source_span %q (%s), and cite took %q", seatID, args, label, h.SourceSpan, h.Why, span))
+			return "", false
+		case h.Start < 0 || h.End <= h.Start || h.End > len(span) || span[h.Start:h.End] != h.Matched:
+			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed offsets [%d,%d) that do not hold its matched %q", seatID, args, label, h.Start, h.End, h.Matched))
+			return "", false
+		}
+	}
+	return out, true
+}
+
+// noteSourceSearch records the first source-search failure.
+func (r *runner) noteSourceSearch(msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sourceSearchErr == "" {
+		r.sourceSearchErr = msg
 	}
 }
 
@@ -4512,7 +4617,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 			default:
 				// THE KEY NAMES THE CITATION, everything it states: a retry of the same act under it is
 				// idempotent, and the record refuses a key naming another.
-				cite.set("--source-span", span).keyed(40, "C").admit()
+				out, ok := cite.set("--source-span", span).keyed(40, "C").bare("--json").admit()
+				if ok {
+					r.sourceSearchCited(seatID, out, span)
+				}
 			}
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
@@ -5570,6 +5678,9 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
+	// sourceSearches is the source searches whose hits round-tripped through cite
+	// (runner.sourceSearches).
+	sourceSearches int
 	// copiesRead is the copy words each reading verb named (runner.copiesRead).
 	copiesRead map[string]map[string]int
 	// fragmentsDriven and truncationsDriven are the cites driven to be refused for a span starting
@@ -6220,6 +6331,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "source span: " + r.spanAdmittedErr
 		return res
 	}
+	if r.sourceSearchErr != "" {
+		res.err = "source search: " + r.sourceSearchErr
+		return res
+	}
 	if r.repeatErr != "" {
 		res.err = "a repeated act: " + r.repeatErr
 		return res
@@ -6300,8 +6415,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// reads the real command tree, so neither can go stale the way a literal "show" did.
 		for _, v := range viewNamesForFuzz {
 			group := seat.GroupOf(v)
-			if !roleHasGroup(role, group) {
-				continue // this role does not carry the group this view lives under
+			if !roleHasView(role, group, v) {
+				continue // this role does not carry this view, or the group it lives under
+			}
+			if v == "source" {
+				// IT READS ONE CACHED SOURCE FOR A PATTERN, so it has no bare read: the cite drive
+				// searches every source blue cites (sourceSearchCited), and marks it driven there.
+				continue
 			}
 			markViewDriven(v)
 			args := []string{group, v, "--run", runDir, "--seat-id", sid}
@@ -6910,6 +7030,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
+	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
 	res.fragmentsDriven, res.truncationsDriven = r.fragmentsDriven, r.truncationsDriven
 	res.quotesRefused = r.quotesRefused
@@ -7579,6 +7700,22 @@ func viewSelects(role, group, view string) bool {
 		for _, sub := range c.Commands() {
 			if sub.Name() == view {
 				return sub.Flags().Lookup("match") != nil
+			}
+		}
+	}
+	return false
+}
+
+// roleHasView asks the real command tree whether this role carries this view under its group: a
+// group a role carries can still leave a view off its tree, as `show source` is off the chair's.
+func roleHasView(role, group, view string) bool {
+	for _, c := range seat.RoleVerbs(role) {
+		if c.Name() != group {
+			continue
+		}
+		for _, sub := range c.Commands() {
+			if sub.Name() == view {
+				return true
 			}
 		}
 	}

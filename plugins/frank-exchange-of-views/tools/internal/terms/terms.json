@@ -587,6 +587,16 @@
       "collisions": []
     },
     {
+      "term": "source search",
+      "definition": "A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.",
+      "seats": [
+        "lens",
+        "blue"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "OCR-derived text",
       "definition": "OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.",
       "seats": [

@@ -113,6 +113,7 @@ type runTally struct {
 	PositionsOverruled         int                       `json:"positions_overruled"`
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
+	SourceSearches             int                       `json:"source_searches"`
 	CopiesRead                 map[string]map[string]int `json:"copies_read"`
 	FragmentsDriven            int                       `json:"fragments_driven"`
 	TruncationsDriven          int                       `json:"truncations_driven"`
@@ -171,7 +172,7 @@ func tallyOf(o outcome) runTally {
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
-		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, CopiesRead: o.copiesRead,
+		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
@@ -510,6 +511,7 @@ type sweepFold struct {
 	inquiryRecords, quotesRefused                   int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
+	sourceSearches                                  int
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
 	positionsWithheld                               int
@@ -591,6 +593,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
+		f.sourceSearches += r.SourceSearches
 		if r.Seed == absentSpanSeed {
 			f.forcedSpansRefused += r.SpansRefused
 		}
@@ -695,6 +698,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("citation owner: %d run(s) offered an unverified citation to the evidence lens, at a sitting or the run's end", f.citationOfferedRuns)
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
+	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound computation in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-computation blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
 	}
@@ -854,6 +858,11 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// refusal of a span the source does not hold is reached only by the drive that types one.
 		if f.spansRefused == 0 {
 			t.Errorf("fuzz drove ZERO cites refused for a source span the source does not hold across %d runs — the refusal that keeps blue's own wording off the record as the source's is unexercised (false green)", f.completed)
+		}
+		// THE SOURCE-SEARCH GATE. A search of a cited source prints, at each hit, the span cite takes;
+		// the drive that searches every admitted cite's source is the only one that checks it.
+		if f.sourceSearches == 0 {
+			t.Errorf("fuzz drove ZERO searches of a cited source across %d runs — that a hit's source_span round-trips through cite is unexercised (false green)", f.completed)
 		}
 		// THE COPY GATE. A reading records the copy the cache held for its source; corroborate is
 		// driven over every seeded copy, and verify reads the copies those corroborations placed.
