@@ -422,11 +422,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// the word (record's requirePositionHearing) in the ruling's own terms.
 				h := &recordpb.PositionHearing{Ruling: &v, Lens: seat.OptStr(cmd, flags.Lens), Direction: seat.OptStr(cmd, flags.Direction)}
 				if csv, ok := cmd.Flags().Lookup(flags.IDs).Value.(*flags.CSV); ok {
-					for _, g := range csv.Value() {
-						if err := flags.GapID().Set(g); err != nil {
-							return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.IDs, err)
-						}
-					}
 					h.GapIds = csv.Value()
 				}
 				body.Ruling = &recordpb.MotionRule_Position{Position: h}
@@ -473,7 +468,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// A seat id: closed form, so no quoting rule.
 			c.Flags().String(f, "", help)
 		case flags.IDs:
-			c.Flags().Var(new(flags.CSV), f, help)
+			c.Flags().Var(flags.IDList(flags.GapID), f, help)
 		default:
 			flags.Text(c, f, help)
 		}

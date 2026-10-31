@@ -99,7 +99,7 @@ func (r *runner) writePart(seat, text string) {
 // refusePart drives an act to the part refusal of kind: refused with code, saying want. Anything else
 // fails the run at the act.
 func (r *runner) refusePart(kind string, code feov.Code, want string, args ...string) {
-	args = append(args, "--json")
+	args = withJSON(args)
 	out, err := r.exec(args...)
 	argv := strings.Join(args, " ")
 	if err == nil {

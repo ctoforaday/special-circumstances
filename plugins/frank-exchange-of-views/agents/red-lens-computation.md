@@ -338,7 +338,7 @@ Flags:
 (Enumerated values:) → SHARED §12
 ========
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — quote THAT text, not the raw bytes; a seat that reads sources searches it with `show source` (by the summary's sha256), which reads it as a citation is located in it and needs no PDF or HTML tooling.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — quote THAT text, not the raw bytes (in an HTML page's text a list item opens with "- ", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them); a seat that reads sources searches it with `show source` (by the summary's sha256), which reads it as a citation is located in it and needs no PDF or HTML tooling.
 
 A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary and named in the summary as ocr_derived text. A ruled table is reconstructed into |-separated rows; one the engine cannot reconstruct falls back to plain text WITH the reason stated. A document over the render disk budget is refused rather than partly read. OCR text can misread: a citation of it, like a citation of any text the tool holds, takes blue's `cite --source-span` with the words copied from that text, and for OCR text the tool records the PDF page they sit on.
 
@@ -374,7 +374,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                  the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor. It is CHECKED against the record
+      --about reference               the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
       --about-kind about-kind-value   anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, a contradiction red recorded, or a computation; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it whether or not the report still holds the sentence, and the gap minted from the finding answers it. A finding about a computation answers no judgement of it: the gap about the computation carries an unsound one
       --impact grade                  how bad the consequence is if it lands
       --key string                    your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. A repeat under the handle with another --quote, --reason, grade or --about-kind/--about is refused: a handle names one finding. Only finding and mint take a handle: no other verb on this surface has this flag
@@ -452,7 +452,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor. It is CHECKED against the record
+      --about reference                          the reference --about-kind names: a section heading, an inquiry id, a gap id, or a computation's anchor, which is the bare id inside its `<!--computation:K-…-->` token in the report (`K-…`, never `computation:K-…`) or that token whole. It is CHECKED against the record
       --about-kind about-kind-value              anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
@@ -865,7 +865,7 @@ Flags:
 $ feov-record show source --help
 SEARCH ONE CACHED SOURCE'S TEXT — the text a citation of it is found in: the extraction of a PDF or an HTML page, the bytes of a text type, or the OCR reading of a scan, page by page. It reads; it records nothing and refuses no act.
 
-NAME THE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), and WHAT TO FIND with --match (an RE2 regex) or --quote (literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’.
+NAME THE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), and WHAT TO FIND with --match (an RE2 regex) or --quote (literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’. A page's text is what you search and quote: in an HTML page's text a list item opens with "- ", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them. To --match a caret, write \^.
 
 EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.
 
@@ -882,7 +882,7 @@ OUTPUT (JSON): {sha256,url,source_text_origin,text_path,hits:[{page,start,end,te
 Flags:
       --anchor id     the citation whose source to search, by its anchor id. Pass this or --sha
       --match regex   find every place the source's text matches this regex (RE2, case-insensitive; a bounded repeat such as .{0,80} is fine). Every match is listed and the total is stated; nothing is ranked or cut. Pass this or --quote
-      --quote text    find every place the source's text holds this text LITERALLY (case-insensitive, in the source's normalisation). Use this rather than --match whenever the text has (), ., *, ? or [] in it. Pass this or --match
+      --quote text    find every place the source's text holds this text LITERALLY (case-insensitive, in the source's normalisation). Use this rather than --match whenever the text has (), ., *, ?, ^ or [] in it. Pass this or --match
       --sha sha256    the cached source's sha256, as the fetch summary and the evidence view print it. Pass this or --anchor
 ========
 $ feov-record show work --help

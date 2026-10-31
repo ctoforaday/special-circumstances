@@ -23,7 +23,7 @@ const (
 	fermatReport = "# Findings\n\n" + fermatClaim + "\n"
 	// fermatReason is blue's paraphrase as m30 stored it: inverted, and worded like the source.
 	fermatReason = "Source: a composite n that passes the Fermat congruence for some base a is known as a Fermat liar; n is then called Fermat pseudoprime to base a."
-	fermatSpan   = "an integer a for which an-1 - 1 is divisible by n when n is composite is known as a Fermat liar. In this case n is called Fermat pseudoprime to base a."
+	fermatSpan   = "an integer a for which a^(n-1) - 1 is divisible by n when n is composite is known as a Fermat liar. In this case n is called Fermat pseudoprime to base a."
 )
 
 func fermatRun(t *testing.T, contentType string) string {

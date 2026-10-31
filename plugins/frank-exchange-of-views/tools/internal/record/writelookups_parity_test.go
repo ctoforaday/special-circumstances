@@ -90,10 +90,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		SupersedesStatus: proto.String(recordpb.Word(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED))}); err != nil {
 		t.Fatal(err)
 	}
-	if err := RequireInquiryRef(run, "Q1"); err != nil {
+	if err := RequireInquiryRef(run, "Q1", "--id"); err != nil {
 		t.Errorf("RequireInquiryRef(Q1) = %v", err)
 	}
-	if err := RequireInquiryRef(run, "Q9"); err == nil {
+	if err := RequireInquiryRef(run, "Q9", "--id"); err == nil {
 		t.Error("RequireInquiryRef accepted an inquiry nobody proposed")
 	}
 

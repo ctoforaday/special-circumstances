@@ -516,9 +516,10 @@ func Execute() {
 	}
 }
 
-// Invoke is everything the binary does with an argv short of exiting: the refusal that answers a
-// command nobody holds before cobra parses a flag, the tree, and — for a refusal from either — the
-// ONE renderer, handed the command that resolved. It returns that command with the error.
+// Invoke is everything the binary does with an argv short of exiting: the refusals of a command
+// nobody holds and of a flag stated twice, both before cobra parses a flag, the tree, and — for a
+// refusal from any of them — the ONE renderer, handed the command that resolved. It returns that
+// command with the error.
 //
 // Exported because a TEST HARNESS must reproduce the binary. One that drove the tree and rendered
 // for itself would measure a shape the binary does not produce; the in-process drivers (this
@@ -530,6 +531,9 @@ func Execute() {
 func Invoke(root *cobra.Command, argv []string, seatID string) (*cobra.Command, error) {
 	root.SetArgs(argv)
 	leaf, err := root, refuseUnknownCommandNoted(root, append([]string{InvokedAs()}, argv...), seatID)
+	if err == nil {
+		leaf, err = refuseRepeatedFlagNoted(root, argv)
+	}
 	if err == nil {
 		leaf, err = ExecuteRoot(root)
 	}
