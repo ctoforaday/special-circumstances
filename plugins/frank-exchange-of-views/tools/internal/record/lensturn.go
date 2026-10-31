@@ -90,7 +90,8 @@ type EarlyDocket struct {
 // re-audit (ruled by gblock 2026-10-31) — what capture's docket-order audit names. The plan never files
 // one, so a row here is a plan defect, or a run dispatched by a binary that did not hold the rule:
 // universe-m37 holds six, five of them closed by the lens minutes after the filing. A motion a party
-// filed is not counted: the write admits it whatever the lens's turn.
+// filed is not counted: the write admits it whatever the lens's turn. The chair's own `motion docket
+// file` is counted with the dispatch's: the order is the chair's to keep either way.
 func EarlyDockets(run Run) ([]EarlyDocket, error) {
 	p, err := RunParams(run)
 	if err != nil {

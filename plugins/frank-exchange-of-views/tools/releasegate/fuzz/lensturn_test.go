@@ -25,7 +25,7 @@ import (
 // A plan's docket comes after the lens: on universe-m37 the dispatch docketed six gaps with the lens's
 // audit of blue's answer still to come, and the lens closed five of them minutes after. A gap the plan
 // dockets whose lens's turn stands is a failure unless the lens has sat on it since its floor, which is
-// the audit the docket waited for; a record whose EarlyDockets is not empty fails the same way.
+// the audit the docket waited for.
 
 // gapActs is, per gap, the stream position of each act on it and the seat that recorded it, by the
 // fields the acts name a gap in.
@@ -258,12 +258,21 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 			waits++
 		}
 	}
-	// A DOCKET COMES AFTER THE LENS'S SITTING. The dispatch's own fold says so too (record.EarlyDockets);
-	// this reads the sittings off the record, so a fold that stopped holding the docket back is caught.
+	// A DOCKET COMES AFTER THE LENS'S SITTING, read off the record's sittings and not through the fold
+	// that holds it back. Only what this dispatch filed: `docket` also names every motion already standing,
+	// and a party's filing is not the dispatch's order. The dispatch's motions are the tail of the record,
+	// written since the chair last opened a sitting.
 	after := 0
-	docket, _ := plan["docket"].([]any)
-	for _, g := range docket {
-		gap := fmt.Sprint(g)
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		e := b.Events[i]
+		if _, opens := b.At.Opens(e); opens || e.GetSeatId() != "red-chair" {
+			break
+		}
+		m, ok := recordpb.BodyAs[*recordpb.Motion](e)
+		if !ok || m.GetDocket().GetGapId() == "" {
+			continue
+		}
+		gap := m.GetDocket().GetGapId()
 		lens := minter[gap]
 		if seatclass.RoleOfSeat(lens) != "lens" || superseded[gap] {
 			continue
@@ -276,18 +285,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		case sat:
 			after++
 		case turnCame(lens, gap):
-			r.noteActErr(fmt.Sprintf("docket-order oracle: the plan dockets %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer", gap, lens))
-			return
-		}
-	}
-	if len(docket) > 0 {
-		early, err := record.EarlyDockets(r.run())
-		if err != nil {
-			r.noteActErr("docket-order oracle: the record could not be read: " + err.Error())
-			return
-		}
-		if len(early) > 0 {
-			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch filed %d docket motion(s) with the lens's audit still to come: %+v", len(early), early))
+			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch filed %s on %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer", m.GetMotionId(), gap, lens))
 			return
 		}
 	}

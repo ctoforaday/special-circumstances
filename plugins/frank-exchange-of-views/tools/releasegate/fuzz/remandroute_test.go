@@ -103,6 +103,13 @@ func (r *runner) closeDocketed(seatID string) {
 // to refusing it as a conflict that names the motion and that nothing was recorded. A gap that moved
 // under the seat's reading refuses first; the same close then lands on the refusal this drive drives.
 func (r *runner) closeDocketedRefused(seatID, gapID string) {
+	// A COMPUTATION GAP NO COMPUTATION ANSWERS refuses first, as a close of it does whatever the docket
+	// says: the verb's guard runs before the write.
+	if r.computationGaps.has(gapID) {
+		if answered, err := record.ComputationAnswers(r.run(), gapID); err != nil || !answered {
+			return
+		}
+	}
 	motions := r.unruledDocketMotions(gapID)
 	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a docketed gap",
 		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec", "--json"}
