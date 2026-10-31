@@ -1576,10 +1576,12 @@ type filedPetition struct {
 // tracking {who,class,motion} so the petition sitting the chair's next plan convenes can rule on it.
 // Every party seat is eligible, the lenses included: a lens's envelope carries nothing, and the
 // record is how its petition reaches the bench. The random path never returns a HALT ruling, so the run
-// continues. It files nothing most of the time — a petition detours the run through a bench
-// sitting, so it stays occasional.
+// continues. It files nothing most of the time — a petition is heard alone in its epoch, so each
+// one costs the run an epoch. At one sitting in five most epochs held a petition, and the sweep
+// spent the epochs its bench and remand gates are driven in on hearings (bench regrades 247 → 104,
+// remands past the limit 73 → 0, over 40 seeds).
 func (r *runner) maybePetition(seatID string) {
-	if !r.forceHalt && !r.coin(20) { // forceHalt guarantees a petition so the halt sitting fires
+	if !r.forceHalt && !r.coin(3) { // forceHalt guarantees a petition so the halt sitting fires
 		return
 	}
 	r.filePetition(seatID)
@@ -4998,7 +5000,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
-		r.maybePetition(seatID)
+		// THE FORCED-UNVERIFIED RUN'S PETITION IS BLUE'S, filed once its grade motions are: the
+		// bench hears a petition alone in its epoch, and one filed at the first lens sitting cut blue
+		// out of the epoch it disputes in, so the chair's next sitting found the board permitting a
+		// PASS that no unruled grade motion held. Its petition sitting tries to end on it unruled and
+		// is refused (envelopeRefusedEarly).
+		if r.forceUnverified && r.petitionsFiledN() == 0 {
+			r.filePetition(seatID)
+		} else {
+			r.maybePetition(seatID)
+		}
 		r.dischargeOwed(seatID)
 		env := map[string]any{"manifest": manifest}
 		if again == nil {
@@ -5604,13 +5615,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// offered — is carried by its gap here, after the drive's last judgement of the sitting.
 		r.answerFailed(seatID)
 		// A LENS PETITIONS ON THE RECORD — its envelope carries nothing, so the record is its only channel.
-		// The forced-UNVERIFIED run guarantees one, which its petition sitting tries to end on
-		// unruled and is refused (envelopeRefusedEarly).
-		// Beyond that one, a forced run's lenses file none: a petition readies the bench for a sitting
-		// of its own, which the forced run's bound (findsFresh) does not count.
-		if r.forceUnverified && r.petitionsFiledN() == 0 {
-			r.filePetition(seatID)
-		} else if !r.forcedVerdict() {
+		// A forced run's lenses file none: a petition readies the bench for a sitting of its own,
+		// which the forced run's bound (findsFresh) does not count.
+		if !r.forcedVerdict() {
 			r.maybePetition(seatID)
 		}
 		// THE LENS'S ENVELOPE IS EMPTY (record.LensEnvelope); the frontier's and a lane's return
