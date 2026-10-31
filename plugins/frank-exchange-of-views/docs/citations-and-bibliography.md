@@ -107,6 +107,13 @@ and the hash then certifies the blockade. Two spellings of one url — `%7E` for
 a default port, a fragment — are one resource under RFC 3986's normalisation (`SameResource`) and
 do not trip it.
 
+**Searching it.** `show source` — on blue's and the lenses' trees, as `fetch` is — searches one
+cached source's text, named by sha256 or by a citation's anchor, for a regex or a literal. It reads
+the texts `cite --source-span` is located in (the extraction, or each page of an OCR reading), in
+the locator's normalisation, case-insensitively. Each hit carries its byte offsets, the source's
+sentence around it, and that sentence as a `source_span` when the locator takes it as printed. Every
+hit is listed and counted, as every selector lists every match. It writes nothing.
+
 ## 2. Cite — putting it on the record
 
 `blue cite --url --quote --title [--source-span]` resolves the url through the same cache. It

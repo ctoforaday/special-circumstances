@@ -13,7 +13,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --likelihood medium --impact medium --quote A claim sits under S2. --reason round one
 exit 0
 stdout:
-finding FINDING001 (evidence) (idempotent retry — existing finding returned)
+finding FINDING001 (evidence) — this call repeats an act already on the record, so nothing was written
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══

@@ -31,6 +31,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [missing capability](#missing-capability) | lens, chair, blue, bench, operator |
 | [citation](#citation) | lens, chair, blue, bench, operator |
 | [source span](#source-span) | lens, blue |
+| [source search](#source-search) | lens, blue |
 | [OCR-derived text](#ocr-derived-text) | lens, blue, operator |
 | [anchor](#anchor) | lens, chair, blue, bench, operator |
 | [computation](#computation) | lens, chair, blue, bench, operator |
@@ -352,6 +353,12 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 ## source span
 
 A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
+
+**Delivered to:** lens, blue
+
+## source search
+
+A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
 
 **Delivered to:** lens, blue
 

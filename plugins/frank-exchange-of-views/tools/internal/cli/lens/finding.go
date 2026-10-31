@@ -186,7 +186,7 @@ type findingResult struct {
 func (r findingResult) Human() string {
 	ref := record.FindingRef(r.ID, r.Area)
 	if r.Idempotent {
-		return "finding " + ref + " (idempotent retry — existing finding returned)"
+		return seat.Repeated("finding " + ref)
 	}
 	return "finding recorded: " + ref + " — the id a gap's found_by names"
 }

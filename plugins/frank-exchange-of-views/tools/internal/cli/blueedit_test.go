@@ -166,8 +166,8 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("idempotent retry errored: %v (%q)", err, out)
 	}
-	if !strings.Contains(out, "idempotent") {
-		t.Errorf("retry should report idempotent: %q", out)
+	if !strings.Contains(out, repeatedWords) {
+		t.Errorf("the retry does not say it wrote nothing: %q", out)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 1 {
 		t.Errorf("retry recorded %d ops, want exactly 1", n)

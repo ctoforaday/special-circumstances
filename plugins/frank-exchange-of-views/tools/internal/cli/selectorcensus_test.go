@@ -84,8 +84,9 @@ func TestEverySelectorThatAViewAdvertisesSelects(t *testing.T) {
 				}
 			})
 			// THE BARE FORM. Where it is the JSON (a JSON-by-name view) it selects the same way; where
-			// it is markdown it has no entries to select, and the pair is refused there by name rather
-			// than answered with every entry.
+			// it is markdown it has no entries to select, and the selection is the --json form's,
+			// byte for byte — never every entry, and never a refusal toward --json, which the report's
+			// bare selection does not make either.
 			for _, flag := range []string{"--" + flags.Match, "--" + flags.Quote} {
 				t.Run("the bare form "+flag, func(t *testing.T) {
 					out, err := read(flag, nothing)
@@ -95,8 +96,12 @@ func TestEverySelectorThatAViewAdvertisesSelects(t *testing.T) {
 							t.Errorf("the bare report did not report an empty selection: %v\n%s", err, out)
 						}
 					case row.markdown:
-						if err == nil || !strings.Contains(err.Error(), "--json") {
-							t.Errorf("the bare markdown form took --match and did not refuse it toward --json: %v\n%s", err, out)
+						asJSON, jerr := read("--json", flag, nothing)
+						if err != nil || jerr != nil || out != asJSON {
+							t.Errorf("the bare markdown form's selection is not the --json form's: %v / %v\nbare:\n%s\n--json:\n%s", err, jerr, out, asJSON)
+						}
+						if hit, herr := read("--"+flags.Quote, lit); herr != nil || len(arrayEntries(t, hit)) == 0 {
+							t.Errorf("the bare markdown form's --quote %q, taken from an entry, kept nothing: %v\n%s", lit, herr, hit)
 						}
 					default:
 						if err != nil {
@@ -130,7 +135,10 @@ type selectorRow struct {
 	formats bool
 }
 
-// selectorViews walks the chair's tree, which mounts every `show` projection and the `inquest` group.
+// selectorViews walks the chair's tree, which mounts the `inquest` group and every `show` projection
+// that selects entries. `show source` is mounted for the seats that read sources alone, and its pair
+// searches a source's text rather than selecting entries; TestAShowSourceHitIsCitedAtTheOffsetsItPrinted
+// and the fetchcache search tests hold it.
 func selectorViews(t *testing.T) []selectorRow {
 	t.Helper()
 	root := NewRootFor("red-chair")
