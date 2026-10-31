@@ -109,6 +109,17 @@ func (p *htmlPage) walk(n *html.Node, st walkState, raw *strings.Builder) {
 	case html.ElementNode:
 		st = p.element(n, st)
 		if n.Namespace == "" {
+			switch n.DataAtom {
+			case atom.Sup:
+				raw.WriteString(superscript(n, p.inner(n, st)))
+				return
+			case atom.Sub:
+				raw.WriteString(subscript(p.inner(n, st)))
+				return
+			case atom.Li:
+				raw.WriteString(listItem(p.inner(n, st)))
+				return
+			}
 			if n.DataAtom == atom.Br || n.DataAtom == atom.Hr {
 				raw.WriteByte('\n') // a void element is one break, not an opening and a closing
 			} else if blockElements[n.DataAtom] {
@@ -126,6 +137,15 @@ func (p *htmlPage) walk(n *html.Node, st walkState, raw *strings.Builder) {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		p.walk(c, st, raw)
 	}
+}
+
+// inner is the text under n, walked as the page's text is.
+func (p *htmlPage) inner(n *html.Node, st walkState) string {
+	var b strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		p.walk(c, st, &b)
+	}
+	return b.String()
 }
 
 // element records one element's facts and returns the state its children are read in.
@@ -204,7 +224,7 @@ var readerHidden = map[atom.Atom]bool{
 var blockElements = func() map[atom.Atom]bool {
 	m := map[atom.Atom]bool{}
 	for _, a := range []atom.Atom{
-		atom.P, atom.Div, atom.Br, atom.Li, atom.Ul, atom.Ol, atom.Dl, atom.Dd, atom.Dt,
+		atom.P, atom.Div, atom.Br, atom.Ul, atom.Ol, atom.Dl, atom.Dd, atom.Dt,
 		atom.H1, atom.H2, atom.H3, atom.H4, atom.H5, atom.H6,
 		atom.Table, atom.Thead, atom.Tbody, atom.Tfoot, atom.Tr, atom.Caption,
 		atom.Section, atom.Article, atom.Header, atom.Footer, atom.Nav, atom.Aside, atom.Main,
