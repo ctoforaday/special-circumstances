@@ -1606,14 +1606,6 @@ func (r *runner) filePetition(seatID string) {
 	r.petitionsFiled = append(r.petitionsFiled, filedPetition{id: id, filer: seatID, chairSitting: r.chairRegisters})
 }
 
-// petitionsFiledN is how many petitions the run has filed, read under the lock the concurrent
-// lenses append under.
-func (r *runner) petitionsFiledN() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return len(r.petitionsFiled)
-}
-
 // rulePetitions is the petition sitting: it rules on every pending petition, clearing the docket,
 // and returns the empty envelope. petition-rule takes only granted|denied (a halt is its OWN verb), so
 // a forceHalt run records `bench halt` — the dedicated halt-path test — and the engine reads the halt
