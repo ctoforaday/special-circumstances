@@ -186,6 +186,9 @@ func (r *runner) rulePositions(seatID, occasion string) {
 				if _, err := r.exec("motion", "position", "rule", "--seat-id", seatID, "--id", id, "--as", "upheld",
 					"--ids", g, "--direction", direction, "--reason", opinion); err == nil {
 					named = true
+					r.mu.Lock()
+					r.positionNamedGaps = append(r.positionNamedGaps, g)
+					r.mu.Unlock()
 					r.remandRouted(g)
 					break
 				}
@@ -292,6 +295,30 @@ func (r *runner) positionOracle(halted bool) string {
 	return ""
 }
 
+// forcedPositionOracle holds a run forced to a position to its ruling's route: the chair withheld a
+// PASS and the bench ruled it the way the seed names, and a gap the gaps run's bench named is closed
+// by the run's end — its remand's exchange is what the ruling sent it to, and VERIFIED holds over a
+// gap that is not material, so the verdict alone does not say it was had.
+func (r *runner) forcedPositionOracle() string {
+	if r.forcePosition == "" {
+		return ""
+	}
+	r.mu.Lock()
+	got := map[string]int{"lens": r.positionsUpheldLens, "gaps": r.positionsUpheldGaps, "overruled": r.positionsOverruled}
+	named := slices.Clone(r.positionNamedGaps)
+	r.mu.Unlock()
+	if got[r.forcePosition] == 0 {
+		return fmt.Sprintf("forced-position oracle: the run is forced to a %s ruling on a withheld PASS, and its bench made none (rulings %v, %d PASS withheld)", r.forcePosition, got, r.positionsWithheld)
+	}
+	open := r.openGaps()
+	for _, g := range named {
+		if slices.Contains(open, g) {
+			return fmt.Sprintf("forced-position oracle: the bench upheld the withheld PASS's position naming gap %s, and the gap is still open at the run's end — the remand's exchange never closed it", g)
+		}
+	}
+	return ""
+}
+
 // THE DRIVE'S BENCH RULES THE POSITION IT HEARS, and the oracle holds it to the route. Pinned outside
 // the sweep: a PASS withheld at the final sitting is ruled by the drive's terminal bench, the oracle
 // passes it, and a position it never ruled fails the oracle.
@@ -391,6 +418,14 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 			if got[form] != 1 || got["lens"]+got["gaps"]+got["overruled"] != 1 {
 				t.Errorf("rulings %v, want the one %s ruling the run is forced to", got, form)
 			}
+			// THE ORACLE HOLDS THE ROUTE: the gap the bench named is still open here, its remand's
+			// exchange never had, and the oracle names it; a lens or an overruling has no gap to hold.
+			switch m := r.forcedPositionOracle(); {
+			case form == "gaps" && (len(r.positionNamedGaps) != 1 || !strings.Contains(m, r.positionNamedGaps[0])):
+				t.Errorf("the oracle passed a named gap left open: named %v, %q", r.positionNamedGaps, m)
+			case form != "gaps" && m != "":
+				t.Errorf("the oracle fired over a %s ruling: %s", form, m)
+			}
 		})
 	}
 }
@@ -414,5 +449,18 @@ func TestTheForcedChairWithholdsItsFirstPermittedPass(t *testing.T) {
 		if r.withholds() {
 			t.Fatal("a forced run with no position to force withheld a permitted PASS")
 		}
+	}
+}
+
+// A RUN FORCED TO A POSITION ITS BENCH NEVER RULED fails the oracle, naming the ruling it owed.
+func TestTheForcedPositionOracleHoldsTheRuling(t *testing.T) {
+	r, _ := converseRun(t, redClosesAndWithholds)
+	r.forcePosition = "overruled"
+	if m := r.forcedPositionOracle(); !strings.Contains(m, "overruled ruling") {
+		t.Errorf("the oracle passed a forced run whose bench ruled nothing: %q", m)
+	}
+	r.forcePosition = ""
+	if m := r.forcedPositionOracle(); m != "" {
+		t.Errorf("the oracle fired on a run forced to no position: %s", m)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -492,16 +493,18 @@ func TestFuzzSweepTally(t *testing.T) {
 
 // sweepFold is the sweep's runs folded for its gates.
 type sweepFold struct {
-	completed, failed                               int
-	verdicts                                        map[string]int
-	blueSits, blueAgains                            int
-	epochHist                                       map[int]int
-	limitExits                                      int
-	limitForced                                     bool
-	whyHist, dcov                                   map[string]int
-	citeAnchors, cacheFiles, editAnswers            int
-	forcedVerdict, forcedWhy                        string
-	verifiedVerdict, verifiedWhy                    string
+	completed, failed                    int
+	verdicts                             map[string]int
+	blueSits, blueAgains                 int
+	epochHist                            map[int]int
+	limitExits                           int
+	limitForced                          bool
+	whyHist, dcov                        map[string]int
+	citeAnchors, cacheFiles, editAnswers int
+	forcedVerdict, forcedWhy             string
+	// verifiedExits is each forced-VERIFIED run's exit, by seed: verifiedSeed's and each position
+	// seed's (forcedVerifiedSeeds).
+	verifiedExits                                   map[int64]forcedExit
 	verifiedBasis, foundByMints                     int
 	verbatimApplied, typedVerbatim, estoppels       int
 	inquiryRecords, quotesRefused                   int
@@ -542,7 +545,7 @@ func foldRuns(runs []runTally) sweepFold {
 	f := sweepFold{
 		verdicts: map[string]int{}, epochHist: map[int]int{}, whyHist: map[string]int{}, dcov: map[string]int{},
 		copiesRead: map[string]map[string]int{}, computationReopenedReadied: map[string]int{}, owedKeptBy: map[string]int{},
-		applyMisses: map[string]int{}, estoppelMisses: map[string]int{},
+		applyMisses: map[string]int{}, estoppelMisses: map[string]int{}, verifiedExits: map[int64]forcedExit{},
 	}
 	for _, r := range runs {
 		if r.Err != "" {
@@ -558,8 +561,8 @@ func foldRuns(runs []runTally) sweepFold {
 		if r.Seed == unverifiedSeed {
 			f.forcedVerdict, f.forcedWhy = r.Verdict, r.Why
 		}
-		if r.Seed == verifiedSeed {
-			f.verifiedVerdict, f.verifiedWhy = r.Verdict, r.Why
+		if slices.Contains(forcedVerifiedSeeds, r.Seed) {
+			f.verifiedExits[r.Seed] = forcedExit{verdict: r.Verdict, why: r.Why}
 		}
 		f.epochHist[r.Epochs]++
 		if r.EpochLimit {
@@ -1072,12 +1075,17 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 				"reports that as a missing WORD rather than as this declining DRIVER.%s",
 				unverifiedSeed, f.forcedVerdict, forcedWhyClause(f.forcedWhy))
 		}
-		// AND THE FORCED-VERIFIED DRIVE, for the same reason: the run that exists to write the word
-		// went somewhere else, and this names where.
-		if f.verifiedVerdict != "VERIFIED" {
-			t.Errorf("the forced-VERIFIED run on seed %d ended %q, not VERIFIED — the drive that makes "+
-				"`outcome --as VERIFIED` a fact rather than a draw did not deliver.%s",
-				verifiedSeed, f.verifiedVerdict, forcedWhyClause(f.verifiedWhy))
+		// AND THE FORCED-VERIFIED DRIVES, for the same reason: the run that exists to write the word
+		// went somewhere else, and this names where. A position seed's run is one of them: its bench's
+		// ruling leaves a route to the PASS — the named lens audits on the direction, the named gap's
+		// exchange closes it, or the chair's next sitting records the PASS — and a run that ends
+		// anywhere else is a ruling the record left with no way out.
+		for _, seed := range forcedVerifiedSeeds {
+			if x := f.verifiedExits[seed]; x.verdict != "VERIFIED" {
+				t.Errorf("the forced-VERIFIED run on seed %d%s ended %q, not VERIFIED — the drive that makes "+
+					"`outcome --as VERIFIED` a fact rather than a draw did not deliver.%s",
+					seed, positionClause(seed), x.verdict, forcedWhyClause(x.why))
+			}
 		}
 		if !p.MootSpent {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
@@ -1182,4 +1190,24 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",
 			len(un), strings.Join(un, "\n  "))
 	}
+}
+
+// forcedExit is a forced run's verdict and the reason it ended there.
+type forcedExit struct{ verdict, why string }
+
+// forcedVerifiedSeeds are the seeds whose runs are forced to VERIFIED: verifiedSeed, and each seed
+// whose chair withholds its first permitted PASS for the bench to rule (positionFormOf).
+var forcedVerifiedSeeds = []int64{verifiedSeed, positionLensSeed, positionGapsSeed, positionOverruledSeed}
+
+// positionClause names the ruling a position seed's run is forced to, "" for any other seed.
+func positionClause(seed int64) string {
+	switch positionFormOf(seed) {
+	case "lens":
+		return " (its bench upheld the withheld PASS's position naming a lens)"
+	case "gaps":
+		return " (its bench upheld the withheld PASS's position naming open gaps)"
+	case "overruled":
+		return " (its bench overruled the withheld PASS's position)"
+	}
+	return ""
 }

@@ -622,7 +622,9 @@ type runner struct {
 	// chair withholds its first permitted PASS, and its bench rules the position this way. "" in
 	// every other run. positionForced is set once that chair has withheld, and heldTrifle once the
 	// gaps run's lens has minted the gap it holds open for the bench to name (mintHeldTrifle).
-	forcePosition                                    string
+	forcePosition string
+	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order.
+	positionNamedGaps                                []string
 	positionForced, heldTrifle                       bool
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
@@ -6236,6 +6238,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	if o := r.positionOracle(halted); o != "" {
+		res.err = o
+		return res
+	}
+	if o := r.forcedPositionOracle(); o != "" {
 		res.err = o
 		return res
 	}
