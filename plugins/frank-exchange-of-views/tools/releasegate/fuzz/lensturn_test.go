@@ -2,6 +2,7 @@ package fuzz
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -220,6 +221,28 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 		return false
 	}
+	// witness is what the oracle read on gap, and the plan's and the fold's readings beside it: a failure
+	// here is one reading of the record against another, and the sweep's log is all a red leaves behind.
+	witness := func(gap string) string {
+		fold := "unread"
+		if p, err := record.RunParams(r.run()); err == nil {
+			if xs, err := record.Exchanges(r.run(), p); err == nil && xs[gap] != nil {
+				x := xs[gap]
+				fold = fmt.Sprintf("%d exchange(s), %d stalled, %d unresolved, impasse %v, remand %v", x.Exchanges, x.Stalled, x.Unresolved, x.Impasse, x.Remand)
+			}
+		}
+		var turns, why []string
+		for _, a := range turnActs[gap] {
+			turns = append(turns, fmt.Sprintf("%s@%d:%s", a.seat, a.at, b.Events[a.at].GetType()))
+		}
+		whys, _ := plan["why"].([]any)
+		for _, w := range whys {
+			if text := fmt.Sprint(w); strings.Contains(text, gap) {
+				why = append(why, text)
+			}
+		}
+		return fmt.Sprintf("minted %d, remanded %d, of %d events; turns %v; sittings %v; the fold: %s; the plan: %v", minted[gap], remanded[gap], len(b.Events), turns, sittings[gap], fold, why)
+	}
 	engaged := map[string]map[string]bool{} // gap → seats the plan engages on it
 	parties, _ := plan["parties"].([]any)
 	for _, p := range parties {
@@ -250,7 +273,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		}
 		switch came := turnCame(lens, gap); {
 		case came && !seats[lens]:
-			r.noteActErr(fmt.Sprintf("lens-turn oracle: the plan engages blue on %s and not its minting lens %s, whose turn has come — blue acted on %s since the lens's last act there", gap, lens, gap))
+			r.noteActErr(fmt.Sprintf("lens-turn oracle: the plan engages blue on %s and not its minting lens %s, whose turn has come — blue acted on %s since the lens's last act there: %s", gap, lens, gap, witness(gap)))
 			return
 		case came:
 			turns++
@@ -285,7 +308,7 @@ func (r *runner) tallyLensTurns(plan map[string]any) {
 		case sat:
 			after++
 		case turnCame(lens, gap):
-			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch filed %s on %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer", m.GetMotionId(), gap, lens))
+			r.noteActErr(fmt.Sprintf("docket-order oracle: the dispatch filed %s on %s, blue has moved it since %s's last turn there, and the lens has not sat on it since its floor — the bench is asked before the lens has read the answer: %s", m.GetMotionId(), gap, lens, witness(gap)))
 			return
 		}
 	}
