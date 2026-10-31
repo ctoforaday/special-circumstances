@@ -780,10 +780,10 @@ func TestAPlanOwesARemandBlueActedOnInASittingNotYetMeasured(t *testing.T) {
 // GRADE MOVEMENT OUTRANKS AN OWED REMAND, ON BLUE'S LIST AS IN THE PLAN (routeOf). The plan readies
 // blue on the remanded G1; before blue sits, the lens regrades G1 from high to trivial, 2.5 of
 // movement past the 2.0 the bench rules at. The gap's route is now the bench's, so blue's remand
-// item goes from its list while remand_stage still says the remand's exchange is owed — the stage
-// is where the gap stands against its remands, the route what the dispatch does next. The release
-// fuzz's pre-register read held every gap whose stage was owed to a blocking item, and failed on
-// this shape in 5 of 40 seeds.
+// item goes from its list, and remand_stage — read off the same route (stageOnRoute) — no longer
+// says the exchange is owed. Computed beside the route, the stage still read "owed" here, and blue
+// read an exchange it was not held to; the release fuzz's pre-register read held every gap whose
+// stage was owed to a blocking item, and failed on this shape in 5 of 40 seeds.
 func TestGradeMovementOutranksAnOwedRemandOnBluesList(t *testing.T) {
 	st := remandedAtImpasse(t).register("red-chair").dispatch(2, "blue-respond", "G1")
 	run := st.seed()
@@ -791,8 +791,10 @@ func TestGradeMovementOutranksAnOwedRemandOnBluesList(t *testing.T) {
 		t.Fatalf("setup: blue's remand item on G1 does not block before the regrade")
 	}
 	st.more().registerAs(evLens, "lens-regrades").regrade(evLens, "G1", "trivial").stop("lens-regrades").seed()
-	if got := remandStageOn(t, run, "blue", "blue-respond", "G1"); got != "owed" {
-		t.Fatalf("remand_stage = %q, want owed: blue has not acted on G1 since the ruling", got)
+	for _, seat := range []struct{ role, id string }{{"blue", "blue-respond"}, {"lens", evLens}, {"chair", "red-chair"}} {
+		if got := remandStageOn(t, run, seat.role, seat.id, "G1"); got != "" {
+			t.Errorf("%s: remand_stage = %q, want none: the dispatch sends G1 to the bench, and readies no remand's exchange", seat.id, got)
+		}
 	}
 	if remandItemBlocks(t, run, "blue", "blue-respond") || workMentions(t, run, "blue", "blue-respond", "was REMANDED by the bench") {
 		t.Errorf("G1's grade movement dockets it for the bench, and blue's list still carries its remand item")

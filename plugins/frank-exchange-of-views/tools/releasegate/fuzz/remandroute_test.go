@@ -257,6 +257,16 @@ func (r *runner) answerRemands(seatID string) {
 	}
 }
 
+// stageOf is the remand_stage w states for gapID, "" where it states none or the gap is closed.
+func stageOf(w record.WorkJSON, gapID string) string {
+	for _, g := range w.Open {
+		if g.ID == gapID {
+			return g.RemandStage
+		}
+	}
+	return ""
+}
+
 // itemsOn is the text of every item on s's open list about gapID, for a failure to quote.
 func itemsOn(s record.SittingJSON, gapID string) []string {
 	var out []string
@@ -338,7 +348,10 @@ func (r *runner) remandPastLimitRefused(seatID, gapID string) {
 // then rightly says the item no longer holds blue. The lenses sit between the plan and blue, and a
 // regrade there can put the open gaps' movement past the threshold with this gap's own movement in
 // it: the dispatch then dockets the gap for the bench (routeOf ranks movement above the remand), and
-// the item goes, while remand_stage still says the exchange is owed. On universe-m35 the item read
+// the item goes with the stage, both read off the route. The movement is read here off the gate's
+// list, apart from the stage, so a stage that kept saying "owed" for such a gap fails as well as an
+// item that stayed; and a gap the plan owed whose stage no longer says so must hold no blocking item.
+// On universe-m35 the item read
 // "the ruling landed after this sitting opened" and did not block while all of it held, and after
 // blue's sitting closed it was gone; either direction fails here.
 func (r *runner) remandHeldBeforeRegister() {
@@ -392,25 +405,28 @@ func (r *runner) remandHeldBeforeRegister() {
 	}
 	for _, o := range owedByPlan {
 		if !owed[o.GapID] || len(r.unruledDocketMotions(o.GapID)) > 0 {
-			continue // closed or put before the bench again since: no exchange is owed, and no item stands
+			// closed, put before the bench again, or sent there for its grade movement since: no
+			// exchange is owed, and no item holds blue
+			if blocksOn(w.Sitting, o.GapID, o.Direction) {
+				r.noteActErr(fmt.Sprintf("blue's remand item on gap %s blocks its list before blue registered, though its remand_stage no longer says the exchange is owed (%q)", o.GapID, stageOf(w, o.GapID)))
+			}
+			continue
+		}
+		if moved[o.GapID] {
+			r.noteActErr(fmt.Sprintf("blue's work list states remand_stage owed on gap %s, which the dispatch sends to the bench for its grade movement", o.GapID))
+			continue
 		}
 		acted := false
 		for _, a := range acts[o.GapID] {
 			acted = acted || a.at > ruled[o.GapID] && a.seat == "blue-respond"
 		}
-		want := !acted && ruled[o.GapID] < dispatched && !moved[o.GapID]
+		want := !acted && ruled[o.GapID] < dispatched
 		switch got := blocksOn(w.Sitting, o.GapID, o.Direction); {
 		case want && !got:
-			r.noteActErr(fmt.Sprintf("the plan dispatching blue owes remanded gap %s its exchange, blue has recorded no act on it since the ruling, its grade movement does not route it to the bench, and before blue registered its remand item does not block its list — the list's items on it: %q", o.GapID, itemsOn(w.Sitting, o.GapID)))
+			r.noteActErr(fmt.Sprintf("the plan dispatching blue owes remanded gap %s its exchange, its remand_stage says owed, blue has recorded no act on it since the ruling, and before blue registered its remand item does not block its list — the list's items on it: %q", o.GapID, itemsOn(w.Sitting, o.GapID)))
 		case !want && got:
-			why := "the ruling landed after blue's latest dispatch"
-			switch {
-			case acted:
-				why = "blue has recorded an act on it since the ruling"
-			case moved[o.GapID]:
-				why = "its grade movement dockets it for the bench"
-			}
-			r.noteActErr(fmt.Sprintf("blue's remand item on gap %s blocks its list before blue registered, though %s", o.GapID, why))
+			r.noteActErr(fmt.Sprintf("blue's remand item on gap %s blocks its list before blue registered, though %s", o.GapID,
+				map[bool]string{true: "blue has recorded an act on it since the ruling", false: "the ruling landed after blue's latest dispatch"}[acted]))
 		case got:
 			r.mu.Lock()
 			r.remandHolds++

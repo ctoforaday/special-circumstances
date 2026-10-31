@@ -274,7 +274,8 @@ const (
 	remandSpent             // remanded at impasse, and its exchange has been had: another remand is refused
 )
 
-// remandStageWords is the stage as the work list's `remand` field states it; notRemanded has none.
+// remandStageWords is the stage as the work list's `remand_stage` field states it (stageOnRoute);
+// notRemanded has none.
 var remandStageWords = map[remandStage]string{remandOwed: "owed", remandSpent: "spent"}
 
 // remandStageOf reads the stage off the fold's counted remands and rounds.
@@ -302,6 +303,23 @@ const (
 	routeRemandOwed                    // at impasse and remanded, or not material and remanded: blue, once, on the direction — the lens's turn comes with blue's act
 	routeRedocket                      // at impasse after its remand's exchange: docketed for the bench again, to be closed
 )
+
+// stageOnRoute is the stage the work list states for an open gap on route, whose counted stage
+// (remandStageOf) is counted: owed exactly when the route readies the remand's exchange — a remand of
+// a gap that is not material is owed whether or not the bench ruled it at impasse, and one whose
+// exchange is unhad states nothing while the route sends the gap to the bench — and spent when that
+// exchange has been had. The stage is never computed beside the route: a work list that said "owed"
+// for a gap the dispatch had sent to the bench for its grade movement held no remand item, and blue
+// read an exchange it was not held to.
+func stageOnRoute(route gapRoute, counted remandStage) remandStage {
+	switch {
+	case route == routeRemandOwed:
+		return remandOwed
+	case counted == remandSpent:
+		return remandSpent
+	}
+	return notRemanded
+}
 
 // routeOf is the route for an open gap: material is the class's answer, stranded whether a successor
 // names it, unruledDocket whether a docket motion on it stands unruled, moved whether its grade
