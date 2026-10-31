@@ -149,7 +149,7 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
 // like the other three, and a prompt nothing pins is a prompt whose clauses can move unobserved.
 test('the petition sitting prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([petitionBench()], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const call = world.calls.find((c) => c.opts.label.startsWith('judge · petition'))
@@ -161,7 +161,7 @@ test('the petition sitting prompt carries exactly its recorded contract', async 
 // THE POSITION SITTING fires only when a plan convenes it, so the full run never reaches it either.
 test('the position sitting prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([positionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('A-00000001', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([positionBench()], { blockers: [blocker('A-00000001', 'judge')] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const call = world.calls.find((c) => c.opts.label.startsWith('judge · position'))

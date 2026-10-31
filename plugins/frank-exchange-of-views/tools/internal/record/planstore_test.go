@@ -290,8 +290,8 @@ func TestThePlanKeyLeavesOutOnlyWhatTheAskingSittingSays(t *testing.T) {
 			unkeyed = append(unkeyed, f.JSON)
 		}
 	}
-	if strings.Join(unkeyed, ",") != "epoch,final_sitting,verdict" {
-		t.Fatalf("the key leaves out %v, want epoch, final_sitting and verdict", unkeyed)
+	if strings.Join(unkeyed, ",") != "epoch,final_sitting,halted,verdict" {
+		t.Fatalf("the key leaves out %v, want epoch, final_sitting, halted and verdict", unkeyed)
 	}
 	base := Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
 		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}}.WithKey()

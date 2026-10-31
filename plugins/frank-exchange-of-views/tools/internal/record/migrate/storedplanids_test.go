@@ -274,7 +274,7 @@ func TestAStoredPlanCrossesARenumbering(t *testing.T) {
 	translated := 0
 	for i := range srcPlans {
 		s, d := srcPlans[i], dstPlans[i]
-		s.printed = kindsTranslated(t, s.printed)
+		s.printed = haltedCarried(t, kindsTranslated(t, s.printed), d.printed)
 		if !same(s.at, d.at) {
 			t.Errorf("plan %d: the migrated plan event %d is not the source's %d", i, d.at, s.at)
 		}

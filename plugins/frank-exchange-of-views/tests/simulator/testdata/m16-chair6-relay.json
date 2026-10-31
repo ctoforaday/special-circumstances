@@ -59,6 +59,7 @@
     "epoch": 6,
     "final_sitting": false,
     "epoch_limit_reached": false,
+    "halted": false,
     "why": [
       "gap G14 is open and material",
       "gap G15 is open and material",

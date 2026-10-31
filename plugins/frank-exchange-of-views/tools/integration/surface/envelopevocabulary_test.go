@@ -56,10 +56,10 @@ func everyEnvelopeKey(t *testing.T) map[string]bool {
 			keys[k] = true
 		}
 	}
-	// The plan is the chair's envelope and a halt is the bench's: a walk that reaches neither read no
+	// The plan is the chair's envelope and open_gaps the assembly's: a walk that reaches neither read no
 	// schema, and every key would then be "undeclared" or "absent".
-	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["halt"] {
-		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the bench's halt — this is measuring nothing", schemas, len(keys))
+	if schemas == 0 || !keys["parties"] || !keys["verdict"] || !keys["open_gaps"] {
+		t.Fatalf("the drive read %d schema(s) declaring %d key(s), without the chair's plan or the assembly's envelope — this is measuring nothing", schemas, len(keys))
 	}
 	return keys
 }
@@ -77,6 +77,8 @@ var recordCarried = map[string]string{
 	"dispositions":            "a docket ruling is a motion ruling on the record, and every seat's work list carries what a closing ruling settled and what would reopen it",
 	"settled":                 "a docket ruling's settled proposition is on the ruling, and every seat's work list carries it",
 	"infra_debts":             "a defect_owed_elsewhere ruling is on the record, and the judgments render it",
+	"halt":                    "a halt is a halt event on the record, and the chair's plan says halted",
+	"halt_opinion":            "a halt's opinion is on its halt event, and the debate document carries it",
 }
 
 // NO ENVELOPE RESTATES A FACT THE RECORD CARRIES. The petition channel was an envelope field

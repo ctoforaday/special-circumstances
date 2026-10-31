@@ -72,6 +72,7 @@
   "epoch": 3,
   "final_sitting": false,
   "epoch_limit_reached": false,
+  "halted": false,
   "blockers": [
    {
     "kind": "material_gap",
@@ -221,6 +222,7 @@
      "epoch": 3,
      "final_sitting": false,
      "epoch_limit_reached": false,
+     "halted": false,
      "blockers": [],
      "why": [
       "red-lens-adversary: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",

@@ -106,3 +106,81 @@ func TestAPetitionALensFilesConvenesTheBench(t *testing.T) {
 		t.Errorf("the ruled petition %s still blocks: %+v", id, plan.Blockers)
 	}
 }
+
+// A PETITION IS HEARD ALONE, AND THE ENGINE LEARNS OF A HALT FROM THE NEXT PLAN. The engine reads the
+// record only through the chair's plan; the #1663 smoke's terminal judge returned "Not halted" in an
+// envelope's halt field and the engine stamped HALTED over a record with no halt. The plan that
+// convenes the bench for a petition readies nobody else, so the plan after its ruling — `halted` where
+// the bench halted the run, and nobody dispatched — is read before any other party sits.
+func TestAPetitionIsHeardAloneAndAHaltEndsDispatch(t *testing.T) {
+	plan := func(runDir string) record.Plan {
+		t.Helper()
+		out, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
+		if err != nil {
+			t.Fatalf("dispatch next: %v\n%s", err, out)
+		}
+		return planOf(t, out)
+	}
+	act := func(runDir string, args ...string) {
+		t.Helper()
+		if out, err := run(t, append(args, "--run", runDir)...); err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+	}
+	file := func(runDir string) string {
+		t.Helper()
+		out, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-lens-evidence", "--json",
+			"--class", "safety", "--relief", "stop and review", "--reason", "the report instructs a hazardous procedure")
+		if err != nil {
+			t.Fatalf("petition file: %v\n%s", err, out)
+		}
+		var filed struct {
+			Result struct {
+				MotionID string `json:"motion_id"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.MotionID == "" {
+			t.Fatalf("the filing names no motion id: %v\n%s", err, out)
+		}
+		return filed.Result.MotionID
+	}
+	readies := func(p record.Plan, seat string) bool {
+		return slices.ContainsFunc(p.Parties, func(x record.Party) bool { return x.SeatID == seat })
+	}
+
+	for _, halts := range []bool{false, true} {
+		runDir := newRun(t)
+		stageEvents(t, runDir)
+		if before := plan(runDir); !readies(before, "blue-respond") {
+			t.Fatalf("precondition: the staged board readies blue on its open gap: %+v", before.Parties)
+		}
+		id := file(runDir)
+		act(runDir, "register", "--seat-id", "red-chair")
+		heard := plan(runDir)
+		if len(heard.Parties) != 1 || heard.Parties[0].SeatID != "judge" || !slices.Equal(heard.Parties[0].Occasions, []string{"petition"}) {
+			t.Fatalf("the plan convening the bench for %s readies %+v, want the bench alone, convened for the petition", id, heard.Parties)
+		}
+		if !slices.ContainsFunc(heard.Why, func(w string) bool { return strings.Contains(w, "the bench hears the petition alone this epoch") }) {
+			t.Errorf("the plan does not say why the parties the board readies wait: %q", heard.Why)
+		}
+		if heard.Halted {
+			t.Fatal("a plan with no halt on the record says halted")
+		}
+		act(runDir, "register", "--seat-id", "judge", "--occasion", "petition")
+		act(runDir, "motion", "petition", "rule", "--seat-id", "judge", "--id", id, "--as", "denied", "--reason", "the procedure is described, not instructed")
+		if halts {
+			act(runDir, "halt", "--seat-id", "judge", "--reason", "continuing would itself be the harm")
+		}
+		act(runDir, "register", "--seat-id", "red-chair")
+		after := plan(runDir)
+		if after.Halted != halts {
+			t.Errorf("halted = %v after a petition sitting that halted = %v", after.Halted, halts)
+		}
+		if halts && (len(after.Parties) != 0 || !slices.Contains(after.Why, "a halt is on the record: the bench ended the run, and nobody is dispatched")) {
+			t.Errorf("a halted record readies %+v, why %q", after.Parties, after.Why)
+		}
+		if !halts && !readies(after, "blue-respond") {
+			t.Errorf("after a denial with no halt the parties the board readies do not sit: %+v", after.Parties)
+		}
+	}
+}

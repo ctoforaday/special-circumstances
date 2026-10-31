@@ -119,6 +119,29 @@ var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
 // front of it, going back to the prompt head to work out what the sitting had been.
 var occasionRe = regexp.MustCompile(`OCCASION:\s*([a-z_]+)`)
 
+// stampRe reads the outcome the assembly prompt tells the bench to stamp. A real bench stamps what the
+// record derives and relays the verdict `bench assemble` prints; a harness with no record stands in
+// for one by relaying the word it was told, and a backend that cans another verdict is the record
+// stamping something else (the terminal sitting's halt).
+var stampRe = regexp.MustCompile(`STAMP HOW THIS RUN ENDED: it is ([A-Z]+)`)
+
+// withStamp is env as the assembly sitting returns it: with the verdict a backend canned, or else
+// the one the prompt names.
+func withStamp(env Envelope, prompt string) Envelope {
+	if _, canned := env["verdict"]; canned {
+		return env
+	}
+	m := stampRe.FindStringSubmatch(prompt)
+	if m == nil {
+		return env
+	}
+	out := Envelope{"verdict": m[1]}
+	for k, v := range env {
+		out[k] = v
+	}
+	return out
+}
+
 // OccasionOf reads what a sitting was convened to do out of the prompt it was given, for a backend
 // that is handed the prompt rather than the Dispatch. Empty when the prompt names none, which is
 // every seat but the bench.
@@ -219,13 +242,11 @@ type Config struct {
 // behaviours it wants to check, drives the real loop under each, and reads what it actually
 // decided. Nothing here restates a rule; every field is a value debate.js computed.
 type Outcome struct {
-	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED. debate.js
-	// composes it from halted / red's verdict / the ceiling arm.
+	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED — the verdict the
+	// assembly sitting relays as `bench assemble` printed it stamped.
 	Verdict string
 	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).
 	Epochs int
-	// Halted is the judicial-halt terminator; false at every other exit.
-	Halted bool
 	// GapsOutstanding is the board's open count as debate.js reports it — the assemble
 	// seat's open_gaps where that seat returned an integer, red's docket length otherwise.
 	// It is the field the historic UNVERIFIED-with-nothing-open defect was visible in.
@@ -458,6 +479,9 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 				}
 				got = append(got, d)
 				env := cfg.Backend(d.SeatID, d.Label, d.Prompt)
+				if d.Occasion == "assemble" {
+					env = withStamp(env, d.Prompt)
+				}
 				p, resolve, _ := vm.NewPromise()
 				resolve(vm.ToValue(map[string]any(env)))
 				return vm.ToValue(p)
@@ -533,7 +557,6 @@ func readResult(vm *goja.Runtime) (*Outcome, string) {
 	return &Outcome{
 		Verdict:         verdict,
 		Epochs:          asInt(m["epochs"]),
-		Halted:          asBool(m["halted"]),
 		GapsOutstanding: asInt(m["gaps_outstanding"]),
 	}, ""
 }
@@ -551,8 +574,6 @@ func asInt(v any) int {
 	}
 	return 0
 }
-
-func asBool(v any) bool { b, _ := v.(bool); return b }
 
 // optStr reads a string option, returning "" for absent/undefined/null so an unset opt and an empty
 // one are the same to the caller — which they are: both dispatch under the default.

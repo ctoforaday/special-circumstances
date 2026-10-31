@@ -35,7 +35,7 @@ type move struct {
 	ceiling bool
 	// stall: nobody is ready and neither PASS nor CEILING holds → UNVERIFIED.
 	stall bool
-	// halt: the chair petitions and the bench halts the run.
+	// halt: the record holds a halt — the bench ended the run — and the plan says halted.
 	halt bool
 }
 
@@ -123,7 +123,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 		maxEpochs = 1
 	}
 	return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
-		"max_epochs": maxEpochs, "epoch": 1, "final_sitting": false, "epoch_limit_reached": ceiling, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers})
+		"max_epochs": maxEpochs, "epoch": 1, "final_sitting": false, "epoch_limit_reached": ceiling, "halted": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers})
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {
@@ -159,10 +159,10 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
 				e.Relay(p)
 			case m.halt:
-				engaged = []any{"G1"}
-				// A petition on the record convenes the bench, through the plan; the halt is its ruling.
-				p := plan([]any{party("blue-respond", "G1"), map[string]any{"seat_id": "judge", "gap_ids": []any{}, "occasions": []any{"petition"}}}, false, false, nil, "engaged")
-				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
+				// THE ENGINE LEARNS OF A HALT FROM THE PLAN: a halted record readies nobody.
+				p := plan([]any{}, false, false, nil, "a halt is on the record: the bench ended the run, and nobody is dispatched")
+				p["halted"] = true
+				p["blockers"] = []any{map[string]any{"kind": "material_gap", "subject": "G1", "owner": "red-lens-evidence"}}
 				e.Relay(p)
 			case m.bench:
 				b.raised["G1"] = true
@@ -184,16 +184,6 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			// blue's to answer this sitting; whether the record would ever engage it is the record's
 			// question, and this test's is only that the loop settles on every schedule.
 			e["manifest"] = engaged
-		case strings.Contains(label, "· petition"):
-			e["rulings"] = []any{map[string]any{"class": "safety", "ruling": "denied", "opinion": "no"}}
-			if lastMove.halt {
-				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
-			}
-		// The position sitting's envelope carries only a halt.
-		case strings.Contains(label, "· position"):
-			if lastMove.halt {
-				e["halt"] = map[string]any{"opinion": "the run is halted for the schedule under test"}
-			}
 		// ROUTE THE BENCH ON THE QUESTION, NOT THE SEAT. One seat heads five sittings' labels, so
 		// a seat-id switch sends the assembly down the docket-ruling arm and open_gaps is never
 		// set — the run then reports 0 outstanding over a board holding 1. The question is in the
@@ -304,9 +294,6 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 		if out.Verdict != want {
 			t.Errorf("%s: verdict %q, want %q (terminating move %s)", name, out.Verdict, want, term.name)
 		}
-		if out.Halted != term.halt {
-			t.Errorf("%s: halted=%v, want %v", name, out.Halted, term.halt)
-		}
 		if out.Epochs != sittings {
 			t.Errorf("%s: %d chair sitting(s), want %d — the loop ran on past the record's word, or stopped before it", name, out.Epochs, sittings)
 		}
@@ -314,8 +301,7 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 			t.Errorf("%s: UNVERIFIED with %d gap(s) outstanding, the board holds %d open", name, out.GapsOutstanding, b.open())
 		}
 		// NOBODY SITS AFTER TERMINATION but the bookends: the last debate seat dispatched is the
-		// terminating chair sitting (or the petition sitting that halted), then judge-terminal /
-		// assemble only.
+		// terminating chair sitting, then judge-terminal / assemble only.
 		lastChair := -1
 		for i, d := range ds {
 			if d.SeatID == "red-chair" {
@@ -330,8 +316,6 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 			// three ids. What it still catches is the substantive half: a lens, a lane, blue or
 			// the chair sitting after the chair has terminated.
 			case d.SeatID == "judge":
-			case term.halt && d.SeatID == "blue-respond":
-				t.Errorf("%s: blue sat after the halt", name)
 			default:
 				t.Errorf("%s: %s sat after the terminating chair sitting", name, d.SeatID)
 			}

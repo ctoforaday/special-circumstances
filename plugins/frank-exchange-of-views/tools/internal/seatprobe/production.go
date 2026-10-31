@@ -60,7 +60,7 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 			blockers = debatejs.HeldBy(parties)
 		}
 		return debatejs.WithKey(map[string]any{"head": 2, "parties": parties, "docket": dk, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": false,
-			"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}, "blockers": blockers})
+			"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "halted": false, "why": []any{"seatprobe capture"}, "stale_areas": []any{}, "blockers": blockers})
 	}
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{

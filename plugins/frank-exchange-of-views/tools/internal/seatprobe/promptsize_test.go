@@ -126,9 +126,16 @@ import (
 // computation — its program, and the bundle run once with this computation's output compared — 10
 // characters more on the paragraph every lens receives, which this ruling's 10,614 had no room for.
 // red-lens-evidence rises to its measured size, 10,616; the other ceilings hold.
+//
+// Raised 2026-10-31 for the halt read from the record (#1663 smoke, D4): a halt reaches the engine
+// as the plan's halted, never as an envelope, so the chair's sentence on what an empty plan means
+// names it beside pass_permitted and ceiling — "; with halted the bench ended it", 32 characters. A
+// list of the reasons a plan is empty that leaves one out reads a halted run as a fault; the field's
+// account is the dispatch page's. red-chair had 4 characters of headroom and rises to its measured
+// size, 6,328; the other ceilings hold.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
-	"red-chair":         6300,
+	"red-chair":         6328,
 	"red-lens-evidence": 10616,
 	"judge":             6057,
 }

@@ -80,10 +80,12 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
 		}, want{benchSeat, false, nil, nil, "and the bench has sat since it was filed — not re-readied"}},
-		{"a docket and a petition at once: one bench, both occasions", func(b *stage) {
+		// A PETITION IS HEARD ALONE: the docket the board also readies the bench for waits for the plan
+		// after its ruling, which says whether the bench halted the run.
+		{"a docket and a petition at once: the bench hears the petition alone", func(b *stage) {
 			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
 				add(outsideLens, petitionMotion("M2"))
-		}, want{benchSeat, true, []string{occasionDocket, occasionPetition}, []string{"G1"}, "M2: petition, unruled — the bench is ready to hear it"}},
+		}, want{benchSeat, true, []string{occasionPetition}, nil, "the bench hears the petition alone this epoch"}},
 		// ONE ROW, TWO SITTINGS, AND THE PETITION SITTING ANSWERS NO DOCKET. The bench convened for
 		// both sits to hear the petition first; its docket sitting never comes. Keyed on the first
 		// register after the row, the petition sitting read as the docket's and the docket was never

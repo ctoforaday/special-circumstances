@@ -78,6 +78,12 @@ func recordHasAt(db recordsql.Querier, q string, args ...any) (bool, error) {
 	return queryRowAt(db, []any{&one}, q, args...)
 }
 
+// HaltedAt reports whether the record q reads holds a halt: the bench ended the run. The plan's
+// `halted` is this, and migrate carries it onto a stored plan written before the plan held the field.
+func HaltedAt(q recordsql.Querier) (bool, error) {
+	return recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
+}
+
 // BoardCounts is the board in two numbers, read from the board_counts view rather than folded —
 // the site plans/record-sqlite.md names at view.go's headline count. A run with no record yet is
 // an empty board: 0 and 0.

@@ -1029,22 +1029,18 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 }
 
-// closingsOwedBy is the gaps this epoch's plan says seatID owes a closing on: the plan's
-// closing_owed blockers it owns (record/closingowed.go) — read off the plan, as the workflow reads
-// them, never off the docket the chair's sitting filed.
+// closingsOwedBy is the gaps seatID owes a closing on as its work list names them when it sits: the
+// record's closing_owed blockers it owns (record/closingowed.go). The dispatch names none — the plan
+// is read at the epoch's start, and a lens that closes a gap before blue sits ends the duty.
 func (r *runner) closingsOwedBy(seatID string) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	bs, err := record.PassBlockers(r.runHandle)
+	if err != nil {
 		return out
 	}
-	bs, _ := r.planThisSitting["blockers"].([]any)
 	for _, b := range bs {
-		m, _ := b.(map[string]any)
-		if record.BlockerKind(fmt.Sprint(m["kind"])) != record.BlockerClosingOwed || fmt.Sprint(m["owner"]) != seatID {
-			continue
-		}
-		if g, ok := m["subject"].(string); ok {
-			out = append(out, g)
+		if b.Kind == record.BlockerClosingOwed && b.Owner == seatID {
+			out = append(out, b.Subject)
 		}
 	}
 	return out
@@ -1616,23 +1612,16 @@ func (r *runner) petitionsFiledN() int {
 	return len(r.petitionsFiled)
 }
 
-// rulePetitions is the petition sitting: it rules on every pending petition and returns the
-// envelope rulings, clearing the docket. petition-rule takes only granted|denied (a halt is its
-// OWN verb), so a forceHalt run emits `bench halt` and returns a halt ruling — the dedicated
-// halt-path test; the random path rules granted/denied and the run continues.
+// rulePetitions is the petition sitting: it rules on every pending petition, clearing the docket,
+// and returns the empty envelope. petition-rule takes only granted|denied (a halt is its OWN verb), so
+// a forceHalt run records `bench halt` — the dedicated halt-path test — and the engine reads the halt
+// off the next plan; the random path rules granted/denied and the run continues.
 func (r *runner) rulePetitions(seatID string) map[string]any {
 	r.rulePending(seatID, "petition")
-	env := map[string]any{}
 	if r.forceHalt {
-		// `bench halt` writes the record; the envelope's halt object is only what stops the
-		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
-		// that told a real judge to record a halt through petition-rule, where the enum refuses
-		// it. The fuzz stayed green over a production path that could not work.
-		haltOpinion := "fuzz judicial halt — safety boundary"
-		r.admit("halt", "--seat-id", seatID, "--reason", haltOpinion)
-		env["halt"] = map[string]any{"opinion": haltOpinion}
+		r.admit("halt", "--seat-id", seatID, "--reason", "fuzz judicial halt — safety boundary")
 	}
-	return env
+	return map[string]any{}
 }
 
 // rulePending rules every pending petition at the bench sitting of the given occasion — the
@@ -1731,12 +1720,12 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
+		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "halted": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	// THE MACHINE FORM IS THE PLAN ALONE, copied whole into the envelope as a live chair copies it.
 	var plan map[string]any
 	if err := json.Unmarshal([]byte(out), &plan); err != nil || plan == nil {
-		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
+		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "halted": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -5018,7 +5007,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if r.forceUnverified {
 			r.envelopeRefusedEarly(seatID, "motion ")
 		}
-		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
+		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events)
 
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
@@ -5134,7 +5123,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// every fuzzed run failed on the missing assembly.
 		r.admit("assemble", "--seat-id", "judge")
 		open := len(r.openGaps())
-		return map[string]any{"open_gaps": open}
+		// THE VERDICT RELAYED IS THE ONE THE RECORD STAMPED, as `bench assemble` prints it. Where the
+		// outcome was refused nothing is relayed, and the harness relays the word the prompt named.
+		env := map[string]any{"open_gaps": open}
+		if word, err := record.RecordedOutcome(r.run()); err == nil && word != "" {
+			env["verdict"] = strings.ToUpper(word)
+		}
+		return env
 
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
@@ -6351,7 +6346,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "pass_permitted oracle: the plan permitted a PASS while " + r.passOverAnotherSeat + " stood, and the gate refused it: " + r.lastPassRefusal
 		return res
 	}
-	halted, _ := result["halted"].(bool)
+	halted := result["verdict"] == "HALTED"
 	if o := r.petitionOracle(halted); o != "" {
 		res.err = o
 		return res
@@ -7292,8 +7287,8 @@ var coverExempt = map[string]bool{
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
 // halt ends the run and reshapes every downstream oracle. blue-synthesize files a petition
-// (forceHalt guarantees it); the judge-petition sitting rules HALT via the `halt` verb; debate.js
-// sets halted, breaks the loop, and the run ends HALTED. Asserts: the run settles as HALTED, a
+// (forceHalt guarantees it); the judge-petition sitting rules HALT via the `halt` verb; the next plan
+// says halted, debate.js breaks the loop, and the run ends HALTED. Asserts: the run settles as HALTED, a
 // halt event is on the record, and the halted run STILL passes verify (a safety exit is a valid
 // record, not a broken one). This is the dedicated coverage for `halt`, which the sweep exempts.
 func TestFuzzHaltPath(t *testing.T) {
@@ -7332,9 +7327,6 @@ func TestFuzzHaltPath(t *testing.T) {
 	}
 	if v, _ := result["verdict"].(string); v != "HALTED" {
 		t.Fatalf("expected verdict HALTED, got %q", v)
-	}
-	if h, _ := result["halted"].(bool); !h {
-		t.Fatal("forceHalt run did not end halted — the judicial-halt terminal path is unexercised")
 	}
 	board, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {

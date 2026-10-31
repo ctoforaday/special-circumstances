@@ -88,7 +88,7 @@ const heldBy = (parties) => parties.flatMap((p) => (p.gap_ids.length ? p.gap_ids
 // every field. A stub's epoch is its own fixed 1 whatever sitting relays it, so the key a stub carries
 // is the same in two sittings exactly when the record's would be. A test that states a key keeps it.
 export const withKey = (p) => ({ key: createHash('sha256').update(JSON.stringify({ ...p, key: undefined })).digest('hex').slice(0, 16), ...p })
-export const plan = (parties = [], over = {}) => withKey({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
+export const plan = (parties = [], over = {}) => withKey({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, halted: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 // ceilingPlan is the plan at the run's epoch limit relayed in the first sitting: the one ceiling the
 // record states.
@@ -101,8 +101,8 @@ export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-// The docket sitting's envelope declares no field, and a petition sitting's carries only a halt: the
-// rulings are on the record, and no envelope relays one.
+// The docket, petition, position and terminal sittings' envelopes declare no field: the rulings and a
+// halt are on the record, and no envelope relays one.
 export const judgeEnv = (over = {}) => ({ ...over })
 export const petitionRulingEnv = (over = {}) => ({ ...over })
 // makeResponder serves envelopes by seat, in order; the last one repeats. A lens returns its empty
@@ -120,7 +120,15 @@ export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judg
     if (label.startsWith('red-chair')) return take(chair)
     if (/^judge · petition/.test(label)) return take(petition)
     if (/^judge · position/.test(label)) return take(position)
-    if (/^judge · assemble/.test(label)) return take(assemble)
+    // THE ASSEMBLY SITTING RELAYS THE VERDICT `bench assemble` PRINTS IT STAMPED. This world's record
+    // agrees with the engine's read unless a test cans another verdict, so the stamp is the word the
+    // prompt names.
+    if (/^judge · assemble/.test(label)) {
+      const env = take(assemble)
+      if (!env || typeof env !== 'object' || 'verdict' in env) return env
+      const m = /STAMP HOW THIS RUN ENDED: it is ([A-Z]+)/.exec(prompt)
+      return { ...env, verdict: m ? m[1] : undefined }
+    }
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)
     if (label.startsWith('blue-respond')) return take(blueRespond)

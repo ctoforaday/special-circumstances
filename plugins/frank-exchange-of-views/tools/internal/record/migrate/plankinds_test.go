@@ -22,6 +22,18 @@ func kindsTranslated(t *testing.T, printed string) string {
 	return pl.GetPrinted()
 }
 
+// haltedCarried is a source plan as CarryPlanHalted leaves it, carrying the `halted` the migrated
+// plan prints — the record's fact at the plan's place — and re-keyed over the plan as printed.
+func haltedCarried(t *testing.T, src, migrated string) string {
+	t.Helper()
+	p, _, err := record.ReadPlan([]byte(src))
+	if err != nil {
+		t.Fatalf("a source plan does not read as a plan: %v", err)
+	}
+	p.Halted = dstHalted(t, migrated)
+	return p.WithKey().Printed()
+}
+
 // THE ARCHIVED BLOCKER KINDS ARE TRANSLATED, AND NOTHING ELSE IS (EventSchema 48). Four archives
 // store plans printing the kind `reopened` (m28, m30, 1565, m32): every one migrates printing
 // `unchecked` in its place, re-keyed, with no archived kind word left on any migrated plan, and each

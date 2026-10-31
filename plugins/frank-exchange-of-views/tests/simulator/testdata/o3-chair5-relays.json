@@ -97,6 +97,7 @@
   "epoch": 5,
   "final_sitting": false,
   "epoch_limit_reached": false,
+  "halted": false,
   "blockers": [
    {
     "kind": "material_gap",
@@ -287,6 +288,7 @@
       "epoch": 5,
       "final_sitting": false,
       "epoch_limit_reached": false,
+      "halted": false,
       "blockers": [
        {
         "kind": "material_gap",
@@ -480,6 +482,7 @@
       "epoch": 5,
       "final_sitting": false,
       "epoch_limit_reached": false,
+      "halted": false,
       "blockers": [
        {
         "kind": "material_gap",
@@ -580,6 +583,7 @@
      "epoch": 5,
      "final_sitting": false,
      "epoch_limit_reached": false,
+     "halted": false,
      "blockers": [],
      "why": [],
      "pass_permitted": false

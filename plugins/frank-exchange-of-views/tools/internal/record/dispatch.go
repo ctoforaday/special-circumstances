@@ -21,12 +21,12 @@ type Party struct {
 	SeatID string   `json:"seat_id"`
 	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition or a position alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
-	// (the gap_ids, after blue sits), `petition` (the unruled petitions, before any party sits) and
-	// `position` (the chair's position on a PASS it withheld, before any party sits).
+	// (the gap_ids, after blue sits), `petition` (the unruled petitions, heard alone in the epoch) and
+	// `position` (the chair's position on a PASS it withheld, heard alone likewise).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
 	// the workflow routes on it — never on an empty gap list. Every other seat has no occasion, and
 	// the field is absent.
-	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (before any other party sits), position (the chair's position on a PASS it withheld, before any other party sits), docket (its gap_ids, after blue)"`
+	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (heard alone: no other party sits in its epoch), position (the chair's position on a PASS it withheld, heard alone likewise), docket (its gap_ids, after blue)"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -73,7 +73,7 @@ type Plan struct {
 	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
-	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting and verdict"`
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch, final_sitting, halted and verdict"`
 	// Head is the events.id of the latest blue_edit or report_part — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -138,6 +138,13 @@ type Plan struct {
 	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
 	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
+	// Halted: a halt is on the record — the bench ended the run — and nobody is dispatched. THE ENGINE
+	// LEARNS OF A HALT HERE, from the record, and from nothing a seat returns: a terminal judge that
+	// returned "Not halted" in an envelope's halt field stamped a run HALTED whose record held no halt
+	// (#1663 smoke). A petition or a position is heard by the bench alone in its epoch, so the plan
+	// after its ruling says whether it halted before any other party sits. A halted plan ends the
+	// debate and is never compared with another, so the key leaves it out.
+	Halted bool `json:"halted" key:"-" desc:"a halt is on the record: the bench ended the run, and nobody is dispatched"`
 	// Verdict is the verdict the chair recorded in the sitting that asked, absent while it has
 	// recorded none (chairVerdictOf). THE WORKFLOW ENDS THE DEBATE ON THIS FIELD, and the chair's
 	// envelope is this plan: the verdict reaches the engine as the record's fact, never as the
@@ -252,6 +259,7 @@ var errNoCast = errors.New("the record holds no cast. setup writes the run's adm
 // planReads is every answer the dispatch plan takes off the record, read on one snapshot
 // (planReadsAt) and folded after it closes (foldPlan).
 type planReads struct {
+	halted  bool
 	cast    []string
 	head    int64
 	evs     []*Event
@@ -267,6 +275,9 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 	var r planReads
 	var err error
 	if r.cast, err = castAt(q); err != nil || r.cast == nil {
+		return r, err
+	}
+	if r.halted, err = HaltedAt(q); err != nil {
 		return r, err
 	}
 	if r.head, err = reportHeadAt(q); err != nil {
@@ -592,6 +603,21 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 	}
 	plan.PassPermitted = plan.Head > 0 && len(plan.Parties) == 0 && chairOnly
+	// A HALT ENDS DISPATCH, AND A PETITION OR A POSITION IS HEARD ALONE. The engine reads the record only
+	// through this plan, so it learns that the bench halted the run at the first plan after the halt:
+	// a halted record readies nobody. The bench's petition and position sittings are where a halt can
+	// come mid-run, so the plan that convenes one readies nobody else — the parties the board readies
+	// sit at the plan after its ruling, which a halt has emptied.
+	if r.halted {
+		plan.Halted = true
+		plan.Parties = []Party{}
+		plan.Why = append(plan.Why, "a halt is on the record: the bench ended the run, and nobody is dispatched")
+	} else if hearing, others := benchHearing(plan.Parties); hearing != nil {
+		plan.Parties = []Party{*hearing}
+		if others {
+			plan.Why = append(plan.Why, fmt.Sprintf("the bench hears the %s alone this epoch — a halt it records ends the run before any other party sits, so the parties the board readies above sit at the plan after its ruling", strings.Join(hearing.Occasions, " and ")))
+		}
+	}
 	// THE EPOCH LIMIT IS A TERM OF THE RUN, read like k and kMax. The chair sitting that opens the
 	// last epoch dispatches nobody: the parties the board readies stay undispatched and the run
 	// ends CEILING. A board that permits PASS there readied nobody, so it is not at the limit and
@@ -616,6 +642,28 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 	}
 	return plan
+}
+
+// benchHearing is the bench's party for the petitions and positions it is convened to hear, its gaps
+// and every other occasion left for a later plan, or nil where it is convened for neither; others
+// reports whether the plan readied anyone, or anything, besides.
+func benchHearing(parties []Party) (*Party, bool) {
+	for _, p := range parties {
+		if p.SeatID != benchSeat {
+			continue
+		}
+		var heard []string
+		for _, o := range p.Occasions {
+			if o == occasionPetition || o == occasionPosition {
+				heard = append(heard, o)
+			}
+		}
+		if len(heard) == 0 {
+			return nil, false
+		}
+		return &Party{SeatID: benchSeat, GapIDs: []string{}, Occasions: heard}, len(parties) > 1 || len(heard) < len(p.Occasions)
+	}
+	return nil, false
 }
 
 // isFinalEpoch reports whether epoch is the run's last under its epoch limit: the chair sitting that
@@ -1115,6 +1163,20 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 			}
 			last[d.seat] = d
 		}
+		// A PARTY THE SITTING'S LAST PLAN NO LONGER NAMES IS NOT DISPATCHED. A chair that asks again
+		// after a motion it filed can be handed a plan readying fewer parties — a petition is heard by
+		// the bench alone (benchHearing) — and the rows its first asking wrote stand on the record.
+		// The dispatch is the plan the chair relays, the one stored last before anybody sits; a row
+		// written before it, for a seat it does not name, was superseded by it.
+		if named, at, ok := lastPlanOfSitting(evs, win, g.Last); ok {
+			g.Parties = slices.DeleteFunc(g.Parties, func(seat string) bool {
+				if !named[seat] && int(last[seat].at) < at {
+					delete(last, seat)
+					return true
+				}
+				return false
+			})
+		}
 		for p, d := range last {
 			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
 			if r, ok := benchRowSitting(openings[p], on, d); ok {
@@ -1123,6 +1185,34 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 		}
 	}
 	return groups
+}
+
+// lastPlanOfSitting is the parties of the plan stored last after position from, before any sitting
+// opens — the chair sitting's own last asking — with its position; ok is false where none was stored
+// there.
+func lastPlanOfSitting(evs []*Event, win WindowIndex, from int) (map[string]bool, int, bool) {
+	var printed string
+	at := -1
+	for i := from + 1; i < len(evs); i++ {
+		if _, opens := win.Opens(evs[i]); opens {
+			break
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.Plan](evs[i]); ok {
+			printed, at = b.GetPrinted(), i
+		}
+	}
+	if at < 0 {
+		return nil, 0, false
+	}
+	p, _, err := ReadPlan([]byte(printed))
+	if err != nil {
+		return nil, 0, false
+	}
+	named := map[string]bool{}
+	for _, q := range p.Parties {
+		named[q.SeatID] = true
+	}
+	return named, at, true
 }
 
 // openedBetween reports whether any of the ascending openings falls strictly between a and b.

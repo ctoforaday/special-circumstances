@@ -3,6 +3,7 @@ package migrate_test
 import (
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -76,7 +77,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows, carried, identical, verdicts := 0, 0, 0, 0
+	rows, carried, identical, verdicts, halteds := 0, 0, 0, 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
@@ -90,6 +91,18 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		}
 		for i := range srcPlans {
 			s, d := kindsTranslated(t, srcPlans[i].printed), dstPlans[i].printed
+			// CarryPlanHalted adds `halted`, read off the record at the plan's place, and re-keys the plan:
+			// the key is taken over the plan as printed, which the archive printed without it.
+			rekeyed := false
+			if !strings.Contains(s, `"halted":`) {
+				rekeyed = true
+				h := `,"halted":` + strconv.FormatBool(dstHalted(t, dstPlans[i].printed)) + ``
+				if !strings.Contains(d, h) {
+					t.Errorf("%s: stored plan %d migrated without its halted: %s", name, i, d)
+				}
+				d = strings.Replace(d, h, "", 1)
+				halteds++
+			}
 			if !strings.Contains(s, `"verdict":`) {
 				for _, w := range []string{"PASS", "FAIL"} {
 					if v := `,"verdict":"` + w + `"}`; strings.HasSuffix(d, v) {
@@ -117,7 +130,7 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 					t.Errorf("%s: stored plan %d changed %d to %d, though source event %d is event %d on the migrated record too — byte for byte where nothing a plan names moved", name, i, sn[k].n, dn[k].n, sn[k].n, sn[k].n)
 				}
 			}
-			if kept {
+			if kept && !rekeyed {
 				t.Errorf("%s: stored plan %d changed its key and no number — byte for byte where nothing a plan names moved", name, i)
 			}
 		}
@@ -138,10 +151,13 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	if identical == 0 {
 		t.Fatal("no stored plan migrated byte for byte — nothing here holds a plan whose events kept their numbers")
 	}
+	if halteds == 0 {
+		t.Error("no archived stored plan was carried a halted — CarryPlanHalted is tested by nothing")
+	}
 	if verdicts == 0 {
 		t.Fatal("no archived plan carries its sitting's verdict migrated — the verdict's translation is exercised by nothing")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) carried", rows, carried, identical, verdicts)
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried, %d byte for byte apart from %d verdict(s) and %d halted carried", rows, carried, identical, verdicts, halteds)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.
@@ -156,4 +172,14 @@ func TestADispatchRowsRemandOwedIsNotCarried(t *testing.T) {
 	if !ok || d.GetPin() != 4 || d.GetSeatId() != "blue-respond" || !slices.Equal(d.GetGapIds(), []string{"G-00000001"}) {
 		t.Fatalf("translated to %+v", bodies[0])
 	}
+}
+
+// dstHalted is the `halted` a migrated stored plan prints.
+func dstHalted(t *testing.T, printed string) bool {
+	t.Helper()
+	p, _, err := record.ReadPlan([]byte(printed))
+	if err != nil {
+		t.Fatalf("a migrated stored plan does not read as a plan: %v", err)
+	}
+	return p.Halted
 }
