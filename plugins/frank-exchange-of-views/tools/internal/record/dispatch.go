@@ -66,8 +66,9 @@ func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
 }
 
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
-// The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
-// The record stores it as printed (recordpb.Plan), and capture compares every relay with that.
+// The record stores it as printed (recordpb.Plan); the hook writes that into the chair's envelope
+// (ChairEnvelope); the workflow dispatches what it says; nothing in it is a seat's assertion. Capture
+// compares what the workflow received with what the record stored.
 type Plan struct {
 	// Key is the plan's identity: two plans carry one key when they decide the same — every field
 	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress

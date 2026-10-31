@@ -181,10 +181,10 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	if denied {
 		return nil
 	}
-	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record is asked whether it
-	// refuses it (refuseEnvelope). Nothing is injected into it, and it is no Bash call or Read.
+	// THE CALL THAT RETURNS A SEAT'S ENVELOPE ENDS ITS SITTING, so the record answers it
+	// (gateEnvelope). It is no Bash call or Read, and no run directory is injected into it.
 	if in.ToolName == envelopeTool {
-		refuseEnvelope(in, cwdOf(raw), stdout, rec)
+		gateEnvelope(in, cwdOf(raw), stdout, rec)
 		return nil
 	}
 	// The gate says which calls it acts on — every Bash call, and a Read of the report file — so
@@ -310,16 +310,18 @@ func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 // call it exactly once to end its work, and to call it again when the call is refused.
 const envelopeTool = "StructuredOutput"
 
-// refuseEnvelope denies the call returning a seat's envelope when the record refuses it
-// (record.EnvelopeRefusal, asked through the writer): a seat's sitting cannot end while a blocking
-// item on its own work list stands. The writer logs the refusal. An envelope it lets through is
-// admitted only once the call succeeds — by the PostToolUse hook (Post), after the harness has
-// checked the envelope against its schema.
+// gateEnvelope denies the call returning a seat's envelope when the record refuses it
+// (record.EnvelopeRefusal, record.ChairEnvelope, asked through the writer): a seat's sitting cannot
+// end while a blocking item on its own work list stands, and a chair's envelope carries no copy of the
+// plan. Where the record supplies the envelope, the call goes on carrying that instead: the workflow
+// script's only surface is a seat's envelope, so this is how the stored plan reaches it. The writer
+// logs a refusal. An envelope it lets through is admitted only once the call succeeds — by the
+// PostToolUse hook (Post), after the harness has checked the envelope against its schema.
 //
 // A CHECK THAT CANNOT RUN REFUSES THE ENVELOPE, naming the error (gblock's standing rule: an
 // unreadable record refuses). An envelope nothing checked is not admitted on the strength of the
 // check having failed. A call from no seat — no agent, no run — is no seat's envelope, and passes.
-func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
+func gateEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) {
 	caller := callerAgent(in)
 	agentID := caller.ID
 	if agentID == "" {
@@ -329,17 +331,27 @@ func refuseEnvelope(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfa
 	if runDir == "" {
 		return
 	}
-	refusal, err := envelopeRefusal(runDir, agentID)
+	answer, err := envelopeAnswer(runDir, agentID, in.ToolInput)
 	if err != nil {
 		rec.Fail(StageEnvelope, "a seat's envelope could not be checked against the record, and was refused: "+err.Error())
-		if refusal == "" {
-			refusal = envelopeReadRefusal(err)
+		if answer.Refusal == "" {
+			answer = sittinghook.EnvelopeAnswer{Refusal: envelopeReadRefusal(err)}
 		}
 	} else {
 		rec.OK(StageEnvelope)
 	}
-	if refusal != "" {
-		emitPreDeny(stdout, refusal)
+	switch {
+	case answer.Refusal != "":
+		emitPreDeny(stdout, answer.Refusal)
+	case answer.Envelope != nil:
+		emit(stdout, map[string]any{
+			"hookSpecificOutput": map[string]any{
+				"hookEventName":            "PreToolUse",
+				"permissionDecision":       "allow",
+				"permissionDecisionReason": "feov-record: the plan is written into the envelope by the engine, not copied by the seat",
+				"updatedInput":             answer.Envelope,
+			},
+		})
 	}
 }
 
@@ -350,8 +362,8 @@ func envelopeReadRefusal(err error) string {
 		". An envelope nothing checked is not admitted; return it again"
 }
 
-// envelopeRefusal is a variable for the reason recordLimit is.
-var envelopeRefusal = sittinghook.Envelope
+// envelopeAnswer is a variable for the reason recordLimit is.
+var envelopeAnswer = sittinghook.Envelope
 
 // recordLimit is a variable so the hook's handoff can be tested without a built writer on disk.
 var recordLimit = sittinghook.Limit

@@ -58,6 +58,10 @@ THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelop
 its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
 a blocking item on the seat's own work list stands, the call is denied naming each item, and the
 refusal is logged under the seat. A check that cannot run refuses the envelope naming the error. The
+CHAIR'S ENVELOPE CARRIES NO PLAN: the workflow script's only surface is a seat's envelope, so the hook
+replaces the chair's call with the plan the record stored last in its sitting (`updatedInput`, measured
+reaching a Workflow seat's result on 2.1.300), `notes` kept, and denies a call that carries a field of
+the plan or comes with no plan standing. The
 gate admits nothing: an envelope it lets through still faces the harness's schema check, which runs
 inside the tool's own call, after every PreToolUse hook. The admission is PostToolUse's.
 

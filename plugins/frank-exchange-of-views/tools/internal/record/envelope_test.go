@@ -390,7 +390,7 @@ func TestAnEnvelopeCheckThatCannotReadTheRecordFails(t *testing.T) {
 	if _, err := EnvelopeRefusal(run, benchSeat); err == nil || !strings.Contains(err.Error(), "not readable") {
 		t.Errorf("a missing record was not an error naming it: %v", err)
 	}
-	if _, _, err := AgentEnvelopeRefusal(run, "agent-x"); err == nil {
+	if _, _, err := AgentEnvelope(run, "agent-x", []byte(`{}`)); err == nil {
 		t.Error("an agent's envelope was checked against a missing record")
 	}
 }

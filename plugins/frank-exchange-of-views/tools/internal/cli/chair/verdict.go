@@ -48,7 +48,7 @@ func newVerdict() *cobra.Command {
 		// envelope is the plan, and the plan carries the verdict its sitting recorded; so the act
 		// records the verdict and asks the dispatch on the record it leaves, in one transaction
 		// (record.RecordVerdict, which stores the plan capture compares the relay with), and prints
-		// the plan as `dispatch next` does. The chair relays what the verdict printed.
+		// the plan as `dispatch next` does.
 		plan, standing, err := record.RecordVerdict(s.Identity(), v)
 		if err != nil {
 			return nil, err
@@ -69,7 +69,7 @@ func newVerdict() *cobra.Command {
 }
 
 // verdictResult is the verdict recorded and the plan the record now prints, which IS the --json
-// output (seat.Relayed): the machine form is the object the chair relays, as `dispatch next`'s is.
+// output (seat.PrintsBare), as `dispatch next`'s is.
 type verdictResult struct {
 	dispatched dispatchResult
 	verdict    string
@@ -78,8 +78,8 @@ type verdictResult struct {
 	checkpoint string
 }
 
-// Relay is the plan, carrying the verdict just recorded.
-func (r verdictResult) Relay() any { return r.dispatched.Relay() }
+// Bare is the plan, carrying the verdict just recorded.
+func (r verdictResult) Bare() any { return r.dispatched.Bare() }
 
 func (r verdictResult) Human() string {
 	return fmt.Sprintf("verdict %s (%d open, %d closed) and checkpointed to %s\n%s", r.verdict, r.open, r.closed, r.checkpoint, r.dispatched.Human())

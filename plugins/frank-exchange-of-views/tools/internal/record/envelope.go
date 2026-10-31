@@ -1,10 +1,12 @@
 package record
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -29,7 +31,8 @@ import (
 //
 // THE CHAIR'S BLOCKING ITEMS HOLD A PASS, NOT ITS SITTING (SittingJSON.HoldsPass): its verdict is
 // recorded in the one sitting the board permits it, and the PASS gate's blockers are cleared once the
-// plan permits a PASS. The verdict gate refuses on them, so its envelope is refused on none.
+// plan permits a PASS. The verdict gate refuses on them, so its envelope is refused on none. What
+// refuses the chair's envelope is ChairEnvelope.
 //
 // AN ENVELOPE WHOSE CHECK CANNOT RUN IS REFUSED, and the refusal names why (gblock's standing rule:
 // an unreadable record refuses). A missing record is unreadable: the seat asking is bound to a run.
@@ -61,19 +64,79 @@ func EnvelopeRefusal(run Run, seatID string) (string, error) {
 		len(owed), strings.Join(named, "; ")), nil
 }
 
-// AgentEnvelopeRefusal is EnvelopeRefusal for the seat the agent is bound to (SeatOfAgent), with that
-// seat; "" and no seat for an agent bound to none, which returns no seat's envelope. A run whose
-// record is absent cannot say whether the agent is a seat, so it is an error, not "no seat".
-func AgentEnvelopeRefusal(run Run, agentID string) (refusal, seatID string, err error) {
+// AgentEnvelope answers the call returning the envelope of the seat the agent is bound to
+// (SeatOfAgent), input being that call's arguments: its refusal, or for the chair the envelope the
+// call carries instead (ChairEnvelope). Neither, for a seat the record does not refuse, and for an
+// agent bound to no seat, which returns no seat's envelope. A run whose record is absent cannot say
+// whether the agent is a seat, so it is an error, not "no seat".
+func AgentEnvelope(run Run, agentID string, input []byte) (filled []byte, refusal string, err error) {
 	if err := recordPresent(run); err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 	seatID, found, err := SeatOfAgent(run, agentID)
 	if err != nil || !found {
-		return "", "", err
+		return nil, "", err
 	}
-	refusal, err = EnvelopeRefusal(run, seatID)
-	return refusal, seatID, err
+	if refusal, err = EnvelopeRefusal(run, seatID); err != nil || refusal != "" {
+		return nil, refusal, err
+	}
+	if seatID != chairSeat {
+		return nil, "", nil
+	}
+	return ChairEnvelope(run, input)
+}
+
+// chairNotes is the one field of the chair's envelope that is the chair's: its line to the operator.
+const chairNotes = "notes"
+
+// ChairEnvelope is the envelope the chair's call returns: the plan the record stored last in its
+// sitting, as the verb printed it, with the chair's `notes` beside it. The workflow script has no
+// surface but a seat's envelope, so the plan reaches it through this call; the PreToolUse hook writes
+// it there, and the harness then holds it to the envelope's schema.
+//
+// THE CHAIR COPIES NOTHING. A plan of 23 blockers reached the engine holding one (m37, epoch 4): a
+// model retyping 6.7 KB dropped 22 entries of one array and kept every other field, and every prompt
+// of that epoch lost the closing clause built from them. The turns that made that run's twelve copies
+// cost 52,509 output tokens. No comparison stands between a copy and the record, because there is no
+// copy.
+//
+// A PLAN FIELD IN THE ENVELOPE IS REFUSED, A FAITHFUL COPY'S INCLUDED: overwriting it would ignore what
+// the seat stated, and comparing it would keep the copy this exists to end. No plan standing in the
+// sitting is refused too: the envelope has nothing to carry, and the chair has an act to do.
+func ChairEnvelope(run Run, input []byte) (filled []byte, refusal string, err error) {
+	var stated map[string]json.RawMessage
+	if err := json.Unmarshal(input, &stated); err != nil || stated == nil {
+		return nil, "your envelope is refused: its arguments are no JSON object. Return it empty, or holding only `" + chairNotes + "`", nil
+	}
+	fam, err := FamilyOf(run)
+	if err != nil {
+		return nil, "", err
+	}
+	printed, stands := standingPlan(fam.Events, fam.At)
+	if !stands {
+		return nil, "your envelope is refused: no plan stands in this sitting, so there is nothing for it to carry. " +
+			"Ask the record who sits, then return your envelope", nil
+	}
+	var copied []string
+	for k := range stated {
+		if k != chairNotes {
+			copied = append(copied, "`"+k+"`")
+		}
+	}
+	if len(copied) > 0 {
+		slices.Sort(copied)
+		return nil, "your envelope is refused: it carries " + strings.Join(copied, ", ") + ", and the plan is not yours to copy. " +
+			"The tool writes the plan the record stored last in this sitting into the call. Return your envelope empty, or holding only `" + chairNotes + "`", nil
+	}
+	var plan map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(printed), &plan); err != nil {
+		return nil, "", fmt.Errorf("the stored plan does not read as an object: %w", err)
+	}
+	if notes, ok := stated[chairNotes]; ok {
+		plan[chairNotes] = notes
+	}
+	filled, err = json.Marshal(plan)
+	return filled, "", err
 }
 
 // recordPresent refuses a run whose record database is not there to read.

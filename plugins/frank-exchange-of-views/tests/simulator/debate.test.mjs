@@ -443,12 +443,12 @@ test('a petition standing at the exit: the terminal sitting rules it, and its ha
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────
 
-test('the chair runs the debate: relays the plan verbatim, mints nothing, closes nothing, owns the verdict', async () => {
+test('the chair runs the debate: copies no plan, mints nothing, closes nothing, owns the verdict', async () => {
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   await world.run(script, ARGS)
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
-  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Your envelope IS the object it prints, its fields copied VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked, and relay THAT plan; your verdict prints the plan you relay/.test(p))
+  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /COPY NONE OF IT/.test(p) && !/VERBATIM/.test(p) && /when you have filed or ruled a motion since you asked: the plan stored last is the one that goes/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))

@@ -1181,6 +1181,9 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Log(eitherReport(p))
 	t.Log(failReport(p))
 	t.Log(envelopeReport(p))
+	if p.Envelope["red-chair: its copy of the plan refused"] == 0 {
+		t.Error("no chair's copy of the plan was refused across the sweep: the drive that puts one to the record did not run")
+	}
 	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
 	// own for the reason #635 was filed about: a second test reading this package-level tally
 	// would run at whatever point its declaration order put it, and a gate that reads a tally

@@ -91,24 +91,40 @@ func Failure(runDir, agentID, text string) error {
 	return toolEntry(runDir, phaseFailure, agentID, text)
 }
 
-// Envelope asks the writer whether the record refuses the envelope the agent is returning, and
-// returns the refusal, "" when there is none. The PreToolUse hook denies the call with it.
+// Envelope asks the writer what the record answers the call returning the agent's envelope, input
+// being that call's arguments. The PreToolUse hook denies the call with the refusal, or replaces its
+// arguments with the envelope.
 //
-// THE WRITER'S STDOUT IS THE REFUSAL, kept even when the writer exits non-zero: it prints the
-// refusal before it logs it, so a failed log reaches the caller as the error beside a refusal that
-// still stands.
-func Envelope(runDir, agentID string) (string, error) {
+// THE WRITER'S STDOUT IS THE ANSWER, kept even when the writer exits non-zero: it prints a refusal
+// before it logs it, so a failed log reaches the caller as the error beside a refusal that still
+// stands.
+func Envelope(runDir, agentID string, input []byte) (EnvelopeAnswer, error) {
 	writer := writerPath()
 	if writer == "" {
-		return "", fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
+		return EnvelopeAnswer{}, fmt.Errorf("%s is not beside this hook, so %s's envelope was not checked against the record", writerName, agentID)
 	}
 	cmd := exec.Command(writer, "-run", runDir, "-phase", phaseEnvelope, "-agent-id", agentID)
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		return strings.TrimSpace(stdout.String()), fmt.Errorf("%s: %v: %s", writerName, err, strings.TrimSpace(stderr.String()))
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = bytes.NewReader(input), &stdout, &stderr
+	runErr := cmd.Run()
+	var answer EnvelopeAnswer
+	if stdout.Len() > 0 {
+		if err := json.Unmarshal(stdout.Bytes(), &answer); err != nil && runErr == nil {
+			return EnvelopeAnswer{}, fmt.Errorf("%s printed no envelope answer: %v: %s", writerName, err, strings.TrimSpace(stdout.String()))
+		}
 	}
-	return strings.TrimSpace(stdout.String()), nil
+	if runErr != nil {
+		return answer, fmt.Errorf("%s: %v: %s", writerName, runErr, strings.TrimSpace(stderr.String()))
+	}
+	return answer, nil
+}
+
+// EnvelopeAnswer is what the writer prints about a call returning a seat's envelope: the refusal the
+// hook denies it with, or the envelope the hook replaces its arguments with. A call with neither has
+// nothing printed about it, and goes through as the seat made it.
+type EnvelopeAnswer struct {
+	Refusal  string          `json:"refusal,omitempty"`
+	Envelope json.RawMessage `json:"envelope,omitempty"`
 }
 
 // Admission hands the writer a seat's envelope the harness accepted: the PostToolUse hook calls it

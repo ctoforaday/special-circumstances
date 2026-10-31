@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 )
 
 // THE CALL THAT RETURNS A SEAT'S ENVELOPE IS DENIED WITH THE RECORD'S REFUSAL, from the whole
@@ -15,12 +17,12 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	cwd, runDir, _ := limitRun(t, 1000)
 	refusal, checkErr := "", error(nil)
 	var asked []string
-	prev := envelopeRefusal
-	envelopeRefusal = func(dir, agent string) (string, error) {
+	prev := envelopeAnswer
+	envelopeAnswer = func(dir, agent string, _ []byte) (sittinghook.EnvelopeAnswer, error) {
 		asked = append(asked, dir+" | "+agent)
-		return refusal, checkErr
+		return sittinghook.EnvelopeAnswer{Refusal: refusal}, checkErr
 	}
-	t.Cleanup(func() { envelopeRefusal = prev })
+	t.Cleanup(func() { envelopeAnswer = prev })
 	pre := func(tool string) (decision, reason string) {
 		b, _ := json.Marshal(map[string]any{"tool_name": tool, "tool_input": map[string]string{}, "cwd": cwd,
 			"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:lead-judge"})
@@ -69,5 +71,41 @@ func TestTheHookDeniesAnEnvelopeTheRecordRefuses(t *testing.T) {
 	refusal, checkErr = "your envelope is refused: M2 (on G1)", errors.New("the log write failed")
 	if d, r := pre(envelopeTool); d != "deny" || r != refusal {
 		t.Errorf("a refusal beside a failed log was not the denial: decision %q, reason %q", d, r)
+	}
+}
+
+// WHERE THE RECORD SUPPLIES THE ENVELOPE, THE CALL GOES ON CARRYING IT. The hook hands the record what
+// the seat stated, and replaces the call's arguments with what comes back: this is the one way the
+// stored plan reaches the workflow script, whose only surface is a seat's envelope.
+func TestTheHookWritesTheEnvelopeTheRecordSupplies(t *testing.T) {
+	cwd, _, _ := limitRun(t, 1000)
+	var stated string
+	prev := envelopeAnswer
+	envelopeAnswer = func(_, _ string, input []byte) (sittinghook.EnvelopeAnswer, error) {
+		stated = string(input)
+		return sittinghook.EnvelopeAnswer{Envelope: json.RawMessage(`{"key":"k","notes":"n"}`)}, nil
+	}
+	t.Cleanup(func() { envelopeAnswer = prev })
+	b, _ := json.Marshal(map[string]any{"tool_name": envelopeTool, "tool_input": map[string]string{"notes": "n"}, "cwd": cwd,
+		"session_id": testLead, "agent_id": "a7cc47571ab8b015d", "agent_type": "frank-exchange-of-views:red-chair"})
+	var out bytes.Buffer
+	if err := Pre(bytes.NewReader(b), &out, testRecorder()); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		H struct {
+			Event    string          `json:"hookEventName"`
+			Decision string          `json:"permissionDecision"`
+			Updated  json.RawMessage `json:"updatedInput"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out.String())
+	}
+	if doc.H.Event != "PreToolUse" || doc.H.Decision != "allow" || string(doc.H.Updated) != `{"key":"k","notes":"n"}` {
+		t.Errorf("the call does not carry the record's envelope: %s", out.String())
+	}
+	if stated != `{"notes":"n"}` {
+		t.Errorf("the record was not handed what the seat stated: %q", stated)
 	}
 }
