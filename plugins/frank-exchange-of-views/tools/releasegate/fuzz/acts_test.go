@@ -296,8 +296,21 @@ func contentKey(prefix string, stated []string) string {
 // with flag set to other, an asserted field the stored act holds otherwise, it is refused as a
 // conflict — and so is a repeat quoting other text, which states another location under the key.
 func (r *runner) retryKeyed(args []string, flag, other string) {
-	if out, ok := r.admit(args...); ok && !strings.Contains(out, "idempotent") {
-		r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+	// READ BY THE FIELD, not the sentence: the --json envelope's `idempotent` is the fact that the
+	// call wrote nothing, and the human line is free to be reworded.
+	repeat := args
+	if !slices.Contains(args, "--json") {
+		repeat = append(slices.Clone(args), "--json")
+	}
+	if out, ok := r.admit(repeat...); ok {
+		var env struct {
+			Result struct {
+				Idempotent bool `json:"idempotent"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(out), &env) != nil || !env.Result.Idempotent {
+			r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+		}
 	}
 	if i := slices.Index(args, "--quote"); i >= 0 && i+1 < len(args) && flag != "--quote" && r.coin(50) {
 		elsewhere := slices.Clone(args)
