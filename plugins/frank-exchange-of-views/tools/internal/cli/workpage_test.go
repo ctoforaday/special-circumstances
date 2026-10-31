@@ -35,7 +35,8 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		roles []string
 	}{
 		{"ON THE CHAIR'S LIST a blocking item holds a PASS", []string{"chair"}},
-		{"FOR EACH GAP YOU MINTED AND LEFT OPEN", []string{"lens"}},
+		{"FOR EACH GAP OF YOURS WHOSE TURN HAS COME", []string{"lens"}},
+		{"A DOCKETED GAP IS OFF YOUR LIST UNTIL THE BENCH RULES IT", []string{"lens", "blue"}},
 		{"A LENS'S LIST STATES ITS MINT BUDGET", []string{"lens"}},
 		{"AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE", []string{"lens"}},
 		{"WHERE THE LENS PRESCRIBED EXACT TEXT", []string{"lens", "blue"}},

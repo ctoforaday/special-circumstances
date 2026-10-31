@@ -1102,16 +1102,22 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+			// Off under Migrating: an archived lens that closed a docketed gap closed it.
+			if !Migrating {
+				if err := requireNoStandingDocket(q, b.GetGapId()); err != nil {
+					return err
+				}
+			}
+		}
 		if err := requireClosureAnchors(q, b.GetGapId(), b.GetAnchors(), "--"+flags.Anchor); err != nil {
 			return err
 		}
 		if err := requireFailedCheckAnswered(q, b); err != nil {
 			return err
-		}
-		if b.CarriedFrom == nil {
-			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
-				return err
-			}
 		}
 		ids, err := allGapIDs(q)
 		if err != nil {
@@ -1857,6 +1863,21 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
 		gapID, mintedBy, act, seatID)
+}
+
+// requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
+// gblock 2026-10-31). The lens's preference comes before the docket: once the gap is before the bench,
+// the bench disposes of it, and the lens's one act there is its closing. On universe-m37 five dockets
+// closed within minutes of being filed, and the bench sat to rule three times on gaps that were over.
+func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
+	var motion string
+	found, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || motion == "" {
+		return err
+	}
+	return feov.Errorf(feov.Conflict,
+		"gap %s is docketed for the bench: motion %s stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
+		gapID, motion, gapID)
 }
 
 // closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row

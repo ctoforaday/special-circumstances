@@ -1988,6 +1988,7 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		DispatchParityAudit(run, results, journalPresent),
 		// Which dispatches engaged a lens before blue had answered it. See lensturn.go.
 		LensTurnAudit(run),
+		DocketOrderAudit(run),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),
 		// Which sittings closed with no admitted envelope. See failedsittings.go.

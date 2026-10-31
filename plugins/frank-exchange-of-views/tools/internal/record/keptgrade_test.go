@@ -109,7 +109,7 @@ func TestTheBenchReadsTheReasonOfAGradeALensKept(t *testing.T) {
 // its gap names the regrade that keeps the grade, and where its statement goes.
 func TestTheBlueAnsweredItemNamesTheActThatKeepsTheGrade(t *testing.T) {
 	b := keptBoard(t).register(evLens)
-	got := blueAnswersT(t, b.evs, []WorkGapState{{ID: "G1", Open: true}}, evLens)
+	got := blueAnswersT(t, b.evs, []WorkGapState{{ID: "G1", Open: true, lensDue: true}}, evLens)
 	if len(got) != 1 || !strings.Contains(got[0], "keep its grade with a regrade that states what your own check still fails") {
 		t.Fatalf("the blue-answered item names no act for what the check still fails: %q", got)
 	}

@@ -92,11 +92,11 @@ func (b *stage) seed() Run {
 
 const evLens = "red-lens-evidence"
 
-// One exchange is a red-party sitting engaged on G followed by a blue-party sitting engaged on G,
-// both complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it
-// resets the stall; a null turn — blue sat and recorded nothing on G — counts as an exchange and
-// stalls it. The sittings of the last epoch are still open: they are not counted, and they are not
-// zero either.
+// One exchange is blue's sitting engaged on G and its minting lens's sitting that audits it, both
+// complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it resets the
+// stall; a null turn — blue sat and recorded nothing on G — leaves the lens nothing to audit, ends
+// the exchange there and stalls it. The sittings of the last epoch are still open: they are not
+// counted, and they are not zero either.
 func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").                 // epoch 1: the lens mints

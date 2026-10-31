@@ -427,7 +427,7 @@ func benchClosing(id string) *recordpb.MotionRule {
 
 // THE WORK LIST IS READ OFF ONE SNAPSHOT. It takes which act closed a gap from the `gap` view and
 // that act's body from the events; asked of the record at two moments, a bench closure landing
-// between them names an act the read did not load, and the list cannot be computed. The bench rules while a lens reads its work list and the oracle reads
+// between them names an act the read did not load, and the list cannot be computed. The bench rules while it reads its own work list and the oracle reads
 // the run's, and every gap is on every list, open or estopped by the ruling that closed it.
 func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	const gaps = 25
@@ -462,11 +462,11 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 		}
 	}
 	whileWriting(t, run, acts, func() {
-		w, err := WorkOfSeat(run, "lens", evLens)
+		w, err := WorkOfSeat(run, "bench", benchSeat)
 		if err != nil {
 			t.Fatal(err)
 		}
-		check("the lens's work list", w)
+		check("the bench's work list", w)
 		w, err = WorkJSONOfRun(run)
 		if err != nil {
 			t.Fatal(err)

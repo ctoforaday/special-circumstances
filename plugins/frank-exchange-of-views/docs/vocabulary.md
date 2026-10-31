@@ -172,7 +172,7 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 ## exchange
 
-An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
+An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -536,7 +536,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue answers it with a computation or a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
 
 ## grade motion
 

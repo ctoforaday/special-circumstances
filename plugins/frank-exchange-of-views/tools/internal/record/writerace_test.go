@@ -141,13 +141,13 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 			want: "holds 1 gap(s) open and its mint budget admits no more",
 		},
 		{
-			name:  "a close while the bench's ruling closes the gap",
+			name:  "a close while a docket motion on the gap lands",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
+				return []*Event{recordtest.At(t, "blue-respond", "race:docket:G2", docketMotion("M9", "G2"))}
 			},
-			seat: evLens, body: func() proto.Message { return repairClose("G1") },
-			want: "--id names gap G1, which is already CLOSED",
+			seat: evLens, body: func() proto.Message { return repairClose("G2") },
+			want: "motion M9 stands unruled on it",
 		},
 		{
 			name:  "a close superseded by a gap the bench closes",

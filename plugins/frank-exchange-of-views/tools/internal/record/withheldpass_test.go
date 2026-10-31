@@ -159,8 +159,13 @@ func TestAnUpheldPositionReadiesTheWorkItNames(t *testing.T) {
 		}
 		acted := b.blueSitsOn("G1", true).register("red-chair")
 		recordReset(t, acted)
-		if p := runPlan(t, acted.seed()); !slices.Contains(partySeats(p), evLens) || slices.Contains(p.RemandOwed, RemandOwed{GapID: "G1", Direction: direction}) {
-			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn and the remand's exchange begun", p.Parties, p.RemandOwed)
+		if p := runPlan(t, acted.seed()); !slices.Contains(gapsOf(p, evLens), "G1") || slices.Contains(gapsOf(p, blueRespondSeat), "G1") {
+			t.Errorf("plan after blue's act on G1 = %+v (remands owed %+v), want its minting lens's turn alone: its audit ends the remand's exchange", p.Parties, p.RemandOwed)
+		}
+		audited := acted.dispatch(2, evLens, "G1").registerAs(evLens, "lens-audits").served(evLens, b.head()).stop("lens-audits").register("red-chair")
+		recordReset(t, audited)
+		if p := runPlan(t, audited.seed()); len(p.RemandOwed) != 0 {
+			t.Errorf("plan after the lens's audit of G1 = %+v (remands owed %+v), want the remand's exchange had", p.Parties, p.RemandOwed)
 		}
 	})
 }

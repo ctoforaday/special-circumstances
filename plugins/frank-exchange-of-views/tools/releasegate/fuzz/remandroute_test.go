@@ -18,8 +18,8 @@ import (
 // both remands were stored and never acted on, and the run passed against the bench's holding.
 //
 // The drive reaches both: blue escalates a gap that is not material to the bench, which the
-// dispatch never dockets on its own, and the bench sitting convened on a docket whose gap has closed
-// since it was filed reaches for a remand before it rules. The sweep gates each at zero.
+// dispatch never dockets on its own, and the bench sitting convened on a docket filed on a gap its lens
+// had closed reaches for a remand before it rules. The sweep gates each at zero.
 
 // escalateTrifle files blue's docket motion on an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
@@ -56,22 +56,121 @@ func (r *runner) escalateTrifle(seatID string) {
 		"--reason", "fuzz: "+id+" is not material, and blue escalates it to the bench all the same")
 }
 
-// closeDocketed is a lens closing a gap of its own while a docket motion on it stands — a real act
-// (closingowed.go: its lens closed it, the dispute is over, and the bench rules the motion on the
-// record as it stands), and the one that puts a closed gap before the bench, whose sitting then
-// reaches for the remand its scenario asks for. A gap is closed only where the lens's own close
-// would close it (closableNow).
+// docketClosedGap is blue filing a docket motion on a gap its lens closed and no docket motion has
+// named — a real act (the record admits it, and the bench rules it on the record as it stands), and the
+// one that puts a closed gap before the bench, whose sitting then reaches for the remand its scenario
+// asks for. A gap the bench itself ruled takes a motion on new grounds alone (docketLockedGap's kind),
+// which is not this path.
+func (r *runner) docketClosedGap(seatID string) {
+	if !r.coin(25) {
+		return
+	}
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the record could not be read to docket a gap its lens closed")
+		return
+	}
+	named := map[string]bool{}
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m.Subject == "docket" {
+			named[m.GapID] = true
+		}
+	}
+	for _, id := range r.closedGapIDs() {
+		if !named[id] && !r.closedThisSitting(seatID, id) {
+			r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
+				"--reason", "fuzz: "+id+" closed, and blue puts the close before the bench")
+			return
+		}
+	}
+}
+
+// closeDocketed is a lens reaching for the close of a gap of its own while a docket motion on it
+// stands: once docketed, the gap is the bench's until it rules (ruled by gblock 2026-10-31).
 func (r *runner) closeDocketed(seatID string) {
 	if !r.coin(30) {
 		return
 	}
 	for _, id := range r.openGaps() {
-		if r.minterOf(id) != seatID || !r.closableNow(id) || len(r.unruledDocketMotions(id)) == 0 {
+		if r.minterOf(id) == seatID && len(r.unruledDocketMotions(id)) > 0 {
+			r.closeDocketedRefused(seatID, id)
+			return
+		}
+	}
+}
+
+// closeDocketedRefused drives the close of gapID, on which a docket motion stands, and holds the tool
+// to refusing it as a conflict that names the motion and that nothing was recorded. A gap that moved
+// under the seat's reading refuses first; the same close then lands on the refusal this drive drives.
+func (r *runner) closeDocketedRefused(seatID, gapID string) {
+	motions := r.unruledDocketMotions(gapID)
+	args := []string{"close", "--seat-id", seatID, "--id", gapID, "--as", "repaired", "--reason", "fuzz: a close of a docketed gap",
+		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec", "--json"}
+	for {
+		before := r.readPointOf(seatID, gapID)
+		out, err := r.exec(args...)
+		if err == nil {
+			r.noteActErr(fmt.Sprintf("the close of %s, with motion(s) %v standing unruled on it, was admitted: %s", gapID, motions, firstLine(out)))
+			return
+		}
+		env, ok := refusalEnvelopeIn(out)
+		if !ok || env.Code != string(feov.Conflict) {
+			r.noteActErr(fmt.Sprintf("the close of docketed gap %s was refused, and not as a conflict: %s", gapID, firstLine(out)))
+			return
+		}
+		if r.staleMoved(seatID, gapID, before) {
 			continue
 		}
-		r.closeGap(seatID, id, false)
+		named := false
+		for _, m := range motions {
+			named = named || strings.Contains(env.Error, m)
+		}
+		if !named || !strings.Contains(env.Error, "Nothing was recorded") {
+			r.noteActErr(fmt.Sprintf("the close of docketed gap %s was refused without naming a motion standing on it (%v) and that nothing was recorded: %s", gapID, motions, firstLine(env.Error)))
+			return
+		}
+		r.mu.Lock()
+		r.docketedClosesRefused++
+		r.mu.Unlock()
 		return
 	}
+}
+
+// docketedOffTheList holds a party's list to the docket (ruled by gblock 2026-10-31): a gap a docket
+// motion stands on is on no row of `open` and in no item, apart from the closing it owes. A failed
+// check's item names the gap that states its defect, and is about the citation or computation: the PASS
+// gate holds it whatever the gap's state.
+func (r *runner) docketedOffTheList(role, seatID string) {
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the record could not be read to hold " + seatID + "'s list to the docket")
+		return
+	}
+	w, err := record.WorkOfSeat(r.run(), role, seatID)
+	if err != nil {
+		r.noteActErr(seatID + "'s work list could not be read to hold it to the docket: " + err.Error())
+		return
+	}
+	checked := 0
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m.Subject != "docket" || m.Ruled() || m.GapID == "" {
+			continue
+		}
+		checked++
+		for _, g := range w.Open {
+			if g.ID == m.GapID {
+				r.noteActErr(fmt.Sprintf("%s's list holds gap %s in `open`, with docket motion %s standing unruled on it", seatID, m.GapID, m.ID))
+			}
+		}
+		for _, it := range w.Sitting.Open {
+			if strings.Contains(it.What, m.GapID) && !strings.Contains(it.What, "closing") && !strings.Contains(it.What, "PASS is refused while") {
+				r.noteActErr(fmt.Sprintf("%s's list names gap %s, with docket motion %s standing unruled on it, in an item that is no closing: %s", seatID, m.GapID, m.ID, firstLine(it.What)))
+			}
+		}
+	}
+	r.mu.Lock()
+	r.docketedOffList += checked
+	r.mu.Unlock()
 }
 
 // closableNow is the lens arm's close condition on gap id, by its scenario: satisfied once blue has
@@ -167,7 +266,8 @@ func (r *runner) remandStands(gapID string) bool {
 
 // tallyTrifleRoutes counts each remanded gap that is not material whose one more exchange the plan
 // readies: named in remand_owed, with blue among the parties for it — the exchange begins with
-// blue's act, and the lens-turn oracle (tallyLensTurns) holds the minting lens to waiting for it.
+// blue's act, and the lens-turn oracle (tallyLensTurns) holds the minting lens to waiting for it. Once
+// blue has answered, the plan readies the lens alone to audit the answer, and blue owes nothing more.
 func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 	r.mu.Lock()
 	pending := map[string]bool{}
@@ -202,7 +302,9 @@ func (r *runner) tallyTrifleRoutes(plan map[string]any) {
 			continue
 		}
 		if !engagedOn[o.GapID]["blue-respond"] {
-			r.noteActErr(fmt.Sprintf("the plan names gap %s's remand as owed and does not engage blue on it: parties %v", o.GapID, parties))
+			if len(engagedOn[o.GapID]) == 0 {
+				r.noteActErr(fmt.Sprintf("the plan names gap %s's remand as owed and engages nobody on it: parties %v", o.GapID, parties))
+			}
 			continue
 		}
 		r.mu.Lock()
