@@ -55,7 +55,7 @@ import (
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
 	// The handler above refuses an empty holding; the marker says so where the seat reads.
-	var ids flags.CSV
+	ids := flags.IDList(flags.GapID)
 	c := seat.SaysRequired(seat.Prose(seat.New("declare", seat.Msg{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
@@ -75,6 +75,6 @@ func newDeclare() *cobra.Command {
 		}
 		return seat.Msg{Message: "declaration recorded — every seat's work list carries it, with the board's status beside each gap --ids names, and it renders under ### LEAD in `inquest debate`"}, nil
 	})), flags.Reason)
-	c.Flags().Var(&ids, flags.IDs, "the `gap-ids` of the gaps this holding is about, comma-separated — each a gap the board holds (`show board` lists them). Every seat's work list sets each beside where the board says it stands now; a gap named only in --reason is not one of them")
+	c.Flags().Var(ids, flags.IDs, "the `gap-ids` of the gaps this holding is about, comma-separated — each a gap the board holds (`show board` lists them). Every seat's work list sets each beside where the board says it stands now; a gap named only in --reason is not one of them")
 	return c
 }

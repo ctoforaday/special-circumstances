@@ -34,7 +34,7 @@ import (
 func TestVerifyRendersItsReportAndSucceedsOnASoundRun(t *testing.T) {
 	runDir := seatRun(t)
 
-	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
+	out, err := run(t, "verify", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("verify on a sound run: %v\n%s", err, out)
 	}
@@ -60,7 +60,7 @@ func TestVerifyNamesAnUnrecordedVerdictRatherThanLeavingItBlank(t *testing.T) {
 // The JSON form is the one a machine would gate on, so it must carry the same answer.
 func TestVerifyJSONCarriesTheSameVerdictAsTheReport(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
+	out, err := run(t, "verify", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("verify --json: %v\n%s", err, out)
 	}
@@ -86,11 +86,11 @@ func TestVerifyJSONCarriesTheSameVerdictAsTheReport(t *testing.T) {
 // verify writes NOTHING. It is the one property that makes it safe to point at a live run.
 func TestVerifyIsReadOnly(t *testing.T) {
 	runDir := seatRun(t)
-	before, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
+	before, err := run(t, "verify", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
-	after, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
+	after, err := run(t, "verify", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,6 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	runDir := seatRunReport(t, "# H\n\nFive independent verification approaches agree.\n")
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "spec_underspecification",
-		"--quote", "Five independent verification approaches agree.",
 		"--problem", "the defect", "--fix", "drop the independence claim",
 		"--check-kind", "document", "--check", "the section no longer claims independence",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -195,7 +194,7 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", "red-chair:verdict",
 		&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
 
-	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
+	out, err := run(t, "verify", "--run", runDir, "--seat-id", "operator")
 	if err == nil {
 		t.Fatalf("verify returned SUCCESS on a record whose PASS left a gap open. The doc comment "+
 			"promises CI a non-zero exit; without it the verb is a report wearing a gate's "+

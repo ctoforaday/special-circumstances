@@ -176,15 +176,18 @@ func (r *runner) inheritBenchGrades(successor, ancestor string) {
 }
 
 // keepingBenchGrades is args with every axis the bench set on any gap it supersedes stated at the
-// bench's grade, so a successor mint the drive expects to land does not meet the lock. A flag given
-// twice takes the last.
+// bench's grade, so a successor mint the drive expects to land does not meet the lock.
 func (r *runner) keepingBenchGrades(args []string) []string {
 	for i, a := range args {
 		if a != "--supersedes" || i+1 >= len(args) {
 			continue
 		}
 		for dim, g := range r.benchGrades(args[i+1]) {
-			args = append(args, "--"+dim, g)
+			if at := slices.Index(args, "--"+dim); at >= 0 {
+				args[at+1] = g
+			} else {
+				args = append(args, "--"+dim, g)
+			}
 		}
 	}
 	return args

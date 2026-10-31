@@ -26,7 +26,7 @@ import (
 // THE SET IS THE RECORD'S. The write refuses an id the record names as no successor, one already
 // engaged this epoch, and a set that leaves one out — the seat states it, the record holds it to it.
 func newEngage() *cobra.Command {
-	var ids flags.CSV
+	ids := flags.IDList(flags.GapID)
 	c := seat.New("engage", engageResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		gaps := ids.Value()
 		if len(gaps) == 0 {
@@ -50,7 +50,7 @@ func newEngage() *cobra.Command {
 		}
 		return engageResult{GapIDs: gaps, Pin: body.GetPin()}, nil
 	})
-	c.Flags().Var(&ids, flags.IDs, "the `gap-ids` of every successor this sitting owes, comma-separated — each an open gap the record names as carrying forward a gap you found closed")
+	c.Flags().Var(ids, flags.IDs, "the `gap-ids` of every successor this sitting owes, comma-separated — each an open gap the record names as carrying forward a gap you found closed")
 	seat.SaysRequired(c, flags.IDs)
 	seat.Records(c, "dispatch")
 	seat.Supplies(c, "pin", "the events.id of the report head, read off the record")
