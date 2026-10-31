@@ -41,7 +41,7 @@ func TestComputeAdvisesOnAVoicedNote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("retry: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "idempotent") || !strings.Contains(out, "process-voice") {
+	if !strings.Contains(out, repeatedWords) || !strings.Contains(out, "process-voice") {
 		t.Errorf("the idempotent retry lost the advisory:\n%s", out)
 	}
 }

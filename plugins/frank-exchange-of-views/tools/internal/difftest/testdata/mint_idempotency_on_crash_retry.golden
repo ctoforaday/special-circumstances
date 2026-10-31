@@ -34,7 +34,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 $ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --key L5-F3 --class spec_underspecification --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
-minted GAP001 (idempotent retry — existing id returned)
+gap GAP001 — this call repeats an act already on the record, so nothing was written
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).

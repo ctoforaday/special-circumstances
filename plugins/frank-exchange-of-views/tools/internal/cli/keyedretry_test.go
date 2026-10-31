@@ -264,7 +264,7 @@ func TestAnEditRetryIsComparedWithoutTheAnchorsPutBack(t *testing.T) {
 	if stored := lastBody(t, runDir, &recordpb.BlueEdit{}).GetNew(); !strings.Contains(stored, env.Result.ID) {
 		t.Fatalf("the edit stored %q: no anchor was put back, so this pins nothing", stored)
 	}
-	if out, err := run(t, edit...); err != nil || !strings.Contains(out, "idempotent") {
+	if out, err := run(t, edit...); err != nil || !strings.Contains(out, repeatedWords) {
 		t.Errorf("the identical retry answered %q, %v; want the stored edit", out, err)
 	}
 }

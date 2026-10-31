@@ -5,9 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
+
+// repeatedWords is what every verb's human line says when the call repeats an act already on the
+// record and writes nothing (seat.Repeated), read from the one place it is worded.
+var repeatedWords = strings.TrimPrefix(seat.Repeated(""), " — ")
 
 // corroborateArgs is a supports_with_bridge corroboration of the seeded sentence, with extra flags.
 func corroborateArgs(runDir string, extra ...string) []string {
@@ -53,6 +58,15 @@ func TestACorroborationRetryIsHeldToTheReadingItRepeats(t *testing.T) {
 	}
 	if !env.Result.Idempotent || env.Result.Source != "A Bridged Source" || env.Result.Bridge != "summary" {
 		t.Errorf("the retry answered %+v; want the stored row (idempotent, title %q, bridge summary)", env.Result, "A Bridged Source")
+	}
+	// THE HUMAN FORM SAYS IT TOO. It printed the stored verdict as a fresh reading — "verified:
+	// supports_with_bridge" — while the record took nothing, so a seat reading it could not tell.
+	bare, err := run(t, corroborateArgs(runDir, first...)...)
+	if err != nil {
+		t.Fatalf("an identical retry was refused: %v", err)
+	}
+	if !strings.Contains(bare, repeatedWords) || strings.Contains(bare, "verified:") {
+		t.Errorf("the retry's human line does not say it wrote nothing:\n%s", bare)
 	}
 
 	// A retry the write would refuse is refused: no bridge on supports_with_bridge.
