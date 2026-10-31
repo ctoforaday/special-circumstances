@@ -110,7 +110,12 @@ func rowOf(id string) *kind {
 // Label, the edit guard's sweep — recovers the kind from it rather than from a field. It is
 // tolerable because the id and its token are minted together and never travel apart, and because
 // an id of no kind spells a token no reader recognises rather than another kind's.
-func Token(id string) string { return tokenOpen + rowOf(id).tag + ":" + id + tokenClose }
+func Token(id string) string { return tokenOpen + Tagged(id) + tokenClose }
+
+// Tagged is the text between a token's comment delimiters — the kind's tag, a colon, the id. It is
+// what a seat copies when it drops the delimiters and keeps the rest, so a message that names the
+// bare id can name this beside it as the form that is not one.
+func Tagged(id string) string { return rowOf(id).tag + ":" + id }
 
 // IDPattern is the one id matcher: a regular expression, unanchored and with no capture group,
 // matching an id of any of the named kinds — of any anchor kind when none is named. A name neither
