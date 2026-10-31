@@ -208,6 +208,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a part from a seat that is no lane", []string{"ingest", "--seat-id", "blue-synthesize"}},
 		{"a lane's second part", []string{"ingest", "--seat-id", "blue-lane-1"}},
 		{"a lane's part after the report changed", []string{"ingest", "--seat-id", "blue-lane-2"}},
+		// A LANE DOES NOT CHANGE THE REPORT: edit is blue's, and refused to a lane as the wrong seat.
+		{"a lane changing the report", []string{"edit", "--seat-id", "blue-lane-1", "--quote", "§", "--new", "x", "--reason", "r"}},
 		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "GAP001"}},
 		{"verb outside the bench role", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", "judge", "--class", "spec_underspecification"}},
 		// `merge frobnicate` refused the role word and never reached the verb it names.

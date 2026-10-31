@@ -250,7 +250,7 @@ func TestAGroupedActIsToldWhereItLives(t *testing.T) {
 		wantSeat string // empty where no seat holds the act
 	}{
 		{"blue-respond", []string{"inquiry", "review"}, "chair"},
-		{"red-chair", []string{"inquiry", "propose"}, "blue"},
+		{"red-chair", []string{"inquiry", "propose"}, "lane"},
 		{"blue-respond", []string{"inquiry", "nonsense"}, ""},
 		{"blue-respond", []string{"motion", "nonsense"}, ""},
 	} {

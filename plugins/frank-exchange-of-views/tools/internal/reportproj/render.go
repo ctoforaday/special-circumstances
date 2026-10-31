@@ -256,7 +256,11 @@ func RenderFromRecord(run record.Run) (string, error) {
 }
 
 // NoPart is the refusal of every read or change of a report no lane has recorded a part of.
-const NoPart = "no part of the report is recorded yet — there is nothing to read or change. The lanes record their parts first; citing, computing, editing and retiring all act on the report they make"
+//
+// IT NAMES NO ACT. A lane meets it when it reads the report before its part is recorded, and a list
+// of the acts that work on the report once it exists read to a lane as an invitation to take them
+// after its part (the #1663 smoke).
+const NoPart = "no part of the report is recorded yet — there is nothing to read or change until the lanes record their parts"
 
 // Replay folds the ordered mutations onto text. parted says whether text holds a part: a fold from
 // the empty text starts with none, and a mutation other than a part's, or the end of the fold, before

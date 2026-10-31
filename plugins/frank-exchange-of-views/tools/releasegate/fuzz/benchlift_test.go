@@ -2,7 +2,6 @@ package fuzz
 
 import (
 	"math/rand"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -20,13 +19,7 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 	t.Helper()
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	const sentence = "A § fuzz sentence to anchor findings."
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\n"+sentence+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
 		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":1,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":10}`)); err != nil {
 		t.Fatal(err)
@@ -36,14 +29,13 @@ func liftRun(t *testing.T, ledger *benchOrderLedger, scenario string) (*runner, 
 		t.Fatal(err)
 	}
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat},
-		&recordpb.Cast{SeatIds: []string{liftLens, "red-chair", "blue-synthesize", "blue-respond", "judge"}}); err != nil {
+		&recordpb.Cast{SeatIds: []string{liftLens, "red-chair", "blue-lane-1", "blue-synthesize", "blue-respond", "judge"}, LaneSeatIds: []string{"blue-lane-1"}}); err != nil {
 		t.Fatal(err)
 	}
 	r := newRunner(bin, runDir, &lockedRand{r: rand.New(steadySource(99))})
 	r.benchOrders = ledger
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the report: %v", err)
+	if err := r.stagePart(sentence + "\n"); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 	r.chairPlans(t)
 	r.dispatchSits("lens", liftLens)

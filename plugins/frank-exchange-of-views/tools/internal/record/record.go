@@ -1508,7 +1508,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
 		// nothing else — a lane, the frontier and the synthesizer are dispatched by no row.
-		if seatclass.RoleOfSeat(seatID) == "blue" {
+		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
 			if err := requireEngage(q, seatID, b); err != nil {
 				return err
 			}

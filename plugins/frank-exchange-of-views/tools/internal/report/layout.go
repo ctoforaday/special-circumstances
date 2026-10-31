@@ -290,7 +290,7 @@ var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inq
 // audits a hand copy of a composed section as the reader's text unless it is told the section is
 // the tool's.
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	strings.Join(RefusedHeadings(), ", ") + ". A lane's `ingest` and blue's `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
 	"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a computation's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span."

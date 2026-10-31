@@ -2214,8 +2214,8 @@ func (r *runner) register(role, seatID string) {
 	// a run directory whose database may not exist yet, and holding the lock across it would
 	// serialize exactly the contention phase 3 exists to produce.
 	//
-	// No occasion: this path registers the concurrent LANES, which are blue and whose seat ids
-	// already say what their sittings are for.
+	// No occasion: this path registers the concurrent LANES, whose seat ids already say what
+	// their sittings are for.
 	r.admit(registerArgs(seatID, "")...)
 	close(done)
 }
@@ -5191,11 +5191,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// seat's whole path went unexercised behind a green sweep. Found by the execution
 			// tally (lens register: exactly 60 refusals across 60 runs — one per run is a
 			// pattern, not noise).
-			role := "lens"
-			if strings.HasPrefix(seatID, "blue") || strings.HasPrefix(seatID, "frontier") {
-				role = "blue"
-			}
-			r.register(role, seatID)
+			// The role is the roster's answer now (a lane is its own role), never a prefix read.
+			r.register(seatclass.RoleOfSeat(seatID), seatID)
 			switch {
 			case strings.HasPrefix(seatID, seatclass.LaneSeatPrefix):
 				r.lanePart(seatID)

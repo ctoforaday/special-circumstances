@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,9 +19,12 @@ import (
 // THE PART'S REFUSALS ARE DRIVEN BY CONSTRUCTION. partsSeed's run drives every one on every seat that
 // can reach it, and a drawn run takes each arm at partsPct: a lane asks before its file is written
 // (no file), with a title in its part (a surface that is not a part's), and again once recorded (a
-// second part); the frontier reads the report before any lane has recorded (no part); the synthesizer
-// records a part of its own (no lane); and a lane that withheld its part asks once the synthesizer
-// has changed the report (after the change). Each is the refusal's own code and text, or the run
+// second part); once recorded, a lane types each act that changes the report — edit, cite, compute
+// and retire — and each is refused as blue's, because a lane's surface does not carry it and the
+// report's first change would close the door on the lanes still writing; the frontier reads the
+// report before any lane has recorded (no part); the synthesizer types `ingest`, which is the
+// lane's (no lane); and a lane that withheld its part asks once the synthesizer has changed the
+// report (after the change). Each is the refusal's own code and text, or the run
 // fails at the act; the sweep gates each count at zero.
 
 // partsSeed is the seed whose run is FORCED through every part refusal above. It is none of the forced
@@ -42,10 +46,21 @@ const (
 	partNoFile     = "no file"
 	partSurface    = "a surface not a part's"
 	partNoneToRead = "no part to read"
+	partLaneEdit   = "a lane's edit"
+	partLaneCite   = "a lane's cite"
+	partLaneComp   = "a lane's compute"
+	partLaneRetire = "a lane's retire"
 )
 
+// laneRefusedActs is each act that changes the report, by the refusal kind a lane typing it counts
+// under. One kind per act, so the forced run fails on any one of them the drive stopped reaching.
+var laneRefusedActs = []struct{ kind, verb string }{
+	{partLaneEdit, "edit"}, {partLaneCite, "cite"}, {partLaneComp, "compute"}, {partLaneRetire, "retire"},
+}
+
 // partRefusals is every kind above, in the order the sweep reports them.
-var partRefusals = []string{partNotALane, partSecond, partAfter, partNoFile, partSurface, partNoneToRead}
+var partRefusals = []string{partNotALane, partSecond, partAfter, partNoFile, partSurface, partNoneToRead,
+	partLaneEdit, partLaneCite, partLaneComp, partLaneRetire}
 
 // The report every run's synthesis makes of its parts: the title, the parts, the open questions —
 // seedReport, whatever order the lanes record in.
@@ -158,6 +173,19 @@ func (r *runner) lanePart(seatID string) {
 	if r.partsArm() {
 		r.refusePart(partSecond, feov.Conflict, "has already recorded its part of the report", "ingest", "--seat-id", seatID)
 	}
+	if r.partsArm() {
+		r.laneActsOnItsPart(seatID, strings.TrimSuffix(part, "\n"))
+	}
+}
+
+// laneActsOnItsPart is a lane, its part recorded, typing each act that changes the report on a
+// sentence of its own part. Each is refused as blue's verb and records nothing; the lanes still
+// writing record their parts after it, which partsRecorded counts.
+func (r *runner) laneActsOnItsPart(seatID, sentence string) {
+	for _, a := range laneRefusedActs {
+		r.refusePart(a.kind, feov.RoleViolation, fmt.Sprintf("%q is not on your surface — it is the blue seat's verb", a.verb),
+			a.verb, "--seat-id", seatID, "--quote", sentence, "--reason", "fuzz: a lane acting on its own part")
+	}
 }
 
 // synthesize is the synthesizer's sitting on the lanes' parts: a part of its own refused, then the
@@ -167,7 +195,7 @@ func (r *runner) lanePart(seatID string) {
 func (r *runner) synthesize(seatID string) {
 	if r.partsArm() {
 		r.writePart(seatID, lanePartText(seatID))
-		r.refusePart(partNotALane, feov.RoleViolation, "records no part of the report: a part is a lane's", "ingest", "--seat-id", seatID)
+		r.refusePart(partNotALane, feov.RoleViolation, `"ingest" is not on your surface — it is the lane seat's verb`, "ingest", "--seat-id", seatID)
 		_ = os.Remove(r.partFile(seatID))
 	}
 	text, err := reportproj.RenderFromRecord(r.run())
@@ -218,7 +246,7 @@ func (r *runner) stagePart(text string) error {
 	if err := writeSetup(r.partFile(lane), []byte(text)); err != nil {
 		return err
 	}
-	r.register("blue", lane)
+	r.register(seatclass.Lane.Role, lane)
 	if _, err := r.do("ingest", lane).result(); err != nil {
 		return err
 	}

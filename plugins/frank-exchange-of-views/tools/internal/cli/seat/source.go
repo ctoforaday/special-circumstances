@@ -11,12 +11,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // ReadsSources reports whether a role reads a SOURCE, and so carries `fetch` and `show source`.
 //
-// Blue reads what it cites and a lens reads the same cached bytes to verify the citation, or a
-// source of its own to corroborate one. The chair and the bench are handed no source to read: the
+// A lane reads what it researches, blue reads what it cites, and a lens reads the same cached bytes
+// to verify the citation, or a source of its own to corroborate one. The chair and the bench are handed no source to read: the
 // chair reads the report, the board and the changes since a stale area's pin, and the bench's
 // ruling basis is confined to the closings, the transcript and the artifacts as the record renders
 // them. A verb on a surface is a thing its seat reaches for, and every seat reads its whole
@@ -25,7 +26,9 @@ import (
 // THE TREE IS THE GATE. Neither read writes an event, so there is no write path to refuse them on:
 // a seat whose tree does not mount one is answered by the wrong-seat refusal, which names the seats
 // that hold it.
-func ReadsSources(role string) bool { return role == "lens" || role == "blue" }
+func ReadsSources(role string) bool {
+	return role == "lens" || role == "blue" || role == seatclass.Lane.Role
+}
 
 // sourceView is the projection that searches one cached source's text.
 const sourceView = "source"

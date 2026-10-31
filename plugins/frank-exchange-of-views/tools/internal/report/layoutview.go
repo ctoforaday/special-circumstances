@@ -167,7 +167,7 @@ const LayoutHasNoText = "feov-record: `show report --assembled` LISTS THE SECTIO
 func (l LayoutJSON) Markdown() string {
 	var b strings.Builder
 	b.WriteString("THE REPORT SET AS ASSEMBLY SHIPS IT, from the record as it stands — each section in shipping order, who composes it, and how content reaches it. " +
-		"The report's text carries no section the tool composes: blue's `ingest` and `edit` refuse one. The exception is a section of another document whose entry says that a section of that name in the report's text is the report's own.\n")
+		"The report's text carries no section the tool composes: a lane's `ingest` and blue's `edit` refuse one. The exception is a section of another document whose entry says that a section of that name in the report's text is the report's own.\n")
 	file := ""
 	for _, s := range l.Sections {
 		if s.File != file {

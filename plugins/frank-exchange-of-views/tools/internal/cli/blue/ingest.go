@@ -7,9 +7,9 @@
 // the render, and every change is an event.
 //
 // WHO, WHEN AND WHAT, each keyed on the record rather than a marker or a permission bit:
-//   - LANES ONLY: a part is a lane's, and the cast names the lanes (record.LaneSeatsOf). The rule is
-//     this verb's, not the write path's, so an archived report the synthesizer ingested migrates as
-//     it stands.
+//   - LANES ONLY: a part is a lane's. The verb is on the lane's surface alone, and the cast names
+//     the lanes this run seats (record.LaneSeatsOf). The rule is this verb's, not the write path's,
+//     so an archived report the synthesizer ingested migrates as it stands.
 //   - ONCE PER LANE, AND BEFORE THE REPORT CHANGES: a lane records one part, and no part is recorded
 //     once the report holds an op other than a part — a part then would land after text the synthesis
 //     has reorganized. Both are asked again inside the write (Landing.PartStanding), so two writes
@@ -117,14 +117,15 @@ func newIngest() *cobra.Command {
 	})
 }
 
-// laneRefusal refuses a part from a seat the cast does not name a lane.
+// laneRefusal refuses a part from a lane the cast does not name. A seat that is no lane never reaches
+// it: `ingest` is on the lane's surface only.
 func laneRefusal(seatID string, lanes []string) error {
 	for _, l := range lanes {
 		if l == seatID {
 			return nil
 		}
 	}
-	return feov.Errorf(feov.RoleViolation, "%s records no part of the report: a part is a lane's, and this run's lanes are %s. NOTHING IS RECORDED. The report changes through edit, cite, compute and retire",
+	return feov.Errorf(feov.RoleViolation, "%s records no part of the report: a part is one of this run's lanes', and they are %s. NOTHING IS RECORDED",
 		seatID, strings.Join(lanes, ", "))
 }
 

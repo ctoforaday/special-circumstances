@@ -6431,7 +6431,7 @@ type SittingOpen struct {
 	// seat_id is the seat that CONFIGURATION is dispatched as, resolved by the writer — which links
 	// the record and can do the join the hook cannot. Present only where the configuration seats
 	// exactly one seat, so it is a declared mapping rather than the guess the comment above refuses:
-	// blue-researcher covers three seats and gets no seat_id here.
+	// blue-researcher covers two seats and blue-lane every lane, so neither gets a seat_id here.
 	//
 	// It is on the body and NOT on the envelope, which still carries `harness`. The harness observed
 	// the sitting; it did not sit. Recording who sat is a different statement from claiming to be

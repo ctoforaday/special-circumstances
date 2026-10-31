@@ -7,6 +7,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -63,6 +64,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -82,6 +84,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -121,6 +124,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -149,6 +153,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -174,6 +179,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -221,6 +227,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -234,6 +241,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -247,6 +255,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -272,6 +281,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -290,6 +300,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -319,6 +330,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -345,6 +357,7 @@
       "definition": "A lane is one of blue's parallel first passes at the report, written by one researcher under one method.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -362,6 +375,7 @@
       "definition": "The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -375,6 +389,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -417,6 +432,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -430,6 +446,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -474,6 +491,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -493,6 +511,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -512,6 +531,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -538,7 +558,8 @@
       "definition": "A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.",
       "seats": [
         "lens",
-        "blue"
+        "blue",
+        "lane"
       ],
       "bans": [],
       "collisions": []
@@ -548,7 +569,8 @@
       "definition": "A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.",
       "seats": [
         "lens",
-        "blue"
+        "blue",
+        "lane"
       ],
       "bans": [],
       "collisions": []
@@ -559,6 +581,7 @@
       "seats": [
         "lens",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -571,6 +594,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -584,6 +608,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -597,6 +622,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -621,6 +647,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -645,6 +672,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -658,6 +686,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -682,6 +711,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -700,6 +730,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -749,6 +780,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -814,6 +846,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -888,6 +921,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -912,6 +946,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -930,6 +965,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -943,6 +979,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -996,6 +1033,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -1009,6 +1047,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -1030,6 +1069,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -1042,6 +1082,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],

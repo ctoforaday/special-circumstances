@@ -433,7 +433,7 @@ func answerDrives() []answerDrive {
 				d.admitted("a fate of "+status+" against the ruling", "blue-respond", "inquiry", "record", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
 			}
 		}},
-		{name: "inquiry", row: rowInquiry, helps: []string{"blue inquiry propose", "blue inquiry record"}, drive: func(d drive) {
+		{name: "inquiry", row: rowInquiry, helps: []string{"blue inquiry propose", "blue inquiry record", "lane inquiry propose", "lane inquiry record"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
 			for _, status := range []string{"underway", "deferred", "declined", "abandoned", "confirmed", "refuted", "proposed"} {
 				d.admitted("a fate of "+status, "blue-respond", "inquiry", "record", "--id", "Q1", "--as", status, "--reason", "recorded as "+status)
@@ -448,8 +448,8 @@ func answerDrives() []answerDrive {
 			twice(lensSeat, "reproduce", "--anchor", computationAnchor, "--as", "sound")(d)
 		}},
 		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
-		{name: "log", row: "a new log entry", helps: []string{"blue log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
-			for _, s := range []string{"blue-respond", lensSeat, "red-chair", "judge"} {
+		{name: "log", row: "a new log entry", helps: []string{"blue log", "lane log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
+			for _, s := range []string{"blue-respond", "blue-lane-1", lensSeat, "red-chair", "judge"} {
 				twice(s, "log", "--type", "defect")(d)
 			}
 		}},

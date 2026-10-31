@@ -87,7 +87,7 @@ var backtickSpan = regexp.MustCompile("`([^`]+)`")
 // An unattributed span naming another seat's verb is the regression this gate exists for — "use
 // `carry --carried-from <epoch>`" in a refusal only a lens ever reads, and the lens that obeys it
 // is told no such command exists. Case-insensitive: a sentence may begin with the seat.
-var attributed = regexp.MustCompile(`(?i)\b(lens|chair|blue|bench)(?:'s|’s)?(?:\s+[a-z]+){0,3}\s*$`)
+var attributed = regexp.MustCompile(`(?i)\b(lens|chair|blue|lane|bench)(?:'s|’s)?(?:\s+[a-z]+){0,3}\s*$`)
 
 // listContinuation is what may sit between one attributed span and the next in the same list:
 // "the lens's `mint`, `close` and `regrade`".

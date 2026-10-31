@@ -8,62 +8,62 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 
 | term | delivered to |
 |---|---|
-| [the report](#the-report) | lens, chair, blue, bench, operator |
-| [run directory](#run-directory) | lens, chair, blue, bench, operator |
-| [the record](#the-record) | lens, chair, blue, bench, operator |
-| [run](#run) | lens, chair, blue, bench, operator |
-| [epoch](#epoch) | lens, chair, blue, bench, operator |
-| [sitting](#sitting) | lens, chair, blue, bench, operator |
+| [the report](#the-report) | lens, chair, blue, lane, bench, operator |
+| [run directory](#run-directory) | lens, chair, blue, lane, bench, operator |
+| [the record](#the-record) | lens, chair, blue, lane, bench, operator |
+| [run](#run) | lens, chair, blue, lane, bench, operator |
+| [epoch](#epoch) | lens, chair, blue, lane, bench, operator |
+| [sitting](#sitting) | lens, chair, blue, lane, bench, operator |
 | [failed sitting](#failed-sitting) | operator |
-| [exchange](#exchange) | lens, chair, blue, bench, operator |
-| [seat](#seat) | lens, chair, blue, bench, operator |
-| [side](#side) | lens, chair, blue, bench, operator |
-| [lens](#lens) | lens, chair, blue, bench, operator |
-| [chair](#chair) | lens, chair, blue, bench, operator |
-| [bench](#bench) | lens, chair, blue, bench, operator |
-| [lane](#lane) | blue, bench, operator |
-| [synthesizer](#synthesizer) | blue, bench, operator |
-| [engine](#engine) | lens, chair, blue, bench, operator |
+| [exchange](#exchange) | lens, chair, blue, lane, bench, operator |
+| [seat](#seat) | lens, chair, blue, lane, bench, operator |
+| [side](#side) | lens, chair, blue, lane, bench, operator |
+| [lens](#lens) | lens, chair, blue, lane, bench, operator |
+| [chair](#chair) | lens, chair, blue, lane, bench, operator |
+| [bench](#bench) | lens, chair, blue, lane, bench, operator |
+| [lane](#lane) | blue, lane, bench, operator |
+| [synthesizer](#synthesizer) | blue, lane, bench, operator |
+| [engine](#engine) | lens, chair, blue, lane, bench, operator |
 | [lead session](#lead-session) | operator |
-| [operator](#operator) | lens, chair, blue, bench, operator |
-| [the log](#the-log) | lens, chair, blue, bench, operator |
-| [friction](#friction) | lens, chair, blue, bench, operator |
-| [missing capability](#missing-capability) | lens, chair, blue, bench, operator |
-| [citation](#citation) | lens, chair, blue, bench, operator |
-| [source span](#source-span) | lens, blue |
-| [source search](#source-search) | lens, blue |
-| [OCR-derived text](#ocr-derived-text) | lens, blue, operator |
-| [anchor](#anchor) | lens, chair, blue, bench, operator |
-| [computation](#computation) | lens, chair, blue, bench, operator |
-| [finding anchor](#finding-anchor) | lens, chair, blue, bench, operator |
-| [verdict](#verdict) | lens, chair, blue, bench, operator |
-| [outcome](#outcome) | lens, chair, blue, bench, operator |
-| [finding](#finding) | lens, chair, blue, bench, operator |
-| [gap](#gap) | lens, chair, blue, bench, operator |
-| [material](#material) | lens, chair, blue, bench, operator |
+| [operator](#operator) | lens, chair, blue, lane, bench, operator |
+| [the log](#the-log) | lens, chair, blue, lane, bench, operator |
+| [friction](#friction) | lens, chair, blue, lane, bench, operator |
+| [missing capability](#missing-capability) | lens, chair, blue, lane, bench, operator |
+| [citation](#citation) | lens, chair, blue, lane, bench, operator |
+| [source span](#source-span) | lens, blue, lane |
+| [source search](#source-search) | lens, blue, lane |
+| [OCR-derived text](#ocr-derived-text) | lens, blue, lane, operator |
+| [anchor](#anchor) | lens, chair, blue, lane, bench, operator |
+| [computation](#computation) | lens, chair, blue, lane, bench, operator |
+| [finding anchor](#finding-anchor) | lens, chair, blue, lane, bench, operator |
+| [verdict](#verdict) | lens, chair, blue, lane, bench, operator |
+| [outcome](#outcome) | lens, chair, blue, lane, bench, operator |
+| [finding](#finding) | lens, chair, blue, lane, bench, operator |
+| [gap](#gap) | lens, chair, blue, lane, bench, operator |
+| [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
 | [contradiction](#contradiction) | lens, chair |
-| [retire](#retire) | lens, chair, blue, bench, operator |
+| [retire](#retire) | lens, chair, blue, lane, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
 | [report read](#report-read) | lens, chair, operator |
-| [disposition](#disposition) | lens, chair, blue, bench, operator |
+| [disposition](#disposition) | lens, chair, blue, lane, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
-| [grade motion](#grade-motion) | lens, chair, blue, bench, operator |
-| [relief](#relief) | lens, chair, blue, bench, operator |
-| [new grounds](#new-grounds) | lens, chair, blue, bench, operator |
-| [scorecard](#scorecard) | lens, chair, blue, bench, operator |
+| [grade motion](#grade-motion) | lens, chair, blue, lane, bench, operator |
+| [relief](#relief) | lens, chair, blue, lane, bench, operator |
+| [new grounds](#new-grounds) | lens, chair, blue, lane, bench, operator |
+| [scorecard](#scorecard) | lens, chair, blue, lane, bench, operator |
 | [occasion](#occasion) | bench |
-| [inquiry](#inquiry) | lens, chair, blue, bench, operator |
-| [reopened](#reopened) | lens, chair, blue, operator |
-| [unchecked](#unchecked) | lens, chair, blue, operator |
-| [failed check](#failed-check) | lens, chair, blue, bench, operator |
+| [inquiry](#inquiry) | lens, chair, blue, lane, bench, operator |
+| [reopened](#reopened) | lens, chair, blue, lane, operator |
+| [unchecked](#unchecked) | lens, chair, blue, lane, operator |
+| [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
 
 ## the report
 
 The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -86,7 +86,7 @@ The report is the research prose written for a reader of the subject: one docume
 
 The run directory is the directory that holds one run: its record, its report and the documents assembled beside it.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -98,7 +98,7 @@ The run directory is the directory that holds one run: its record, its report an
 
 The record is the run's account of every act, held as events in records/record.db, and every read a seat makes is a projection of it.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -117,7 +117,7 @@ The record is the run's account of every act, held as events in records/record.d
 
 A run is one research question taken from setup to its outcome.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -134,7 +134,7 @@ A run is one research question taken from setup to its outcome.
 
 An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -146,7 +146,7 @@ An epoch runs from one chair sitting to the next: the chair relays who sits, the
 
 A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -174,19 +174,19 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## seat
 
 A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## side
 
 A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -198,7 +198,7 @@ A side is red or blue: red audits the report and passes or fails it, blue resear
 
 A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Collisions:**
 
@@ -208,7 +208,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -225,7 +225,7 @@ The chair is red's running seat: it relays who sits, rules blue's motions, spot-
 
 The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -242,7 +242,7 @@ The bench is the seat that adjudicates the contested docket, rules on motions an
 
 A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
 
-**Delivered to:** blue, bench, operator
+**Delivered to:** blue, lane, bench, operator
 
 **Not:**
 
@@ -254,13 +254,13 @@ A lane is one of blue's parallel first passes at the report, written by one rese
 
 The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.
 
-**Delivered to:** blue, bench, operator
+**Delivered to:** blue, lane, bench, operator
 
 ## engine
 
 The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -287,13 +287,13 @@ A run's lead session is the Claude Code session its live-run row names — the o
 
 The operator is the person running the research, and the seat id their own commands run under.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## the log
 
 The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed no log entry — and none of it is debate material.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -313,7 +313,7 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -325,7 +325,7 @@ Friction is one type of log entry: something cost the seat a call, a guess or an
 
 A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -337,7 +337,7 @@ A missing capability is an act a seat needed that no surface offers, and it goes
 
 A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -354,37 +354,37 @@ A citation is a source attached to a sentence of the report with the cite verb, 
 
 A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.
 
-**Delivered to:** lens, blue
+**Delivered to:** lens, blue, lane
 
 ## source search
 
 A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.
 
-**Delivered to:** lens, blue
+**Delivered to:** lens, blue, lane
 
 ## OCR-derived text
 
 OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
 
-**Delivered to:** lens, blue, operator
+**Delivered to:** lens, blue, lane, operator
 
 ## anchor
 
 An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## computation
 
 A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## finding anchor
 
 A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -400,7 +400,7 @@ A finding anchor is the anchor a lens's finding leaves at the sentence the findi
 
 The verdict is the chair's PASS or FAIL on the board.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -413,13 +413,13 @@ The verdict is the chair's PASS or FAIL on the board.
 
 The outcome is how the run ended: VERIFIED, CEILING, HALTED or UNVERIFIED.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## finding
 
 A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -432,7 +432,7 @@ A finding is a lens's recorded observation of a defect in the report, or of a di
 
 A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Collisions:**
 
@@ -442,7 +442,7 @@ A gap is a defect in the report that changes a conclusion or a decision a reader
 
 A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Collisions:**
 
@@ -472,7 +472,7 @@ A contradiction is a source red read that refutes, or is silent on, a claim of t
 
 To retire a claim is to take it out of the report with the retire verb, on the record; retiring a citation alone takes its anchor out of the report and keeps the sentence it stood on word for word.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -511,7 +511,7 @@ A report read is the record's evidence that the tool served a lens the whole rep
 
 A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -542,7 +542,7 @@ Grade movement is the change a lens's regrade makes to a gap's severity, likelih
 
 A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -555,7 +555,7 @@ A grade motion is a motion contesting a gap's grade, filed by any seat but the c
 
 Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Collisions:**
 
@@ -565,13 +565,13 @@ Relief is the order the bench records when it grants a petition: what the seats 
 
 New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## scorecard
 
 A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 **Not:**
 
@@ -605,13 +605,13 @@ A sitting's occasion is what it was convened to do — the question put to the s
 
 An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## reopened
 
 A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
-**Delivered to:** lens, chair, blue, operator
+**Delivered to:** lens, chair, blue, lane, operator
 
 **Collisions:**
 
@@ -622,10 +622,10 @@ A citation or computation is reopened when an edit changes its sentence after a 
 
 A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.
 
-**Delivered to:** lens, chair, blue, operator
+**Delivered to:** lens, chair, blue, lane, operator
 
 ## failed check
 
 A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
 
-**Delivered to:** lens, chair, blue, bench, operator
+**Delivered to:** lens, chair, blue, lane, bench, operator

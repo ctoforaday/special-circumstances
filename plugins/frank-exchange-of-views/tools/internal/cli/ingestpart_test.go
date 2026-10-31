@@ -108,15 +108,58 @@ func TestALanesPartIsRecordedFromThePathItsSeatNames(t *testing.T) {
 	}
 }
 
-// R1: A PART IS A LANE'S. The synthesizer and every other seat change the report through its acts.
+// R1: A PART IS A LANE'S. `ingest` is on the lane's surface alone, so a blue seat typing it is refused
+// as the wrong seat and told whose verb it is; a lane this run's cast does not seat is refused at the
+// verb, which names the run's lanes.
 func TestASeatThatIsNoLaneRecordsNoPart(t *testing.T) {
 	runDir := laneRun(t, 2)
 	for _, seat := range []string{"blue-synthesize", "blue-respond"} {
 		writePart(t, runDir, seat, "## A section\n\nA sentence.\n")
-		out, err := ingestPart(t, runDir, seat)
+		out, err := run(t, "ingest", "--run", runDir, "--seat-id", seat)
 		refusedWithNothingRecorded(t, runDir, seat, out, err, 0,
-			seat+" records no part of the report: a part is a lane's, and this run's lanes are blue-lane-1, blue-lane-2. NOTHING IS RECORDED. The report changes through edit, cite, compute and retire")
+			`"ingest" is not on your surface — it is the lane seat's verb`)
 	}
+	writePart(t, runDir, "blue-lane-3", "## A section\n\nA sentence.\n")
+	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-lane-3")
+	refusedWithNothingRecorded(t, runDir, "blue-lane-3", out, err, 0,
+		"blue-lane-3 records no part of the report: a part is one of this run's lanes', and they are blue-lane-1, blue-lane-2. NOTHING IS RECORDED")
+}
+
+// A LANE DOES NOT CHANGE THE REPORT. Its part is recorded, and the report's first change after it
+// closes the door on every lane still writing (record.PartStanding), so edit, cite, compute and
+// retire are not on a lane's surface: each is refused as blue's, nothing is recorded, and the other
+// lane's part is still taken.
+func TestALaneIsRefusedEveryActThatChangesTheReport(t *testing.T) {
+	runDir := laneRun(t, 2)
+	part := "## The factors\n\n91 is 7 x 13.\n"
+	mustIngestPart(t, runDir, "blue-lane-1", part)
+	acts := []recordpb.EventType{recordpb.EventType_EVENT_TYPE_BLUE_EDIT, recordpb.EventType_EVENT_TYPE_CITE,
+		recordpb.EventType_EVENT_TYPE_COMPUTATION, recordpb.EventType_EVENT_TYPE_RETIRE}
+	for _, argv := range [][]string{
+		{"edit", "--key", "E1", "--quote", "91 is 7 x 13.", "--new", "91 = 7 x 13.", "--reason", "tighter"},
+		{"cite", "--quote", "91 is 7 x 13.", "--url", "https://example.org/91", "--title", "91"},
+		{"compute", "--quote", "91 is 7 x 13.", "--reason", "factor it"},
+		{"retire", "--quote", "91 is 7 x 13.", "--reason", "redundant"},
+	} {
+		args := append([]string{argv[0], "--run", runDir, "--seat-id", "blue-lane-1", "--json"}, argv[1:]...)
+		out, err := run(t, args...)
+		if err == nil {
+			t.Errorf("a lane's %s was admitted:\n%s", argv[0], out)
+			continue
+		}
+		msg := err.Error() + "\n" + out
+		for _, want := range []string{`"code":"role_violation"`, `\"` + argv[0] + `\" is not on your surface — it is the blue seat's verb`} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("a lane's %s is not refused as blue's verb (%s):\n%s", argv[0], want, msg)
+			}
+		}
+	}
+	for _, typ := range acts {
+		if n := countType(t, runDir, typ); n != 0 {
+			t.Errorf("the lane's refused acts recorded %d %s event(s)", n, typ)
+		}
+	}
+	mustIngestPart(t, runDir, "blue-lane-2", "## The test\n\nTrial division to 9 settles it.\n")
 }
 
 // R2: A LANE RECORDS ONE PART.

@@ -1058,7 +1058,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 // blue's verbs refuse the removals and empty inquiries the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "blue-lane-1"
+	seatID := "blue-respond"
 
 	t.Run("retire needs both the claim and the reason", func(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--reason", "refuted"); err == nil {

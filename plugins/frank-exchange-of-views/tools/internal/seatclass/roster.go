@@ -89,7 +89,14 @@ func roster() map[string]Seat {
 // Lane is what every lane seat is, whatever its number. A lane's ID is generated from the run's
 // lane count (record.LaneSeatIDs), so no row of Seats can carry one; its role, tier base and
 // configuration do not vary with the number and are stated once, here.
-var Lane = Seat{Role: "blue", Base: "blue-lane", AgentType: AgentTypePrefix + "blue-researcher"}
+//
+// A LANE IS ITS OWN ROLE, because a role is what selects a surface and a lane's is not blue's. A
+// lane researches and records its part of the report, and the report's first change after a part
+// closes the door on every lane still writing (record.PartStanding). Holding blue's edit, cite,
+// compute and retire, the first lane to finish could close that door on the others by acting on
+// its own part, and one did (the #1663 smoke: five edits, five cites and four computations after
+// its part). Without those verbs on its surface the act is refused as another seat's.
+var Lane = Seat{Role: "lane", Base: "blue-lane", AgentType: AgentTypePrefix + "blue-lane"}
 
 // LaneSeatPrefix is how a lane seat id is SPELLED, and the one place that says so.
 //
@@ -137,9 +144,9 @@ func SeatsOfRole(role string) []string {
 	return ids
 }
 
-// Roles is every role some seat is seated under, sorted.
+// Roles is every role some seat is seated under, the lanes' included, sorted.
 func Roles() []string {
-	var roles []string
+	roles := []string{Lane.Role}
 	for _, s := range Seats {
 		if !slices.Contains(roles, s.Role) {
 			roles = append(roles, s.Role)

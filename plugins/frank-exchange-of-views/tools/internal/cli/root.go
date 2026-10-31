@@ -74,6 +74,8 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
 		return blue.Verbs(), "blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all."
+	case seatclass.Lane.Role:
+		return blue.LaneVerbs(), "a lane — researches, records inquiries, and records its part of the report, once; what becomes of the report after that is blue's."
 	case "bench":
 		// "opinions" NAMED A VERB THE BENCH NO LONGER HAS. `bench opinion` is retired (#681) and
 		// the disposition is a docket motion's ruling, so the line offered a capability the

@@ -39,9 +39,9 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `lens register` `chair register` `blue register` `bench register` | first action of EVERY sitting, a resumed session's included — it opens the sitting where no bracket did, and joins the bracket's sitting where one did | — | CLEAN: a dispatched seat that has opened no sitting since its dispatch is readied again; a chair whose sitting no bracket or register has opened is refused `dispatch next` |
-| `lens log` `chair log` `blue log` `bench log` | an entry for the operator, typed: a defect, a request, or friction worth noting; a clean sitting files nothing — the record already holds that the seat sat | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record log`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
-| `lens show` `chair show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here. One read writes: a lens's whole `show report` (bare, or `--json` with no selector) records a `report_read` at the head it served, once per head in a sitting, and that head is the lens's pin. `show source`, which searches a cached source's text, is on the lens's and blue's trees alone, as `fetch` is |
+| `lens register` `chair register` `blue register` `lane register` `bench register` | first action of EVERY sitting, a resumed session's included — it opens the sitting where no bracket did, and joins the bracket's sitting where one did | — | CLEAN: a dispatched seat that has opened no sitting since its dispatch is readied again; a chair whose sitting no bracket or register has opened is refused `dispatch next` |
+| `lens log` `chair log` `blue log` `lane log` `bench log` | an entry for the operator, typed: a defect, a request, or friction worth noting; a clean sitting files nothing — the record already holds that the seat sat | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record log`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
+| `lens show` `chair show` `blue show` `lane show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here. One read writes: a lens's whole `show report` (bare, or `--json` with no selector) records a `report_read` at the head it served, once per head in a sitting, and that head is the lens's pin. `show source`, which searches a cached source's text, is on the lens's, blue's and the lane's trees alone, as `fetch` is |
 | `bench inquest debate` `chair inquest debate` | ruling a docketed gap or a motion, where what each side ARGUED decides it | — | CLEAN (read path, adjudicators only). The bench and the chair both rule between two parties and take neither one's account, so they read the transcript itself |
 | `bench inquest motions` `chair inquest motions` | ruling a motion, or checking what was already formally contested and how | `show work` lists the bench's UNRULED motions as items; this is the ask and the ruling in the filer's own words | CLEAN (read path, adjudicators only). The chair rules GRADE motions and the bench the rest, so both need the ask in the filer's words |
 | `bench inquest telemetry` `chair inquest telemetry` | judging whether the debate is still converging — the STOPPING question | — | CLEAN (read path, adjudicators only). A trend across epochs, not a snapshot |
@@ -79,7 +79,6 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `blue edit` | any change to the report once the lanes' parts are recorded | a raw Write/Edit to a file | EXECUTED — there is no report file to write, and the tool refuses an edit that drops, duplicates or invents an anchor, or leaves a citation bare with no prose before it in its sentence |
-| `blue ingest` | record a lane's part of the report, once, before the report's first change | ~~a raw write leaving a file behind~~ | EXECUTED: reads `blue/candidates/<seat>.md` verbatim into a `ReportPart` event, PROVES the record renders the part back, then DELETES the file — after which the report is the parts plus their diff-stack and there is no file to write, chattr, or bypass. A lane's only (any other seat → `blue edit`), one part per lane, and none after the report's first non-part change |
 | `blue cite` | a source backing a claim you are authoring | a hand-typed `[^1]` footnote | EXECUTED: the tool fetches, caches, hashes and splices the invisible anchor; assembly weaves the bibliography. Blue never types a footnote |
 | `blue compute` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records it `reproducible`, or `variant` with the invariant blue states when the runs differ |
 | `blue inquiry propose` | a question you are putting on the record, with what would be true if it paid off | — | CLEAN |
@@ -91,6 +90,16 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | ~~`blue confidence`~~ | DELETED (0.54.0) — blue self-grading its own claims | — | EXECUTED. It set no grade, entered no matrix, and its calibration computation was specified and never built. The word returned to the field the plan meant by it: `lens verify --confidence`, red's per-pair judgement |
 | ~~`blue dispute`~~ | COLLAPSED into `motion grade file` (#344) | — | EXECUTED |
 | `tldr` / `open_questions` (envelope) | — | authored into the report AND round-tripped in the envelope | CLEAN — executed: the envelope declares neither |
+
+## Lane
+
+A lane is its own role: it researches, records inquiries and records its part of the report. `edit`, `cite`, `compute` and `retire` are not on its surface, so the first lane to finish cannot change the report and close the door on the lanes still writing.
+
+| command | the one trigger | competing channel | verdict |
+|---|---|---|---|
+| `lane ingest` | record a lane's part of the report, once, before the report's first change | ~~a raw write leaving a file behind~~ | EXECUTED: reads `blue/candidates/<seat>.md` verbatim into a `ReportPart` event, PROVES the record renders the part back, then DELETES the file — after which the report is the parts plus their diff-stack and there is no file to write, chattr, or bypass. On the lane's surface alone, for a lane the run's cast seats; one part per lane, and none after the report's first non-part change |
+| `lane inquiry propose` | a question you are putting on the record, with what would be true if it paid off | — | CLEAN — the same act as `blue inquiry propose` |
+| `lane inquiry record` | what became of an inquiry you already proposed: its fate, and what settled it | — | CLEAN — the same act as `blue inquiry record` |
 
 ## Bench
 

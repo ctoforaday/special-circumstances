@@ -85,13 +85,13 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 	}{
 		{"the chair files a grade motion", "red-chair", grade,
 			[]string{"a grade motion is ruled by the chair seat", "`file` is not on your surface", "you are red-chair (chair)",
-				"The bench, blue and lens seats file one", "file `motion docket file` on the gap, which the bench rules"}},
+				"The bench, blue, lane and lens seats file one", "file `motion docket file` on the gap, which the bench rules"}},
 		{"the bench files a docket motion", "judge", docket,
 			[]string{"a docket motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
-				"The blue, chair and lens seats file one"}},
+				"The blue, chair, lane and lens seats file one"}},
 		{"the bench files a petition", "judge", petition,
 			[]string{"a petition motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
-				"The blue, chair and lens seats file one", "`halt` is yours"}},
+				"The blue, chair, lane and lens seats file one", "`halt` is yours"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := fresh(t)

@@ -27,7 +27,7 @@ import (
 type attestation struct {
 	roles []string
 	// seat is the ONE seat id this configuration is ever dispatched as, or "" where it seats more
-	// than one: `blue-researcher` seats the lanes, blue-respond and the frontier, so nothing but
+	// than one: `blue-researcher` seats blue-respond and the frontier, and `blue-lane` every lane, so nothing but
 	// the seat's own word can say which one registered. Where it is set, a sitting is knowable
 	// from the hook alone.
 	seat string
