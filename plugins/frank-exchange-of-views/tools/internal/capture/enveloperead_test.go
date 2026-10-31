@@ -36,11 +36,13 @@ func TestEveryReadInTheJournalIsRecomputedAtItsEvent(t *testing.T) {
 	early := read
 	early.Event = read.Event - 1
 	early.BenchOwed = []record.BenchHearing{}
-	notOwed, halted, outcome, elsewhere := read, read, read, read
+	notOwed, halted, outcome, elsewhere, placeholder := read, read, read, read, read
 	notOwed.BenchOwed = []record.BenchHearing{}
 	halted.Halted = true
 	outcome.Outcome = "VERIFIED"
 	elsewhere.Event = read.Event + 1000
+	placeholder.Event = 0
+	placeholder.BenchOwed = []record.BenchHearing{}
 
 	for _, tc := range []struct {
 		name    string
@@ -53,6 +55,7 @@ func TestEveryReadInTheJournalIsRecomputedAtItsEvent(t *testing.T) {
 		{"a halt nothing recorded", []map[string]any{carrying(t, halted)}, "FAIL", "halted true"},
 		{"an outcome nothing stamped", []map[string]any{carrying(t, outcome)}, "FAIL", "outcome VERIFIED"},
 		{"an event the record does not hold", []map[string]any{carrying(t, elsewhere)}, "FAIL", "names event"},
+		{"the placeholder a seat types", []map[string]any{carrying(t, placeholder)}, "FAIL", "names event 0"},
 		{"an envelope with none", []map[string]any{{"notes": "typed"}}, "FAIL", "envelope 1 of the journal carries no record_read"},
 		{"a value that is not a read", []map[string]any{{"record_read": "Not halted"}}, "FAIL", "does not read as one"},
 		{"no envelope", nil, "SKIP", "NOT MEASURED"},

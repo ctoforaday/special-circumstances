@@ -65,8 +65,10 @@ THE RECORD'S READ goes on the same call. An envelope the record does not refuse 
 input it carried and `record_read` set to what feov-sitting-write answers (`record.RecordRead`: the
 event read at, the hearings owed, whether the bench has halted, the outcome once stamped), overwriting
 anything the seat typed there. The engine runs in a sandbox with no tools, and this field is the only
-thing it learns of the record, so an envelope that comes back without it stops the run UNVERIFIED and
-names the seat. `capture`'s envelope-read audit recomputes each read at the event it names. Claude Code
+thing it learns of the record, so an envelope that comes back without it, or with a value missing a
+required field or naming an event below 1 (what a seat types there), stops the run UNVERIFIED and names
+the seat. `capture`'s envelope-read audit recomputes each read at the event it names, which is what
+catches a seat that typed a plausible event under a dead hook. Claude Code
 2.1.305 is the floor (`requirements.json`), which `sc-doctor` and `setup` both hold.
 
 ## PostToolUse

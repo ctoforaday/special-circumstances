@@ -211,7 +211,8 @@ const recordReadDesc = "written by the record's hook; leave it out"
 
 // renderRead writes record.RecordRead's schema. DECLARED, NOT REQUIRED, on every envelope: a required
 // field would have a seat type it when the hook is dead, and the engine could not tell that value
-// from the hook's. Absent is what stops the run.
+// from the hook's. Absent is what stops the run, and so is a read below the event floor or missing a
+// required field, both of which the engine's check reads off this block.
 func (v vocabulary) renderRead(b *strings.Builder) error {
 	if err := sound("record.RecordRead", v.read); err != nil {
 		return err

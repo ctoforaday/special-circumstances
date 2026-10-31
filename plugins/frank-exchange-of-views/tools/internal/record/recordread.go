@@ -22,8 +22,14 @@ import (
 // ABSENT IS NOT EMPTY. An envelope with no field is a hook that did not run, which stops the run; an
 // empty BenchOwed is a read that found nothing owed. The field is declared but not required, because
 // a required field would have a seat type it when the hook is dead.
+//
+// A READ NAMES AN EVENT, and a record's first is 1, so the floor on Event refuses what seats type
+// there: 0, or an empty object, which the required fields refuse. The harness checks the schema after
+// the hook's rewrite, so a read the hook wrote always clears it. A seat that types a plausible event
+// under a dead hook clears the floor and the engine's check; capture's envelope-read audit reads that
+// case, after the run.
 type RecordRead struct {
-	Event     int64           `json:"event" min:"0" desc:"the events.id the record was read at"`
+	Event     int64           `json:"event" min:"1" desc:"the events.id the record was read at"`
 	BenchOwed []BenchHearing  `json:"bench_owed" desc:"each sitting of the bench that a filing on the record is owed and has not had"`
 	Halted    bool            `json:"halted" desc:"the bench has halted the run"`
 	Outcome   RecordedVerdict `json:"outcome,omitempty" desc:"the outcome stamped on the record; absent while none is"`
@@ -44,7 +50,8 @@ func BenchHearings() []string {
 func RecordReadFields() []PlanField { return fieldsOf(reflect.TypeFor[RecordRead]()) }
 
 // ReadRecord is the record's read as it stands now: one snapshot, so the event it names is the last
-// the read saw. A run with no record is an error, as an envelope's check is: the hook refuses on it.
+// the read saw. A run with no record, or a record with no event to name, is an error, as an envelope's
+// check is: the hook refuses on it.
 func ReadRecord(run Run) (RecordRead, error) {
 	if err := recordPresent(run); err != nil {
 		return RecordRead{}, err
@@ -54,6 +61,9 @@ func ReadRecord(run Run) (RecordRead, error) {
 		evs, win, err := eventsAt(q)
 		if err != nil {
 			return err
+		}
+		if len(evs) == 0 {
+			return fmt.Errorf("the run's record at %s holds no event to read at", run.Records())
 		}
 		read = readOf(evs, win)
 		return nil
@@ -67,13 +77,10 @@ func ReadRecord(run Run) (RecordRead, error) {
 func RecordReadAt(evs []*Event, win WindowIndex, event int64) (RecordRead, error) {
 	ids := win.IDs(evs)
 	n, found := slices.BinarySearch(ids, event)
-	if !found && event != 0 {
+	if !found {
 		return RecordRead{}, fmt.Errorf("the stream holds no event %d", event)
 	}
-	if found {
-		n++
-	}
-	return readOf(evs[:n], win), nil
+	return readOf(evs[:n+1], win), nil
 }
 
 // BenchOwedBefore is the hearings owed on the record before the event at position pos of evs: what
@@ -88,13 +95,10 @@ func BenchOwedBefore(evs []*Event, win WindowIndex, pos int) []string {
 	return out
 }
 
-// readOf is the read over evs, whose last event is the one it names.
+// readOf is the read over evs, whose last event is the one it names. Its callers hold at least one.
 func readOf(evs []*Event, win WindowIndex) RecordRead {
 	ids := win.IDs(evs)
-	read := RecordRead{BenchOwed: benchOwedOf(evs, ids, win)}
-	if len(ids) > 0 {
-		read.Event = ids[len(ids)-1]
-	}
+	read := RecordRead{Event: ids[len(ids)-1], BenchOwed: benchOwedOf(evs, ids, win)}
 	for _, e := range evs {
 		switch b := mustBodyOf(e).(type) {
 		case *recordpb.Halt:

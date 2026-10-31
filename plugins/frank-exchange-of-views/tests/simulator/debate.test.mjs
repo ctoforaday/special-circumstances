@@ -1073,6 +1073,36 @@ test('an envelope with no record_read stops the run UNVERIFIED, naming the seat,
   assert.equal(labelsOf(assembly, 'judge · assemble').length, 1, 'a missing read is not a failed sitting: sitting it again does not bring the hook back')
 })
 
+// WHAT SEATS TYPED IN THE LIVE SMOKE (D14 of #1677's audit): 11 of 13 typed `event: 0`, one typed `{}`. The
+// hook overwrites them, so a dead hook is the one way they reach the engine, and neither is a read.
+test('a typed placeholder under a dead hook stops the run UNVERIFIED and names the seat; a real read passes', async () => {
+  const real = makeWorld(makeResponder({ chair: [passChair()] }))
+  const realOut = await real.run(script, ARGS)
+  assert.equal(realOut.verdict, 'VERIFIED')
+  assert.equal(realOut.termination.read_stop, null)
+  const schema = real.calls.find((c) => c.opts.schema).opts.schema.properties.record_read
+  assert.equal(schemaAccepts(schema, read()), true)
+  for (const [name, typed] of [
+    ['event 0', { event: 0, bench_owed: [], halted: false }],
+    ['an empty object', {}],
+    ['a halt with no event', { halted: true }],
+    ['null', null],
+  ]) {
+    assert.equal(schemaAccepts(schema, typed), false, `the schema took ${name}`)
+    const seats = makeResponder({ chair: [passChair()] })
+    const world = makeWorld(async (p, o) => {
+      const env = await seats(p, o)
+      return o.schema ? { ...env, record_read: typed } : env
+    }, { deadHook: true })
+    const out = await world.run(script, ARGS)
+    assert.equal(out.verdict, 'UNVERIFIED', name)
+    assert.equal(out.termination.read_stop.seat, 'blue-synthesize', name)
+    assert.ok(world.logs.some((l) => l.startsWith('blue-synthesize: the envelope came back with no record_read the hook wrote')), name)
+    assert.equal(labelsOf(world, 'red-chair').length, 0, `${name}: a seat sat past the stop`)
+    assert.ok(firstPrompt(world, 'judge · assemble').includes('the envelope blue-synthesize returned carries no record_read the hook wrote'), name)
+  }
+})
+
 // A POSITION STANDING AT THE EXIT — the chair withheld the PASS at its final sitting — is heard by the
 // terminal bench, and the run ends at its ceiling however it is ruled (gblock, 2026-10-30).
 test('a position standing at the exit: the terminal sitting rules it, and the run ends CEILING', async () => {

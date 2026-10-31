@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -70,6 +71,34 @@ func TestTheReadIsTheRecordAtEachEvent(t *testing.T) {
 	}
 	if _, err := RecordReadAt(fam.Events, fam.At, ids[len(ids)-1]+1); err == nil {
 		t.Error("a read naming an event the stream does not hold was recomputed")
+	}
+}
+
+// A READ NAMES AN EVENT: a record holds none below 1, and the floor on RecordRead.Event refuses what a
+// seat types there. A stream's event 0 is no prefix to fold, and a record with no event has no read.
+func TestEveryReadNamesAnEventOnTheRecord(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair").ingest().seed()
+	fam, err := FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := fam.At.IDs(fam.Events)[0]; first < 1 {
+		t.Errorf("the record's first event is %d", first)
+	}
+	if _, err := RecordReadAt(fam.Events, fam.At, 0); err == nil {
+		t.Error("a read naming event 0 was recomputed")
+	}
+	if _, err := ReadRecord(newStage(t).seed()); err == nil || !strings.Contains(err.Error(), "holds no event") {
+		t.Errorf("a record with no event read as %v", err)
+	}
+	var floor *int
+	for _, f := range RecordReadFields() {
+		if f.JSON == "event" {
+			floor = f.Min
+		}
+	}
+	if floor == nil || *floor != 1 {
+		t.Error("RecordRead.Event's floor is not 1")
 	}
 }
 

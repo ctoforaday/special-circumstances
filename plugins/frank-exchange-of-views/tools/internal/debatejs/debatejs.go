@@ -192,7 +192,7 @@ func WithKey(plan map[string]any) map[string]any {
 // assembly the outcome the engine told the seat to stamp, which a real assembly seat records. A backend
 // driving a hearing states its own.
 func StandInRead(d Dispatch) any {
-	read := map[string]any{"event": 0, "bench_owed": []any{}, "halted": false}
+	read := map[string]any{"event": 1, "bench_owed": []any{}, "halted": false}
 	if m := outcomeRe.FindStringSubmatch(d.Prompt); d.Occasion == "assemble" && m != nil {
 		read["outcome"] = m[1]
 	}

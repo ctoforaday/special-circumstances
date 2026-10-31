@@ -433,7 +433,7 @@ const RECORD_READ = {
   required: ['event', 'bench_owed', 'halted'],
   additionalProperties: false,
   properties: {
-    event: { type: 'integer', minimum: 0, description: 'the events.id the record was read at' },
+    event: { type: 'integer', minimum: 1, description: 'the events.id the record was read at' },
     bench_owed: { type: 'array', items: { type: 'string', enum: ['petition', 'position'] }, description: 'each sitting of the bench that a filing on the record is owed and has not had' },
     halted: { type: 'boolean', description: 'the bench has halted the run' },
     outcome: { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'], description: 'the outcome stamped on the record; absent while none is' },
@@ -675,15 +675,20 @@ const LANE_METHODS = [
 // UNVERIFIED, naming the seat. Every read goes through readOf, so absent never reads as empty, and a
 // halt on any read stops whoever has not started.
 //
+// A SEAT'S PLACEHOLDER IS NO READ. Seats type this field, mostly `event: 0`, some `{}`; the hook
+// overwrites it, so a value missing a required field or below the event floor means the hook did not
+// run, and readOf treats it as absent. A seat typing a plausible event under a dead hook still passes
+// here: capture's envelope-read audit reads that case against the record, after the run.
+//
 // A seat that died returned no envelope: the record still holds its filing, and the next close reads it.
 let halted = false
-let readStop = null // { seat } when a seat's envelope came back with no record_read
+let readStop = null // { seat } when a seat's envelope came back with no record_read the hook wrote
 const stopped = () => halted || readStop !== null
 function readOf(seat, env) {
   const read = env.record_read
-  if (read === undefined) {
+  if (read === undefined || read === null || RECORD_READ.required.some((f) => read[f] === undefined) || read.event < RECORD_READ.properties.event.minimum) {
     if (!readStop) readStop = { seat }
-    log(`${seat}: the envelope came back with no record_read — the record's read did not come back, so the hook did not run and neither did the envelope gate; the run stops UNVERIFIED`)
+    log(`${seat}: the envelope came back with no record_read the hook wrote — the record's read did not come back, so the hook did not run and neither did the envelope gate; the run stops UNVERIFIED`)
     return null
   }
   if (read.halted && !halted) {
@@ -1089,7 +1094,7 @@ const anchorsStanding = (plan) => {
   return (unchecked.length ? `; unchecked: ${unchecked.join(', ')}` : '') + (failed.length ? `; on a failed check: ${failed.join(', ')}` : '')
 }
 const terminationWhyOf = (verdict) => halted ? 'judicial halt'
-  : readStop ? `no read of the record: the envelope ${readStop.seat} returned carries no record_read, so the hook that writes it did not run, and neither did the envelope gate — the engine stopped rather than dispatch on a record it cannot read`
+  : readStop ? `no read of the record: the envelope ${readStop.seat} returned carries no record_read the hook wrote, so the hook did not run, and neither did the envelope gate — the engine stopped rather than dispatch on a record it cannot read`
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : seatStop ? `seat failure: ${seatStop.seat} failed ${seatStop.failures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}), each ending without its envelope — the engine stopped the debate rather than dispatch it again`
   : noProgress ? `no progress: the dispatch plan was the same for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head}, its parties, docket, exchange counts and standing blockers unchanged — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
