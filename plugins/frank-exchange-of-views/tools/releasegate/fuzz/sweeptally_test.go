@@ -107,7 +107,8 @@ type runTally struct {
 	ClosingsRefused            int                       `json:"closings_refused"`
 	ClosingWaits               int                       `json:"closing_waits"`
 	PositionsWithheld          int                       `json:"positions_withheld"`
-	PositionsUpheld            int                       `json:"positions_upheld"`
+	PositionsUpheldLens        int                       `json:"positions_upheld_lens"`
+	PositionsUpheldGaps        int                       `json:"positions_upheld_gaps"`
 	PositionsOverruled         int                       `json:"positions_overruled"`
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
@@ -168,7 +169,7 @@ func tallyOf(o outcome) runTally {
 		TypedVerbatim: o.typedVerbatim, EstoppelMisses: o.estoppelMisses, ApplyMisses: o.applyMisses,
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
-		PositionsUpheld: o.positionsUpheld, PositionsOverruled: o.positionsOverruled,
+		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
 		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
@@ -509,7 +510,8 @@ type sweepFold struct {
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
 	positionsWithheld                               int
-	positionsUpheld, positionsOverruled             int
+	positionsUpheldLens, positionsUpheldGaps        int
+	positionsOverruled                              int
 	fragmentsDriven, truncationsDriven              int
 	reopenedReadied, reopenedPlans                  int
 	computationReopenedReadied, owedKeptBy          map[string]int
@@ -581,7 +583,8 @@ func foldRuns(runs []runTally) sweepFold {
 		f.inquiryRecords += r.InquiryRecords
 		f.closingsFiled, f.closingsRefused, f.closingWaits = f.closingsFiled+r.ClosingsFiled, f.closingsRefused+r.ClosingsRefused, f.closingWaits+r.ClosingWaits
 		f.positionsWithheld += r.PositionsWithheld
-		f.positionsUpheld += r.PositionsUpheld
+		f.positionsUpheldLens += r.PositionsUpheldLens
+		f.positionsUpheldGaps += r.PositionsUpheldGaps
 		f.positionsOverruled += r.PositionsOverruled
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
@@ -832,13 +835,13 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		if f.closingsFiled == 0 || f.closingsRefused == 0 || f.closingWaits == 0 {
 			t.Errorf("fuzz filed %d closing(s), was refused %d envelope(s) while one stood and saw %d plan(s) keep the bench waiting on one, across %d runs — each must be nonzero, or the closing duty is unexercised (false green)", f.closingsFiled, f.closingsRefused, f.closingWaits, f.completed)
 		}
-		// NOT A GATE: a plan permitting a PASS is reached by the forced-verified run, which must record
-		// it, and rarely by any other, so the withheld PASS is a draw the sweep may not make. The duty is
-		// held by record's TestTheChairOwesAPositionWhereItWithheldAPermittedPass and capture's
-		// record-parity tests, and the bench's hearing of it by record's withheldpass_test.go; each
-		// position the sweep does draw is held to its ruling by the position oracle, and the counts
-		// are reported so a sweep that draws it says so.
-		t.Logf("chair sittings that withheld a permitted PASS and argued why: %d across %d runs; the bench upheld %d and overruled %d", f.positionsWithheld, f.completed, f.positionsUpheld, f.positionsOverruled)
+		// THE POSITION-RULING GATE. A withheld PASS is rare on its own, so each sweep process withholds
+		// a permitted PASS and the bench rules it each way it can — upheld naming a lens, upheld naming
+		// open gaps, overruled — until all three are driven (positionheard_test.go's positionForms). A
+		// count at zero is a ruling the sweep never made, and its flag goes unexercised behind a green.
+		if f.positionsUpheldLens == 0 || f.positionsUpheldGaps == 0 || f.positionsOverruled == 0 {
+			t.Errorf("chair sittings that withheld a permitted PASS: %d across %d runs; the bench upheld %d naming a lens, %d naming open gaps, and overruled %d — each ruling must be nonzero, or it is unexercised (false green)", f.positionsWithheld, f.completed, f.positionsUpheldLens, f.positionsUpheldGaps, f.positionsOverruled)
+		}
 		// THE SECTION-ORDER GATE. The generators here write the report's text in order, so the
 		// refusal that holds it is reached only by the drive that writes a section out of place.
 		if f.ordersRefused == 0 {

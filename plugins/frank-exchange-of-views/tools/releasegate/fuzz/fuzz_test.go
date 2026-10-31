@@ -617,8 +617,12 @@ type runner struct {
 	overruledPending string
 	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
 	// plan it relays is the one it asks for after it (chairEnvelope).
-	positionFiled                                    bool
-	positionsUpheld, positionsOverruled              int
+	positionFiled bool
+	// positionForms is the sweep's ledger of the bench rulings still owed (positionheard_test.go), nil
+	// outside the sweep.
+	positionForms                                    *positionFormLedger
+	positionsUpheldLens, positionsUpheldGaps         int
+	positionsOverruled                               int
 	positionRulingsRefused, repeatedPositionsRefused int
 	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
 	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
@@ -4725,7 +4729,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A CHAIR MAY WITHHOLD A PASS THE BOARD PERMITS, and its position then says why — the one
 		// sitting the position is owed at (record.PositionSittings). The bench hears it next. Drawn
 		// rarely, never in a forced run, and never where an overruling decided the objection.
-		if permitted && overruled == "" && !r.forcedVerdict() && r.coin(5) {
+		if permitted && overruled == "" && !r.forcedVerdict() && (r.owesWithhold() || r.coin(5)) {
 			r.chairPosition(seatID, true)
 			return r.chairEnvelope(seatID, "", "", responses)
 		}
@@ -5542,9 +5546,9 @@ type outcome struct {
 	// propose-result reader going blind.
 	inquiryRecords int
 	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's, as are
-	// positionsUpheld and positionsOverruled, the bench's rulings on them.
+	// positionsUpheldLens, positionsUpheldGaps and positionsOverruled, the bench's rulings on them.
 	closingsFiled, closingsRefused, closingWaits, positionsWithheld int
-	positionsUpheld, positionsOverruled                             int
+	positionsUpheldLens, positionsUpheldGaps, positionsOverruled    int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
 	// spansRefused is the cites the tool refused for a span the source does not hold
@@ -6091,6 +6095,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
+	r.positionForms = sweepPositionForms
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
@@ -6881,7 +6886,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.inquiryRecords = r.inquiryRecords
 	res.closingsFiled, res.closingsRefused, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsRefused, r.closingWaits, r.positionsWithheld
-	res.positionsUpheld, res.positionsOverruled = r.positionsUpheld, r.positionsOverruled
+	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
 	res.copiesRead = r.copiesRead
