@@ -140,7 +140,7 @@ func TestAProgramsNamesOpenNothingInTheEvidenceDocument(t *testing.T) {
 			Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, RerunSha: staged.Sha,
 				Drift: name("out/"+outName+" written by this act's run only; on re-run the program wrote: ````\n## V\n====\n    File \"x\"", "out/out.png written by this act's run only; on re-run the program wrote: other output")},
 		}
-		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}, map[string]bool{"K-00000001": true}))
+		return resolveMarks(evidenceDoc(runtest.Open(t, runDir), []record.Computation{k}))
 	}
 	plain, hostile := shapes(doc(t, false)), shapes(doc(t, true))
 	for k, n := range plain {
