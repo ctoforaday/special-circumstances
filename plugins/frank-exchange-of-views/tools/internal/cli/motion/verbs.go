@@ -294,8 +294,8 @@ var ruleDetail = map[string]string{
 		"A gap can close while a second docket motion on it stands — your ruling on the first closed it — and a remand of it is refused, naming the close, because a closed gap has no exchange to have and the record does not reopen it: rule that motion with a disposition that closes, on the record as it stands.",
 	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
 		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
-		"the record holds is refused. Rule on each inquiry blue " +
-		"proposed that you have not ruled — an unruled one is on your work list and holds your PASS: say whether it is " +
+		"the record holds is refused. An inquiry you have not ruled is no motion: no work list names it, no sitting waits on it, and it holds no PASS. " +
+		"Your ruling says whether the inquiry is " +
 		"worth this run's time — a judgment you argue in the reason: `endorsed` asks blue to take it up, `out_of_scope` and `too_thin` argue against it. The ruling is an argument beside the inquiry and changes no " +
 		"fate — the fate is what blue records with `inquiry record` (that page lists the fates), with your reason in front of it, " +
 		"whichever way you ruled; blue owes every open inquiry a fate each sitting. The first ruling on an " +

@@ -1236,7 +1236,7 @@ func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 	}
 	out = append(out, Show(role))
 	// THE SEATS THAT ADJUDICATE, WHICH IS NOT ONLY THE BENCH. The chair issues the verdict and
-	// rules grade motions; the bench rules the docket, petitions and inquiries. Both decide
+	// rules grade motions and inquiries; the bench rules the docket, petitions and positions. Both decide
 	// BETWEEN two parties and may take neither one's account, which is what this group is for —
 	// and a refusal that points the chair at `inquest motions` has to reach a chair that has it.
 	// A lens and blue do the work being judged, so they do not carry it.

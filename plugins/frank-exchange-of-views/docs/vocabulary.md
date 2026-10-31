@@ -603,7 +603,7 @@ A sitting's occasion is what it was convened to do — the question put to the s
 
 ## inquiry
 
-An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
+An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, open to a ruling by the chair, and reviewed against the report once per epoch.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
