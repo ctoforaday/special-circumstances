@@ -77,7 +77,7 @@ func Entries() Registry {
 		// and keeps no copy on the row; an archived row's list is not carried, and its plan was never
 		// stored, so the gaps are read off the remand rulings the record replays.
 		"dispatch": {Translate: dispatchEntry},
-		// A SOURCE BEFORE EPOCH 52 HOLDS THE REPORT AS ONE INGESTED TEXT, written before every other
+		// A SOURCE BEFORE EPOCH 51 HOLDS THE REPORT AS ONE INGESTED TEXT, written before every other
 		// report op. It is the report's one part, under its author's seat, with its text unchanged: a
 		// single part before every op folds to the same report.
 		"base_ingest": mapped("report_part", nil, nil, nil),
