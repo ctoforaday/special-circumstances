@@ -857,37 +857,71 @@ func (r *runner) citeSpanRefused(seatID, out string, err error) {
 	}
 }
 
-// sourceSearchCited searches the source blue just cited, through the citation's anchor, and holds
-// every hit to the citation: each hit's source_span is the span cite took, and its matched bytes
-// are the source's at its offsets. The source is one sentence (sourceBody), so a hit's sentence is
-// the whole of it, and a hit printing any other span is one cite would place elsewhere or refuse.
+// sourceSearchCited searches the source blue just cited, as blue and as a lens, and holds every hit
+// to the citation: each hit's source_span is the span cite took, and its matched bytes are the
+// source's at its offsets. The source is one sentence (sourceBody), so a hit's sentence is the whole
+// of it, and a hit printing any other span is one cite would place elsewhere or refuse.
 //
-// IT DRAWS NOTHING FROM THE RUN'S RNG: the pattern turns on the citation's id, so the drive draws
-// what it drew before. One search in two is the keyword-in-context shape m36's seats could not run
-// in their shell; the other is a literal.
+// EACH ROLE NAMES THE SOURCE BOTH WAYS ACROSS A RUN: one seat by the citation's anchor, the other by
+// its sha256, and which is which turns on the citation's id — so blue and the lens each pass --anchor
+// and --sha, and the two reads of one source must print the same answer.
+//
+// IT DRAWS NOTHING FROM THE RUN'S RNG: the pattern and the split turn on the citation's id, so the
+// drive draws what it drew before. One search in two is the keyword-in-context shape m36's seats
+// could not run in their shell; the other is a literal.
 func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
-	// THE LABEL IS THE ENVELOPE'S RESULT FIELD: --json wraps a verb's result as `result`.
+	// THE LABEL AND THE SHA ARE THE ENVELOPE'S RESULT FIELDS: --json wraps a verb's result as `result`.
 	var env struct {
 		Result struct {
-			Label string `json:"label"`
+			Label  string `json:"label"`
+			Sha256 string `json:"sha256"`
 		} `json:"result"`
 	}
-	if err := json.Unmarshal([]byte(citeOut), &env); err != nil || env.Result.Label == "" {
-		r.noteSourceSearch(fmt.Sprintf("%s's cite printed no result.label to search its source by (%v): %s", seatID, err, truncate(citeOut)))
+	if err := json.Unmarshal([]byte(citeOut), &env); err != nil || env.Result.Label == "" || env.Result.Sha256 == "" {
+		r.noteSourceSearch(fmt.Sprintf("%s's cite printed no result.label and result.sha256 to search its source by (%v): %s", seatID, err, truncate(citeOut)))
 		return
 	}
-	c := struct{ Label string }{env.Result.Label}
+	label, sha := env.Result.Label, env.Result.Sha256
 	pattern := []string{"--quote", "source body for"}
-	if c.Label[len(c.Label)-1]%2 == 0 {
+	if label[len(label)-1]%2 == 0 {
 		pattern = []string{"--match", `.{0,20}source body.{0,40}`}
 	}
-	out, err := r.exec(append([]string{"show", "source", "--seat-id", seatID, "--anchor", c.Label}, pattern...)...)
+	byAnchor, bySha := []string{"--anchor", label}, []string{"--sha", sha}
+	blueBy, lensBy := byAnchor, bySha
+	if label[len(label)-2]%2 == 0 {
+		blueBy, lensBy = bySha, byAnchor
+	}
+	first := ""
+	for _, read := range []struct {
+		seat string
+		by   []string
+	}{{seatID, blueBy}, {seatOfRole("lens"), lensBy}} {
+		out, ok := r.searchCitedSource(read.seat, label, span, append(append([]string{}, read.by...), pattern...))
+		if !ok {
+			return
+		}
+		if first == "" {
+			first = out
+		} else if out != first {
+			r.noteSourceSearch(fmt.Sprintf("%s's search of %s %v read another answer than %s's:\n%s\n%s", read.seat, label, read.by, seatID, out, first))
+			return
+		}
+	}
+	markViewDriven("source")
+	r.mu.Lock()
+	r.sourceSearches++
+	r.mu.Unlock()
+}
+
+// searchCitedSource runs one search of the source citation label cites and holds its hits to span,
+// the span cite took. ok is false when it recorded a failure.
+func (r *runner) searchCitedSource(seatID, label, span string, args []string) (string, bool) {
+	out, err := r.exec(append([]string{"show", "source", "--seat-id", seatID}, args...)...)
 	if err != nil {
-		r.noteSourceSearch(seatID + "'s search of the source it cited was refused: " + firstLine(out))
-		return
+		r.noteSourceSearch(fmt.Sprintf("%s's search of the source %s cites %v was refused: %s", seatID, label, args, firstLine(out)))
+		return "", false
 	}
 	var s struct {
-		Sha  string `json:"sha256"`
 		Hits []struct {
 			Start      int    `json:"start"`
 			End        int    `json:"end"`
@@ -897,35 +931,20 @@ func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
 		} `json:"hits"`
 	}
 	if err := json.Unmarshal([]byte(out), &s); err != nil || len(s.Hits) == 0 {
-		r.noteSourceSearch(fmt.Sprintf("%s's search of %s %v found nothing in the source it cited (%v): %s", seatID, c.Label, pattern, err, firstLine(out)))
-		return
+		r.noteSourceSearch(fmt.Sprintf("%s's search %v found nothing in the source %s cites (%v): %s", seatID, args, label, err, firstLine(out)))
+		return "", false
 	}
 	for _, h := range s.Hits {
 		switch {
 		case h.SourceSpan != span:
-			r.noteSourceSearch(fmt.Sprintf("%s's search of %s printed source_span %q (%s), and cite took %q", seatID, c.Label, h.SourceSpan, h.Why, span))
-			return
+			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed source_span %q (%s), and cite took %q", seatID, args, label, h.SourceSpan, h.Why, span))
+			return "", false
 		case h.Start < 0 || h.End <= h.Start || h.End > len(span) || span[h.Start:h.End] != h.Matched:
-			r.noteSourceSearch(fmt.Sprintf("%s's search of %s printed offsets [%d,%d) that do not hold its matched %q", seatID, c.Label, h.Start, h.End, h.Matched))
-			return
+			r.noteSourceSearch(fmt.Sprintf("%s's search %v of %s printed offsets [%d,%d) that do not hold its matched %q", seatID, args, label, h.Start, h.End, h.Matched))
+			return "", false
 		}
 	}
-	// A LENS READS THE SAME SOURCE BY ITS SHA256, as the evidence view lists it, and finds the same
-	// hits blue did.
-	lensSeat := seatOfRole("lens")
-	lout, lerr := r.exec(append([]string{"show", "source", "--seat-id", lensSeat, "--sha", s.Sha}, pattern...)...)
-	if lerr != nil {
-		r.noteSourceSearch(fmt.Sprintf("%s's search of %s by its sha256 %s was refused: %s", lensSeat, c.Label, s.Sha, firstLine(lout)))
-		return
-	}
-	if lout != out {
-		r.noteSourceSearch(fmt.Sprintf("%s's search of %s by its sha256 read another answer than %s's by its anchor:\n%s\n%s", lensSeat, c.Label, seatID, lout, out))
-		return
-	}
-	markViewDriven("source")
-	r.mu.Lock()
-	r.sourceSearches++
-	r.mu.Unlock()
+	return out, true
 }
 
 // noteSourceSearch records the first source-search failure.
