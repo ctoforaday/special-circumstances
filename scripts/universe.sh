@@ -44,9 +44,13 @@
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
-#   scripts/universe.sh run "<topic>" [flags...]  # run /research inside it, one claude process
+#   scripts/universe.sh run "<topic>" [flags...]  # run /research inside it, one DETACHED claude
+#                                                 # process, and follow its log. --no-follow returns
+#                                                 # at once; killing the follower leaves the run running
+#   scripts/universe.sh resume                    # restart a run whose process died with no outcome
 #   scripts/universe.sh shell                     # interactive claude in the universe
-#   scripts/universe.sh watch [secs]              # the BOARD, live, from the record (read-only)
+#   scripts/universe.sh watch [secs]              # the BOARD, live, from the record (read-only), until
+#                                                 # the process ends. Exit 3 means TRUNCATED
 #   scripts/universe.sh doctor                    # what is installed, which binaries, what version
 #
 # Env:
@@ -97,13 +101,14 @@ CONCURRENT_AGENTS="${CONCURRENT_AGENTS:-16}"
 # it DENIES, so every Bash and Read a seat needs returns "Permission to use Bash has been denied
 # because Claude Code is running in don't ask mode" and the run writes no record at all. `--bg`
 # refuses bypassPermissions until its disclaimer is accepted interactively, which a universe's own
-# config dir has never seen. So the run is a foreground `-p`, and the process must be kept alive
-# for the whole debate: the Workflow does NOT survive it. Print mode terminates background tasks on
-# a ceiling, which killed a run mid-sitting. `cmd_run` sets CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0
-# and says why.
+# config dir has never seen. So the run is a `-p`, and the process must be kept alive for the whole
+# debate: the Workflow does NOT survive it. Print mode terminates background tasks on a ceiling,
+# which killed a run mid-sitting, so `cmd_supervise` sets CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 and
+# says why; `launch_detached` keeps the process out of reach of whatever launched it, and says why.
 PERMISSION_MODE="${PERMISSION_MODE:-bypassPermissions}"
 
 LIVE=0
+FOLLOW=1
 
 log()  { printf '[universe] %s\n' "$*"; }
 die()  { printf '[universe] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -118,10 +123,47 @@ while [ $# -gt 0 ]; do
     --dir=*)    WORKDIR="${1#--dir=}"; shift ;;
     --live)     LIVE=1; shift ;;
     --force)    FORCE=1; shift ;;
+    --no-follow) FOLLOW=0; shift ;;
     *)          ARGS+=("$1"); shift ;;
   esac
 done
 set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+# WHAT SAYS WHETHER A RUN IS ALIVE, AND WHAT IT LAUNCHED. Written per launch; a resume repoints the
+# pid file and the log, and leaves the origin stream where it is, because that is where the run's
+# Workflow call was first made.
+PID_FILE="$WORKDIR/run.pid"
+CURRENT_LOG="$WORKDIR/run-current.log"
+ORIGIN_STREAM="$WORKDIR/run-origin.jsonl"
+
+# IS THE LAST LAUNCH STILL RUNNING: `running`, `dead`, or `unknown` when nothing recorded one. Silence
+# cannot answer this: a seat thinking for ten minutes and a killed run write the same nothing.
+#
+# THE PID IS A SESSION ID, and the question is whether that SESSION has a live process, not whether
+# that pid does. The supervisor can be SIGKILLed while claude goes on writing the record, which a
+# `kill -0` on the supervisor would report as dead and `resume` would then answer with a second lead
+# on one record. It also survives a reboot: a recycled pid is rarely a session leader, so a stale pid
+# file reads as dead rather than as alive for as long as some unrelated process holds the number.
+process_state() {
+  local pid
+  pid="$(cat "$PID_FILE" 2>/dev/null)"
+  if [ -z "$pid" ]; then echo unknown; return; fi
+  if ps -o stat= -s "$pid" 2>/dev/null | grep -qv '^Z'; then echo running; else echo dead; fi
+}
+
+# The rc of the run's EXIT line in this log, or nothing when the log has none. The renderer's lines all
+# carry a [time] prefix, so nothing else writes a line that starts this way.
+exit_rc() {
+  sed -n 's/^EXIT \([0-9][0-9]*\)$/\1/p' "$1" 2>/dev/null | tail -n 1
+}
+
+process_detail() {
+  if [ ! -f "$PID_FILE" ]; then printf 'no pid file at %s' "$PID_FILE"; return; fi
+  local rc exit_says="no EXIT line"
+  rc="$(exit_rc "$CURRENT_LOG")"
+  [ -z "$rc" ] || exit_says="EXIT $rc"
+  printf 'pid %s, %s, log %s' "$(cat "$PID_FILE")" "$exit_says" "$CURRENT_LOG"
+}
 
 # THE IN-FLIGHT REPORT IS THE THING WORTH PROTECTING, and it is protected proactively rather than
 # by a note. `setup` writes .claude/run-live.json and the run's own dashboard treats that marker as
@@ -139,6 +181,16 @@ set -- "${ARGS[@]+"${ARGS[@]}"}"
 guard_no_live_run() {
   local what="$1"
   local marker="$WORKDIR/src/.claude/run-live.json"
+  # A LIVE PROCESS IS NOT A QUESTION FOR --force, and it holds before `setup` has written the marker.
+  # The marker can go stale and the human has to rule on it; a process in this universe's session is
+  # measured, and proceeding would overwrite the pid file that is the only handle on it.
+  if [ "$(process_state)" = running ]; then
+    printf '[universe] REFUSING to %s\n' "$what" >&2
+    printf '  A run process is alive in %s (%s)\n' "$WORKDIR" "$(process_detail)" >&2
+    printf '  To end it:   pkill -s %s\n' "$(cat "$PID_FILE")" >&2
+    printf '  For a separate experiment:   %s --dir <other> %s\n' "${BASH_SOURCE[0]}" "$what" >&2
+    exit 3
+  fi
   [ -f "$marker" ] || return 0
 
   # THE WAL IS WHAT MOVES, NOT THE DATABASE. SQLite in WAL mode appends to record.db-wal and
@@ -166,6 +218,7 @@ guard_no_live_run() {
   printf '  %s\n' "$quiet" >&2
   printf '\n  A rebuild swaps the hook binaries a live engine spawns per tool call; a second run\n' >&2
   printf '  writes two debates into one record. Neither failure announces itself.\n\n' >&2
+  printf '  If the run was TRUNCATED:          %s --dir %s resume\n' "${BASH_SOURCE[0]}" "$WORKDIR" >&2
   printf '  If the run is FINISHED or dead:   rm %s\n' "$marker" >&2
   printf '  For a separate experiment:        %s --dir <other> %s\n' "${BASH_SOURCE[0]}" "$what" >&2
   printf '  If you are certain:               add --force\n' >&2
@@ -505,17 +558,74 @@ cmd_doctor() {
   done
 }
 
-# ONE BACKGROUND SESSION, BECAUSE THE ENGINE OUTLIVES A TURN.
+# A RUN IS DETACHED FROM WHATEVER LAUNCHED IT, because the launcher's lifetime is not the debate's.
 #
-# `claude -p` exits when the model ends its turn. The skill dispatches the debate through the
-# Workflow tool, which RETURNS IMMEDIATELY and runs in the background — so the lead invokes it,
-# says "I'll relay the envelope when the debate returns", ends its turn, and the process exits
-# taking the workflow with it. Measured: the record stopped at eight sitting spans and went stale
-# thirteen minutes before anyone noticed, with `subtype: success` and no error anywhere.
+# Measured on m37: `run` held `claude -p` in the foreground of an agent's Bash background task, and
+# that task's 7200000 ms ceiling killed the debate in epoch 11 of 12, with three lens sittings open,
+# no verdict and no outcome. Nothing warned of it, and no earlier smoke had run long enough to find it.
 #
-# `--bg` starts a session that persists and prints an id. The workflow runs under it to completion;
-# `claude logs <id>` shows its output, `claude stop <id>` ends it, and the board view below reads
-# the record while it works.
+# So the debate gets its own session, with no stdin or stdout shared with the caller, and what the
+# caller holds is at most a `tail` of the log. A group kill of the caller cannot reach it, and neither
+# can a closed pipe.
+#
+# THE SUPERVISOR WRITES ITS OWN PID. `setsid` forks when its caller leads a process group, so `$!` is
+# not always the session; the session leader is the one process that can say for certain.
+launch_detached() {
+  local stamp="$1" mode="$2" session="${3:-}"
+  command -v setsid >/dev/null || die "setsid not on PATH: a run cannot be detached from its launcher"
+  rm -f "$PID_FILE"
+  ln -sfn "run-$stamp.log" "$CURRENT_LOG"
+  setsid "${BASH:-bash}" "${BASH_SOURCE[0]}" --dir "$WORKDIR" _supervise "$stamp" "$mode" "$session" \
+    </dev/null >>"$WORKDIR/run-$stamp.log" 2>&1 &
+  local tries=0
+  until [ -s "$PID_FILE" ]; do
+    tries=$((tries + 1))
+    [ "$tries" -le 100 ] || die "the supervisor wrote no pid file in 10s: see $WORKDIR/run-$stamp.log"
+    sleep 0.1
+  done
+}
+
+# The stamp names this launch's log, stream and prompt. It has to be unused: two launches in one
+# second would append to one log, and the first one's EXIT line would then answer for the second.
+new_stamp() {
+  local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  while [ -e "$WORKDIR/run-$stamp.log" ]; do
+    sleep 1
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  done
+  printf '%s' "$stamp"
+}
+
+# What `run` and `resume` tell the caller once the process is detached, and then the follow. Following
+# is a view: the tail ending, for any reason, says nothing about the run until the state is read.
+report_launch() {
+  local stamp="$1" pid out="$WORKDIR/run-$1.log"
+  pid="$(cat "$PID_FILE")"
+  log "detached: session $pid. Killing this command leaves the run running"
+  log "log:    $out"
+  log "stream: $WORKDIR/stream-$stamp.jsonl"
+  log "wait:   tail -n +1 -f --pid=$pid $out | grep -m1 '^EXIT '   (no line means it was killed)"
+  log "board:  $0 --dir $WORKDIR watch"
+  [ "$FOLLOW" = "1" ] || return 0
+
+  tail -n +1 -f --pid="$pid" "$out" &
+  local tail_pid=$!
+  trap 'kill "$tail_pid" 2>/dev/null; log "follower stopped; the run goes on (session $pid)"; exit 143' TERM INT HUP
+  wait "$tail_pid"
+  trap - TERM INT HUP
+
+  if [ "$(process_state)" = running ]; then
+    log "follower stopped; the run goes on (session $pid)"
+    return 0
+  fi
+  local rc; rc="$(exit_rc "$out")"
+  if [ -z "$rc" ]; then
+    log "the run's process is gone with no EXIT line: it was killed"
+    return 1
+  fi
+  return "$rc"
+}
+
 cmd_run() {
   local topic="${1:-}"; shift || true
   [ -n "$topic" ] || die "usage: universe.sh run \"<topic>\" [extra /research flags]"
@@ -525,10 +635,11 @@ cmd_run() {
   local src="$WORKDIR/src"
   mkdir -p "$src"
 
-  local stamp; stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local stamp; stamp="$(new_stamp)"
   local out="$WORKDIR/run-$stamp.log"
 
-  log "topic: $topic"
+  # The header goes to the log only: the follow below prints the log from its first line.
+  log "topic: $topic" >> "$out"
   # --smoke SETS THE TIERS ITSELF, so asking for it alongside a different tier is two instructions
   # and one of them has to lose silently. Refused instead: the operator says which experiment they
   # meant. (Matching values are not a conflict — the defaults here ARE smoke's.)
@@ -539,16 +650,77 @@ cmd_run() {
     fi
     smoke_flag=" --smoke"
   fi
-  log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)"
-  # PRINTED BESIDE THE TIERS because it changes the wall clock a run is compared on: two runs at
-  # different concurrency are not the same experiment, and the engine's own default depends on the
-  # BOX rather than on anything the run records.
-  log "concurrency: $CONCURRENT_AGENTS agent(s) (engine default here would be $(( $(nproc) - 2 )) on $(nproc) cores)"
-  log "cwd:   $src"
-  log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
+  {
+    log "tiers: model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES mode=$([ "$SMOKE" = "1" ] && echo smoke || echo development)"
+    # PRINTED BESIDE THE TIERS because it changes the wall clock a run is compared on: two runs at
+    # different concurrency are not the same experiment, and the engine's own default depends on the
+    # BOX rather than on anything the run records.
+    log "concurrency: $CONCURRENT_AGENTS agent(s) (engine default here would be $(( $(nproc) - 2 )) on $(nproc) cores)"
+    log "cwd:   $src"
+  } >> "$out"
 
-  local raw="$WORKDIR/stream-$stamp.jsonl"
-  log "  progress below; raw stream -> $raw"
+  printf '%s' "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES$smoke_flag $*" \
+    > "$WORKDIR/prompt-$stamp.txt"
+  ln -sfn "stream-$stamp.jsonl" "$ORIGIN_STREAM"
+  launch_detached "$stamp" run
+  report_launch "$stamp"
+}
+
+# THE SAME DEBATE, RESTARTED BY ITS OWN LEAD. A run with no outcome is resumable: the Workflow tool
+# replays what it finished, so the lead's session is resumed and told to invoke it with
+# resumeFromRunId and the SAME args. The args, the script, the session and the run id are read from
+# the stream's first Workflow call and its result, so none of them is retyped by an operator.
+#
+# REFUSED UNLESS THE PROCESS IS MEASURED DEAD. A second lead on a live run writes two debates into
+# one record, and an unknown process state is not evidence of a dead one.
+cmd_resume() {
+  universe_env; clear_seat_env
+  case "$(process_state)" in
+    running)
+      printf '[universe] REFUSING to resume: the run process is still alive (%s)\n' "$(process_detail)" >&2
+      exit 3 ;;
+    unknown)
+      printf '[universe] REFUSING to resume: %s, so nothing says the process is dead\n' "$(process_detail)" >&2
+      exit 3 ;;
+  esac
+  [ -f "$ORIGIN_STREAM" ] || { printf '[universe] REFUSING to resume: no stream at %s\n' "$ORIGIN_STREAM" >&2; exit 3; }
+
+  local stamp; stamp="$(new_stamp)"
+  local fields
+  # The script refuses a stream with no Workflow call and a record with an outcome, and says which.
+  fields="$(python3 "$REPO/scripts/universe-resume.py" "$ORIGIN_STREAM")" || exit 3
+  local session prompt
+  session="${fields%%$'\n'*}"
+  prompt="${fields#*$'\n'}"
+  printf '%s' "$prompt" > "$WORKDIR/prompt-$stamp.txt"
+
+  log "resuming lead session $session" >> "$WORKDIR/run-$stamp.log"
+  launch_detached "$stamp" resume "$session"
+  report_launch "$stamp"
+}
+
+# THE DETACHED SIDE: one claude and its renderer, in the session launch_detached made. Internal; the
+# environment is the launcher's, already the universe's. stdout and stderr are the run log.
+#
+# THIS FUNCTION ENDS IN `exit`, and that is load-bearing. Bash reads a script as it goes, and a run
+# lasts hours while the checkout goes on being edited (see "The universe is a snapshot"). The
+# functions were parsed at startup; returning to the case below would read whatever is now at that
+# byte offset.
+cmd_supervise() {
+  local stamp="$1" mode="$2" session="${3:-}"
+  local raw="$WORKDIR/stream-$stamp.jsonl" out="$WORKDIR/run-$stamp.log"
+  local prompt; prompt="$(cat "$WORKDIR/prompt-$stamp.txt")"
+  printf '%s\n' "$$" > "$PID_FILE.tmp"
+  mv "$PID_FILE.tmp" "$PID_FILE"
+  log "load at start: $(cut -d' ' -f1-3 /proc/loadavg)"
+  cd "$WORKDIR/src" || { printf 'EXIT 1\n'; exit 1; }
+
+  local resume_args=() render_args=()
+  if [ "$mode" = resume ]; then
+    resume_args=(--resume "$session")
+    render_args=(--resumed)
+  fi
+
   # THE DEBATE DOES NOT OUTLIVE THIS PROCESS, and believing it did cost a truncated run that read
   # as a finished one. `claude -p` waits a bounded time for background tasks and then TERMINATES
   # them: "Background tasks still running after 600s; terminating". A research run is tens of
@@ -562,32 +734,67 @@ cmd_run() {
   # it was taken to have tested.
   #
   # 0 means wait indefinitely, which is what a run that is the whole point of the process needs.
-  ( cd "$src" && CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 \
-      CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS="$CONCURRENT_AGENTS" claude -p \
-      "/frank-exchange-of-views:research $topic --model $MODEL --judgment-model $JUDGMENT_MODEL --lanes $LANES$smoke_flag $*" \
-      --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null ) \
-    | python3 "$REPO/scripts/universe-stream.py" --raw "$raw" | tee "$out"
+  #
+  # CLAUDE WRITES THE RAW STREAM TO A FILE, AND THE RENDERER TAILS THE FILE, so the view cannot harm
+  # the capture. Measured on m37's resume: with claude piped into the renderer, the renderer exited on
+  # the session's first `result` event and left the debate writing to a pipe with no reader. A seat's
+  # tool that outlives a killed claude holds no pipe here either: the tail ends when claude does, so
+  # the EXIT line does not wait on it.
+  : > "$raw"
+  CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS="$CONCURRENT_AGENTS" \
+    claude -p "${resume_args[@]+"${resume_args[@]}"}" "$prompt" \
+      --output-format stream-json --verbose --permission-mode "$PERMISSION_MODE" </dev/null >>"$raw" &
+  local claude_pid=$!
+  # A signal to this process ends the run with its line written, rather than leaving claude behind
+  # with nobody to report it. `wait` returns early on a trapped signal, hence the loop.
+  trap 'kill -TERM "$claude_pid" 2>/dev/null' TERM HUP
+  tail -n +1 -f --pid="$claude_pid" "$raw" | python3 "$REPO/scripts/universe-stream.py" "${render_args[@]+"${render_args[@]}"}" &
+  local render_pid=$!
+
+  wait "$claude_pid"
+  local claude_rc=$?
+  while kill -0 "$claude_pid" 2>/dev/null; do
+    wait "$claude_pid"
+    claude_rc=$?
+  done
+  wait "$render_pid"
+  local render_rc=$?
+
+  # WHAT THE KILLED CLAUDE LEFT BEHIND ENDS WITH IT. A seat's tool still running after its lead died
+  # would go on writing to the record under a resume, and would read as a live run to process_state.
+  trap '' TERM
+  pkill -TERM -s "$$" 2>/dev/null
+
   # BOTH ARMS, because they fail differently and the second one is the one that matters. claude's
   # status says the process produced an answer; the renderer's says the ENGINE RAN. A universe whose
-  # plugins did not load exits 0 on the first and 2 on the second. Reading only PIPESTATUS[0] is the
-  # same defect as reading a pipeline's exit code and getting `tee`'s.
-  local claude_rc=${PIPESTATUS[0]} render_rc=${PIPESTATUS[1]}
+  # plugins did not load exits 0 on the first and 2 on the second.
   local rc=$claude_rc
   [ "$claude_rc" -eq 0 ] && rc=$render_rc
-  log "exit $rc — $out"
+  log "claude exit $claude_rc, renderer exit $render_rc — $out"
   log "load at end: $(cut -d' ' -f1-3 /proc/loadavg)"
-  log "board: $0 --dir $WORKDIR watch   (a run with no outcome row was TRUNCATED, not slow)"
-  return "$rc"
+  # THE LAST LINE, AND THE ONE AN OPERATOR WAITS ON. Absent, the supervisor itself was killed.
+  printf 'EXIT %d\n' "$rc"
+  exit "$rc"
 }
 
 # WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows dispatch
 # and verbs; this shows the board — which is the thing a human actually wants to know. Reads the
 # record READ-ONLY so it can never disturb a live run.
+#
+# The process state is read BEFORE the board. An outcome is written before the process ends, so a
+# process read as dead cannot be paired with a board read too early to hold its outcome.
+#
+# It stops when the process has ended, since the board can no longer move, and takes the board's
+# status: 3 is TRUNCATED.
 cmd_watch() {
   universe_env; clear_seat_env
-  local every="${1:-15}"
+  local every="${1:-15}" state rc
   while true; do
-    python3 "$REPO/scripts/universe-board.py" "$WORKDIR/src" || true
+    state="$(process_state)"
+    python3 "$REPO/scripts/universe-board.py" "$WORKDIR/src" --process "$state" --detail "$(process_detail)" \
+      --resume "$0 --dir $WORKDIR resume"
+    rc=$?
+    [ "$state" = dead ] && return "$rc"
     sleep "$every"
   done
 }
@@ -601,8 +808,10 @@ cmd_shell() {
 case "${1:-}" in
   build)  shift; cmd_build "$@" ;;
   run)    shift; cmd_run "$@" ;;
+  resume) shift; cmd_resume "$@" ;;
+  _supervise) shift; cmd_supervise "$@" ;;
   shell)  shift; cmd_shell "$@" ;;
   watch)  shift; cmd_watch "$@" ;;
   doctor) shift; cmd_doctor "$@" ;;
-  *) sed -n '1,45p' "${BASH_SOURCE[0]}"; exit 2 ;;
+  *) sed -n '/^# Usage:/,/^set -uo/{/^set -uo/d;p;}' "${BASH_SOURCE[0]}"; exit 2 ;;
 esac
