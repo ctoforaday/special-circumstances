@@ -35,7 +35,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	}
 	originals := []proto.Message{
 		mint("G3", "G1", "G2"),
-		&recordpb.Position{Text: proto.String("red speaks")},
+		&recordpb.Position{PositionId: proto.String("A-00000001"), Text: proto.String("red speaks")},
 		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
 		&recordpb.Motion{
 			MotionId: proto.String("M-1"),
@@ -57,6 +57,16 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		&recordpb.Motion{
 			MotionId: proto.String("M-3"),
 			Basis:    proto.String("filed bare"),
+		},
+		// A ruling arm holding a LIST: the gaps an upheld position sends back, in the order named.
+		&recordpb.MotionRule{
+			MotionId: proto.String("A-00000001"),
+			Opinion:  proto.String("the objection holds"),
+			Ruling: &recordpb.MotionRule_Position{Position: &recordpb.PositionHearing{
+				Ruling:    recordpb.PositionRuling_POSITION_RULING_UPHELD.Enum(),
+				GapIds:    []string{"G4", "G3"},
+				Direction: proto.String("source the figure"),
+			}},
 		},
 	}
 	for i, body := range originals {
@@ -101,6 +111,9 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	if m, ok := recordpb.BodyAs[*recordpb.Motion](evs[5]); !ok || m.GetFiling() != nil {
 		t.Error("the bare motion grew a filing arm it never had")
 	}
+	if r, ok := recordpb.BodyAs[*recordpb.MotionRule](evs[6]); !ok || fmt.Sprint(r.GetPosition().GetGapIds()) != "[G4 G3]" {
+		t.Errorf("the position ruling's gap list came back %v, want [G4 G3] in the order named", r.GetPosition().GetGapIds())
+	}
 }
 
 // AN EVENT ROW WITH NO BODY ROW IS A REFUSAL, NOT AN EMPTY REPLAY.
@@ -142,7 +155,7 @@ func BenchmarkEvents(b *testing.B) {
 				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
 				Supersedes:      []string{"G1", "G2"},
 			},
-			&recordpb.Position{Text: proto.String("a position")},
+			&recordpb.Position{PositionId: proto.String("A-00000002"), Text: proto.String("a position")},
 			&recordpb.Motion{
 				MotionId: proto.String(fmt.Sprintf("M-%d", i+1)),
 				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{

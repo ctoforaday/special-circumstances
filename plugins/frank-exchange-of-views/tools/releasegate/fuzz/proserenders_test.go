@@ -21,7 +21,7 @@ func TestProseRendersReadsTheShippedText(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, reportdoc.FileDebate), []byte("### RED POSITION\nsee &lt;div> handling\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	e := recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("see <div> handling")})
+	e := recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("see <div> handling")})
 	if m := proseRenders(t, record.Family{Events: []*record.Event{e}}, dir); m != "" {
 		t.Error(m)
 	}

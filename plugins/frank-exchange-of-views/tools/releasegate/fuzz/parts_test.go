@@ -133,9 +133,9 @@ func (r *runner) frontierReadsNoPart(seatID string) {
 	r.refusePart(partNoneToRead, "", reportproj.NoPart, "show", "report", "--seat-id", seatID)
 }
 
-// withholds is whether lane records no part this run: the forced run's third lane, and a drawn run's
+// withholdsPart is whether lane records no part this run: the forced run's third lane, and a drawn run's
 // one time in five.
-func (r *runner) withholds(lane string) bool {
+func (r *runner) withholdsPart(lane string) bool {
 	if lane != withheldLane {
 		return false
 	}
@@ -150,7 +150,7 @@ func (r *runner) withholds(lane string) bool {
 
 // lanePart is a lane's sitting: its part written to the path its seat names, and recorded.
 func (r *runner) lanePart(seatID string) {
-	if r.withholds(seatID) {
+	if r.withholdsPart(seatID) {
 		return
 	}
 	part := lanePartText(seatID)
@@ -261,7 +261,7 @@ func (r *runner) synthesize(seatID string) {
 		"--new", last+"\n\n"+seedOpen, "--reason", "fuzz: the open questions after the lanes' parts"); !ok {
 		return
 	}
-	if r.withholds(withheldLane) {
+	if r.withholdsPart(withheldLane) {
 		r.writePart(withheldLane, lanePartText(withheldLane))
 		r.refusePart(partAfter, feov.Conflict, "the report has already been changed", "ingest", "--seat-id", withheldLane)
 	}

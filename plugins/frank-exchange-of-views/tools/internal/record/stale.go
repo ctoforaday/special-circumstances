@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -70,7 +71,8 @@ func Fresh(seatID, gapID string) Guard {
 // WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, an
 // accepted grade motion, the bench's remand, another seat's finding about it — and the acts that
 // move the gap's state, which that fold leaves out because they are its minting lens's own or end
-// the gap: a close, a regrade, and the bench's ruling on a docket motion on it. A seat's own acts are
+// the gap: a close, a regrade, the bench's ruling on a docket motion on it, and its upholding of a
+// position naming it, which remands it. A seat's own acts are
 // never news to it.
 func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange {
 	sitting := win.LatestSittingOf(seatID)
@@ -115,6 +117,9 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 	for _, m := range motionsAt(evs, ids, win) {
 		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID {
 			add(m.ruled, "the bench ruled "+gapID+" "+m.Ruling+" in "+m.ID)
+		}
+		if slices.Contains(upheldPositionGaps(m), gapID) {
+			add(m.ruled, "the bench remanded "+gapID+" upholding position "+m.ID)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

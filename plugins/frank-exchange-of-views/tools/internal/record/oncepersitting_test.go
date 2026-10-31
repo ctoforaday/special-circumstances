@@ -21,7 +21,7 @@ type onceAct struct {
 // fails when a type joins that map without a row here, so a new once-per-sitting act cannot ship
 // without a row.
 var onceActs = map[recordpb.EventType]onceAct{
-	recordpb.EventType_EVENT_TYPE_POSITION: {"blue-respond", &recordpb.Position{Text: proto.String("the position")}},
+	recordpb.EventType_EVENT_TYPE_POSITION: {"blue-respond", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the position")}},
 	recordpb.EventType_EVENT_TYPE_VERDICT:  {"red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}},
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: {"red-chair", &recordpb.SpotCheck{Ids: []string{"G1"},
 		Reason: proto.String("the anchor still resolves")}},

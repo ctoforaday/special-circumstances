@@ -54,7 +54,7 @@ func Register() *cobra.Command { return NewKeyed("register", "register", registe
 func BenchRegister() *cobra.Command {
 	c := NewKeyed("register", "register-bench", registerResult{}, register)
 	enumhelp.Flag(c, flags.Occasion, record.MustEnum("register", "occasion"),
-		"what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your four sittings apart")
+		"what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your five sittings apart")
 	return Require(c, flags.Occasion)
 }
 
@@ -194,17 +194,27 @@ func Log() *cobra.Command {
 // other seat (record.PositionRefusal): a party argues a gap in its closing.
 func Position() *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
-	return SaysRequired(Prose(NewKeyed("position", "position", Msg{}, func(s Context, cmd *cobra.Command) (Result, error) {
+	c := SaysRequired(Prose(NewKeyed("position", "position", positionResult{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.Position{Text: proto.String(text)}); err != nil {
+		// THE TOOL ASSIGNS THE ID a bench ruling on a withheld PASS joins on (record.heardPositionsOf).
+		id := record.NewID("position")
+		if _, err := record.Append(s.Identity(), &recordpb.Position{Text: proto.String(text), PositionId: proto.String(id)}); err != nil {
 			return nil, err
 		}
-		return Msg{Message: "position recorded"}, nil
+		return positionResult{ID: id}, nil
 	})), flags.Reason)
+	Supplies(c, "position_id", "the tool assigns it; the bench rules a position at a sitting that withheld a PASS on this id")
+	return c
 }
+
+type positionResult struct {
+	ID string `json:"position_id"`
+}
+
+func (r positionResult) Human() string { return "position " + r.ID + " recorded" }
 
 // Closing is a party's argument to the bench on one docketed gap: the gap's minting lens's, and
 // blue-respond's. The write path refuses it from any other seat, and on a gap no unruled docket

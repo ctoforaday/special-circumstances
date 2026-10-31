@@ -26,7 +26,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ position --run {RUN} --seat-id red-chair --reason first pass
 exit 0
 stdout:
-position recorded
+position POSITION001 recorded
 1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -50,7 +50,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:position:#1","position":{"text":"first pass"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"first pass"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
 {"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: requires --type","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
 {"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}

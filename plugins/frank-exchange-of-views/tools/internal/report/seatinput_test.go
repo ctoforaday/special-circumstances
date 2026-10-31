@@ -132,7 +132,7 @@ func assembleHostile(t *testing.T, h string) Shipped {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("fix " + h),
 	})
-	add("red-chair", &recordpb.Position{Text: proto.String("position " + h)})
+	add("red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("position " + h)})
 	add("blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
 		Question: proto.String("question " + h),

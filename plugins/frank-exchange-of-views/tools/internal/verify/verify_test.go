@@ -149,7 +149,7 @@ func TestRegisterBeforeAppend(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-r1", &recordpb.Register{}),
-			recordtest.Event(t, "blue-r1", &recordpb.Position{}),
+			recordtest.Event(t, "blue-r1", &recordpb.Position{PositionId: proto.String(record.NewID("position"))}),
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000009")}), // never registered
 		},
 	}
@@ -184,11 +184,11 @@ func TestRegisterBeforeAppendReadsPastWhatTheToolWrote(t *testing.T) {
 		"the tool's refusal, then the register": {[]*record.Event{
 			tool("blue-respond"),
 			recordtest.Event(t, "blue-respond", &recordpb.Register{}),
-			recordtest.Event(t, "blue-respond", &recordpb.Position{}),
+			recordtest.Event(t, "blue-respond", &recordpb.Position{PositionId: proto.String(record.NewID("position"))}),
 		}, 0},
 		"the tool's refusal, then an act with no register": {[]*record.Event{
 			tool("blue-respond"),
-			recordtest.Event(t, "blue-respond", &recordpb.Position{}),
+			recordtest.Event(t, "blue-respond", &recordpb.Position{PositionId: proto.String(record.NewID("position"))}),
 		}, 1},
 		"the seat's own log, then the register": {[]*record.Event{
 			recordtest.Event(t, "blue-respond", &recordpb.Log{
@@ -418,7 +418,7 @@ func TestAChairSittingWithoutASpotCheckFailsNoInvariant(t *testing.T) {
 		Events: []*record.Event{
 			chair(&recordpb.Register{}),
 			chair(&recordpb.Register{}),
-			chair(&recordpb.Position{Text: proto.String("a PASS is not in view")}),
+			chair(&recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("a PASS is not in view")}),
 		},
 	}
 	for _, c := range Run(b.fam(t)) {

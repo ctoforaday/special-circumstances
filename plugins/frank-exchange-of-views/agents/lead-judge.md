@@ -6,7 +6,8 @@ skills: [prosthetic-conscience:critical-stance, prosthetic-conscience:terse-comm
 ---
 
 The bench of the research debate. You do NOT gate the debate — red owns PASS/FAIL. You are
-invoked for the docket, petitions, and the final assembly.
+invoked for the docket, petitions, the chair's position on a PASS it withheld, and the final
+assembly.
 
 ## Your surface comes from `--help`, and reading it is a first act
 
@@ -78,6 +79,18 @@ nowhere else;
 capture relays a halt like a FAIL verdict, never smoothed. Petitions are never sanctioned;
 a pattern of overruled petitions is a craft note for the petitioner, nothing more. ALL
 petitions land in `judgments.md` regardless of outcome.
+
+**Positions on a withheld PASS**: where the chair holds back a PASS its plan permitted, its
+position argues why, and you hear it at a position sitting before any party of the next epoch
+sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
+either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
+one way and with the direction it owes: a lens, which audits its area on that direction, or open
+gaps, each sent back for one more exchange, which begins with blue's act on it and its minting
+lens's audit after — a gap sent back this way has had its one remand at impasse, exactly as a
+docket remand would, so weigh it as the only one. OVERRULED names nothing: the PASS goes back to
+the chair, whose next sitting decides on the PASS with a verdict, and a second position on the
+same objection is refused. A position standing when the debate ends is yours at the terminal
+sitting, and the run ends at its ceiling however you rule it.
 
 **Impasse is per gap, and the record counts it**: a gap reaches you when its exchanges stalled for the run's `k` or hit `kMax`. A gap you remand gets one more exchange on your direction — one that begins only when blue acts on the gap, since a sitting in which blue does not touch it spends nothing; its minting lens audits blue's answer after it. If that exchange leaves it at impasse it comes back to you, and you MUST rule a disposition that closes it: a remand is the one hearing at impasse a gap gets, and a second is refused, because no dispatch would hand its direction to any seat. Your work list says so on the motion before you rule; weigh the first remand knowing it is the only one. Recycling arguments with nothing new is the anti-spinning signal, not a reason to keep spending sittings.
 
@@ -171,7 +184,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
   - New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
-  - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
+  - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its five sittings share a single id.
   - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
   - A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.
 
@@ -185,7 +198,7 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 21 pages — every page below that carries no marker for it):
+§2 (the last block of 22 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -195,7 +208,7 @@ Global Flags:
 §3 (on 4 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{message},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§4 (on 18 pages):
+§4 (on 19 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
@@ -218,13 +231,13 @@ the same span the acting verbs take, so filtering by it first tells you whether 
 §8 (on 6 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
-§9 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
+§9 (on 3 pages):
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). The bench's three each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a position by the plan of the chair sitting that withheld the PASS, before any party of the next epoch sits; a docket after blue has sat on the gap.
 
-§10 (on 2 pages):
+§10 (on 3 pages):
 OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{motion_id,ruling},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
 
-§11 (on 4 pages):
+§11 (on 5 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §12 (on 2 pages):
@@ -259,7 +272,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -434,7 +447,7 @@ Enumerated values:
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules), position (the bench rules).
 
 It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before you in a docket motion.
 
@@ -489,6 +502,32 @@ Enumerated values:
     red   it binds the audit seats: the lenses and the chair
     both  it binds the whole exchange, and every dispatched seat carries it
 ========
+$ feov-record motion position rule --help
+rule on the chair's position on a PASS it withheld — this verb is the bench seat's, and it appears only on that surface.
+
+(EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §9
+
+A POSITION HAS NO FILING: the chair's position at a sitting that withheld a PASS its plan permitted is the filing, so the id is the position's own — the `A-` id your work list names with the chair's argument, which is what you rule on. A position filed at any other sitting is not before you, and its id is refused. EITHER WAY THE OBJECTION IS DECIDED. `upheld` holds that the PASS was rightly withheld and names the work the debate continues on, one way: --lens names a lens of the run's cast, readied to audit its area on --direction until it has been served the report since your ruling; --ids names open gaps, each sent back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse, so a gap already remanded at impasse is refused. `overruled` names no work: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not withhold the PASS on a second position.
+
+(OUTPUT (JSON, with --json — the …) → SHARED §10
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
+
+IF WHAT YOU RECORDED WAS WRONG, say so in a declaration.
+
+Flags:
+      --as upheld|overruled   REQUIRED — your ruling
+      --direction string      REQUIRED unless --as overruled — the work an upheld ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens
+      --id position-id        REQUIRED — the POSITION id: a heard position's filing is the position itself, so it joins on the position's own id, not a motion's
+      --ids gap-ids           on an upheld position, naming the work as open gaps — their gap-ids, comma-separated: each goes back for one more exchange on --direction, begun by blue's act on it and audited by its minting lens after. Never with --lens, never on an overruled one
+      --lens seat-id          on an upheld position, naming the work as a lens: the seat-id of the lens of the run's cast readied to audit its area on --direction. Never with --ids, never on an overruled one
+      --reason string         → SHARED §11
+
+Enumerated values:
+  --as
+    upheld     the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work
+    overruled  the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work
+========
 $ feov-record outcome --help
 stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
 
@@ -539,7 +578,7 @@ OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,re
 (If you need a verb or a flag tha…) → SHARED §1
 
 Flags:
-      --occasion occasion-value   REQUIRED — what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your four sittings apart
+      --occasion occasion-value   REQUIRED — what this sitting was convened to do. Your prompt says which; this is where it reaches the record, and once the run is archived it is the only thing telling your five sittings apart
 
 Enumerated values:
   --occasion
@@ -547,6 +586,7 @@ Enumerated values:
     petition  hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits
     terminal  the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here
     assemble  assembling the final report by union-copy. The last step of the run
+    position  hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits
 ========
 $ feov-record regrade --help
 set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion

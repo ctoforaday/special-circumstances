@@ -35,13 +35,13 @@ var needles = []struct {
 	seat   string
 }{
 	// The live heads (debate.js: lensPrompt, chairPrompt, bluePrompt, benchPrompt, synthesis, the
-	// lanes, the frontier). The bench's four sittings all head `Adjudication` or their own text and
-	// all resolve to `judge`: WHICH of the four a sitting was is the register's `occasion`, off the
+	// lanes, the frontier). The bench's five sittings all head `Adjudication` or their own text and
+	// all resolve to `judge`: WHICH of the five a sitting was is the register's `occasion`, off the
 	// record, and is no longer recovered from prompt wording here.
 	{"Red lens sitting, area", "red-lens"},
 	{"Red chair, topic", "red-chair"},
 	{"Blue response, topic", "blue-respond"},
-	// THE BENCH'S FOUR HEADS ALL NAME ONE SEAT. They used to resolve to four different values —
+	// THE BENCH'S FIVE HEADS ALL NAME ONE SEAT. They used to resolve to four different values —
 	// `judge`, `judge-terminal`, `judge-petition`, `assemble` — which made this table answer two
 	// questions at once: WHO sat, and WHAT they were asked. The second is the register's
 	// `occasion` now, off the record, so these four rows agree on the seat and say nothing about
@@ -49,10 +49,11 @@ var needles = []struct {
 	//
 	// They cannot be dropped: a head that matches nothing is `other`, and cost.go reports an
 	// `other` seat as a tier it could NOT check — so deleting them would turn three of the
-	// bench's four sittings into an unexplained warning on every run.
+	// bench's five sittings into an unexplained warning on every run.
 	{"Adjudication, topic", "judge"},
 	{"Terminal disposition", "judge"},
 	{"Petition sitting", "judge"},
+	{"Position sitting", "judge"},
 	{"Final assembly", "judge"},
 	{"Blue synthesis", "blue-synthesize"},
 	{"Blue lane", "blue-lane"},

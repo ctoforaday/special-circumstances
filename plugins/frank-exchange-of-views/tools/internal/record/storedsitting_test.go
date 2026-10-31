@@ -335,7 +335,7 @@ func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
 func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir, recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("the chair relays the plan")}))
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the chair relays the plan")}))
 	m, err := MergedEvents(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
@@ -414,7 +414,7 @@ func TestEpochsIsTheDistinctSetOfStoredEpochs(t *testing.T) {
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")})
 	}
 	lens := func() *Event {
-		return recordtest.Event(t, "red-lens-logic", &recordpb.Position{Text: proto.String("x")})
+		return recordtest.Event(t, "red-lens-logic", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("x")})
 	}
 	chair := func() *Event { return recordtest.Event(t, "red-chair", &recordpb.Register{}) }
 	for name, evs := range map[string][]*Event{

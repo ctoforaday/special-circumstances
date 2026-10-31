@@ -69,6 +69,8 @@ var kinds = []kind{
 var otherIDs = []kind{
 	{name: "inquiry", prefix: "Q-"},
 	{name: "motion", prefix: "M-"},
+	// A position is the chair's argument to the bench: A for argument.
+	{name: "position", prefix: "A-"},
 }
 
 // lifecycle is what Label says of every kind alike, because every kind lives the same way.

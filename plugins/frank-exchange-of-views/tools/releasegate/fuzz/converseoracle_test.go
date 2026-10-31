@@ -24,6 +24,11 @@ const (
 	redClosesAndPetitions
 	// benchCloses: blue dockets the gap, and the bench closes it at a docket sitting of epoch 2.
 	benchCloses
+	// redClosesAndWithholds: the lens closes its gap, and the chair's last sitting withholds the PASS
+	// its plan permits, files its position, and asks for the plan again.
+	redClosesAndWithholds
+	// redClosesAndWithholdsEarly is redClosesAndWithholds one epoch before the limit.
+	redClosesAndWithholdsEarly
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
@@ -35,7 +40,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	runDir := recordtest.TmpRun(t)
 	const sentence = "A § fuzz sentence to anchor findings."
 	maxEpochs := 2
-	if path == benchCloses {
+	if path == benchCloses || path == redClosesAndWithholdsEarly {
 		maxEpochs = 3
 	}
 	if err := writeSetup(filepath.Join(runDir, "inputs", "run-config.json"),
@@ -78,7 +83,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		t.Fatalf("the board holds %v open after one mint, want one gap", open)
 	}
 	switch path {
-	case redCloses, redClosesAndPetitions:
+	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly:
 		must("--seat-id", converseLens, "close", "--id", open[0], "--as", "not_a_defect", "--reason", "fuzz: the argument held",
 			"--verified-by", converseLens, "--verified-with", "fuzz", "--verified-against", "the report")
 		if path == redClosesAndPetitions {
@@ -103,6 +108,10 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 
 	r.dispatchSits("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
+	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly {
+		must("--json", "position", "--seat-id", "red-chair", "--reason", "fuzz: the PASS is withheld, the core claim rests on one source")
+		out = must("--json", "dispatch", "next", "--seat-id", "red-chair")
+	}
 	r.dispatchReturns("red-chair", false)
 	requireEveryDispatchReturned(t, r)
 	var plan record.Plan
@@ -158,6 +167,40 @@ func TestTheConverseVerdictOracleJudgesThePlanTheDebateEndedOn(t *testing.T) {
 			t.Errorf("the plan recomputed after the exit = %+v; this test no longer reproduces the board the sweep reached", after)
 		}
 	})
+	// A PASS THE CHAIR WITHHELD AT ITS FINAL SITTING IS HEARD BY THE TERMINAL BENCH, and the run ends at
+	// its ceiling however it is ruled (gblock, 2026-10-30). Before the bench heard it, nobody was
+	// readied and the run ended UNVERIFIED over a board red emptied, with nothing on the plan to say
+	// why; now the plan it ended on holds the position as the bench's motion.
+	for _, ruling := range [][]string{{"--as", "upheld", "--lens", converseLens, "--direction", "fuzz: audit the claim the chair would not pass"}, {"--as", "overruled"}} {
+		t.Run("a PASS withheld at the final sitting, ruled "+ruling[1]+" at the exit, holds the run at its ceiling", func(t *testing.T) {
+			r, last := converseRun(t, redClosesAndWithholds)
+			var positionID string
+			for _, b := range last.Blockers {
+				if b.Kind == record.BlockerUnruledMotion && b.Owner == "judge" {
+					positionID = b.Subject
+				}
+			}
+			if !last.EpochLimitReached || !last.Ceiling || positionID == "" {
+				t.Fatalf("the plan after the position = %+v, want the epoch limit reached over the bench readied for the position", last)
+			}
+			r.dispatchSits("bench", "judge", "terminal")
+			if _, err := r.exec(append([]string{"motion", "position", "rule", "--seat-id", "judge", "--id", positionID, "--reason", "fuzz: ruled on its merits"}, ruling...)...); err != nil {
+				t.Fatal(err)
+			}
+			r.dispatchReturns("judge", false)
+			requireEveryDispatchReturned(t, r)
+			if got, why, ok, err := record.DeriveVerdict(r.run()); err != nil || !ok || got != "CEILING" {
+				t.Fatalf("derived (%q, %q, %v, %v), want CEILING: the limit held the bench on the position", got, why, ok, err)
+			}
+			board, err := record.FamilyOf(r.run())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m := converseVerdictOracle("CEILING", board); m != "" {
+				t.Errorf("the oracle fired over a CEILING the position the plan ended on explains: %s", m)
+			}
+		})
+	}
 	t.Run("a CEILING the plan it ended on does not explain still fires", func(t *testing.T) {
 		r, last := converseRun(t, redCloses)
 		if last.Ceiling || !last.PassPermitted {

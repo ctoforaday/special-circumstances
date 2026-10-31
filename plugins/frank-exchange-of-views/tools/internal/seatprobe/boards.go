@@ -886,6 +886,8 @@ var NoSituation = map[string]string{
 		"record-parity audit holds the duty instead.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
+	"bench motion position rule": "possible and real — the bench rules the chair's position on a PASS it withheld — but it answers the chair position above, " +
+		"which no board here stages for the same reason; record's withheldpass_test.go and cli's positionheard_test.go drive the ruling instead.",
 }
 
 // laneSitsBeforeAnyBoard is why a lane's act has no board: the boards are debate states, a lane's one

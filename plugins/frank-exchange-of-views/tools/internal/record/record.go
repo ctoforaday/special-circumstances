@@ -1281,6 +1281,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
+		if err := requireNoRepeatedPosition(w, seatID); err != nil {
+			return err
+		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
 		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
@@ -1395,6 +1398,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
+		if h, ok := b.GetRuling().(*recordpb.MotionRule_Position); ok {
+			if err := requirePositionHearing(w, seatID, h.Position); err != nil {
+				return err
+			}
+		}
 		if err := requirePetitionOrder(b); err != nil {
 			return err
 		}
@@ -1809,6 +1817,9 @@ func rulingWord(r *recordpb.MotionRule) string {
 		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
 		// broken read are the same number.
 		return recordpb.Word(v.Docket.GetDisposition())
+	case *recordpb.MotionRule_Position:
+		// A message arm too, for the work an upheld ruling names: the word is on the message.
+		return recordpb.Word(v.Position.GetRuling())
 	}
 	return ""
 }

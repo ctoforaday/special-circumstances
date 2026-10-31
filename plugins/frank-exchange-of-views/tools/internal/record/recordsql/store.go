@@ -889,15 +889,8 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	}
 
 	for _, fd := range lists {
-		l := m.Get(fd).List()
-		lt := table + "_" + string(fd.Name())
-		for i := 0; i < l.Len(); i++ {
-			if _, err := tx.Exec(
-				fmt.Sprintf("INSERT INTO %q (\"event_id\", \"ord\", \"value\") VALUES (?, ?, ?)", lt),
-				eventID, i, listValue(fd, l.Get(i)),
-			); err != nil {
-				return fmt.Errorf("recording %s.%s: %w", table, fd.Name(), err)
-			}
+		if err := insertList(tx, eventID, table+"_"+string(fd.Name()), fd, m.Get(fd).List()); err != nil {
+			return fmt.Errorf("recording %s.%s: %w", table, fd.Name(), err)
 		}
 	}
 	for _, fd := range arms {
@@ -941,6 +934,29 @@ func insertArm(tx *sql.Tx, eventID int64, table string, m protoreflect.Message) 
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
 		return fmt.Errorf("recording a %s: %w", table, err)
+	}
+	// AN ARM'S LISTS ARE ITS ROWS, written as a body's are (insertBody).
+	for i := 0; i < md.Fields().Len(); i++ {
+		fd := md.Fields().Get(i)
+		if !fd.IsList() || !m.Has(fd) {
+			continue
+		}
+		if err := insertList(tx, eventID, table+"_"+string(fd.Name()), fd, m.Get(fd).List()); err != nil {
+			return fmt.Errorf("recording %s.%s: %w", table, fd.Name(), err)
+		}
+	}
+	return nil
+}
+
+// insertList writes one list field's elements as rows of its table, in order.
+func insertList(tx *sql.Tx, eventID int64, table string, fd protoreflect.FieldDescriptor, l protoreflect.List) error {
+	for i := 0; i < l.Len(); i++ {
+		if _, err := tx.Exec(
+			fmt.Sprintf("INSERT INTO %q (\"event_id\", \"ord\", \"value\") VALUES (?, ?, ?)", table),
+			eventID, i, listValue(fd, l.Get(i)),
+		); err != nil {
+			return err
+		}
 	}
 	return nil
 }

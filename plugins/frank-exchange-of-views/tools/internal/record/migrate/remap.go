@@ -76,7 +76,7 @@ var (
 	namedLens    = regexp.MustCompile(`^red-lens-r\d+-([a-z]+(?:-[a-z]+)*)$`)
 	roundedSeat  = regexp.MustCompile(`^(red-merge|red-chair|blue-respond|judge)-r\d+$`)
 	// currentID is an id already in the one shape, which a source written at this epoch carries.
-	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "computation", "gap", "inquiry", "motion") + `$`)
+	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "computation", "gap", "inquiry", "motion", "position") + `$`)
 	// hexID is an archived id whose eight hex are kept: an era's lower-case id, and a proof's `P-`
 	// id, which a source before epoch 49 carries and which is a computation's `K-` id with the same
 	// hex.
@@ -112,14 +112,15 @@ var (
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		DocketMotion.grounds InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id`)
+		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors Stale.gap_id
+		Position.position_id PositionMotion.position_id PositionHearing.gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Cite.text
 		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
-		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion MotionRule.relief
+		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction PositionHearing.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
@@ -127,7 +128,7 @@ var (
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
 		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
-		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
+		Dispatch.seat_id PositionHearing.lens Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
 		Register.agent_id Register.agent_type
@@ -138,7 +139,8 @@ var (
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
-		"Verify.label": "citation", "Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}
+		"Verify.label": "citation", "Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",
+		"Position.position_id": "position"}
 )
 
 func fieldSet(names string) map[string]bool {

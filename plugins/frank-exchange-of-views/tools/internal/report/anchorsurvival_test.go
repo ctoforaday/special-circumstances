@@ -108,7 +108,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("red-chair", &recordpb.Position{
+	add("red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")),
 		Text: proto.String("the PASS is withheld: the interleaving is model-checked<!--computation:K-00000001--> and G1 still stands"),
 	})
 	add("judge", &recordpb.Outcome{

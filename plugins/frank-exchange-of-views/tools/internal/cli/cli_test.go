@@ -834,7 +834,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", body+"\n"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
+		if got := lastBody(t, runDir, &recordpb.Position{PositionId: proto.String(record.NewID("position"))}).GetText(); got != body {
 			t.Errorf("text = %q, want the prose without its terminator %q", got, body)
 		}
 	})

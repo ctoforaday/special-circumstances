@@ -25,6 +25,9 @@ func filingBy(subj recordpb.MotionSubject) proto.Message {
 		m.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}
 	case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
 		return &recordpb.Inquiry{InquiryId: proto.String("Q9"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another question")}
+	case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
+		// A position motion's filing is the chair's position, which no other seat files.
+		return &recordpb.Position{PositionId: proto.String("A-00000009"), Text: proto.String("why the PASS is withheld")}
 	default:
 		return nil
 	}
@@ -56,18 +59,34 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 			t.Fatal(err)
 		}
 		ruler, _ := recordpb.SubjectRuler(subj)
+		filer := other[g.seat]
 		t.Run(word+", filed by its ruler", func(t *testing.T) {
 			run := motionGuardRun(t)
 			_, err := Append(sit(t, run, g.seat), filingBy(subj))
+			if subj == recordpb.MotionSubject_MOTION_SUBJECT_POSITION {
+				// THE POSITION IS THE CHAIR'S ALONE (PositionRefusal), so its ruler is refused as every
+				// seat but the chair is.
+				mustRefuse(t, err, "is not the chair")
+				return
+			}
 			mustRefuse(t, err, word+" motion is ruled by the "+ruler+" seat", "you are "+g.seat+" ("+ruler+")", "no other seat can rule")
 		})
+		if subj == recordpb.MotionSubject_MOTION_SUBJECT_POSITION {
+			filer = chairSeat
+		}
 		t.Run(word+", filed by another seat", func(t *testing.T) {
 			run := motionGuardRun(t)
-			mustAppend(t, sit(t, run, other[g.seat]), filingBy(subj))
+			mustAppend(t, sit(t, run, filer), filingBy(subj))
 		})
+		replayer := g.seat
+		if subj == recordpb.MotionSubject_MOTION_SUBJECT_POSITION {
+			// An archive holds no position but the chair's: the position is the chair's alone at every
+			// era, so its ruler's filing is no archived shape to replay.
+			replayer = chairSeat
+		}
 		t.Run(word+", replayed by migrate", func(t *testing.T) {
 			run := motionGuardRun(t)
-			if _, err := replayed(sit(t, run, g.seat), filingBy(subj)); err != nil {
+			if _, err := replayed(sit(t, run, replayer), filingBy(subj)); err != nil {
 				t.Fatalf("migrate replays what an archive holds, and an archived record holds motions their ruler filed: %v", err)
 			}
 		})

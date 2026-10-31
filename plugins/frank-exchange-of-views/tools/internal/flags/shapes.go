@@ -194,6 +194,12 @@ func MotionID() *ShapedValue {
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
+// PositionID refuses anything that is not a position id.
+func PositionID() *ShapedValue {
+	return &ShapedValue{kind: "position-id", re: idShape("position"),
+		hint: "a position id is A- and eight hex, and is assigned when the chair records the position; your work list names each position before you"}
+}
+
 // ComputationAnchor refuses an anchor of the wrong CLASS: `lens reproduce --anchor` judges one computation's
 // sentence, and a citation's, finding's or gap's id cannot name one.
 func ComputationAnchor() *ShapedValue {

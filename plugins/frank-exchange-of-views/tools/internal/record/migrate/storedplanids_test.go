@@ -159,7 +159,7 @@ func planPairsOf(t *testing.T, name string) (srcPlans, dstPlans []storedPlan, sr
 
 // currentRow is a source event as the record names it now: after epoch 49 a proof is a computation,
 // its key takes the word, and an anchor's key names the computation's id — the same hex under `K-`;
-// after epoch 51 the report's ingested text is its one part, and its key takes that word.
+// from epoch 52 the report's ingested text is its one part, and its key takes that word.
 func currentRow(e eventRow) eventRow {
 	if e.typ == "base_ingest" {
 		e.typ = "report_part"

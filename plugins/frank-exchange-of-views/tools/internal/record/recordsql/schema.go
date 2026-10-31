@@ -615,7 +615,13 @@ func escape(s string) string { return strings.ReplaceAll(s, "'", "''") }
 // `pages`, and a TEXT column read back into an int32 list panics on the first element: the type
 // is the field's, as it is for a scalar column.
 func listTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescriptor) (string, error) {
-	name := TableName(parent) + "_" + string(fd.Name())
+	return listTableNamed(TableName(parent), TableName(parent), fd)
+}
+
+// listTableNamed is a list field's table, named after the table that holds its message — a body's,
+// or a oneof arm's — and keyed on that table's rows.
+func listTableNamed(owner, references string, fd protoreflect.FieldDescriptor) (string, error) {
+	name := owner + "_" + string(fd.Name())
 	typ, err := sqlType(fd)
 	if err != nil {
 		return "", err
@@ -627,7 +633,7 @@ CREATE TABLE %q (
   "value"    %-7s NOT NULL,
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
-`, name, TableName(parent), typ), nil
+`, name, references, typ), nil
 }
 
 // oneofColumns models a real oneof.
@@ -709,9 +715,20 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 	var cols []string
 	var checks []string
 	var fks []string
+	var lists []string
+	armName := TableName(parent) + "_" + string(fd.Name())
 	cols = append(cols, fmt.Sprintf(`  "event_id" INTEGER PRIMARY KEY REFERENCES %q("event_id")`, TableName(parent)))
 	for i := 0; i < md.Fields().Len(); i++ {
 		f := md.Fields().Get(i)
+		// AN ARM'S LIST IS A TABLE OF ITS OWN, as a body's is: a list is rows, never a column.
+		if f.IsList() {
+			lt, err := listTableNamed(armName, armName, f)
+			if err != nil {
+				return "", fmt.Errorf("%s (arm %s of %s): %w", f.FullName(), fd.Name(), TableName(parent), err)
+			}
+			lists = append(lists, lt)
+			continue
+		}
 		col, fchecks, ffks, err := scalarField(f)
 		if err != nil {
 			return "", fmt.Errorf("%s (arm %s of %s): %w", f.FullName(), fd.Name(), TableName(parent), err)
@@ -733,7 +750,7 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 	}
 	checks = append(checks, mc...)
 	var b strings.Builder
-	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n%s", TableName(parent)+"_"+string(fd.Name()), strings.Join(cols, ",\n"))
+	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n%s", armName, strings.Join(cols, ",\n"))
 	for _, c := range checks {
 		fmt.Fprintf(&b, ",\n  CHECK (%s)", c)
 	}
@@ -741,6 +758,9 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 		fmt.Fprintf(&b, ",\n  %s", f)
 	}
 	b.WriteString("\n) STRICT;\n")
+	for _, lt := range lists {
+		b.WriteString(lt)
+	}
 	return b.String(), nil
 }
 

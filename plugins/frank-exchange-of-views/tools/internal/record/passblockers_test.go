@@ -89,6 +89,16 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"unruled petition", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add("blue-respond", petitionMotion("M1"))
 		}, false},
+		// A WITHHELD PASS IS HEARD (positionheard.go): the chair's position at a sitting whose plan
+		// permitted the PASS is a motion the bench rules, and the bench's upheld ruling naming a lens
+		// holds the PASS until that lens has audited its area.
+		{"unruled position on a withheld PASS", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.withhold("A-00000001")
+		}, false},
+		{"upheld position naming a lens", BlockerUpheldPosition, true, true, func(b *stage) {
+			b.withhold("A-00000001").benchRegister(recordpb.Occasion_OCCASION_POSITION).
+				add(benchSeat, positionRuling("A-00000001", recordpb.PositionRuling_POSITION_RULING_UPHELD, evLens, nil, "the leaf"))
+		}, false},
 		{"unruled grade motion, the chair's gavel", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
