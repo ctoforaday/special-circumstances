@@ -598,7 +598,7 @@ type editResult struct {
 func (r editResult) Human() string {
 	head := "blue edit recorded — the edit is appended to the record with every anchor its span held, the report re-derived on read"
 	if r.Idempotent {
-		head = "blue edit (idempotent retry — the edit is already on the record, no second one)"
+		head = seat.Repeated("blue edit")
 	}
 	if len(r.VoiceTells) == 0 {
 		return head

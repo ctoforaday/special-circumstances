@@ -49,7 +49,7 @@ func TestAKeyedComputeRetryIsSettledByTheBundle(t *testing.T) {
 	}
 	events, store := countType(t, runDir, recordpb.EventType_EVENT_TYPE_COMPUTATION), storeEntries(t, runDir)
 
-	if out, err := run(t, args...); err != nil || !strings.Contains(out, "idempotent") {
+	if out, err := run(t, args...); err != nil || !strings.Contains(out, repeatedWords) {
 		t.Errorf("an identical retry = %q, %v; want the stored computation, idempotent", out, err)
 	}
 	if ran() != 2 || storeEntries(t, runDir) != store {
