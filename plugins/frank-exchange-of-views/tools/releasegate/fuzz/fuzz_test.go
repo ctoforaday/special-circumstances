@@ -528,11 +528,13 @@ type runner struct {
 	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
 	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
 	// grounds and admitted on a computation recorded since (benchorders_test.go). forceBenchOrders is
-	// benchOrdersSeed's run, which takes every arm. The sweep gates each count at zero.
+	// benchOrdersSeed's run, which takes every arm. benchOrders is the sweep's ledger of the lift still
+	// owed (benchorders_test.go), nil outside the sweep. The sweep gates each count at zero.
 	benchSet                                                                map[string]map[string]string
 	benchLifted                                                             map[string]map[string]bool
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	forceBenchOrders                                                        bool
+	benchOrders                                                             *benchOrderLedger
 	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
 	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
 	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
@@ -4848,6 +4850,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
 			r.reconsider(seatID)
+			r.docketLockedGap(seatID)
 		}
 		r.extras("blue", seatID, open)
 		// ONE DECISION PER GAP, TAKEN FROM THE GAP. Each open gap carries the scenario it was
@@ -6117,6 +6120,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
+	r.benchOrders = sweepBenchOrders
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
 	}
