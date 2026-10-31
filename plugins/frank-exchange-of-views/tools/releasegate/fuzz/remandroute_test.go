@@ -22,7 +22,8 @@ import (
 
 // escalateTrifle files blue's docket motion on an open gap that is not material, so the bench's
 // remand of such a gap is a path the drive takes. One with a remand already on it, a docket motion
-// standing on it, a successor naming it, or a closing of blue's this sitting is skipped.
+// standing on it, a successor naming it, a closing of blue's this sitting, or benchOrdersSeed's
+// construction holding it (arcHolds) is skipped.
 func (r *runner) escalateTrifle(seatID string) {
 	if !r.coin(25) {
 		return
@@ -42,7 +43,7 @@ func (r *runner) escalateTrifle(seatID string) {
 	}
 	var trifles []string
 	for _, g := range w.Open {
-		if g.Material || g.Remanded || g.RemandStage != "" || stranded[g.ID] || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 {
+		if g.Material || g.Remanded || g.RemandStage != "" || stranded[g.ID] || r.arcHolds(g.ID) || r.closedThisSitting(seatID, g.ID) || len(r.unruledDocketMotions(g.ID)) > 0 {
 			continue
 		}
 		trifles = append(trifles, g.ID)

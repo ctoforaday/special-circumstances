@@ -528,11 +528,13 @@ type runner struct {
 	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
 	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
 	// grounds and admitted on a computation recorded since (benchorders_test.go). forceBenchOrders is
-	// benchOrdersSeed's run, which takes every arm. The sweep gates each count at zero.
+	// benchOrdersSeed's run, which takes every arm and drives each by construction on the gaps arc
+	// holds. The sweep gates each count at zero.
 	benchSet                                                                map[string]map[string]string
 	benchLifted                                                             map[string]map[string]bool
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	forceBenchOrders                                                        bool
+	arc                                                                     benchArc
 	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
 	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
 	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
@@ -3405,7 +3407,11 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	ancestor := ""
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
 		ancestor = open[r.rng.Intn(len(open))]
-		args = append(args, "--supersedes", ancestor) // lineage: this gap replaces an ancestor
+		if r.arcHolds(ancestor) {
+			ancestor = "" // benchOrdersSeed's construction holds it
+		} else {
+			args = append(args, "--supersedes", ancestor) // lineage: this gap replaces an ancestor
+		}
 	}
 	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
 	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
@@ -3743,6 +3749,7 @@ func (r *runner) mintOverOpen(seatID string) {
 		g := &bj.Open[i]
 		switch {
 		case g.LocationState != record.LocationMarked && g.AboutKind != "inquiry":
+		case r.arcHolds(g.ID):
 		case r.minterOf(g.ID) == seatID:
 			own = append(own, g)
 		default:
@@ -3988,7 +3995,7 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		}
 		if succ == "" {
 			for _, other := range r.openGaps() {
-				if other != id {
+				if other != id && !r.arcHolds(other) {
 					succ = other
 					break
 				}
@@ -4795,12 +4802,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			id := open[r.rng.Intn(len(open))]
 			args := []string{"motion", "docket", "file", "--seat-id", seatID, "--id", id,
 				"--reason", "fuzz: " + id + " is not converging in the exchange and is the bench's to settle"}
-			if r.closedThisSitting(seatID, id) {
+			// benchOrdersSeed's construction files its own docket motions (benchArcBlue).
+			switch {
+			case r.arcHolds(id):
+			case r.closedThisSitting(seatID, id):
 				r.refuse(feov.Conflict, args...)
-			} else {
+			default:
 				r.admitFresh(id, args...)
 			}
 		}
+		r.benchArcBlue(seatID)
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
 			r.reconsider(seatID)
@@ -4891,6 +4902,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
+			// benchOrdersSeed's construction moves its gap's grade, or rules its gap itself.
+			if r.benchArcHears(seatID, id) {
+				continue
+			}
 			// A GAP CLOSED SINCE ITS DOCKETING IS NOT REMANDED: the bench reaches for the remand its
 			// scenario asks for, the tool refuses it naming the close, and the bench rules the motion
 			// with a disposition that closes, as for a lost dispute.
@@ -4996,8 +5011,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.checkAnchorOffers(seatID)
 		r.closeDocketed(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
-		locked := r.lensMovesBenchAxis(seatID)
-		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
+		arc := r.benchArcLens(seatID)
+		r.lensMovesBenchAxis(seatID)
+		regraded := map[string]bool{arc: true, r.lensMovesReleasedAxis(seatID, arc): true}
 		engaged := r.engaged(seatID)
 		for _, id := range engaged {
 			d := r.scenarioOf(id)
@@ -5024,7 +5040,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
 				// drives the move, to be refused).
 				r.maybe(30, func() {
-					if regraded[id] {
+					if regraded[id] || r.arcHolds(id) {
 						return
 					}
 					held := r.benchGrades(id)
@@ -6892,6 +6908,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.lensFirstHolds = r.lensFirstHolds
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	r.mu.Unlock()
+	if why := r.arcUnfinished(); why != "" {
+		res.err = why
+		return res
+	}
 	// NO POSITION ON THE RECORD IS FROM A SEAT BUT THE CHAIR, AND NO CLOSING FROM A SEAT THAT IS NO
 	// PARTY — read off the record, so a refusal that logged and wrote the act anyway fails here.
 	minter := map[string]string{}
