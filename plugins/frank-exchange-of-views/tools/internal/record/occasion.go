@@ -13,7 +13,7 @@ import (
 //
 // For every seat but the bench, the id determines the answer: a lens audits, a lane researches, the
 // chair runs the epoch. Recording it there would store a derivation the record already holds. The
-// bench is the one seat whose four sittings ask four different questions under one id, so the bench
+// bench is the one seat whose five sittings ask five different questions under one id, so the bench
 // is the one seat that owes this — see the Occasion enum in record.proto for what the collapse
 // removed and why.
 //

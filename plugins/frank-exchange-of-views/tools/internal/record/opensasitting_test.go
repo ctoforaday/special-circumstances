@@ -43,7 +43,7 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 		recordtest.Stamped(recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}), stamp(1)),
 		opening,
 		recordtest.Stamped(recordtest.At(t, "blue-respond", "blue-respond:position:#1",
-			&recordpb.Position{Text: proto.String("sitting 1's position")}), stamp(3)),
+			&recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("sitting 1's position")}), stamp(3)),
 	}
 	for i, ev := range evs {
 		if _, err := recordsql.Insert(db, ev); err != nil {
@@ -66,7 +66,7 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 		t.Fatal(err)
 	}
 	after := recordtest.Stamped(recordtest.At(t, "blue-respond", "blue-respond:position:#2",
-		&recordpb.Position{Text: proto.String("sitting 2's position")}), stamp(6))
+		&recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("sitting 2's position")}), stamp(6))
 	if _, err := recordsql.Insert(db, after); err != nil {
 		t.Fatal(err)
 	}

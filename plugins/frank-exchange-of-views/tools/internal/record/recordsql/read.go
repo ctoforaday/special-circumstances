@@ -256,6 +256,8 @@ type tableBatch struct {
 type armBatch struct {
 	scalars []protoreflect.FieldDescriptor
 	rows    map[int64][]any
+	// lists is each list field's rows, keyed by the field's name, as tableBatch's.
+	lists map[string]map[int64][]any
 }
 
 // loadBodies fills every event's body from its table, by the same descriptor walk the write used.
@@ -370,6 +372,16 @@ func (b *tableBatch) load(db Querier) error {
 			if a.rows, err = scanTable(db, b.table+"_"+which, acols); err != nil {
 				return err
 			}
+			a.lists = map[string]map[int64][]any{}
+			for i := 0; i < amd.Fields().Len(); i++ {
+				afd := amd.Fields().Get(i)
+				if !afd.IsList() {
+					continue
+				}
+				if a.lists[string(afd.Name())], err = scanLists(db, b.table+"_"+which+"_"+string(afd.Name())); err != nil {
+					return err
+				}
+			}
 			b.arms[which] = a
 		}
 	}
@@ -398,20 +410,8 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 		msg.Set(fd, pv)
 	}
 	// Repeated fields came back as their own rows, in the order they were written.
-	for name, vals := range b.lists {
-		v := vals[id]
-		if len(v) == 0 {
-			continue
-		}
-		lfd := b.md.Fields().ByName(protoreflect.Name(name))
-		l := msg.Mutable(lfd).List()
-		for _, e := range v {
-			pv, err := protoValue(lfd, e)
-			if err != nil {
-				return fmt.Errorf("%s_%s: %w", b.table, name, err)
-			}
-			l.Append(pv)
-		}
+	if err := fillLists(msg, b.lists, id, b.table); err != nil {
+		return err
 	}
 	// The oneof's message arms, found through the discriminator the write recorded.
 	for oi, od := range b.oneofs {
@@ -440,7 +440,31 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 			}
 			inner.Set(afd, pv)
 		}
+		if err := fillLists(inner, a.lists, id, b.table+"_"+which); err != nil {
+			return err
+		}
 		msg.Set(fd, protoreflect.ValueOfMessage(inner))
+	}
+	return nil
+}
+
+// fillLists sets msg's list fields from their rows for event id, in the order they were written —
+// a body's lists and an arm's alike.
+func fillLists(msg protoreflect.Message, lists map[string]map[int64][]any, id int64, table string) error {
+	for name, vals := range lists {
+		v := vals[id]
+		if len(v) == 0 {
+			continue
+		}
+		lfd := msg.Descriptor().Fields().ByName(protoreflect.Name(name))
+		l := msg.Mutable(lfd).List()
+		for _, e := range v {
+			pv, err := protoValue(lfd, e)
+			if err != nil {
+				return fmt.Errorf("%s_%s: %w", table, name, err)
+			}
+			l.Append(pv)
+		}
 	}
 	return nil
 }

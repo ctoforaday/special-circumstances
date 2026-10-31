@@ -124,9 +124,9 @@ var occasionRe = regexp.MustCompile(`OCCASION:\s*([a-z_]+)`)
 // every seat but the bench.
 //
 // A BACKEND STANDING IN FOR A SEAT MUST BRANCH ON THIS, NOT ON THE PROMPT'S OPENING WORDS. The
-// bench's four sittings are one seat id and four questions; `seatclass.ClassifySeat` answers WHO
+// bench's five sittings are one seat id and five questions; `seatclass.ClassifySeat` answers WHO
 // sat and deliberately no longer answers WHICH sitting it was. A backend that asks it the second
-// question gets `judge` for all four, returns one envelope shape for every one of them, and the
+// question gets `judge` for all five, returns one envelope shape for every one of them, and the
 // engine dies on the field the shape does not carry — measured twice now, both times as
 // "TypeError: Cannot convert undefined or null to object" with 40 of 40 fuzzed runs failing.
 func OccasionOf(prompt string) string {

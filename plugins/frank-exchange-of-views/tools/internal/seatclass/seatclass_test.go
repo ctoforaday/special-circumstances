@@ -13,13 +13,14 @@ func TestClassifySeat(t *testing.T) {
 		{"Blue synthesis", "blue-synthesize"},
 		{"Blue lane 2", "blue-lane"},
 		{"…formulate frontier hypotheses", "frontier"},
-		// THE BENCH'S FOUR HEADS ALL NAME ONE SEAT, and that is the point of the change rather
+		// THE BENCH'S FIVE HEADS ALL NAME ONE SEAT, and that is the point of the change rather
 		// than a loss: this table answers WHO sat. WHAT the sitting was convened to do is the
 		// register's `occasion`, on the record, where a reader can get it from an archive without
 		// matching the first words of a prompt.
 		{"Final assembly", "judge"},
 		{"Terminal dispute disposition on G1", "judge"},
 		{`Petition sitting, topic "x"`, "judge"},
+		{`Position sitting, topic "x"`, "judge"},
 		{"unrecognized", "other"},
 		// A round-bearing prompt that mentions a round-0 marker is still its own seat.
 	}

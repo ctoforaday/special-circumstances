@@ -65,7 +65,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
 		Text:       proto.String("the source states it plainly")})
-	app(chair, &recordpb.Position{Text: proto.String("the round narrative")})
+	app(chair, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the round narrative")})
 
 	evs, err := MergedEvents(run)
 	if err != nil {

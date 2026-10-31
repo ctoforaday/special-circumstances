@@ -625,6 +625,27 @@ type runner struct {
 	// is the bench occasion each was ruled at. The petition oracle reads the two.
 	petitionsFiled  []filedPetition
 	petitionRuledAt map[string]string
+	// positionsHeard is every position the chair filed on a PASS it withheld; positionRuledAt the
+	// bench occasion each was ruled at. overruledPending is the position the bench overruled since
+	// the chair last sat, whose next sitting owes the verdict. The counts are the rulings and the
+	// refusals driven (positionheard_test.go).
+	positionsHeard   []string
+	positionRuledAt  map[string]string
+	overruledPending string
+	// positionFiled says the chair sitting in progress filed a position the bench hears, so the
+	// plan it relays is the one it asks for after it (chairEnvelope).
+	positionFiled bool
+	// forcePosition is the bench ruling a position seed's run is forced to (positionFormOf): its
+	// chair withholds its first permitted PASS, and its bench rules the position this way. "" in
+	// every other run. positionForced is set once that chair has withheld, and heldTrifle once the
+	// gaps run's lens has minted the gap it holds open for the bench to name (mintHeldTrifle).
+	forcePosition string
+	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order.
+	positionNamedGaps                                []string
+	positionForced, heldTrifle                       bool
+	positionsUpheldLens, positionsUpheldGaps         int
+	positionsOverruled                               int
+	positionRulingsRefused, repeatedPositionsRefused int
 	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
 	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
 	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
@@ -1291,12 +1312,16 @@ func (r *runner) chairPosition(seatID string, owed bool) {
 	if !owed && !r.coin(30) {
 		return
 	}
-	if _, err := r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID); err != nil {
+	out, err := r.exec("--json", "position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	if err != nil {
 		return
 	}
 	if owed {
+		// THE BENCH HEARS IT (gblock, 2026-10-30): the plan the chair asks for next convenes it.
 		r.mu.Lock()
 		r.positionsWithheld++
+		r.positionsHeard = append(r.positionsHeard, positionIDOf(out))
+		r.positionFiled = true
 		r.mu.Unlock()
 	}
 	// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second is
@@ -1785,10 +1810,16 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	petitioned := len(r.petitionsFiled) > filed
 	r.mu.Unlock()
 	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A verdict prints the plan carrying it, and the
-	// chair relays that; a petition filed after it, or a sitting that recorded no verdict, asks the
-	// dispatch again — the workflow reads what still stands at the end of the sitting off the
-	// relayed plan, and capture holds every relayed plan to the record there.
-	if verdict == "" || petitioned {
+	// chair relays that; a petition or a heard position filed after it, or a sitting that recorded
+	// no verdict, asks the dispatch again — the workflow reads what still stands at the end of the
+	// sitting off the relayed plan, and capture holds every relayed plan to the record there. A
+	// FAIL's plan relayed over the position filed after it convened no bench: the engine ended the
+	// run UNVERIFIED while the record, holding the position, derived another outcome.
+	r.mu.Lock()
+	positioned := r.positionFiled
+	r.positionFiled = false
+	r.mu.Unlock()
+	if verdict == "" || petitioned || positioned {
 		r.planThisSitting = r.dispatchNext(seatID)
 	} else {
 		var plan map[string]any
@@ -3398,7 +3429,11 @@ func (r *runner) mint(seatID string) string { return r.mintFrom(seatID, "") }
 
 // mintFrom mints as mint does, naming foundBy in --found-by when it is set: the gap that answers
 // a contradiction the finding foundBy raised.
-func (r *runner) mintFrom(seatID, foundBy string) string {
+func (r *runner) mintFrom(seatID, foundBy string) string { return r.mintWith(seatID, foundBy, "") }
+
+// mintWith mints as mintFrom does, under the gap class class where it is set and the drawn class
+// where it is "".
+func (r *runner) mintWith(seatID, foundBy, class string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
 	// computation branch — a gap that CANNOT be closed without a computation answering it — driven by
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
@@ -3486,12 +3521,14 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	// So each `always`/`never` class is minted ONCE per sweep, deliberately, outside the forced
 	// runs, whose verdicts are their drive. ONE MINT IN TEN takes the catch-all `unclassified` (also
 	// `by_grade`), and half of those first try it without --reason, which the record refuses.
-	unclassified := r.coin(10)
+	unclassified := r.coin(10) && class == ""
 	driven := ""
-	if !unclassified && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
+	if !unclassified && class == "" && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
 		driven, _ = takeClassDrive()
 	}
 	switch {
+	case class != "":
+		args = append(args, "--class", class)
 	case unclassified:
 		args = append(args, "--class", "unclassified")
 	case driven != "":
@@ -3548,7 +3585,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	// A FORCED RUN'S GAPS ARE ITS VERDICT'S DRIVE, so its lens takes a pool class no open gap holds on
 	// the subject: a mint the one-gap rule refuses is a gap the forced verdict does not get, and the
 	// rule is driven by every other run.
-	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified {
+	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified && class == "" {
 		r.freeClass(args)
 	}
 	// A SUCCESSOR CARRIES THE BENCH'S GRADE on every axis the bench set on its ancestor.
@@ -4801,10 +4838,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.extras("chair", seatID, r.openGaps())
 		r.carryPrior(seatID)
 		permitted, _ := plan["pass_permitted"].(bool)
+		// THE BENCH OVERRULED THE CHAIR'S LAST POSITION: this sitting decides on the PASS. A position
+		// here would withhold it on the same objection again and is refused; the verdict follows.
+		overruled := r.takeOverruled()
+		if overruled != "" && permitted && r.coin(50) {
+			r.repeatedPositionRefused(seatID, overruled)
+		}
 		// A CHAIR MAY WITHHOLD A PASS THE BOARD PERMITS, and its position then says why — the one
-		// sitting the position is owed at (record.PositionSittings). Drawn rarely, never in the
-		// forced-verified run: the debate ends there UNVERIFIED, nobody being ready.
-		if permitted && !r.forceVerified && r.coin(5) {
+		// sitting the position is owed at (record.PositionSittings). The bench hears it next. Drawn
+		// rarely, never where an overruling decided the objection, and in a forced run only where it
+		// is forced to a position (withholdsForced).
+		if permitted && overruled == "" && r.withholds() {
 			r.chairPosition(seatID, true)
 			return r.chairEnvelope(seatID, "", "", responses)
 		}
@@ -4954,6 +4998,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	//
 	// This reads the OCCASION recordClause writes into the prompt — the same word a real bench seat
 	// is told and types at `register` — so the fuzz stands in for the seat instead of guessing at it.
+	case debatejs.OccasionOf(prompt) == "position":
+		// THE CHAIR'S POSITION ON A PASS IT WITHHELD: the bench rules it, and its envelope carries
+		// only a halt.
+		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.rulePositions(seatID, "position")
+		return map[string]any{}
+
 	case debatejs.OccasionOf(prompt) == "petition":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
@@ -4975,6 +5026,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// dispatched to nobody, and `bench outcome` refuses while its motion stands.
 		if debatejs.OccasionOf(prompt) == "terminal" {
 			r.rulePending(seatID, "terminal")
+			r.rulePositions(seatID, "terminal")
 			r.ruleStandingDockets(seatID)
 		}
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
@@ -5148,6 +5200,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 			}
 		}
+		r.mintHeldTrifle(seatID)
+		r.closeNamedOnTurn(seatID, engaged)
 		fresh := r.rng.Intn(3)
 		if len(engaged) > 0 {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
@@ -5613,8 +5667,10 @@ type outcome struct {
 	// blue's answer to a ruling records a fate by an id read off the record, so neither notices the
 	// propose-result reader going blind.
 	inquiryRecords int
-	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's.
+	// closingsFiled, closingsRefused, closingWaits and positionsWithheld are the runner's, as are
+	// positionsUpheldLens, positionsUpheldGaps and positionsOverruled, the bench's rulings on them.
 	closingsFiled, closingsRefused, closingWaits, positionsWithheld int
+	positionsUpheldLens, positionsUpheldGaps, positionsOverruled    int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
 	// spansRefused is the cites the tool refused for a span the source does not hold
@@ -6164,6 +6220,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
+	r.forcePosition = positionFormOf(seed)
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
@@ -6294,6 +6351,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	halted, _ := result["halted"].(bool)
 	if o := r.petitionOracle(halted); o != "" {
+		res.err = o
+		return res
+	}
+	if o := r.positionOracle(halted); o != "" {
+		res.err = o
+		return res
+	}
+	if o := r.forcedPositionOracle(); o != "" {
 		res.err = o
 		return res
 	}
@@ -6960,6 +7025,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.inquiryRecords = r.inquiryRecords
 	res.closingsFiled, res.closingsRefused, res.closingWaits, res.positionsWithheld = r.closingsFiled, r.closingsRefused, r.closingWaits, r.positionsWithheld
+	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
 	res.sourceSearches = r.sourceSearches
@@ -7771,7 +7837,7 @@ func TestFuzzDebate(t *testing.T) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			began := time.Now()
-			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
 			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, firstLine(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that

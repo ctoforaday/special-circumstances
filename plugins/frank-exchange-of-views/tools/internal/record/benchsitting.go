@@ -65,6 +65,7 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 //   - petition: every petition filed before the sitting opened. One petition sitting hears a filing
 //     (benchReadiness), so a petition this sitting leaves is one no later plan convenes it for. A
 //     petition filed during the sitting waits for its own.
+//   - position: every heard position filed before the sitting opened, on the same terms.
 //   - terminal and assemble: every one. The run's outcome is refused while any stands.
 //   - a bench that has not sat, or a sitting with no occasion, holds none.
 func benchHeld(evs []*Event, ids []int64, win WindowIndex) map[string]bool {
@@ -85,10 +86,10 @@ func benchHeld(evs []*Event, ids []int64, win WindowIndex) map[string]bool {
 		for _, b := range motions {
 			held[b.Subject] = true
 		}
-	case recordpb.Occasion_OCCASION_PETITION:
+	case recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_POSITION:
 		for _, b := range unruledMotionBlockers(evs, ids, win) {
 			subj, _ := MotionSubjectEnum(b.motionSubject)
-			if b.Owner == benchSeat && subj == recordpb.MotionSubject_MOTION_SUBJECT_PETITION && b.since < opening {
+			if b.Owner == benchSeat && benchSittingFor[subj] == occasion && b.since < opening {
 				held[b.Subject] = true
 			}
 		}

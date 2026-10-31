@@ -282,7 +282,7 @@ func requireBound(cmd *cobra.Command, s Context) error {
 //
 // A register carries the binding, and on one surface it carries one thing more, as a flag:
 //
-//	bench   --occasion        which of its four questions this sitting answers. Only its prompt knows.
+//	bench   --occasion        which of its five questions this sitting answers. Only its prompt knows.
 //
 // It can be supplied by nothing but the seat, so it cannot be silent. Every other surface's
 // register is the binding and nothing else, which is a fact the tool already holds — so the seat

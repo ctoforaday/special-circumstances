@@ -59,10 +59,10 @@ func seatOfGolden(name string) string {
 		return "red-lens"
 	case strings.HasPrefix(name, "blue-lane-"):
 		return "blue-lane"
-	// THE BENCH'S GOLDENS ARE NAMED PER SITTING and the classifier reports one seat for all four.
+	// THE BENCH'S GOLDENS ARE NAMED PER SITTING and the classifier reports one seat for all five.
 	// The names stay — those prompts differ and each is worth pinning — but which QUESTION a
 	// sitting answered is the register's `occasion` now, not something this table recovers.
-	case name == "judge-terminal", name == "judge-petition", name == "assemble":
+	case name == "judge-terminal", name == "judge-petition", name == "judge-position", name == "assemble":
 		return "judge"
 	}
 	return name

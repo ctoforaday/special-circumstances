@@ -64,7 +64,7 @@ type SeatBinding struct {
 	Epoch   int
 	Sitting int
 	// Occasion is WHAT THE SITTING WAS CONVENED TO DO, where the seat id does not say — the bench,
-	// whose four sittings share one id. EMPTY for every other seat, whose id already answers it,
+	// whose five sittings share one id. EMPTY for every other seat, whose id already answers it,
 	// for an agent bound by its bracket, which states none, and for a bench sitting no register
 	// named an occasion for: that is NOT MEASURED, and a reader must not read it as a docket ruling.
 	Occasion string

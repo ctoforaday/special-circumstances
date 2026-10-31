@@ -186,6 +186,12 @@ func remandFloorsOf(motions []*Motion, open map[string]bool) map[string]int64 {
 		if m.Subject == "docket" && m.Ruling == remanded && open[m.GapID] {
 			out[m.GapID] = max(out[m.GapID], m.ruled)
 		}
+		// AN UPHELD POSITION NAMING GAPS REMANDS EACH, as the docket's disposition does.
+		for _, g := range upheldPositionGaps(m) {
+			if open[g] {
+				out[g] = max(out[g], m.ruled)
+			}
+		}
 	}
 	return out
 }

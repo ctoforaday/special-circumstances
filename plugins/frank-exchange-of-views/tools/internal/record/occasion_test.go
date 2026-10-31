@@ -57,8 +57,8 @@ func TestAnOccasionRefusalNamesEveryWordTheBenchMayUse(t *testing.T) {
 		t.Fatal("a bench register with no occasion was accepted")
 	}
 	words := OccasionWords()
-	if len(words) != 4 {
-		t.Errorf("the vocabulary has %d words, want 4 — if a sitting kind was added or removed, this test and debate.js both owe it: %v", len(words), words)
+	if len(words) != 5 {
+		t.Errorf("the vocabulary has %d words, want 5 — if a sitting kind was added or removed, this test and debate.js both owe it: %v", len(words), words)
 	}
 	for _, w := range words {
 		if !strings.Contains(err.Error(), w) {

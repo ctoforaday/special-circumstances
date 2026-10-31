@@ -131,22 +131,23 @@ func (d drive) endsWithoutARow(refusal string) {
 }
 
 const (
-	rowPosition    = "a new position at your next sitting (a sitting holds one, and this sitting's stands)"
-	rowSpotCheck   = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
-	rowVerdict     = "the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it"
-	rowClosing     = "a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
-	rowManifest    = "a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
-	rowRegrade     = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
-	rowVerify      = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
-	rowCorroborate = "a new corroboration of the source at your next sitting (a sitting holds one per --url, and this sitting's stands)"
-	rowBacking     = "a verification of the citation this corroboration placed, at your next sitting"
-	rowClose       = "a docket motion on the gap"
-	rowGradeRule   = "a docket motion on the gap"
-	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
-	rowPetition    = "a declaration"
-	rowInquiry     = "a new record of the inquiry's fate"
-	rowReproduce   = "a new judgement of the same computation anchor — a seat's latest judgement of a sentence is its verdict on it"
-	rowOutcome     = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
+	rowPosition     = "a new position at your next sitting (a sitting holds one, and this sitting's stands)"
+	rowSpotCheck    = "a new spot-check at your next sitting (a sitting holds one, and this sitting's stands)"
+	rowVerdict      = "the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it"
+	rowClosing      = "a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
+	rowManifest     = "a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
+	rowRegrade      = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
+	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
+	rowCorroborate  = "a new corroboration of the source at your next sitting (a sitting holds one per --url, and this sitting's stands)"
+	rowBacking      = "a verification of the citation this corroboration placed, at your next sitting"
+	rowClose        = "a docket motion on the gap"
+	rowGradeRule    = "a docket motion on the gap"
+	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
+	rowPetition     = "a declaration"
+	rowPositionRule = "a declaration"
+	rowInquiry      = "a new record of the inquiry's fate"
+	rowReproduce    = "a new judgement of the same computation anchor — a seat's latest judgement of a sentence is its verdict on it"
+	rowOutcome      = "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"
 )
 
 const (
@@ -417,6 +418,13 @@ func answerDrives() []answerDrive {
 			d.admitted("the ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
 			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "again"), rowPetition)
 			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the petition was wrong, and this is what holds")
+		}},
+		{name: "a ruling on a position", row: rowPositionRule, helps: []string{"bench motion position rule"}, drive: func(d drive) {
+			id := heardPosition(d.t, d.run)
+			d.admitted("the ruling", "judge", "motion", "position", "rule", "--id", id, "--as", "overruled", "--reason", "the objection does not hold")
+			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "position", "rule", "--id", id, "--as", "upheld",
+				"--lens", lensSeat, "--direction", "audit the inference", "--reason", "again"), rowPositionRule)
+			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the position was wrong, and this is what holds")
 		}},
 		// NO ROW: the chair holds no act that answers its own ruling on an inquiry. A docket motion
 		// names a gap and an inquiry is not one, so the route a grade ruling has is refused here.
