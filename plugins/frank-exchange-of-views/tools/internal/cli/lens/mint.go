@@ -361,16 +361,21 @@ func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
 		// The accept's refusal of a dropped anchor is worded for blue, whose acts it names; red's is the
 		// same fact, the anchor and its sentence.
 		why := err.Error()
+		// THE FORM THAT WORKS IS NAMED WITH THE ANCHOR IN IT. Told to write "the anchor" into --new
+		// "as `show report` prints it", three lenses of the #1663 smoke read that the quote had to
+		// carry it too, or gave up and wrote the fix as prose (ev130, ev172, ev205).
+		carry := "write the anchor into --new after the text it marks, as `show report` prints it"
 		var dropped *bluedoc.ErrAnchorDropped
 		if errors.As(err, &dropped) {
 			why = fmt.Sprintf("the span carries %s %s %s, and --new neither carries it nor keeps that sentence word for word", anchor.Kind(dropped.ID), anchor.Token(dropped.ID), dropped.On())
+			carry = fmt.Sprintf("write %s into --new after the text it marks — --quote stays as it is", anchor.Token(dropped.ID))
 		}
 		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of --quote: %s. "+
 			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
 			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
 			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
-			"or write the anchor into --new after the text it marks, as `show report` prints it; "+
-			"or leave --new off and state the fix as prose in --fix", why)
+			"or %s; "+
+			"or leave --new off and state the fix as prose in --fix", why, carry)
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")

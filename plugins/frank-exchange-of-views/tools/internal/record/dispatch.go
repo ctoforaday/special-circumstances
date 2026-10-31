@@ -103,7 +103,7 @@ type Plan struct {
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
 	// list (PassBlockers) is the chair's own to clear this sitting — its inquiry review, its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
-	// (grade, inquiry). Its work list marks those blocking until they are done.
+	// (grade). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
 	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;

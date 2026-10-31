@@ -634,7 +634,7 @@ func TestAComputationsCodeShipsByteForByte(t *testing.T) {
 	drift := "on re-run the program wrote: a ` b\n```\n<td>43</td>"
 	computations := []record.Computation{{Label: "K-deadbeef", SHA: sha, Basis: "reproducible", Argv: []string{"python3", "script.py"},
 		Rerun: &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Drift: drift}}}
-	ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), computations)
 	set := stdReaders().shipSet("# T", []Doc{{File: FileEvidence, Nav: "Evidence", Body: ev}})
 	blocks := codeBlocks(t, mainOf(RenderSite(set, record.Family{})))
 	for _, want := range []string{script, output, drift} {

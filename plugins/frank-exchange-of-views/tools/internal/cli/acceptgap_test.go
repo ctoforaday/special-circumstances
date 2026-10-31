@@ -165,7 +165,9 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 			if err == nil {
 				t.Fatal("a mint verified a rewording the accept refuses: the citation on the sentence would not survive it")
 			}
-			for _, want := range []string{"NOTHING IS RECORDED", cite, "word for word", "as `show report` prints it", "--fix"} {
+			// The form that writes the anchor into --new names the anchor as the seat types it, and asks
+			// nothing of --quote (#1663 smoke, ev130/172/205).
+			for _, want := range []string{"NOTHING IS RECORDED", cite, "word for word", "or write " + anchor.Token(cite) + " into --new after the text it marks — --quote stays as it is", "--fix"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("the refusal does not say %q: %v", want, err)
 				}
