@@ -22,17 +22,20 @@ import (
 //
 // THE REMAND'S EXCHANGE IS THE FIRST ONE IN WHICH BLUE ACTS ON THE GAP (gblock, 2026-10-25; blue's
 // act alone, ruled by gblock 2026-10-27). The ruling hands the turn to blue (exchangeFold), so the
-// round blue's next sitting completes begins at the ruling; a round in which blue recorded no act on
-// the gap (gapActsOf) spends nothing. The minting lens's turn comes only with blue's act after the
-// ruling (lensTurnOn, ruled by gblock 2026-10-30), so while the remand is owed the dispatch readies
-// blue on the gap and not the lens, and blue's item blocks its envelope until it has acted.
+// round blue's answer opens begins at the ruling; a round in which blue recorded no act on the gap
+// (gapActsOf) spends nothing. The minting lens's turn comes only after the ruling (lensTurnOn), so
+// until blue has acted the dispatch readies blue on the gap and not the lens, and blue's item blocks
+// its envelope. Once blue has acted, the dispatch readies the lens alone: THE EXCHANGE ENDS ON THE
+// RE-AUDIT THE RULING ORDERS (ruled by gblock 2026-10-31), and it is owed until that audit.
 //
 // WHAT THE REMAND'S EXCHANGE DECIDES. The exchange count stays monotone. After a counted remand the
 // gap stays at impasse until its remand's exchange: if that exchange leaves it unmoved it is still
 // where the bench found it, and the dispatch dockets it again; if it moves the gap, the gap leaves
 // impasse and the run's terms (k, kMax) are counted afresh from that exchange — the route by which
 // the gap first reached impasse does not matter, so a gap that reached the bench on kMax and moves
-// on its remand is not docketed again for a count it can never undo.
+// on its remand is not docketed again for a count it can never undo. A remand may order no change of
+// wording: blue's compliant computation or fate is movement all the same (exchangeFold), so obeying
+// the ruling does not re-docket the gap.
 //
 // ONE COUNTED REMAND IS THE LIMIT (gblock, 2026-10-25). A remand that would be the gap's second at
 // impasse is refused at the write (requireRemandWithinLimit), naming the dispositions that close the
@@ -167,9 +170,9 @@ const remandedClosedGapSQL = `SELECT md."gap_id", e."id", e."seat_id"
   WHERE mo."motion_id" = ? AND NOT g."open"`
 
 // requireRemandOfOpenGap refuses a remand of a docket motion whose gap is closed (gblock,
-// 2026-10-24). A gap may close while a docket motion on it stands — its lens closed it, and the bench
-// rules the motion on the record as it stands (closingowed.go) — but a remand sends the gap back for
-// one more exchange between its minting lens and blue, and a closed gap has none to have: the
+// 2026-10-24). A gap may close while a second docket motion on it stands — the bench's ruling on the
+// first closed it, and the bench rules the other on the record as it stands — but a remand sends the
+// gap back for one more exchange between its minting lens and blue, and a closed gap has none to have: the
 // obligation would stand with no seat able to discharge it, as the remand of a run's closed gap did
 // on universe-m33, stored and never acted on while the run passed. The tool does not reopen the gap
 // either; the refusal names the close, and the bench rules with a disposition that closes.
@@ -299,8 +302,9 @@ const (
 	routeBench                         // a docket motion on it stands unruled: the bench's
 	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
 	routeDebate                        // below its limits: blue, and its minting lens when its turn has come (lensTurnOn)
+	routeLensFirst                     // at its limits with the lens's audit still to come (lensGoesFirst): its minting lens alone, and any docket after it
 	routeDocket                        // at impasse, never remanded there: docketed for the bench
-	routeRemandOwed                    // at impasse and remanded, or not material and remanded: blue, once, on the direction — the lens's turn comes with blue's act
+	routeRemandOwed                    // at impasse and remanded, or not material and remanded: blue, once, on the direction — then the lens's re-audit
 	routeRedocket                      // at impasse after its remand's exchange: docketed for the bench again, to be closed
 )
 
@@ -330,10 +334,15 @@ func stageOnRoute(route gapRoute, counted remandStage) remandStage {
 // nobody — until the bench remands it: then blue is readied for the one more exchange the remand
 // grants, as for any remand, and once that exchange has been had it readies nobody again. Whether the bench ruled it at impasse does not matter here: a gap that is not material is
 // never docketed for impasse, so its remand came from a party's motion or its grade movement.
+//
+// THE LENS GOES FIRST (lensGoesFirst, ruled by gblock 2026-10-31), and it outranks both routes to a
+// docket: no docket is filed on a gap whose lens has an audit still to come.
 func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gapRoute {
 	switch {
 	case unruledDocket:
 		return routeBench
+	case moved && (x.lensFirst || x.lensAudit):
+		return routeLensFirst
 	case moved:
 		return routeGradeMovement
 	case !material && !stranded:
@@ -341,14 +350,36 @@ func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gap
 			return routeRemandOwed
 		}
 		return routeNobody
+	case x.Impasse && x.Remand == remandOwed:
+		return routeRemandOwed
+	case x.lensFirst:
+		return routeLensFirst
 	case !x.Impasse:
 		return routeDebate
 	}
-	switch x.Remand {
-	case remandOwed:
-		return routeRemandOwed
-	case remandSpent:
+	if x.Remand == remandSpent {
 		return routeRedocket
 	}
 	return routeDocket
+}
+
+// partiesOnRoute is whether a route engages the gap's minting lens and blue on it: what the plan
+// engages (foldPlan), what each row says of its reader's turn (WorkGapJSON.YourTurn), and what the
+// lens's re-audit items read (blueAnswers), so no list offers a turn the dispatch does not give.
+//
+//   - in the debate, blue always, and the lens when its turn has come. A stranded gap's lens is
+//     readied whatever blue did: what it owes there is the close its successor promised;
+//   - with the lens first, the lens alone;
+//   - on a remand's exchange, the lens when its turn has come, and blue until it has acted and the lens
+//     has its answer to audit.
+func partiesOnRoute(route gapRoute, stranded bool, x *GapExchanges) (lens, blue bool) {
+	switch route {
+	case routeDebate:
+		return x.lensTurn || stranded, true
+	case routeLensFirst:
+		return true, false
+	case routeRemandOwed:
+		return x.lensTurn || stranded, !(x.lensTurn && x.answeredRemand)
+	}
+	return false, false
 }

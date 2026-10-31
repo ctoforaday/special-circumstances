@@ -537,6 +537,12 @@ type runner struct {
 	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
 	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
 	lensTurns, lensWaits int
+	// lensAlone counts the gaps a plan engaged their minting lens on and not blue (the last audit before
+	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
+	// floor; docketedClosesRefused the closes of a docketed gap refused naming the motion;
+	// docketedOffList the docketed gaps a party's list was read and held off (remandroute_test.go,
+	// lensturn_test.go). The sweep gates each at zero.
+	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
 	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
 	// second move released to the lens and the lens has not moved since. benchRegrades counts the
@@ -4058,6 +4064,12 @@ func (r *runner) openGaps() []string {
 func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
 	closer := r.minterOf(id)
+	// A DOCKETED GAP IS THE BENCH'S UNTIL IT RULES: a drive that reaches for its close is refused, and
+	// the gap stays open for the ruling to dispose of.
+	if len(r.unruledDocketMotions(id)) > 0 {
+		r.closeDocketedRefused(closer, id)
+		return
+	}
 	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
 	//
 	// The guard refuses a closure with no computation answering the gap, so leaving it to chance
@@ -4904,6 +4916,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.remandHeldBeforeRegister()
 		r.sit("blue", seatID)
+		r.docketedOffTheList("blue", seatID)
 		// BLUE ANSWERS WHAT THE PLAN ENGAGED IT ON, not every open gap: the record dispatched blue
 		// for exactly these, and its manifest must name them (W2b). Closings are owed on the
 		// docketed gaps, which the plan also names.
@@ -4958,6 +4971,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
+			r.docketClosedGap(seatID)
 			r.reconsider(seatID)
 			r.docketLockedGap(seatID)
 		}
@@ -5143,6 +5157,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
+		r.docketedOffTheList("lens", seatID)
 		// THE AUDIT IS SERVED THE WHOLE REPORT, and that read is the lens's pin: a lens that is not
 		// served it at the head is ready at the head again, until it is or retires. Most sittings
 		// read it, in either whole form; the rest read only a selection, which serves part of it and
@@ -5742,6 +5757,8 @@ type outcome struct {
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits int
+	// lensAlone, docketsAfterAudit, docketedClosesRefused and docketedOffList are runner's.
+	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	// partRefused and partsRecorded are runner's.
@@ -7080,6 +7097,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
+	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()

@@ -26,6 +26,7 @@ cannot point at, either go and produce it or delete the sentence.
 
 - **Every point gets a response.** A finding you neither fixed nor answered is the one thing the
   process cannot absorb.
+- **A docketed gap asks one act of you, its closing, and nothing else until the bench rules it.** A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 - **A gap the bench REMANDED is answered by an act on it.** The remand grants ONE more exchange on
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
   of yours that does not touch the gap spends none of it, and its minting lens audits your answer

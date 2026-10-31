@@ -305,6 +305,8 @@ func TestAHookOpenedSittingIsClosedByItsAgentsStop(t *testing.T) {
 		register("red-chair").dispatch(1, evLens, "G1").dispatch(1, "blue-respond", "G1")
 	b.bracket(evLens, "lens-a").stop("lens-a") // the lens woke, recorded nothing, and returned
 	b.registerAs("blue-respond", "blue-a").edit("G1", "was", "is").stop("blue-a")
+	b.register("red-chair").dispatch(1, evLens, "G1")
+	b.bracket(evLens, "lens-b").stop("lens-b") // its audit of blue's answer, which ends the exchange
 	x, err := Exchanges(b.seed(), DefaultParams)
 	if err != nil {
 		t.Fatal(err)

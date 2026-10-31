@@ -127,6 +127,17 @@ type sittingReads struct {
 // as verifiable.
 type unverifiableFunc func(anchor string) string
 
+// undocketed is gaps without the open ones a docket motion stands unruled on.
+func undocketed(gaps []WorkGapState) []WorkGapState {
+	out := make([]WorkGapState, 0, len(gaps))
+	for _, g := range gaps {
+		if !g.unruledDocket {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
 // sittingOf is SittingOf with the reads WorkOfSeat supplies (sittingReads): an item those reads say
 // the sitting cannot clear is listed, and does not block.
 func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, role, seatID string, reads sittingReads) SittingJSON {
@@ -251,6 +262,14 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 	}
 
+	// A DOCKETED GAP LEAVES THE PARTIES' LISTS UNTIL IT IS RULED, APART FROM ITS CLOSING (ruled by gblock
+	// 2026-10-31): the closing is the one act left to them, and it comes off the gate's list, which holds
+	// every gap. Everything else this list says of a gap reads what is left.
+	all := gaps
+	if role == "blue" || role == "lens" {
+		gaps = undocketed(gaps)
+	}
+
 	switch role {
 	case "blue":
 		// A computation demand prose cannot answer. The lens that minted it is REFUSED if it
@@ -314,16 +333,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		//
 		// IT OWES THE REMEDY OF A FAILED CHECK (failedcheck.go): the PASS gate's blocker, cleared by
 		// blue's retire, or by the fresh check blue's edit of the sentence leaves it owed.
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			switch {
 			case b.Kind == BlockerClosingOwed && b.Owner == seatID:
 				add(b.WorkItem())
 			case b.Kind == BlockerFailedCheck && seatID == blueRespondSeat:
 				add(blueFailedItem(b))
 			}
-		}
-		for _, what := range closingsNotOwedItemsOf(evs, ids, win, seatID) {
-			may(what)
 		}
 	case "chair":
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on
@@ -391,10 +407,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A REMAND'S EXCHANGE HOLDS ITS MINTING LENS'S SITTING UNTIL THE LENS ACTS ON THE GAP
 		// (remandItemsOf): the other seat a remand readies, and the only one that may close the gap.
 		s.Open = append(s.Open, remandItemsOf(evs, win, gaps, seatID, false)...)
-		for _, what := range closingsNotOwedItemsOf(evs, ids, win, seatID) {
-			may(what)
-		}
-		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
+		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(all), freshMaterialOfStates(all)) {
 			// A CHECK OF ITS THAT FAILED IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
 			// the list as not owed — blue's remedy clears it, or the lens's own check of the sentence
 			// that holds, if it checks it again.
@@ -478,7 +491,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(evs, win, gaps, role, seatID)...)
+	s.Open = append(s.Open, availableOf(evs, win, all, role, seatID)...)
 
 	// AN EMPTY LIST MUST SAY IT IS EMPTY. `complete: true, open: []` is the answer a seat with
 	// nothing to do gets, and it is indistinguishable from a command that failed to find anything —

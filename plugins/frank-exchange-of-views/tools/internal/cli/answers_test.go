@@ -14,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // AN ACT STANDS AS FILED, AND WHAT ANSWERS A WRONG ONE IS ANOTHER ACT.
@@ -161,6 +162,23 @@ func (d drive) closeG1(seatID string) {
 		"--verified-with", "read", "--verified-against", "blue/report.md", "--reason", "verified at the leaf")
 }
 
+// benchClosesG1 is the bench ruling G1's first unruled docket motion closed: while a docket motion
+// stands on a gap, the bench's ruling is what closes it.
+func (d drive) benchClosesG1() {
+	d.t.Helper()
+	b, err := record.FamilyOf(runtest.Open(d.t, d.run))
+	if err != nil {
+		d.t.Fatal(err)
+	}
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m.Subject == "docket" && !m.Ruled() {
+			ruleDocket(d.t, d.run, m.ID, "repaired")
+			return
+		}
+	}
+	d.t.Fatal("no docket motion stands on G1 for the bench to rule")
+}
+
 func (d drive) gradeMotion(what, seatID, dimension string, admit bool) string {
 	d.t.Helper()
 	args := []string{"motion", "grade", "file", "--id", "G1", "--dimension", dimension, "--proposed", "high", "--reason", "the consequence is larger"}
@@ -231,21 +249,14 @@ func answerDrives() []answerDrive {
 			d.nextSitting("red-chair")
 			d.admitted("the next sitting's verdict, after a PASS", "red-chair", "verdict", "--as", "PASS")
 		}},
-		// A CLOSING ARGUES A DOCKETING, so each drive dockets G1 first; the gap closing under it leaves
-		// the docket motion standing, and a correction is still admitted.
+		// A CLOSING ARGUES A DOCKETING, so each drive dockets G1 first.
 		{name: "closing, the lens", row: rowClosing, helps: []string{"lens closing"}, drive: func(d drive) {
 			d.docketMotion("docket G1", "blue-respond")
 			oncePerSitting(rowClosing, lensSeat, "closing", "--id", "G1")(d)
-			d.closeG1(lensSeat)
-			d.nextSitting(lensSeat)
-			d.admitted("the next sitting's closing, the gap closed", lensSeat, "closing", "--id", "G1", "--reason", "the first was wrong")
 		}},
 		{name: "closing, blue", row: rowClosing, helps: []string{"blue closing"}, drive: func(d drive) {
 			d.docketMotion("docket G1", "blue-respond")
 			oncePerSitting(rowClosing, "blue-respond", "closing", "--id", "G1")(d)
-			d.closeG1(lensSeat)
-			d.nextSitting("blue-respond")
-			d.admitted("the next sitting's closing, the gap closed", "blue-respond", "closing", "--id", "G1", "--reason", "the first was wrong")
 		}},
 		{name: "manifest row", row: rowManifest, helps: []string{"blue manifest-row"}, drive: func(d drive) {
 			oncePerSitting(rowManifest, "blue-respond", "manifest-row", "--id", "G1")(d)
@@ -271,7 +282,7 @@ func answerDrives() []answerDrive {
 			d.endsWithRow(d.refused("a second in the sitting", "judge", regrade("certain", "the second")...), rowRegrade)
 			d.nextSitting("judge")
 			d.admitted("the next sitting's", "judge", regrade("certain", "the first was wrong")...)
-			d.closeG1(lensSeat)
+			d.benchClosesG1()
 			d.nextSitting("judge")
 			d.refused("a regrade of a closed gap", "judge", regrade("low", "the first was wrong")...)
 		}},
@@ -333,6 +344,7 @@ func answerDrives() []answerDrive {
 				d.t.Fatalf("the second close's refusal does not name the carry:\n%s", r)
 			}
 			d.docketMotion("a docket motion on the closed gap, by the lens", lensSeat)
+			d.docketMotion("a docket motion on the closed gap, by blue", "blue-respond")
 			// The row may not say "a motion": a GRADE motion on a closed gap is refused.
 			d.gradeMotion("a grade motion on the closed gap, by the lens", lensSeat, "impact", false)
 		}},
@@ -372,11 +384,13 @@ func answerDrives() []answerDrive {
 				}
 				d.gradeMotion("a new grade motion, the gap open, by "+seatID, seatID, []string{"likelihood", "complexity", "severity"}[i], true)
 			}
-			// A grade motion is refused on a closed gap; the docket motion is not.
-			d.closeG1(lensSeat)
+			// A grade motion is refused on a closed gap; a gap the lens closed takes a docket motion
+			// ("close, the lens"), and one the bench closed takes it on new grounds alone.
+			d.benchClosesG1()
 			d.gradeMotion("a new grade motion, the gap closed", "blue-respond", "impact", false)
-			d.docketMotion("the ruler's docket motion, the gap closed", "red-chair")
-			d.docketMotion("the filer's docket motion, the gap closed", "blue-respond")
+			if r := d.refused("a docket motion on what the bench ruled", "red-chair", "motion", "docket", "file", "--id", "G1", "--reason", "again"); !strings.Contains(r, "NEW GROUNDS") {
+				d.t.Fatalf("the docket motion on what the bench ruled is refused for another reason:\n%s", r)
+			}
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")

@@ -19,7 +19,7 @@ import (
 // decision as one dispatch event per party, under the chair, and prints the same plan for the
 // chair to relay. The workflow dispatches what the record says and nothing else.
 //
-// At impasse the verb files the docket motion itself, the moment impasse is first computed, so
+// At impasse the verb files the docket motion itself, once the gap's lens has had its audit, so
 // "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap
 // and the bench. An empty party list is the termination signal, not an error.
 func newDispatch() *cobra.Command {

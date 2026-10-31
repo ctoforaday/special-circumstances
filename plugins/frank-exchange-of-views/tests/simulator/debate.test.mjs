@@ -559,7 +559,7 @@ test('a plan that engages blue alone on a gap sits no lens, and the lens sits on
   assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
 })
 
-test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and files the closings its work list names', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
   const world = makeWorld(makeResponder({
@@ -581,10 +581,16 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
     assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
-  // THE CLOSINGS OWED ARE THE PLAN'S closing_owed BLOCKERS THIS SEAT OWNS — not the lens's, and not
-  // the docket the chair's sitting filed.
-  assert.ok(/YOUR CLOSING ARGUMENT IS OWED ON: G-00000002 — each is DOCKETED/.test(first) && /argue in ~120 words/.test(first))
-  assert.ok(!/YOUR CLOSING ARGUMENT IS OWED/.test(second), 'a docket with no closing the plan holds blue to owes none')
+  // WHICH CLOSINGS ARE OWED IS THE WORK LIST'S, read live: the prompt is composed from the plan at the
+  // epoch's start, which a seat sitting earlier in the epoch can already have overtaken.
+  for (const prompt of [first, second]) {
+    assert.ok(/WHERE YOUR WORK LIST SAYS A CLOSING ARGUMENT IS OWED FROM YOU, the gap is DOCKETED/.test(prompt), 'blue is not sent to its list for its closing')
+  }
+  assert.ok(!/G-00000002/.test(first), 'blue is told the closings it owes from the plan')
+  for (const seat of ['blue-researcher', 'red-lens-logic']) {
+    const md = readFileSync(new URL(`../../agents/${seat}.md`, import.meta.url), 'utf8')
+    assert.ok(/A closing argues in ~120 words/.test(md), `${seat}'s constitution does not say what a closing argues`)
+  }
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.
@@ -595,7 +601,8 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G-00000001', 'G-00000002')], { docket: ['G-00000001'] }) }), passChair()] }))
   await world.run(script, ARGS)
   const bench = firstPrompt(world, 'judge')
-  for (const want of ['Docketed for you: G-00000001, G-00000002', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
+  assert.ok(!/G-0000000/.test(bench), 'the bench is told its docket from the plan')
+  for (const want of ['YOUR WORK LIST NAMES THE MOTIONS DOCKETED FOR YOU', 'THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE', 'read them FRESH before ruling', 'AS IT NOW STANDS', 'Re-run each document-probe acceptance check',
     'RULING BASIS IS CONFINED TO', 'counts AGAINST the side that made it', "READ THE NAMED ANCESTORS' RECORDS", 'the docket ruling', 'barring as settled', 'a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange', 'the research direction you state, which the record refuses blank',
     "where none pulled, the ruling's weakest point", 'where nothing needs a human, what on the record already settles it', 'for a ruling that closes the gap, what would reopen it', 'a second remand at impasse is refused, and its refusal names the dispositions that close the gap', 'NAMED infrastructure debt',
     'rules nothing is a workflow error', 'PRECEDENT IS ARGUMENT, NOT EVIDENCE', "WHERE YOU HOLD A GAP'S GRADE WRONG, SET IT BEFORE YOU RULE"]) {

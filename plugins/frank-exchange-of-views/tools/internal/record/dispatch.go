@@ -3,7 +3,6 @@ package record
 import (
 	"errors"
 	"fmt"
-	"math"
 	"slices"
 	"sort"
 	"strings"
@@ -85,11 +84,11 @@ type Plan struct {
 	// for last, and the parties of what this sitting docketed owe their closings on it.
 	Docket []string `json:"docket" desc:"gaps the verb docketed for the bench at this sitting"`
 	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
-	// each with the research direction the remand states: blue is among Parties for it, and its
-	// minting lens once blue has acted (lensTurnOn). The workflow tells blue the remand's duty for these gaps and no others, so the
-	// duty lasts exactly as long as the exchange is owed — and it quotes THIS direction, the
-	// record's, never the bench envelope's account of its own ruling.
-	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it, and its minting lens once blue has acted"`
+	// each with the research direction the remand states: blue is among Parties for it until it has
+	// acted, and then its minting lens alone, whose re-audit ends the exchange (partiesOnRoute). The
+	// duty lasts exactly as long as the exchange is owed, and it quotes THIS direction, the record's,
+	// never the bench envelope's account of its own ruling.
+	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: blue is among the parties for it until it has acted, and then its minting lens alone, whose re-audit ends the exchange"`
 	// Exchanges is one entry per gap a party is engaged on, in the order the parties first name
 	// them. It is the engine's measure of movement that the head does not carry: a gap marching to
 	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
@@ -338,24 +337,22 @@ func foldPlan(params Params, r planReads) Plan {
 	gaps := r.gaps
 	exch := exchangesOf(evs, ids, win, params, WhileRunning, r.remands)
 	statedMotion := map[string]bool{} // the docket motions a gap's reason below already names
-	// debate readies a gap's two parties: blue, and its minting lens when its turn has come — blue has
-	// acted on the gap since the lens's last act there and since the latest remand ruling on it
-	// (lensTurnOn). The lens sits before blue in an epoch, so readied sooner it audits an answer that
-	// does not exist yet. A stranded gap's lens is readied whatever blue did: what it owes there is
-	// the close its successor promised, not an audit of blue's answer. It reports whether the lens
-	// was readied, for the reason.
-	acts, mintedAt := gapActsOf(evs, ids), mintPlaces(evs, ids)
-	debate := func(g openGap) bool {
-		turn := g.mintedBy != "" && (g.supersededBy != "" || lensTurnOn(acts[g.id], g.mintedBy, mintedAt[g.id], latestBefore(remandPlaces(r.remands[g.id]), math.MaxInt64), math.MaxInt64))
-		if turn {
+	// debate readies the parties the route engages on a gap (partiesOnRoute): the lens sits before blue
+	// in an epoch, so readied sooner it audits an answer that does not exist yet. It reports which.
+	debate := func(g openGap, route gapRoute, x *GapExchanges) (lens, blue bool) {
+		lens, blue = partiesOnRoute(route, g.supersededBy != "", x)
+		if lens && g.mintedBy != "" {
 			engage(g.mintedBy, "", g.id)
 		}
-		engage(blueRespondSeat, "", g.id)
-		return turn || g.mintedBy == ""
+		if blue {
+			engage(blueRespondSeat, "", g.id)
+		}
+		return lens, blue
 	}
-	// waiting is the reason's clause for a gap whose minting lens debate did not ready.
-	waiting := func(g openGap, turn bool) string {
-		if turn {
+	// waiting is the reason's clause for a gap whose minting lens debate did not ready. A gap whose
+	// minter is no lens has no re-audit to wait on.
+	waiting := func(g openGap, lens bool) string {
+		if lens || seatclass.RoleOfSeat(g.mintedBy) != "lens" {
 			return ""
 		}
 		return fmt.Sprintf("; blue is ready on it, and %s is not until blue has acted on it since the lens's last act there", g.mintedBy)
@@ -459,12 +456,17 @@ func foldPlan(params Params, r planReads) Plan {
 		case routeNobody:
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s) — readies nobody", g.id, notMaterialBecause(g.classMaterial, g.severity)))
 		case routeDebate:
-			turn := debate(g)
+			lens, _ := debate(g, route, x)
 			if x.Remand == notRemanded {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits%s", g.id, x.Counted(), waiting(g, turn)))
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — below its limits%s", g.id, x.Counted(), waiting(g, lens)))
 			} else {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — the exchange its remand granted moved it, so its limits count from the bench's ruling, and it is below them%s", g.id, x.Counted(), waiting(g, turn)))
+				plan.Why = append(plan.Why, fmt.Sprintf("%s: open, material, %s — the exchange its remand granted moved it, so its limits count from the bench's ruling, and it is below them%s", g.id, x.Counted(), waiting(g, lens)))
 			}
+		// THE LENS GOES FIRST, AND THE DOCKET COMES AFTER IT (lensGoesFirst). Blue is not readied: it
+		// sits after the lens, and its answer would be one nobody read before the bench was asked.
+		case routeLensFirst:
+			debate(g, route, x)
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: %s — this audit by %s comes before any docket, so it alone is ready on it; if the gap stands after it, the gap is docketed for the bench", g.id, x.Counted(), g.mintedBy))
 		// AT IMPASSE, A GAP IS DOCKETED, OR OWED ITS REMAND'S EXCHANGE. A gap the bench has not
 		// remanded at impasse goes to the bench; one it remanded goes back to the debate for one
 		// exchange that begins with blue's act, carrying the ruling's direction, and back to the
@@ -480,11 +482,14 @@ func foldPlan(params Params, r planReads) Plan {
 			b := movedBlocker[g.id]
 			toBench(g, fmt.Sprintf("%s: %s — docketed for the bench, and PASS is not permitted until it rules", g.id, gradeMovementFact(b)), gradeMovementBasis(b))
 		case routeRemandOwed:
-			turn := debate(g)
+			lens, blue := debate(g, route, x)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
 			ready := "blue is ready for the one more exchange the remand grants, and it begins with blue's act"
-			if turn {
+			switch {
+			case lens && blue:
 				ready = "its minting lens and blue are ready for the one more exchange the remand grants"
+			case lens:
+				ready = "blue has acted, and its minting lens is ready to audit that answer, which ends the one more exchange the remand grants"
 			}
 			if !g.material && !stranded {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s: open and not material (%s), and remanded by the bench, whose remand outranks materiality — %s, "+RemandDirectionPrefix+"%s",

@@ -131,8 +131,8 @@ func TestAPartyThatSatWithoutItsClosingDoesNotHoldTheBench(t *testing.T) {
 	}
 }
 
-// THE STATED NOT-OWED STATES: the gap closed after its docketing, and a minter the cast seats as no
-// lens. Each holds no blocker and readies nobody for a closing.
+// THE STATED NOT-OWED STATES: the gap closed after its docketing, as an archived run's lens could,
+// and a minter the cast seats as no lens. Each holds no blocker and readies nobody for a closing.
 func TestAClosingIsNotOwedOnAClosedGapOrByAMinterTheCastDoesNotSeat(t *testing.T) {
 	t.Run("the gap closed after the docketing", func(t *testing.T) {
 		run := docketed(t).closeGap(evLens, "G1").seed()
@@ -181,24 +181,6 @@ func TestTheWorkListBlocksEachPartyOnItsOwnClosing(t *testing.T) {
 	}
 	if s := sittingOfRunT(t, docketed(t).closing(evLens, "G1").seed(), "lens", evLens); listsItem(s, item) {
 		t.Errorf("the lens filed its closing and its list still names it: %+v", s.Open)
-	}
-}
-
-// A CLOSING THE DOCKETING NO LONGER OWES IS STATED, NOT DROPPED. The minting lens files its closing
-// and closes the gap before blue sits (#1601 smoke, G-0354ac40): blue's list names the docketing and
-// why its closing is not owed and whose close ended it, and blocks on nothing for it; the lens that
-// closed the gap is told nothing it did not do itself.
-func TestTheWorkListStatesAClosingTheDocketingNoLongerOwes(t *testing.T) {
-	const item = "gap G1 is docketed for the bench (motion M1) and no closing argument is owed from you on it: " + closingGapClosed + " (" + evLens + " closed it)"
-	s := sittingOfRunT(t, docketed(t).closing(evLens, "G1").closeGap(evLens, "G1").seed(), "blue", "blue-respond")
-	if !listsItem(s, item) || hasItem(s, "is docketed for the bench (motion M1)") {
-		t.Errorf("blue's list does not state, without blocking, that the closing is not owed: %+v", s.Open)
-	}
-	if s := sittingOfRunT(t, docketed(t).closeGap(evLens, "G1").seed(), "lens", evLens); listsItem(s, "no closing argument is owed") {
-		t.Errorf("the lens closed the gap itself and is told so as news: %+v", s.Open)
-	}
-	if s := sittingOfRunT(t, docketed(t).seed(), "blue", "blue-respond"); listsItem(s, item) {
-		t.Errorf("an owed closing is stated as not owed: %+v", s.Open)
 	}
 }
 

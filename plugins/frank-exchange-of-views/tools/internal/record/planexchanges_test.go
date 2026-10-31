@@ -30,7 +30,7 @@ func TestThePlanRelaysEachEngagedGapsExchanges(t *testing.T) {
 		st   *stage
 		want []ExchangeCount
 	}{
-		{"two counted, the last epoch's sittings unclosed", marched, []ExchangeCount{{GapID: "G1", Count: 2, Unresolved: 2}}},
+		{"one counted, the last epoch's sittings unclosed and blue's last answer unread", marched, []ExchangeCount{{GapID: "G1", Count: 1, Unresolved: 2}}},
 		{"nothing counted and two sittings unclosed", unclosed, []ExchangeCount{{GapID: "G1", Count: 0, Unresolved: 2}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
