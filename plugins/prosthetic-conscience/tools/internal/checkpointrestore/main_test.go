@@ -142,7 +142,7 @@ func TestForkGetsAPointerNotTheDigest(t *testing.T) {
 	if strings.Contains(got, "status: done") {
 		t.Errorf("a fork was told the note was finished work:\n%s", got)
 	}
-	if !strings.Contains(got, "fork") {
+	if !strings.Contains(got, "("+forkPointerReason+")") {
 		t.Errorf("the pointer does not say why it is a pointer:\n%s", got)
 	}
 }
@@ -438,7 +438,7 @@ func TestOffSchemaHeadingsStillRestore(t *testing.T) {
 	if !strings.Contains(got, "make verify") {
 		t.Errorf("off-schema headings produced no digest:\n%s", got)
 	}
-	if strings.Contains(got, "main.go") {
+	if hasLine(got, "- main.go") {
 		t.Errorf("fallback pulled in low-value recovery detail:\n%s", got)
 	}
 }
@@ -607,10 +607,13 @@ func TestRearmedChecksAppearInTheDigest(t *testing.T) {
 	}
 	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
 	got := injected(t, stdout)
-	for _, want := range []string{"stale", "check 1", "tools/x.go", "change"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("digest missing %q:\n%s", want, got)
-		}
+	entries, ok := rearmNotice(got)
+	if !ok {
+		t.Fatalf("digest carries no re-arm notice:\n%s", got)
+	}
+	want := "- check 1 (1. `go test ./...`) — change tools/x.go at 2026-07-29T12:00:00Z"
+	if len(entries) != 1 || entries[0] != want {
+		t.Errorf("re-arm entries = %q, want [%q]:\n%s", entries, want, got)
 	}
 }
 
@@ -619,7 +622,7 @@ func TestRearmedChecksAppearInTheDigest(t *testing.T) {
 func TestNoRearmsIsSilentOnTheSubject(t *testing.T) {
 	dir := withTree(t, watchNote)
 	stdout, _, _ := call(t, dir, `{"source":"compact"}`)
-	if got := injected(t, stdout); strings.Contains(got, "stale") {
+	if got := injected(t, stdout); hasRearmNotice(got) {
 		t.Errorf("reported staleness with no re-arms recorded:\n%s", got)
 	}
 }
@@ -634,7 +637,83 @@ func TestCorruptRearmStateDegradesToSilence(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if got := injected(t, stdout); got == "" || strings.Contains(got, "stale") {
+	if got := injected(t, stdout); got == "" || hasRearmNotice(got) {
 		t.Errorf("corrupt state changed the digest:\n%s", got)
+	}
+}
+
+// rearmNotice recovers the re-arm notice by its structure: the heading line, then one
+// "- check" line per re-armed check. A word search over the digest is no test of the
+// notice, because the digest also carries the note's path and a path may hold any word.
+func rearmNotice(got string) (entries []string, ok bool) {
+	lines := strings.Split(got, "\n")
+	for i, l := range lines {
+		if l != rearmHeading {
+			continue
+		}
+		for _, e := range lines[i+1:] {
+			if !strings.HasPrefix(e, "- check ") {
+				break
+			}
+			entries = append(entries, e)
+		}
+		return entries, true
+	}
+	return nil, false
+}
+
+func hasRearmNotice(got string) bool {
+	_, ok := rearmNotice(got)
+	return ok
+}
+
+// hasLine reports whether got holds want as a whole line.
+func hasLine(got, want string) bool {
+	for _, l := range strings.Split(got, "\n") {
+		if strings.TrimSpace(l) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// pathWords names a temp root holding words the digest's assertions look for. The digest
+// echoes the note's path, so an assertion a path can satisfy or break passes or fails on
+// the name of the temp directory.
+const pathWords = "stale-fork-main.go"
+
+// THE REGRESSION: these tests passed or failed on the name of TMPDIR, because they
+// asserted a bare word over a digest that echoes a path under it. Each runs again here
+// with every temp directory under a path that holds those words.
+func TestDigestAssertionsIgnoreTheTempPath(t *testing.T) {
+	root, err := os.MkdirTemp("", "pc-restore-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	hostile := filepath.Join(root, pathWords)
+	if err := os.MkdirAll(hostile, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(v, hostile)
+	}
+	for _, tc := range []struct {
+		name string
+		fn   func(*testing.T)
+	}{
+		{"no re-arms", TestNoRearmsIsSilentOnTheSubject},
+		{"corrupt re-arms", TestCorruptRearmStateDegradesToSilence},
+		{"re-armed check", TestRearmedChecksAppearInTheDigest},
+		{"fork pointer", TestForkGetsAPointerNotTheDigest},
+		{"off-schema heading", TestOffSchemaHeadingsStillRestore},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A temp root that did not move makes the subtest vacuous; refuse it.
+			if d := t.TempDir(); !strings.Contains(d, pathWords) {
+				t.Fatalf("t.TempDir() = %q is not under the hostile TMPDIR %q", d, hostile)
+			}
+			tc.fn(t)
+		})
 	}
 }
