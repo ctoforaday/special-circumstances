@@ -522,11 +522,21 @@ type runner struct {
 	// both counts at zero.
 	closedRemandsRefused, trifleRemandsRouted int
 	trifleRemanded                            map[string]bool
-	// remandActs counts, by role, the acts on a remanded gap the remand's blocking item held a seat to
+	// blueRemandActs counts blue's acts on a remanded gap the remand's blocking item held it to
 	// (answerRemands), and pastLimitRemandsRefused the bench's remands past the limit the tool refused
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
-	remandActs              map[string]int
+	blueRemandActs          int
 	pastLimitRemandsRefused int
+	// remandHolds counts the remand items blue's list held blocking before blue registered, on the
+	// gaps the plan dispatching it owed a remand's exchange, and remandReleases those it rightly held
+	// unblocked — blue had acted since the ruling (remandHeldBeforeRegister); blueSatSincePlan is
+	// whether blue has sat since that plan. The sweep gates remandHolds at zero and reports releases.
+	remandHolds, remandReleases int
+	blueSatSincePlan            bool
+	// lensTurns counts the lens engagements the relayed plans made on a gap blue had acted on since
+	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
+	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
+	lensTurns, lensWaits int
 	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
 	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
 	// second move released to the lens and the lens has not moved since. benchRegrades counts the
@@ -541,11 +551,10 @@ type runner struct {
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	forceBenchOrders                                                        bool
 	benchOrders                                                             *benchOrderLedger
-	// lensFirst is each remanded gap its minting lens acted on before blue had, with the ruling's
-	// direction, until blue's next sitting reads its list (noteLensFirst); lensFirstHolds counts the
-	// items that list held blocking before blue registered (lensFirstHeld). The sweep gates it at zero.
-	lensFirst      map[string]string
-	lensFirstHolds int
+	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
+	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
+	// concurrent seats land at will. nil in the sweep.
+	betweenStaleRetries func(seatID, gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -3757,9 +3766,8 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	// A gap another lens minted after this lens sat is a change since its read point, so the finding
 	// may meet the stale refusal first and is recorded again, as a seat does. The first-wave lenses
 	// file their findings about one gap concurrently, and each is a change since every sibling's read
-	// point, so a lens may meet one refusal per sibling: it records the act again once per lens in the
-	// cast, and once more.
-	if _, ok := r.admitFreshWithin(r.lensesCast()+1, held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
+	// point, so a lens may meet a refusal for each of them (admitFresh).
+	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
 		return
 	}
@@ -3787,21 +3795,6 @@ func (r *runner) freeClass(args []string) {
 			return
 		}
 	}
-}
-
-// lensesCast is how many lens seats the run's cast holds.
-func (r *runner) lensesCast() int {
-	cast, err := record.CastOf(r.run())
-	if err != nil {
-		return 0
-	}
-	n := 0
-	for _, s := range cast {
-		if strings.HasPrefix(s, "red-lens-") {
-			n++
-		}
-	}
-	return n
 }
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
@@ -4790,6 +4783,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		plan := r.planThisSitting
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
+		r.tallyLensTurns(plan)
+		r.mu.Lock()
+		r.blueSatSincePlan = false
+		r.mu.Unlock()
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
@@ -4861,7 +4858,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return r.chairEnvelope(seatID, verdict, printed, responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
-		r.lensFirstHeld()
+		r.remandHeldBeforeRegister()
 		r.sit("blue", seatID)
 		// BLUE ANSWERS WHAT THE PLAN ENGAGED IT ON, not every open gap: the record dispatched blue
 		// for exactly these, and its manifest must name them (W2b). Closings are owed on the
@@ -5686,9 +5683,9 @@ type outcome struct {
 	rulerFilingsRefused int
 	// closedRemandsRefused and trifleRemandsRouted are runner's.
 	closedRemandsRefused, trifleRemandsRouted int
-	// blueRemandActs, lensRemandActs and pastLimitRemandsRefused are runner's remandActs and
-	// pastLimitRemandsRefused; lensFirstHolds is runner's.
-	blueRemandActs, lensRemandActs, pastLimitRemandsRefused, lensFirstHolds int
+	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
+	// are runner's.
+	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits int
 	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	// partRefused and partsRecorded are runner's.
@@ -7015,8 +7012,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
-	res.blueRemandActs, res.lensRemandActs, res.pastLimitRemandsRefused = r.remandActs["blue"], r.remandActs["lens"], r.pastLimitRemandsRefused
-	res.lensFirstHolds = r.lensFirstHolds
+	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
+	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()

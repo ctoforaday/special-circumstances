@@ -207,8 +207,9 @@ func (r *runner) lensMovesBenchAxis(seatID string) string {
 		dim := pick(r.rng, dims)
 		args := []string{"--json", "regrade", "--seat-id", seatID, "--id", id, "--" + dim, r.gradeOtherThan(held[dim]),
 			"--reason", "fuzz: the lens moving an axis the bench set"}
-		for range 3 {
-			before := r.staleReads(seatID, id)
+		// RECORDED AGAIN WHILE EACH STALE REFUSAL MOVES THE READ POINT, as admitFresh records an act.
+		for {
+			before := r.readPointOf(seatID, id)
 			out, err := r.exec(args...)
 			env, ok := refusalEnvelopeIn(out)
 			switch {
@@ -221,7 +222,7 @@ func (r *runner) lensMovesBenchAxis(seatID string) string {
 				if r.lensMovesFreeAxis(seatID, id, held) {
 					return id
 				}
-			case ok && env.Code == string(feov.Conflict) && r.staleReads(seatID, id) > before:
+			case ok && env.Code == string(feov.Conflict) && r.staleMoved(seatID, id, before):
 				noteEither(args[1:2], "a regrade of a gap another seat changed since this seat's read point, recorded again", false)
 				continue
 			default:
