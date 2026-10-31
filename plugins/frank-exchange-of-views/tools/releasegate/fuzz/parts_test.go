@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -153,6 +154,7 @@ func (r *runner) lanePart(seatID string) {
 		return
 	}
 	part := lanePartText(seatID)
+	r.laneResearches(seatID)
 	if r.partsArm() {
 		r.refusePart(partNoFile, feov.NotFound, "there is no part at "+r.partFile(seatID), "ingest", "--seat-id", seatID)
 	}
@@ -175,6 +177,49 @@ func (r *runner) lanePart(seatID string) {
 	}
 	if r.partsArm() {
 		r.laneActsOnItsPart(seatID, strings.TrimSuffix(part, "\n"))
+	}
+	r.laneReadsTheReport(seatID)
+}
+
+// laneResearches is the rest of a lane's surface before its part, drawn as the part arms are: it
+// reads its work and the inquiries, proposes an approach of its own and records that it took it up,
+// logs a note, and fetches a source and searches it by its sha256. Each is admitted.
+func (r *runner) laneResearches(seatID string) {
+	if !r.partsArm() {
+		return
+	}
+	for _, v := range [][]string{{"show"}, {"show", "work"}, {"show", "inquiries"}} {
+		r.admit(append(v, "--seat-id", seatID)...)
+	}
+	out, ok := r.admit("inquiry", "propose", "--seat-id", seatID, "--question", "fuzz: does "+seatID+"'s slice settle it",
+		"--hypothesis", "the slice's sources agree")
+	if ok {
+		if id := inquiryIDOf(out); id != "" {
+			r.noteInquiry(id)
+			r.admit("inquiry", "record", "--seat-id", seatID, "--id", id, "--as", "underway", "--reason", "fuzz: the lane takes it up")
+		} else {
+			r.noteInquiryIDErr(seatID + "'s propose named no inquiry id: " + firstLine(out))
+		}
+	}
+	r.admit("log", "--seat-id", seatID, "--type", "friction", "--reason", "fuzz: a lane's note for the operator")
+	out, ok = r.admit("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false", "--json")
+	var sum struct {
+		Sha256 string `json:"sha256"`
+	}
+	if !ok || json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
+		return
+	}
+	r.admit("show", "source", "--seat-id", seatID, "--sha", sum.Sha256, "--match", ".")
+}
+
+// laneReadsTheReport is a lane reading the projections once its part is recorded, drawn as the
+// part arms are. Each is admitted: a read changes nothing, so it closes no door on another lane.
+func (r *runner) laneReadsTheReport(seatID string) {
+	if !r.partsArm() {
+		return
+	}
+	for _, v := range []string{"report", "board", "changes", "evidence", "findings"} {
+		r.admit("show", v, "--seat-id", seatID)
 	}
 }
 
