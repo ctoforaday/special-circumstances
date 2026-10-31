@@ -105,18 +105,24 @@ func StoredPlans(evs []*Event) ([]StoredPlan, error) {
 	return out, nil
 }
 
-// planStands reports whether printed is the record's standing plan: the plan stored last, with no
-// sitting opened since — no bracket, no register opening one, by any seat. Asked twice in one
-// sitting, for the prose and then for --json, it is one decision, and the B5 and B6 chairs each
-// wrote it twice.
-func planStands(evs []*Event, win WindowIndex, printed string) bool {
+// standingPlan is the record's standing plan, as printed: the plan stored last, with no sitting
+// opened since — no bracket, no register opening one, by any seat. None stands from the moment a
+// sitting opens until that sitting's chair asks.
+func standingPlan(evs []*Event, win WindowIndex) (printed string, stands bool) {
 	for i := len(evs) - 1; i >= 0; i-- {
 		if _, opens := win.Opens(evs[i]); opens {
-			return false
+			return "", false
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Plan](evs[i]); ok {
-			return b.GetPrinted() == printed
+			return b.GetPrinted(), true
 		}
 	}
-	return false
+	return "", false
+}
+
+// planStands reports whether printed is the record's standing plan. Asked twice in one sitting, for
+// the prose and then for --json, it is one decision, and the B5 and B6 chairs each wrote it twice.
+func planStands(evs []*Event, win WindowIndex, printed string) bool {
+	standing, stands := standingPlan(evs, win)
+	return stands && standing == printed
 }

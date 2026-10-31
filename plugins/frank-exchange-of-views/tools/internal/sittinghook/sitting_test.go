@@ -339,3 +339,34 @@ func TestOnlyTheWritersStdoutReachesTheSeat(t *testing.T) {
 		t.Errorf("the seat's channel carried %q — a diagnostic that reaches it arrives as the seat's work", got)
 	}
 }
+
+// THE HOOK HANDS THE WRITER WHAT THE SEAT STATED, ON STDIN, AND READS BACK THE ANSWER THE WRITER'S TYPE
+// PRINTS. A call with no arguments handed over would read as an empty envelope, and be filled; the two
+// declarations of the answer are the writer's and the hook's, because the hook links no record.
+func TestTheEnvelopeHandoffCarriesTheCallAndReadsTheWritersAnswer(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in writer is a shell script")
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stub := filepath.Join(filepath.Dir(self), writerFileName())
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nprintf '{\"envelope\":'\ncat\nprintf '}'\n"), 0o755); err != nil {
+		t.Skipf("cannot place a writer beside the test binary: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(stub) })
+	answer, err := Envelope(t.TempDir(), "a1", []byte(`{"notes":"n"}`))
+	if err != nil || string(answer.Envelope) != `{"notes":"n"}` {
+		t.Errorf("the writer was not handed the call's arguments (%v): %+v", err, answer)
+	}
+
+	printed, err := json.Marshal(sittingwrite.EnvelopeAnswer{Refusal: "no", Envelope: json.RawMessage(`{"a":1}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read EnvelopeAnswer
+	if err := json.Unmarshal(printed, &read); err != nil || read.Refusal != "no" || string(read.Envelope) != `{"a":1}` {
+		t.Errorf("the hook does not read what the writer prints (%v): %+v from %s", err, read, printed)
+	}
+}

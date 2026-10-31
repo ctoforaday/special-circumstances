@@ -2,6 +2,7 @@ package sittingwrite
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -104,9 +105,12 @@ func TestAClosedSittingWithNoAdmissionReadsFailed(t *testing.T) {
 func TestTheGateAdmitsNothing(t *testing.T) {
 	run := admissionRun(t)
 	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: chair})
+	if _, _, err := record.DispatchNext(record.Identity{Run: mustRun(t, run), SeatID: "red-chair"}); err != nil {
+		t.Fatal(err)
+	}
 	var out bytes.Buffer
-	if err := WriteEnvelopeRefusal(run, "AG", &out); err != nil || out.Len() != 0 {
-		t.Fatalf("the chair's envelope was refused (%v): %q", err, out.String())
+	if err := WriteEnvelopeAnswer(run, "AG", []byte(`{}`), &out); err != nil || !strings.Contains(out.String(), `"envelope"`) {
+		t.Fatalf("the chair's envelope was not answered with the plan (%v): %q", err, out.String())
 	}
 	if got := admissions(t, run); len(got) != 0 {
 		t.Fatalf("the gate's answer wrote admissions %v — an envelope the schema may still reject is not admitted", got)

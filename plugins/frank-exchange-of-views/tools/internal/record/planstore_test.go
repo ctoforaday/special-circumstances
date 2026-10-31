@@ -1,6 +1,7 @@
 package record
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 	"strings"
@@ -312,5 +313,125 @@ func TestThePlanKeyLeavesOutOnlyWhatTheAskingSittingSays(t *testing.T) {
 		if p.WithKey().Key == base.Key {
 			t.Errorf("the key did not move with %s", name)
 		}
+	}
+}
+
+// THE CHAIR'S ENVELOPE IS THE PLAN THE RECORD STORED LAST IN ITS SITTING, and the chair's own word in
+// it is `notes` alone. m37's epoch 4 is the second arm: a plan of 23 blockers relayed holding one,
+// every other field equal.
+func TestTheChairsEnvelopeIsThePlanTheRecordStored(t *testing.T) {
+	run := atImpasse(t)
+	chair := Identity{Run: run, SeatID: "red-chair"}
+	if _, refusal, err := ChairEnvelope(run, []byte(`{}`)); err != nil || !strings.Contains(refusal, "no plan stands") {
+		t.Fatalf("an envelope before the chair asked was not refused for it (%v): %q", err, refusal)
+	}
+	plan, _, err := DispatchNext(chair)
+	if err != nil || len(plan.Blockers) < 2 {
+		t.Fatalf("fixture: %d blockers, %v; want a plan a relay could trim", len(plan.Blockers), err)
+	}
+	fields := func(raw []byte) map[string]any {
+		t.Helper()
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatalf("not an object: %v: %s", err, raw)
+		}
+		return m
+	}
+
+	filled, refusal, err := ChairEnvelope(run, []byte(`{}`))
+	if err != nil || refusal != "" {
+		t.Fatalf("an empty envelope was not filled (%v): %q", err, refusal)
+	}
+	if _, printed, err := ReadPlan(filled); err != nil || printed != plan.Printed() {
+		t.Fatalf("the envelope is not the stored plan (%v):\n got %s\nwant %s", err, filled, plan.Printed())
+	}
+
+	filled, refusal, err = ChairEnvelope(run, []byte(`{"notes":"a line"}`))
+	if err != nil || refusal != "" {
+		t.Fatalf("an envelope with notes was not filled (%v): %q", err, refusal)
+	}
+	withNotes := fields(filled)
+	if withNotes["notes"] != "a line" {
+		t.Errorf("the notes did not stay: %s", filled)
+	}
+	delete(withNotes, "notes")
+	if !reflect.DeepEqual(withNotes, fields([]byte(plan.Printed()))) {
+		t.Errorf("the notes changed the plan:\n got %v\nwant %s", withNotes, plan.Printed())
+	}
+
+	trimmed := fields([]byte(plan.Printed()))
+	trimmed["blockers"] = trimmed["blockers"].([]any)[:1]
+	raw, _ := json.Marshal(trimmed)
+	filled, refusal, err = ChairEnvelope(run, raw)
+	if err != nil || filled != nil || !strings.Contains(refusal, "`blockers`") {
+		t.Errorf("a trimmed plan was not refused naming the field (%v): filled %s, refusal %q", err, filled, refusal)
+	}
+	// A FAITHFUL COPY IS REFUSED TOO: the copy is what ends here, and accepting it would keep it.
+	filled, refusal, err = ChairEnvelope(run, []byte(plan.Printed()))
+	if err != nil || filled != nil || !strings.Contains(refusal, "`blockers`") {
+		t.Errorf("a faithful copy was not refused (%v): filled %s, refusal %q", err, filled, refusal)
+	}
+	for _, input := range []string{`[]`, `null`, `not json`} {
+		if filled, refusal, err = ChairEnvelope(run, []byte(input)); err != nil || filled != nil || refusal == "" {
+			t.Errorf("arguments %s were not refused (%v): filled %s, refusal %q", input, err, filled, refusal)
+		}
+	}
+}
+
+// THE PLAN STORED LAST STANDS, AND A SITTING OPENED SINCE ENDS IT: asked again after a motion moved the
+// plan, the later one goes; a chair's next sitting has nothing to carry until it asks.
+func TestTheChairsEnvelopeReadsThePlanStoredLastInItsSitting(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
+		register("red-chair").seed()
+	first, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	filled, _, err := ChairEnvelope(run, []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, printed, err := ReadPlan(filled); err != nil || printed != first.Printed() {
+		t.Fatalf("the first plan does not stand (%v): %s", err, filled)
+	}
+	recordtest.Seed(t, run.Dir(), recordtest.At(t, "red-chair", "review", &recordpb.InquiryReview{Reason: proto.String("read")}))
+	second, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil || second.Printed() == first.Printed() {
+		t.Fatalf("fixture: asked again, the plan did not move (%v)", err)
+	}
+	filled, _, err = ChairEnvelope(run, []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, printed, err := ReadPlan(filled); err != nil || printed != second.Printed() {
+		t.Errorf("the plan asked for last does not stand (%v): %s", err, filled)
+	}
+	recordtest.Seed(t, run.Dir(), recordtest.At(t, "red-lens-evidence", "lens", &recordpb.Register{AgentId: proto.String("agent-lens")}))
+	if filled, refusal, err := ChairEnvelope(run, []byte(`{}`)); err != nil || filled != nil || !strings.Contains(refusal, "no plan stands") {
+		t.Errorf("a plan from before a sitting opened still stands (%v): filled %s, refusal %q", err, filled, refusal)
+	}
+}
+
+// AN AGENT'S ENVELOPE IS ANSWERED BY ITS SEAT: the chair's call carries the plan, another seat's
+// passes untouched, and an agent bound to no seat is no seat's envelope.
+func TestAgentEnvelopeRoutesOnTheSeat(t *testing.T) {
+	stage := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest()
+	stage.add("red-chair", &recordpb.Register{AgentId: proto.String("agent-chair")})
+	run := stage.seed()
+	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	filled, refusal, err := AgentEnvelope(run, "agent-chair", []byte(`{}`))
+	if err != nil || refusal != "" {
+		t.Fatalf("the chair's envelope (%v): %q", err, refusal)
+	}
+	if _, printed, err := ReadPlan(filled); err != nil || printed != plan.Printed() {
+		t.Errorf("the chair's call does not carry the stored plan (%v): %s", err, filled)
+	}
+	filled, refusal, err = AgentEnvelope(run, "agent-of-no-seat", []byte(`{"anything":1}`))
+	if err != nil || refusal != "" || filled != nil {
+		t.Errorf("an agent bound to no seat was answered (%v): filled %s, refusal %q", err, filled, refusal)
 	}
 }

@@ -1,7 +1,6 @@
 package chair
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -16,8 +15,9 @@ import (
 // §III.B.1). The verb computes readiness FROM THE BOARD: each lens's last sitting against the report head,
 // each open material gap below its limits, each docketed gap awaiting the bench, the seat that owes
 // another seat's PASS blocker (a petition's bench, a contradiction's lens). It records the
-// decision as one dispatch event per party, under the chair, and prints the same plan for the
-// chair to relay. The workflow dispatches what the record says and nothing else.
+// decision as one dispatch event per party, under the chair, stores the plan, and prints it for the
+// chair to read. The hook writes the stored plan into the chair's envelope (record.ChairEnvelope), so
+// the workflow dispatches what the record says and nothing else.
 //
 // At impasse the verb files the docket motion itself, the moment impasse is first computed, so
 // "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap
@@ -48,8 +48,8 @@ func newDispatch() *cobra.Command {
 	return c
 }
 
-// dispatchResult is the plan, which IS the --json output (seat.Relayed), and whether it was
-// already on the record — said in prose only, so the JSON the chair relays is the same plan either
+// dispatchResult is the plan, which IS the --json output (seat.PrintsBare), and whether it was
+// already on the record — said in prose only, so the JSON the verb prints is the same plan either
 // way. The prose form ends with that same object, so the chair relays one object whichever form it
 // asked for, copied whole.
 type dispatchResult struct {
@@ -57,9 +57,8 @@ type dispatchResult struct {
 	standing bool
 }
 
-// Relay is the plan alone: the machine form prints the object the chair's envelope is, so the
-// relay is a copy of the verb's output.
-func (r dispatchResult) Relay() any { return r.Plan }
+// Bare is the plan alone: the machine form prints the plan object.
+func (r dispatchResult) Bare() any { return r.Plan }
 
 func (r dispatchResult) Human() string {
 	var b strings.Builder
@@ -102,21 +101,8 @@ func (r dispatchResult) Human() string {
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)
 	}
-	// THE PROSE FORM CARRIES THE RELAY. The lines above are for reading and cannot be relayed: a
-	// chair that asked for this form and not the machine one held no plan object, built one from
-	// the envelope's schema, and its relay — every blocker dropped, a field added to each party —
-	// ended the run (m16, chair sitting 6). The object is printed in both forms, so there is no
-	// form of this verb's answer from which the plan has to be composed.
-	relay, err := json.Marshal(r.Plan)
-	if err != nil {
-		// Unreachable for a struct of strings, numbers and booleans; said rather than dropped,
-		// because prose with no relay line is the form this exists to end.
-		fmt.Fprintf(&b, "relay: NOT PRINTED (%v) — ask again in the machine form and relay what it prints\n", err)
-		return strings.TrimRight(b.String(), "\n")
-	}
 	if r.Verdict != "" {
 		fmt.Fprintf(&b, "  your verdict this sitting: %s — the workflow reads it off this plan\n", r.Verdict)
 	}
-	fmt.Fprintf(&b, "relay — your envelope is this object, its fields copied whole; the lines above are its reading, not the relay:\n%s\n", relay)
 	return strings.TrimRight(b.String(), "\n")
 }

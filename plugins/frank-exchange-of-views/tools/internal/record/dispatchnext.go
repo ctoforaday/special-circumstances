@@ -159,8 +159,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		plan.Blockers, plan.Why = after.Blockers, after.Why
 		plan = plan.WithKey()
 	}
-	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
-	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.
+	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the hook writes it
+	// into the chair's envelope (ChairEnvelope), and capture compares what the workflow received with it.
 	if err := write(&recordpb.Plan{Printed: proto.String(plan.Printed())}); err != nil {
 		return emptyPlan(), false, fmt.Errorf("storing the plan: %w", err)
 	}

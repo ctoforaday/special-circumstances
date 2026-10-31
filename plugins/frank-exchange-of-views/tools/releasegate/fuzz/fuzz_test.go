@@ -48,6 +48,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -1838,7 +1839,47 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	if got, _ := r.planThisSitting["verdict"].(string); got != verdict {
 		r.noteActErr(fmt.Sprintf("the plan relayed after a %q verdict carries verdict %q — the plan carries the verdict its sitting recorded", verdict, got))
 	}
-	return maps.Clone(r.planThisSitting)
+	return r.chairCall(seatID)
+}
+
+// chairCall is the envelope the chair's call ends up carrying, as a live chair's does: what it states
+// goes to the record, which writes in the plan it stored last in the sitting (record.ChairEnvelope).
+//
+// A CHAIR THAT COPIES THE PLAN IS REFUSED, trimmed as m37's epoch 4 trimmed it, or whole. Neither is
+// logged here as a live refusal is, because each sitting drives both and the record would gain two
+// entries no seat's act caused.
+func (r *runner) chairCall(seatID string) map[string]any {
+	trimmed := maps.Clone(r.planThisSitting)
+	if bs, _ := trimmed["blockers"].([]any); len(bs) > 1 {
+		trimmed["blockers"] = bs[:1]
+	}
+	for shape, copied := range map[string]map[string]any{"trimmed": trimmed, "whole": r.planThisSitting} {
+		raw, err := json.Marshal(copied)
+		if err != nil {
+			r.noteActErr("the plan does not marshal: " + err.Error())
+			continue
+		}
+		filled, refusal, err := record.ChairEnvelope(r.run(), raw)
+		if err != nil || filled != nil || !strings.Contains(refusal, "`blockers`") {
+			r.noteActErr(fmt.Sprintf("a chair's %s copy of the plan was not refused naming what it carries (%v): filled %s, refusal %q", shape, err, filled, refusal))
+			continue
+		}
+		noteEnvelope(seatID, "its copy of the plan refused")
+	}
+	filled, refusal, err := record.ChairEnvelope(r.run(), []byte(`{}`))
+	if err != nil || refusal != "" {
+		r.noteActErr(fmt.Sprintf("the chair's envelope was not written from the stored plan (%v): %q", err, refusal))
+		return maps.Clone(r.planThisSitting)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(filled, &env); err != nil {
+		r.noteActErr("the envelope the record wrote is not an object: " + err.Error())
+		return maps.Clone(r.planThisSitting)
+	}
+	if !reflect.DeepEqual(env, r.planThisSitting) {
+		r.noteActErr(fmt.Sprintf("the envelope the record wrote is not the plan the chair was last printed:\n got %s\nwant %v", filled, r.planThisSitting))
+	}
+	return env
 }
 
 func (r *runner) exec(args ...string) (string, error) { return r.execAs("", args...) }

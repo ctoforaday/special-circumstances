@@ -18,6 +18,7 @@
 package sittingwrite
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
@@ -57,7 +58,7 @@ const (
 	Refusal Phase = "refusal"
 	Failure Phase = "failure"
 	// Envelope is not a write of the span either: it is the seat's call that returns its envelope,
-	// asked whether the record refuses it (WriteEnvelopeRefusal). The refusal is printed for the
+	// asked what the record answers it (WriteEnvelopeAnswer). The answer is printed for the
 	// PreToolUse hook to deny the call with, and logged as the tool's refusal entry.
 	Envelope Phase = "envelope"
 	// Admission is that call having SUCCEEDED, from the PostToolUse hook: the gate let it through and
@@ -65,14 +66,22 @@ const (
 	Admission Phase = "admission"
 )
 
-// WriteEnvelopeRefusal prints the record's refusal of the envelope the agent's seat is returning
-// (record.AgentEnvelopeRefusal) to out, and logs it as the tool's refusal entry under that seat.
-// When the record refuses nothing, or the agent is bound to no seat, nothing is printed or written.
-// A record that cannot be read is the error, and the hook refuses the envelope naming it.
+// EnvelopeAnswer is the writer's answer to the call returning a seat's envelope, as it prints it. The
+// hook, which links no record, reads it into sittinghook.EnvelopeAnswer.
+type EnvelopeAnswer struct {
+	Refusal  string          `json:"refusal,omitempty"`
+	Envelope json.RawMessage `json:"envelope,omitempty"`
+}
+
+// WriteEnvelopeAnswer prints the record's answer to the call returning the envelope of the agent's
+// seat (record.AgentEnvelope), input being that call's arguments, as an EnvelopeAnswer, and
+// logs a refusal as the tool's refusal entry under that seat. When the record has nothing to say, or
+// the agent is bound to no seat, nothing is printed or written. A record that cannot be read is the
+// error, and the hook refuses the envelope naming it.
 //
 // THE REFUSAL IS PRINTED BEFORE THE LOG IS WRITTEN, so a log that fails costs the record's account
 // of the refusal and never the refusal itself: the hook denies on what reached it.
-func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
+func WriteEnvelopeAnswer(runDir, agentID string, input []byte, out io.Writer) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: an envelope is asked about with no agent id")
 	}
@@ -80,12 +89,15 @@ func WriteEnvelopeRefusal(runDir, agentID string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	refusal, _, err := record.AgentEnvelopeRefusal(run, agentID)
-	if err != nil || refusal == "" {
+	filled, refusal, err := record.AgentEnvelope(run, agentID, input)
+	if err != nil || (refusal == "" && filled == nil) {
 		return err
 	}
-	if _, err := io.WriteString(out, refusal); err != nil {
+	if err := json.NewEncoder(out).Encode(EnvelopeAnswer{Refusal: refusal, Envelope: filled}); err != nil {
 		return err
+	}
+	if refusal == "" {
+		return nil
 	}
 	return WriteToolEntry(runDir, Refusal, agentID, "refused the call returning this seat's envelope: "+refusal)
 }

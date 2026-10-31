@@ -89,8 +89,6 @@ dispatch against head 3:
   · red-lens-logic: never sat — audits the report at head 3
   · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
   your verdict this sitting: FAIL — the workflow reads it off this plan
-relay — your envelope is this object, its fields copied whole; the lines above are its reading, not the relay:
-{"key":"PLANKEY001","head":3,"parties":[{"seat_id":"red-lens-evidence","gap_ids":[]},{"seat_id":"red-lens-logic","gap_ids":[]},{"seat_id":"blue-respond","gap_ids":["GAP001"]}],"docket":[],"remand_owed":[],"exchanges":[{"gap_id":"GAP001","count":0,"unresolved":0}],"pass_permitted":false,"stale_areas":[],"ceiling":false,"max_epochs":0,"epoch":1,"final_sitting":false,"epoch_limit_reached":false,"blockers":[{"kind":"material_gap","subject":"GAP001","owner":"red-lens-evidence"},{"kind":"lens_ready","subject":"red-lens-evidence","owner":"red-lens-evidence"},{"kind":"lens_ready","subject":"red-lens-logic","owner":"red-lens-logic"}],"why":["red-lens-evidence: never sat — audits the report at head 3","red-lens-logic: never sat — audits the report at head 3","GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there"],"verdict":"FAIL"}
 NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (3) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
