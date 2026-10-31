@@ -569,7 +569,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 	}})
 
-	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board.Events)
+	r := HarvestPrecedents(runtest.New(t, runDir), filepath.Join(repo, "law"), board.Events)
 	// ONLY THE DECLARATION. The board above also holds two docket dispositions and a granted
 	// petition, and none of them is a candidate holding: they dispose of something, they do not
 	// state a rule. Harvesting them produced a corpus of 76 entries in which 68 stated no rule at
@@ -624,37 +624,18 @@ func TestHarvestPrecedents(t *testing.T) {
 	}
 
 	// No law/ dir → not written, reason names law.
-	noLaw := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "absent"), board.Events)
+	noLaw := HarvestPrecedents(runtest.New(t, runDir), filepath.Join(repo, "absent"), board.Events)
 	if noLaw.Written || !strings.Contains(noLaw.Reason, "law") {
 		t.Errorf("absent law dir: want not-written with law reason, got %+v", noLaw)
 	}
 }
 
-// THE FAILURE THAT READ AS SUCCESS. Envelopes claiming rulings the record does not hold used to
-// be indistinguishable from a run where nobody ruled: both printed "0 ruling(s)". The divergence
-// is now stated, and carried in a FIELD so a reader compares numbers rather than parsing prose.
-func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
-	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
-	claimed := []map[string]any{
-		{"dispositions": []any{map[string]any{"gap_id": "G1", "disposition": "repaired", "reason": "fixed"}}},
-		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
-	}
-
-	r := HarvestPrecedents(runtest.New(t, runDir), claimed, filepath.Join(t.TempDir(), "law"), nil)
-	if r.Written || r.Count != 0 {
-		t.Fatalf("the record holds nothing, so nothing is promoted: %+v", r)
-	}
-	if r.EnvelopeClaimed != 2 {
-		t.Errorf("the envelopes' claim is a field, not a sentence: want 2, got %d", r.EnvelopeClaimed)
-	}
-	if line := precedentLine(r); !strings.Contains(line, "holds 0 docket and petition ruling(s) and the envelopes claim 2") {
-		t.Errorf("the divergence must be stated, not folded into the zero: %q", line)
-	}
-
-	// The honest quiet run: no record rulings AND no envelope claims. Silent, as it should be.
-	quiet := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(t.TempDir(), "law"), nil)
-	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 || precedentLine(quiet) != "precedent harvest: no rulings this run" {
-		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v — %q", quiet, precedentLine(quiet))
+// The honest quiet run: no rulings on the record, and the line says so.
+func TestAQuietRunHarvestsNoRulings(t *testing.T) {
+	runDir := filepath.Join(t.TempDir(), "2026-08-15_quiet")
+	quiet := HarvestPrecedents(runtest.New(t, runDir), filepath.Join(t.TempDir(), "law"), nil)
+	if quiet.Reason != "" || quiet.Rulings != 0 || precedentLine(quiet) != "precedent harvest: no rulings this run" {
+		t.Errorf("a quiet run reads as something else: %+v — %q", quiet, precedentLine(quiet))
 	}
 }
 
@@ -680,44 +661,34 @@ func docketRuled(t *testing.T, motion, gap string) []*record.Event {
 
 // A BENCH THAT RULED AND DECLARED NOTHING HAS RULINGS ON THE RECORD, AND THE HARVEST SAYS SO.
 //
-// universe m18: one docket ruling (event 460), no declaration, and the judge's envelope listing the
-// one disposition. Capture printed "the record holds NO rulings while the envelopes claim 1": the
-// harvest files declarations alone, and it held the envelopes' count of dispositions and petition
-// rulings against the count of DECLARATIONS. The envelopes are held to the rulings they describe.
-func TestTheHarvestHoldsTheEnvelopesToTheRulingsTheyDescribe(t *testing.T) {
+// THE RECORD IS THE ONE COUNT. The #1663 smoke's capture read "the record holds 5 docket and petition
+// ruling(s) and the envelopes claim 0": the bench's envelopes carry no ruling, so a count of them held
+// against the record called every ruled run divergent.
+func TestTheHarvestCountsTheRecordsRulings(t *testing.T) {
 	law := filepath.Join(t.TempDir(), "law")
 	run := runtest.New(t, filepath.Join(t.TempDir(), "2026-10-09_ruled-not-declared"))
-	oneDisposition := []map[string]any{
-		{"dispositions": []any{map[string]any{"gap_id": "G-8deb05ed", "disposition": "remanded", "reason": "unrepaired"}}},
-	}
 	ruled := docketRuled(t, "M-2623785c", "G-8deb05ed")
 
-	t.Run("the envelopes agree with the record: no divergence, and the ruling is named", func(t *testing.T) {
-		r := HarvestPrecedents(run, oneDisposition, law, ruled)
-		if r.Written || r.Count != 0 || r.Rulings != 1 || r.EnvelopeClaimed != 1 {
-			t.Fatalf("want nothing filed, 1 ruling on the record and 1 claimed: %+v", r)
+	t.Run("a ruling and no declaration: the ruling is named, and nothing else is said of it", func(t *testing.T) {
+		r := HarvestPrecedents(run, law, ruled)
+		if r.Written || r.Count != 0 || r.Rulings != 1 {
+			t.Fatalf("want nothing filed and 1 ruling on the record: %+v", r)
 		}
 		line := precedentLine(r)
 		if !strings.Contains(line, "no declaration this run") || !strings.Contains(line, "holds 1 docket and petition ruling(s)") {
 			t.Errorf("the line does not say a ruling is on the record and none is a declaration: %q", line)
 		}
-		if strings.Contains(line, "envelopes") || strings.Contains(line, "NO rulings") || strings.Contains(line, "no rulings") {
-			t.Errorf("agreement is reported as a divergence, or the ruling as absent: %q", line)
+		if strings.Contains(line, "envelopes") || strings.Contains(line, "divergence") || strings.Contains(line, "no rulings") {
+			t.Errorf("a ruled run is reported as a divergence, or the ruling as absent: %q", line)
 		}
 	})
-	t.Run("a ruling the envelopes do not list is the divergence", func(t *testing.T) {
-		line := precedentLine(HarvestPrecedents(run, nil, law, ruled))
-		if !strings.Contains(line, "holds 1 docket and petition ruling(s) and the envelopes claim 0") {
-			t.Errorf("an unlisted ruling is not stated: %q", line)
-		}
-	})
-	t.Run("a declaration is filed and is not a ruling the envelopes owe", func(t *testing.T) {
+	t.Run("a declaration is filed beside the ruling", func(t *testing.T) {
 		if err := os.MkdirAll(law, 0o755); err != nil {
 			t.Fatal(err)
 		}
 		evs := append(append([]*record.Event{}, ruled...),
 			recordtest.Event(t, "judge", &recordpb.Declare{Holding: proto.String("verified means an act of looking")}))
-		r := HarvestPrecedents(run, oneDisposition, law, evs)
+		r := HarvestPrecedents(run, law, evs)
 		if !r.Written || r.Count != 1 || r.Rulings != 1 {
 			t.Fatalf("want the declaration filed beside 1 ruling: %+v", r)
 		}
@@ -730,7 +701,7 @@ func TestTheHarvestHoldsTheEnvelopesToTheRulingsTheyDescribe(t *testing.T) {
 // A nil board is the harvest having no record to read at all. It must not panic and must not
 // promote anything — the caller passes the same board the record-backed audits use.
 func TestHarvestWithNoBoardPromotesNothing(t *testing.T) {
-	r := HarvestPrecedents(runtest.New(t, filepath.Join(t.TempDir(), "2026-08-15_nil")), nil, t.TempDir(), nil)
+	r := HarvestPrecedents(runtest.New(t, filepath.Join(t.TempDir(), "2026-08-15_nil")), t.TempDir(), nil)
 	if r.Written || r.Count != 0 {
 		t.Errorf("no board, no promotion: %+v", r)
 	}

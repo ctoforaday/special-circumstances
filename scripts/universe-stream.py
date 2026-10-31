@@ -7,8 +7,10 @@ working and a run that is wedged look identical until it ends. That is the same
 indistinguishable-zero this engine keeps being bitten by, applied to the operator.
 
 `stream-json` emits an event per message as it happens. This turns that into lines worth reading:
-the seats dispatched, the verbs they run, and anything that failed. Everything else is dropped,
-because a firehose nobody reads is the same as no output.
+the workflow's dispatch, and anything that failed. Everything else is dropped, because a firehose
+nobody reads is the same as no output. The stream is the top-level session's alone — the seats sit
+inside the Workflow and none of their calls reaches it — so what the debate does is read from the
+record, by `universe.sh watch`.
 
 Reads the stream on stdin, echoes the raw JSONL to `--raw <path>` so nothing is lost, and prints
 the filtered view to stdout.
@@ -17,12 +19,6 @@ import argparse
 import json
 import sys
 import time
-
-# The verbs worth seeing. A seat runs many more calls than these; these are the ones that MOVE the
-# debate, so the line count stays proportional to progress rather than to effort.
-INTERESTING = ("register", "mint", "close", "verdict", "outcome", "halt", "certify",
-               "position", "closing", "dispatch", "ingest", "edit", "compute", "cite",
-               "log", "regrade", "motion", "carry")
 
 
 def main() -> int:
@@ -79,12 +75,6 @@ def main() -> int:
                     label = inp.get("description") or inp.get("subagent_type") or "?"
                     seats.add(label)
                     say(f"DISPATCH  {label}")
-                elif name == "Bash":
-                    cmd = ((block.get("input") or {}).get("command") or "")
-                    for verb in INTERESTING:
-                        if f" {verb}" in cmd and "feov-record" in cmd:
-                            say(f"  verb    {verb}")
-                            break
             continue
 
         if kind == "user":

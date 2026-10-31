@@ -1029,22 +1029,18 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 }
 
-// closingsOwedBy is the gaps this epoch's plan says seatID owes a closing on: the plan's
-// closing_owed blockers it owns (record/closingowed.go) — read off the plan, as the workflow reads
-// them, never off the docket the chair's sitting filed.
+// closingsOwedBy is the gaps seatID owes a closing on as its work list names them when it sits: the
+// record's closing_owed blockers it owns (record/closingowed.go). The dispatch names none — the plan
+// is read at the epoch's start, and a lens that closes a gap before blue sits ends the duty.
 func (r *runner) closingsOwedBy(seatID string) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	bs, err := record.PassBlockers(r.runHandle)
+	if err != nil {
 		return out
 	}
-	bs, _ := r.planThisSitting["blockers"].([]any)
 	for _, b := range bs {
-		m, _ := b.(map[string]any)
-		if record.BlockerKind(fmt.Sprint(m["kind"])) != record.BlockerClosingOwed || fmt.Sprint(m["owner"]) != seatID {
-			continue
-		}
-		if g, ok := m["subject"].(string); ok {
-			out = append(out, g)
+		if b.Kind == record.BlockerClosingOwed && b.Owner == seatID {
+			out = append(out, b.Subject)
 		}
 	}
 	return out
