@@ -111,8 +111,8 @@ do not trip it.
 cached source's text, named by sha256 or by a citation's anchor, for a regex or a literal. It reads
 the texts `cite --source-span` is located in (the extraction, or each page of an OCR reading), in
 the locator's normalisation, case-insensitively. Each hit carries its byte offsets, the source's
-sentence around it, and that sentence as a `source_span` when the locator takes it as printed. At
-most `SearchHitCap` hits are listed, with the count of the rest. It writes nothing.
+sentence around it, and that sentence as a `source_span` when the locator takes it as printed. Every
+hit is listed and counted, as every selector lists every match. It writes nothing.
 
 ## 2. Cite — putting it on the record
 

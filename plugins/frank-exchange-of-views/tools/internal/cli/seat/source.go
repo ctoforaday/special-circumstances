@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -37,16 +36,14 @@ const sourceView = "source"
 var sourceLong = "SEARCH ONE CACHED SOURCE'S TEXT — the text a citation of it is found in: the extraction of a PDF or an HTML page, the bytes of a text type, or the OCR reading of a scan, page by page. It reads; it records nothing and refuses no act.\n\n" +
 	"NAME THE SOURCE with --sha (its sha256, as the fetch summary and `show evidence` print it) or --anchor (a citation's id), and WHAT TO FIND with --match (an RE2 regex) or --quote (literal text). Both match case-insensitively, against the text as the citation locator reads it: every run of whitespace, line breaks included, is one space, and curly quotes, en and em dashes, an ellipsis and the ligatures read as their keyboard forms — so a phrase broken across lines is found, and a ' you type matches the page's ’.\n\n" +
 	"EACH HIT carries `matched`, the source's bytes; `start` and `end`, their byte offsets in the text whose sha256 is `text_sha` (on an OCR source, the reading of `page`) — the coordinates a citation records; and `sentence`, the source's sentence the match sits in, between `sentence_start` and `sentence_end`. `source_span` is that sentence when blue's `cite --source-span` takes it as printed — the source holds it once and it starts and ends at a boundary — and empty otherwise, with `not_citeable` saying why: quote a whole clause of it instead.\n\n" +
-	"THE LIST HOLDS AT MOST " + hitCapWords + " HITS, in text order. `selection` says what was asked, how many matches the text holds (`matched`), how many are listed (`shown`) and how many are not (`omitted`); `complete` is false when hits were left out — narrow the pattern to reach them.\n\n" +
+	"EVERY MATCH IS LISTED, in text order; nothing is ranked or cut. `selection` says what was asked (`criterion`) and how many matches the text holds (`matched`) — a count far larger than you can read is the signal to narrow the pattern.\n\n" +
 	"An unknown source, a source the tool holds no text for, an empty pattern, and a pattern that matches the empty string are refused."
-
-var hitCapWords = fmt.Sprint(fetchcache.SearchHitCap)
 
 // addSourceFlags declares what `show source` reads: the source and the pattern.
 func addSourceFlags(c *cobra.Command) {
 	c.Flags().String(flags.Sha, "", "the cached source's `sha256`, as the fetch summary and the evidence view print it. Pass this or --anchor")
 	c.Flags().Var(flags.CitationAnchor(), flags.Anchor, "the citation whose source to search, by its anchor `id`. Pass this or --sha")
-	c.Flags().Lookup(flags.Match).Usage = "find every place the source's text matches this `regex` (RE2, case-insensitive; a bounded repeat such as .{0,80} is fine). The matches are counted, and at most " + hitCapWords + " are listed. Pass this or --quote"
+	c.Flags().Lookup(flags.Match).Usage = "find every place the source's text matches this `regex` (RE2, case-insensitive; a bounded repeat such as .{0,80} is fine). Every match is listed and the total is stated; nothing is ranked or cut. Pass this or --quote"
 	c.Flags().Lookup(flags.Quote).Usage = "find every place the source's text holds this `text` LITERALLY (case-insensitive, in the source's normalisation). Use this rather than --match whenever the text has (), ., *, ? or [] in it. Pass this or --match"
 }
 

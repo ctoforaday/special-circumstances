@@ -866,13 +866,17 @@ func (r *runner) citeSpanRefused(seatID, out string, err error) {
 // what it drew before. One search in two is the keyword-in-context shape m36's seats could not run
 // in their shell; the other is a literal.
 func (r *runner) sourceSearchCited(seatID, citeOut, span string) {
-	var c struct {
-		Label string `json:"label"`
+	// THE LABEL IS THE ENVELOPE'S RESULT FIELD: --json wraps a verb's result as `result`.
+	var env struct {
+		Result struct {
+			Label string `json:"label"`
+		} `json:"result"`
 	}
-	if err := json.Unmarshal([]byte(citeOut), &c); err != nil || c.Label == "" {
-		r.noteSourceSearch(seatID + "'s cite printed no label to search its source by: " + firstLine(citeOut))
+	if err := json.Unmarshal([]byte(citeOut), &env); err != nil || env.Result.Label == "" {
+		r.noteSourceSearch(fmt.Sprintf("%s's cite printed no result.label to search its source by (%v): %s", seatID, err, truncate(citeOut)))
 		return
 	}
+	c := struct{ Label string }{env.Result.Label}
 	pattern := []string{"--quote", "source body for"}
 	if c.Label[len(c.Label)-1]%2 == 0 {
 		pattern = []string{"--match", `.{0,20}source body.{0,40}`}

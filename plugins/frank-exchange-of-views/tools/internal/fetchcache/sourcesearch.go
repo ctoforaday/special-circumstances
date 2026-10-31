@@ -24,10 +24,9 @@ import (
 // IT GATES NOTHING. It writes no event and refuses no act; a hit is information, and the seat still
 // chooses the words it cites.
 
-// SearchHitCap is how many hits a search prints. A source is a whole document — a broad pattern over
-// a long paper matches thousands of times, and each hit carries a sentence — so the list is bounded,
-// and the count of what it left out is stated beside it.
-const SearchHitCap = 25
+// EVERY HIT IS PRINTED, as every selector prints every match (ruled by gblock 2026-10-31): a list cut
+// at N reads as a narrow pattern that found N. A broad pattern says so by its count, which is the
+// seat's signal to narrow it.
 
 // ErrPatternMatchesEmpty is a pattern that matches the empty string: it would match at every
 // position of the text, which is no question about it.
@@ -42,21 +41,16 @@ type SourceSearch struct {
 	// that holds it.
 	Origin   string `json:"source_text_origin"`
 	TextPath string `json:"text_path"`
-	// Hits are the matches in text order, at most SearchHitCap of them.
+	// Hits are every match, in text order.
 	Hits []SourceHit `json:"hits"`
-	// Selection says what was asked and how much of what matched is above.
+	// Selection says what was asked and how many matches the text holds.
 	Selection SourceSelection `json:"selection"`
 }
 
-// SourceSelection is what a search asked and what it printed of what matched.
+// SourceSelection is what a search asked and how many matches the text holds.
 type SourceSelection struct {
 	Criterion string `json:"criterion"`
-	// Matched is every match in the text; Shown how many are in hits, and Omitted the rest.
-	Matched int `json:"matched"`
-	Shown   int `json:"shown"`
-	Omitted int `json:"omitted"`
-	// Complete is true when hits holds every match.
-	Complete bool `json:"complete"`
+	Matched   int    `json:"matched"`
 }
 
 // SourceHit is one place a search matched.
@@ -96,19 +90,13 @@ func SearchSource(run record.Run, e Entry, match, quote string) (SourceSearch, e
 		return SourceSearch{}, err
 	}
 	out := SourceSearch{Sha: e.Sha, URL: e.URL, Origin: recordpb.Word(origin), TextPath: SourceTextPath(run, e, origin), Hits: []SourceHit{}}
-	total := 0
 	for _, t := range texts {
 		f := fold(t.text, hyphenAsIs)
 		for _, m := range re.FindAllStringIndex(f.s, -1) {
-			total++
-			if len(out.Hits) >= SearchHitCap {
-				continue
-			}
 			out.Hits = append(out.Hits, sourceHit(texts, t, f.at[m[0]], f.end[m[1]-1]))
 		}
 	}
-	out.Selection = SourceSelection{Criterion: criterion, Matched: total, Shown: len(out.Hits),
-		Omitted: total - len(out.Hits), Complete: total == len(out.Hits)}
+	out.Selection = SourceSelection{Criterion: criterion, Matched: len(out.Hits)}
 	return out, nil
 }
 

@@ -41,8 +41,8 @@ func TestAKeywordInContextSearchOfASourceReturnsCiteableSentences(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Selection.Matched != 2 || len(got.Hits) != 2 || !got.Selection.Complete || got.Selection.Omitted != 0 {
-		t.Fatalf("want 2 hits, complete; got selection %+v, %d hits", got.Selection, len(got.Hits))
+	if got.Selection.Matched != 2 || len(got.Hits) != 2 {
+		t.Fatalf("want 2 hits; got selection %+v, %d hits", got.Selection, len(got.Hits))
 	}
 	if !strings.Contains(got.Hits[1].Matched, "91 is composite") {
 		t.Errorf("the second hit's matched text is %q, want the 91 sentence's", got.Hits[1].Matched)
@@ -120,17 +120,20 @@ func TestASourceSearchSentenceIsTrimmedAndAMidClauseEndIsNamed(t *testing.T) {
 	}
 }
 
-// THE LIST IS BOUNDED AND SAYS WHAT IT LEFT OUT: a list capped at N that prints N must say so.
-func TestASourceSearchCapsItsHitsAndCountsTheRest(t *testing.T) {
+// NOTHING IS CUT: a broad pattern over a long text prints every match, and the count is theirs.
+func TestASourceSearchPrintsEveryHit(t *testing.T) {
 	run := runtest.New(t, t.TempDir())
-	e := storeTextSource(t, run, "https://ex/many", strings.Repeat("Word here. ", SearchHitCap+7))
+	const n = 200
+	e := storeTextSource(t, run, "https://ex/many", strings.Repeat("Word here. ", n))
 	got, err := SearchSource(run, e, "word", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := got.Selection
-	if len(got.Hits) != SearchHitCap || s.Matched != SearchHitCap+7 || s.Shown != SearchHitCap || s.Omitted != 7 || s.Complete {
-		t.Fatalf("want %d shown of %d with 7 omitted, incomplete; got %d hits, %+v", SearchHitCap, SearchHitCap+7, len(got.Hits), s)
+	if len(got.Hits) != n || got.Selection.Matched != n {
+		t.Fatalf("want all %d hits, counted; got %d hits, %+v", n, len(got.Hits), got.Selection)
+	}
+	if last := got.Hits[n-1]; last.Start != (n-1)*len("Word here. ") {
+		t.Errorf("the last hit is at %d, want the text's last word", last.Start)
 	}
 }
 
