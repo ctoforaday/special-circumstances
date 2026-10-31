@@ -179,11 +179,17 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 
 	args := []string{"cite", "--run", runDir, "--seat-id", citeSeat, "--key", "C1",
 		"--quote", "The measured latency is bounded.", "--url", "https://x", "--title", "T"}
-	if _, err := run(t, args...); err != nil {
+	first, err := run(t, args...)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, args...); err != nil { // retry same key
+	second, err := run(t, args...) // retry same key
+	if err != nil {
 		t.Fatal(err)
+	}
+	// THE RETRY SAYS IT WROTE NOTHING, and the write does not.
+	if !strings.Contains(second, repeatedWords) || strings.Contains(first, repeatedWords) {
+		t.Errorf("the write and its retry are not told apart:\nwrite: %s\nretry: %s", first, second)
 	}
 	if got := len(citeAnchorRe.FindAllString(readReport(t, runDir), -1)); got != 1 {
 		t.Errorf("a retried cite produced %d anchors, want 1 (idempotent)", got)
