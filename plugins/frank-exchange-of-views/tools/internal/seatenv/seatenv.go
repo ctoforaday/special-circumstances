@@ -56,6 +56,10 @@ const Var = "FEOV_RUN"
 // It is absent from every --help surface for the same reason Var is: a seat never types it.
 const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
 
+// WrapperDir is the directory under a run that holds its generated wrapper: setup writes it, and the
+// PreToolUse gate refuses a seat's file edit inside it.
+const WrapperDir = ".bin"
+
 // VarHookVersion is the hook's OWN build, exported when it fires (#751).
 //
 // `run_via` already separates "the hook injected" from "the wrapper did", so hook PRESENCE is

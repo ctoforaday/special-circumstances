@@ -1099,7 +1099,8 @@ const terminationWhyOf = (verdict) => halted ? 'judicial halt'
   : seatStop ? `seat failure: ${seatStop.seat} failed ${seatStop.failures} sittings in a row (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}), each ending without its envelope — the engine stopped the debate rather than dispatch it again`
   : noProgress ? `no progress: the dispatch plan was the same for ${noProgress.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${noProgress.head}, its parties, docket, exchange counts and standing blockers unchanged — ${partyList(noProgress.parties)} readied again each time with nothing on the board moving`
   : verdict === 'CEILING' ? `epoch limit ${lastPlan.max_epochs} reached — the run's term on chair sittings; the parties the board still readied were not dispatched` + anchorsStanding(lastPlan)
-  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held: ${lastPlan.why.join('; ')}${anchorsStanding(lastPlan)}` : 'the run ended before any dispatch')
+  : (lastPlan ? `nobody was ready and neither PASS nor CEILING held at the chair's last plan: ${lastPlan.why.join('; ')}${anchorsStanding(lastPlan)}${terminalSat ? '. The terminal sitting ruled after that plan, so the board is what stands now' : ''}` : 'the run ended before any dispatch')
+let terminalSat = false
 let verdict = verdictNow()
 let terminationWhy = terminationWhyOf(verdict)
 log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDICIAL HALT)' : ''} — ${terminationWhy}`)
@@ -1123,12 +1124,13 @@ if (!stopped() && benchBlockers.length) {
     `Terminal disposition for topic "${topic}" (debate ended ${verdict} after ${epoch} chair sitting(s); this sitting fires at the exit boundary). ${benchBlockers.length} motion(s) whose gavel is yours stand unruled on the record: ${benchBlockers.map((b) => b.subject).join(', ')} — each is on your work list. Read the transcript in full and the board back, and rule each with a reason; the chair's own motions are not yours, and the report shows them as they stand. NOTHING CAN BE REMANDED AT A TERMINAL EXIT — there is no next sitting to remand it to. A PETITION among them is ruled granted | denied, a grant with its relief and whom it binds. A POSITION among them — the chair held back a PASS its plan permitted at its final sitting — is ruled upheld | overruled with your opinion: upheld names the work — a lens to audit its area, or open gaps — and the direction it owes, overruled names nothing, and the run ends at its ceiling however you rule it. ${haltClause('stamps the run HALTED')}${lawClause}${declareClause}${inspectionClause}${speedClause}${recordClause('judge', OCCASION.terminal)} Return your envelope.`, o),
     { ...dispatchAs('judge'), label: `judge · ${OCCASION.terminal} · ${slug}`, phase: 'Assemble', schema: EMPTY_ENVELOPE })
   if (terminalJudge) {
+    terminalSat = true
     readOf('judge', terminalJudge)
     if (stopped()) {
       verdict = verdictNow()
-      terminationWhy = terminationWhyOf(verdict)
-      log(`the terminal sitting stopped the run: ${verdict} — ${terminationWhy}`)
+      log(`the terminal sitting stopped the run: ${verdict} — ${terminationWhyOf(verdict)}`)
     }
+    terminationWhy = terminationWhyOf(verdict)
   }
 }
 
@@ -1176,12 +1178,15 @@ for (let failures = 0; !assembleEnv;) {
     throw new Error(`the assembly sitting failed ${failures} sittings in a row — it records the run's outcome and assembles the report, and neither is confirmed; the debate had ended ${verdict} (${terminationWhy})`)
   }
 }
+// THE RETURN STATES NO REASON. The last plan's `why` is the board as the chair read it, before the
+// terminal and assembly sittings, so a motion the terminal sitting ruled read as unruled in the relay
+// (#1677's smoke). The reasons the run ended on are the outcome the assembly sitting recorded.
 return {
   runDir,
   verdict: assembleRead ? assembleRead.outcome : verdictNow(),
   epochs: epoch,
   lanes,
-  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress, seat_stop: seatStop, read_stop: readStop } : (seatStop || readStop) ? { seat_stop: seatStop, read_stop: readStop } : null,
+  termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, no_progress: noProgress, seat_stop: seatStop, read_stop: readStop } : (seatStop || readStop) ? { seat_stop: seatStop, read_stop: readStop } : null,
   gaps_outstanding: Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   halted,
 }

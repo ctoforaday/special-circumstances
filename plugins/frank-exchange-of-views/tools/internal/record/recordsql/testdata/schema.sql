@@ -762,6 +762,7 @@ CREATE TABLE "verify" (
   "bridge" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
+  "sha256" TEXT,
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),

@@ -4540,8 +4540,14 @@ type Verify struct {
 	// source row, and a labelled corroboration's note and Bibliography line in the report.
 	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// THE COPY A LABELLED CORROBORATION READ, by the sha the run's cache holds it under, stamped by the
+	// tool with the footnote as a cite's sha256 is. Empty where the cache held no copy
+	// (copy_substitution says not_cached), and on a reading that minted no footnote. Its readers: the
+	// corroboration's source row in `show evidence`, which is how a lens names that copy to `show
+	// source` and `render-page`, and `show source --anchor`.
+	Sha256        *string `protobuf:"bytes,20,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Verify) Reset() {
@@ -4689,6 +4695,13 @@ func (x *Verify) GetCopySubstitution() CopySubstitution {
 func (x *Verify) GetCopyUrl() string {
 	if x != nil && x.CopyUrl != nil {
 		return *x.CopyUrl
+	}
+	return ""
+}
+
+func (x *Verify) GetSha256() string {
+	if x != nil && x.Sha256 != nil {
+		return *x.Sha256
 	}
 	return ""
 }
@@ -8124,7 +8137,7 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xc5\r\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\xf3\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -8148,7 +8161,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
 	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\x0eR\x06bridge\x88\x01\x01\x12X\n" +
 	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x0fR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01B\b\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01\x12!\n" +
+	"\x06sha256\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\x11R\x06sha256\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -8166,7 +8180,8 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
+	"\t_copy_urlB\t\n" +
+	"\a_sha256J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
 	"\vComputation\x12*\n" +
 	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
