@@ -1,12 +1,16 @@
 package fetchcache
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -564,6 +568,9 @@ func ReadReadingRecord(run record.Run, sha string) (ReadingRecord, bool, error) 
 // path and wrong for a stable name whose content varies. A second reading of the same
 // page is new content at the same path, exactly as a re-render at a new DPI was.
 func writeReplacing(dst string, b []byte) error {
+	if existing, err := os.ReadFile(dst); err == nil && bytes.Equal(existing, b) {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -581,9 +588,71 @@ func writeReplacing(dst string, b []byte) error {
 		os.Remove(name)
 		return err
 	}
-	if err := os.Rename(name, dst); err != nil {
+	if err := renameReplacing(name, dst); err != nil {
 		os.Remove(name)
 		return err
 	}
 	return nil
+}
+
+// renameBusyBudget is how long renameReplacing waits out a transient Windows lock on dst.
+// A variable so a test can shorten it.
+var renameBusyBudget = 5 * time.Second
+
+// renameFile is the os.Rename seam renameReplacing calls, replaceable in tests.
+var renameFile = os.Rename
+
+// transientRenameOS is the GOOS under which Windows MoveFileEx lock errors are treated as
+// transient; a variable so a test on Unix can exercise the retry path with synthetic Errno
+// values.
+var transientRenameOS = runtime.GOOS
+
+// Windows error codes MoveFileEx(MOVEFILE_REPLACE_EXISTING) returns when dst is concurrently
+// open or being replaced by another process (golang/go#31247, #32188).
+const (
+	winErrorAccessDenied     syscall.Errno = 5
+	winErrorSharingViolation syscall.Errno = 32
+)
+
+// renameReplacing moves from onto dst, waiting out the transient access or sharing refusal
+// Windows returns when another process is reading or replacing dst at the same moment.
+//
+// Two lens seats in the same epoch can both draw p0001.png of the same cached scan (or one
+// draws it while another's verify reads it): on Unix rename(2) replaces the directory entry
+// without opening the target, and on Windows MoveFileEx opens dst for DELETE and fails with
+// ERROR_ACCESS_DENIED (5) or ERROR_SHARING_VIOLATION (32) until the other handle closes
+// (seen in nightly run 41293190037, seed 7). A directory at dst also fails with
+// ERROR_ACCESS_DENIED on Windows and is never transient, so isTransientRename checks
+// Lstat(dst) before retrying.
+func renameReplacing(from, dst string) error {
+	deadline := time.Now().Add(renameBusyBudget)
+	delay := time.Millisecond
+	for {
+		err := renameFile(from, dst)
+		if err == nil {
+			return nil
+		}
+		if !isTransientRename(err, dst) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(delay + rand.N(delay))
+		delay = min(delay*2, 50*time.Millisecond)
+	}
+}
+
+func isTransientRename(err error, dst string) bool {
+	if transientRenameOS != "windows" {
+		return false
+	}
+	var errno syscall.Errno
+	if !errors.As(err, &errno) {
+		return false
+	}
+	if errno != winErrorAccessDenied && errno != winErrorSharingViolation {
+		return false
+	}
+	if fi, statErr := os.Lstat(dst); statErr == nil && fi.IsDir() {
+		return false
+	}
+	return true
 }
