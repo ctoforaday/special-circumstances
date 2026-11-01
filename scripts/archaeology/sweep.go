@@ -50,6 +50,7 @@ var agentFacing = []string{
 	"scripts/agentgen/src/*.md",
 	"scripts/agentgen/src/fragments/*.md",
 	"scripts/agentgen/src/skills/*/SKILL.md",
+	"AGENTS.md",
 	"CLAUDE.md",
 }
 

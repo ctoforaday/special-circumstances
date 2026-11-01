@@ -1,14 +1,10 @@
-# Special Circumstances — repository guide
+# Special Circumstances — Claude Code repository entry
 
-**Scope: this file governs work *on* this repo only.** It is not part of any plugin: behaviour delivered to consuming projects lives entirely under `plugins/`, and nothing in this file reaches an installing project. Dev concerns belong here; consumer behaviour belongs in the plugins.
+**Cross-platform repository instructions live in [`AGENTS.md`](AGENTS.md) and are imported below.** Keep all general repository rules, architecture, verification gates, worktree isolation, PR discipline, and release mechanics in `AGENTS.md` so Claude Code, Google Antigravity, and other harnesses read the same instructions. Keep only Claude Code `@` skill imports and Claude Code–specific notes in this file.
 
-## Identity
+@AGENTS.md
 
-Special Circumstances is an *adversarial* methodology suite: it is not a yes-man. When you are wrong, it is expected to say so, with a reason. A good argument is a courtesy, not an attack.
-
-## Rules
-
-Always-on rules bind every session via the imports below; the rest load on demand by description. `design-by-contract` is the authoring grammar (BEFORE / During / AFTER · YOU MUST).
+## Always-on skill imports (Claude Code `@` inclusion, verified by `scripts/pluginparity`)
 
 @plugins/prosthetic-conscience/skills/terse-communication/SKILL.md
 @plugins/prosthetic-conscience/skills/semantic-consent/SKILL.md
@@ -22,87 +18,3 @@ Always-on rules bind every session via the imports below; the rest load on deman
 @plugins/prosthetic-conscience/skills/facts-are-fields/SKILL.md
 @plugins/prosthetic-conscience/skills/context-checkpointing/SKILL.md
 
-## Repository structure
-
-| Path | Role |
-|---|---|
-| `plugins/<name>/` | The product: everything a consumer installs (skills, agents, hooks, tools) |
-| `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins — keep in step with `PLUGINS` in `scripts/bootstrap-plugins.sh` |
-| `plans/` | Design artifacts under review — each arrives as a PR; graduates into the plugins |
-| `README.md`, `plugins/*/README.md` | The shipped documentation |
-| `ideas/` `research/` `projects/` | Working corpus — starts empty, seeded by `/frank-exchange-of-views:research` (and by `/self-improve` once sleeper-service ships) |
-| `run-archive/` | The raw record of each captured run, gzipped. `research/` is gitignored, so a run directory survives a resume but NOT the container; this is the only part of a run that outlives it, and every audit re-reads it. Records and computations only — the fetched-source cache is re-fetchable and 100× larger. |
-| `scripts/` | Dev tooling, one Go module: `go -C scripts run ./<tool>`. Nothing in it ships. |
-
-## Developing this repo
-
-### Change discipline
-
-- **No backwards compatibility, no archaeology.** When a format, schema, enum value, verb, role id, record field or store shape changes, the live code accepts and prints only the new form — no aliases, dual readers, tolerance paths, read-time fallbacks, or "formerly X" prose in help, prompts or refusals. Old FEOV records are brought forward by `feov-migrate`, one translation per change with a test on an archived run; gray-area's catalogue rebuilds empty on a shape bump and `telepathy backfill` refills it. YOU MUST NOT propose a compatibility path, even as an option — it is not a fork the human is asked to rule on again.
-  - `feov-migrate` is the only thing that upgrades a database, and it is self-contained: its code, `internal/record/migrate`, links into that binary and no other (`pluginparity` fails any other `cmd/` whose import graph holds it, and any shipped package that sets a package-level variable of `record`). A reference migrate renumbers (an `events.id`, a pin, a row position) is translated inside migrate so the migrated record holds the equivalent state, or the residue is accepted and stated in the plan. YOU MUST NOT add a field, id or mechanism to the live record so that something survives migration — that is migration logic outside `migrate`.
-  - FEOV's event-schema epoch (`record.EventSchema`, generated from `requirements.json` by `scripts/schemagen`) is compared twice: at `setup`, binary against the plugin's declared epoch, and at every open of a database the binary did not create, binary against the epoch the record states (`requireThisEpoch`; the open compares the epoch and nothing else). A mismatch in either direction is refused, and the refusal names both epochs and points to `feov-migrate`. Every schema change bumps the epoch — a table, a column, a view's definition — and recordsql's `TestEveryDDLChangeBumpsTheEpoch` fails a DDL change without a bump; restamp its `testdata/schema.epoch.json` with `UPDATE_GOLDENS=1` once the epoch has moved.
-- BEFORE coining a name, YOU MUST grep it across the Go tree, `debate.js`, `agents/` and `skills/`, then read the declaration at every hit for what it MEANS there — the same word in another sense reads as confirmation. A concept that already has a name is extended, never given a rival term. FEOV's concept nouns live in its terms registry (`tools/internal/terms/terms.json`, gated by `TestVocabularyProse`); after changing it, run `go -C scripts run ./vocabdoc`.
-- BEFORE concluding from a measurement that structure does not matter, YOU MUST ask what the measurement assumes and whether the roadmap — parallel actions, shared expensive reads — breaks it. Structure is judged against where the system is heading.
-- Committed tooling is Go: new dev tools go in `scripts/`, never Node/`.mjs`, and never under `plugins/*/tools/cmd/`, where the release job, `fetch-bin.sh` and `sc-doctor` treat every directory as a shipped binary. A harness that needs a plugin's `internal/` packages goes in that plugin's `tools/devcmd/`; `pluginparity` fails any non-test package outside it that imports `repotree`. Scratch may be anything.
-
-### Agent-facing text — prompts, constitutions, help, skills
-
-- Present tense only; the why goes in a code comment at the source or in the commit. `archaeology` gates the pattern-matchable part.
-- Each `<verb> --help` page MUST teach its verb on its own: remove repetition only where that page keeps every instruction. One Go constant rendered on every page that needs it is fine; one *home* that removes the text from a page is not. Tool mechanics live in the tool; duties live in constitutions and prompts.
-- Seat **prompts** name ACTS, never a command path or flag — CI pins this (`TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`). A **constitution** carries its seat's whole surface: `scripts/agentgen` inlines the tool's own `manual` into every agent definition, and `agentgen -check` fails a stale one. The authored prose around that block is still held to the same rule — the catalogue gate scans everything outside the generated markers.
-- Four FEOV carriers are GENERATED, each with a `-check` gate that fails a stale or hand-edited copy. YOU MUST edit the source and regenerate, never the generated text:
-  - the agent definitions (`agents/*.md`) and the two preloaded skills (`skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`) — sources under `scripts/agentgen/src/`, written by `go -C scripts run ./agentgen`;
-  - two marked regions of `debate.js` — the seat identity block, and the envelope vocabulary with the `PLAN` schema — written from the roster, the record's enums and `record.Plan` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen`. The rest of `debate.js` is authored.
-- AFTER changing any of these surfaces, YOU MUST read every changed golden line, and each affected `--help` before and after, one command at a time, for semantic loss.
-
-### Verification
-
-- BEFORE pushing, run `go -C scripts run ./check` — every CI gate that can run locally, tests at `-count=1` (`-list` prints the set, `-only` narrows it). A cached `go test ./...` reports stale goldens green. `golden` covers FEOV's module; gray-area's goldens run in its own `go test`. Regenerate with `UPDATE_GOLDENS=1 go test -count=1 <pkg>` or `go -C scripts run ./golden -review`, and read every changed line.
-- The release fuzz is one fuzz invocation — a single `FEOV_RELEASE_GATE=1 go test -v -count=1 -timeout=100m ./releasegate/fuzz/` in FEOV's tools module, which drives ~40 simulated debates against the built binary and runs FEOV's own hook invocation test. CI runs it on every pull request that changes FEOV's tools module (`releasegate/` included), its `hooks/`, `debate.js` or `hooks.yml` — as four `release-fuzz` parts (`FUZZ_PART=k/4`), each running a quarter of the seeds, and `release-fuzz-tally`, which judges the sweep's gates over all four; in the scheduled `hooks` run, against main, whole; and on a feov tag, whole. Plain `go test` skips it.
-  - BEFORE calling a record, flag or enum change, or a change to a `hooks.json` command's shape, done, YOU MUST read the `release-fuzz` parts' and `release-fuzz-tally`'s results on the PR's final head and trust them. A skipped fuzz step there means the path filter did not see the change.
-  - YOU MUST NOT run a release fuzz invocation locally; the PR's CI is the release fuzz. A change CI cannot run it on (the path filter does not see it, or CI is down) goes to the human. The sweep is an hour of `NumCPU*3` debates in one process on a shared machine, and the PR's four parts finish in about twenty minutes. An invocation that does run takes a machine-wide lock, `feov/release-fuzz.lock` in the user cache (`~/.cache/` on Linux), and a second one refuses, naming the holder; a GitHub Actions runner (`GITHUB_ACTIONS` set) takes no lock.
-  - BEFORE blaming a branch for a red release fuzz, YOU MUST compare it with main's latest scheduled `hooks` run (`gh run list --workflow hooks.yml --event schedule --limit 1`). When that run predates the branch's base, wait for the next scheduled run; never compare against a local invocation.
-- BEFORE running any FEOV test from an agent session, YOU MUST `unset $(env | grep -o '^FEOV_[A-Z_]*')` — not just one or two of them. A seat's attribution variables leak into the shell a subagent inherits: `FEOV_RUN`/`FEOV_AGENT_ID` make every `internal/cli` test fail with "disagrees with the run this seat was dispatched into", and `FEOV_AGENT_TYPE`/`FEOV_HOOK_VERSION` render into registers, failing ~20 `difftest` golden subtests with an `agent_type` and `hook_version` no golden carries. Both read as a code defect and are an inherited environment; two agents lost time to them before the prefix sweep was written down.
-- `rulesweep` reads its `Rule-Class:` / `Sibling-Sweep:` trailers from commits (classes: `feov-memory/protocol-class-registry.md`) and reports NOT MEASURED while protocol-surface edits are uncommitted; `frontmatter` reads tracked files only. Neither has measured an uncommitted tree.
-- BEFORE trusting a coverage number, YOU MUST remember what it cannot see: coverage says a line RAN, never that a test would NOTICE it changing. `internal/secrets` reported **100.0% of statements** while two of its eight secret patterns could be deleted outright with the suite green. Read a coverage figure as "nothing here is unreached", never as "this is tested".
-  - The question coverage cannot answer takes a minute to ask by hand, on the one place you are already unsure about: **delete the row, invert the branch, run the suite.** If nothing fails, nothing depended on it. Aim it at tables — pattern tables, rule tables, rosters, dispatch tables — because a row that no test misses is the shape this repository is built from, and because deleting one is the check that found ten unasserted fields of `gray-area`'s capture manifest (#797). A field nothing asserts is a field that can stop being written while every row still reads as complete.
-  - A test of the function is not a test of the call: delete the call site and run the suite.
-- BEFORE asserting a negative — X does not exist, is not possible, has already happened — YOU MUST run the check that would find it. A listing capped at N that prints exactly N is truncated. For what an agent SEES, render it (the real `--help`, the prompt golden, the transcript's tool result), never grep the source it is built from. A red on one box only is a hypothesis about the box until the code's requirement is checked.
-- Timing: interleave the arms, keep setup outside the timer, `ps` by tenant before believing a latency, and run a suite solo before a timing verdict; on a shared box, allocation counts beat wall clock.
-- CI runs Go 1.27 with `GOTOOLCHAIN=local`; set the same to reproduce a CI Go failure.
-- Windows CI runs gray-area's whole suite: a test that redirects home sets `USERPROFILE` as well as `HOME`; a built binary needs `.exe`; a golden is named `*.golden` or `*.sql` (`.gitattributes` pins line endings by extension); a pflag default that is a path gets a display `DefValue`.
-- modernc SQLite ignores the query string of a DSN not prefixed `file:` — a read-only open is a `file:` URI, never `path?mode=ro`.
-
-### Working tree, scratch, hooks
-
-- Worktrees live under `.claude/worktrees/<name>/`, inside the main checkout. YOU MUST NOT `cd ..` out of a worktree subdirectory, and background commands MUST use absolute paths (or `go -C` / `git -C`) — the cwd does not carry into them. A relative path from the wrong cwd silently measures or mutates the main checkout; "already used by worktree" is the tell.
-- Scratch — run directories, built binaries, measurement artifacts, caches — goes under a home-dir area such as `~/.claude/scratch/<task>/`, never `/tmp`.
-- A running session's hooks execute from the plugin install cache (`~/.claude/plugins/cache/special-circumstances/<plugin>/<version>/bin/`), never the checkout. A missing one is installed by its guard's `hooks/fetch-bin.sh` from the plugin's pinned release; `/prosthetic-conscience:doctor --fix` installs or rebuilds them by hand.
-- A FEOV smoke run launches from its own source tree (a detached worktree at `main`). A run's members are the agents of the session that launched it: the hooks attribute a subagent, and inject `FEOV_RUN` into a Bash call, only when the payload's `session_id` is the run's lead session, which its `.claude/run-live.json` row names, so a dev session in a worktree nested under that checkout is not attributed. Its own source tree still keeps the run's marker, pins and push freeze out of the tree you develop in.
-
-### Running the engine locally
-
-- BEFORE concluding a change is safe because the gates are green, YOU MUST remember what they do NOT cover: that the engine still RUNS. Gates compile code and compare goldens; they never install a plugin, never build a hook binary into the cache, and never dispatch a seat. `docs/local-development.md` is how to exercise it — `scripts/universe.sh build` installs THIS checkout into an isolated environment and `run` drives `/research` through one `claude -p`, so seats are real subagents and the hooks, binaries and schema enforcement are the shipped ones.
-- YOU MUST NOT stand a harness in for the engine. A rig that reimplements the Workflow tool over a pool of top-level `claude -p` processes fires no `SubagentStart`/`SubagentStop` (no sitting spans, nothing for capture to bind), enforces no seat schema unless it reimplements that too, and turns a rejected seat into the same `null` a lens that found nothing returns. Three days of this repo's defects were in the instrument, not the product.
-- AFTER `universe.sh build`, YOU MUST prove the universe carries your change before trusting a run in it. The marketplace manifest pins most plugins to a release TAG, so a directory source still installs PUBLISHED content: the first build reported four plugins and twenty binaries and contained none of the checkout's edits. `universe.sh` restages a local-path manifest for this reason; a directory marketplace runs its plugins in place, so grep the staged marketplace (`$WORKDIR.marketplace/plugins/<name>`), not the cache, for a phrase from your change.
-- During any run, YOU MUST NOT use `--output-format json` and wait: it returns one object at exit, so a wedged run and a working one are the same silence for tens of minutes. `universe.sh run` streams `stream-json`; `universe.sh watch` reads the board read-only; `feov-record dashboard --watch` is the engine's own instrument.
-- BEFORE any `go test`, gate, or `feov-record` call against an archived run, YOU MUST clear the seat environment (`FEOV_RUN`, `FEOV_RUN_FROM_WRAPPER`, `FEOV_AGENT_ID`, `FEOV_AGENT_TYPE`, `FEOV_HOOK_VERSION`). A shell that has touched a run inherits them into everything, the tool then refuses a directory it was handed, and the failure reads as a code defect.
-- BEFORE believing any red or any timing, YOU MUST check the box: other sessions gate here, and a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a hang. A gate is VOID if the tree changes or the branch switches under it, and two gates writing one output file interleave. A red under load or a dirty environment is UNPROVEN until reproduced quiet and clean.
-- BEFORE merging on a green claim, YOU MUST read the FAIL COUNT rather than an exit code. `cmd | tail` reports `tail`'s status and a wrapped `gh pr checks --watch` exits 0 with a red check — PR #967 merged with a red `qlty` that way. `check` skips `qlty`, and a local `qlty` does not run `actionlint`, so a workflow edit needs CI's before any green claim.
-- Spend scales with context size × turns, not output: each turn re-reads the whole context from cache. Prefer short sessions handing off through a checkpoint; batch into fewer, larger turns; WAIT for a background job's notification rather than polling it; delegate bulk reading to a subagent that returns conclusions. Do NOT resume a subagent across a long gap — subagent cache writes are 5-minute TTL, so the resume re-writes the whole grown transcript.
-- A smoke run is meant to be CHEAP. The engine's own `--smoke` is one lane, `haiku` on BOTH tiers, `--mint-budget 3 --k-max 2`; the development configuration is three lanes on `sonnet`, costs roughly an order of magnitude more, and is not a smoke however it is labelled.
-
-### Pull requests
-
-- CI tests the merge with `main`: bring `main` in early. BEFORE merging a PR whose CI ran before another help- or golden-changing PR merged, YOU MUST rebase, regenerate goldens at `-count=1`, read each changed line and re-run CI — goldens conflict semantically, not textually (difftest's `manual` golden renders every help page).
-- Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand.
-- The repository deletes a branch on merge. BEFORE pushing to a PR's branch, YOU MUST check `gh pr view <n> --json state`; "Create a pull request for" in push output is a HARD STOP — the PR merged and the push re-created its branch. Retarget a stacked child to `main` BEFORE merging its parent, or GitHub closes the child.
-
-### Releases
-
-- **Versions move at a RELEASE BOUNDARY, not per PR.** An ordinary PR changes plugin content and leaves `version` alone. A release is a human call — made when the binary/text contract has actually moved — and it is ONE act: bump the plugin's `version` in `plugin.json` and tag that commit `<plugin>--v<version>`. The release job refuses a tag whose manifest disagrees (`versionguard -tag`), so the two cannot drift.
-  - A bump per PR makes the version a commit counter that tells a consumer nothing while the tags never move, so no plugin ends up with a tag matching its own version and `sc-doctor -fix` pins every download to a release that does not exist.
-  - The cost, stated plainly: between releases `/plugin update` ships nothing, because it is version-gated. That is what a release model means. AFTER a release, run `/plugin update` + `/reload-plugins` to pull it. A running session keeps the plugins it loaded; a Remote Control session has no terminal and declines `/reload-plugins`, so it takes a new release only when started fresh (New session, or a restart of the `claude rc` server).
-  - `versionguard` fails a version that goes BACKWARDS, and sweeps for stale per-binary version constants.
-  - Mechanics: a release PR changes TWO things and nothing else — `version` in each releasing plugin's `plugin.json`, and the `ref` that `.claude-plugin/marketplace.json` pins that plugin to, which `go -C scripts run ./marketplacegen` writes. A bump without the regenerated ref installs main's hooks against the old release's binaries, so the `marketplacegen` gate fails the PR; `versionguard` does not cover it, and `-only versionguard` is therefore not enough to call a release PR green. After the PR merges, ANNOTATED tags `<plugin>--v<version>` go on its merge commit, and the tag push runs the release job — which lives in `.github/workflows/hooks.yml`, not a workflow of its own. Only the tip version is tagged — a skipped version is a decision, not a backlog. `sleeper-service` is never tagged: it has no binaries, and the release job fails such a tag.
-  - The tag is the human's call, decision by decision. Agreement among agent sessions is an input, not authority; a ruling relayed by a peer is attributed to the peer.

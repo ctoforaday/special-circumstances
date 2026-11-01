@@ -45,6 +45,7 @@ func TestScope(t *testing.T) {
 		"plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md":          true,
 		"plugins/frank-exchange-of-views/skills/research-protocol/scripts/debate.js": true,
 		"plugins/prosthetic-conscience/skills/terse-communication/SKILL.md":          true,
+		"AGENTS.md": true,
 		"CLAUDE.md": true,
 
 		"plugins/frank-exchange-of-views/tools/internal/record/record.go": false,
