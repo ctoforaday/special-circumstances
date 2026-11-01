@@ -436,6 +436,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 		// network and turn an unreachable host into a refused corroboration.
 		if cached {
 			body.WorkStatus = record.WorkStatusOf(held.Retraction()).Enum()
+			body.Sha256 = proto.String(held.Sha)
 		} else {
 			body.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED.Enum()
 		}

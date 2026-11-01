@@ -1407,6 +1407,13 @@ message Verify {
   optional CopySubstitution copy_substitution = 18 [(prose) = false];
   optional string copy_url = 19 [(prose) = false];
 
+  // THE COPY A LABELLED CORROBORATION READ, by the sha the run's cache holds it under, stamped by the
+  // tool with the footnote as a cite's sha256 is. Empty where the cache held no copy
+  // (copy_substitution says not_cached), and on a reading that minted no footnote. Its readers: the
+  // corroboration's source row in `show evidence`, which is how a lens names that copy to `show
+  // source` and `render-page`, and `show source --anchor`.
+  optional string sha256 = 20 [(prose) = false];
+
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;
   reserved "reference", "independent";

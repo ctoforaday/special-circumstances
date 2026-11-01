@@ -6316,9 +6316,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.epochs = int(n)
 	if term, ok := result["termination"].(map[string]any); ok {
-		if why, ok := term["why"].([]any); ok && len(why) > 0 {
-			res.why = fmt.Sprint(why[0])
-		}
 		res.epochLimit, _ = term["epoch_limit_reached"].(bool)
 	}
 	if r.passBlockersErr != "" {
@@ -6783,6 +6780,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "board: the oracles could not read the record: " + berr.Error()
 		return res
 	}
+	lastPlanWhy(&res, board)
 	{
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
@@ -8946,6 +8944,22 @@ func (r *runner) ruleStandingDockets(seatID string) {
 // forcedWhyClause renders the forced run's exit reason when it has one. Split out because the
 // reason is the diagnosis — "PASS refused: … 3 motion(s) filed and never ruled" is what the shape
 // is made of — and an empty one must read as absent rather than as an empty pair of quotes.
+// lastPlanWhy gives a run its exit reason from the plan the chair's last sitting stored, where nothing
+// more specific has: the reason a forced drive's failure message prints.
+func lastPlanWhy(res *outcome, board record.Family) {
+	if res.why != "" {
+		return
+	}
+	stored, err := record.StoredPlans(board.Events)
+	if err != nil {
+		res.why = "the plans the record stored do not read: " + err.Error()
+		return
+	}
+	if n := len(stored); n > 0 && len(stored[n-1].Plan.Why) > 0 {
+		res.why = stored[n-1].Plan.Why[0]
+	}
+}
+
 func forcedWhyClause(why string) string {
 	if why == "" {
 		return " The run stated no exit reason."

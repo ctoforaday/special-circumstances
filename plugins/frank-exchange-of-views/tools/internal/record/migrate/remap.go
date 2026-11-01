@@ -137,7 +137,7 @@ var (
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
-		Verify.reading_render_sha Verify.title Verify.url`)
+		Verify.reading_render_sha Verify.sha256 Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
 		"Verify.label": "citation", "Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",
 		"Position.position_id": "position"}

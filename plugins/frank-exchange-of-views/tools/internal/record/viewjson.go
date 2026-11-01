@@ -889,9 +889,10 @@ type WorkGapJSON struct {
 // words, "the projection has to record WHO closed it, not merely that it is closed." This
 // projection dropped both.
 //
-// WHO closed it is not decoration: red may reopen its own closure on new evidence, while a bench
-// ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
-// obey either rule.
+// A ROW HERE IS THE BENCH'S WORD BY WHAT THE REGISTER IS: red may reopen its own closure on new
+// evidence, while re-raising a bench ruling is relitigation, and a closure of red's the bench did not
+// rule after is not listed. So the row names no closer. Who ended the gap is the board's question
+// (closed_by_bench), and a lens's close the bench ruled after answers it "not the bench".
 type EstoppedJSON struct {
 	ID string `json:"id"`
 	// LocationState and Location: see GapJSON.
@@ -917,8 +918,6 @@ type EstoppedJSON struct {
 	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
 	Fate string `json:"fate"`
-	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
-	ClosedBy string `json:"closed_by"`
 	// ArtifactState is the SECOND AXIS, derived from Fate — see record.ArtifactStateOf. The
 	// docket closing and the defect going away are different facts, and three of the six
 	// fates settle the first while leaving the second. Carried here so a seat reading its
@@ -1263,7 +1262,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 		if !g.benchClosedLast {
 			continue
 		}
-		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
+		ci := EstoppedJSON{ID: g.ID, LocationState: g.LocationState, Location: g.Location,
 			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate,
 			Settled: g.benchRuling.GetSettled(), ReopensOn: g.benchRuling.GetReopensOn(), Final: g.benchRuling.GetFinal()}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
