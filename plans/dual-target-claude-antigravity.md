@@ -1,44 +1,46 @@
 # Special Circumstances: Dual-Target Claude Code & Google Antigravity Architecture Plan (#1473)
 
-> **Status:** Empirically Verified Implementation Plan (v2.1.0 — [#1474](https://github.com/ctoforaday/special-circumstances/issues/1474), Umbrella [#1473](https://github.com/ctoforaday/special-circumstances/issues/1473), Plan Audit [#1467](https://github.com/ctoforaday/special-circumstances/issues/1467))  
+> **Status:** Empirically Verified Implementation Plan (v2.2.0 — [#1474](https://github.com/ctoforaday/special-circumstances/issues/1474), Umbrella [#1473](https://github.com/ctoforaday/special-circumstances/issues/1473), Plan Audit [#1467](https://github.com/ctoforaday/special-circumstances/issues/1467))  
 > **Target Repository:** `/home/gblock_ctoforaday_com/projects/special-circumstances` (`origin/main` @ `61107ba4`)  
-> **Engines Tested:** Anthropic Claude Code (`claude` v2.1.300) & Google Antigravity (`agy` v1.4.0)  
-> **Primary Source Evidence:** [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) (§1–§6), [`plans/hide-non-user-facing-skills-slash-commands.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/hide-non-user-facing-skills-slash-commands.md), [`plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md)
+> **Engines Tested:** Anthropic Claude Code (`claude` v2.1.309) & Google Antigravity (`agy` v1.4.12)  
+> **Primary Source Evidence:** [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) (§1–§7), [`plans/hide-non-user-facing-skills-slash-commands.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/hide-non-user-facing-skills-slash-commands.md), [`plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/fr-configurable-hook-manifests-and-reverse-domain-extensions.md)
 
 ---
 
 ## I. Summary & Goals
 
-**Objective.** Enable the four Special Circumstances plugins (`prosthetic-conscience`, `frank-exchange-of-views`, `gray-area`, `sleeper-service`) and all 15 shipped hook binaries across the three Go plugin modules to execute concurrently under both **Anthropic Claude Code (`claude 2.1.300`)** and **Google Antigravity (`agy 1.4.0`)** from a single repository branch, with zero regressions to Claude Code behavior, zero filesystem symlinks, zero external Go dependencies, and zero additional binaries in `tools/cmd/`.
+**Objective.** Enable the four Special Circumstances plugins (`prosthetic-conscience`, `frank-exchange-of-views`, `gray-area`, `sleeper-service`) and all 15 shipped hook binaries across the three Go plugin modules to execute concurrently under both **Anthropic Claude Code (`claude 2.1.309`)** and **Google Antigravity (`agy 1.4.12`)** from a single repository branch, with zero regressions to Claude Code behavior, zero filesystem symlinks, zero external Go dependencies, and zero additional binaries in `tools/cmd/`.
 
-**Rulings this plan implements (settled — 2026-10-18).**
+**Rulings this plan implements (settled — 2026-10-18, updated 2026-11-01 for `agy 1.4.12` / `claude 2.1.309`).**
 
-1. **Manifests:** Place `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json` in all four plugins, locked byte-for-byte on `name` and `version` by `scripts/versionguard` and `scripts/pluginparity` ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)).
-2. **Hook Manifest Coexistence (No Symlinks):** Keep Claude Code's `hooks/hooks.json` in `hooks/` untouched; place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json`, validated by `scripts/validatejson` ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)). Future migration to Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories (`com.google*/hooks/hooks.json` and `com.anthropic*/hooks/hooks.json`) is tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456).
+1. **Manifests:** Place `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json` in all four plugins, locked byte-for-byte on `name` and `version` by `scripts/versionguard` and `scripts/pluginparity` (omitting Claude-only `"dependencies"` in `frank-exchange-of-views/.antigravity-plugin/plugin.json` so `(*pluginValidator).checkManifestKeys` emits `0` warnings) ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)).
+2. **Hook Manifest Coexistence (No Symlinks, Zero Validator Warnings):** Relocate Claude Code's hook manifest from `hooks/hooks.json` to `.claude-plugin/hooks.json` (declared via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) while keeping `hooks/fetch-bin.sh` and `hooks/README.md` in `hooks/`, and place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json`, validated by `scripts/validatejson` ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)). This eliminates the unconditional `hooks/hooks.json: never loaded` warning in `agy 1.4.12` (`(*pluginValidator).checkHooks` at `0x98ca0c5`) and gives each harness its own unambiguous hook manifest. Future migration to Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories (`com.google*/hooks/hooks.json` and `com.anthropic*/hooks/hooks.json`) is tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456).
 3. **One Common Wire-Adapter Library (`hookcore`):** Abstract all four hook process boundaries (`env`, `stdin`, `stdout`, `stderr` + `exitCode`) in one pure-stdlib package authored at `scripts/internal/hookcore` and propagated byte-identically into `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/tools/internal/hookcore` via `scripts/hookcoregen` ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470), [#1471](https://github.com/ctoforaday/special-circumstances/issues/1471), [#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).
-4. **Skills & Agents Parity:** Convert `tools:` in `scripts/agentgen/src/fragments/seat-tools.md` (regenerating all 11 `frank-exchange-of-views` agents via `scripts/agentgen`) and `plugins/prosthetic-conscience/agents/{plan-auditor,probe}.md` to dual-target YAML sequences enforced by `scripts/frontmatter`, withholding `WebFetch`/`read_url_content`/`read_browser_page` in `frank-exchange-of-views` to preserve its evidence-cache invariant; update the 6 `${CLAUDE_PLUGIN_ROOT}` skills to fall back to bare binary names on `PATH` ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469)).
+4. **Skills & Agents Parity:** Convert `tools:` in `scripts/agentgen/src/fragments/seat-tools.md` (regenerating all 11 `frank-exchange-of-views` agents via `scripts/agentgen`) and `plugins/prosthetic-conscience/agents/{plan-auditor,probe}.md` to dual-target YAML sequences (including both classic Antigravity tool names and `agy 1.4.10+` `oneharness` tool names `read_file`, `write_file`, `edit_file`) enforced by `scripts/frontmatter`, withholding `WebFetch`/`read_url_content`/`read_browser_page` in `frank-exchange-of-views` to preserve its evidence-cache invariant; update the 6 `${CLAUDE_PLUGIN_ROOT}` skills to fall back to bare binary names on `PATH` ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469)).
 
 **Success criteria.**
 
-1. **Dual CLI Validation:** `claude plugin validate` and `agy plugin validate --strict` both exit `0` with `0` warnings across all four plugins, reporting `agents 2, hooks 1, skills 27` on `prosthetic-conscience`, `agents 11, hooks 1, skills 3` on `frank-exchange-of-views`, and `hooks 1, skills 7` on `gray-area` (§V.1).
+1. **Dual CLI Validation:** `claude plugin validate` (`2.1.309`) and `agy plugin validate --strict` (`1.4.12`) both exit `0` with `0` warnings across all four plugins, reporting `agents 2, hooks 1, skills 27` on `prosthetic-conscience`, `agents 11, hooks 1, skills 3` on `frank-exchange-of-views`, and `hooks 1, skills 7` on `gray-area` (§V.1).
 2. **Zero Symlinks & Unchanged Binary Count:** `git ls-files -s | awk '$1 == "120000"'` returns `0` tracked symlinks; `plugins/*/tools/cmd/*` holds the exact `19` command directories (`15` hook binaries + `4` CLI/helper binaries) enforced by `scripts/pluginparity` (§V.2).
 3. **Zero External Dependencies in `hookcore`:** `plugins/prosthetic-conscience/tools/go.mod` retains `0` `require` directives, and `TestHookBinaryLinksNothingExpensive` (`plugins/frank-exchange-of-views/tools/integration/surface/hookgraph_test.go`) passes with `"internal/hookcore"` linking only Go standard library packages with zero `init()` functions (§V.3).
 4. **Preserved Security & Root Invariants:** `TestTheShippedBinariesHonourTheIOContract` (`invocation_test.go`), `TestNoHookGuessesAProjectRootFromItsWorkingDirectory` (`projectroot_test.go`), and `TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage` (`hookenv_test.go`) pass under both Claude and Antigravity payloads (§V.4).
 5. **Driveable Real-Client Checks:** Headless `agy -p` and `claude -p` smoke runs (§V.6) verify:
    - `sc-pretooluse` blocks a leaked secret on `run_command` / `Bash` and surfaces the denial reason to the model;
-   - `sc-posttooluse` (`qualitygate`) queues lint/format feedback on Antigravity `write_to_file` into `${PLUGIN_DATA}/pending_<SessionID>.jsonl` and `sc-sessionstart -event PreInvocation` injects it on the next turn;
+   - `sc-posttooluse` (`qualitygate`) queues lint/format feedback on Antigravity `write_to_file` / `write_file` into `<PluginDataDir>/pending_<SessionID>.jsonl` and `sc-sessionstart -event PreInvocation` injects it on the next turn;
    - `feov-pretooluse` rewrites `CommandLine` via `PreToolHookResult.overwrite` on Antigravity and `updatedInput.command` on Claude.
 6. **Repository Gates:** `go -C scripts run ./check` (including `hookcoregen -check`, `hookfailgen -check`, `buildidgen -check`, `fetchbingen -check`, `agentgen -check`, `validatejson`, `frontmatter`, `versionguard`, `pluginparity`, `deadcode`) and `FEOV_RELEASE_GATE=1` fuzz pass with `0` failures (§V.8).
 
 **Value case.** Against the naive alternatives — (a) per-binary `if isAntigravity` branches scattered across 15 hook entrypoints in three Go modules, or (b) symlinked `hooks.json -> hooks-jetski.json` manifests with separate Antigravity shim binaries in `tools/cmd/` — this architecture:
-- Centralizes all wire translation (`env`, `stdin`, `stdout`, `stderr`, `exitCode`, tool/arg canonicalization, and the `PostToolUse` → `PreInvocation` queue) into one ~250-line stdlib-only package (`scripts/internal/hookcore`), propagated by `scripts/hookcoregen` using the exact pattern already proven by `scripts/buildidgen` and `scripts/hookfailgen`.
+- Centralizes all wire translation (`env`, `stdin`, `stdout`, `stderr`, `exitCode`, tool/arg canonicalization, and the `PostTool` → `PreInvocation` queue) into one ~250-line stdlib-only package (`scripts/internal/hookcore`), propagated by `scripts/hookcoregen` using the exact pattern already proven by `scripts/buildidgen` and `scripts/hookfailgen`.
 - Leaves every `hookunit.Unit` (`secretsgate`, `pushfreezeguard`, `qualitygate`, `toolchainnudge`, `checkpointrestore`) and `feov`'s `hookgate` untouched by synthesizing canonical snake_case keys inside `req.ToolInput`.
-- Avoids Windows git symlink failures (`core.symlinks=false` checkouts turning `hooks.json` into a plain-text filename string) by using `.antigravity-plugin/plugin.json` + root `hooks.json` alongside `.claude-plugin/plugin.json` + `hooks/hooks.json`.
+- Avoids Windows git symlink failures (`core.symlinks=false` checkouts turning `hooks.json` into a plain-text filename string) and `agy plugin validate --strict` warnings by pairing `.antigravity-plugin/plugin.json` + root `hooks.json` with `.claude-plugin/plugin.json` + `.claude-plugin/hooks.json`.
 - Avoids adding a 16th hook binary directory in `tools/cmd/` by handling `PreInvocation` via `sc-sessionstart -event PreInvocation` (matching `gray-area-capture -event <Event>`) and folding `strikecounter` into `sc-posttooluse` when `req.ToolError != ""` on Antigravity (preserving `fetchbingen`'s one-hook-per-event invariant).
 
 **Split (five independently green PRs, tracked in [#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)–[#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).**
+> **Upstream Sequencing Gate (2026-11-01):** Full migration execution and `debate.js` runtime orchestration on Antigravity are gated on upstream `/run-workflow` and Antigravity dynamic workflows launching. Only the `hookcore` library ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470)) can be built out in advance; actual plugin migration and `debate.js` execution wait for dynamic workflows to ship.
+
 1. **PR 1 ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469) — Skills & Agents Parity):** Cheap, immediately shippable text + frontmatter gate update (`seat-tools.md`, `plan-auditor.md`, `probe.md`, `scripts/agentgen`, `scripts/frontmatter`, and the 6 `SKILL.md` binary fallbacks). Immediately fixes `agents 0` in `agy plugin validate`.
-2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, Root `hooks.json`, & `fetch-bin.sh`):** `.antigravity-plugin/plugin.json` (`versionguard` + `pluginparity`), root `hooks.json` (`validatejson`), and dual-harness `fetch-bin.sh` + `hookfailures.Ensure`.
+2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `.antigravity-plugin/plugin.json` (`versionguard` + `pluginparity`), `git mv plugins/*/hooks/hooks.json plugins/*/.claude-plugin/hooks.json` (`"hooks": "./.claude-plugin/hooks.json"`), root `hooks.json` (`validatejson`), and dual-harness `fetch-bin.sh` + `hookfailures.Ensure`.
 3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `scripts/internal/hookcore` & `scripts/hookcoregen`):** The common wire-adapter library, its unit tests over Claude and `.exa.hooks_pb` fixtures, and the `hookcoregen` gate in `scripts/check` and `.github/workflows/hooks.yml`.
 4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** Wire all 10 `prosthetic-conscience` hook binaries onto `hookcore`.
 5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** Wire `feov-*` (updating `hookgraph_test.go`) and `gray-area-capture` onto `hookcore`.
@@ -48,33 +50,33 @@
 ## II. Technical Context
 
 - **Toolchain & Modules:** Go 1.25+, `GOTOOLCHAIN=local` in CI. Four Go modules: `scripts/`, `plugins/prosthetic-conscience/tools` (0 external dependencies), `plugins/frank-exchange-of-views/tools`, and `plugins/gray-area/tools`. Each plugin's `tools/` module compiles standalone so `sc-doctor --fix` can build from an installed plugin directory without the monorepo.
-- **Primary Source Verification:** All binary offsets, `.gopclntab` symbols, `.exa.hooks_pb` protobuf descriptors (`0x59b3000`–`0x59b4600`), and `claude 2.1.300` decompiled JS functions referenced below are documented with reproducible extraction commands in [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) §6.
+- **Primary Source Verification:** All binary offsets, `.gopclntab` symbols (`0x1625570`, `text_start` `0x6819000` in `agy 1.4.12`), `.exa.hooks_pb` protobuf descriptors (`0x5f93cc8` in `agy 1.4.12`), and `claude 2.1.309` decompiled JS functions referenced below are documented with reproducible extraction commands in [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) §6–§7.
 
 ### II.1 Empirical Answers to Core Architectural Questions (Q1–Q5)
 
 #### Q1: Can `agy` be configured with an arbitrary hook filename or `.antigravity-plugin/hooks.json`?
-**NO — `agy 1.4.0` strictly requires `<plugin_dir>/hooks.json` at the plugin root, which naturally avoids colliding with Claude Code's `hooks/hooks.json`.**
-- `inspect.scanHooks` (`0x8f92180`) resolves hooks strictly from `filepath.Join(pluginDir, "hooks.json")`.
-- Declaring `"hooks": "./hooks-agy.json"` in `.antigravity-plugin/plugin.json` emits `warning: unknown field "hooks" is ignored` and registers `hooks: 0`.
-- Placing `hooks.json` inside `.antigravity-plugin/hooks.json` triggers `inspect.checkManifestFields` (`0x8fa14a0`): `warning: .antigravity-plugin/hooks.json: never loaded: components are read from the plugin root, not .antigravity-plugin. Move it next to .antigravity-plugin` (`hooks: 0`).
-- `hooks.loadHooksFromEntry` (`0x8f936a0`) ignores flat event-keyed hook files (`hooks: 0`); root `hooks.json` must wrap events in a top-level named hook group (`{"prosthetic-conscience": {"PreToolUse": [{"matcher": ".*", "hooks": [{"type": "command", "command": "...", "timeout": 15}]}]}}`).
-- **Coexistence without symlinks:** Keep Claude Code's `hooks/hooks.json` in `hooks/` untouched and place Antigravity's named-hook manifest at `<plugin_dir>/hooks.json`.
+**NO — `agy 1.4.12` strictly requires `<plugin_dir>/hooks.json` at the plugin root AND warns if `hooks/hooks.json` exists.**
+- `(*pluginValidator).checkHooks` (`0x98ca020`) resolves hooks strictly from `filepath.Join(pluginDir, "hooks.json")`.
+- At `0x98ca0c5`, `(*pluginValidator).checkHooks` calls `v.exists("hooks/hooks.json")` (`0x5c24e49`) and **unconditionally** emits `SeverityWarning`: `hooks/hooks.json: never loaded: plugin hooks are read only from hooks.json at the plugin root` (`0x5dc2d05`), even when root `<plugin_dir>/hooks.json` exists and loads cleanly. That warning causes `agy plugin validate --strict` to exit `1`.
+- Declaring `"hooks": "./hooks-agy.json"` in `.antigravity-plugin/plugin.json` emits `warning: unknown field "hooks" is ignored` (`(*pluginValidator).checkManifestKeys` at `0x98d7300`) and registers `hooks: 0`.
+- Placing `hooks.json` inside `.antigravity-plugin/hooks.json` emits `warning: .antigravity-plugin/hooks.json: never loaded: components are read from the plugin root, not .antigravity-plugin. Move it next to .antigravity-plugin` (`hooks: 0`).
+- **Coexistence without symlinks or validator warnings:** Move Claude Code's `hooks/hooks.json` to `.claude-plugin/hooks.json` (referenced via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) and place Antigravity's named-hook manifest at `<plugin_dir>/hooks.json`.
 
 #### Q2: Can Claude Code read `plugin.json` from the plugin root?
-**NO.** Running `claude plugin validate .` on a directory containing only root `plugin.json` fails with `Plugin manifest not found at .claude-plugin/plugin.json`. Claude Code loads `.claude-plugin/plugin.json` and `hooks/hooks.json` by default, ignoring `.antigravity-plugin/plugin.json` and `<plugin_dir>/hooks.json`.
+**NO.** Running `claude plugin validate .` on a directory containing only root `plugin.json` fails with `Plugin manifest not found at .claude-plugin/plugin.json`. Claude Code reads `.claude-plugin/plugin.json` (which supports `"hooks": "./.claude-plugin/hooks.json"`), ignoring `.antigravity-plugin/plugin.json` and `<plugin_dir>/hooks.json`.
 
 #### Q3: How do the two engines coexist without cross-contamination?
-1. **Claude Code (`2.1.300`)** reads `.claude-plugin/plugin.json` → loads `hooks/hooks.json` → ignores `.antigravity-plugin/plugin.json` and root `hooks.json`.
-2. **Antigravity (`1.4.0`)** reads `.antigravity-plugin/plugin.json` → loads root `hooks.json` → ignores `.claude-plugin/` and `hooks/hooks.json`.
-3. Both `agy plugin validate --strict .` and `claude plugin validate .` exit `0` simultaneously on the same directory with zero symlinks.
+1. **Claude Code (`2.1.309`)** reads `.claude-plugin/plugin.json` → loads `.claude-plugin/hooks.json` (via `"hooks": "./.claude-plugin/hooks.json"`) → ignores `.antigravity-plugin/plugin.json` and root `hooks.json`.
+2. **Antigravity (`1.4.12`)** reads `.antigravity-plugin/plugin.json` → loads root `hooks.json` → ignores `.claude-plugin/` (so `.claude-plugin/hooks.json` never triggers `checkHooks`).
+3. Both `agy plugin validate --strict .` and `claude plugin validate .` exit `0` with `0` warnings simultaneously on the same directory with zero symlinks.
 
 #### Q4: Does Antigravity support an equivalent dot-directory (`/.antigravity-plugin/plugin.json`)?
-**YES (Added in `agy 1.3.2`, verified in `agy 1.4.0` at `inspect.findManifestPath` `0x8f8fc20`).** Only `plugin.json` lives inside `.antigravity-plugin/`; all plugin components (`skills/`, `agents/`, `bin/`, `hooks.json`) remain at the plugin root.
+**YES (Added in `agy 1.3.2`, verified in `agy 1.4.12` at `inspect.findManifestPath` `0x98c5360`).** Only `plugin.json` lives inside `.antigravity-plugin/`; all plugin components (`skills/`, `agents/`, `bin/`, `hooks.json`) remain at the plugin root.
 
 #### Q5: What is the upstream status on GitHub (Anthropic, Antigravity, and Agent Plugins Spec)?
 - **Agent Plugins Specification (`agentplugins/agent-plugins-spec` v1.0.0 & v1.1.0 draft):**
   - Hooks are excluded from the v1.0.0 and v1.1.0 portable core (`spec/1.0.0.md` §7). Instead, §8.1 and §8.2 define reverse-domain client extensions (`extensions["com.example.client"]` in `plugin.json` and `<plugin_root>/com.example.client/hooks/hooks.json`).
-  - `agy 1.4.0` implements `inspect.findExtensionDirectory` (`0x8f94240`, gated behind `enable-agent-plugins-spec`) recognizing `com.google/` and `com.google.antigravity/`, but `inspect.scanHooks` (`0x8f92180`) still reads `<plugin_root>/hooks.json`. `claude 2.1.300` has not adopted Agent Plugins 1.0.0.
+  - `agy 1.4.8` removed the experimental `enable-agent-plugins-spec` flag and enabled Agent Plugins 1.0 extension directories (`com.google/` and `com.google.antigravity/`) by default (`inspect.findExtensionDirectory` at `0x98c9ba0` in `1.4.12`) for `skills/`, `agents/`, and `.mcp.json`, but `(*pluginValidator).checkHooks` (`0x98ca020`) still reads `<plugin_root>/hooks.json`. `claude 2.1.309` has not adopted Agent Plugins 1.0.0.
   - Future migration to §8.2 extension directories once upstream CLIs load hooks from `<namespace>/hooks/hooks.json` is tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456).
 
 ---
@@ -86,13 +88,14 @@
 ```text
 plugins/prosthetic-conscience/
 ├── .claude-plugin/
-│   └── plugin.json            # [KEEP] Claude manifest (loads hooks/hooks.json by default)
+│   ├── plugin.json            # [MODIFY] Claude manifest (adds "hooks": "./.claude-plugin/hooks.json")
+│   └── hooks.json             # [MOVE]   Moved from hooks/hooks.json (read by claude, fetchbingen, invocation_test)
 ├── .antigravity-plugin/
-│   └── plugin.json            # [NEW] Antigravity manifest (locked to .claude-plugin/plugin.json via versionguard)
+│   └── plugin.json            # [NEW]    Antigravity manifest (locked to .claude-plugin/plugin.json via versionguard)
 ├── hooks/
-│   ├── hooks.json             # [KEEP] Claude lifecycle hooks (untouched; read by claude, fetchbingen, invocation_test)
-│   └── fetch-bin.sh           # [MODIFY] Generated by scripts/fetchbingen (dual-harness ROOT + engine-aware speak())
-├── hooks.json                 # [NEW] Antigravity lifecycle hooks (named-hook group schema at plugin root)
+│   ├── fetch-bin.sh           # [MODIFY] Generated by scripts/fetchbingen (dual-harness ROOT + engine-aware speak())
+│   └── README.md              # [MODIFY] Documents .claude-plugin/hooks.json + root hooks.json coexistence
+├── hooks.json                 # [NEW]    Antigravity lifecycle hooks (named-hook group schema at plugin root)
 ├── agents/
 │   ├── plan-auditor.md        # [MODIFY] Dual-target YAML sequence tools: [...]
 │   └── probe.md               # [MODIFY] Dual-target YAML sequence tools: [...]
@@ -100,45 +103,48 @@ plugins/prosthetic-conscience/
 │   └── doctor/SKILL.md        # [MODIFY] Dual-target binary invocation fallback
 └── tools/
     └── internal/
-        └── hookcore/          # [NEW] Generated byte-identical copy from scripts/internal/hookcore
+        └── hookcore/          # [NEW]    Generated byte-identical copy from scripts/internal/hookcore
 ```
 
-(The same `.antigravity-plugin/plugin.json`, root `hooks.json`, and `tools/internal/hookcore` layout applies to `frank-exchange-of-views` and `gray-area`; `sleeper-service` receives `.antigravity-plugin/plugin.json` only, as it ships no hooks or binaries.)
+(The same `.claude-plugin/hooks.json`, `.antigravity-plugin/plugin.json`, root `hooks.json`, and `tools/internal/hookcore` layout applies to `frank-exchange-of-views` and `gray-area`; `sleeper-service` receives `.antigravity-plugin/plugin.json` only, as it ships no hooks or binaries.)
 
 ---
 
-### III.2 Dual-Target Manifests, Root `hooks.json`, & Self-Healing Bootstrap ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468))
+### III.2 Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & Self-Healing Bootstrap ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468))
 
 - **`[NEW]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area,sleeper-service}/.antigravity-plugin/plugin.json`:**
-  Contains `name`, `version`, `description`, `author`, `repository`, and `license` matching `.claude-plugin/plugin.json`.
+  Contains `name`, `version`, `description`, `author`, `repository`, and `license` matching `.claude-plugin/plugin.json`. For `frank-exchange-of-views`, omit the Claude-only `"dependencies"` key (which `(*pluginValidator).checkManifestKeys` at `0x98d7300` in `agy 1.4.12` flags with `warning: unknown field "dependencies" is ignored`).
+- **`[MOVE]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/hooks/hooks.json` → `plugins/{...}/.claude-plugin/hooks.json` & `[MODIFY]` `.claude-plugin/plugin.json`:**
+  Relocate Claude's hook manifest into `.claude-plugin/hooks.json` and declare `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json` so `(*pluginValidator).checkHooks` (`0x98ca0c5`) never sees `hooks/hooks.json`. Update all 8 repository consumers (detailed in §III.7 C6).
 - **`[MODIFY]` `scripts/versionguard/carriers.go` & `scripts/versionguard/versionguard_test.go`:**
   Add `.antigravity-plugin/plugin.json` as a version carrier per plugin so any tag or version bump checks both `.claude-plugin/plugin.json` and `.antigravity-plugin/plugin.json`.
 - **`[MODIFY]` `scripts/pluginparity/main.go` & `scripts/pluginparity/pluginparity_test.go`:**
   Assert that every plugin in `.claude-plugin/marketplace.json` carries `.antigravity-plugin/plugin.json` with identical `name` and `version` to `.claude-plugin/plugin.json`.
 - **`[NEW]` `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/hooks.json`:**
-  Antigravity named-hook group manifests at the plugin root. Each entry uses the same bootstrap guard pattern with `R="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}"` so `B="$R/bin/<binary>"` and `F="$R/hooks/fetch-bin.sh"` resolve identically under Antigravity:
-  - `plugins/prosthetic-conscience/hooks.json`: registers `SessionStart` (`sc-sessionstart`), `PreInvocation` (`sc-sessionstart -event PreInvocation`), `PreToolUse` (`sc-pretooluse`, matcher `read_url_content|read_browser_page|search_web|run_command|WebFetch|WebSearch|Bash`), `PostToolUse` (`sc-posttooluse`, matcher `.*`), and `Stop` (`sc-stop`).
-  - `plugins/frank-exchange-of-views/hooks.json`: registers `SessionStart` (`fetch-bin.sh ensure SessionStart`), `PreToolUse` (`feov-pretooluse`), and `PostToolUse` (`feov-posttoolusefailure`).
-  - `plugins/gray-area/hooks.json`: registers `SessionStart` (`gray-area-capture -event SessionStart`) and `Stop` (`gray-area-capture -event Stop`).
-- **`[MODIFY]` `scripts/validatejson/hooks.go` & `scripts/validatejson/hooks_test.go`:**
-  Keep `isPluginHooks` for `plugins/*/hooks/hooks.json` (Claude schema) and add `isAntigravityPluginHooks` for `plugins/*/hooks.json` validating the top-level named-hook group schema and known Antigravity events (`SessionStart`, `PreInvocation`, `PreToolUse`, `PostToolUse`, `PostInvocation`, `Stop`).
+  Antigravity named-hook group manifests at the plugin root. Because `jsonhook.executeCommandModeHook` (`0x80aff00`) sets `cmd.Dir` to `<plugin_root>` and does not set `PLUGIN_ROOT` or `PLUGIN_DATA` (and `(*pluginValidator).checkHookCommand` at `0x98cc640` warns on `$PLUGIN_ROOT`, `$PLUGIN_DATA`, and `$CLAUDE_PLUGIN_ROOT`), each entry uses `R="${PWD}"` so `B="$R/bin/<binary>"` and `F="$R/hooks/fetch-bin.sh"` resolve cleanly and bypass `checkHookCommand`'s static file-existence check when `bin/` is not yet populated:
+  - `plugins/prosthetic-conscience/hooks.json`: registers `SessionStart` (`sc-sessionstart`), `PreInvocation` (`sc-sessionstart -event PreInvocation`), `PreTool` (`sc-pretooluse`, Antigravity-only matcher `read_url_content|read_browser_page|search_web|run_command` so `(*pluginValidator).checkHookMatcher` at `0x98ca820` emits `0` warnings), `PostTool` (`sc-posttooluse`, matcher `.*`), and `PostInvocation` (`sc-stop`).
+  - `plugins/frank-exchange-of-views/hooks.json`: registers `PreInvocation` (`fetch-bin.sh ensure SessionStart`), `PreTool` (`feov-pretooluse`, matcher `.*`), and `PostTool` (`feov-posttoolusefailure`, matcher `.*`).
+  - `plugins/gray-area/hooks.json`: registers `PreInvocation` (`gray-area-capture -event SessionStart`) and `PostInvocation` (`gray-area-capture -event Stop`).
+- **`[MODIFY]` `scripts/validatejson/hooks.go`, `scripts/validatejson/hooks_test.go`, & `scripts/validatejson/main.go`:**
+  Update `isPluginHooks` to match `plugins/*/.claude-plugin/hooks.json` (Claude schema) and add `isAntigravityPluginHooks` for `plugins/*/hooks.json` validating the top-level named-hook group schema and known Antigravity events (`SessionStart`, `PreInvocation`, `PreTool`, `PreToolUse`, `PostTool`, `PostToolUse`, `PostInvocation`, `Stop`).
 - **`[MODIFY]` `scripts/fetchbingen/fetch-bin.sh`, `scripts/fetchbingen/main.go`, & `scripts/internal/hookfailures/failures.go`:**
-  - In `scripts/fetchbingen/fetch-bin.sh`: resolve `ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}`; in `field()`, read `$ROOT/.claude-plugin/plugin.json` (falling back to `$ROOT/.antigravity-plugin/plugin.json`); in `speak()`, when `PLUGIN_ROOT` is set and `CLAUDE_PLUGIN_ROOT` is unset (Antigravity) and `SC_ENSURE_INTERNAL` is not `1`, emit `{"injectSteps":[{"systemMessage":{"systemMessage":"%s"}}]}` on `SessionStart`/`PreInvocation` and nothing on `stdout` for `PreToolUse`/`PostToolUse`/`Stop` (because `protojson.Unmarshal` with `DiscardUnknown: false` rejects `systemMessage` on those result messages).
-  - In `scripts/internal/hookfailures/failures.go` (`Ensure`): fall back from `os.Getenv("CLAUDE_PLUGIN_ROOT")` to `os.Getenv("PLUGIN_ROOT")` and pass `SC_ENSURE_INTERNAL=1` in the child environment so `Ensure` continues parsing `{"systemMessage":"..."}` uniformly. Regenerate via `go -C scripts run ./fetchbingen` and `go -C scripts run ./hookfailgen`.
+  - In `scripts/fetchbingen/fetch-bin.sh`: resolve `ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}`; in `field()`, read `$ROOT/.claude-plugin/plugin.json` (falling back to `$ROOT/.antigravity-plugin/plugin.json`); in `speak()`, when `[ -n "${ANTIGRAVITY_CONVERSATION_ID:-}" ] || [ -n "${PLUGIN_ROOT:-}" ]` and `CLAUDE_PLUGIN_ROOT` is unset (Antigravity) and `SC_ENSURE_INTERNAL` is not `1`, emit `{"injectSteps":[{"systemMessage":{"systemMessage":"%s","metadata":{"user_markdown":"%s"}}}]}` on `SessionStart`/`PreInvocation` and nothing on `stdout` for `PreTool`/`PreToolUse`/`PostTool`/`PostToolUse`/`PostInvocation`/`Stop` (because `protojson.Unmarshal` with `DiscardUnknown: false` rejects `systemMessage` on those result messages).
+  - In `scripts/fetchbingen/main.go`: check both `plugins/<p>/.claude-plugin/hooks.json` (`${CLAUDE_PLUGIN_ROOT}` guard) and `plugins/<p>/hooks.json` (`${PWD}` guard).
+  - In `scripts/internal/hookfailures/failures.go` (`Ensure`): fall back from `os.Getenv("CLAUDE_PLUGIN_ROOT")` to `os.Getenv("PLUGIN_ROOT")` to `os.Executable()` grandparent / `os.Getwd()` and pass `SC_ENSURE_INTERNAL=1` in the child environment so `Ensure` continues parsing `{"systemMessage":"..."}` uniformly. Regenerate via `go -C scripts run ./fetchbingen` and `go -C scripts run ./hookfailgen`.
 
 ---
 
 ### III.3 Agent & Skill Cross-Harness Compatibility ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469))
 
 - **`[MODIFY]` `scripts/agentgen/src/fragments/seat-tools.md` & Regenerate `plugins/frank-exchange-of-views/agents/*.md` (11 files):**
-  Change `tools:` from a CSV string to a YAML sequence containing both Claude and Antigravity tool names while preserving FEOV's no-`WebFetch` / no-`read_url_content` / no-`read_browser_page` invariant:
+  Change `tools:` from a CSV string to a YAML sequence containing Claude, classic Antigravity, and `agy 1.4.10+` `oneharness` tool names (`read_file`, `write_file`, `edit_file`) while preserving FEOV's no-`WebFetch` / no-`read_url_content` / no-`read_browser_page` invariant:
   ```yaml
-  tools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash", "WebSearch", "ToolSearch", "view_file", "write_to_file", "replace_file_content", "find_by_name", "grep_search", "run_command", "search_web"]
+  tools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash", "WebSearch", "ToolSearch", "view_file", "read_file", "write_to_file", "write_file", "replace_file_content", "edit_file", "find_by_name", "grep_search", "run_command", "search_web"]
   ```
   Run `go -C scripts run ./agentgen` to update all 11 generated `plugins/frank-exchange-of-views/agents/*.md` files.
 - **`[MODIFY]` `plugins/prosthetic-conscience/agents/plan-auditor.md` & `plugins/prosthetic-conscience/agents/probe.md`:**
-  - `plan-auditor.md`: `tools: ["Read", "Grep", "Glob", "Bash", "WebSearch", "WebFetch", "view_file", "grep_search", "find_by_name", "run_command", "search_web", "read_url_content"]`.
-  - `probe.md`: `tools: ["Read", "Write", "Bash", "view_file", "write_to_file", "run_command"]`.
+  - `plan-auditor.md`: `tools: ["Read", "Grep", "Glob", "Bash", "WebSearch", "WebFetch", "view_file", "read_file", "grep_search", "find_by_name", "run_command", "search_web", "read_url_content"]`.
+  - `probe.md`: `tools: ["Read", "Write", "Bash", "view_file", "read_file", "write_to_file", "write_file", "run_command"]`.
 - **`[MODIFY]` `scripts/frontmatter/main.go` & `scripts/frontmatter/frontmatter_test.go`:**
   Enforce that `tools` and `skills` in `plugins/*/agents/*.md` decode as YAML sequences (`[]any`), failing on scalar strings so `agents 0` cannot recur.
 - **`[MODIFY]` Six CLI-Invoking `SKILL.md` Files:**
@@ -153,24 +159,24 @@ plugins/prosthetic-conscience/
 
 #### III.4.1 Process Boundary Normalization Matrix (`env`, `stdin`, `stdout`, `stderr`, `exit`)
 
-| Process Boundary | Claude Code (`2.1.300`) | Google Antigravity (`agy 1.4.0` — `exa.hooks_pb`) | `hookcore` Normalization Contract |
+| Process Boundary | Claude Code (`2.1.309`) | Google Antigravity (`agy 1.4.12` — `exa.hooks_pb`) | `hookcore` Normalization Contract |
 | :--- | :--- | :--- | :--- |
-| **`env` (Paths)** | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA` | `PLUGIN_ROOT`, `PLUGIN_DATA` (`CLAUDE_*` unset; hook `cwd` is `<plugin_root>`) | `PluginRoot`: `CLAUDE_PLUGIN_ROOT` → `PLUGIN_ROOT` → `os.Executable()` grandparent.<br>`PluginDataDir`: `CLAUDE_PLUGIN_DATA` → `PLUGIN_DATA` → `<ProjectDir>/.claude`.<br>`ProjectDir`: `CLAUDE_PROJECT_DIR` → `cwd` → `workspacePaths[0]` → git root of tool arg `Cwd`/`TargetFile`/`AbsolutePath` (never `os.Getwd()`). |
-| **`stdin` (Envelope)** | snake_case: `session_id`, `cwd`, `transcript_path`, `agent_id`, `agent_type`, `agent_transcript_path`, `hook_event_name`, `stop_hook_active`, `is_interrupt` | camelCase (`HookArgsCommon`): `conversationId`, `workspacePaths`, `transcriptPath`, `parentConversationId`, `rootConversationId`, `agentName`, `executionNum`, `terminationReason` | Sniff discriminator keys (`conversationId`/`toolCall`/`workspacePaths` vs `session_id`/`tool_name`/`cwd`) to set `EngineClaude` or `EngineAntigravity` and populate canonical `Request` fields. |
-| **`stdin` (Tool Call)** | `tool_name` (`Bash`, `Write`, `Edit`, `Read`, `WebSearch`, `WebFetch`), `tool_input` (snake_case), `error` (on `PostToolUseFailure`) | `toolCall.name` (`run_command`, `write_to_file`, `replace_file_content`, `view_file`, `search_web`, `read_url_content`), `toolCall.args` (PascalCase), `error` (on `PostToolUse`) | Map `toolCall.name` to canonical `ToolName` and synthesize canonical snake_case keys (`command`, `file_path`, `content`, `old_string`, `new_string`, `query`, `url`) inside `req.ToolInput` alongside original fields. |
-| **`stdout` (`PreToolUse`)** | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"\|"deny"\|"ask","permissionDecisionReason":"...","updatedInput":{...}},"systemMessage":"..."}` | `PreToolHookResult`: `{"decision":"allow"\|"deny"\|"ask","reason":"...","deny_reason":"...","overwrite":{...}}` | Encode `Decision`, `Reason`, and `UpdatedCommand` (`updatedInput.command` on Claude; `overwrite.CommandLine` on Antigravity). On Antigravity, if `Say` or `rec.Settle()` is non-empty, enqueue it to `PreInvocation`. |
-| **`stdout` / `stderr` / `exit` (`PostToolUse` & `PostToolUseFailure`)** | `sc-posttooluse` (`qualitygate`): `Feedback` to **`stderr`** + **`exit 2`**, `{"systemMessage":"..."}` on `stdout`.<br>`sc-strike-counter`: `hookSpecificOutput.additionalContext` + `systemMessage` on `stdout`, `exit 0`. | `PostToolHookResult` only accepts `{}` (or empty `stdout`), and `exit 2` is treated as a hook execution failure rather than model feedback. | **Claude:** preserve `stderr` + `exit 2` for `Feedback` and `hookSpecificOutput` for `AdditionalContext`.<br>**Antigravity:** append `Feedback`, `AdditionalContext`, and `Say`/`rec.Settle()` to `${PLUGIN_DATA}/pending_<SessionID>.jsonl`, write diagnostics to `stderr`, emit nothing/`{}` on `stdout`, and return **`exit 0`**. |
-| **`stdout` (`SessionStart` & `PreInvocation`)** | `SessionStart`: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"...","watchPaths":[...]},"systemMessage":"..."}` | `SessionStartHookResult` / `PreInvocationHookResult`: `{"injectSteps":[{"ephemeralMessage":"..."},{"systemMessage":{"systemMessage":"..."}}]}` | On Antigravity `SessionStart`, emit `AdditionalContext` + `Say` via `injectSteps`. On `PreInvocation` (`sc-sessionstart -event PreInvocation`), atomically read and unlink `${PLUGIN_DATA}/pending_<SessionID>.jsonl` and emit `injectSteps`. |
-| **`stdout` (`Stop`)** | `{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"..."},"systemMessage":"..."}` | `StopHookResult`: `{"decision":"continue","reason":"..."}` (or empty `stdout` when silent) | Translate `AdditionalContext` on `Stop` into `{"decision":"continue","reason":"..."}` on Antigravity; when silent, write nothing to `stdout`. |
+| **`env` (Paths)** | `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA` | `ANTIGRAVITY_CONVERSATION_ID` (set on all hook subprocesses at `0x80b0216`); `cmd.Dir` is `<plugin_root>` (`0x80b0120`); `PLUGIN_ROOT` and `PLUGIN_DATA` are set only for MCP / agent `run_command` | `PluginRoot`: `CLAUDE_PLUGIN_ROOT` → `PLUGIN_ROOT` → `os.Executable()` grandparent → `os.Getwd()` (when `.antigravity-plugin/plugin.json` exists).<br>`PluginDataDir`: `CLAUDE_PLUGIN_DATA` → `PLUGIN_DATA` → `filepath.Join(filepath.Dir(filepath.Dir(artifactDirectoryPath)), "plugin-data", pluginName)` → `<ProjectDir>/.claude`.<br>`ProjectDir`: `CLAUDE_PROJECT_DIR` → `cwd` → `workspacePaths[0]` → git root of tool arg `Cwd`/`Path`/`TargetFile`/`AbsolutePath` (never `os.Getwd()`). |
+| **`stdin` (Envelope)** | snake_case: `session_id`, `cwd`, `transcript_path`, `agent_id`, `agent_type`, `agent_transcript_path`, `hook_event_name`, `stop_hook_active`, `is_interrupt`, `prompt` | camelCase (`HookArgsCommon` at `0x5f93cc8`): `conversationId`, `workspacePaths`, `transcriptPath`, `artifactDirectoryPath`, `parentConversationId`, `rootConversationId`, `agentName`, `executionNum`, `terminationReason`, `lastUserInput` (`field 8`, `1.4.7+`) | Sniff `ANTIGRAVITY_CONVERSATION_ID` env var or JSON keys (`conversationId`/`toolCall`/`workspacePaths` vs `session_id`/`tool_name`/`cwd`) to set `EngineClaude` or `EngineAntigravity` and populate canonical `Request` fields. |
+| **`stdin` (Tool Call)** | `tool_name` (`Bash`, `Write`, `Edit`, `Read`, `WebSearch`, `WebFetch`), `tool_input` (snake_case), `tool_response` (`PostToolUse`), `error` (`PostToolUseFailure`) | `toolCall.name` (`run_command`, `write_to_file`/`write_file`, `replace_file_content`/`multi_replace_file_content`/`edit_file`, `view_file`/`read_file`, `search_web`, `read_url_content`/`read_browser_page`), `toolCall.args` (PascalCase), `result` (`field 4`, `1.4.12+`) and `error` (`field 3`) on `PostTool` | Map `toolCall.name` to canonical `ToolName`, populate `req.ToolResult` (`tool_response` \| `result`), and synthesize canonical snake_case keys (`command`, `file_path`, `content`, `old_string`, `new_string`, `query`, `url`) inside `req.ToolInput` alongside original fields. |
+| **`stdout` (`PreTool` / `PreToolUse`)** | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"\|"deny"\|"ask","permissionDecisionReason":"...","updatedInput":{...}},"systemMessage":"..."}` | `PreToolHookResult`: `{"decision":"allow"\|"deny"\|"ask","reason":"...","deny_reason":"...","overwrite":{...}}` | Encode `Decision`, `Reason`, and `UpdatedCommand` (`updatedInput.command` on Claude; `overwrite.CommandLine` on Antigravity). On Antigravity, if `Say` or `rec.Settle()` is non-empty, enqueue it to `PreInvocation`. |
+| **`stdout` / `stderr` / `exit` (`PostTool` / `PostToolUse` & `PostToolUseFailure`)** | `sc-posttooluse` (`qualitygate`): `Feedback` to **`stderr`** + **`exit 2`**, `{"systemMessage":"..."}` on `stdout`.<br>`sc-strike-counter`: `hookSpecificOutput.additionalContext` + `systemMessage` on `stdout`, `exit 0`. | `PostToolHookResult` only accepts `{}` (or empty `stdout`), and `exit 2` is treated as a hook execution failure rather than model feedback. | **Claude:** preserve `stderr` + `exit 2` for `Feedback` and `hookSpecificOutput` for `AdditionalContext`.<br>**Antigravity:** append `Feedback`, `AdditionalContext`, and `Say`/`rec.Settle()` to `<PluginDataDir>/pending_<SessionID>.jsonl`, write diagnostics to `stderr`, emit nothing/`{}` on `stdout`, and return **`exit 0`**. |
+| **`stdout` (`SessionStart` & `PreInvocation`)** | `SessionStart`: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"...","watchPaths":[...]},"systemMessage":"..."}` | `SessionStartHookResult` / `PreInvocationHookResult`: `{"injectSteps":[{"ephemeralMessage":"..."},{"systemMessage":{"systemMessage":"...","metadata":{"user_markdown":"..."}}},{"errorMessage":{"modelMessage":"...","userMessage":"..."}}],"terminationBehavior":"terminate"\|"force_continue"}` | On Antigravity `SessionStart`, emit `AdditionalContext` (`ephemeralMessage`) + `Say` (`systemMessage` with `metadata.user_markdown`). On `PreInvocation` (`sc-sessionstart -event PreInvocation`), atomically read and unlink `<PluginDataDir>/pending_<SessionID>.jsonl` and emit `injectSteps` (plus `terminationBehavior: "terminate"` + `errorMessage` when `resp.TerminateTurn` is set). |
+| **`stdout` (`PostInvocation` / `Stop`)** | `{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"..."},"systemMessage":"..."}` | `PostInvocationHookResult`: `{"decision":"continue","reason":"...","terminationBehavior":"terminate"\|"force_continue"}` (or empty `stdout` when silent) | Translate `AdditionalContext` on `Stop` into `{"decision":"continue","reason":"..."}` on Antigravity; when silent, write nothing to `stdout`. |
 
 #### III.4.2 Tool Name & Argument Normalization Table
 
-| Tool Category | Claude `tool_name` | Antigravity `toolCall.name` | Claude `tool_input` Key | Antigravity `toolCall.args` Key | Synthesized Canonical `req.ToolInput` Key |
+| Tool Category | Claude `tool_name` | Antigravity `toolCall.name` (Classic + `oneharness`) | Claude `tool_input` Key | Antigravity `toolCall.args` Key | Synthesized Canonical `req.ToolInput` Key |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Shell Command** | `Bash` | `run_command` | `command`, `description` | `CommandLine`, `Cwd`, `toolAction` | `"command"`, `"cwd"`, `"description"` |
-| **Write File** | `Write` | `write_to_file` | `file_path`, `content` | `TargetFile`, `CodeContent` | `"file_path"`, `"content"` |
-| **Edit File** | `Edit` | `replace_file_content`, `multi_replace_file_content` | `file_path`, `old_string`, `new_string`, `replace_all` | `TargetFile`, `TargetContent`, `ReplacementContent`, `AllowMultiple` | `"file_path"`, `"old_string"`, `"new_string"`, `"replace_all"` |
-| **Read File** | `Read` | `view_file` | `file_path` | `AbsolutePath` | `"file_path"` |
+| **Shell Command** | `Bash` | `run_command` | `command`, `description` | `CommandLine`, `Cwd`, `toolAction` / `toolSummary` | `"command"`, `"cwd"`, `"description"` |
+| **Write File** | `Write` | `write_to_file`, `write_file` | `file_path`, `content` | `TargetFile` / `Path`, `CodeContent` / `Content` | `"file_path"`, `"content"` |
+| **Edit File** | `Edit` | `replace_file_content`, `multi_replace_file_content`, `edit_file` | `file_path`, `old_string`, `new_string`, `replace_all` | `TargetFile` / `Path`, `TargetContent` / `Target`, `ReplacementContent` / `Replacement`, `AllowMultiple` | `"file_path"`, `"old_string"`, `"new_string"`, `"replace_all"` |
+| **Read File** | `Read` | `view_file`, `read_file` | `file_path` | `AbsolutePath` / `Path` | `"file_path"` |
 | **Web Search** | `WebSearch` | `search_web` | `query` | `query` / `Query` | `"query"` |
 | **Web Fetch** | `WebFetch` | `read_url_content`, `read_browser_page` | `url` | `Url` | `"url"` |
 | **File Search** | `Glob` | `find_by_name` | `path`, `pattern` | `SearchDirectory`, `Pattern` | `"path"`, `"pattern"` |
@@ -216,22 +222,25 @@ type Request struct {
 	Raw                 []byte          // Exact stdin bytes (preserved for secretsgate #211 raw scan)
 	Parsed              bool            // Whether stdin parsed as valid JSON
 	ProjectDir          string          // CLAUDE_PROJECT_DIR -> cwd -> workspacePaths[0] -> tool-arg git root
-	PluginRoot          string          // CLAUDE_PLUGIN_ROOT -> PLUGIN_ROOT -> os.Executable() ../..
-	PluginDataDir       string          // CLAUDE_PLUGIN_DATA -> PLUGIN_DATA -> <ProjectDir>/.claude
+	PluginRoot          string          // CLAUDE_PLUGIN_ROOT -> PLUGIN_ROOT -> os.Executable() ../.. -> os.Getwd()
+	PluginDataDir       string          // CLAUDE_PLUGIN_DATA -> PLUGIN_DATA -> <appDataDir>/plugin-data/<plugin> -> <ProjectDir>/.claude
 	SessionID           string          // session_id | conversationId
 	TranscriptPath      string          // transcript_path | transcriptPath
+	ArtifactDirPath     string          // artifactDirectoryPath (Antigravity)
 	AgentID             string          // agent_id | (conversationId when parentConversationId != "")
 	AgentType           string          // agent_type | agentName
 	AgentTranscriptPath string          // agent_transcript_path | (transcriptPath when subagent)
 	ToolName            string          // Canonical ("Bash", "Write", "Edit", "Read", "WebSearch", "WebFetch", "Glob", "Grep")
-	RawToolName         string          // Original wire name ("run_command", "write_to_file", ...)
+	RawToolName         string          // Original wire name ("run_command", "write_to_file", "write_file", ...)
 	ToolInput           json.RawMessage // Normalized JSON carrying canonical snake_case keys + original fields
-	FilePath            string          // Extracted file path (file_path | path | TargetFile | AbsolutePath)
+	ToolResult          json.RawMessage // tool_response (Claude) | PostToolHookArgs.result (Antigravity 1.4.12+)
+	FilePath            string          // Extracted file path (file_path | path | Path | TargetFile | AbsolutePath)
 	Command             string          // Extracted shell command (command | CommandLine)
-	ToolError           string          // error (PostToolUseFailure on Claude; PostToolUse.error on Antigravity)
+	ToolError           string          // error (PostToolUseFailure on Claude; PostTool.error on Antigravity)
+	LastUserInput       string          // prompt (Claude) | lastUserInput (Antigravity 1.4.7+)
 	IsInterrupt         bool            // is_interrupt | (terminationReason == "USER_CANCELED")
 	StopHookActive      bool            // stop_hook_active | (executionNum > 0)
-	TerminationReason   string          // Stop.terminationReason on Antigravity
+	TerminationReason   string          // PostInvocation.terminationReason on Antigravity
 	Trigger             string          // PreCompact/PostCompact trigger
 	CustomInstructions  string          // PreCompact custom_instructions
 	CompactSummary      string          // PostCompact compact_summary
@@ -247,6 +256,7 @@ type Response struct {
 	PreCompactSteer   string
 	Say               string
 	Warnings          string
+	TerminateTurn     bool // PreInvocation: emits terminationBehavior="terminate" + errorMessage on Antigravity
 }
 
 func Read(event string, stdin io.Reader) Request
@@ -262,13 +272,13 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 ### III.5 `prosthetic-conscience` Hook Migration ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471))
 
 - **`[MODIFY]` `plugins/prosthetic-conscience/tools/internal/hookenv/hookenv.go` & `plugins/prosthetic-conscience/tools/internal/hookinvocation/projectroot_test.go`:**
-  `hookenv.ProjectDir` delegates to `hookcore.ProjectDir` while preserving its existing 2-arg caller signature (`ProjectDir(env, payloadDir)` where `req.ProjectDir` supplies the normalized payload directory), keeping `TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage` (`hookenv_test.go`) green. Update `withoutProjectRoot` in `projectroot_test.go` to strip `PLUGIN_ROOT=` and `PLUGIN_DATA=`.
+  `hookenv.ProjectDir` delegates to `hookcore.ProjectDir` while preserving its existing 2-arg caller signature (`ProjectDir(env, payloadDir)` where `req.ProjectDir` supplies the normalized payload directory), keeping `TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage` (`hookenv_test.go`) green. Update `withoutProjectRoot` in `projectroot_test.go` to strip `PLUGIN_ROOT=`, `PLUGIN_DATA=`, and `ANTIGRAVITY_CONVERSATION_ID=`.
 - **`[MODIFY]` `plugins/prosthetic-conscience/tools/internal/sessionstart/main.go`:**
-  Support `-event SessionStart | PreInvocation` (default `SessionStart`). Pass `req.PluginRoot` into `Units(req.PluginRoot)` on `SessionStart` (fixing `StageManifest` when `CLAUDE_PLUGIN_ROOT` is unset); on `PreInvocation`, flush `${PLUGIN_DATA}/pending_<SessionID>.jsonl` and due `hookfailures` entries via `hookcore.Respond`.
+  Support `-event SessionStart | PreInvocation` (default `SessionStart`). Pass `req.PluginRoot` into `Units(req.PluginRoot)` on `SessionStart` (fixing `StageManifest` when `CLAUDE_PLUGIN_ROOT` is unset); on `PreInvocation`, flush `<PluginDataDir>/pending_<SessionID>.jsonl` and due `hookfailures` entries via `hookcore.Respond`.
 - **`[MODIFY]` `plugins/prosthetic-conscience/tools/internal/pretooluse/main.go`:**
   Decode via `hookcore.Read("PreToolUse", stdin)` into `hookunit.Ctx` (preserving `req.Raw` and `req.Parsed` for `secretsgate` `#211`) and emit via `hookcore.Respond`.
 - **`[MODIFY]` `plugins/prosthetic-conscience/tools/internal/posttooluse/main.go` & `internal/strikecounter/main.go`:**
-  Decode via `hookcore.Read`. When `req.Engine == EngineAntigravity && req.ToolError != ""`, `sc-posttooluse` also runs `strikecounter` for the failed tool call and passes any 3-strike `AdditionalContext` + `qualitygate` `Feedback` to `hookcore.Respond` (which queues them to `${PLUGIN_DATA}/pending_<SessionID>.jsonl` and exits `0`).
+  Decode via `hookcore.Read`. When `req.Engine == EngineAntigravity && req.ToolError != ""`, `sc-posttooluse` also runs `strikecounter` for the failed tool call and passes any 3-strike `AdditionalContext` + `qualitygate` `Feedback` to `hookcore.Respond` (which queues them to `<PluginDataDir>/pending_<SessionID>.jsonl` and exits `0`).
 - **`[MODIFY]` `internal/stopnudge`, `internal/checkpointseal`, `internal/filechangedrearm`, `internal/postcompactobserve`:**
   Decode via `hookcore.Read` and emit via `hookcore.Respond`.
 
@@ -278,7 +288,7 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 
 - **`[MODIFY]` `plugins/frank-exchange-of-views/tools/internal/hookcmd/hookcmd.go`:**
   - `Pre` (`feov-pretooluse`): read `hookcore.Read("PreToolUse", stdin)` (normalizing `run_command` → `Bash` and `CommandLine` → `command`) and emit `Allow` + `UpdatedCommand` (`updatedInput.command` on Claude; `overwrite.CommandLine` on Antigravity), `Ask`, or `Deny` via `hookcore.Respond`.
-  - `PostFailure` (`feov-posttoolusefailure`): read `hookcore.Read(event, stdin)`; on Antigravity `PostToolUse`, return immediately if `req.ToolError == ""` and record the failure when `req.ToolError != ""`.
+  - `PostFailure` (`feov-posttoolusefailure`): read `hookcore.Read(event, stdin)`; on Antigravity `PostTool` / `PostToolUse`, return immediately if `req.ToolError == ""` and record the failure when `req.ToolError != ""`.
   - `feov-subagentstart` & `feov-subagentstop`: read normalized `AgentID`, `AgentType`, `AgentTranscriptPath`, and `ProjectDir` via `hookcore.Read`.
 - **`[MODIFY]` `plugins/frank-exchange-of-views/tools/integration/surface/hookgraph_test.go`:**
   Add `"internal/hookcore"` (with its zero-`init()`, stdlib-only cost statement) to `hookLocalPackages` for `./cmd/feov-pretooluse`, `./cmd/feov-posttoolusefailure`, `./cmd/feov-subagentstart`, and `./cmd/feov-subagentstop`.
@@ -313,7 +323,7 @@ scripts/versionguard/versionguard_test.go:87,124,164,235:	write(t, dir, "plugins
 ```
 </details>
 
-- **Changes:** `scripts/fetchbingen/fetch-bin.sh` (and the 3 generated `plugins/*/hooks/fetch-bin.sh` copies), `scripts/pluginparity/main.go`, `scripts/versionguard/carriers.go` + `versionguard_test.go` (§III.2).
+- **Changes:** `scripts/fetchbingen/fetch-bin.sh` (and the 3 generated `plugins/*/hooks/fetch-bin.sh` copies), `scripts/pluginparity/main.go`, `scripts/versionguard/carriers.go` + `versionguard_test.go`, and `plugins/*/.claude-plugin/plugin.json` (adding `"hooks": "./.claude-plugin/hooks.json"` in the 3 hook-bearing plugins) (§III.2).
 - **Unchanged:** `.github/workflows/hooks.yml:973`, `docs/local-development.md:52`, `requirements.json:4`, `versionsync_test.go:52,70`, `doctor/SKILL.md:9` (`.claude-plugin/plugin.json` remains present in every plugin checkout), `bootstrap-plugins.sh:30`, `marketplacegen/main.go`, `universe.sh`.
 
 <details><summary>C2 — <code>git grep -nE 'CLAUDE_PLUGIN_ROOT|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_DATA' -- plugins/ scripts/</code> (62 lines)</summary>
@@ -367,8 +377,8 @@ scripts/universe.sh:224,327,363,439
 ```
 </details>
 
-- **Changes:** `scripts/fetchbingen/fetch-bin.sh` (+ 3 generated copies), `scripts/internal/hookfailures/failures.go` (+ 3 generated copies), the 6 `SKILL.md` files (`doctor`, 4 `gray-area/audit-*`, `feov/research`), `gray-area-capture/main.go`, `sessionstart/main.go`, `pretooluse/main.go`, `posttooluse/main.go`, `strikecounter/main.go`, `stopnudge/main.go`, `checkpointseal/main.go`, `filechangedrearm/main.go`, `postcompactobserve/main.go`, `hookenv/hookenv.go`, `hookinvocation/projectroot_test.go` (§III.2–§III.6).
-- **Unchanged:** `plugins/*/hooks/hooks.json`, `scripts/fetchbingen/main.go`, `hookinvocation/invocation_test.go`, `feov/releasegate/fuzz/hookinvocation_test.go` (Claude's `hooks/hooks.json` stays untouched), `doctor/main.go:735` (already falls back to `os.Executable()` grandparent at `doctor/main.go:341-365`), `bootstrap-plugins.sh`, `universe.sh`.
+- **Changes:** `scripts/fetchbingen/fetch-bin.sh` (+ 3 generated copies), `scripts/internal/hookfailures/failures.go` (+ 3 generated copies), the 6 `SKILL.md` files (`doctor`, 4 `gray-area/audit-*`, `feov/research`), `gray-area-capture/main.go`, `sessionstart/main.go`, `pretooluse/main.go`, `posttooluse/main.go`, `strikecounter/main.go`, `stopnudge/main.go`, `checkpointseal/main.go`, `filechangedrearm/main.go`, `postcompactobserve/main.go`, `hookenv/hookenv.go`, `hookinvocation/projectroot_test.go`, and the 8 `hooks/hooks.json` consumers listed in C6 below (§III.2–§III.6).
+- **Unchanged:** `doctor/main.go:735` (already falls back to `os.Executable()` grandparent at `doctor/main.go:341-365`), `bootstrap-plugins.sh`, `universe.sh`.
 
 <details><summary>C3 — <code>git grep -nE '^tools:|^skills:' -- plugins/*/agents/ scripts/agentgen/src/</code> (32 lines)</summary>
 
@@ -429,6 +439,35 @@ scripts/deadcode/main.go:21,142
 
 - **Changes:** `.github/workflows/hooks.yml`, `scripts/check/gates.go`, and `scripts/check/parity_test.go` add `hookcoregen` alongside `buildidgen` and `hookfailgen` (§III.4.3).
 
+<details><summary>C6 — <code>git grep -nE 'hooks/hooks\.json|"hooks\.json"' -- plugins/ scripts/ .github/</code> (18 lines — A2 Option 1 relocation to <code>.claude-plugin/hooks.json</code>)</summary>
+
+```
+.github/workflows/hooks.yml:1548:            const files = fs.globSync('plugins/*/hooks/hooks.json');
+plugins/frank-exchange-of-views/tools/integration/surface/hookgraph_test.go:260:	manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", "hooks", "hooks.json")
+plugins/frank-exchange-of-views/tools/internal/setup/hookprovenance.go:129:	b, err := os.ReadFile(filepath.Join(versionDir, "hooks", "hooks.json"))
+plugins/frank-exchange-of-views/tools/internal/setup/hookprovenance_test.go:39:	if err := os.WriteFile(filepath.Join(dir, "hooks", "hooks.json"), []byte(hooks), 0o644); err != nil {
+plugins/frank-exchange-of-views/tools/releasegate/fuzz/hookinvocation_test.go:50:	hooksPath, err := repotree.Plugin("hooks", "hooks.json")
+plugins/prosthetic-conscience/tools/internal/hookinvocation/invocation_test.go:47:	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks", "hooks.json"))
+scripts/fetchbingen/main.go:89:		hj, err := os.ReadFile(filepath.Join(root, "plugins", p, "hooks", "hooks.json"))
+scripts/fetchbingen/main.go:91,156,212: (error messages naming plugins/%s/hooks/hooks.json)
+scripts/rulesweep/sweep.go:57:	regexp.MustCompile(`/hooks/hooks\.json$`),
+scripts/rulesweep/sweep_test.go:141:		"plugins/x/hooks/hooks.json",
+scripts/validatejson/hooks.go:46:	ok, _ := path.Match("plugins/*/hooks/hooks.json", filepath.ToSlash(p))
+scripts/validatejson/hooks_test.go:62-67:		"plugins/gray-area/hooks/hooks.json": true, ...
+scripts/validatejson/main.go:68:		fmt.Fprintln(os.Stderr, "validate-json: no plugins/*/hooks/hooks.json is tracked — the pattern is wrong, not the tree")
+```
+</details>
+
+- **Changes (8 sites):**
+  1. `scripts/fetchbingen/main.go` & `main_test.go`: check both `plugins/<p>/.claude-plugin/hooks.json` (`${CLAUDE_PLUGIN_ROOT}` guard) and `plugins/<p>/hooks.json` (`${PWD}` guard).
+  2. `scripts/validatejson/hooks.go`, `hooks_test.go`, & `main.go`: match `plugins/*/.claude-plugin/hooks.json` (Claude schema) and `plugins/*/hooks.json` (Antigravity named-hook group schema).
+  3. `scripts/rulesweep/sweep.go` & `sweep_test.go`: change `/hooks/hooks\.json$` → `/hooks\.json$` so both `.claude-plugin/hooks.json` and root `hooks.json` remain gated as protocol surfaces.
+  4. `.github/workflows/hooks.yml:1548`: update `fs.globSync` to `['plugins/*/.claude-plugin/hooks.json', 'plugins/*/hooks.json']` and run both `claude plugin validate` and `agy plugin validate --strict`.
+  5. `plugins/prosthetic-conscience/tools/internal/hookinvocation/invocation_test.go:47`: read `../../../.claude-plugin/hooks.json` (plus companion test over `../../../hooks.json`).
+  6. `plugins/frank-exchange-of-views/tools/integration/surface/hookgraph_test.go:260`: read `.claude-plugin/hooks.json` (and `hooks.json`).
+  7. `plugins/frank-exchange-of-views/tools/releasegate/fuzz/hookinvocation_test.go:50`: `repotree.Plugin(".claude-plugin", "hooks.json")`.
+  8. `plugins/frank-exchange-of-views/tools/internal/setup/hookprovenance.go:129` & `hookprovenance_test.go:39`: read `filepath.Join(versionDir, ".claude-plugin", "hooks.json")` first and fall back to `filepath.Join(versionDir, "hooks", "hooks.json")` for older cached release versions in `~/.claude/plugins/cache/`.
+
 ---
 
 ## IV. Risk & Mitigation
@@ -436,12 +475,13 @@ scripts/deadcode/main.go:21,142
 | # | Risk | Likelihood | Impact | Complexity | Mitigation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **R1** | `sc-pretooluse` fails closed on unparseable non-secret JSON or unmapped tools, breaking `#211` and `TestTheShippedBinariesHonourTheIOContract` | Medium | High (blocks valid tool calls) | Low | `hookcore.Request` preserves `Raw []byte` and `Parsed bool`; `secretsgate` scans `req.Raw` when `!req.Parsed` and denies only on secret match (§III.4.3, §V.4). |
-| **R2** | Headless `agy -p` sends `"workspacePaths": []` (empty slice), causing index panic or `os.Getwd()` guessing | High | High (panic or cross-project state corruption) | Low | `hookcore.ProjectDir` length-checks `workspacePaths`, falls back to git root of tool arg `Cwd`/`TargetFile`/`AbsolutePath`, and never calls `os.Getwd()` (§III.4.1, §V.4). |
-| **R3** | Antigravity `protojson.Unmarshal` (`DiscardUnknown: false`) rejects Claude `systemMessage` or `hookSpecificOutput` fields on `PreToolUse` / `PostToolUse` / `Stop` | High | High (hook execution error in `agy`) | Low | `hookcore.Respond` and `fetch-bin.sh` emit only `.exa.hooks_pb`-compliant fields on `EngineAntigravity` and empty `stdout` when silent (§III.2, §III.4.1). |
-| **R4** | Multiple `write_to_file` / `replace_file_content` calls in one turn overwrite each other's lint feedback or re-inject stale findings on later turns | Medium | Medium (lost or looping lint advisories) | Low | Append JSON lines to `${PLUGIN_DATA}/pending_<SessionID>.jsonl` and atomically rename-and-unlink on `PreInvocation` flush (§III.4.1, §V.5). |
+| **R2** | Headless `agy -p` sends `"workspacePaths": []` (empty slice), causing index panic or `os.Getwd()` guessing | High | High (panic or cross-project state corruption) | Low | `hookcore.ProjectDir` length-checks `workspacePaths`, falls back to git root of tool arg `Cwd`/`Path`/`TargetFile`/`AbsolutePath`, and never calls `os.Getwd()` (§III.4.1, §V.4). |
+| **R3** | Antigravity `protojson.Unmarshal` (`DiscardUnknown: false`) rejects Claude `systemMessage` or `hookSpecificOutput` fields on `PreTool` / `PostTool` / `PostInvocation` | High | High (hook execution error in `agy`) | Low | `hookcore.Respond` and `fetch-bin.sh` emit only `.exa.hooks_pb`-compliant fields on `EngineAntigravity` and empty `stdout` when silent (§III.2, §III.4.1). |
+| **R4** | Multiple `write_to_file` / `write_file` / `replace_file_content` / `edit_file` calls in one turn overwrite each other's lint feedback or re-inject stale findings on later turns | Medium | Medium (lost or looping lint advisories) | Low | Append JSON lines to `<PluginDataDir>/pending_<SessionID>.jsonl` and atomically rename-and-unlink on `PreInvocation` flush (§III.4.1, §V.5). |
 | **R5** | Adding `internal/hookcore` to FEOV hooks pulls in heavy transitive dependencies or fails `TestHookBinaryLinksNothingExpensive` | Low | High (3× per-call hook latency regression) | Low | `hookcore` uses Go stdlib only (`Settler` structural interface, zero `init()`); `hookgraph_test.go` allowlists `"internal/hookcore"` and forbids `record`/`sqlite`/`proto`/`cobra` (§III.4.3, §III.6). |
 | **R6** | Version drift between `.claude-plugin/plugin.json` and `.antigravity-plugin/plugin.json` | Medium | Medium (stale release tag / broken `fetch-bin.sh`) | Low | Register `.antigravity-plugin/plugin.json` in both `scripts/versionguard/carriers.go` and `scripts/pluginparity/main.go` (§III.2, §V.2). |
 | **R7** | Editing `plugins/frank-exchange-of-views/agents/*.md` directly instead of `scripts/agentgen/src/fragments/seat-tools.md` fails `agentgen -check` | High | Medium (CI gate failure) | Low | Edit `scripts/agentgen/src/fragments/seat-tools.md` and regenerate via `go -C scripts run ./agentgen` (§III.3, §V.2). |
+| **R8** | `agy 1.4.12` `plugin validate --strict` rejects `hooks/hooks.json`, Claude tool names in `hooks.json` matchers, `$PLUGIN_ROOT`/`$PLUGIN_DATA`/`$CLAUDE_PLUGIN_ROOT` in `hooks.json` commands, or `"dependencies"` in `.antigravity-plugin/plugin.json` | High | High (CI `agy plugin validate --strict` exits `1`) | Low | Move Claude hooks to `.claude-plugin/hooks.json` (`"hooks": "./.claude-plugin/hooks.json"`), list only Antigravity tool names in root `hooks.json` matchers, use `R="${PWD}"` in root `hooks.json`, and omit `"dependencies"` from `frank-exchange-of-views/.antigravity-plugin/plugin.json` (§II.1, §III.2). |
 
 ---
 
@@ -469,7 +509,7 @@ scripts/deadcode/main.go:21,142
    ```bash
    go -C scripts test -count=1 -v ./internal/hookcore/... ./hookcoregen/...
    ```
-   Table-driven tests over captured Claude (`2.1.300`) and Antigravity (`1.4.0` `.exa.hooks_pb`) payloads covering `SessionStart`, `PreInvocation`, `PreToolUse` (allow, deny, ask, `UpdatedCommand` → `overwrite.CommandLine`, malformed non-secret raw bytes, malformed secret-containing raw bytes), `PostToolUse` (`Feedback` queue write on Antigravity vs `stderr` + `exit 2` on Claude, `ToolError != ""` strike counting), and `Stop`.
+   Table-driven tests over captured Claude (`2.1.309`) and Antigravity (`1.4.12` `.exa.hooks_pb`) payloads covering `SessionStart`, `PreInvocation` (`terminationBehavior: "terminate"`, `metadata.user_markdown`), `PreTool` / `PreToolUse` (allow, deny, ask, `UpdatedCommand` → `overwrite.CommandLine`, classic + `oneharness` tool names and `Path` arg, malformed non-secret raw bytes, malformed secret-containing raw bytes), `PostTool` / `PostToolUse` (`Feedback` queue write on Antigravity vs `stderr` + `exit 2` on Claude, `PostToolHookArgs.result` field 4, `ToolError != ""` strike counting), and `PostInvocation` / `Stop`.
 4. **Module Test Suites & Invariant Guards (PR 4 & PR 5):**
    ```bash
    go -C plugins/prosthetic-conscience/tools test -count=1 ./...
@@ -480,11 +520,11 @@ scripts/deadcode/main.go:21,142
    Specifically verify `TestTheShippedBinariesHonourTheIOContract`, `TestNoHookGuessesAProjectRootFromItsWorkingDirectory`, `TestNoHookReadsTheEnvironmentVariableWithoutResolvingThroughThisPackage`, and `TestHookBinaryLinksNothingExpensive`.
 5. **Mutation Pass (`CLAUDE.md` Discipline):**
    Run `go -C scripts run ./mutate -module plugins/prosthetic-conscience/tools` (and over `scripts/internal/hookcore`): invert engine detection discriminator, delete `overwrite.CommandLine` assignment, delete `pending_<SessionID>.jsonl` unlink on `PreInvocation`, and verify each mutant is killed by a test.
-6. **Driveable Check on Real Data (Both Live Clients — `claude 2.1.300` & `agy 1.4.0`):**
+6. **Driveable Check on Real Data (Both Live Clients — `claude 2.1.309` & `agy 1.4.12`):**
    With the built binaries installed into a scratch plugin directory:
    - **Antigravity (`~/.local/bin/agy -p`):**
      1. Run `agy -p "run the shell command echo 'ghp_1234567890abcdefghijklmnopqrstuvwxyzABCD'" --dangerously-skip-permissions` → verify `sc-pretooluse` denies `run_command` via `PreToolHookResult` and the command never executes.
-     2. Run `agy -p "write unformatted Go code to scratch/bad.go and then run echo done" --dangerously-skip-permissions` → verify `sc-posttooluse` queues `qlty` feedback into `${PLUGIN_DATA}/pending_<conversationId>.jsonl` on `PostToolUse` (exit `0`) and `sc-sessionstart -event PreInvocation` injects the feedback via `injectSteps` on the next turn, unlinking the queue file.
+     2. Run `agy -p "write unformatted Go code to scratch/bad.go and then run echo done" --dangerously-skip-permissions` → verify `sc-posttooluse` queues `qlty` feedback into `<PluginDataDir>/pending_<conversationId>.jsonl` on `PostTool` (exit `0`) and `sc-sessionstart -event PreInvocation` injects the feedback via `injectSteps` on the next turn, unlinking the queue file.
    - **Claude Code (`~/.local/bin/claude -p`):**
      1. Run `claude -p` with `--plugin-dir plugins/prosthetic-conscience` on the same secret probe and unformatted file probe → verify byte-identical denial on `PreToolUse` and `stderr` + `exit 2` feedback on `PostToolUse`.
 7. **Auditor Gate ([#1467](https://github.com/ctoforaday/special-circumstances/issues/1467)):**
@@ -492,10 +532,10 @@ scripts/deadcode/main.go:21,142
 
 ---
 
-## Forks — rulings (gblock, 2026-10-18)
+## Forks — rulings (gblock, 2026-10-18; updated 2026-11-01)
 
-- **F1 — Manifest location:** `.antigravity-plugin/plugin.json` alongside `.claude-plugin/plugin.json` (no root `plugin.json` clutter): **RULED.**
-- **F2 — Hook manifest coexistence:** Keep `hooks/hooks.json` for Claude and root `<plugin_root>/hooks.json` (named-hook group schema) for Antigravity with zero symlinks; track future Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456): **RULED.**
-- **F3 — Common wire-adapter library (`hookcore`):** Single-source `scripts/internal/hookcore` abstracting `env`, `stdin`, `stdout`, `stderr`, and `exitCode`, propagated byte-identically into all three plugin Go modules via `scripts/hookcoregen`: **RULED.**
-- **F4 — Zero new binaries in `tools/cmd/`:** Handle Antigravity `PreInvocation` via `sc-sessionstart -event PreInvocation` and fold Antigravity `PostToolUse` (`error != ""`) strike counting into `sc-posttooluse`: **RULED.**
+- **F1 — Manifest location:** `.antigravity-plugin/plugin.json` alongside `.claude-plugin/plugin.json` (no root `plugin.json` clutter; omit `"dependencies"` in `frank-exchange-of-views/.antigravity-plugin/plugin.json`): **RULED.**
+- **F2 — Hook manifest coexistence (updated 2026-11-01 for `agy 1.4.12`):** Relocate Claude's hook manifest from `hooks/hooks.json` to `.claude-plugin/hooks.json` (declared via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) and place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json` with zero symlinks and zero `agy plugin validate --strict` warnings; track future Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456): **RULED.**
+- **F3 — Common wire-adapter library (`hookcore`):** Single-source `scripts/internal/hookcore` abstracting `env`, `stdin`, `stdout`, `stderr`, and `exitCode` (including `ANTIGRAVITY_CONVERSATION_ID`, `artifactDirectoryPath` fallback, `oneharness` tool names `read_file`/`write_file`/`edit_file` + `Path`, `PostToolHookArgs.result`, `PreInvocation` `terminationBehavior`, and `HookSystemMessage.metadata.user_markdown`), propagated byte-identically into all three plugin Go modules via `scripts/hookcoregen`: **RULED.**
+- **F4 — Zero new binaries in `tools/cmd/`:** Handle Antigravity `PreInvocation` via `sc-sessionstart -event PreInvocation` and fold Antigravity `PostTool` (`error != ""`) strike counting into `sc-posttooluse`: **RULED.**
 

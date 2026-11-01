@@ -588,6 +588,67 @@ message StopHookResult {
 | **`1.2.4` & `1.2.7`** | Fixed `hooks.json` being dropped under customization token truncation; gave rules a dedicated 20k-token budget; fixed double-prefixed skill slash commands (`/<plugin>:<plugin>:<skill>`). | Plugin hooks and skills load reliably alongside large rule sets. |
 | **`1.2.5` & `1.2.7`** | Retired `find_by_name`, `grep_search`, and `list_dir` from default subagent baseline unless listed in `tools:`; injected subagent roster when `invoke_subagent` is in `tools:`. | Custom agents in `agents/*.md` must explicitly list `find_by_name` and `grep_search` in their `tools:` YAML array. |
 | **`1.3.1`** | Fixed Markdown custom agents to resolve relative `skills:`, `plugins:`, `rules:`, `agents:`, and `hooks:` paths against the agent's own file directory. | `agents/*.md` `skills:` entries should use unprefixed skill names rather than `<plugin>:<skill>`. |
-| **`1.3.2`** | Added `.antigravity-plugin/plugin.json` and `.gemini-plugin/plugin.json` discovery; exposed `<plugin>/bin/` on agent `PATH`; added `PLUGIN_ROOT` and `PLUGIN_DATA` environment variables (Agent Plugins 1.0.0 §9.1). | Eliminates root `plugin.json` clutter, allows bare `<bin>` fallback in `SKILL.md`, and provides `${PLUGIN_DATA}` for the `PostToolUse` → `PreInvocation` queue without dirtying the user's git working tree. |
+| **`1.3.2`** | Added `.antigravity-plugin/plugin.json` and `.gemini-plugin/plugin.json` discovery; exposed `<plugin>/bin/` on agent `PATH`; added `PLUGIN_ROOT` and `PLUGIN_DATA` environment variables (Agent Plugins 1.0.0 §9.1). | Eliminates root `plugin.json` clutter, allows bare `<bin>` fallback in `SKILL.md`, and provides `${PLUGIN_DATA}` for MCP/agent subprocesses. |
 | **`1.3.3` & `1.3.6`** | Fixed unquoted colons (`:`) in frontmatter `description:`; added `GIT_EDITOR=false`, `PAGER=cat`, `GIT_PAGER=cat` to `run_command`. | All 37 skills pass `agy plugin validate --strict` without quoting workarounds. |
+
+---
+
+## 7. `agy 1.4.0` → `1.4.12` & `claude 2.1.309` Empirical Verification & Disassembly Proofs (2026-11-01)
+
+> **Binary Inspected:** `/home/gblock_ctoforaday_com/.local/bin/agy` (`1.4.12`, stripped 64-bit ELF, `.gopclntab` magic `0xfffffff1` at file offset `0x1625570`, `.text` base `e_entry = 0x6819000`, `hooks.proto` descriptor at `0x5f93cc8`) and `/home/gblock_ctoforaday_com/.local/bin/claude` (`2.1.309`).
+
+### 7.1 Updated `hooks.proto` (`exa.hooks_pb` at `0x5f93cc8` in `agy 1.4.12`)
+
+Extracting and decoding the gzip-compressed protobuf `FileDescriptorProto` at `0x5f93cc8` reveals the following wire schema additions between `1.4.0` and `1.4.12`:
+
+1. **`HookArgsCommon.last_user_input = 8` (`JSON: "lastUserInput"`, added in `1.4.7`):**
+   Every hook event (`PreInvocation`, `PreTool`, `PostTool`, `PostInvocation`, `SessionStart`, `Stop`) now receives the user's prompt text in `lastUserInput`.
+2. **`PostToolHookArgs.result = 4` (`JSON: "result"`, `google.protobuf.Struct`, added in `1.4.12`):**
+   `PostTool` hooks now receive the structured tool output in `result` (`field 4`) alongside `step_idx` (`field 1`), `tool_call` (`field 2`), and `error` (`field 3`).
+3. **`termination_behavior = 2` (`JSON: "terminationBehavior"`, values `"terminate"` or `"force_continue"`, added in `1.4.11`):**
+   Both `PreInvocationHookResult` and `PostInvocationHookResult` accept `"terminationBehavior": "terminate"` (hard-stopping the turn before/after model invocation) or `"force_continue"`.
+4. **`HookInjectedStep` (`injectSteps`) Expanded Variants (`1.4.11`–`1.4.12`):**
+   - `systemMessage` (`HookSystemMessage`): supports `systemMessage` (`field 1`), `metadata` (`field 2`, `google.protobuf.Struct` — setting `metadata.user_markdown` renders a dedicated user-facing Markdown banner in the TUI), `media` (`field 3`), and `renderInfo` (`field 4`, `HookSystemMessageRenderInfo` with `title`, `titlePrefix`, `markdown`).
+   - `errorMessage` (`HookErrorMessage` at `field 5`): supports `modelMessage` (`field 1`) and `userMessage` (`field 2`), allowing `PreInvocation` to abort a turn with a surfaced user/model error message when paired with `"terminationBehavior": "terminate"`.
+
+### 7.2 Disassembly of `jsonhook.executeCommandModeHook` (`0x80aff00`–`0x80b0860`)
+
+Disassembling `google3/third_party/jetski/hooks/jsonhook.executeCommandModeHook` (`entry_off = 0x1896f00`, file offset `0x80aff00`):
+- Calls `os/exec.CommandContext` with `/bin/sh -c <command>`.
+- Sets `cmd.Dir` (`0x78(%rsp)` at `0x80b0120`) to the directory containing `hooks.json` (`<plugin_root>`).
+- Calls `os.Environ()` (`0x80b01d9`) and `fmt.Sprintf("ANTIGRAVITY_CONVERSATION_ID=%s", conversationId)` (`0x5d002b7`, len `0x1e` loaded at `0x80b0216`), appending `ANTIGRAVITY_CONVERSATION_ID` to `cmd.Env`.
+- **Crucial finding:** `executeCommandModeHook` **does not** set `PLUGIN_ROOT` or `PLUGIN_DATA` (`PLUGIN_ROOT` and `PLUGIN_DATA` are injected only into MCP server processes and agent `run_command` tool environments). Consequently:
+  - Hook shell guards and `hookcore` must detect Antigravity via `os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != ""` (or `stdin` JSON sniffing), not `PLUGIN_ROOT != ""`.
+  - `hookcore` resolves `PluginRoot` via `CLAUDE_PLUGIN_ROOT` → `PLUGIN_ROOT` → `os.Executable()` grandparent → `os.Getwd()` (when `.antigravity-plugin/plugin.json` exists).
+  - `hookcore` resolves `PluginDataDir` via `CLAUDE_PLUGIN_DATA` → `PLUGIN_DATA` → `filepath.Join(filepath.Dir(filepath.Dir(artifactDirectoryPath)), "plugin-data", pluginName)` → `<ProjectDir>/.claude` (since `artifactDirectoryPath` is `<appDataDir>/brain/<conversationId>`).
+
+### 7.3 Disassembly of `(*pluginValidator)` Strict Checks (`0x98ca020`–`0x98d76a0` in `agy 1.4.12`)
+
+`agy 1.4.10`–`1.4.12` overhauled `google3/third_party/jetski/Customization/inspect.(*pluginValidator)` with four checks that fail `agy plugin validate --strict` if unaddressed:
+
+1. **`(*pluginValidator).checkHooks` (`0x98ca020`–`0x98cb820`):**
+   - At `0x98ca0c5`, calls `v.exists("hooks/hooks.json")` (`0x5c24e49`, len `0x10`) and **unconditionally** records a `SeverityWarning` (`"never loaded: plugin hooks are read only from %s at the plugin root"`, `0x5dc2d05`), even when root `<plugin_root>/hooks.json` is present and valid.
+   - **Resolution (A2 Option 1):** Move Claude's hook manifest from `plugins/<p>/hooks/hooks.json` to `plugins/<p>/.claude-plugin/hooks.json` and declare `"hooks": "./.claude-plugin/hooks.json"` in `plugins/<p>/.claude-plugin/plugin.json`. `checkHooks` never inspects `.claude-plugin/hooks.json`, while `claude plugin validate` (`2.1.309`) validates `.claude-plugin/hooks.json` with `0` warnings.
+2. **`(*pluginValidator).checkHookMatcher` (`0x98ca820`–`0x98cc020`):**
+   - Splits each `matcher` regex on `|` and checks each alternative against a hardcoded map of Claude Code tool names (`Bash`, `Read`, `Write`, `Edit`, `MultiEdit`, `Glob`, `Grep`, `LS`, `WebFetch`, `WebSearch`, `NotebookEdit`, `Task`, `TodoWrite`), emitting `SeverityWarning`: `"hook %q: matcher %q: %s is Claude Code's name for a tool, so it never matches%s"` (`0x5dddae4`).
+   - **Resolution (A3):** Root `plugins/<p>/hooks.json` matchers list only Antigravity tool names (`read_url_content|read_browser_page|search_web|run_command`).
+3. **`(*pluginValidator).checkHookCommand` (`0x98cc640`–`0x98ccfa0`):**
+   - Scans `command` strings with regex `\$(?:\{(PLUGIN_ROOT|PLUGIN_DATA|CLAUDE_PLUGIN_ROOT)\}|(PLUGIN_ROOT|PLUGIN_DATA|CLAUDE_PLUGIN_ROOT)\b)([^\s"';&|]*)` (`0x5dfb642`), warning `"hook %q: %s isn't set for hook commands"` (`0x5d46bce`) or `"hook %q: %s isn't set for hook commands. They run in the plugin folder, so use %s"` (`0x5de01fc`).
+   - Checks relative tokens containing `/` via `v.exists(word)` (`0x98cce18`, `"hook %q: %s doesn't exist. Hook commands run in the plugin folder"`, `0x5dbc8e8`) **unless** the token contains a shell metacharacter from ``~$`*?[{%`` (`0x98ccddd`, `0x5b62f5f`).
+   - **Resolution (A5):** Root `plugins/<p>/hooks.json` uses `R="${PWD}"; B="$R/bin/<bin>"; if [ -x "$B" ] || [ -x "$B.exe" ]; then exec "$B"; fi; F="$R/hooks/fetch-bin.sh"; if [ -f "$F" ]; then exec sh "$F" hook <Event>; fi; ...`.
+4. **`(*pluginValidator).checkManifestKeys` (`0x98d7300`–`0x98d76a0`):**
+   - Emits `SeverityWarning` (`"unknown field %q is ignored"`, `0x5cf3c10`) on `"dependencies"` in `.antigravity-plugin/plugin.json`.
+   - **Resolution (A4):** Omit `"dependencies"` from `plugins/frank-exchange-of-views/.antigravity-plugin/plugin.json` (retaining it in `.claude-plugin/plugin.json`).
+
+### 7.4 `agy 1.4.0` → `1.4.12` Release Delta Summary
+
+| Version | Change | Architectural Impact |
+| :--- | :--- | :--- |
+| **`1.4.2` & `1.4.6`** | Added `read_browser_page` tool (`url`); improved MCP tool discovery and subagent streaming. | Included in `sc-pretooluse` `PreTool` matcher (`read_url_content\|read_browser_page\|search_web\|run_command`) and withheld from FEOV seats. |
+| **`1.4.7`** | Added `lastUserInput` (`field 8` in `HookArgsCommon`) to all hook payloads. | Exposed as `req.LastUserInput` in `hookcore.Request`. |
+| **`1.4.8`** | Removed `enable-agent-plugins-spec` flag; Agent Plugins 1.0 extension directories (`com.google/`, `com.google.antigravity/`) enabled by default for `skills/`, `agents/`, and `.mcp.json`. | Confirms upstream convergence on Agent Plugins 1.0; `hooks.json` remains at `<plugin_root>/hooks.json` pending Agent Plugins 1.1+ (§8.2). |
+| **`1.4.10`** | Introduced `oneharness` file tools (`read_file`, `write_file`, `edit_file`) using capitalized `Path` argument; added strict `pluginValidator` checks for `hooks/hooks.json`, Claude tool names in `matcher`, and `$PLUGIN_ROOT`/`$PLUGIN_DATA`/`$CLAUDE_PLUGIN_ROOT` in hook commands. | Added `read_file`, `write_file`, `edit_file` + `Path` to `hookcore` and agent `tools:` arrays (A1); relocated Claude hooks to `.claude-plugin/hooks.json` (A2); Antigravity-only matchers and `$PWD` guard in root `hooks.json` (A3, A5). |
+| **`1.4.11`** | Added `terminationBehavior` (`"terminate"` \| `"force_continue"`) on `PreInvocationHookResult` and `PostInvocationHookResult`, plus `errorMessage` and `HookSystemMessage.metadata.user_markdown` in `injectSteps`. | Enables native turn termination on `PreInvocation` (`resp.TerminateTurn`) and user-visible Markdown banners for `Say` (`metadata.user_markdown`). |
+| **`1.4.12`** | Added `result` (`field 4`) to `PostToolHookArgs` carrying structured tool output; canonicalized hook event names (`PreInvocation`, `PreTool`, `PostTool`, `PostInvocation`). | Exposed as `req.ToolResult` in `hookcore.Request`; root `hooks.json` uses canonical event names. |
+
 
