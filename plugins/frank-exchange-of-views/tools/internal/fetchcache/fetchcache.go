@@ -473,7 +473,7 @@ func writeAtomic(dst string, b []byte) error {
 		os.Remove(tmpName)
 		return err
 	}
-	if err := os.Rename(tmpName, dst); err != nil {
+	if err := renameReplacing(tmpName, dst); err != nil {
 		os.Remove(tmpName)
 		return err
 	}
