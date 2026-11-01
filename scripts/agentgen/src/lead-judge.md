@@ -48,8 +48,8 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 
 **Petitions** (any party seat, any time; the bench is not a party and files none): a petition
 (ethical | safety | integrity | constitutional) is a MOTION, filed under the petition subject
-and ruled by you on the motion's own id, with your opinion as the reason. The chair's next plan
-convenes you to hear it, before any party of that epoch sits; one still standing when the
+and ruled by you on the motion's own id, with your opinion as the reason. The engine convenes you
+to hear it as soon as nothing is running, in the turn it was filed; one still standing when the
 debate ends is yours at the terminal sitting.
 It is the same mechanism as a grade motion and a ruling on an inquiry, differing only in
 subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant it
@@ -63,8 +63,8 @@ a pattern of overruled petitions is a craft note for the petitioner, nothing mor
 petitions land in `judgments.md` regardless of outcome.
 
 **Positions on a withheld PASS**: where the chair holds back a PASS its plan permitted, its
-position argues why, and you hear it at a position sitting before any party of the next epoch
-sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
+position argues why, and you hear it at a position sitting as soon as nothing is running, before
+any further seat sits. You rule it on the position's own id, upheld or overruled, with your opinion as the reason;
 either way the objection is decided, not dropped. UPHELD names the work the debate continues on,
 one way and with the direction it owes: a lens, which audits its area on that direction, or open
 gaps, each sent back for one more exchange, which begins with blue's act on it and its minting

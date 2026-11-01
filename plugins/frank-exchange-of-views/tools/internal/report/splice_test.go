@@ -429,7 +429,7 @@ func TestJudgementNotesKeepTheirBlocks(t *testing.T) {
 		}
 		computations := []record.Computation{{Label: "K-deadbeef", SHA: sha, Basis: "reproducible", Argv: []string{"python3", "script.py"}, Reason: "trial division",
 			Soundness: record.SoundnessSound, Judgements: js}}
-		if ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true}); !strings.Contains(ev, c.want) {
+		if ev := evidenceDoc(runtest.Open(t, runDir), computations); !strings.Contains(ev, c.want) {
 			t.Errorf("notes %q: evidence.md does not hold %q:\n%s", c.notes, c.want, ev)
 		}
 	}

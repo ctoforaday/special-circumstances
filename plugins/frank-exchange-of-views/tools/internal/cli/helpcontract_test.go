@@ -117,7 +117,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					}
 					// Supply every OTHER required flag, so the refusal under test is this one's.
 					c.Flags().VisitAll(func(o *pflag.Flag) {
-						if o.Name == f.Name || !markedUnconditionally(o) {
+						if o.Name == f.Name || o.Name == "reason" || !markedUnconditionally(o) {
 							return
 						}
 						args = append(args, "--"+o.Name, placeholderFor(c, o, path))

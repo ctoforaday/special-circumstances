@@ -541,3 +541,55 @@ func TestGradeMovementWaitsOnTheLensToo(t *testing.T) {
 		}
 	}
 }
+
+// A HEARING IS NO TURN IN AN EXCHANGE. The bench hears a petition at any barrier, at no epoch and under
+// no dispatch row, so a hearing sits between the plan that readied a lens and that lens's audit, and
+// between the audit and the next plan. It audits nothing and answers nothing: the lens's turn stands
+// over it, the audit it stood before is still owed before any docket, and a turn the lens has taken
+// is not given back.
+func TestAHearingIsNoTurnInAnExchange(t *testing.T) {
+	hearing := func(st *stage, motion string) *stage {
+		return st.add("blue-respond", petitionMotion(motion)).
+			benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling(motion))
+	}
+	t.Run("before the last audit, and after it", func(t *testing.T) {
+		st, run := atLastAudit(t, `{"kMax": 2}`)
+		heard := st.more()
+		hearing(heard, "P1").seed()
+		plan, err := PlanDispatch(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(plan.ToFile) != 0 || !slices.Contains(gapsOf(plan, evLens), "G1") || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+			t.Fatalf("a hearing spent the lens's audit: the lens alone is ready and nothing is filed: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+		}
+		kept := heard.more()
+		kept.dispatch(2, evLens, "G1").registerAs(evLens, "lens-keeps-again").served(evLens, 2).keepGrade(evLens, "G1", keptReason).stop("lens-keeps-again")
+		hearing(kept, "P2").register("red-chair").seed()
+		after, err := PlanDispatch(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(after.ToFile, []string{"G1"}) {
+			t.Errorf("the lens kept at its last audit, and a hearing followed: the gap is docketed: to file %v, parties %+v, why %q", after.ToFile, after.Parties, after.Why)
+		}
+		if x, err := Exchanges(run, Params{K: 2, KMax: 2}); err != nil || x["G1"].Exchanges != 2 {
+			t.Errorf("two exchanges had, and a hearing is neither: %+v (%v)", x["G1"], err)
+		}
+	})
+	t.Run("after a silent sitting", func(t *testing.T) {
+		st := mintedOn(t).blueSitsOn("G1", true)
+		st.register("red-chair").dispatch(2, evLens, "G1").registerAs(evLens, "lens-silent").served(evLens, st.head()).stop("lens-silent")
+		run := hearing(st, "P1").register("red-chair").seed()
+		plan, err := PlanDispatch(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if slices.Contains(gapsOf(plan, evLens), "G1") {
+			t.Errorf("a hearing gave back the turn the lens's silent sitting took: parties %+v", plan.Parties)
+		}
+		if x, err := Exchanges(run, DefaultParams); err != nil || x["G1"].Exchanges != 1 {
+			t.Errorf("the silent sitting ended the exchange, and a hearing is none: %+v (%v)", x["G1"], err)
+		}
+	})
+}

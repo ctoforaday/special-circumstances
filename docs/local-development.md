@@ -110,12 +110,12 @@ means no output at all until it ends, so a working run and a wedged run look ide
 answering different questions:
 
 **The harness view** — `universe.sh run` streams `--output-format stream-json --verbose` through
-`scripts/universe-stream.py`, which keeps the raw JSONL and prints dispatches, record verbs and tool
-errors as they happen:
+`scripts/universe-stream.py`, which keeps the raw JSONL and prints the workflow's dispatch and the
+session's tool errors as they happen. The seats sit inside the Workflow, so none of their calls is
+in this stream; what they record is `watch`'s to show:
 
 ```
-[  312s] DISPATCH  red-lens-voice #1
-[  318s]   verb    mint
+[   41s] WORKFLOW DISPATCHED — the debate runs from here
 [  341s]   ERROR   refused: --quote is required
 [  902s] DONE  success  turns=42  $1.23
 ```

@@ -45,7 +45,7 @@ func TestEveryDispatchSiteIsAnAgentCallInTheScript(t *testing.T) {
 		t.Errorf("Sites = %v; the lines of code holding agent( are %v", sites, inCode)
 	}
 
-	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G1"}, "occasions": []any{"docket"}}
+	docketBench := map[string]any{"seat_id": "judge", "gap_ids": []any{"G1"}}
 	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, map[string]any{"seat_id": "blue-respond", "gap_ids": []any{"G1"}}, docketBench}, []any{})}, nil)
 	reached := map[int]bool{}
 	for _, d := range ds {

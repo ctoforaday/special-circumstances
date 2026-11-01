@@ -104,22 +104,24 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	// let some bench sittings be checked and others silently skipped under one verdict.
 	occasionsMeasured := benchRegs > 0 && benchRegs == benchRegsWithOccasion
 	// THE BOOKENDS ARE THE BENCH, and since the bench collapsed to one seat they are no longer
-	// separable from it by id. This exempts a bench register in the FINAL dispatch group only,
-	// which is where the terminal disposition and the assembly sit. The discrimination lost is
-	// narrow and real: a genuinely stray bench register in that last group now reads as a bookend.
-	// It cannot be recovered from an id that five sittings share — position is what distinguishes
-	// them, and position is already what this test uses.
-	// A BENCH SITTING THE ENGINE CONVENED IS NOT A STRAY. The terminal disposition and the assembly
-	// are convened by the engine, not by the chair, so each lands in a dispatch window with no
-	// dispatch row naming it. `docket`, `petition` and `position` are the occasions the chair
-	// dispatches — the bench's row names which — so a bench register of any of them is a party's sitting, answered by a
-	// row like any other, and one no row convened is a stray.
-	//
-	// THIS USED TO BE POSITION — "a bench register in the FINAL group" — which let a genuinely
-	// stray bench register in that group read as a bookend. That was the discrimination the seat-id
-	// collapse lost, and it is recovered here: the exemption is now exact rather than a window.
-	engineConvened := func(seat, occasion string) bool {
-		return record.SeatOwesOccasion(seat) && (occasion == "terminal" || occasion == "assemble")
+	// separable from it by id. A BENCH SITTING THE ENGINE CONVENED IS NOT A STRAY. The terminal
+	// disposition and the assembly are convened by the engine, not by the chair, so each lands in a
+	// dispatch window with no dispatch row naming it. So does a hearing: the engine convenes a
+	// petition's or a position's when a close's read reports it owed, so it is answered by a filing
+	// that stood unheard at its opening, and one with none is a stray. `docket` is the one occasion the
+	// chair dispatches: a bench register of it is a party's sitting, answered by a row like any other,
+	// and one no row convened is a stray.
+	engineConvened := func(r sitting) bool {
+		if !record.SeatOwesOccasion(r.seat) {
+			return false
+		}
+		switch r.occasion {
+		case "terminal", "assemble":
+			return true
+		case "petition", "position":
+			return slices.Contains(record.BenchOwedBefore(fam.Events, fam.At, r.pos), r.occasion)
+		}
+		return false
 	}
 	var strays, absent, unmeasured []string
 	for k, g := range groups {
@@ -135,7 +137,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			if r.pos <= g.Last || r.pos >= end {
 				continue
 			}
-			if r.seat == "red-chair" || engineConvened(r.seat, r.occasion) {
+			if r.seat == "red-chair" || engineConvened(r) {
 				continue
 			}
 			// A BENCH SITTING NO REGISTER STATED AN OCCASION IN is not judged: whether the engine
@@ -144,9 +146,9 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			if occasionsMeasured && record.SeatOwesOccasion(r.seat) && r.occasion == "" {
 				continue
 			}
-			// The bench is a party for the occasions its row convened it for, and only those: a
-			// petition sitting under a row that convened a docket answers nothing the chair asked.
-			if party[r.seat] && (!occasionsMeasured || !record.SeatOwesOccasion(r.seat) || slices.Contains(g.PartyRows[r.seat].Occasions, r.occasion)) {
+			// The bench is a party for its docket and nothing else: a hearing no filing called for
+			// answers nothing the chair asked.
+			if party[r.seat] && (!occasionsMeasured || !record.SeatOwesOccasion(r.seat) || r.occasion == docketOccasion) {
 				continue
 			}
 			// An unmeasured bench register keeps the old positional exemption: on a record
@@ -155,14 +157,14 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 				continue
 			}
 			if party[r.seat] {
-				strays = append(strays, fmt.Sprintf("%s sat for %s after dispatch %d, whose row convened it for %s", r.seat, r.occasion, k+1, setOf(g.PartyRows[r.seat].Occasions)))
+				strays = append(strays, fmt.Sprintf("%s sat for %s after dispatch %d, whose row convened it for its docket, and no filing stood unheard", r.seat, r.occasion, k+1))
 				continue
 			}
 			strays = append(strays, fmt.Sprintf("%s sat after dispatch %d and was not a party to it", r.seat, k+1))
 		}
 		for _, p := range g.Parties {
-			// A BENCH DISPATCHED FOR AN OCCASION MUST HAVE SAT FOR *THAT*, and the occasion is
-			// what makes the question answerable.
+			// A BENCH DISPATCHED ON ITS DOCKET MUST HAVE SAT FOR *THAT*, and the occasion is what makes
+			// the question answerable.
 			//
 			// `Sat` is the party's first sitting opened after the dispatch. In the FINAL group the
 			// bench's closing sittings — the terminal disposition and the assembly — register in
@@ -170,30 +172,21 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			// separable from a docket ruling by id. So a bench dispatched onto a gap and never
 			// sitting was SATISFIED BY ITS OWN BOOKEND, and "the bench sat" became unfalsifiable
 			// on any run whose last dispatching chair sitting engaged it. The register that
-			// answers a chair's dispatch is the one whose occasion the row convened the bench for
-			// — EACH of them: a row convening it for a petition and a docket is sat twice, and a
-			// petition-only row (no gaps) is answered by a petition sitting, not a docket one.
+			// answers a chair's dispatch is a docket one: a hearing does not answer it either.
 			if record.SeatOwesOccasion(p) {
 				if !occasionsMeasured {
 					unmeasured = append(unmeasured, fmt.Sprintf("%s was named in dispatch %d and its sitting is NOT MEASURED — this record predates the register's occasion, so the bench's closing sittings cannot be told from a docket ruling", p, k+1))
 					continue
 				}
-				convened := g.PartyRows[p].Occasions
-				if len(convened) == 0 {
-					absent = append(absent, fmt.Sprintf("%s was named in dispatch %d by a row that convenes it for no occasion — nothing says which sitting answers it", p, k+1))
-					continue
+				sat := false
+				for _, r := range regs {
+					if r.seat == p && r.occasion == docketOccasion && r.pos > g.Last && r.pos < end {
+						sat = true
+						break
+					}
 				}
-				for _, occ := range convened {
-					sat := false
-					for _, r := range regs {
-						if r.seat == p && r.occasion == occ && r.pos > g.Last && r.pos < end {
-							sat = true
-							break
-						}
-					}
-					if !sat {
-						absent = append(absent, fmt.Sprintf("%s was named in dispatch %d for %s and recorded no %s sitting before the next — its closing sittings do not answer a dispatch", p, k+1, occ, occ))
-					}
+				if !sat {
+					absent = append(absent, fmt.Sprintf("%s was named in dispatch %d for docket and recorded no docket sitting before the next — its closing sittings do not answer a dispatch", p, k+1))
 				}
 				continue
 			}
@@ -228,6 +221,9 @@ func noJournalNote() string {
 	return " — no workflow journal, so the relayed plans were NOT compared with the plans the record stored"
 }
 
+// docketOccasion is the one occasion the chair convenes the bench for.
+const docketOccasion = "docket"
+
 // relayedPlans is every chair result's plan in the journal, in journal order. The chair's envelope
 // IS the plan: the plan's fields at its top level, and beside them `notes`, the chair's line to the
 // operator, which is the engine's and no field of the plan.
@@ -239,6 +235,7 @@ func relayedPlans(results []map[string]any) []map[string]any {
 		}
 		plan := maps.Clone(r)
 		delete(plan, "notes")
+		delete(plan, "record_read")
 		out = append(out, plan)
 	}
 	return out
@@ -304,19 +301,4 @@ func differing(a, b string) []string {
 		}
 	}
 	return out
-}
-
-// setOf renders xs as a sorted, de-duplicated list: the form both sides of a set comparison are
-// named in.
-func setOf(xs []string) string {
-	seen := map[string]bool{}
-	var s []string
-	for _, x := range xs {
-		if !seen[x] {
-			seen[x] = true
-			s = append(s, x)
-		}
-	}
-	sort.Strings(s)
-	return "[" + strings.Join(s, ", ") + "]"
 }

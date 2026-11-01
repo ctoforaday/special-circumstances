@@ -534,7 +534,7 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 	// An inquiry has no filing event — the proposal is the filing — so an id that resolves to an
 	// inquiry IS an inquiry motion by construction.
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-		if err := requireInquiryRef(q, id); err != nil {
+		if err := requireInquiryRef(q, id, "--id"); err != nil {
 			return "", err
 		}
 		return motionSubjectWord(subject), nil

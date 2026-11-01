@@ -295,7 +295,7 @@ func (r *runner) takeOverruled() string {
 }
 
 // positionOracle holds every position the chair filed on a PASS it withheld to its route: the bench
-// rules it, at the position sitting a plan convened or at the terminal sitting. A halted run is
+// rules it, at the position sitting the engine convened or at the terminal sitting. A halted run is
 // exempt, as the petition oracle exempts it. "" when it holds.
 func (r *runner) positionOracle(halted bool) string {
 	if halted {
@@ -306,7 +306,7 @@ func (r *runner) positionOracle(halted bool) string {
 		case !ruled:
 			return fmt.Sprintf("position oracle: the chair withheld a PASS its plan permitted and filed position %s, and the bench never ruled it", id)
 		case at != "position" && at != "terminal":
-			return fmt.Sprintf("position oracle: position %s was ruled at the %s sitting — the plan convenes the bench for it, or the terminal sitting hears it at the exit", id, at)
+			return fmt.Sprintf("position oracle: position %s was ruled at the %s sitting — the engine hears it as soon as nothing is running, or the terminal sitting hears it at the exit", id, at)
 		}
 	}
 	return ""
@@ -371,8 +371,11 @@ func TestTheDrivesBenchRulesThePositionItHears(t *testing.T) {
 // the overruled one, and records the PASS its plan permits.
 func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 	r, last := converseRun(t, redClosesAndWithholdsEarly)
-	if last.Ceiling || len(last.Parties) != 1 || last.Parties[0].SeatID != "judge" || len(last.Parties[0].Occasions) != 1 || last.Parties[0].Occasions[0] != "position" {
-		t.Fatalf("the plan after the position = %+v, want the bench convened for the position alone", last)
+	if last.Ceiling || len(last.Parties) != 0 {
+		t.Fatalf("the plan after the position = %+v, want nobody on it: a hearing is on no plan", last)
+	}
+	if read, err := record.ReadRecord(r.run()); err != nil || !slices.Equal(read.BenchOwed, []record.BenchHearing{"position"}) {
+		t.Fatalf("the record's read after the position = %+v (%v), want the position owed alone", read, err)
 	}
 	id := r.unruledPositions()[0]
 	r.dispatchSits("bench", "judge", "position")

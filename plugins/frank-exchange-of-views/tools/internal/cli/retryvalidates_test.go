@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,6 +16,13 @@ import (
 var repeatedWords = strings.TrimPrefix(seat.Repeated(""), " — ")
 
 // corroborateArgs is a supports_with_bridge corroboration of the seeded sentence, with extra flags.
+// stating is args with flag's value replaced, for a retry that states one field otherwise.
+func stating(args []string, flag, value string) []string {
+	out := slices.Clone(args)
+	out[slices.Index(out, flag)+1] = value
+	return out
+}
+
 func corroborateArgs(runDir string, extra ...string) []string {
 	return append([]string{"corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/bridged", "--title", "A Bridged Source",
@@ -32,7 +40,7 @@ func TestACorroborationRetryIsHeldToTheReadingItRepeats(t *testing.T) {
 
 	// A retry naming another title is a second statement of the act, and is refused naming both.
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_VERIFY)
-	if _, err := run(t, append(corroborateArgs(runDir, first...), "--title", "Another Title")...); err == nil ||
+	if _, err := run(t, stating(corroborateArgs(runDir, first...), "--title", "Another Title")...); err == nil ||
 		feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), `--title "A Bridged Source"`) ||
 		!strings.Contains(err.Error(), `--title "Another Title"`) {
 		t.Errorf("a retry naming another title = %v; want a conflict naming both titles", err)
@@ -145,7 +153,7 @@ func TestACiteKeyNamesOneCitation(t *testing.T) {
 		"url":         {base("https://y", "The measured latency is bounded."), `--url "https://x"`},
 		"source-span": {base("https://x", "The measured latency is bounded.", "--source-span", "src"), "no --source-span"},
 		"quote":       {base("https://x", "The queue drains in order."), `--quote "The measured latency is bounded."`},
-		"title":       {base("https://x", "The measured latency is bounded.", "--title", "U"), `--title "T"`},
+		"title":       {stating(base("https://x", "The measured latency is bounded."), "--title", "U"), `--title "T"`},
 		"reason":      {base("https://x", "The measured latency is bounded.", "--reason", "it says so"), "no --reason"},
 	} {
 		if _, err := run(t, c.args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), c.names) {

@@ -182,17 +182,17 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 // RequireInquiryRef refuses a reference to an inquiry no proposal created — the same discipline
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
-func RequireInquiryRef(run Run, id string) error {
+func RequireInquiryRef(run Run, id, flag string) error {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return err
 	}
-	return requireInquiryRef(db, id)
+	return requireInquiryRef(db, id, flag)
 }
 
 // requireInquiryRef is RequireInquiryRef asked of q — the write path's transaction, or the run's
 // handle.
-func requireInquiryRef(q recordsql.Querier, id string) error {
+func requireInquiryRef(q recordsql.Querier, id, flag string) error {
 	if id == "" {
 		return nil
 	}
@@ -205,7 +205,7 @@ func requireInquiryRef(q recordsql.Querier, id string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("--id names inquiry %s, which no inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
+	return fmt.Errorf("%s names inquiry %s, which no inquiry event proposed — a dangling reference is accepted here and dropped at replay", flag, id)
 }
 
 // StaleInquiriesOf returns the inquiries that still owe a fate: every `proposed` one, and every

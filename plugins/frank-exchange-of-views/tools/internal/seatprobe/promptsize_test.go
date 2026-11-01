@@ -127,8 +127,8 @@ import (
 // characters more on the paragraph every lens receives, which this ruling's 10,614 had no room for.
 // red-lens-evidence rises to its measured size, 10,616; the other ceilings hold.
 // Raised 2026-10-31 for the owner's ruling that a docket comes after the lens's re-audit. A prompt no
-// longer names the closings owed from the plan, which a seat earlier in the epoch can overtake: every
-// party's prompt sends it to its work list on every sitting, and what a closing argues moved to its
+// longer names the closings owed from the plan, which a seat earlier in the epoch can overtake: a
+// party the plan holds one owed by is sent to its work list, and what a closing argues moved to its
 // constitution. The chair's sentence naming who the dispatch readies names the lens's place ahead of any
 // docket, its shortest wording.
 // The lens's engaged clause scopes the null turn to the gaps it is engaged on, the JOB that a gap with

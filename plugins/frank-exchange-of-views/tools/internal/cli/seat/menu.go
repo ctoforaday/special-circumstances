@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // A REFUSAL SAYS WHAT WENT WRONG FIRST, THEN TEACHES THE SURFACE. Never a bare list, never help
@@ -230,6 +231,13 @@ func RefuseBadValue(c *cobra.Command, f *pflag.Flag, given, said string, carries
 		d += "\n\n" + usageOf(c, f)
 	}
 	return &Refusal{Diagnosis: d, Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
+}
+
+// RefuseRepeatedFlag is the refusal for a flag stated twice: both values, and the flag's own usage
+// line, which says what the one value it takes is.
+func RefuseRepeatedFlag(c *cobra.Command, r *flags.Repeat) error {
+	said := r.Said()
+	return &Refusal{Diagnosis: said + "\n\n" + usageOf(c, r.Flag), Path: c.CommandPath(), Lists: listsOf(c), Cause: feov.Errorf(feov.Validation, "%s", said)}
 }
 
 // article puts "a" or "an" before a type word: `an int`, `a bool`.

@@ -31,12 +31,11 @@ func TestTheBenchFilesNoPetition(t *testing.T) {
 	}
 }
 
-// A PETITION A LENS FILES ON THE RECORD CONVENES THE BENCH AT THE NEXT CHAIR SITTING (#1203). A lens
-// returns prose, so the record is the only channel its petition has: the verb wrote the motion and
-// `dispatch next` readied nobody, and the petition waited for an exit that might never rule it.
-// Driven through the real verbs: the lens files, the chair's plan readies the bench for a PETITION
-// sitting and relays the motion as a bench-owned blocker; the bench sits for it and rules; the next
-// plan readies nobody for it.
+// A PETITION A LENS FILES ON THE RECORD IS OWED A HEARING BY THE RECORD'S READ (#1203). A lens's
+// envelope carries nothing a seat composed, so the record is the only channel its petition has.
+// Driven through the real verbs: the lens files, the read owes a petition sitting and the chair's plan
+// relays the motion as a bench-owned blocker, with the bench on no plan; the bench sits for it and
+// rules; the next plan holds nothing for it.
 func TestAPetitionALensFilesConvenesTheBench(t *testing.T) {
 	runDir := newRun(t)
 	stageEvents(t, runDir)
@@ -60,12 +59,15 @@ func TestAPetitionALensFilesConvenesTheBench(t *testing.T) {
 		t.Fatalf("dispatch next: %v\n%s", err, out)
 	}
 	plan := planOf(t, out)
-	i := slices.IndexFunc(plan.Parties, func(p record.Party) bool { return p.SeatID == "judge" })
-	if i < 0 {
-		t.Fatalf("the plan readies no bench for petition %s: parties %+v, why %q", id, plan.Parties, plan.Why)
+	if slices.ContainsFunc(plan.Parties, func(p record.Party) bool { return p.SeatID == "judge" }) {
+		t.Errorf("the plan readies the bench for petition %s: parties %+v — a hearing is on no plan", id, plan.Parties)
 	}
-	if bench := plan.Parties[i]; !slices.Equal(bench.Occasions, []string{"petition"}) || len(bench.GapIDs) != 0 {
-		t.Errorf("bench party = %+v, want occasions [petition] and no gaps", bench)
+	read, err := record.ReadRecord(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(read.BenchOwed, []record.BenchHearing{"petition"}) {
+		t.Errorf("the record's read owes %v, want a petition sitting for %s", read.BenchOwed, id)
 	}
 	if !slices.Contains(plan.Blockers, record.PlanBlocker{Kind: record.BlockerUnruledMotion, Subject: id, Owner: "judge"}) {
 		t.Errorf("plan.blockers = %+v, want %s owned by the bench", plan.Blockers, id)
@@ -77,11 +79,11 @@ func TestAPetitionALensFilesConvenesTheBench(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.ContainsFunc(rows, func(e *record.Event) bool {
+	if slices.ContainsFunc(rows, func(e *record.Event) bool {
 		d, _ := recordpb.BodyAs[*recordpb.Dispatch](e)
-		return d.GetSeatId() == "judge" && len(d.GetGapIds()) == 0
+		return d.GetSeatId() == "judge"
 	}) {
-		t.Errorf("the record holds no dispatch row for the bench — the readiness the plan printed is not on the record")
+		t.Errorf("the record holds a dispatch row for the bench — a hearing is on no plan, so nothing dispatched it")
 	}
 
 	// The bench sits for it and rules it; the chair's next plan readies nobody for it.

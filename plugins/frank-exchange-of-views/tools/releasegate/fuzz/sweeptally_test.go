@@ -161,6 +161,9 @@ type runTally struct {
 	DocketedClosesRefused      int                       `json:"docketed_closes_refused"`
 	DocketedOffList            int                       `json:"docketed_off_list"`
 	BenchRegrades              int                       `json:"bench_regrades"`
+	HearingsAfterChair         int                       `json:"hearings_after_chair"`
+	HearingsAfterLens          int                       `json:"hearings_after_lens"`
+	HearingsAfterBlue          int                       `json:"hearings_after_blue"`
 	LockRefused                int                       `json:"lock_refused"`
 	LockLifted                 int                       `json:"lock_lifted"`
 	GroundsRefused             int                       `json:"grounds_refused"`
@@ -195,6 +198,7 @@ func tallyOf(o outcome) runTally {
 		TrifleRemandsRouted: o.trifleRemandsRouted, BlueRemandActs: o.blueRemandActs,
 		PastLimitRemandsRefused: o.pastLimitRemandsRefused, RemandHolds: o.remandHolds, RemandReleases: o.remandReleases, LensTurns: o.lensTurns, LensWaits: o.lensWaits,
 		LensAlone: o.lensAlone, DocketsAfterAudit: o.docketsAfterAudit, DocketedClosesRefused: o.docketedClosesRefused, DocketedOffList: o.docketedOffList,
+		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
 	}
@@ -551,6 +555,8 @@ type sweepFold struct {
 	lensAlone, docketsAfterAudit                    int
 	docketedClosesRefused, docketedOffList          int
 	benchRegrades, lockRefused, lockLifted          int
+	hearingsAfterChair, hearingsAfterLens           int
+	hearingsAfterBlue                               int
 	groundsRefused, groundsAdmitted                 int
 	applyMisses, estoppelMisses                     map[string]int
 	partRefused                                     map[string]int
@@ -680,6 +686,9 @@ func foldRuns(runs []runTally) sweepFold {
 		f.docketedClosesRefused += r.DocketedClosesRefused
 		f.docketedOffList += r.DocketedOffList
 		f.benchRegrades += r.BenchRegrades
+		f.hearingsAfterChair += r.HearingsAfterChair
+		f.hearingsAfterLens += r.HearingsAfterLens
+		f.hearingsAfterBlue += r.HearingsAfterBlue
 		f.lockRefused += r.LockRefused
 		f.lockLifted += r.LockLifted
 		f.groundsRefused += r.GroundsRefused
@@ -1011,6 +1020,13 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		t.Logf("docket order: %d lens-alone engagement(s), %d docket(s) after the lens sat, %d close(s) of a docketed gap refused, %d docketed gap(s) held off a list", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList)
 		if f.lensAlone == 0 || f.docketsAfterAudit == 0 || f.docketedClosesRefused == 0 || f.docketedOffList == 0 {
 			t.Errorf("fuzz drove %d lens-alone engagement(s), %d docket(s) after the lens sat, %d refused close(s) of a docketed gap and %d docketed gap(s) held off a list across %d runs — the docket order is unexercised on one side (false green)", f.lensAlone, f.docketsAfterAudit, f.docketedClosesRefused, f.docketedOffList, f.completed)
+		}
+		// THE BENCH HEARS AT EVERY BARRIER (gblock, 2026-10-31): after the chair, after the lenses, after
+		// blue. A chair draws a petition, and each other barrier has a seed whose party files one by
+		// construction (petitionSeatOf), so a count at zero is a barrier the engine stopped hearing at.
+		t.Logf("hearings: %d after the chair, %d after the lenses, %d after blue", f.hearingsAfterChair, f.hearingsAfterLens, f.hearingsAfterBlue)
+		if f.hearingsAfterChair == 0 || f.hearingsAfterLens == 0 || f.hearingsAfterBlue == 0 {
+			t.Errorf("fuzz drove %d hearing(s) after the chair, %d after the lenses (forced on seed %d) and %d after blue (seed %d) across %d runs — each must be nonzero, or a barrier the engine hears at is unexercised (false green)", f.hearingsAfterChair, f.hearingsAfterLens, lensPetitionSeed, f.hearingsAfterBlue, bluePetitionSeed, f.completed)
 		}
 		// THE BENCH'S ORDERS ON THE RECORD (gblock, 2026-10-30): the bench sets a grade while it hears
 		// the gap, the minting lens may not move it, and a ruled gap comes back on new grounds only.

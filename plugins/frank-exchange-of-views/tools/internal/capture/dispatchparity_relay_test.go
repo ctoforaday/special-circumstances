@@ -88,13 +88,11 @@ func dispatchedRun(t *testing.T, sittings int, petition, sit bool) (record.Run, 
 			if !sit {
 				break
 			}
-			if len(party.Occasions) == 0 {
-				seed(party.SeatID, &recordpb.Register{})
+			reg := &recordpb.Register{}
+			if party.SeatID == "judge" {
+				reg.Occasion = recordpb.Occasion_OCCASION_DOCKET.Enum()
 			}
-			for _, w := range party.Occasions {
-				o, _ := record.OccasionOf(w)
-				seed(party.SeatID, &recordpb.Register{Occasion: o.Enum()})
-			}
+			seed(party.SeatID, reg)
 		}
 	}
 	return run, plans
@@ -145,9 +143,9 @@ func TestARelayAlteredInAnyFieldDeparts(t *testing.T) {
 	}
 }
 
-// A KEY THE PLAN DOES NOT DECLARE IS A RELAY ALTERED ON THE WAY; a lens's empty `occasions` is not,
-// because absent and empty are one state there.
-func TestARelayCarryingAnUndeclaredKeyDepartsAndALenssEmptyOccasionsDoesNot(t *testing.T) {
+// A KEY THE PLAN DOES NOT DECLARE IS A RELAY ALTERED ON THE WAY; the hook's `record_read` and the chair's
+// `notes` sit beside the plan and are no part of it.
+func TestARelayCarryingAnUndeclaredKeyDepartsAndTheReadDoesNot(t *testing.T) {
 	run, plans := storedRun(t, 1, false)
 	r := relayed(t, plans[0])
 	r["nested"] = map[string]any{}
@@ -155,11 +153,10 @@ func TestARelayCarryingAnUndeclaredKeyDepartsAndALenssEmptyOccasionsDoesNot(t *t
 		t.Fatalf("an undeclared key = %s: %s", a.Verdict, a.Detail)
 	}
 	r = relayed(t, plans[0])
-	for _, p := range r["parties"].([]any) {
-		p.(map[string]any)["occasions"] = []any{}
-	}
+	r["record_read"] = map[string]any{"event": 1, "bench_owed": []any{}, "halted": false}
+	r["notes"] = "the chair's line"
 	if a := DispatchParityAudit(run, journalOf(t, r), true); a.Verdict != "PASS" {
-		t.Fatalf("a lens's empty occasions = %s: %s", a.Verdict, a.Detail)
+		t.Fatalf("a relay with the read and notes beside it = %s: %s", a.Verdict, a.Detail)
 	}
 }
 
@@ -174,7 +171,7 @@ func TestARelayOfAPlanTheSittingMovedPastDeparts(t *testing.T) {
 	if a := DispatchParityAudit(run, journalOf(t, relayed(t, plans[0])), true); a.Verdict != "PASS" {
 		t.Fatalf("the last plan of the sitting = %s: %s", a.Verdict, a.Detail)
 	}
-	if a := DispatchParityAudit(run, journalOf(t, relayed(t, stored[0].Plan)), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "epoch 1: the relayed plan departs from the plan the record stored last in that sitting on key, parties, blockers, why") {
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, stored[0].Plan)), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "epoch 1: the relayed plan departs from the plan the record stored last in that sitting on key, blockers, why") {
 		t.Fatalf("the plan before the petition = %s: %s", a.Verdict, a.Detail)
 	}
 }

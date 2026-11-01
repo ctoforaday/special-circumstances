@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -142,7 +143,7 @@ func newFinding() *cobra.Command {
 	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
 		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, a contradiction red recorded, or a computation; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it whether or not the report still holds the sentence, and the gap minted from the finding answers it. A finding about a computation answers no judgement of it: the gap about the computation carries an unsound one")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a gap id, a contradiction's id, which show evidence lists under unanswered_contradictions, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }

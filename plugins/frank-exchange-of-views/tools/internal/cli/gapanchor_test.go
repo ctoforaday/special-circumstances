@@ -28,10 +28,16 @@ func mintQuote(t *testing.T, runDir, key, quote string, extra ...string) (string
 	t.Helper()
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	out, err := runMint(t, append([]string{"--run", runDir, "--seat-id", lensSeat,
-		"--key", key, "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
-		"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
-		"--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", quote}, extra...)...)
+	args := []string{"--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote}
+	for _, d := range [][2]string{{"--class", "spec_underspecification"}, {"--problem", "the defect"}, {"--fix", "the fix"},
+		{"--check-kind", "document"}, {"--check", "the acceptance check"}, {"--severity", "medium"},
+		{"--likelihood", "medium"}, {"--impact", "medium"}, {"--complexity", "low"}} {
+		// extra states this gap otherwise: a flag is given once.
+		if !slices.Contains(extra, d[0]) {
+			args = append(args, d[0], d[1])
+		}
+	}
+	out, err := runMint(t, append(args, extra...)...)
 	return gapID(out), err
 }
 
