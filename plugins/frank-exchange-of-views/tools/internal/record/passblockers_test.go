@@ -53,10 +53,10 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
-		{"proof judged unsound", BlockerFailedCheck, true, true, func(b *stage) {
+		{"computation judged unsound", BlockerFailedCheck, true, true, func(b *stage) {
 			// judged in the lens's last sitting, at the head, with its gap minted, so nothing else holds.
-			b.proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
-				add(evLens, aboutProof("G-1", "P-1"))
+			b.computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND).
+				add(evLens, aboutComputation("G-1", "K-1"))
 		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
@@ -89,6 +89,16 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"unruled petition", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add("blue-respond", petitionMotion("M1"))
 		}, false},
+		// A WITHHELD PASS IS HEARD (positionheard.go): the chair's position at a sitting whose plan
+		// permitted the PASS is a motion the bench rules, and the bench's upheld ruling naming a lens
+		// holds the PASS until that lens has audited its area.
+		{"unruled position on a withheld PASS", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.withhold("A-00000001")
+		}, false},
+		{"upheld position naming a lens", BlockerUpheldPosition, true, true, func(b *stage) {
+			b.withhold("A-00000001").benchRegister(recordpb.Occasion_OCCASION_POSITION).
+				add(benchSeat, positionRuling("A-00000001", recordpb.PositionRuling_POSITION_RULING_UPHELD, evLens, nil, "the leaf"))
+		}, false},
 		{"unruled grade motion, the chair's gavel", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
@@ -99,6 +109,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		}, true},
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
+		}, true},
+		// AN UNRULED INQUIRY IS NO MOTION, so it is on no list and holds no PASS: its ruling is what
+		// creates the motion (motionsAt). The review is here because the proposal owes one.
+		{"an unruled inquiry holds nothing", "", true, true, func(b *stage) {
+			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
+				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
+			b.add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")})
 		}, true},
 	}
 	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,

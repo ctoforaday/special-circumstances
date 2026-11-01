@@ -23,12 +23,12 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 	for _, tb := range archiveTarballs(t) {
 		run := strings.TrimSuffix(filepath.Base(tb), ".tar.gz")
 		res, dst := migrateArchive(t, filepath.Base(tb))
-		_, haveBase, _, err := record.ReportProjection(dst)
+		haveParts, err := record.ReportHasParts(dst)
 		if err != nil {
 			t.Fatal(err)
 		}
 		md := ""
-		if haveBase {
+		if haveParts {
 			if md, err = reportproj.RenderFromRecord(dst); err != nil {
 				t.Fatalf("%s: %v", run, err)
 			}
@@ -37,7 +37,7 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", run, err)
 		}
-		if !haveBase && len(board.Open)+len(board.Closed) > 0 && !slices.ContainsFunc(board.Anomalies, func(a string) bool { return strings.Contains(a, "does not render") }) {
+		if !haveParts && len(board.Open)+len(board.Closed) > 0 && !slices.ContainsFunc(board.Anomalies, func(a string) bool { return strings.Contains(a, "does not render") }) {
 			t.Errorf("%s: its gaps read unrendered and the board's anomalies do not say why: %v", run, board.Anomalies)
 		}
 		line := []string{run}
@@ -53,7 +53,7 @@ func TestEveryArchivedGapHasANamedLocation(t *testing.T) {
 				continue
 			}
 			switch {
-			case !haveBase && g.LocationState != record.LocationUnrendered:
+			case !haveParts && g.LocationState != record.LocationUnrendered:
 				t.Errorf("%s %s: a run with no base reads %q, want unrendered", run, g.ID, g.LocationState)
 			case g.LocationState == record.LocationMarked:
 				tok := anchor.Token(g.ID)

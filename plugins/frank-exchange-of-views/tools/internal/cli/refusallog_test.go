@@ -81,7 +81,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	// the report" and "your replacement carries , and …": the writer took the token out, and with it
 	// the anchor. Each kind is refused here through the real path, and the entry must still say which.
 	t.Run("an anchor the refusal names is in the entry, as its id and never as a token", func(t *testing.T) {
-		for _, id := range []string{"F-0e004c80", "C-0e004c80", "P-0e004c80", "G-ec5568ed"} {
+		for _, id := range []string{"F-0e004c80", "C-0e004c80", "K-0e004c80", "G-ec5568ed"} {
 			runDir := seatRun(t)
 			if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", id); err == nil {
 				t.Fatalf("show report --anchor %s on a report without it was accepted", id)
@@ -106,7 +106,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 		if len(got) != 1 {
 			t.Fatalf("want one refusal entry, got %d: %q", len(got), got)
 		}
-		if !strings.Contains(got[0], "`C-…`, `F-…`, `P-…` or `G-…` token") || strings.Contains(got[0], "<!--") || strings.Contains(got[0], "``") {
+		if !strings.Contains(got[0], "`C-…`, `F-…`, `K-…` or `G-…` token") || strings.Contains(got[0], "<!--") || strings.Contains(got[0], "``") {
 			t.Errorf("the entry lost the token shapes the refusal named, or carries a token: %s", got[0])
 		}
 	})
@@ -115,7 +115,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 		cmd := NewRootFor("blue-respond")
 		cmd.SetArgs([]string{"--run", runDir, "--seat-id", "blue-respond"})
 		_ = cmd.ParseFlags([]string{"--run", runDir, "--seat-id", "blue-respond"})
-		noteRefusal(cmd, record.ToolLogged(errString("the proof would not run")))
+		noteRefusal(cmd, record.ToolLogged(errString("the computation would not run")))
 		if got := refusals(t, runDir); len(got) != 0 {
 			t.Fatalf("a refusal marked as already logged was logged again: %q", got)
 		}

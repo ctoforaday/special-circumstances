@@ -64,16 +64,16 @@ type gtGap struct {
 }
 
 type groundTruth struct {
-	order         []string
-	gaps          map[string]*gtGap
-	findingLabels map[string]bool
-	placedIDs     map[string]bool // every act that stored a quote, so an Anchor event owes its marker
-	anchorEvIDs   map[string]bool
-	proofIDs      map[string]bool
-	citeEvents    int
-	verifyEvents  int
-	inquiries     map[string]string // inquiry id -> last status word
-	observations  int
+	order          []string
+	gaps           map[string]*gtGap
+	findingLabels  map[string]bool
+	placedIDs      map[string]bool // every act that stored a quote, so an Anchor event owes its marker
+	anchorEvIDs    map[string]bool
+	computationIDs map[string]bool
+	citeEvents     int
+	verifyEvents   int
+	inquiries      map[string]string // inquiry id -> last status word
+	observations   int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
 	// `continue` past one: the miss and the honest zero are the same silence, and this fold's
@@ -93,12 +93,12 @@ func closesSet() map[string]bool {
 
 func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
-		gaps:          map[string]*gtGap{},
-		findingLabels: map[string]bool{},
-		placedIDs:     map[string]bool{},
-		anchorEvIDs:   map[string]bool{},
-		proofIDs:      map[string]bool{},
-		inquiries:     map[string]string{},
+		gaps:           map[string]*gtGap{},
+		findingLabels:  map[string]bool{},
+		placedIDs:      map[string]bool{},
+		anchorEvIDs:    map[string]bool{},
+		computationIDs: map[string]bool{},
+		inquiries:      map[string]string{},
 	}
 	closes := closesSet()
 	// THE DOCKET RULING'S GAP RIDES ITS FILING, and this walk is single-pass over the events as
@@ -255,9 +255,9 @@ func walk(events []*record.Event) *groundTruth {
 			if id := m.GetId(); id != "" {
 				gt.anchorEvIDs[id] = true
 			}
-		case *recordpb.Proof:
-			if id := m.GetProofId(); id != "" {
-				gt.proofIDs[id] = true
+		case *recordpb.Computation:
+			if id := m.GetComputationId(); id != "" {
+				gt.computationIDs[id] = true
 				if m.GetLocation() != "" {
 					gt.placedIDs[id] = true
 				}
@@ -510,7 +510,7 @@ func Check(run record.Run) ([]string, error) {
 	// ---- the anchor layer ----
 	//
 	// The report-token↔events bijection lived here: it read the marker tokens PRESENT in
-	// blue/report.md and matched them against the cite/finding/proof events, to catch a torn splice
+	// blue/report.md and matched them against the cite/finding/computation events, to catch a torn splice
 	// (a token on the page no event backs) or an orphan (an event whose marker never rendered).
 	// Under report-as-record (#709) the report IS the projection of these events — render places
 	// only recorded markers, and derives every token from an event — so both directions hold by

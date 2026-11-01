@@ -547,7 +547,7 @@ func TestNoRenderedPromptSpellsAFlag(t *testing.T) {
 	// This gate skipped anything that was not a `.golden`, so the CONSTITUTIONS — which a seat
 	// receives as its system prompt, and which are agent-facing by definition — were never checked
 	// for flags at all. Found by reading them rather than by any failure. They carried
-	// `fetch --url <the cited url>`, `prove --quote "<the sentence>" --script <path>
+	// `fetch --url <the cited url>`, `compute --quote "<the sentence>" --dir <bundle>
 	// [--answers <gap>]`, `--supersedes <that gap>`, `blue cite --quote … --url <u> --title <t>`,
 	// and `--check-kind document | computation | source` — the last of which is quoted in THIS
 	// TEST'S OWN comment above as the example of what must not survive a strip.
@@ -746,7 +746,7 @@ func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {
 //
 // Measured on 2026-08-13, before this gate existed. The map carried rows for `blue dispute`,
 // `merge dispute-respond`, `<seat> petition`, `bench petition-rule` and `blue confidence` — all
-// retired or moved — and had NO row for `blue prove`, `blue edit`, `lens reproduce`,
+// retired or moved — and had NO row for `blue compute`, `blue edit`, `lens reproduce`,
 // `lens verify`, `bench assemble`, `bench halt` or any of
 // the seven motion commands. Roughly a third of the live surface was undocumented while a third
 // of the document described a tree that no longer existed.
@@ -771,7 +771,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 
 	// Every backticked token in a table row's FIRST cell that looks like a command path.
 	documented := map[string]bool{}
-	pathTok := regexp.MustCompile("`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`")
+	pathTok := regexp.MustCompile("`((?:lens|chair|blue|lane|bench|motion) [a-z][a-z -]*)`")
 	for _, line := range strings.Split(string(b), "\n") {
 		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
 			continue
@@ -797,7 +797,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// "root command a prompt names" would take a second prompt scan and the honest cost of that is
 	// a rule stated in one place instead of enforced in two. Stated rather than left as a silent
 	// hole.
-	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|bench|motion) `)
+	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|lane|bench|motion) `)
 	real := map[string]bool{}
 	var missing []string
 	for _, p := range cli.CommandPaths() {
@@ -830,7 +830,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// (~~`blue dispute`~~) are DELIBERATE history — the map records what a collapse retired and
 	// why — so they are exempt by the strikethrough, which is a mark the author makes on purpose.
 	struck := map[string]bool{}
-	for _, m := range regexp.MustCompile("~~`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
+	for _, m := range regexp.MustCompile("~~`((?:lens|chair|blue|lane|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
 		struck[strings.TrimSpace(m[1])] = true
 	}
 	var stale []string

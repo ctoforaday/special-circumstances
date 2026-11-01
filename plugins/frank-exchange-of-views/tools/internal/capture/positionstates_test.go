@@ -40,7 +40,7 @@ func storedPlan(permitted bool) *recordpb.Plan {
 // pending: the audit above is the reader that reports that. So both transcript forms hold exactly
 // one RED section per position on the record, and no BLUE section: blue files none.
 func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
-	position := &recordpb.Position{Text: proto.String("why the PASS is withheld")}
+	position := &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("why the PASS is withheld")}
 	type act struct {
 		seat string
 		body proto.Message
@@ -53,6 +53,9 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		return append(out, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent)}})
 	}
 	withheld := sits("chair-a", storedPlan(true), position)
+	// The bench overrules the position: the chair's next sitting owes the verdict (gblock, 2026-10-30).
+	overruled := append(append([]act{}, withheld...), act{"judge", &recordpb.MotionRule{MotionId: proto.String(position.GetPositionId()), Opinion: proto.String("the objection does not hold"),
+		Ruling: &recordpb.MotionRule_Position{Position: &recordpb.PositionHearing{Ruling: recordpb.PositionRuling_POSITION_RULING_OVERRULED.Enum()}}}})
 	type want struct {
 		states  []record.PositionState
 		verdict string
@@ -80,6 +83,18 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 				detail: []string{"red-chair sitting 2", "shows no position so far", "NOT MEASURED"}},
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
 				detail: []string{"red-chair sitting 2, which withheld the PASS its plan permitted, filed no position"}},
+		},
+		"overruled, the next sitting closed with no verdict": {
+			acts: append(append([]act{}, overruled...), sits("chair-b", storedPlan(true))...),
+			running: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed with no verdict"}},
+			after: want{states: []record.PositionState{record.PositionFiled, record.PositionVerdictMissing}, verdict: "FAIL",
+				detail: []string{"red-chair sitting 2, its first after the bench overruled its position " + position.GetPositionId() + ", closed with no verdict"}},
+		},
+		"overruled, the next sitting recorded the PASS": {
+			acts:    append(append([]act{}, overruled...), sits("chair-b", storedPlan(true), &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})...),
+			running: want{states: []record.PositionState{record.PositionFiled, record.PositionNotOwed}, verdict: "PASS"},
+			after:   want{states: []record.PositionState{record.PositionFiled, record.PositionNotOwed}, verdict: "PASS"},
 		},
 		"the PASS recorded": {
 			acts:    sits("chair-a", storedPlan(true), &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
@@ -176,10 +191,26 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// The chair's work list holds no item for the position itself; the sitting after an
+			// overruling holds the verdict it owes, while it has recorded none.
+			owesVerdict := false
+			for _, st := range c.after.states {
+				owesVerdict = owesVerdict || st == record.PositionVerdictMissing
+			}
+			verdictItem := false
 			for _, it := range cw.Sitting.Open {
-				if strings.Contains(it.What, "position") {
+				if strings.Contains(it.What, "the bench overruled your position") {
+					verdictItem = true
+					continue
+				}
+				// The heard position stands unruled as a motion the bench holds, and the PASS gate's
+				// blocker for it is on the list as every blocker is; that is not a duty to file one.
+				if strings.Contains(it.What, "position") && !strings.Contains(it.What, "(position, ruled by the bench seat) was filed and never ruled") {
 					t.Errorf("the chair's work list holds a position item: %q", it.What)
 				}
+			}
+			if verdictItem != owesVerdict {
+				t.Errorf("the chair's work list holds the overruled verdict item: %v; the sitting owes the verdict: %v", verdictItem, owesVerdict)
 			}
 		})
 	}

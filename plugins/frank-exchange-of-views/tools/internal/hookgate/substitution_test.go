@@ -15,37 +15,37 @@ func TestABacktickTheShellWouldRunIsRefused(t *testing.T) {
 		name, command string
 		deny          bool
 	}{
-		// MEASURED: blue-respond's manifest row. `edit`, `retire` and `prove` ran; the row lost them.
+		// MEASURED: blue-respond's manifest row. `edit`, `retire` and `compute` ran; the row lost them.
 		{"measured manifest-row, aliased binary", "B=\"/r/.bin/feov-record\"\n\"$B\" --seat-id blue-respond manifest-row --id G3 --reason \"the correct sequence is edit-to-bare-anchor then `retire` with the pre-edit quote\"", true},
 		// MEASURED: red-lens-logic's finding. `factor 91` ran and its output was pasted in.
 		{"measured finding", "\"/r/.bin/feov-record\" finding --quote \"91\" --reason \"confirmed with `factor 91` and `openssl prime 91`\"", true},
 		{"backtick in another free-text flag", "feov-record mint --fix \"replace it with `x`\" --reason 'r'", true},
 		// A backtick in COMMAND context is a substitution the seat wrote as one — #510's judge
 		// captured the tool's own output this way — so it is not refused.
-		{"backtick in command context is a command", "cites=`feov-record show evidence`\nfeov-record prove --cites \"$cites\" --reason 'r'", false},
-		{"unquoted heredoc body runs its backticks", "X=$(cat <<EOF\nwe ran `prove`\nEOF\n)\nfeov-record position --reason \"$X\"", true},
+		{"backtick in command context is a command", "cites=`feov-record show evidence`\nfeov-record compute --cites \"$cites\" --reason 'r'", false},
+		{"unquoted heredoc body runs its backticks", "X=$(cat <<EOF\nwe ran `compute`\nEOF\n)\nfeov-record position --reason \"$X\"", true},
 
-		{"escaped backtick in double quotes", "feov-record position --reason \"uses \\`prove\\` here\"", false},
-		{"single quotes are literal", "feov-record position --reason 'uses `prove` here'", false},
+		{"escaped backtick in double quotes", "feov-record position --reason \"uses \\`compute\\` here\"", false},
+		{"single quotes are literal", "feov-record position --reason 'uses `compute` here'", false},
 		// THE TAUGHT FORM, in both spellings a seat writes it.
-		{"quoted heredoc captured into a variable", "X=$(cat <<'EOF'\nuses `prove`, and the report's figures\nEOF\n)\nfeov-record position --reason \"$X\"", false},
-		{"quoted heredoc inline inside double quotes", "feov-record position --reason \"$(cat <<'EOF'\nuses `prove`\nEOF\n)\"", false},
-		{"double-quoted delimiter", "X=$(cat <<\"EOF\"\n`prove`\nEOF\n)\nfeov-record position --reason \"$X\"", false},
-		{"backslashed delimiter", "X=$(cat <<\\EOF\n`prove`\nEOF\n)\nfeov-record position --reason \"$X\"", false},
-		{"dash heredoc, quoted, tab-indented", "X=$(cat <<-'EOF'\n\t`prove`\n\tEOF\n)\nfeov-record position --reason \"$X\"", false},
-		{"a comment is not run", "feov-record position --reason x # see `prove`", false},
+		{"quoted heredoc captured into a variable", "X=$(cat <<'EOF'\nuses `compute`, and the report's figures\nEOF\n)\nfeov-record position --reason \"$X\"", false},
+		{"quoted heredoc inline inside double quotes", "feov-record position --reason \"$(cat <<'EOF'\nuses `compute`\nEOF\n)\"", false},
+		{"double-quoted delimiter", "X=$(cat <<\"EOF\"\n`compute`\nEOF\n)\nfeov-record position --reason \"$X\"", false},
+		{"backslashed delimiter", "X=$(cat <<\\EOF\n`compute`\nEOF\n)\nfeov-record position --reason \"$X\"", false},
+		{"dash heredoc, quoted, tab-indented", "X=$(cat <<-'EOF'\n\t`compute`\n\tEOF\n)\nfeov-record position --reason \"$X\"", false},
+		{"a comment is not run", "feov-record position --reason x # see `compute`", false},
 		{"$( ) is a capture, not a stray backtick", "feov-record position --reason \"$(date)\"", false},
 		{"apostrophes inside double quotes", "feov-record position --reason \"the report's figures don't move\"", false},
 
 		// HERE-STRINGS. `<<<` is not a heredoc: its word is ordinary quoting on the same line.
-		{"double-quoted here-string runs its backtick", "feov-record x --reason \"$(cat)\" <<< \"it uses `prove`\"", true},
-		{"a here-string does not swallow the lines after it", "feov-record x --reason \"$(cat)\" <<< \"ok\"\nfeov-record y --reason \"a `prove`\"", true},
-		{"single-quoted here-string is literal", "feov-record x --reason \"$(cat)\" <<< 'it uses `prove`'", false},
+		{"double-quoted here-string runs its backtick", "feov-record x --reason \"$(cat)\" <<< \"it uses `compute`\"", true},
+		{"a here-string does not swallow the lines after it", "feov-record x --reason \"$(cat)\" <<< \"ok\"\nfeov-record y --reason \"a `compute`\"", true},
+		{"single-quoted here-string is literal", "feov-record x --reason \"$(cat)\" <<< 'it uses `compute`'", false},
 		// ANSI-C QUOTES. `\'` does not end `$'…'`, and what follows it is scanned in step.
-		{"escaped apostrophe in $'' then double quotes", "feov-record x --reason $'don\\'t' \"see `prove`\"", true},
+		{"escaped apostrophe in $'' then double quotes", "feov-record x --reason $'don\\'t' \"see `compute`\"", true},
 		{"$'' holding a double quote, then a single-quoted backtick", "feov-record x --reason $'a\\'\"' '  b `x` '", false},
-		{"$'' is literal", "feov-record x --reason $'uses `prove` here'", false},
-		{"an unterminated quote refuses any backtick after it", "feov-record x --reason \"a\" 'b `prove`", true},
+		{"$'' is literal", "feov-record x --reason $'uses `compute` here'", false},
+		{"an unterminated quote refuses any backtick after it", "feov-record x --reason \"a\" 'b `compute`", true},
 		// NESTED QUOTING inside text: ${ } and $( ) each open their own.
 		{"double quotes nested in ${ } in double quotes", "feov-record x --reason \"${v:-\"`x`\"}\"", true},
 		{"a case pattern's ) does not close $( )", "feov-record x --reason \"$(case x in x) echo \"`x`\";; esac)\"", true},

@@ -280,14 +280,14 @@ func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
 
 // A PATTERN THAT NAMES AN ANCHOR FINDS NOTHING, AND THE EMPTY ANSWER SAYS WHERE AN ANCHOR IS READ.
 //
-// universe m18: the chair quoted `gap:G-b1643c6b` and the synthesizer matched `cite:|proof:`. Each
+// universe m18: the chair quoted `gap:G-b1643c6b` and the synthesizer matched `cite:|computation:`. Each
 // got the answer a pattern the report does not hold gets, while the token was on the page. The
 // selectors read the text with its anchors out — that is what lets `negligible.` cross two of them,
-// and what keeps a hunt for the WORD `proof` off every line that carries a proof anchor — so the
+// and what keeps a hunt for the WORD `computation` off every line that carries a computation anchor — so the
 // read is unchanged and its miss is told apart: it counts the lines that hold the match inside a
 // token and names --anchor. A pattern the report does not hold at all gets no such sentence.
 func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T) {
-	const body = "# Findings\n\nOverhead is negligible<!--fx:F-eee49716-->.\n\nThe proof is short<!--proof:P-0a0a0a0a-->.\n\nNo anchor here.\n"
+	const body = "# Findings\n\nOverhead is negligible<!--fx:F-eee49716-->.\n\nThe computation is short<!--computation:K-0a0a0a0a-->.\n\nNo anchor here.\n"
 	runDir := seatRunReport(t, body)
 	show := func(t *testing.T, args ...string) string {
 		t.Helper()
@@ -299,7 +299,7 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 	}
 	for _, tc := range []struct{ name, flag, value, count string }{
 		{"an anchor id as a quote", "--quote", "fx:F-eee49716", "1 line(s)"},
-		{"anchor kinds as an alternation", "--match", "fx:|proof:", "2 line(s)"},
+		{"anchor kinds as an alternation", "--match", "fx:|computation:", "2 line(s)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out := show(t, tc.flag, tc.value)
@@ -330,8 +330,8 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 		}
 	})
 	t.Run("the kind WORD still reads the text, not the tokens", func(t *testing.T) {
-		out := show(t, "--match", "proof")
-		if !strings.Contains(out, "The proof is short") || !strings.Contains(out, "_1 line(s) match") {
+		out := show(t, "--match", "computation")
+		if !strings.Contains(out, "The computation is short") || !strings.Contains(out, "_1 line(s) match") {
 			t.Errorf("a hunt for the word hit a line on its anchor's kind, or missed the sentence:\n%s", out)
 		}
 	})

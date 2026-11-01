@@ -61,7 +61,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		// left to dangle — the ruling names the motion and the motion carries its own filer.
 		// What can still dangle is the motion id, which is what this now checks.
 		{"motion petition rule --id", "which no filing created", []string{"motion", "petition", "rule",
-			"--seat-id", "judge", "--id", "M9", "--as", "granted", "--reason", "o"}},
+			"--seat-id", "judge", "--id", "M9", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "o"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)

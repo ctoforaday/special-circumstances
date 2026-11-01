@@ -56,8 +56,8 @@ const (
 // loud statement that it could not be rendered.
 //
 // IT RETURNS NOTHING RATHER THAN A PLACEHOLDER WHERE THE SEAT IS UNKNOWABLE. blue-researcher seats
-// three seats — the frontier, the lanes, blue-respond — so nothing but that seat's own register can
-// say which one sat; an injection there would have to guess. Silence is the honest answer and costs
+// two seats — the frontier and blue-respond — and blue-lane every lane, so nothing but that seat's
+// own register can say which one sat; an injection there would have to guess. Silence is the honest answer and costs
 // blue exactly the call it already paid.
 //
 // A WRITE FAULT IS NOT THIS FUNCTION'S TO REPORT. The caller has already appended the span and

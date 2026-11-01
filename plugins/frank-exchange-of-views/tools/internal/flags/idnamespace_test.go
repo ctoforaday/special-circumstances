@@ -15,10 +15,10 @@ import (
 // CAN ONE --id CARRY EVERY ID? (gblock: "I'm ok for a single id to support all of the ids. That's
 // good. We can prove no collision." — and "some IDs on one flag and others on another make no sense.")
 //
-// `--id` means a gap, a motion, an inquiry and a proof digest depending on the verb, while `--anchor`
+// `--id` means a gap, a motion, an inquiry and a computation digest depending on the verb, while `--anchor`
 // and `--sha` carry more kinds under their own names (#1172). Consolidating them onto one flag that
 // resolves by SHAPE is sound only if the shapes decide a value unambiguously — so this is the
-// proof, and it is over the shapes the flag package declares rather than a second table written to
+// computation, and it is over the shapes the flag package declares rather than a second table written to
 // match them.
 //
 // THE ANSWER IS "YES, BY THE LETTER". Every id is one shape, <LETTER>-<8 hex>, and the letter is the
@@ -30,12 +30,12 @@ import (
 // idShapes is every shaped id value the flag package offers, by the name its Type reports.
 func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
-		"gap-id":          GapID,
-		"motion-id":       MotionID,
-		"inquiry-id":      InquiryID,
-		"anchor":          AnchorID,
-		"citation-anchor": CitationAnchor,
-		"proof-anchor":    ProofAnchor,
+		"gap-id":             GapID,
+		"motion-id":          MotionID,
+		"inquiry-id":         InquiryID,
+		"anchor":             AnchorID,
+		"citation-anchor":    CitationAnchor,
+		"computation-anchor": ComputationAnchor,
 	}
 }
 
@@ -51,7 +51,7 @@ var minted = []struct {
 }{
 	{"finding", []string{"anchor"}},
 	{"citation", []string{"anchor", "citation-anchor"}},
-	{"proof", []string{"anchor", "proof-anchor"}},
+	{"computation", []string{"anchor", "computation-anchor"}},
 	{"gap", []string{"anchor", "gap-id"}},
 	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
@@ -92,12 +92,12 @@ func TestOneIDFlagCanResolveEveryIDByShape(t *testing.T) {
 			}
 		}
 	}
-	// A digest is not an id, and no id shape takes one: `reproduce` names a proof by its anchor.
-	sum := sha256.Sum256([]byte("a stored proof run"))
+	// A digest is not an id, and no id shape takes one: `reproduce` names a computation by its anchor.
+	sum := sha256.Sum256([]byte("a stored computation run"))
 	digest := hex.EncodeToString(sum[:])
 	for name, mk := range shapes {
 		if accepts(mk, digest) {
-			t.Errorf("a proof digest on a %s flag was accepted — the sha is the tool's to derive from the anchor", name)
+			t.Errorf("a computation digest on a %s flag was accepted — the sha is the tool's to derive from the anchor", name)
 		}
 	}
 	// EVERY DECLARED SHAPE ACCEPTS SOMETHING THE TOOL MINTS. A shape that describes nothing cannot
@@ -166,7 +166,7 @@ func TestASpecialisationNarrowsAndIsNotMutual(t *testing.T) {
 		}
 	}
 	if narrowed != 3 {
-		t.Errorf("%d specialisations, want 3 (citation-anchor, proof-anchor and gap-id, each narrowing anchor)", narrowed)
+		t.Errorf("%d specialisations, want 3 (citation-anchor, computation-anchor and gap-id, each narrowing anchor)", narrowed)
 	}
 }
 

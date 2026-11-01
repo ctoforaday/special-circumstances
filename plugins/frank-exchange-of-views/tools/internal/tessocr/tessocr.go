@@ -41,6 +41,15 @@ const (
 	engTraineddataPin = "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
 )
 
+// cstackPin is the digest of the whole C-stack recipe: every pin in PINS.txt (the zig toolchain
+// and the libc it links, cmake, the image codecs, the two libraries, the traineddata) and
+// build-cstack.sh, which holds the compiler flags. The named pins above leave all of those out,
+// and each moves a reading's bytes — a libc's float formatting, a codec's decode — so a stack
+// rebuilt on Zig 0.17 (#1598) kept the identity of the stack built on 0.16. It is typed, not
+// computed, because neither file is in this package for embed to reach; TestIdentityMatchesPins
+// recomputes it and prints the new value when the recipe moves.
+const cstackPin = "484e7942d3c4"
+
 // engineSource is this package's own source, embedded so the identity can hash it. The
 // pattern takes test files too — embed cannot exclude them — and hashEngineSource drops
 // them, since a test changes no byte a reading produces.
@@ -80,9 +89,9 @@ func hashEngineSource(fsys fs.FS) string {
 
 // Identity is the engine key a ReadingRecord carries (plan goal 3, the #636 extractor
 // model), and it names EVERYTHING that decides a reading's bytes: the two C libraries,
-// the language data, and this package's own code — segmentation modes, grid thresholds,
-// reconstruction, the fallback gate, the shim's calls into tesseract, and the
-// normalisation and assembly of the text. The last is a hash of the package source, so a
+// the language data, the rest of the C stack and how it was built (cstackPin), and this
+// package's own code — segmentation modes, grid thresholds, reconstruction, the fallback
+// gate, the shim's calls into tesseract, and the normalisation and assembly of the text. The last is a hash of the package source, so a
 // change to any of them yields a new identity and a stored reading stops matching instead
 // of silently disagreeing with what the current binary would produce (#644: the pins
 // alone left every one of those free to move under an unchanged key).
@@ -92,7 +101,7 @@ func hashEngineSource(fsys fs.FS) string {
 // one served as current.
 func Identity() string {
 	return "tesseract@" + tesseractPin + "+leptonica@" + leptonicaPin +
-		"+eng@" + engTraineddataPin[:12] + "+tessocr@" + engineSourceHash
+		"+eng@" + engTraineddataPin[:12] + "+cstack@" + cstackPin + "+tessocr@" + engineSourceHash
 }
 
 // ErrNotCompiledIn is returned by every engine entry point when the binary was built

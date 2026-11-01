@@ -14,7 +14,7 @@ import (
 // EVERY --id SAYS WHICH KIND OF ID IT WANTS (gblock: "fix --id or remove it where it can't be
 // supported", and "some IDs on one flag and others on another make no sense").
 //
-// `--id` carries a gap, a motion, an inquiry and a proof digest depending on the verb. That is fine —
+// `--id` carries a gap, a motion, an inquiry and a computation digest depending on the verb. That is fine —
 // internal/flags/idnamespace_test.go proves the shapes decide a value unambiguously — but only if each
 // verb SAYS which kind it takes, because the payoff of one flag is the refusal: "M1 is a motion id and
 // this verb takes a gap id" sends a seat to the right verb, where "invalid id" sends it to re-check

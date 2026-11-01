@@ -64,7 +64,7 @@ type Config struct {
 }
 
 // Run reproduces the mjs main(): the fail-fast gates (runDir→1; model tiers, launching session,
-// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary preflight→2),
+// epoch limit, another live run, a decided run uncaptured, pin miss, record-binary and client preflights→2),
 // then the run-dir build + mirrors + marker, then the summary. Returns the process exit code; writes to the given streams.
 func Run(cfg Config, stdout, stderr io.Writer) int {
 	if cfg.Git == nil {
@@ -239,6 +239,19 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "  (failing here costs a re-run; failing mid-run costs a seat its whole record)")
 		return 2
 	}
+	floor, err := clientFloor(recordBin)
+	if err != nil {
+		fmt.Fprintln(stderr, "run-setup: CLIENT PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %v\n", err)
+		fmt.Fprintln(stderr, "  remedy: reinstall the plugin so its requirements.json sits beside the binary")
+		return 2
+	}
+	if pre := PreflightClient(floor, cfg.Exec); !pre.OK {
+		fmt.Fprintln(stderr, "run-setup: CLIENT PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %s\n", pre.Reason)
+		fmt.Fprintf(stderr, "  remedy: %s\n", pre.Remedy)
+		return 2
+	}
 
 	// RESOLVED ONCE, BEFORE ANYTHING IS WRITTEN. Everything below used to take the raw string
 	// and each site decided for itself whether to make it absolute — so a run was laid out with
@@ -330,7 +343,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	wrapper := WriteRunWrapper(run, recordBin)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
-	fmt.Fprintln(stdout, "  skeleton: directories only — blue/report.md is the synthesizer's to write, report.md the assembler's")
+	fmt.Fprintln(stdout, "  skeleton: directories only — blue/candidates/<lane>.md is each lane's to write, report.md the assembler's")
 	// "red-merge-born" was true when the chair wrote those files. It stopped being true, and the
 	// line went on implying a writer would arrive — the same promise the husk stubs made.
 	fmt.Fprintln(stdout, "  NOT created (rendered from the record on read, never materialized): the ledger,")

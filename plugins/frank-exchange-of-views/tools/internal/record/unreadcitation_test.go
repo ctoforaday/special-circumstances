@@ -30,13 +30,13 @@ func TestEveryAnchorStateIsReached(t *testing.T) {
 		{"a citation read against", func() *stage {
 			return reopenedBoard(t).cite("C-2").verify(evLens, "C-2", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
 		}, "C-2", stateFoundAgainst},
-		{"a proof judged sound", func() *stage {
-			return reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND)
-		}, "P-1", stateHolds},
-		{"a proof nobody judged", func() *stage { return reopenedBoard(t).proof("P-1", "s1") }, "P-1", stateUnchecked},
-		{"a proof judged unsound", func() *stage {
-			return reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
-		}, "P-1", stateUnsound},
+		{"a computation judged sound", func() *stage {
+			return reopenedBoard(t).computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND)
+		}, "K-1", stateHolds},
+		{"a computation nobody judged", func() *stage { return reopenedBoard(t).computation("K-1", "s1") }, "K-1", stateUnchecked},
+		{"a computation judged unsound", func() *stage {
+			return reopenedBoard(t).computation("K-1", "s1").reproduce(evLens, "K-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_UNSOUND)
+		}, "K-1", stateUnsound},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := loadedT(t, c.build().evs...)
@@ -53,7 +53,7 @@ func TestEveryAnchorStateIsReached(t *testing.T) {
 
 // aboutAnchor is a material gap about anchor, by the lens whose check of it failed.
 func aboutAnchor(gap, anchor string) *recordpb.Mint {
-	m := aboutProof(gap, anchor)
+	m := aboutComputation(gap, anchor)
 	m.Severity = recordpb.Grade_GRADE_HIGH.Enum()
 	m.Problem = proto.String("the cited source could not be read, and the report still cites it")
 	return m

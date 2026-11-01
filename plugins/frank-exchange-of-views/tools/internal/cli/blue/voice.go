@@ -10,9 +10,9 @@ import (
 // renders each hit the one way every advising verb renders it (reportvoice.Found.String).
 //
 // EVERY SPAN-SIZED WRITER — `blue edit`'s --new, an inquiry's question, a fate's reason and
-// method, a proof's note, a citation's title. Each of these reaches report.md: edit through the
+// method, a computation's note, a citation's title. Each of these reaches report.md: edit through the
 // diff-stack, the inquiry fields through `inquiries()`, which composes Research areas,
-// Future research directions and Alternatives considered, and the proof note and source title
+// Future research directions and Alternatives considered, and the computation note and source title
 // through its note and the Bibliography. Blue is advised on the WHOLE list, the tells red's mint
 // refuses included: blue's writes are never refused, and a seat id in blue's prose is the same leak.
 //
@@ -20,10 +20,10 @@ import (
 // "this carries a lane tag" is the entire signal. `blue ingest` hands over a document, and uses the
 // census instead (#873).
 //
-// A verb whose text the report prints OUTSIDE the body — the proof note (a [^PN] footnote and its
+// A verb whose text the report prints OUTSIDE the body — the computation note (a [^KN] footnote and its
 // evidence.md heading) and the source title (its note and Bibliography entry) — renders the advice with
 // reportvoice.Note, naming where it lands. The 2026-09-11 is-91-prime run's lane drafts and frozen
-// base carried no tell, and its report.md carried four, every one in a proof footnote: the census
+// base carried no tell, and its report.md carried four, every one in a computation footnote: the census
 // that exempted the Bibliography counted it as the tool's text, and the note inside each entry is
 // the seat's.
 func spanVoiceTells(spans ...string) []string {

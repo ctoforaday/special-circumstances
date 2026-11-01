@@ -107,6 +107,13 @@ and the hash then certifies the blockade. Two spellings of one url — `%7E` for
 a default port, a fragment — are one resource under RFC 3986's normalisation (`SameResource`) and
 do not trip it.
 
+**Searching it.** `show source` — on blue's and the lenses' trees, as `fetch` is — searches one
+cached source's text, named by sha256 or by a citation's anchor, for a regex or a literal. It reads
+the texts `cite --source-span` is located in (the extraction, or each page of an OCR reading), in
+the locator's normalisation, case-insensitively. Each hit carries its byte offsets, the source's
+sentence around it, and that sentence as a `source_span` when the locator takes it as printed. Every
+hit is listed and counted, as every selector lists every match. It writes nothing.
+
 ## 2. Cite — putting it on the record
 
 `blue cite --url --quote --title [--source-span]` resolves the url through the same cache. It
@@ -132,20 +139,20 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   - `work_status`: standing, retracted, or not_checked.
   - `source_completeness`: full, abstract, unverified, not_the_work, or not_asked. Migrated runs
     carry `not_recorded` for the fields their epoch predates.
-- **The anchor leaves only by `retire`.** The report is a frozen base plus an ordered replay of edits and marker
+- **The anchor leaves only by `retire`.** The report is the lanes' parts plus an ordered replay of edits and marker
   inserts. `blue edit` refuses any span that would drop or split an anchor, or leave a citation's
   anchor bare with no prose before it in its sentence, so the set of `cite` events and the anchors
   in the text stay in one-to-one correspondence; the scorecard's `unbacked_citations` flags any
   divergence. A citation leaves by `blue retire --anchor` alone, which keeps its sentence word for
   word — how a cited sentence goes (retire its citations, then edit it out) and how a dead source
   gives way to a readable one. When blue rewrites the sentence around an anchor, the anchor stays.
-  A citation or proof red has checked is then **reopened** — unchecked again.
-- **A citation or proof is checked, or it holds the PASS.** The evidence view lists every one with
+  A citation or computation red has checked is then **reopened** — unchecked again.
+- **A citation or computation is checked, or it holds the PASS.** The evidence view lists every one with
   no check of the sentence the report carries under `unchecked` — never checked, or reopened, with
   the edit and its last check. Its owning lens — the evidence lens for a citation, the computation
-  lens for a proof — owes the check and is not retired while it does, and a PASS waits until a lens
+  lens for a computation — owes the check and is not retired while it does, and a PASS waits until a lens
   — that one or another — has checked it, from a sitting opened after the edit where there is one.
-  A cite or a proof moves no report head, so dispatch readies the owner for the anchor itself, once
+  A cite or a computation moves no report head, so dispatch readies the owner for the anchor itself, once
   per cause — the act that placed it, or the edit that reopened it: a citation blue places after its
   owner has sat is not left for a head move that may never come.
 - **A check that reads nothing is a failed check.** A verify `unreachable`, or any verdict on a
@@ -155,7 +162,7 @@ records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at th
   close while the citation stays unread — the close is refused, unless it names a successor with
   `--superseded-by`. A second reading by the same lens that again reads nothing, while its gap is
   open and the sentence unchanged, is refused. It clears when a reading reads the work, an edit
-  changes the sentence, or blue retires the citation. A proof judged unsound is the same blocker,
+  changes the sentence, or blue retires the citation. A computation judged unsound is the same blocker,
   and its gap does not close while the judgement stands.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
@@ -181,7 +188,7 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
 source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
-independent corroborations, the citations and proofs with no check of the sentence the report carries, and
+independent corroborations, the citations and computations with no check of the sentence the report carries, and
 contradictions nobody has raised a finding about.
 
 ## 4. Assembly — what the reader sees
@@ -254,7 +261,7 @@ from here.**
   (#247).
 - A retraction is known only where OpenAlex knows it, and only for sources with a doi. Everything
   else is `not_checked`, which is not reassurance.
-- An unchecked citation or proof is owed a check. The tool does not decide whether the rewritten
+- An unchecked citation or computation is owed a check. The tool does not decide whether the rewritten
   sentence is still what the source supports; red does, and a PASS waits for it, whether nobody ever
   checked the anchor or an edit reopened it.
 

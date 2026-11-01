@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -27,8 +28,9 @@ import (
 //
 // The channel copy comes FIRST: validation consults the run's own inputs (inputs/run-config.json,
 // the run's terms), and an act replayed into a run without them refuses, taking every later
-// reference to it down in a cascade. Everything except the database file set and an archived
-// class registry copies verbatim; the record is the one thing replay rebuilds.
+// reference to it down in a cascade. Everything except the database file set, an archived class
+// registry and the computation store copies verbatim; the record is what replay rebuilds, and the
+// store is rebuilt from it.
 //
 // A refusal publishes the run and its manifest and returns the manifest with an error. A failure
 // before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
@@ -128,6 +130,12 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	if err != nil {
 		return nil, err
 	}
+	// THE STORE IS BUILT FROM THE RECORD replay wrote: each computation's bundle and its own output,
+	// and each re-run a reproduce names (computations.go).
+	missing, err := writeStore(fromDir, toDir, res.computations, res.reruns)
+	if err != nil {
+		return nil, err
+	}
 	carried := 0
 	var sourceEpoch *int
 	if sq, ok := src.(*SQLiteSource); ok {
@@ -166,6 +174,7 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*migration.Mani
 	release = func() error { return nil }
 	m := NewManifest(fromDir, src.Files(), unclassified, res)
 	m.Discarded = discarded
+	m.MissingArtifacts = missing
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
 	if err := m.Write(toDir); err != nil {
@@ -200,12 +209,18 @@ func copyChannels(fromDir, toDir string) error {
 	// AN ARCHIVED RUN'S STAGED CLASS REGISTRY IS NOT A CHANNEL: a gap's class is a value of the
 	// closed GapClass set, and nothing reads the file.
 	skip[filepath.Join(fromDir, "records", "class-registry.json")] = true
+	// THE COMPUTATION STORE IS REBUILT FROM THE RECORD (writeStore): an archived proofs/ is the old
+	// layout, and computations/ holds staging and directories no event names, which are not copied.
+	skipTree := map[string]bool{filepath.Join(fromDir, "proofs"): true, filepath.Join(fromDir, compute.StoreDir): true}
 	return filepath.WalkDir(fromDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if skip[path] {
 			return nil
+		}
+		if skipTree[path] && d.IsDir() {
+			return filepath.SkipDir
 		}
 		// The era's shards are the old record, and the new record replaces them — copied
 		// beside the fresh database they would be two records claiming one run, the exact

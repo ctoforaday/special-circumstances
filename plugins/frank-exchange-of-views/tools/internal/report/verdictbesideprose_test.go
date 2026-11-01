@@ -24,7 +24,7 @@ func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Gate{
 			Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL),
 		}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")),
 			Text: proto.String("Nothing on the board is open. My verdict is PASS."),
 		}),
 	}
@@ -44,7 +44,7 @@ func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 // which is exactly the ceiling case that produced this defect.
 func TestAnEpochWithNoRecordedVerdictSaysSo(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("gap A stands")}),
 	}
 	got := debateT(t, evs)
 	if !strings.Contains(got, "NO VERDICT RECORDED") {

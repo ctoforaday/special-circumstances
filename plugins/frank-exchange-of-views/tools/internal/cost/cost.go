@@ -169,7 +169,7 @@ type Row struct {
 	// AgentID is the agent the transcript's own lines name (seatturn.Parse), never its file name.
 	AgentID string
 	Seat    string
-	// Occasion separates the BENCH's four sittings, which share one seat id. Without it the
+	// Occasion separates the BENCH's five sittings, which share one seat id. Without it the
 	// assembly's spend merges into a docket ruling's row — which happened, and which cost.go's own
 	// comment records happening once before under a different cause. Empty for every other seat.
 	Occasion string
@@ -241,7 +241,7 @@ type Bucket struct {
 func Aggregate(rows []Row) map[string]*Bucket {
 	agg := map[string]*Bucket{}
 	for _, r := range rows {
-		// THE OCCASION IS PART OF THE KEY, not decoration on the row. The bench's four sittings
+		// THE OCCASION IS PART OF THE KEY, not decoration on the row. The bench's five sittings
 		// share a seat id and differ only in what they were convened to do, so a key without it
 		// sums the assembly, the terminal disposition and every docket ruling into one line.
 		seat := r.Seat

@@ -106,8 +106,8 @@ func bodyID(e *recordpb.Event) string {
 	if b, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
 		return b.GetLabel()
 	}
-	if b, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
-		return b.GetProofId()
+	if b, ok := recordpb.BodyAs[*recordpb.Computation](e); ok {
+		return b.GetComputationId()
 	}
 	if b, ok := recordpb.BodyAs[*recordpb.Verify](e); ok {
 		return b.GetLabel()

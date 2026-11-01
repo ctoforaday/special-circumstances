@@ -63,6 +63,8 @@ var planEnums = map[reflect.Type]func() []string{
 		}
 		return out
 	},
+	reflect.TypeFor[BenchHearing]():    BenchHearings,
+	reflect.TypeFor[RecordedVerdict](): func() []string { return Names(MustEnum("outcome", "verdict").Values) },
 }
 
 // PlanFields is record.Plan's relayed fields in declaration order, nested structs included. A
@@ -101,6 +103,8 @@ func fieldsOf(t reflect.Type) []PlanField {
 				p.Of, p.Items = e, fieldsOf(e)
 			} else if p.Elem = jsonTypeOf(e); p.Elem == "" || p.Elem == "array" {
 				p.Defect = "its element type " + e.String() + " has no JSON type here"
+			} else if set, ok := planEnums[e]; ok {
+				p.Enum = set()
 			}
 		}
 		out = append(out, p)

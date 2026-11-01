@@ -17,8 +17,8 @@ import (
 // The acts, by the field each names the gap in:
 //
 //   - the minting lens: a regrade (one that keeps the grade included), a close, a closing, a finding
-//     about the gap, a mint superseding it, a judgement of a proof that answers it;
-//   - blue: an edit answering it, a proof answering it, a fate on the inquiry it is anchored on, a
+//     about the gap, a mint superseding it, a judgement of a computation that answers it;
+//   - blue: an edit answering it, a computation answering it, a fate on the inquiry it is anchored on, a
 //     closing;
 //   - either: a docket or grade motion on it.
 //
@@ -32,8 +32,8 @@ type gapAct struct {
 // gapActsOf is every act on each gap, in record order. ids are evs's places.
 func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 	out := map[string][]gapAct{}
-	proofGap := map[string]string{}     // a proof's anchor → the gap it answers
-	anchoredOn := map[string][]string{} // an inquiry → the gaps minted about it
+	computationGap := map[string]string{} // a computation's anchor → the gap it answers
+	anchoredOn := map[string][]string{}   // an inquiry → the gaps minted about it
 	for i, e := range evs {
 		var on []string
 		switch b := mustBody(e).(type) {
@@ -56,11 +56,11 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 			on = []string{b.GetAnswers()}
 		case *recordpb.Retire:
 			on = []string{retireAnswers(e)}
-		case *recordpb.Proof:
-			proofGap[b.GetProofId()] = b.GetAnswers()
+		case *recordpb.Computation:
+			computationGap[b.GetComputationId()] = b.GetAnswers()
 			on = []string{b.GetAnswers()}
 		case *recordpb.Reproduce:
-			on = []string{proofGap[b.GetProofId()]}
+			on = []string{computationGap[b.GetComputationId()]}
 		case *recordpb.Inquiry:
 			on = anchoredOn[b.GetInquiryId()]
 		case *recordpb.Motion:
@@ -76,7 +76,8 @@ func gapActsOf(evs []*Event, ids []int64) map[string][]gapAct {
 }
 
 // blueActed reports whether blue recorded one of acts in the places (after, upto]: whether the
-// round that spans them begins a remand's exchange.
+// round that spans them begins a remand's exchange, and whether the lens's turn has come
+// (lensTurnOn).
 func blueActed(acts []gapAct, after, upto int64) bool {
 	for _, a := range acts {
 		if a.at > after && a.at <= upto && seatclass.RoleOfSeat(a.seat) == "blue" {
@@ -84,6 +85,43 @@ func blueActed(acts []gapAct, after, upto int64) bool {
 		}
 	}
 	return false
+}
+
+// THE LENS'S TURN ON A GAP COMES WITH BLUE'S ACT (ruled by gblock 2026-10-30: #1603's rule — a
+// remand's exchange begins only on blue's act — applied to every exchange). The lens sits before
+// blue in an epoch, so a lens readied on a gap blue has not acted on since the lens's own last act
+// there audits an answer that does not exist yet: on universe-m36 every fresh gap readied its
+// minting lens and blue in the next epoch, and seven lens sittings recorded a keep-the-grade
+// regrade ("Blue has not edited the sentence since this gap was minted") before blue sat.
+//
+// lensTurnOn reports whether the minting lens's turn on a gap has come by upto: blue recorded an
+// act on it (gapActsOf) after the lens's latest act there — minted, the place of its mint, counts
+// as one, since the mint is not an act on the gap itself — and after floor, the gap's latest remand
+// ruling (0 for none), whose bench heard every answer before it. The plan engages the minting lens
+// on the gap only when it holds, and the exchange fold reads the lens's turn as passed when it does
+// not (exchangeFold), so a gap blue never acts on still reaches impasse.
+func lensTurnOn(acts []gapAct, lens string, minted, floor, upto int64) bool {
+	last := max(minted, floor)
+	for _, a := range acts {
+		if a.seat == lens && a.at <= upto {
+			last = max(last, a.at)
+		}
+	}
+	return blueActed(acts, last, upto)
+}
+
+// mintPlaces is the place of each gap's mint — its first, as mintedBy reads the minter. ids are
+// evs's places.
+func mintPlaces(evs []*Event, ids []int64) map[string]int64 {
+	out := map[string]int64{}
+	for i, e := range evs {
+		if m := e.GetMint(); m != nil && m.GetGapId() != "" {
+			if _, seen := out[m.GetGapId()]; !seen {
+				out[m.GetGapId()] = ids[i]
+			}
+		}
+	}
+	return out
 }
 
 // seatActedSince reports whether seat recorded one of acts after the place since.

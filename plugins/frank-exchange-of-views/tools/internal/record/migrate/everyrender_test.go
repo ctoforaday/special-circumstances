@@ -48,11 +48,11 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("%s: %d event(s) refused migrating; the first: %+v", run, len(res.Refusals), res.Refusals[0])
 		}
-		_, haveBase, _, err := record.ReportProjection(dst)
+		haveParts, err := record.ReportHasParts(dst)
 		if err != nil {
 			t.Fatalf("%s: reading the report projection: %v", run, err)
 		}
-		if !haveBase {
+		if !haveParts {
 			lines = append(lines, run+" no-base - - - -")
 			continue
 		}
@@ -67,9 +67,9 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 }
 
 // renderToken is an anchor token of any kind a render can hold.
-var renderToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([FCPG]-[0-9a-f]{8})-->`)
+var renderToken = regexp.MustCompile(`<!--(fx|cite|computation|gap):([FCKG]-[0-9a-f]{8})-->`)
 
-var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "proof": "proof", "gap": "gap"}
+var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "computation": "computation", "gap": "gap"}
 
 func digest(s string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) }
 
@@ -122,5 +122,5 @@ func markerCounts(md string) string {
 			bare++
 		}
 	}
-	return fmt.Sprintf("finding=%d citation=%d proof=%d gap=%d bare-gap=%d", n["finding"], n["citation"], n["proof"], n["gap"], bare)
+	return fmt.Sprintf("finding=%d citation=%d computation=%d gap=%d bare-gap=%d", n["finding"], n["citation"], n["computation"], n["gap"], bare)
 }

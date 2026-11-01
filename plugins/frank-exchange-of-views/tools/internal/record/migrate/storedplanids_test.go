@@ -150,8 +150,32 @@ func planPairsOf(t *testing.T, name string) (srcPlans, dstPlans []storedPlan, sr
 		return nil, dstPlans, nil, dst, res
 	}
 	sdb := openRO(t, srcDir)
-	return storedPlansOf(t, sdb), dstPlans, eventsByID(t, sdb), dst, res
+	src = eventsByID(t, sdb)
+	for id, e := range src {
+		src[id] = currentRow(e)
+	}
+	return storedPlansOf(t, sdb), dstPlans, src, dst, res
 }
+
+// currentRow is a source event as the record names it now: after epoch 49 a proof is a computation,
+// its key takes the word, and an anchor's key names the computation's id — the same hex under `K-`;
+// from epoch 52 the report's ingested text is its one part, and its key takes that word.
+func currentRow(e eventRow) eventRow {
+	if e.typ == "base_ingest" {
+		e.typ = "report_part"
+		e.key = strings.Replace(e.key, ":base_ingest:", ":report_part:", 1)
+	}
+	if e.typ == "proof" {
+		e.typ = "computation"
+		e.key = strings.Replace(e.key, ":proof:", ":computation:", 1)
+	}
+	if e.typ == "anchor" {
+		e.key = archivedProofAnchor.ReplaceAllString(e.key, ":anchor:K-$1")
+	}
+	return e
+}
+
+var archivedProofAnchor = regexp.MustCompile(`:anchor:P-([0-9a-f]{8})$`)
 
 // seatSpans is the seat words a plan's lines carry, in order: each Go-quoted span, each remand
 // line's tail after the prefix, and each remand's direction. It is the oracle's own scan; a quote

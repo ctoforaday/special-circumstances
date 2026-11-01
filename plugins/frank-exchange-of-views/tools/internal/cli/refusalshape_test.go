@@ -34,7 +34,7 @@ import (
 // surface and the operator's.
 
 // refusalLayers are the packages a command reaches, below internal/.
-var refusalLayers = []string{"cli", "record", "fetchcache", "proof", "report", "bluedoc", "reportproj", "view", "anchor", "anchortext", "flags"}
+var refusalLayers = []string{"cli", "record", "fetchcache", "compute", "report", "bluedoc", "reportproj", "view", "anchor", "anchortext", "flags"}
 
 // messageMakers are the calls whose string argument is a message: the error constructors, and the
 // formatters a message is built with before it reaches one.

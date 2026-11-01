@@ -647,7 +647,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1),
-		recordtest.At(t, merge, merge+":position", &recordpb.Position{Text: proto.String("red says so")}),
+		recordtest.At(t, merge, merge+":position", &recordpb.Position{PositionId: proto.String(record.NewID("position")), Text: proto.String("red says so")}),
 		// The gap has to EXIST before anything speaks about it — the closing statement and the
 		// bench opinion below both reference it, and both are foreign keys onto the mint.
 		recordtest.At(t, merge, merge+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -710,6 +710,17 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 				Final:       proto.Bool(true),
 			}},
 		}),
+		// The bench's ruling on the chair's position on a PASS it withheld binds as a petition
+		// ruling does: the LEAD row carries the ruling, the work it names and the direction.
+		recordtest.At(t, judge, judge+":motion-rule:A-0000000d", &recordpb.MotionRule{
+			MotionId: proto.String("A-0000000d"),
+			Opinion:  proto.String("the objection holds"),
+			Ruling: &recordpb.MotionRule_Position{Position: &recordpb.PositionHearing{
+				Ruling:    recordtest.P(recordpb.PositionRuling_POSITION_RULING_UPHELD),
+				Lens:      proto.String("red-lens-r1-logic"),
+				Direction: proto.String("check the inference in §2"),
+			}},
+		}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("C-00000abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
@@ -718,7 +729,8 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 
 	debate := md(t, runDir, "debate")
 	for _, want := range []string{"## Epoch 1", "### RED\nred says so", "### BLUE CLOSING (epoch 1) — G1\nblue says otherwise",
-		"### RED CLOSING (epoch 1) — G1", "### LEAD", "repaired — principle: correctness first"} {
+		"### RED CLOSING (epoch 1) — G1", "### LEAD", "repaired — principle: correctness first",
+		"- **POSITION A-0000000d UPHELD** — work: lens red-lens-r1-logic — direction: check the inference in §2\nthe objection holds"} {
 		if !strings.Contains(debate, want) {
 			t.Errorf("debate is missing %q:\n%s", want, debate)
 		}

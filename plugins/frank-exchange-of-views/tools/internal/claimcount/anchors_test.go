@@ -20,7 +20,7 @@ func TestFindingMarkersDoNotAffectCount(t *testing.T) {
 }
 
 // ProtectedAnchorIDs is the PRESENT set: the distinct ids of every anchor, walking the kinds
-// table in its order (finding, citation, proof) and each kind first-seen. A footnote reference is
+// table in its order (finding, citation, computation) and each kind first-seen. A footnote reference is
 // not an anchor, and a report with none yields none.
 func TestProtectedAnchorIDsWalksTheKindsTable(t *testing.T) {
 	for _, c := range []struct {
@@ -29,7 +29,7 @@ func TestProtectedAnchorIDsWalksTheKindsTable(t *testing.T) {
 	}{
 		{"findings, distinct and first-seen", "One.<!--fx:F-0000000a--> Two.<!--fx:F-0000000b--> Three.<!--fx:F-0000000a-->\n\nFour.[^L1]", []string{"F-0000000a", "F-0000000b"}},
 		{"citations, distinct and first-seen", "One.<!--cite:C-0000000a--> Two.<!--cite:C-0000000b--> Three.<!--cite:C-0000000a-->", []string{"C-0000000a", "C-0000000b"}},
-		{"kinds in table order, not text order", "A.<!--proof:P-00000001--> B<!--cite:C-00000001--><!--fx:F-00000001-->.", []string{"F-00000001", "C-00000001", "P-00000001"}},
+		{"kinds in table order, not text order", "A.<!--computation:K-00000001--> B<!--cite:C-00000001--><!--fx:F-00000001-->.", []string{"F-00000001", "C-00000001", "K-00000001"}},
 		{"none", "no markers here.[^L1]", nil},
 	} {
 		if got := ProtectedAnchorIDs(c.md); !reflect.DeepEqual(got, c.want) {

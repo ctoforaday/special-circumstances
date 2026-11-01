@@ -246,21 +246,6 @@ func TestCSVRefusesAnEmptyItem(t *testing.T) {
 	}
 }
 
-// pflag calls Set once per occurrence of a repeated flag, so a SECOND OCCURRENCE IS REFUSED: merging
-// would union two lists, and replacing would drop one the seat also stated. The first list stands.
-func TestCSVRefusesASecondOccurrence(t *testing.T) {
-	var c CSV
-	if err := c.Set("a,b,c"); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Set("x"); err == nil || !strings.Contains(err.Error(), "more than once") {
-		t.Fatalf("a second Set = %v; want it refused", err)
-	}
-	if got := c.Value(); len(got) != 3 || got[0] != "a" {
-		t.Errorf("Value() = %q after a refused second Set, want [a b c]", got)
-	}
-}
-
 func TestCSVStringRoundTrips(t *testing.T) {
 	var c CSV
 	if err := c.Set(" a , b , c "); err != nil {

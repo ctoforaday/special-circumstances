@@ -50,8 +50,9 @@ func New() *cobra.Command {
 		Long: Name + " reads an old run's record — including a vocabulary the record tool's readers refuse — translates " +
 			"each event through the authored registry, and replays them in order through the current write path under " +
 			"the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record " +
-			"feov-record of the same release could have written; run channels (inputs, proofs) copy verbatim, and " +
-			"inputs/" + migration.ManifestName + " records what was translated, refused, and accepted as loss. A refusal " +
+			"feov-record of the same release could have written; the inputs channel copies verbatim, the computation " +
+			"store is rebuilt for the computations the record holds, and inputs/" + migration.ManifestName + " records " +
+			"what was translated, refused, and accepted as loss, and each stored artifact the source lacked. A refusal " +
 			"exits non-zero and is the tool's OUTPUT — there is no flag that skips validation.\n\n" +
 			"IT WRITES THE EPOCH OF ITS RELEASE: this binary writes event-schema epoch " + fmt.Sprint(record.EventSchema) +
 			", the epoch of the feov-record it ships beside, and a migrated run is read with that feov-record. It is an " +
@@ -61,7 +62,7 @@ func New() *cobra.Command {
 			"states how many came over. The manifest also states the epoch the source declared beside the one this " +
 			"binary wrote, so the move the migration exists to make is a fact you can read rather than infer.\n\n" +
 			"THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (" + report.TextOrder + "), where that moves whole sections and " +
-			"nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and " +
+			"nothing else: each part of the report is reordered and every act replayed over the parts, and the result is kept when no act is refused and " +
 			"the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its " +
 			"author's order. The manifest's report_order says which: " + strings.Join([]string{migrate.OrderNoReport, migrate.OrderInOrder, migrate.OrderReordered, migrate.OrderAsWritten}, ", ") + ".\n\n" +
 			"THE RUN IS BUILT BESIDE --to AND MOVED INTO PLACE WHEN IT IS COMPLETE. It is built in a directory named " +
@@ -113,7 +114,13 @@ func Main(argv []string, stdout, stderr io.Writer) int {
 	c.SetArgs(argv)
 	c.SetOut(stdout)
 	c.SetErr(stderr)
-	err := c.Execute()
+	var err error
+	if repeat := flags.FirstRepeat(c, argv); repeat != nil {
+		_ = c.ParseFlags(argv)
+		err = feov.Errorf(feov.Validation, "%s", repeat.Said())
+	} else {
+		err = c.Execute()
+	}
 	if err == nil {
 		return 0
 	}
@@ -161,7 +168,7 @@ func printManifest(out io.Writer, m *migration.Manifest) {
 	case migrate.OrderReordered:
 		fmt.Fprintln(out, "  the report's text is brought into the order it ships in: whole sections moved, every act replayed over it")
 	case migrate.OrderAsWritten:
-		fmt.Fprintln(out, "  the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written: its acts, replayed over the base in order, do not give this text in order")
+		fmt.Fprintln(out, "  the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written: its acts, replayed over its parts in order, do not give this text in order")
 	}
 	for w, why := range m.Accepted {
 		fmt.Fprintf(out, "  accepted loss of %q: %s\n", w, why)

@@ -11,13 +11,13 @@ import (
 //
 // The refused rows are universe-m19's, shortened: ev358 quoted two sentences up to a finding anchor
 // and replaced them with the first, period included, and the finding stood on the wrong sentence;
-// ev434 and ev436 carried part of the run and ended the sentence before the proof anchor they left
+// ev434 and ev436 carried part of the run and ended the sentence before the computation anchor they left
 // out; ev435 reworded one sentence and closed it. The rows that apply are the nine clean stay-put
 // edits' shape and the edges of the sentence rule: no terminator, a terminator inside the
 // replacement, a cut to nothing, a run already past its sentence's terminator,
 // and a quote that carries the run.
 func TestAStayPutRunIsNotLeftOnASentenceTheReplacementEnded(t *testing.T) {
-	const f, g, p = "<!--fx:F-c8d53bf4-->", "<!--gap:G-e57a56f8-->", "<!--proof:P-c1c0989f-->"
+	const f, g, p = "<!--fx:F-c8d53bf4-->", "<!--gap:G-e57a56f8-->", "<!--computation:K-c1c0989f-->"
 	for _, tc := range []struct {
 		name, report, old, new string
 		refused                []string // the anchors the refusal names; none where the edit applies
@@ -30,15 +30,15 @@ func TestAStayPutRunIsNotLeftOnASentenceTheReplacementEnded(t *testing.T) {
 		{"m19 ev435: one sentence reworded and closed",
 			"It has no divisor and is therefore prime" + p + ". Next.\n",
 			"It has no divisor and is therefore prime", "It has no divisor, so 13 is prime.",
-			[]string{"P-c1c0989f"}, ""},
+			[]string{"K-c1c0989f"}, ""},
 		{"m19 ev434: the quote carries part of the run and the replacement closes before the rest",
 			"The test with base 3 passes" + g + f + p + ". Next.\n",
 			"The test with base 3 passes" + g + f, "Base 3 passes the test" + g + f + ".",
-			[]string{"P-c1c0989f"}, ""},
+			[]string{"K-c1c0989f"}, ""},
 		{"every anchor of the run is named",
 			"The test with base 3 passes" + g + f + p + ". Next.\n",
 			"The test with base 3 passes", "Base 3 passes the test!",
-			[]string{"G-e57a56f8", "F-c8d53bf4", "P-c1c0989f"}, ""},
+			[]string{"G-e57a56f8", "F-c8d53bf4", "K-c1c0989f"}, ""},
 		{"a reworded sentence left open applies", "The cost is four divisions and two scripts" + g + f + ". Next.\n",
 			"The cost is four divisions and two scripts", "The cost is four divisions",
 			nil, "The cost is four divisions" + g + f + ". Next.\n"},

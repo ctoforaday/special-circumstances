@@ -20,6 +20,7 @@ func Verbs() []*cobra.Command {
 		newHalt(),
 		newCertify(),
 		newDeclare(),
+		seat.Regrade("regrade-bench"),
 		newOutcome(),
 		newAssemble(),
 		seat.Log(),

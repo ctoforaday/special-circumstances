@@ -110,10 +110,10 @@ func TestBoardsAreCoherentSittings(t *testing.T) {
 			if g.Baits == "" || g.Why == "" {
 				t.Errorf("board %q gap %q does not say what it baits or why — then it is scenery, and scenery is what makes a board look thorough", name, g.Key)
 			}
-			// A computation-kind gap that baits anything but `prove` contradicts the write path:
-			// such a check closes ONLY on a proof, so no other verb can discharge it.
-			if g.CheckKind == "computation" && g.Baits != "prove" {
-				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes only on a proof", name, g.Key, g.Baits)
+			// A computation-kind gap that baits anything but `compute` contradicts the write path:
+			// such a check closes ONLY on a computation, so no other verb can discharge it.
+			if g.CheckKind == "computation" && g.Baits != "compute" {
+				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes only on a computation", name, g.Key, g.Baits)
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func surface() Surface { return NewSurface(cli.CommandPaths()) }
 //
 // MEASURED, AND IT IS WHY THIS EXISTS. The first probe run reported nineteen unmet expectations,
 // and THREE of them were unmeetable by construction: `adjudicate` expected `motion grade rule`
-// with no motion on the board, `lens-audit` expected `reproduce` with no proof recorded, and
+// with no motion on the board, `lens-audit` expected `reproduce` with no computation recorded, and
 // `sitting` expected `motion petition rule` with no petition filed. The seats were blamed in the
 // report for verbs they had no way to reach.
 //
@@ -182,7 +182,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"motion inquiry rule":  {"a proposed inquiry", func(b Board) bool { return len(b.Inquiries) > 0 }},
-		"reproduce":            {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
+		"reproduce":            {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
 		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"closing":              {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
@@ -204,7 +204,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		for _, e := range b.Expect {
 			n, tracked := needs[e.Verb]
 			if !tracked {
-				continue // verbs with no precondition: edit, cite, prove, log, mint, position …
+				continue // verbs with no precondition: edit, cite, compute, log, mint, position …
 			}
 			if !n.has(b) {
 				t.Errorf("board %q expects %q and does not carry %s.\n\n"+

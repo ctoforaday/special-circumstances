@@ -338,7 +338,11 @@ WHERE r."claim_kept" = 1;
 
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
--- and the research direction it states, which the DocketRuling CHECKs require of a remand.
+-- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
+-- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
+-- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
+-- remand too, on the ruling's direction, settling nothing, and the gap's one remand at impasse like
+-- any other.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -349,14 +353,26 @@ CREATE VIEW "remand" AS
 SELECT md."gap_id"                          AS "gap_id",
        mr."event_id"                        AS "event_id",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rd."direction"                       AS "direction"
+       rd."direction"                       AS "direction",
+       rd."settled"                         AS "settled"
 FROM "motion_docket" md
 JOIN "motion" mo ON mo."event_id" = md."event_id"
 JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
 JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 JOIN "events" e ON e."id" = mr."event_id"
-WHERE NOT d."closes";
+WHERE NOT d."closes"
+UNION ALL
+SELECT pg."value"                           AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rp."direction"                       AS "direction",
+       NULL                                 AS "settled"
+FROM "motion_rule_position_gap_ids" pg
+JOIN "motion_rule_position" rp ON rp."event_id" = pg."event_id"
+JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE rp."ruling" = 'upheld';
 
 -- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
@@ -560,14 +576,14 @@ SELECT
   gg."likelihood"                                                                     AS "current_likelihood",
   gg."impact"                                                                         AS "current_impact",
   gg."complexity_cost"                                                                AS "current_complexity_cost",
-  -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
-  -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
+  -- THE COMPUTATION JOIN, answered where every asker can share it: a 'computation' gap closes on
+  -- a recorded computation naming it in --answers, and "awaiting computation" is the debt list blue is
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
   -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
-  EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id")                      AS "proof_answered",
+  EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id")                      AS "computation_answered",
   (cx."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
-     AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
+     AND NOT EXISTS(SELECT 1 FROM "computation" p WHERE p."answers" = m."gap_id"))          AS "awaiting_computation",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
   -- bench and to key the bench's sitting on the filing; remanded and unruled_docket_motion (outer
@@ -591,6 +607,10 @@ SELECT
   -- its exchange.
   (SELECT r."direction" FROM "remand" r WHERE r."gap_id" = m."gap_id"
    ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_direction",
+  -- AND THE PROPOSITION THAT REMAND SETTLES: a remand closes nothing, and may still bar a party
+  -- from re-asserting what the bench decided on the way to sending the gap back.
+  (SELECT r."settled" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_settled",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.
@@ -770,23 +790,27 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
--- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
--- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
+-- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b, exact):
+--   append → a=a lane's part, as it ingested it; exact=0. On the empty text the part is the text;
+--            otherwise the text, its trailing newlines trimmed, a blank line, then the part.
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
 --            One row per anchor event: every act that places a marker — a finding, a gap, a
---            citation, a proof, a corroboration — appends one after its own event, so where an
+--            citation, a computation, a corroboration — appends one after its own event, so where an
 --            id is placed is read from one table.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; exact=0.
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
-  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
-         COALESCE(b."exact_span", 0) AS "exact"
+  SELECT e."id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+    FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  UNION ALL
+  SELECT e."id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0

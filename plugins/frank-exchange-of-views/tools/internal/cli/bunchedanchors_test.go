@@ -10,7 +10,7 @@ import (
 // A RUN CARRIED TO THE END OF A LONGER REPLACEMENT IS REFUSED WITH WHAT EACH ANCHOR MARKS, through
 // the verbs: one sentence holding an anchor of every kind is split in two with the whole run typed
 // after the second. The refusal prints, beside each token, the text the record holds about it — the
-// finding's argument, the citation's title and argument, the proof's argument, the gap's problem —
+// finding's argument, the citation's title and argument, the computation's argument, the gap's problem —
 // and the replacement's sentences, numbered; it never prints the sentence the run stood on, which
 // is every anchor's stored location and tells them apart by nothing. Nothing reaches the record,
 // and the same split with the anchors written on the sentences they belong to applies.
@@ -28,8 +28,8 @@ func TestABunchedRunIsRefusedWithWhatEachAnchorMarks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".",
-		"--script", script(t, runDir, "rise.js", "console.log(3-1)"), "--reason", "the difference of the two quarters is computed"); err != nil {
+	if _, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", acceptS+".",
+		"--dir", script(t, runDir, "rise.js", "console.log(3-1)"), "--reason", "the difference of the two quarters is computed", "--", "node", "rise.js"); err != nil {
 		t.Fatal(err)
 	}
 	before := readReport(t, runDir)

@@ -38,7 +38,7 @@ type idKind struct {
 	name string
 	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
 	// internal/flags where a flag takes this kind alone, and from the anchor kinds table flags
-	// itself reads where none does — a finding and a proof are named on the general anchor flag —
+	// itself reads where none does — a finding and a computation are named on the general anchor flag —
 	// never restated here: a matrix that exists to catch namespace drift cannot itself hold a
 	// second copy of the namespace.
 	pattern *regexp.Regexp
@@ -55,9 +55,10 @@ func idKinds() []idKind {
 		{name: "gap", pattern: flags.GapID().Shape(), anchored: true},
 		{name: "inquiry", pattern: flags.InquiryID().Shape()},
 		{name: "motion", pattern: flags.MotionID().Shape()},
+		{name: "position", pattern: flags.PositionID().Shape()},
 		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
 		{name: "finding", pattern: kindShape("finding"), anchored: true},
-		{name: "proof", pattern: kindShape("proof"), anchored: true},
+		{name: "computation", pattern: kindShape("computation"), anchored: true},
 	}
 }
 
@@ -224,14 +225,22 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 			}},
 		})
 		return err
+	case "position":
+		// A position is the chair's alone, and one per sitting: each goes onto a run of its own.
+		runDir = newRun(t)
+		if err := writeSeat(t, runDir); err != nil {
+			return err
+		}
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Position{PositionId: proto.String(id), Text: proto.String("why the PASS is withheld")})
+		return err
 	case "finding":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Finding{Id: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "citation":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, corroboration(id, "https://example.org/"+id, "the claim "+id+" bears on", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS))
 		return err
-	case "proof":
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Proof{ProofId: proto.String(id), ProofSha: proto.String("sha-" + id), Script: proto.String("s.py")})
+	case "computation":
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String(id), BundleSha: proto.String("sha-" + id)})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the write path is never shown an id of this kind", kind)

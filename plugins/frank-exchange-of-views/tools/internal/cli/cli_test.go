@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"maps"
@@ -167,7 +168,7 @@ func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err err
 	}
 }
 
-// seedBlueReport writes a blue/report.md whose prose contains the quoted sentences
+// seedBlueReport records a report whose prose contains the quoted sentences
 // the finding tests anchor to (slice 1b: a lens finding is rejected unless its
 // --quote quote is present in the report). One generous body covers the tokens
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
@@ -176,14 +177,7 @@ func seedBlueReport(t *testing.T, runDir string) {
 	body := "# One\n\n§1 first — a finding sits in sec 1 here.\n\n" +
 		"# Two\n\n§2 the finding prose lands in a quoted sentence.\n\n" +
 		"# Three\n\nthe parser accepts an empty body in this line.\n"
-	dir := filepath.Join(runDir, "blue")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ingestReport(t, runDir)
+	ingestReport(t, runDir, body)
 }
 
 // help captures a command's own help output, which cobra writes to its writer.
@@ -453,10 +447,11 @@ func TestRoleHelpCarriesTheLogFooter(t *testing.T) {
 	}
 }
 
-// The board verbs exist in the lens role and NOWHERE else. Mint, close and regrade are the
-// originating lens's acts (plans/roundless.md §III.B.3): the chair carries, spot-checks, dispatches
-// and gives the verdict, and the bench disposes through docket rulings. This is the claim the whole
-// engine rests on, so it is asserted over the actual command trees.
+// The board verbs exist in the lens role and NOWHERE else, but for the bench's regrade. Mint, close
+// and regrade are the originating lens's acts (plans/roundless.md §III.B.3): the chair carries,
+// spot-checks, dispatches and gives the verdict, and the bench disposes through docket rulings —
+// setting, by its own regrade, the grade a ruling rules on (record/benchgrade.go). This is the claim
+// the whole engine rests on, so it is asserted over the actual command trees.
 func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 	// ASKED OF FOUR TREES, not of four groups in one. The claim is stronger for it: a board verb is
 	// absent from the chair's SURFACE, not merely absent from a namespace the chair could still
@@ -474,6 +469,12 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
+			if other == "bench" && board == "regrade" {
+				if !verbs[other][board] {
+					t.Errorf("the bench role is missing %q — a ruling would rule on a grade it holds wrong, with no act to set it", board)
+				}
+				continue
+			}
 			if verbs[other][board] {
 				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
 			}
@@ -688,7 +689,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 	// The retry: same command, same key, and the EXISTING id comes back.
 	// FIRST LINE, because every write now also prints where the seat stands (seat/standing.go) and
 	// the subject here is what the verb said about the act.
-	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "minted G2 (idempotent retry — existing id returned)") {
+	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "gap G2 — this call repeats an act already on the record, so nothing was written") {
 		t.Errorf("the retry said %q, want the existing id", got)
 	}
 	mints := 0
@@ -718,7 +719,7 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
 // AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade, close and manifest-row carry `gap_id`,
-// inquiry propose `inquiry_id`, prove `proof_id`, motion file and rule `motion_id`; finding carried a
+// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`; finding carried a
 // bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
 // finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
 func TestActResultsNameTheirIDByKind(t *testing.T) {
@@ -833,7 +834,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", body+"\n"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
+		if got := lastBody(t, runDir, &recordpb.Position{PositionId: proto.String(record.NewID("position"))}).GetText(); got != body {
 			t.Errorf("text = %q, want the prose without its terminator %q", got, body)
 		}
 	})
@@ -1057,7 +1058,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 // blue's verbs refuse the removals and empty inquiries the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "blue-lane-1"
+	seatID := "blue-respond"
 
 	t.Run("retire needs both the claim and the reason", func(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--reason", "refuted"); err == nil {
@@ -1066,11 +1067,11 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID, "--quote", "the claim"); err == nil {
 			t.Error("a retirement with no reason was accepted")
 		}
-		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: this
-		// run has ingested no base, so nothing can say whether the claim ever stood or has left.
+		// AND A COMPLETE ONE OVER A REPORT THE RECORD CANNOT RENDER IS REFUSED, naming why: no lane
+		// of this run has recorded a part, so nothing can say whether the claim ever stood or has left.
 		if _, err := run(t, "retire", "--run", runDir, "--seat-id", seatID,
 			"--quote", "the claim as it stood", "--reason", "refuted"); err == nil ||
-			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), "no base has been ingested") {
+			!strings.Contains(err.Error(), "could not be read from the record") || !strings.Contains(err.Error(), reportproj.NoPart) {
 			t.Errorf("a retirement over a run with no report was answered %v; want it refused, naming the read", err)
 		}
 	})
@@ -1787,7 +1788,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 	minted, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--class", "risk_coverage_omission",
-		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
+		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low")
 	if err != nil {
 		t.Fatalf("mint: %v", err)
@@ -1885,7 +1886,7 @@ func setArmField(m protoreflect.Message, name string) (protoreflect.Message, pro
 
 // seedCast puts on runDir the cast setup writes before any seat registers: the four seats these
 // fixtures register — the evidence lens, the chair, blue and the bench — and blue-synthesize, the
-// seat that ingests the report. A verdict prints the plan the record folds (record.RecordVerdict),
+// seat that works on the report. A verdict prints the plan the record folds (record.RecordVerdict),
 // and the record folds a plan only on a cast.
 func seedCast(t *testing.T, runDir string) {
 	t.Helper()

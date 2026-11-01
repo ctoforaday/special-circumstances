@@ -420,7 +420,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	if len(sparseRead) > markRead {
 		first, second, readFirst, readSecond = sparseWords, words, readSparse, readMark
 	}
-	cellText, cst, why := TextCells(lat, first, second, readFirst, readSecond)
+	cellText, cst, why := TextCells(lat, first, second, readFirst, readSecond, normalizeWords(autoWords, scale))
 	switch {
 	case why == "":
 		out.TextCells = &cst

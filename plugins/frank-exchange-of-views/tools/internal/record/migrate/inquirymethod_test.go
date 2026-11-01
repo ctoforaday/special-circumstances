@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -56,6 +57,19 @@ func TestTheProposalsMethodMovesToItsFates(t *testing.T) {
 			}
 			return old
 		}
+		// The method is the seat's prose, and the ids it names are respelled as every argument's are.
+		var moved []string
+		for old, to := range man.IDs {
+			if old != to {
+				moved = append(moved, regexp.QuoteMeta(old))
+			}
+		}
+		respelled := func(s string) string {
+			if len(moved) == 0 {
+				return s
+			}
+			return regexp.MustCompile(`\b(?:`+strings.Join(moved, "|")+`)\b`).ReplaceAllStringFunc(s, migratedID)
+		}
 		got := map[string]string{}
 		for _, a := range record.InquiriesOf(fam.Events, fam.At) {
 			got[a.ID] = a.Method
@@ -64,7 +78,7 @@ func TestTheProposalsMethodMovesToItsFates(t *testing.T) {
 		for old, method := range printed {
 			want := ""
 			if fated[old] {
-				want, carried = method, carried+1
+				want, carried = respelled(method), carried+1
 			} else {
 				dropped++
 			}

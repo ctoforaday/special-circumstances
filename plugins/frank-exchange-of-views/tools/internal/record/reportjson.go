@@ -14,7 +14,7 @@ import (
 // a pattern hits. One shape serves the whole document and each selection of it, so a seat that adds
 // a selector parses the same keys it parsed without one.
 type ReportJSON struct {
-	// Head is the events.id of the latest blue_edit or base_ingest — the head a dispatch pins a
+	// Head is the events.id of the latest blue_edit or report_part — the head a dispatch pins a
 	// seat's reading to. Read on the snapshot the text was rendered from.
 	Head int64 `json:"head"`
 	// Lines is the report's lines in document order: all of them on a bare read, the window around
@@ -49,12 +49,12 @@ func ReportLines(report string) []ReportLineJSON {
 	return out
 }
 
-// reportHeadAt is the report head on q: the latest blue_edit or base_ingest, by row id, 0 where
+// reportHeadAt is the report head on q: the latest blue_edit or report_part, by row id, 0 where
 // the record holds neither.
 func reportHeadAt(q recordsql.Querier) (int64, error) {
 	var head int64
 	_, err := queryRowAt(q, []any{&head},
-		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`)
+		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')`)
 	return head, err
 }
 

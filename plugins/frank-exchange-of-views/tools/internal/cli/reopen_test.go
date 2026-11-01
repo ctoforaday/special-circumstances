@@ -120,7 +120,7 @@ func anchoredLine(t *testing.T, runDir string) (string, string) {
 func TestShowEvidenceHelpSaysWhatAnUncheckedRowMeans(t *testing.T) {
 	h := help(t, "show", "evidence", "--help", "--seat-id", "red-lens-evidence")
 	for _, want := range []string{
-		"An `unchecked` ROW IS A CITATION OR PROOF WITH NO CHECK OF THE SENTENCE THE REPORT CARRIES",
+		"An `unchecked` ROW IS A CITATION OR COMPUTATION WITH NO CHECK OF THE SENTENCE THE REPORT CARRIES",
 		"`edit` and `last_check` are event ids",
 		"from a sitting opened after `edit`, where there is one — removes the row",
 		"`--as unreachable`, or one of a copy the tool stamped not_the_work, reads nothing",

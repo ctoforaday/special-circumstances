@@ -144,7 +144,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "blue manifest-row records the receipt",
-			role: "blue", seatID: "blue-lane-1",
+			role: "blue", seatID: "blue-respond",
 			args: []string{"--id", "G2", "--reason", "figures recomputed; acceptance check run: pass"},
 			typ:  recordpb.EventType_EVENT_TYPE_MANIFEST_ROW,
 			want: map[string]string{"gap_id": "G2", "row": "figures recomputed; acceptance check run: pass"},
@@ -152,7 +152,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "blue retire records what left and why",
-			role: "blue", seatID: "blue-lane-1",
+			role: "blue", seatID: "blue-respond",
 			args: []string{"--quote", "the claim as it stood", "--reason", "refuted", "--new", "the replacement claim"},
 			typ:  recordpb.EventType_EVENT_TYPE_RETIRE,
 			want: map[string]string{"claim": "the claim as it stood", "reason": "refuted",
@@ -173,10 +173,11 @@ func TestVerbPayloads(t *testing.T) {
 		{
 			name: "motion petition rule records the ruling and its opinion",
 			path: []string{"motion", "petition", "rule"}, seatID: "judge",
-			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
+			args: []string{"--id", "M2", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", // `opinion` is the ruler's argument — the one prose channel MotionRule carries.
-				"petition": "granted", "opinion": "the written opinion"},
+				"petition": "granted", "opinion": "the written opinion",
+				"relief": "Restate the section as the bench orders.", "binds": "blue"},
 			says: "motion M2 ruled granted",
 		},
 		{
@@ -433,7 +434,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		{"bench", "halt", "judge", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"blue", "closing", "blue-respond", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
-		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
+		{"blue", "manifest-row", "blue-respond", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
 	seeded := newRun(t)

@@ -22,7 +22,7 @@ Research that survives an adversary.
 
 ## The exchange is TOOL-MEDIATED
 
-Everything the two sides exchange — findings, closures, citations, proofs, edits,
+Everything the two sides exchange — findings, closures, citations, computations, edits,
 inquiries, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
@@ -32,7 +32,7 @@ exactly like a clean board. See [[facts-are-fields]].
 
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
-a claim, `fx:` where red challenged, `proof:` where a computation settles it, `gap:` where red
+a claim, `fx:` where red challenged, `computation:` where a program blue ran settles it, `gap:` where red
 holds a gap open — and dropping one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
 
 ## Reading the report
@@ -51,6 +51,8 @@ To find text inside the run's own artifacts, search for it lexically — with th
 session offers, or the shell's `grep` where it offers none: the terms you want are the terms you
 already have, and a lexical match over a known file beats a ranked guess over a corpus. A search's
 count mode — the search tool's or `grep -c` — counts LINES, not occurrences (anchor patterns when counting).
+A cached source is the exception: search it with the run's source search, which reads it as a citation is
+located in it and says, at each hit, whether its sentence can be quoted as printed.
 
 ## Report structure
 
@@ -80,6 +82,6 @@ full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inqu
 retired, the asks a later certification superseded, and every edit with blue's reason). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
-THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
-boundary, so each document numbers and defines the references it actually carries; proof numbers
-are run-wide, so `P3` is the same computation wherever it is cited.
+THE CITATION AND COMPUTATION LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
+boundary, so each document numbers and defines the references it actually carries; computation numbers
+are run-wide, so `K3` is the same computation wherever it is cited.

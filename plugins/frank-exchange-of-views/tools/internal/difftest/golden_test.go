@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -164,7 +165,7 @@ func TestGolden(t *testing.T) {
 }
 
 // prepareRun gives a run directory the state every scenario and every fuzz sequence starts
-// from: the seed files written and the round-0 report ingested.
+// from: the seed files written and the report recorded.
 //
 // SHARED, because the determinism fuzz used to start from a bare directory. With no report, every
 // lens verb that anchors into the report could only ever refuse — so the fuzz could not have exercised an acceptance even once its
@@ -175,37 +176,33 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 	if cast != nil {
 		seedCast(t, runDir, cast)
 	}
-	// A lens finding anchors into blue/report.md (slice 1b) and is rejected
-	// unless its --quote quote is present. Ensure a report carrying the
-	// scenario quotes (a claim under ## S2 / ## S4) exists; a scenario may override.
-	if _, ok := files["blue/report.md"]; !ok {
-		seed(t, runDir, map[string]string{
-			"blue/report.md": "## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n",
-		})
+	// A lens finding anchors into the report (slice 1b) and is rejected unless its --quote quote is
+	// present, so the report carries the scenario quotes (a claim under ## S2 / ## S4).
+	//
+	// THE REPORT IS RECORDED AS ONE PART, under the harness: a scenario stands for a run whose lanes
+	// recorded their parts, and a scenario with no cast seats no lane to record one. blue-synthesize
+	// registers first, as the seat that works on the report from here. Invisible setup, like the
+	// seed files — the scenario's own commands are what the golden is about, but the part and this
+	// register DO appear in the EVENTS section, as they must.
+	if inv := runGo(bin, runDir, m, cmd{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}}); inv.code != 0 {
+		t.Fatalf("setup register: exit %d\nstderr: %s", inv.code, inv.stderr)
 	}
-
-	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
-	// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
-	// synthesize records the base and the file is deleted, exactly as the engine does after
-	// synthesis and before the rounds. Invisible setup, like the report seed above — the
-	// scenario's own commands are what the golden is about, but the BaseIngest and this register
-	// DO appear in the EVENTS section, as they must.
-	for _, setup := range []cmd{
-		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
-		{verb: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
-	} {
-		if inv := runGo(bin, runDir, m, setup); inv.code != 0 {
-			t.Fatalf("round-0 setup %v: exit %d\nstderr: %s", setup.args, inv.code, inv.stderr)
-		}
-		m.observe(filepath.Join(runDir, "records"))
-	}
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:report",
+		&recordpb.ReportPart{Text: proto.String("## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n")}))
+	m.observe(filepath.Join(runDir, "records"))
 }
 
 // seedCast writes the run's cast under the harness seat, the first event on the record, as setup
-// writes it before any seat sits.
+// writes it before any seat sits: its lanes are the lane seats setup would name that it seats.
 func seedCast(t *testing.T, runDir string, seats []string) {
 	t.Helper()
-	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:cast", &recordpb.Cast{SeatIds: seats}))
+	var lanes []string
+	for _, l := range record.LaneSeatIDs(3) {
+		if slices.Contains(seats, l) {
+			lanes = append(lanes, l)
+		}
+	}
+	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:cast", &recordpb.Cast{SeatIds: seats, LaneSeatIds: lanes}))
 }
 
 // castOf is a fixture's cast: the cast setup writes for one blue lane with only the lenses of

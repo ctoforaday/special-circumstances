@@ -7,7 +7,7 @@ import (
 
 // IDs READS WHAT Token WRITES, on the shapes the corpus actually holds.
 func TestIDsReadsWhatTokenWrites(t *testing.T) {
-	for _, id := range []string{"F-e4bc25ec", "C-a1b2c3d4", "P-99887766"} {
+	for _, id := range []string{"F-e4bc25ec", "C-a1b2c3d4", "K-99887766"} {
 		if got := IDs("text " + Token(id) + " more"); !reflect.DeepEqual(got, []string{id}) {
 			t.Errorf("IDs(Token(%q)) = %v, want [%s]", id, got, id)
 		}
@@ -27,7 +27,7 @@ func TestIDsReadsWhatTokenWrites(t *testing.T) {
 			t.Errorf("IDs(%q) = %v, want none", s, got)
 		}
 	}
-	if Kind("C-00000001") != "citation" || Kind("P-00000001") != "proof" || Kind("F-00000001") != "finding" {
+	if Kind("C-00000001") != "citation" || Kind("K-00000001") != "computation" || Kind("F-00000001") != "finding" {
 		t.Error("Kind disagrees with the prefix classes Token spells")
 	}
 }
@@ -52,7 +52,7 @@ func TestSkipRunReadsTheKindsTable(t *testing.T) {
 			t.Errorf("SkipRun(%q) = %d, want 0", tok, got)
 		}
 	}
-	pair := Token("F-00abc123") + Token("C-00d4d4d4") + Token("P-000f0f0f")
+	pair := Token("F-00abc123") + Token("C-00d4d4d4") + Token("K-000f0f0f")
 	if got := SkipRun(pair+"tail", 0); got != len(pair) {
 		t.Errorf("SkipRun over an abutting run = %d, want %d (%q)", got, len(pair), pair)
 	}

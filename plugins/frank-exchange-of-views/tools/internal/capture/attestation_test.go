@@ -143,11 +143,11 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 }
 
 // A READ IS WHAT CAME BACK, not only what was typed: a `show report` names no anchor in its command
-// and returns every anchor of the sentences it prints. m30's voice lens read its two proofs that way.
+// and returns every anchor of the sentences it prints. m30's voice lens read its two computations that way.
 func TestAnAnchorTheSittingReadInAResultReconciles(t *testing.T) {
-	run := attestRun(t, "show report", "report text at line 103", "P-24a6af66")
+	run := attestRun(t, "show report", "report text at line 103", "K-24a6af66")
 	trs := []record.Transcript{transcriptOf(t, closerAgent,
-		read(`feov-record show report --json`, `91 = 7 x 13 <!--proof:P-24a6af66-->`), closing(closeCommand("P-24a6af66")))}
+		read(`feov-record show report --json`, `91 = 7 x 13 <!--computation:K-24a6af66-->`), closing(closeCommand("K-24a6af66")))}
 	if got := AttestationAudit(runtest.Open(t, run), trs, 3); got.Verdict != "PASS" {
 		t.Errorf("an anchor the sitting's own call returned must reconcile; got %s: %s", got.Verdict, got.Detail)
 	}
@@ -155,16 +155,16 @@ func TestAnAnchorTheSittingReadInAResultReconciles(t *testing.T) {
 
 // THE CLOSE IS NOT ITS OWN EVIDENCE. Every anchored closure names its anchors in the close that
 // records it, and the audit searched every call — so it could not fail. m30's G-968365ad named two
-// proofs this way and reconciled on its own `close --anchor`.
+// computations this way and reconciled on its own `close --anchor`.
 func TestAnAnchorOnlyTheCloseNamesIsAFinding(t *testing.T) {
-	run := attestRun(t, "show report", "report text at line 103", "P-24a6af66")
+	run := attestRun(t, "show report", "report text at line 103", "K-24a6af66")
 	trs := []record.Transcript{transcriptOf(t, closerAgent,
-		read(`feov-record show board`, "G-0dd40334 open"), closing(closeCommand("P-24a6af66")))}
+		read(`feov-record show board`, "G-0dd40334 open"), closing(closeCommand("K-24a6af66")))}
 	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an anchor no call but the close carries must be a finding; got %s: %s", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "P-24a6af66") || !strings.Contains(got.Detail, "other than its closes") {
+	if !strings.Contains(got.Detail, "K-24a6af66") || !strings.Contains(got.Detail, "other than its closes") {
 		t.Errorf("the finding must name the anchor and say the close was not counted:\n%s", got.Detail)
 	}
 }
@@ -309,14 +309,14 @@ func TestAnIDInTheToolsWordsAloneIsNoAnchor(t *testing.T) {
 // again — an `api-request-blob` line with no timestamp — so the close recurs, outside any window; read
 // as a call of its own, it would be the close reconciling itself once more.
 func TestAReplayedCloseIsStillTheClose(t *testing.T) {
-	run := attestRun(t, "show report", "report text at line 103", "P-24a6af66")
-	tr := transcriptOf(t, closerAgent, closing(closeCommand("P-24a6af66")))
+	run := attestRun(t, "show report", "report text at line 103", "K-24a6af66")
+	tr := transcriptOf(t, closerAgent, closing(closeCommand("K-24a6af66")))
 	body, err := os.ReadFile(tr.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	blob := `{"type":"api-request-blob","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_` + closerAgent + `_00","name":"Bash","input":{"command":` +
-		jsStringify(closeCommand("P-24a6af66")) + `}}]}}` + "\n"
+		jsStringify(closeCommand("K-24a6af66")) + `}}]}}` + "\n"
 	if err := os.WriteFile(tr.Path, append(body, blob...), 0o644); err != nil {
 		t.Fatal(err)
 	}

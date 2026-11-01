@@ -89,9 +89,9 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.Verify, true
 		}
-	case *Event_Proof:
+	case *Event_Computation:
 		if b != nil {
-			return b.Proof, true
+			return b.Computation, true
 		}
 	case *Event_Reproduce:
 		if b != nil {
@@ -121,9 +121,9 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.InquiryReview, true
 		}
-	case *Event_BaseIngest:
+	case *Event_ReportPart:
 		if b != nil {
-			return b.BaseIngest, true
+			return b.ReportPart, true
 		}
 	case *Event_SittingOpen:
 		if b != nil {

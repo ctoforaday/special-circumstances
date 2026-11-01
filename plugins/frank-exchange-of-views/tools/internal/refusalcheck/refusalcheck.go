@@ -11,7 +11,7 @@
 // WHAT COUNTS AS NAMING IT. The command's path or its last word, standing as THE COMMAND BEING
 // REFUSED: leading the diagnosis, alone or behind a role word (`lens finding requires`, "`motion`
 // has no …"); followed by a flag, by `requires`, by
-// `refused` or by a colon, in backquotes or bare (blue's `prove` --answers names …); or behind the
+// `refused` or by a colon, in backquotes or bare (blue's `compute` --answers names …); or behind the
 // tool's name (`for "feov-record count-claims"`).
 //
 // WHAT DOES NOT. The same word as a noun in a sentence (`a second regrade`, `this edit puts …`);

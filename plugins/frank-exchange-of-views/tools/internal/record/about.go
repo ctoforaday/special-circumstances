@@ -8,8 +8,17 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
+
+// aboutShapes are the --about-kinds whose reference is an id of a known shape. A section is a heading,
+// in any words; a contradiction's id is a number, which requireOpenContradiction reads.
+var aboutShapes = map[recordpb.AboutKind]func() *flags.ShapedValue{
+	recordpb.AboutKind_ABOUT_KIND_INQUIRY: flags.InquiryID,
+	recordpb.AboutKind_ABOUT_KIND_GAP:     flags.GapID,
+	recordpb.AboutKind_ABOUT_KIND_ANCHOR:  flags.AboutAnchor,
+}
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that
 // takes one. admitted is the set the verb declares for --about-kind: a gap is never about a
@@ -54,9 +63,21 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	// borrowed from a nearby paragraph: an inquiry id either names an inquiry this run proposed or it
 	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
 	// and refusing on a stale one would refuse the finding rather than the staleness.
+	//
+	// THE SHAPE FIRST, or an existence check answers for it: an id spelled another way reads as an id
+	// the record lacks, and `--about '<!--computation:K-050249f6-->'` was told no computation on the
+	// record carries an id one did (universe-m37). An anchor's token is taken whole, as the other
+	// anchor flags take it, and the bare id is what is stored.
+	if shape := aboutShapes[k]; shape != nil {
+		v := shape()
+		if err := v.Set(ref); err != nil {
+			return nil, nil, feov.Errorf(feov.Validation, "--about with --about-kind %s: %v", kind, err)
+		}
+		ref = v.String()
+	}
 	switch k {
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
-		if err := RequireInquiryRef(run, ref); err != nil {
+		if err := RequireInquiryRef(run, ref, "--about"); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:

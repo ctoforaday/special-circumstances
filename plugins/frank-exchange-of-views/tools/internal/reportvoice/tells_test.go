@@ -169,7 +169,7 @@ func TestABareFindingOrGapIDIsRefusedAndItsAnchorIsNot(t *testing.T) {
 		"the G20 summit",
 		"the F-16 and the G-7 nations",
 		"a hash beginning 5e10a3c2",
-		"C-0000aaa1 and P-0000aaa1 and Q-0000aaa1 and M-0000aaa1",
+		"C-0000aaa1 and K-0000aaa1 and Q-0000aaa1 and M-0000aaa1",
 	} {
 		if got := Find(clean); len(got) != 0 {
 			t.Errorf("Find(%q) matched %q; it carries no bare finding or gap id", clean, got[0].Match)

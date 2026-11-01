@@ -69,19 +69,19 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 			t.Errorf("Unused names %q, which blue never had — reporting a verb a role does not offer as one the seat declined is noise that trains a reader to skim", verb)
 		}
 	}
-	var sawProve bool
+	var sawCompute bool
 	for _, verb := range c.Unused {
-		if verb == "prove" {
-			sawProve = true
+		if verb == "compute" {
+			sawCompute = true
 		}
 	}
-	if !sawProve {
-		t.Error("prove is blue's and was not used, so it must be reported unused — this is the exact miss the package exists to surface")
+	if !sawCompute {
+		t.Error("compute is blue's and was not used, so it must be reported unused — this is the exact miss the package exists to surface")
 	}
 }
 
 // THE EVENT TYPE IS NOT THE VERB, and reading it as one would report every seat as having skipped
-// the verbs it actually used. `blue edit` writes `blue_edit`; `blue prove` writes `proof`.
+// the verbs it actually used. `blue edit` writes `blue_edit`; `blue compute` writes `computation`.
 func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 	runDir := writeRun(t, []struct {
 		seat    string
@@ -105,7 +105,7 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 
 // AN UNMET EXPECTATION NAMES WHAT THE SEAT DID INSTEAD.
 //
-// "blue did not use prove" is half a finding. The useful half is that it used `edit` four times —
+// "blue did not use compute" is half a finding. The useful half is that it used `edit` four times —
 // because that says the seat had a theory of the task and the theory was wrong, which is a
 // constitution problem, not a discoverability one.
 func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
@@ -121,7 +121,7 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 	}
 	runDir := writeRun(t, evs)
 
-	got, err := Check(surface(), runtest.Open(t, runDir), []Expectation{{Seat: "blue-respond", Verb: "prove", Because: "the board is arithmetic"}})
+	got, err := Check(surface(), runtest.Open(t, runDir), []Expectation{{Seat: "blue-respond", Verb: "compute", Because: "the board is arithmetic"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestAnEmptyLogIsNotReportedAsACleanBoard(t *testing.T) {
 //
 // `Because` is what a constitution would have to say to a seat for it to take the verb. An
 // expectation without one is a rule with no teachable reason, and the fix it implies ("tell the
-// seat to use prove") is the kind that produces compliance rather than judgement.
+// seat to use compute") is the kind that produces compliance rather than judgement.
 func TestEveryBoardExpectationArguesItsCase(t *testing.T) {
 	for name, b := range Boards() {
 		if len(b.Expect) == 0 {
@@ -176,10 +176,10 @@ func TestEveryBoardExpectationArguesItsCase(t *testing.T) {
 			if g.Baits == "" || g.Why == "" {
 				t.Errorf("board %q gap %q does not say what it baits or why — then it is scenery", name, g.Key)
 			}
-			// A computation-kind gap that baits anything but `prove` is a contradiction: the
+			// A computation-kind gap that baits anything but `compute` is a contradiction: the
 			// write path refuses to close it on prose, so no other verb can discharge it.
-			if g.CheckKind == "computation" && g.Baits != "prove" {
-				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes ONLY on a proof", name, g.Key, g.Baits)
+			if g.CheckKind == "computation" && g.Baits != "compute" {
+				t.Errorf("board %q gap %q is check-kind computation but baits %q — a computation check closes ONLY on a computation", name, g.Key, g.Baits)
 			}
 		}
 	}

@@ -1,19 +1,19 @@
 package fuzz
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A SEAT REGISTERS BEFORE IT APPENDS — pinned deterministically, because the sweep only hit this
 // about once in two hundred runs and a rate that low is indistinguishable from a flake (#664).
 //
-// closeGap is driven from the CHAIR's branch and proves as `blue-respond`. `blue prove`
-// RECORDS a `prove` event, so that is an append — and in round 1 red's seats run before
+// closeGap is driven from the CHAIR's branch and computes as `blue-respond`. `blue compute`
+// RECORDS a `compute` event, so that is an append — and in round 1 red's seats run before
 // blue-respond has ever registered. Nothing on that path called register() at all, which is
 // why the #656 waiter did not help: it ordered a seat against ITSELF for callers that went
 // through register, and this caller never did.
@@ -32,19 +32,15 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	// already been copied eight times without its release — this was the ninth, caught by the
 	// windows leg of CI and by nothing local.
 	runDir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	r := newRunner(bin, runDir, newLockedRand(7))
-	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
-	// the base and the file is deleted. blue-respond stays unregistered — this is a different seat.
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
+	// THE LANE'S PART, so mint's --quote check can render the report: the lane needs the cast that
+	// seats it. blue-respond stays unregistered — this is a different seat.
+	cast, lanes := record.CastFor(1)
+	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stagePart("A § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 
 	// ONLY RED'S SEATS. blue-respond is deliberately left unregistered: the whole point is that
@@ -67,7 +63,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		}
 	}
 	if gapID == "" {
-		t.Fatal("no computation gap after 40 mints — this test cannot exercise the prove path, and passing on that would be a green that measured nothing")
+		t.Fatal("no computation gap after 40 mints — this test cannot exercise the compute path, and passing on that would be a green that measured nothing")
 	}
 	if r.registered["blue-respond"] {
 		t.Fatal("blue-respond is already registered before closeGap ran — the setup no longer reproduces the ordering this pins")
@@ -95,6 +91,6 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 	if failed {
 		t.Errorf("verify reports register-before-append after closing a computation gap:\n%s\n\n"+
-			"closeGap proves as blue-respond, and `blue prove` records an event, so that seat must be registered before the proof is appended", out)
+			"closeGap computes as blue-respond, and `blue compute` records an event, so that seat must be registered before the computation is appended", out)
 	}
 }

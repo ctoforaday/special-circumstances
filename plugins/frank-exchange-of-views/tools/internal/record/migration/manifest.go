@@ -65,7 +65,7 @@ type Manifest struct {
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
 	GapAnchors GapPlacement `json:"gap_anchors"`
 	// ReportOrder is what became of the order of the report's text (migrate's order.go): no_report,
-	// in_order, reordered, or as_written for a text out of order that reordering the base does not
+	// in_order, reordered, or as_written for a text out of order that reordering the parts does not
 	// replay.
 	ReportOrder string `json:"report_order"`
 	// ProseRewrites counts, per field, the archived ids rewritten inside a seat's own wording. Such
@@ -83,6 +83,11 @@ type Manifest struct {
 	// Discarded names the shard-era sittings the era's own reader would have dropped
 	// (winner-per-seat), with the count of keys the winner never rewrote — the genuine loss.
 	Discarded []DiscardedSitting `json:"discarded_sittings,omitempty"`
+
+	// MissingArtifacts names each computation (or re-run) the record holds whose stored program or
+	// output the source run did not hold, with where it was looked for. Nothing is written in its
+	// place: the migrated run's evidence document says the artifact is missing.
+	MissingArtifacts []string `json:"missing_artifacts,omitempty"`
 	// Warnings are what the publish could not guarantee — a directory whose sync failed. They arise
 	// after the manifest is written, so they are never part of it; feov-migrate prints each.
 	Warnings []string `json:"-"`

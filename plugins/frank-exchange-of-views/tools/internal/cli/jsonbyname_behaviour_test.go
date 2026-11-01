@@ -33,7 +33,8 @@ func TestJSONByNameMarkMatchesWhatTheBareViewEmits(t *testing.T) {
 	}
 
 	for _, view := range seat.ViewNames() {
-		out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", view)
+		group, who, args := viewReader(t, runDir, view)
+		out, err := run(t, append([]string{group, "--run", runDir, "--seat-id", who}, args...)...)
 		if err != nil {
 			// A view this seat's role cannot open says nothing about the mark.
 			continue

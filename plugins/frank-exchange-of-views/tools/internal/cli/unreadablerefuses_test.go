@@ -34,15 +34,15 @@ func wantUnreadableRefusal(t *testing.T, err error, what string) {
 	}
 }
 
-func TestACloseOverAnUnreadableProofJoinIsRefused(t *testing.T) {
+func TestACloseOverAnUnreadableComputationJoinIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
-	dropTable(t, runDir, "proof")
+	dropTable(t, runDir, "computation")
 	_, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "read it")
-	wantUnreadableRefusal(t, err, "whether a proof answers G")
+	wantUnreadableRefusal(t, err, "whether a computation answers G")
 }
 
 // unreadableIndex plants a fetch index no reader can hold: one line longer than the index

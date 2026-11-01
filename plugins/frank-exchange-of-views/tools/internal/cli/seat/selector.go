@@ -100,10 +100,10 @@ func (s Selector) Hits(text string) bool {
 //
 // THE SELECTORS DO NOT SEE THE ANNOTATION LAYER, AND THE MISS MUST SAY SO. A seat holding an anchor
 // asks for it the way the report prints it: universe m18's chair quoted `gap:G-b1643c6b`, and its
-// synthesizer matched `cite:|proof:` to list every anchor of a kind. Both got "no line matches",
+// synthesizer matched `cite:|computation:` to list every anchor of a kind. Both got "no line matches",
 // which is the answer a pattern the report does not hold gets. Matching the printed text instead
 // would answer them and break the word-hunt the selector exists for: a voice lens matching
-// `gap|proof|finding` would hit every anchored line in the report on the token's own kind word.
+// `gap|computation|finding` would hit every anchored line in the report on the token's own kind word.
 // So the read stays what it is and its empty answer counts these lines and names the reads that
 // take an anchor.
 //
@@ -124,7 +124,7 @@ func anchorsOnlyNote(n int) string {
 	}
 	return fmt.Sprintf("%d line(s) hold it INSIDE AN ANCHOR TOKEN only: --match and --quote read each line with its anchors out, "+
 		"so a pattern that names a token or an anchor id finds nothing. To read the passage at one anchor, pass --anchor with its id in place of the pattern. "+
-		"To list every anchor of a kind, read the view that resolves the kind: `show findings`, `show evidence` (citations and proofs), `show board` (gaps)", n)
+		"To list every anchor of a kind, read the view that resolves the kind: `show findings`, `show evidence` (citations and computations), `show board` (gaps)", n)
 }
 
 // anchorsOnly counts the lines the selector hits only inside an anchor token.
@@ -384,7 +384,7 @@ func selectorNoun(view string) string {
 	case "findings":
 		return "findings"
 	case "evidence":
-		return "citations and proofs"
+		return "citations and computations"
 	case "motions":
 		return "motions"
 	case "inquiries":

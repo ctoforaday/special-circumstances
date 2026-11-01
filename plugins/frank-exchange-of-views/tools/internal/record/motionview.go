@@ -39,6 +39,10 @@ type MotionJSON struct {
 	RulingBy    string `json:"ruling_by"`
 	RulingEpoch int    `json:"ruling_epoch"`
 	Opinion     string `json:"opinion"`
+	// RulingRelief and RulingBinds are a granted petition's order and whom it binds; empty on every
+	// other ruling. Each seat's work list carries the order too (WorkJSON.Relief).
+	RulingRelief string `json:"ruling_relief"`
+	RulingBinds  string `json:"ruling_binds"`
 
 	// Fields carries the subject-specific payload — a grade motion's gap_id/dimension/proposed,
 	// a petition's class. Kept as the record holds them rather than flattened into named columns
@@ -74,6 +78,7 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 			Basis: m.Basis, Relief: m.Relief,
 			Ruled: m.Ruling != "", Ruling: m.Ruling, RulingBy: m.RulingBy,
 			RulingEpoch: m.RulingEpoch, Opinion: m.Opinion,
+			RulingRelief: m.RulingRelief, RulingBinds: m.RulingBinds,
 		}
 		mj.GapID = m.GapID
 		if len(m.Fields) > 0 {
@@ -101,11 +106,16 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 }
 
 // motionsView is the motions read from the record. The exchange lives on the families declared
-// here; nothing else on the record decides a motion's state.
+// here; nothing else on the record decides a motion's state. A position is a motion where its
+// sitting's plan permitted the PASS and the sitting records none (heardPositionsOf), so the
+// position, the plan and the verdict are read with them.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_INQUIRY,
 	recordpb.EventType_EVENT_TYPE_MOTION,
-	recordpb.EventType_EVENT_TYPE_MOTION_RULE)
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_POSITION,
+	recordpb.EventType_EVENT_TYPE_PLAN,
+	recordpb.EventType_EVENT_TYPE_VERDICT)
 
 // MotionsJSONBytes renders the motions view as indented JSON.
 func MotionsJSONBytes(run Run) ([]byte, error) { return motionsView.jsonBytes(run) }

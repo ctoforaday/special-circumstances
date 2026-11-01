@@ -24,7 +24,7 @@ func TestAStoredPlanCarriesTheVerdictItsSittingHadRecorded(t *testing.T) {
 		}
 		return []*recordpb.Event{
 			at("harness", "c", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-			at("harness", "b", &recordpb.BaseIngest{Text: proto.String("# r\n\nA sentence.")}),
+			at("harness", "b", &recordpb.ReportPart{Text: proto.String("# r\n\nA sentence.")}),
 			at("red-chair", "r1", &recordpb.Register{}),
 		}
 	}

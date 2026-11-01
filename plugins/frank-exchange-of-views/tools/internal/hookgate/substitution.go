@@ -8,7 +8,7 @@ import "strings"
 // the tool's own help and prompts do, and they write that prose inside double quotes. Bash runs
 // every such backtick as a command before feov-record sees the argument, and records the output —
 // or nothing — in its place. Eight --reason values and one --fix were rewritten that way and stored
-// silently; `prove` ran Perl's test harness, and `factor 91` pasted "91: 7 13" into a finding.
+// silently; `compute` ran Perl's test harness, and `factor 91` pasted "91: 7 13" into a finding.
 // Only the hook sees the command as the seat wrote it, so only the hook can refuse it intact.
 //
 // THIS IS A SCANNER, NOT A MATCHER, and the distinction is the one PreOutcome's note draws. The

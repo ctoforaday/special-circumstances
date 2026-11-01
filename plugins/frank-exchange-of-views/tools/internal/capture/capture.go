@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/archive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -380,7 +381,7 @@ func ContextUse(transcripts []record.Transcript) Audit {
 // footnotes, which is the design and is why AssemblyScreen screens the url rather than the
 // anchor. The 2026-08-23 runs prove that weave can be LOSSY on one class and sound on another
 // in the same pass: 11 citation anchors became `[^1]`–`[^11]` with a complete bibliography,
-// while 6 proof anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
+// while 6 computation anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
 // headings written as `### [^P1] …` — which markdown reads as a second reference, not a
 // heading. Both reports shipped and rendered literal `[^P1]` at every site: 12 broken
 // references in one, 4 in the other.
@@ -583,8 +584,9 @@ func StrayRecordsAudit(project, runDir string) Audit {
 // positions and closings that were, and gives a sitting that holds none no section.
 //
 // THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT ITS POSITION IS REPORTED. The chair's work list holds
-// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its position
-// is held by its prompt and by this audit. A party's closing is on its work list as well, as the PASS
+// no item for it, so its position is held by its prompt and by this audit. The chair's first sitting
+// after the bench overruled its position owes the verdict instead (gblock, 2026-10-30): its work list
+// says so, and this audit fails one that closed without it. A party's closing is on its work list as well, as the PASS
 // gate's blocker, and this audit is the after-the-run reading of the same duty.
 //
 // A CLOSING IS SHORT ONLY WHERE ITS PARTY SAT. A party that sat through a sitting opened after the
@@ -626,6 +628,8 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 			unmeasured = append(unmeasured, name+"shows no position so far — NOT MEASURED: the record cannot close it (red-chair has not opened a sitting since and its agent's stop is not on the record)")
 		case record.PositionMissing:
 			short = append(short, name+"filed no position")
+		case record.PositionVerdictMissing:
+			short = append(short, fmt.Sprintf("red-chair sitting %d, its first after the bench overruled its position %s, closed with no verdict — the overruled objection is decided, and that sitting owed the verdict its plan permitted", p.Ordinal, p.Overruled))
 		}
 		owed++
 	}
@@ -668,7 +672,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 // invisible; `(\S+)` captured `--seat-id "x"` with the quotes; FindStringSubmatch saw only the
 // first invocation in a batched command, which debate.js encourages; the event type is not the
 // verb for six types (friction-none, anchor, blue_edit, the two motion subcommands, and friction
-// when emitted as a side effect of mint/prove/cite); and `[\s\S]*?` spanned invocations, so one
+// when emitted as a side effect of mint/compute/cite); and `[\s\S]*?` spanned invocations, so one
 // call's verb could pair with another call's seat and MANUFACTURE an invocation that never
 // happened — masking a genuine orphan. Four modes fail loudly; the fifth fails silently, which is
 // the one that matters.
@@ -823,7 +827,7 @@ type Claim struct {
 // it (it came back in the call's result) or NAMED it (it is in the call's input), other than the
 // calls that recorded the sitting's closes. The audit searched every call of every transcript, and
 // the close itself carries every anchor it names, so no anchored closure could fail: m30's
-// G-968365ad named two proofs and reconciled on its own `close --anchor`. A close is located in its
+// G-968365ad named two computations and reconciled on its own `close --anchor`. A close is located in its
 // sitting's transcript by its stamp, inside the window from the call to its result; a close no
 // call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
@@ -1369,11 +1373,6 @@ type HarvestResult struct {
 	// as distinct from Count, the `declare` constructions the harvest files. The precedent harvest
 	// alone sets it.
 	Rulings int
-	// EnvelopeClaimed is how many rulings the SEATS said they made: the envelopes' dispositions
-	// and petition rulings, which have no field for a declaration. It is a cross-check, not a
-	// source, and it is compared to Rulings, the same set on the record — a field rather than a
-	// sentence, so a reader compares numbers without parsing prose (facts-are-fields).
-	EnvelopeClaimed int
 }
 
 var (
@@ -1481,22 +1480,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 	return out
 }
 
-// rulingsClaimedByEnvelopes counts what the seats SAID they ruled. Kept only as a cross-check
-// against the record: a divergence is a finding about the envelopes, the way record-parity
-// already treats one. It is never the harvest's source.
-func rulingsClaimedByEnvelopes(results []map[string]any) int {
-	n := 0
-	for _, r := range results {
-		for _, key := range []string{"dispositions", "rulings"} {
-			if rs, ok := r[key].([]any); ok {
-				n += len(rs)
-			}
-		}
-	}
-	return n
-}
-
-func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, evs []*record.Event) HarvestResult {
+func HarvestPrecedents(run record.Run, lawDir string, evs []*record.Event) HarvestResult {
 	slug := slugOf(run)
 	// ONLY A `declare` IS A CANDIDATE HOLDING, and every other ruling is dropped here.
 	//
@@ -1519,15 +1503,12 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	// existing holding (law/README.md) — written by a human who read the case, because that is the
 	// one part of this the harvest genuinely cannot do.
 	//
-	// TWO SETS, AND THE ENVELOPES ARE CHECKED AGAINST THE ONE THEY DESCRIBE. An envelope lists the
-	// bench's dispositions and petition rulings; it has no field for a declaration. Compared to the
-	// declarations, a run whose bench ruled one docket and declared nothing read "the record holds
-	// NO rulings while the envelopes claim 1" — universe m18, with the ruling at event 460.
+	// THE RECORD IS THE ONE COUNT. The bench's envelopes carry no ruling (debate.js's EMPTY_ENVELOPE),
+	// so a count of them is zero on every run and held against the record's rulings it reported a
+	// divergence wherever the bench ruled — the #1663 smoke, 5 rulings against 0.
 	all := rulingsFromRecord(evs)
 	rulings := declarationsOnly(all)
-	onRecord := len(all) - len(rulings)
-	claimed := rulingsClaimedByEnvelopes(results)
-	res := HarvestResult{Count: len(rulings), Rulings: onRecord, EnvelopeClaimed: claimed}
+	res := HarvestResult{Count: len(rulings), Rulings: len(all) - len(rulings)}
 	if len(rulings) == 0 {
 		return res
 	}
@@ -1601,31 +1582,23 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	return res
 }
 
-// precedentLine is the harvest's line in capture's report: what was filed, what the bench ruled,
-// and whether the envelopes agree about the rulings.
+// precedentLine is the harvest's line in capture's report: what was filed, and what the bench ruled.
 //
-// THE DIVERGENCE HAS TO REACH THE REPORT, and it is a statement about RULINGS. "0 filed" is the
-// output of an honest quiet run, of a run whose bench ruled and declared nothing, and of a harvest
-// that cannot see the rulings in front of it; the line tells the three apart by saying how many
-// rulings the record holds beside how many the envelopes claim.
+// "0 filed" is the output of an honest quiet run and of a run whose bench ruled and declared
+// nothing; the line tells the two apart by saying how many rulings the record holds.
 func precedentLine(prec HarvestResult) string {
-	divergence := ""
-	if prec.EnvelopeClaimed != prec.Rulings {
-		divergence = fmt.Sprintf(" [the record holds %d docket and petition ruling(s) and the envelopes claim %d — the record is the source, and this divergence is the finding]",
-			prec.Rulings, prec.EnvelopeClaimed)
-	}
 	switch {
 	case prec.Written:
-		return fmt.Sprintf("precedent harvest: %d declaration(s) -> %s (PERSUASIVE, awaiting review)%s", prec.Count, prec.Path, divergence)
+		return fmt.Sprintf("precedent harvest: %d declaration(s) -> %s (PERSUASIVE, awaiting review)", prec.Count, prec.Path)
 	case prec.Count > 0:
-		return fmt.Sprintf("precedent harvest: %d declaration(s), %s%s", prec.Count, prec.Reason, divergence)
+		return fmt.Sprintf("precedent harvest: %d declaration(s), %s", prec.Count, prec.Reason)
 	case prec.Rulings > 0:
 		// A DISPOSITION IS NOT A HOLDING (HarvestPrecedents says why), so a bench that ruled and
 		// declared nothing files nothing — and the line says the rulings are there.
-		return fmt.Sprintf("precedent harvest: no declaration this run — the record holds %d docket and petition ruling(s), each disposing of its gap or petition and stating no rule, so none is filed%s",
-			prec.Rulings, divergence)
+		return fmt.Sprintf("precedent harvest: no declaration this run — the record holds %d docket and petition ruling(s), each disposing of its gap or petition and stating no rule, so none is filed",
+			prec.Rulings)
 	default:
-		return "precedent harvest: no rulings this run" + divergence
+		return "precedent harvest: no rulings this run"
 	}
 }
 
@@ -1982,6 +1955,10 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		StrayRecordsAudit(project, run.Dir()),
 		RecordParityAudit(run),
 		DispatchParityAudit(run, results, journalPresent),
+		// Each read the engine acted on, against the record at the event it names. See enveloperead.go.
+		EnvelopeReadAudit(run, results, journalPresent),
+		// Which dispatches engaged a lens before blue had answered it. See lensturn.go.
+		LensTurnAudit(run),
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),
 		// Which sittings closed with no admitted envelope. See failedsittings.go.
@@ -1990,9 +1967,9 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		AttestationAudit(run, transcripts, 5),
 		ModelTierAudit(run, transcripts),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
-		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
+		// the run's own computations, re-run and compared. See computationrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
-		ProofRerunAudit(run, proofRerunSample),
+		ComputationRerunAudit(run, computationRerunSample),
 		// Synthesis's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
@@ -2009,7 +1986,7 @@ func Run(run record.Run, transcriptDir, project string, now time.Time) (audits [
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(run, results, filepath.Join(project, "law"), famEvents(fam))
+	prec := HarvestPrecedents(run, filepath.Join(project, "law"), famEvents(fam))
 	lines = append(lines, precedentLine(prec))
 
 	markerLine, markerErr := closeRunLiveMarker(project, run.Dir())
@@ -2088,7 +2065,7 @@ func copyFile(src, dst string) error {
 // artifact. The record they were derived from — the thing each audit re-reads, and the only thing
 // that can answer a question nobody has thought of yet — was left behind.
 //
-// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and computations/: 49 KB gzipped for a fifteen-seat run, so
 // keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
 // bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
 // already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
@@ -2119,16 +2096,12 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		}
 		dbBytes = b
 	}
-	type archived struct {
-		name string
-		path string
-		data []byte // the bytes, when they were read for the walk rather than by it
-	}
+	type archived = archive.Entry
 	var files []archived
 	add := func(root, prefix string) error {
 		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
-				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+				return nil // a missing computations/ is ordinary; a missing records/ is caught below
 			}
 			rel, rerr := filepath.Rel(root, p)
 			if rerr != nil {
@@ -2137,18 +2110,24 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 			if p == dbPath || p == dbPath+"-wal" || p == dbPath+"-shm" {
 				return nil
 			}
-			files = append(files, archived{name: prefix + filepath.ToSlash(rel), path: p})
+			files = append(files, archived{Name: prefix + filepath.ToSlash(rel), Path: p})
 			return nil
 		})
 	}
 	if dbBytes != nil {
-		files = append(files, archived{name: "records/record.db", data: dbBytes})
+		files = append(files, archived{Name: "records/record.db", Data: dbBytes})
 	}
 	if err := add(recs, "records/"); err != nil {
 		return "", err
 	}
 	shards := len(files)
-	_ = add(filepath.Join(run.Dir(), "proofs"), "proofs/")
+	// THE COMPUTATION STORE AS THE RECORD NAMES IT (archive.Store): its staging and any directory no
+	// event names stay behind.
+	store, err := archive.Store(run)
+	if err != nil {
+		return "", fmt.Errorf("listing the computation store: %w", err)
+	}
+	files = append(files, store...)
 	// THE RUN'S TERMS, because without them the archive is BROKEN rather than merely thin.
 	//
 	// inputs/run-config.json is not staged reference material a seat read once. It is read at READ
@@ -2168,7 +2147,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 	// record, while the law mirror is read by seats during the run and is provenance rather than
 	// function. Carrying provenance is a separate decision, and naming it here is how it stays one.
 	if cfg := filepath.Join(run.Dir(), "inputs", "run-config.json"); func() bool { st, e := os.Stat(cfg); return e == nil && !st.IsDir() }() {
-		files = append(files, archived{name: "inputs/run-config.json", path: cfg})
+		files = append(files, archived{Name: "inputs/run-config.json", Path: cfg})
 	}
 
 	// THE STAGED CORPUS IS HASHED, NOT CARRIED (gblock, 2026-09-19).
@@ -2183,7 +2162,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		digestPath := filepath.Join(run.Dir(), "inputs", corpusDigestName)
 		if b, mErr := json.MarshalIndent(dg, "", "  "); mErr == nil {
 			if os.WriteFile(digestPath, b, 0o644) == nil {
-				files = append(files, archived{name: "inputs/" + corpusDigestName, path: digestPath})
+				files = append(files, archived{Name: "inputs/" + corpusDigestName, Path: digestPath})
 			}
 		}
 	}
@@ -2199,33 +2178,7 @@ func ArchiveRecord(run record.Run, project string) (string, error) {
 		return "", err
 	}
 	out := filepath.Join(outDir, filepath.Base(filepath.Clean(run.Dir()))+".tar.gz")
-	f, err := os.Create(out)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	gz := gzip.NewWriter(f)
-	tw := tar.NewWriter(gz)
-	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
-	for _, fl := range files {
-		b := fl.data
-		if b == nil {
-			var rerr error
-			if b, rerr = os.ReadFile(fl.path); rerr != nil {
-				return "", rerr
-			}
-		}
-		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
-			return "", err
-		}
-		if _, err := tw.Write(b); err != nil {
-			return "", err
-		}
-	}
-	if err := tw.Close(); err != nil {
-		return "", err
-	}
-	if err := gz.Close(); err != nil {
+	if err := archive.Write(out, files); err != nil {
 		return "", err
 	}
 	return out, nil

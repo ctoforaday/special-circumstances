@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -65,7 +67,7 @@ func (r *runner) refuse(code feov.Code, args ...string) { r.refuseAs("", code, a
 
 // refuseAs is refuse under a harness agent id (execAs).
 func (r *runner) refuseAs(agent string, code feov.Code, args ...string) {
-	args = append(args, "--json")
+	args = withJSON(args)
 	out, err := r.execAs(agent, args...)
 	argv := strings.Join(args, " ")
 	if err == nil {
@@ -130,9 +132,17 @@ func eitherReport(p processTally) string {
 }
 
 // The fluent builder's doors, and result for a caller that reads both of exec's results.
-func (c *cmd) admit() (string, bool)   { return c.r.admit(c.args...) }
-func (c *cmd) refuse(code feov.Code)   { c.r.refuse(code, c.args...) }
-func (c *cmd) result() (string, error) { return c.r.exec(c.args...) }
+func (c *cmd) admit() (string, bool)   { return c.r.admit(c.all()...) }
+func (c *cmd) refuse(code feov.Code)   { c.r.refuse(code, c.all()...) }
+func (c *cmd) result() (string, error) { return c.r.exec(c.all()...) }
+
+// all is the invocation: the flags, then the command after `--`, which stands last.
+func (c *cmd) all() []string {
+	if c.command == nil {
+		return c.args
+	}
+	return append(append(slices.Clone(c.args), "--"), c.command...)
+}
 
 // writeSetup writes one file a run is built from, with its directory. Its error is the caller's to
 // fail on: a run built without its report or its terms is not the run the sweep measures.
@@ -146,14 +156,25 @@ func writeSetup(path string, data []byte) error {
 	return nil
 }
 
-// writeScript writes a proof script into the run directory. A write that fails fails the run: the
-// proof it was for is never driven, and the drive would otherwise skip it in silence.
-func (r *runner) writeScript(name, body string) error {
-	err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644)
-	if err != nil {
-		r.noteActErr("write the proof script " + name + ": " + err.Error())
+// writeBundle writes a computation's program into a bundle directory of its own under the run's
+// scratch/, and returns that directory as `compute --dir` takes it (relative to the run) and the
+// command that runs the program. A write that fails fails the run: the computation it was for is
+// never driven, and the drive would otherwise skip it in silence.
+func (r *runner) writeBundle(name, body string) (dir string, argv []string, err error) {
+	dir = filepath.Join("scratch", strings.TrimSuffix(name, filepath.Ext(name)))
+	if err = os.MkdirAll(filepath.Join(r.runDir, dir), 0o755); err == nil {
+		err = os.WriteFile(filepath.Join(r.runDir, dir, name), []byte(body), 0o644)
 	}
-	return err
+	if err != nil {
+		r.noteActErr("write the computation bundle " + name + ": " + err.Error())
+	}
+	return dir, []string{"node", name}, err
+}
+
+// bundleSha is the identity of the bundle writeBundle writes for name and body, as the record holds
+// it (compute.BundleSha): the drive finds its own computations on the record by it.
+func bundleSha(name, body string) string {
+	return compute.BundleSha([]string{"node", name}, compute.Sums([]compute.File{{Path: name, Body: []byte(body)}}))
 }
 
 // sourceTitle is the title the drive gives a source it cites or corroborates. It is a source's own
@@ -221,48 +242,83 @@ func (r *runner) retryCorroboration(args []string, first string) {
 	}
 }
 
-// admitFresh runs an act about gapID that the drive expects admitted, as a seat
-// issues it: the record refuses an act on a gap another seat changed since the acting seat's read
-// point, records a Stale event moving that point, and admits the same act recorded again. A
-// refusal is that one only when it is a conflict AND the record gained a Stale event of this seat
-// on this gap; then the act is recorded again, up to twice. Any other refusal fails the run.
+// admitFresh runs an act about gapID that the drive expects admitted, as a seat issues it: the
+// record refuses an act on a gap another seat changed since the acting seat's read point, records a
+// Stale event moving that point to the last change it shows, and admits the same act recorded again
+// unless another seat changed the gap again in between. A refusal is that one only when it is a
+// conflict AND it moved the point to another seat's act (staleMoved); then the act is recorded
+// again. Any other refusal fails the run.
+//
+// NO COUNT ENDS THE RETRIES; THE OTHER SEATS' ACTS DO. Every refusal that moves the point names an
+// act another seat landed on the gap after the previous refusal, and a refusal lands nothing, so
+// the refusals one seat meets are bounded by what the seats sitting beside it land on that gap,
+// never by a number the drive picks. Each count that stood here was a guess at how many acts land
+// between two attempts, and concurrent lenses filing on one gap outran it. What the record promises
+// is that the same act is not refused for the same changes twice, and that is what each retry
+// checks.
 func (r *runner) admitFresh(gapID string, args ...string) (string, bool) {
-	return r.admitFreshWithin(3, gapID, args...)
-}
-
-// admitFreshWithin is admitFresh recording the act at most tries times.
-func (r *runner) admitFreshWithin(tries int, gapID string, args ...string) (string, bool) {
 	seatID := seatOfArgs(args)
-	for range tries {
-		before := r.staleReads(seatID, gapID)
-		out, err := r.exec(append(append([]string(nil), args...), "--json")...)
+	for {
+		before := r.readPointOf(seatID, gapID)
+		out, err := r.exec(withJSON(args)...)
 		if err == nil {
 			return out, true
 		}
 		env, ok := refusalEnvelopeIn(out)
-		if !ok || env.Code != string(feov.Conflict) || r.staleReads(seatID, gapID) <= before {
+		if !ok || env.Code != string(feov.Conflict) || !r.staleMoved(seatID, gapID, before) {
 			r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 			return out, false
 		}
 		noteEither(args[:1], "an act on a gap another seat changed since this seat's read point, recorded again", false)
+		if r.betweenStaleRetries != nil {
+			r.betweenStaleRetries(seatID, gapID)
+		}
 	}
-	r.noteActErr(fmt.Sprintf("%s: refused as a stale read %d times running", strings.Join(args, " "), tries))
-	return "", false
 }
 
-// staleReads counts the Stale events seatID has on gapID.
-func (r *runner) staleReads(seatID, gapID string) int {
+// readPointOf is where the record has moved seatID's reading of gapID: the through of the newest
+// Stale event the seat has on the gap, 0 where it has none.
+func (r *runner) readPointOf(seatID, gapID string) int64 {
 	b, ok := r.board()
 	if !ok {
 		return 0
 	}
-	n := 0
+	var at int64
 	for _, e := range b.Events {
 		if st, ok := recordpb.BodyAs[*recordpb.Stale](e); ok && e.GetSeatId() == seatID && st.GetGapId() == gapID {
-			n++
+			at = max(at, st.GetThrough())
 		}
 	}
-	return n
+	return at
+}
+
+// staleMoved reports whether a refusal of seatID's act on gapID was the stale read the record
+// describes: it moved the seat's read point past before, to an act another seat recorded — never
+// the seat's own, and never a Stale event, which is a refusal and lands nothing. A refusal that
+// moves the point to anything else is noted as the run's failure here, with what the point names:
+// retried on it, the act would not be bounded by the other seats' acts.
+func (r *runner) staleMoved(seatID, gapID string, before int64) bool {
+	after := r.readPointOf(seatID, gapID)
+	if after <= before {
+		return false
+	}
+	b, ok := r.board()
+	if !ok {
+		return false
+	}
+	for i, id := range b.At.IDs(b.Events) {
+		if id != after {
+			continue
+		}
+		e := b.Events[i]
+		if _, stale := recordpb.BodyAs[*recordpb.Stale](e); stale || e.GetSeatId() == seatID {
+			r.noteActErr(fmt.Sprintf("the record moved %s's read point on %s to event %d, a %s by %s, which is no other seat's change to the gap", seatID, gapID, after, recordpb.Word(e.GetType()), e.GetSeatId()))
+			return false
+		}
+		return true
+	}
+	r.noteActErr(fmt.Sprintf("the record moved %s's read point on %s to event %d, which is not on the record", seatID, gapID, after))
+	return false
 }
 
 // contentKey is a --key drawn from what the act states, so two acts under one key state the same
@@ -272,13 +328,55 @@ func contentKey(prefix string, stated []string) string {
 	return prefix + "-" + hex.EncodeToString(sum[:6])
 }
 
+// withJSON is args asking for the refusal envelope, once: a flag stated twice is itself refused.
+func withJSON(args []string) []string {
+	if slices.Contains(args, "--json") {
+		return args
+	}
+	return append(slices.Clone(args), "--json")
+}
+
+// repeatedFlagRefused states one of an act's single-value flags a second time, with another value.
+// The tool keeps neither: the act is refused as ill-formed, the refusal names both values, and the
+// caller's next act finds the record as it was.
+func (r *runner) repeatedFlagRefused(args []string, flag string) {
+	i := slices.Index(args, flag)
+	if i < 0 || i+1 >= len(args) {
+		r.noteActErr(strings.Join(args, " ") + ": the repeated-flag drive names " + flag + ", which the act does not carry")
+		return
+	}
+	then := args[i+1] + " again"
+	out, err := r.exec(append(slices.Clone(withJSON(args)), flag, then)...)
+	env, ok := refusalEnvelopeIn(out)
+	if err == nil || !ok || env.Code != string(feov.Validation) {
+		r.noteActErr(strings.Join(args, " ") + ": " + flag + " given twice was not refused as ill-formed: " + firstLine(out))
+		return
+	}
+	for _, value := range []string{args[i+1], then} {
+		if !strings.Contains(env.Error, strconv.Quote(value)) {
+			r.noteActErr(strings.Join(args, " ") + ": the refusal of " + flag + " given twice does not name " + value + ": " + firstLine(out))
+			return
+		}
+	}
+}
+
 // retryKeyed repeats a keyed act that landed. As it was, the tool answers with the act on the record;
 // with flag set to other, an asserted field the stored act holds otherwise, it is refused as a
 // conflict — and so is a repeat quoting other text, which states another location under the key.
 func (r *runner) retryKeyed(args []string, flag, other string) {
-	if out, ok := r.admit(args...); ok && !strings.Contains(out, "idempotent") {
-		r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+	// READ BY THE FIELD, not the sentence: the --json envelope's `idempotent` is the fact that the
+	// call wrote nothing, and the human line is free to be reworded.
+	if out, ok := r.admit(withJSON(args)...); ok {
+		var env struct {
+			Result struct {
+				Idempotent bool `json:"idempotent"`
+			} `json:"result"`
+		}
+		if json.Unmarshal([]byte(out), &env) != nil || !env.Result.Idempotent {
+			r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+		}
 	}
+	r.repeatedFlagRefused(args, flag)
 	if i := slices.Index(args, "--quote"); i >= 0 && i+1 < len(args) && flag != "--quote" && r.coin(50) {
 		elsewhere := slices.Clone(args)
 		elsewhere[i+1] = args[i+1] + " Elsewhere."

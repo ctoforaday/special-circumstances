@@ -270,6 +270,11 @@ func commandPathOf(args []string) string {
 		}
 	}
 	if len(toks) > 0 {
+		// A VERB ON NO PATH OF THE SEAT'S TREE IS ANOTHER SEAT'S, typed by this one: keyed under the
+		// typing role, so a lane's refused `edit` is not counted as an invocation of some bare `edit`.
+		if role != "" {
+			return role + " " + toks[0]
+		}
 		return toks[0] // an unknown root command still counts as invoked, and as itself
 	}
 	return ""
@@ -450,9 +455,19 @@ func refusalDigest(out []byte, err error) string {
 }
 
 // refusalExpected names paths the sweep drives ON PURPOSE to be refused, each with its reason.
-// Empty today: every entry here is a claim that a verb's success path does not need exercising,
-// and that claim should be argued in review rather than inherited.
-var refusalExpected = map[string]string{}
+// Every entry here is a claim that a verb's success path does not need exercising, and that claim
+// should be argued in review rather than inherited.
+//
+// The entries are WRONG-SEAT acts: a verb typed by a seat whose surface does not carry it, so
+// there is no success path to exercise. Each is driven by construction and counted by its own
+// strict part-refusal kind (parts_test.go), which the sweep gates at zero.
+var refusalExpected = map[string]string{
+	"lane edit":    "a lane changing the report would close the door on the lanes still writing; edit is blue's (partLaneEdit)",
+	"lane cite":    "a lane changing the report would close the door on the lanes still writing; cite is blue's (partLaneCite)",
+	"lane compute": "a lane changing the report would close the door on the lanes still writing; compute is blue's (partLaneComp)",
+	"lane retire":  "a lane changing the report would close the door on the lanes still writing; retire is blue's (partLaneRetire)",
+	"blue ingest":  "a part is a lane's; the synthesizer's ingest is refused as the wrong seat (partNotALane), and the lanes' ingest succeeds as `lane ingest`",
+}
 
 // neverSucceeded returns the paths the sweep INVOKED and never once got a zero exit from.
 //

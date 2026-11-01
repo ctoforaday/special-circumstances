@@ -55,7 +55,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	_, _, _ = record.BoardCounts(run)
 	_, _ = record.CitationLabels(run)
 	_, _ = record.CitedSources(run)
-	_, _ = record.RecordedProofs(run)
+	_, _ = record.RecordedComputations(run)
 	_, _ = record.MergedEvents(run)
 	_, _ = record.BoardJSONBytes(run)
 	_, _ = record.MotionsJSONBytes(run)

@@ -25,7 +25,7 @@ func TestRenderFromRecordFoldsBasePlusDiffStack(t *testing.T) {
 		}
 	}
 	base := "The value is stable across the whole range of inputs."
-	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
 	edits := []Op{
@@ -72,7 +72,7 @@ func renderOneEdit(t *testing.T, base string, be *recordpb.BlueEdit) string {
 			t.Fatalf("register %s: %v", s, err)
 		}
 	}
-	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "blue-respond"), be); err != nil {

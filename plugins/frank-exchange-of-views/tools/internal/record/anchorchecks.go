@@ -6,18 +6,18 @@ import (
 
 // THIS ANCHOR'S STANDING CHECK, REOPENED BY AN EDIT — one reader for every check of a sentence.
 //
-// A citation and a proof are each anchored to one sentence of the report, and red checks each by
+// A citation and a computation are each anchored to one sentence of the report, and red checks each by
 // a verb that names that anchor: `verify` reads the cited source against the sentence, `reproduce`
-// judges whether the proof's script establishes it. Three questions are asked of those checks,
+// judges whether the computation's script establishes it. Three questions are asked of those checks,
 // and they were answered by three folds that disagreed on what a check was keyed by:
 //
 //   - is this anchor's check of the sentence as it now stands, or of one an edit has replaced?
 //     (reopened evidence, a PASS blocker);
-//   - what does the record say of a proof's sentence — sound, unsound, not yet judged? (the
-//     evidence view, the report's proofs section, the work list);
+//   - what does the record say of a computation's sentence — sound, unsound, not yet judged? (the
+//     evidence view, the report's computations section, the work list);
 //   - which contradiction does a reading of a citation raise? (the contradiction blocker).
 //
-// The re-run's fold was keyed by the proof's SHA, so one lens's `unsound` on one sentence was
+// The re-run's fold was keyed by the computation's SHA, so one lens's `unsound` on one sentence was
 // overwritten by another lens's `sound` on another sentence over the same script. A check is of
 // a sentence, and the anchor is the sentence's name, so the ledger is keyed by anchor.
 //
@@ -31,7 +31,7 @@ import (
 //     read;
 //   - the anchor is not retired — the sentence left the report with its claim;
 //   - it is its SEAT'S LATEST such check of the anchor. A seat's own later verdict replaces its
-//     earlier one; ANOTHER seat's never does. That is the rule the proof ruling states (a standing
+//     earlier one; ANOTHER seat's never does. That is the rule the computation ruling states (a standing
 //     unsound on an anchor stays visible), and it is why a reader takes the standing set rather
 //     than the latest check.
 //
@@ -41,7 +41,7 @@ import (
 // is owed, and holds a PASS (passBlockersOf).
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
-// `reproduce` naming a proof.
+// `reproduce` naming a computation.
 type anchorCheck struct {
 	// id is the check's events.id; sitting is the events.id that opened the sitting it was made
 	// in, 0 when it was made in none.
@@ -63,11 +63,11 @@ type anchorCheck struct {
 // anchorStanding is one anchor and every check of it, in record order.
 type anchorStanding struct {
 	anchor string
-	// proof is whether the anchor is a proof's; a citation's otherwise.
-	proof bool
-	// sha is a proof's proof_sha — the script every proof anchor on it shares; "" for a citation.
+	// computation is whether the anchor is a computation's; a citation's otherwise.
+	computation bool
+	// sha is a computation's bundle_sha — the script every computation anchor on it shares; "" for a citation.
 	sha string
-	// placed is the events.id of the act that put the anchor on the record: blue's cite or proof, or
+	// placed is the events.id of the act that put the anchor on the record: blue's cite or computation, or
 	// red's corroboration. Neither moves the report head, so dispatch readies the owner off it.
 	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
@@ -103,9 +103,9 @@ func (s *anchorStanding) standing() []anchorCheck {
 }
 
 // holds reports whether the record says this anchor's sentence stands up: a check of it stands, and
-// every one that stands holds. It is a proof's `sound` and the answer to a contradiction of a
+// every one that stands holds. It is a computation's `sound` and the answer to a contradiction of a
 // citation (unansweredContradictions) — one reading, so a lens's standing `refutes` keeps a
-// citation's contradiction open exactly as its standing `unsound` keeps a proof unsound.
+// citation's contradiction open exactly as its standing `unsound` keeps a computation unsound.
 func (s *anchorStanding) holds() bool {
 	standing := s.standing()
 	for _, c := range standing {
@@ -117,7 +117,7 @@ func (s *anchorStanding) holds() bool {
 }
 
 // anchorState is the one answer to "what does the record say of this anchor's sentence now": each
-// citation and proof anchor is in exactly one (anchorStanding.state).
+// citation and computation anchor is in exactly one (anchorStanding.state).
 //
 // A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25): "the doc is flawed, and red
 // should demand the citation withdrawn or text changed or *something. Blocks lens and pass. Citation
@@ -138,7 +138,7 @@ const (
 	// stateUnread: a citation checked since that edit, and no check of it READ its source
 	// (`unreachable`, or a reading of a copy the tool stamped not_the_work).
 	stateUnread
-	// stateUnsound: a proof whose sentence a lens's standing judgement calls unsound.
+	// stateUnsound: a computation whose sentence a lens's standing judgement calls unsound.
 	stateUnsound
 	// stateFoundAgainst: a citation a standing `refutes` or `absent` reads against (the contradiction).
 	stateFoundAgainst
@@ -170,7 +170,7 @@ func (s *anchorStanding) state() anchorState {
 		if c.holds {
 			continue
 		}
-		if s.proof {
+		if s.computation {
 			return stateUnsound
 		}
 		return stateFoundAgainst
@@ -197,25 +197,25 @@ func (s *anchorStanding) lastCheck() int64 {
 	return s.checks[len(s.checks)-1].id
 }
 
-// anchorLedger is every citation and proof anchor on the record with its checks, in the order the
+// anchorLedger is every citation and computation anchor on the record with its checks, in the order the
 // record placed the anchors.
 type anchorLedger struct {
 	order    []*anchorStanding
 	byAnchor map[string]*anchorStanding
 }
 
-// at is the anchor's standing, or nil when the record holds no citation or proof at that anchor.
+// at is the anchor's standing, or nil when the record holds no citation or computation at that anchor.
 func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anchor] }
 
 // anchorChecksOf folds the record into its anchor ledger. win supplies each event's events.id and
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 	l := &anchorLedger{byAnchor: map[string]*anchorStanding{}}
-	hold := func(e *Event, anchor string, proof bool, sha string) {
+	hold := func(e *Event, anchor string, computation bool, sha string) {
 		if anchor == "" || l.byAnchor[anchor] != nil {
 			return
 		}
-		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha, placed: win.Of(e).ID}
+		s := &anchorStanding{anchor: anchor, computation: computation, sha: sha, placed: win.Of(e).ID}
 		l.byAnchor[anchor] = s
 		l.order = append(l.order, s)
 	}
@@ -229,8 +229,8 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
 				hold(e, b.GetLabel(), false, "")
 			}
-		case *recordpb.Proof:
-			hold(e, b.GetProofId(), true, b.GetProofSha())
+		case *recordpb.Computation:
+			hold(e, b.GetComputationId(), true, b.GetBundleSha())
 		}
 	}
 	for _, e := range evs {
@@ -265,7 +265,7 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 				check(l.byAnchor[b.GetLabel()], c)
 			}
 		case *recordpb.Reproduce:
-			check(l.byAnchor[b.GetProofId()], anchorCheck{
+			check(l.byAnchor[b.GetComputationId()], anchorCheck{
 				reads:     true,
 				holds:     b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
 				soundness: b.GetSoundness(),

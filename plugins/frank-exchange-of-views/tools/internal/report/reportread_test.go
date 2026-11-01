@@ -18,7 +18,7 @@ import (
 func TestTheTranscriptSaysWhichLensWasServedTheReportAtWhichHead(t *testing.T) {
 	const lens = "red-lens-evidence"
 	evs := []*record.Event{
-		recordtest.Event(t, "harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
+		recordtest.Event(t, "harness", &recordpb.ReportPart{Text: proto.String("# report")}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, lens, &recordpb.Register{}),
 		recordtest.Event(t, lens, &recordpb.ReportRead{Head: proto.Int64(1)}),

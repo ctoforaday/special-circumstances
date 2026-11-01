@@ -22,7 +22,7 @@ func loadFixture(t *testing.T) string {
 	return string(b)
 }
 
-var immortalAnchor = regexp.MustCompile(`<!--(?:fx:F|cite:C|proof:P)-[0-9a-f]{8}-->`)
+var immortalAnchor = regexp.MustCompile(`<!--(?:fx:F|cite:C|computation:P)-[0-9a-f]{8}-->`)
 
 // TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor is the committed fidelity guard: a
 // realistic sequence of edits (including one whose span sits flush before a finding-marker)

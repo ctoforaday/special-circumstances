@@ -1,6 +1,9 @@
 package tessocr
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -155,13 +158,21 @@ func readFixture(t *testing.T, name string) string {
 // staleness gate (build-cstack.sh is the build-time half): neither carrier can move
 // without the other noticing.
 func TestIdentityMatchesPins(t *testing.T) {
-	want := "tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@"
+	want := "tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+cstack@" + cstackPin + "+tessocr@"
 	if got := Identity(); !strings.HasPrefix(got, want) || !isHex(strings.TrimPrefix(got, want), 12) {
 		t.Fatalf("Identity() = %q, want %q followed by the 12-hex engine source hash", got, want)
 	}
 	pins, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "PINS.txt"))
 	if err != nil {
 		t.Fatalf("reading PINS.txt: %v", err)
+	}
+	script, err := os.ReadFile(filepath.Join("..", "..", "third_party", "pins", "build-cstack.sh"))
+	if err != nil {
+		t.Fatalf("reading build-cstack.sh: %v", err)
+	}
+	if got := cstackRecipeDigest(pins, script); got != cstackPin {
+		t.Errorf("cstackPin = %q, but PINS.txt and build-cstack.sh digest to %q — the C-stack "+
+			"recipe moved; set cstackPin to the new digest in the same change", cstackPin, got)
 	}
 	for _, pin := range []string{
 		"tesseract-" + tesseractPin + ".tar.gz",
@@ -214,6 +225,23 @@ func TestEngineSourceHashTracksTheCode(t *testing.T) {
 	if !strings.HasSuffix(Identity(), engineSourceHash) {
 		t.Errorf("Identity() %q does not end in the package's own source hash %q", Identity(), engineSourceHash)
 	}
+}
+
+// cstackRecipeDigest is cstackPin's definition: each PINS.txt pin's checksum and file name, in
+// file order (a URL can move without moving a byte), then build-cstack.sh with line endings
+// normalised.
+func cstackRecipeDigest(pins, script []byte) string {
+	h := sha256.New()
+	for _, line := range strings.Split(string(pins), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 2 || strings.HasPrefix(f[0], "#") {
+			continue
+		}
+		h.Write([]byte(f[0] + " " + f[1] + "\n"))
+	}
+	h.Write([]byte{0})
+	h.Write(bytes.ReplaceAll(script, []byte("\r\n"), []byte("\n")))
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
 func isHex(s string, n int) bool {

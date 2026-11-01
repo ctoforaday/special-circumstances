@@ -90,11 +90,14 @@ func TestTheMigratedM20HoldsItsTextInTheOrderItShips(t *testing.T) {
 	if got, want := headingsOf(written), []string{"TL;DR", "Open questions", "The answer and the evidence for it", "Which checks decide it", "Alternatives considered", "Limits of the answer", "The Catechism"}; !slices.Equal(got, want) {
 		t.Fatalf("the archive's base stands as %q; this test reads the order universe-m20's blue wrote, %q", got, want)
 	}
-	_, _, ops, err := record.ReportProjection(dst)
+	ops, err := record.ReportProjection(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	was, err := reportproj.Replay(written, true, ops)
+	if len(ops) == 0 || ops[0].Kind != "append" {
+		t.Fatalf("the migrated record's first report op is not its part: %+v", ops[:min(1, len(ops))])
+	}
+	was, err := reportproj.Replay(written, true, ops[1:])
 	if err != nil {
 		t.Fatalf("the migrated record's acts do not replay over the base as written: %v", err)
 	}
@@ -153,7 +156,7 @@ func sourceRun(t *testing.T, base string, edits ...[2]string) string {
 	if base == "" {
 		return dir
 	}
-	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatal(err)
 	}
 	for i, e := range edits {
@@ -202,17 +205,17 @@ func TestMigrateReordersTheBaseOnlyWhereEveryActReplays(t *testing.T) {
 				t.Errorf("the manifest says the report's order is %q, want %q", m.ReportOrder, tc.want)
 			}
 			// THE TRIAL LEAVES NOTHING. Where the reordered replay is not kept it is rolled back, and the
-			// record holds exactly the events the replay as written reports writing — one base, not two.
+			// record holds exactly the events the replay as written reports writing — one part, not two.
 			written := 0
 			for _, n := range m.Out {
 				written += n
 			}
 			var events, bases int
-			if err := openRO(t, to).QueryRow(`SELECT count(*), (SELECT count(*) FROM "base_ingest") FROM "events"`).Scan(&events, &bases); err != nil {
+			if err := openRO(t, to).QueryRow(`SELECT count(*), (SELECT count(*) FROM "report_part") FROM "events"`).Scan(&events, &bases); err != nil {
 				t.Fatal(err)
 			}
 			if events != written || (tc.base != "" && bases != 1) {
-				t.Errorf("the migrated record holds %d event(s) and %d base(s); the manifest reports writing %d", events, bases, written)
+				t.Errorf("the migrated record holds %d event(s) and %d part(s); the manifest reports writing %d", events, bases, written)
 			}
 			if tc.base == "" {
 				return

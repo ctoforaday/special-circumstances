@@ -300,7 +300,7 @@ func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
 	if _, err := Attach(doc, "F-00001a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
 		t.Errorf("a mis-quote = %v, want ErrMisQuote", err)
 	}
-	if _, err := Attach("```\ncode here\n```\n", "P-00001a2b", "code here"); !errors.Is(err, ErrInFence) {
+	if _, err := Attach("```\ncode here\n```\n", "K-00001a2b", "code here"); !errors.Is(err, ErrInFence) {
 		t.Errorf("a quote in a fence = %v, want ErrInFence", err)
 	}
 }
@@ -408,7 +408,7 @@ func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
 // Each id of a run of tokens, and the id of a token touching a word, reads as its own word: on
 // universe-m29 the log read "recorded scriptG-bde527ebF-01be5d5aF-16662ce7".
 func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {
-	g, f, p := anchor.ID("gap", [4]byte{0xbd, 0xe5, 0x27, 0xeb}), anchor.ID("finding", [4]byte{0x01, 0xbe, 0x5d, 0x5a}), anchor.ID("proof", [4]byte{0x16, 0x66, 0x2c, 0xe7})
+	g, f, p := anchor.ID("gap", [4]byte{0xbd, 0xe5, 0x27, 0xeb}), anchor.ID("finding", [4]byte{0x01, 0xbe, 0x5d, 0x5a}), anchor.ID("computation", [4]byte{0x16, 0x66, 0x2c, 0xe7})
 	for _, c := range []struct{ msg, want string }{
 		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + anchor.Token(p) + " EOF", "a recorded script " + g + " " + f + " " + p + " EOF"},
 		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + ".", "a recorded script " + g + " " + f},
@@ -421,7 +421,7 @@ func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {
 	}
 }
 
-// AN AMBIGUOUS QUOTE IS TOLD WHERE IT STANDS (m35: two `prove` refusals named no second location, and
+// AN AMBIGUOUS QUOTE IS TOLD WHERE IT STANDS (m35: two `compute` refusals named no second location, and
 // the seat's own search for the copy missed it). Every occurrence is named by its section and the
 // sentence it begins in, in report order, and the refusal a placing verb gives carries them.
 func TestAnAmbiguousQuoteNamesEveryOccurrence(t *testing.T) {

@@ -29,7 +29,7 @@ import (
 // ONE FIELD SAYS WHICH OF THE TOOL'S HEADINGS IS NOT REFUSED (SubjectHeading), and why. A heading
 // composed into report.md is refused because the report would carry two sections of one name. A
 // heading composed into another document is refused when what stands under it is an account of
-// the run its author cannot know — the board, the debate, the verdict's basis. "Proofs" and
+// the run its author cannot know — the board, the debate, the verdict's basis. "Computations" and
 // "Motions" are neither: a section of that name in the report's text meets no section of the
 // tool's in report.md, ships whole and once among the report's own sections, and is what a
 // report on a theorem or on a legislature calls a section of its own.
@@ -123,7 +123,7 @@ const (
 	// The two sections a pass over the whole document writes, after the rows are composed: the
 	// weave (weaveCitations) and the evidence document (evidenceDoc) write these headings.
 	bibliographyHeading = "Bibliography"
-	evidenceHeading     = "Proofs"
+	evidenceHeading     = "Computations"
 )
 
 var layout = []Section{
@@ -158,8 +158,8 @@ var layout = []Section{
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
 		compose: func(a *assembly, _ Section) string { return a.blue.close }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
-		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
-		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
+		From: "the citations and computations anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
+		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a computation on the sentence it establishes. No note is typed by hand under a number, or under K and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
@@ -176,8 +176,8 @@ var layout = []Section{
 	// inquiries.md is not a section of this table: it is the rendering `show inquiries` prints
 	// (view.InquiryBody), whole, under headings that carry each fate's count.
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
-		From: "the proofs on the record: each with its script, its output and red's re-run",
-		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
+		From: "the computations on the record: each with its program, its output and red's re-run",
+		Path: "Blue's `compute` records a computation and a lens's `reproduce` its re-run."},
 	{File: FileEvidence, Heading: citationsHeading, Composer: Tool,
 		From: "the citations on the record and red's corroborations: each with the sentence it backs and every reading of it, its outcome, its confidence and what was read; then red's readings of sources the report does not cite",
 		Path: "Blue's `cite` records a citation, a lens's `verify` a reading of it, and a lens's `corroborate` a source of its own."},
@@ -290,10 +290,10 @@ var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inq
 // audits a hand copy of a composed section as the reader's text unless it is told the section is
 // the tool's.
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	strings.Join(RefusedHeadings(), ", ") + ". A lane's `ingest` and blue's `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as assembly composes it — the record's text as written, unescaped, with anchors resolved and notes numbered — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`. " +
-	"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a proof's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span."
+	"The shipped .md differs from that text in three ways: every line ends in a `\\n`; every `<` outside code but a computation's anchor is written `&lt;`, which a markdown reader prints as `<` — so a `<url>` autolink or a `[text](<url>)` destination in the text ships as text, not a link, and a `<` straight after a bare URL prints on GitHub as `&lt;`, inside the link GitHub makes of the URL; and a `<` at the head of a line inside a code span that runs across lines is written `&lt;` too, which the span prints as `&lt;` — at such a `<` GitHub's reader can open an HTML block before it reads the span."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
@@ -607,6 +607,32 @@ func OutOfOrderIn(was, text ParsedText) (Misplaced, bool) {
 	return Misplaced{Line: c.text, Beside: c.beside, After: c.after, Belongs: belongs}, true
 }
 
+// PartSurfaceIn returns the first line by which a lane's part claims a row of the text other than
+// the report's own sections — the title line, or a section a row names — and that row's name. A part
+// holds only the report's own sections, so parts cannot contend for the title or the tail whatever
+// order the lanes record them in: the rest is the synthesizer's to write.
+func PartSurfaceIn(text ParsedText) (line, row string, found bool) {
+	all, rows, body := stands(text)
+	for _, s := range all {
+		if s.rank != body {
+			return s.line, orderName(rows[s.rank]), true
+		}
+	}
+	return "", "", false
+}
+
+// PartSurfaces names every row of the text a part may not hold (PartSurfaceIn), in the text's order.
+var PartSurfaces = func() string {
+	rows, body := textRows()
+	var names []string
+	for i, s := range rows {
+		if i != body {
+			names = append(names, orderName(s))
+		}
+	}
+	return strings.Join(names, ", ")
+}()
+
 // A stand is one thing the order places, where the text holds it: the title line, a section's
 // heading, or the first line of text before the first heading, which opens the body.
 type stand struct {
@@ -666,32 +692,32 @@ func orderClaims(text ParsedText) (out []claim) {
 }
 
 // THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
-// first appearance (weaveCitations) and a proof's as [^P1], [^P2] … in record order
-// (weaveProofRefs), into the text as it stands and beside whatever that text already holds. A
+// first appearance (weaveCitations) and a computation's as [^K1], [^K2] … in record order
+// (weaveComputationRefs), into the text as it stands and beside whatever that text already holds. A
 // footnote typed by hand under a label of that shape ships next to the tool's note of the same
 // label: markdown resolves a label to one definition and report.html lists one entry for it, so
 // a reader gets one of the two notes and no sign of the other. A reference typed with no
-// definition reads as the tool's note for whichever source or proof comes to hold that number.
+// definition reads as the tool's note for whichever source or computation comes to hold that number.
 // The write refuses the label (WovenNoteIn). A footnote under a label of any other shape is the
 // report's own: it ships as written and resolves to its own definition in both tiers.
 
-// citationNote and proofNote are the labels the weave writes.
-func citationNote(n int) string { return fmt.Sprintf("[^%d]", n) }
-func proofNote(n int) string    { return fmt.Sprintf("[^P%d]", n) }
+// citationNote and computationNote are the labels the weave writes.
+func citationNote(n int) string    { return fmt.Sprintf("[^%d]", n) }
+func computationNote(n int) string { return fmt.Sprintf("[^K%d]", n) }
 
 // wovenNote reads a footnote label of the weave's shape, in a reference or in a definition. Case
 // is folded, as a markdown renderer folds a label's.
-var wovenNote = regexp.MustCompile(`(?i)\[\^p?[0-9]+\]`)
+var wovenNote = regexp.MustCompile(`(?i)\[\^k?[0-9]+\]`)
 
 // WovenNoteLabels names the weave's labels to a seat.
-var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + proofNote(1) + "`, `" + proofNote(2) + "` … for proofs"
+var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + computationNote(1) + "`, `" + computationNote(2) + "` … for computations"
 
 // WovenNotesRule is the rule on the pages of the verbs that write report text. The way in is the
 // Bibliography row's Path: the notes are that section's. Why the label is refused: a hand-typed note
 // would ship beside the tool's note of the same label, and a reader is shown one of the two — the
 // refusal says so (blue/ingest.go); the page states the rule.
 var WovenNotesRule = "NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: " + WovenNoteLabels +
-	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. " + notesRow().Path + " " + NoteInCode
+	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or K and digits — is refused and nothing is recorded. " + notesRow().Path + " " + NoteInCode
 
 // NoteInCode says how text that is not a footnote carries such a label.
 const NoteInCode = "Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there."

@@ -178,12 +178,12 @@ func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found b
 // that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
 // anchors as `show report` prints them. new is fix with each anchor of the run it does not carry that
 // does not back its sentence — the gap and finding anchors — placed at its content end, where Attach
-// places an anchor on any quote ending there; the run's citations and proofs are the edit's to carry
+// places an anchor on any quote ending there; the run's citations and computations are the edit's to carry
 // or refuse. Otherwise the recorded pair.
 //
 // A FINDING RIDES WITH THE GAP. A gap is minted from a finding on its sentence, and left to the edit,
 // that finding was dropped by red's text and every such accept refused as stale on a report nothing
-// had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or proof is the sentence's
+// had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or computation is the sentence's
 // evidence, and carried onto red's rewording it would back text its source was never read against, so
 // it comes along only where AutoPlace finds its sentence word for word. `lens mint` judges its pair
 // through this function too (blue.PlanAccept), so a pair the accept would refuse is refused there.
@@ -268,24 +268,24 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
 // spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
 
-// ProofAnswers reports whether any recorded proof names this gap in its --answers.
+// ComputationAnswers reports whether any recorded computation names this gap in its --answers.
 //
 // It is the join a `computation` acceptance check closes on. The link is a FIELD checked
 // against the board at write time, never a gap id mentioned in prose — the convention
 // blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
 // look like a key and not reliable enough to be one.
 //
-// A read error is returned, never folded into false: "no proof" and "could not look" are two
+// A read error is returned, never folded into false: "no computation" and "could not look" are two
 // answers, and the caller refuses on the second naming it.
-func ProofAnswers(run Run, gapID string) (bool, error) {
+func ComputationAnswers(run Run, gapID string) (bool, error) {
 	if gapID == "" {
 		return false, nil
 	}
-	return recordHas(run, `SELECT 1 FROM "proof" WHERE "answers" = ? LIMIT 1`, gapID)
+	return recordHas(run, `SELECT 1 FROM "computation" WHERE "answers" = ? LIMIT 1`, gapID)
 }
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
-// same footing as fix_basis, proof_basis and verdict_basis.
+// same footing as fix_basis, a computation's basis and verdict_basis.
 //
 // A retire used to record whatever it was told: nothing confirmed the claim had ever been in
 // the report, and nothing confirmed it had left. That mattered beyond tidiness — the changelog

@@ -63,7 +63,7 @@ func TestAMigratedReportReadIsServedAtTheHeadItsSourceWas(t *testing.T) {
 		if r, ok := recordpb.BodyAs[*recordpb.ReportRead](e); ok {
 			head = r.GetHead()
 		}
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_BASE_INGEST {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REPORT_PART {
 			base = ids[i]
 		}
 	}

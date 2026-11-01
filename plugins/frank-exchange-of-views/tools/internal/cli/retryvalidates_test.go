@@ -2,14 +2,27 @@ package cli
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
+// repeatedWords is what every verb's human line says when the call repeats an act already on the
+// record and writes nothing (seat.Repeated), read from the one place it is worded.
+var repeatedWords = strings.TrimPrefix(seat.Repeated(""), " — ")
+
 // corroborateArgs is a supports_with_bridge corroboration of the seeded sentence, with extra flags.
+// stating is args with flag's value replaced, for a retry that states one field otherwise.
+func stating(args []string, flag, value string) []string {
+	out := slices.Clone(args)
+	out[slices.Index(out, flag)+1] = value
+	return out
+}
+
 func corroborateArgs(runDir string, extra ...string) []string {
 	return append([]string{"corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/bridged", "--title", "A Bridged Source",
@@ -27,7 +40,7 @@ func TestACorroborationRetryIsHeldToTheReadingItRepeats(t *testing.T) {
 
 	// A retry naming another title is a second statement of the act, and is refused naming both.
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_VERIFY)
-	if _, err := run(t, append(corroborateArgs(runDir, first...), "--title", "Another Title")...); err == nil ||
+	if _, err := run(t, stating(corroborateArgs(runDir, first...), "--title", "Another Title")...); err == nil ||
 		feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), `--title "A Bridged Source"`) ||
 		!strings.Contains(err.Error(), `--title "Another Title"`) {
 		t.Errorf("a retry naming another title = %v; want a conflict naming both titles", err)
@@ -53,6 +66,15 @@ func TestACorroborationRetryIsHeldToTheReadingItRepeats(t *testing.T) {
 	}
 	if !env.Result.Idempotent || env.Result.Source != "A Bridged Source" || env.Result.Bridge != "summary" {
 		t.Errorf("the retry answered %+v; want the stored row (idempotent, title %q, bridge summary)", env.Result, "A Bridged Source")
+	}
+	// THE HUMAN FORM SAYS IT TOO. It printed the stored verdict as a fresh reading — "verified:
+	// supports_with_bridge" — while the record took nothing, so a seat reading it could not tell.
+	bare, err := run(t, corroborateArgs(runDir, first...)...)
+	if err != nil {
+		t.Fatalf("an identical retry was refused: %v", err)
+	}
+	if !strings.Contains(bare, repeatedWords) || strings.Contains(bare, "verified:") {
+		t.Errorf("the retry's human line does not say it wrote nothing:\n%s", bare)
 	}
 
 	// A retry the write would refuse is refused: no bridge on supports_with_bridge.
@@ -108,7 +130,7 @@ func TestVerifyRefusesAPageOnACorroboration(t *testing.T) {
 	}
 }
 
-// A CITE KEY NAMES ONE CITATION, as a prove key names one program.
+// A CITE KEY NAMES ONE CITATION, as a compute key names one program.
 func TestACiteKeyNamesOneCitation(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe measured latency is bounded.\n\nThe queue drains in order.\n")
@@ -131,7 +153,7 @@ func TestACiteKeyNamesOneCitation(t *testing.T) {
 		"url":         {base("https://y", "The measured latency is bounded."), `--url "https://x"`},
 		"source-span": {base("https://x", "The measured latency is bounded.", "--source-span", "src"), "no --source-span"},
 		"quote":       {base("https://x", "The queue drains in order."), `--quote "The measured latency is bounded."`},
-		"title":       {base("https://x", "The measured latency is bounded.", "--title", "U"), `--title "T"`},
+		"title":       {stating(base("https://x", "The measured latency is bounded."), "--title", "U"), `--title "T"`},
 		"reason":      {base("https://x", "The measured latency is bounded.", "--reason", "it says so"), "no --reason"},
 	} {
 		if _, err := run(t, c.args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), c.names) {

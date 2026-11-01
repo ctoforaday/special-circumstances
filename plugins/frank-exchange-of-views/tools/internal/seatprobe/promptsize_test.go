@@ -110,11 +110,27 @@ import (
 // its relay sentence names what it must not alter by class (anything dropped, added or altered fails
 // the dispatch-parity audit, a blocker, pass_permitted or ceiling included) rather than field by
 // field, and the PASS refusal of a board that does not permit one is the verdict page's.
+//
+// Raised 2026-10-30 for the owner's ruling that a bench ruling and a granted petition's relief reach
+// a seat on the record, on its work list, and never through the engine. The prompts had carried them
+// as clauses rendered only when a ruling or a grant existed, so no board here measured them; they are
+// gone, and every seat's record clause states the duty instead — the rulings and orders bind what it
+// does, beside the holdings that bind how it reads — 36 characters. The lens's ownership sentence
+// names the bench as the one other seat that regrades a gap (26), and the bench's prompt carries the
+// duty to set a grade it holds wrong before it rules (61); the lock, the window and the new-grounds
+// check are the regrade and rule pages'. red-lens-evidence had 4 characters of headroom and the judge
+// 12, so each rises to its measured size: red-lens-evidence 10,614, judge 6,057. The chair and
+// blue-respond hold.
+//
+// Raised 2026-10-30 on merging the computation (epoch 49): the lens's check sentence speaks the
+// computation — its program, and the bundle run once with this computation's output compared — 10
+// characters more on the paragraph every lens receives, which this ruling's 10,614 had no room for.
+// red-lens-evidence rises to its measured size, 10,616; the other ceilings hold.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
 	"red-chair":         6300,
-	"red-lens-evidence": 10557,
-	"judge":             5973,
+	"red-lens-evidence": 10616,
+	"judge":             6057,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

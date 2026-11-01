@@ -58,7 +58,7 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		}
 		text, err := record.RenderAt(p.q)
 		if err != nil {
-			return nil, nil // no base: the gap reads unrendered
+			return nil, nil // no part: the gap reads unrendered
 		}
 		if _, err := anchortext.Attach(text, b.GetGapId(), b.GetLocation()); err != nil {
 			p.census.NeverPlaced = append(p.census.NeverPlaced, b.GetGapId())
@@ -73,8 +73,8 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		}
 	case *recordpb.Cite:
 		return p.owed("cite", b.GetLabel(), b.GetLocation())
-	case *recordpb.Proof:
-		return p.owed("proof", b.GetProofId(), b.GetLocation())
+	case *recordpb.Computation:
+		return p.owed("computation", b.GetComputationId(), b.GetLocation())
 	case *recordpb.Anchor:
 		return nil, p.places(b.GetId(), b.GetLocation())
 	case *recordpb.Verify:
@@ -83,7 +83,7 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 	return nil, nil
 }
 
-// owed is the Anchor an archived citation, proof or corroboration placed by being recorded: the
+// owed is the Anchor an archived citation, computation or corroboration placed by being recorded: the
 // report read its marker off the event itself, so the Anchor appended right after it holds the same
 // place in the stream and replay inserts it where it always did. An act that named no id or no
 // quote placed nothing. Any other act carrying an id already placed owes a second Anchor, which the

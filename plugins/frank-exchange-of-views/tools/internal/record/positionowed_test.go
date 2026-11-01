@@ -29,7 +29,7 @@ func gate(t *testing.T, v recordpb.Verdict) *Event {
 // has closed is unresolved while the run runs and missing after it.
 func TestTheChairOwesAPositionWhereItWithheldAPermittedPass(t *testing.T) {
 	position := func(t *testing.T) *Event {
-		return recordtest.Event(t, chairSeat, &recordpb.Position{Text: proto.String("why the PASS is withheld")})
+		return recordtest.Event(t, chairSeat, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("why the PASS is withheld")})
 	}
 	cases := map[string]struct {
 		evs            func(t *testing.T) []*Event

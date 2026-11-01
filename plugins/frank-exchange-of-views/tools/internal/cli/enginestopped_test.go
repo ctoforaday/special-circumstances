@@ -16,7 +16,7 @@ import (
 // error; the operator's `engine-stopped` is how it reaches the record. It writes no outcome, because an
 // outcome closes the record to every seat and a stopped run is one an operator resumes.
 func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
-	const stop = "red-chair sitting 6 relayed red-lens-adversary with `occasions` [] — only the bench is convened for an occasion"
+	const stop = "red-chair sitting 6 relayed a plan that departs from the plan the record stored"
 	stops := func(t *testing.T, runDir string) []*recordpb.Log {
 		t.Helper()
 		evs, _, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)

@@ -5,7 +5,25 @@ import (
 	"strings"
 )
 
-// VerifyReproduction is the gate that stands before the file is deleted (issue #709): the record
+// VerifyPart is the gate that stands before a part's file is deleted: the report, as it stood once
+// the part was recorded, must end with EXACTLY the bytes ingested, placed by the join rule
+// (reportproj.JoinPart) — the whole report where it is the first part, after a blank line otherwise.
+// A mismatch is VerifyReproduction's error over the part and the report's tail of the same length.
+func VerifyPart(part, rendered string) error {
+	if rendered == part || strings.HasSuffix(rendered, "\n\n"+part) {
+		return nil
+	}
+	tail := rendered
+	if len(tail) > len(part) {
+		tail = tail[len(tail)-len(part):]
+	}
+	if tail == part {
+		tail = rendered // the bytes are there and the join is not: show the whole render
+	}
+	return VerifyReproduction(part, tail)
+}
+
+// VerifyReproduction is the gate that stands before a file is deleted (issue #709): the record
 // must render back to EXACTLY the bytes ingested, or ingest aborts and the file is kept. It
 // returns nil on a match and, on a mismatch, an error whose MESSAGE IS WRITTEN FOR A MODEL THAT
 // ACTS ON IT.
@@ -30,7 +48,7 @@ func VerifyReproduction(ingested, rendered string) error {
 	at := firstDivergence(ingested, rendered)
 	return feov.Errorf(feov.Internal, `INGEST ABORTED — STOP. Do not edit the report; do not retry; the tool failed, not your writing.
 
-Your report file is PRESERVED, byte-for-byte, exactly as you wrote it. Nothing was deleted and no work is lost. This is a defect in the ingest/render tooling — the record did not reproduce your report — and it is not something an edit can fix: changing the report cannot correct a rendering bug, it can only hide it. There is no diff for you to apply here.
+Your file is PRESERVED, byte-for-byte, exactly as you wrote it. Nothing was deleted and no work is lost. This is a defect in the ingest/render tooling — the record did not reproduce what you wrote — and it is not something an edit can fix: changing the report cannot correct a rendering bug, it can only hide it. There is no diff for you to apply here.
 
 WHAT TO DO: report this with 'log' as a defect (a tooling failure in the ingest step) and stop. A maintainer fixes the tool; you change nothing.
 

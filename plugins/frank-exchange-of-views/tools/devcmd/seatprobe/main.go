@@ -756,6 +756,7 @@ func constitutionFor(role, dir string) (string, error) {
 		"lens":  "red-lens-evidence.md",
 		"chair": "red-chair.md",
 		"blue":  "blue-researcher.md",
+		"lane":  "blue-lane.md",
 		"bench": "lead-judge.md",
 	}[role]
 	p := filepath.Join(dir, name)

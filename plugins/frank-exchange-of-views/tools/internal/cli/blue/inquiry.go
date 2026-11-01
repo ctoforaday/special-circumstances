@@ -129,7 +129,7 @@ func newInquiryRecord() *cobra.Command {
 			return nil, err
 		}
 		id := seat.Str(cmd, flags.ID)
-		if err := record.RequireInquiryRef(run, id); err != nil {
+		if err := record.RequireInquiryRef(run, id, "--"+flags.ID); err != nil {
 			return nil, err
 		}
 		st, known := record.InquiryStatusOf(seat.Str(cmd, flags.As))
@@ -189,7 +189,7 @@ type inquiryResult struct {
 func (r inquiryResult) Human() string {
 	head := "inquiry " + r.ID + " recorded (" + r.Status + "): " + r.Question
 	if r.Idempotent {
-		head = "inquiry " + r.ID + " already records this question (idempotent retry — nothing written)"
+		head = seat.Repeated("inquiry " + r.ID)
 	}
 	if r.Recorded {
 		head = "inquiry " + r.ID + " recorded as " + r.Status

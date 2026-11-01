@@ -63,7 +63,7 @@ func TestHaltOutranksAPass(t *testing.T) {
 // ends early with no pass, no halt and no board at its ceiling ended UNVERIFIED — and the
 // record cannot tell that from a run still in flight, so it refuses to derive rather than guess.
 func TestARunThatEndedEarlyIsNotDerivable(t *testing.T) {
-	dir := runWith(t, "5", []*Event{vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")})})
+	dir := runWith(t, "5", []*Event{vev(t, "red-chair", 1, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("x")})})
 	got, why, ok, err := DeriveVerdict(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)

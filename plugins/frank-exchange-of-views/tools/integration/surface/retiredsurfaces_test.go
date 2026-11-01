@@ -15,7 +15,7 @@ var retiredSurfaces = []*regexp.Regexp{
 	// `show --run <dir> show <name>` — the doubled verb the group restructure produced.
 	regexp.MustCompile(`\bshow\s+(?:--\S+\s+\S+\s+)+show\b`),
 	// Projections that were renamed or retired out of the seat menu.
-	regexp.MustCompile(`\bshow\s+(citation-ledger|ledger|archive|changelog|proofs|friction)\b`),
+	regexp.MustCompile(`\bshow\s+(citation-ledger|ledger|archive|changelog|computations|friction)\b`),
 	// The verification grade before it got its own name back (0.60.0).
 	regexp.MustCompile(`--trust\s`),
 }

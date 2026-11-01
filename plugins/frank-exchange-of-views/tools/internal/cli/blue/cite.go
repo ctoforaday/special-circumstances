@@ -34,6 +34,11 @@ import (
 // Crash-safety is the append-only record's: the cite and the Anchor that places its marker are two
 // appends, and the report is replayed from the record — a crash before them leaves nothing, and a
 // --key retry is idempotent and places the Anchor a crash between them left owed.
+func init() {
+	seat.HelpValues["SpanBoundary"] = fetchcache.SpanBoundary
+	seat.HelpValues["TextMarkup"] = fetchcache.TextMarkup
+}
+
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite", citeResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -59,7 +64,7 @@ func newCite() *cobra.Command {
 		// nothing — a real source's own title can legitimately carry a tell.
 		tells := spanVoiceTells(title)
 
-		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `prove`
+		// The argument for the citation is resolved BEFORE the retry check, as `edit` and `compute`
 		// resolve theirs: a retry is the same act, judged on the same inputs.
 		why, err := seat.Reason(cmd)
 		if err != nil {
@@ -76,8 +81,7 @@ func newCite() *cobra.Command {
 			// A KEY IS ONE CITATION'S NAME: a retry under it cites the same source, under the same
 			// title, at the same span, for the same sentence and with the same argument, or it is a
 			// second citation reusing the name.
-			retry := &recordpb.Cite{SourceSpan: proto.String(span)}
-			citeFields(cmd, retry, why)
+			retry := citeRetry(cmd, why)
 			if err := seat.RepeatsKeyed(key, "citation", prior.GetLabel(), prior, retry, citeAsserted...); err != nil {
 				return nil, err
 			}
@@ -179,7 +183,7 @@ func newCite() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.SourceSpan, "required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). "+
-		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause: "+fetchcache.SpanBoundary+". "+
+		"The tool finds them there once — "+fetchcache.SpanNormalisation+" — and refuses one that cuts into a clause, by the boundary rule above. "+
 		"It records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. "+
 		"A source the tool holds no text for is cited without it")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id. A repeat under the handle with another --quote, --url, --title, --source-span or --reason is refused: a handle names one citation")
@@ -201,6 +205,13 @@ var citeAsserted = []seat.Asserted{
 	{Flag: flags.Title, Field: "title"},
 	{Flag: flags.SourceSpan, Field: "source_span"},
 	{Flag: flags.Reason, Field: "text"},
+}
+
+// citeRetry is what a retry under a cite's key states: every field citeFields writes, and the span.
+func citeRetry(cmd *cobra.Command, why string) *recordpb.Cite {
+	retry := &recordpb.Cite{SourceSpan: proto.String(seat.Str(cmd, flags.SourceSpan))}
+	citeFields(cmd, retry, why)
+	return retry
 }
 
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
@@ -295,7 +306,7 @@ type citeResult struct {
 func (r citeResult) Human() string {
 	note := reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 	if r.Idempotent {
-		return "cite " + r.Label + " (idempotent retry — existing anchor returned)" + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
+		return seat.Repeated("citation "+r.Label) + seat.CopyWords(r.CopySubstitution, r.CopyURL) + note
 	}
 	span := ""
 	if r.Origin == recordpb.Word(recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE) {

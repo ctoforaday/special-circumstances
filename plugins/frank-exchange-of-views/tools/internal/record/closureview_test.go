@@ -2,6 +2,7 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -82,6 +83,21 @@ func (s *closureStage) docketed() string {
 	return id
 }
 
+// reconsidered is the lens putting G1, which the bench ruled closed, before it again on new grounds:
+// a finding about G1 recorded since the ruling.
+func (s *closureStage) reconsidered() string {
+	s.t.Helper()
+	s.motions++
+	id := "M" + string(rune('0'+s.motions))
+	finding := fmt.Sprintf("F-0000000%d", s.motions)
+	mustAppend(s.t, s.lens, &recordpb.Finding{Id: proto.String(finding), Text: proto.String("the ruling missed this"),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
+	m := docketMotion(id, "G1")
+	m.GetDocket().Grounds = proto.String(finding)
+	mustAppend(s.t, s.lens, m)
+	return id
+}
+
 func (s *closureStage) rule(motion string, word recordpb.Disposition) *Event {
 	s.t.Helper()
 	s.bench = sit(s.t, s.run, "judge")
@@ -139,7 +155,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		}, closureWant{open: true, closureAbsent: true}},
 		{"c: the bench rules it closed twice", func(s *closureStage) {
 			s.ruled(notADefect)
-			s.epoch().ruled(elsewhere)
+			s.epoch().rule(s.reconsidered(), elsewhere)
 		}, closureWant{byBench: true, epoch: 2, fate: "defect_owed_elsewhere", bodyDispo: "defect_owed_elsewhere",
 			benchDispo: "defect_owed_elsewhere", estopped: true}},
 		{"d: red closes, the chair carries it under another word", func(s *closureStage) {

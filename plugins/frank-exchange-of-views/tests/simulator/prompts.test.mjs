@@ -14,7 +14,7 @@
 // commit (see scripts/golden.mjs).
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, party, petitionBench, blocker, judgeEnv } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, party, read, blocker, judgeEnv } from './harness.mjs'
 import { assertGolden, orphanGoldens, goldenReport } from './golden.mjs'
 import { createHash } from 'node:crypto'
 
@@ -149,13 +149,25 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
 // like the other three, and a prompt nothing pins is a prompt whose clauses can move unobserved.
 test('the petition sitting prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const call = world.calls.find((c) => c.opts.label.startsWith('judge · petition'))
   assert.ok(call, 'no petition sitting was dispatched — the bench was never asked this question')
   assertLossless('judge-petition', call.prompt)
   assertGolden(import.meta.url, 'prompt-judge-petition', goldenBody(call.prompt))
+})
+
+// THE POSITION SITTING fires only when a plan convenes it, so the full run never reaches it either.
+test('the position sitting prompt carries exactly its recorded contract', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('A-00000001', 'judge')] }), record_read: read({ bench_owed: ['position'] }) }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const call = world.calls.find((c) => c.opts.label.startsWith('judge · position'))
+  assert.ok(call, 'no position sitting was dispatched — the bench was never asked this question')
+  assertLossless('judge-position', call.prompt)
+  assertGolden(import.meta.url, 'prompt-judge-position', goldenBody(call.prompt))
 })
 
 // binDir must actually REACH the prompt text, not merely be accepted by the arg gate. The gate

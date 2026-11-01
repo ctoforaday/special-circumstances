@@ -318,6 +318,15 @@ func gateSet() []gate {
 		gate{id: "ocr-corpus", kind: kindExtern, dir: "plugins/frank-exchange-of-views/tools", ciJob: "ocr-corpus",
 			skip: "needs the OCR engine's C stack and FEOV_OCR_CORPUS=1; build it with third_party/pins/build-cstack.sh and run the tagged suite by hand. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
 			why:  "the committed scans that beat the reader, read end to end and pinned byte for byte"},
+		// Every archived computation re-run under pinned interpreters, in its own job that holds no
+		// write credential and saves no cache: it executes every archived program. Declared so the
+		// report says what the local gates leave to it.
+		gate{id: "archiverun", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/archiverun"}, ciJob: "archive-rerun",
+			skip: "its outcomes are measured under the interpreters the archive-rerun job pins, so off that image it fails by design; the job checks it nightly. Here, `go run ./devcmd/archiverun -migrate-only` migrates every archive and executes nothing",
+			why:  "every archived computation, migrated and re-run, against the committed measured outcomes"},
+		gate{id: "archiverun-write", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/archiverun", "-write"}, ciJob: "archive-rerun",
+			skip: "the measurement: the archive-rerun job runs it on workflow_dispatch and uploads the outcomes file it writes, which is committed from that artifact",
+			why:  "the outcomes the nightly check compares against are measured, never forecast"},
 		// The whole graph under the detector, once a day, in a workflow of its own. Declared so
 		// the report says what the pull-request gate leaves to it.
 		gate{id: "feov-record:race-nightly", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",

@@ -64,7 +64,7 @@ type SeatBinding struct {
 	Epoch   int
 	Sitting int
 	// Occasion is WHAT THE SITTING WAS CONVENED TO DO, where the seat id does not say — the bench,
-	// whose four sittings share one id. EMPTY for every other seat, whose id already answers it,
+	// whose five sittings share one id. EMPTY for every other seat, whose id already answers it,
 	// for an agent bound by its bracket, which states none, and for a bench sitting no register
 	// named an occasion for: that is NOT MEASURED, and a reader must not read it as a docket ruling.
 	Occasion string
@@ -143,9 +143,8 @@ func SittingsOf(run Run, seatID string) (int, error) {
 // same words it used when the check was real.
 //
 // WHAT DID NOT GO AWAY WITH IT. The measured incident behind it — a workflow killed between
-// blue-synthesize writing blue/report.md and its call returning, so the resume re-ran it and the
-// second sitting rewrote the report from scratch — loses the FILE, not the events. The four cite
-// events still exist; the anchors they spliced do not, because report.md was replaced. That is a
-// different defect from a discarded shard and this function never covered it. It is tracked as
-// the rewind work (#533), which is where a re-dispatched seat's relationship to its own earlier
-// sitting belongs.
+// blue-synthesize writing its report file and its call returning, so the resume re-ran it and the
+// second sitting rewrote the report from scratch — lost the FILE, not the events. That is a
+// different defect from a discarded shard and this function never covered it. The synthesizer
+// writes no file now: its work is report ops, which a re-sat sitting finds on the record. A
+// re-dispatched seat's relationship to its own earlier sitting is the rewind work (#533).

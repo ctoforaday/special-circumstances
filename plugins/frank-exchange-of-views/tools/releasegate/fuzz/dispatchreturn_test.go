@@ -1,7 +1,6 @@
 package fuzz
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -108,9 +107,8 @@ func TestARefusedCloseIsNotCountedClosed(t *testing.T) {
 // release gate.
 func TestTheAgentBindingReturnsItsDispatch(t *testing.T) {
 	r := stagedRunner(t)
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the report: %v", err)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 	for i := 0; i < 3; i++ {
 		_, settledErr := driveDebate(r, `globalThis.__result = agent("SEAT_ID: blue-synthesize", {label: "blue-synthesize", model: "haiku"})
@@ -154,9 +152,8 @@ func givenUpDispatch(t *testing.T, schema string, arrange func(*runner)) *runner
 	if arrange != nil {
 		arrange(r)
 	}
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the report: %v", err)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 	before := failedSittingsClosed.Load()
 	result, settledErr := driveDebate(r, `globalThis.__result = (async function () {
@@ -209,9 +206,8 @@ func TestAnAssemblySatAgainAfterAGiveUpAssemblesOnTheStampedOutcome(t *testing.T
 	r := stagedRunner(t)
 	r.openUnderAgent = true
 	r.endWithoutEnvelope = 1
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the report: %v", err)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 	result, settledErr := driveDebate(r, `globalThis.__result = (async function () {
 		var opts = {label: "judge", model: "haiku", schema: {type: "object"}};
@@ -290,13 +286,6 @@ func stagedRunner(t *testing.T) *runner {
 	t.Helper()
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	stageRun, err := record.NewRun(runDir)
 	if err != nil {
 		t.Fatal(err)

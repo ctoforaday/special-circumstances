@@ -21,10 +21,11 @@ import (
 // going, so it spends nothing; two motions remanded in one sitting are one hearing of the gap.
 //
 // THE REMAND'S EXCHANGE IS THE FIRST ONE IN WHICH BLUE ACTS ON THE GAP (gblock, 2026-10-25; blue's
-// act alone, ruled by gblock 2026-10-27). A round after the ruling in which blue recorded no act on
-// the gap (gapActsOf) spends nothing, whatever the minting lens did in it: the lens sits first, so
-// its act audits an answer that does not exist yet. The remand stays owed, the dispatch readies both
-// again, and the item on each one's work list blocks its envelope until that seat has acted.
+// act alone, ruled by gblock 2026-10-27). The ruling hands the turn to blue (exchangeFold), so the
+// round blue's next sitting completes begins at the ruling; a round in which blue recorded no act on
+// the gap (gapActsOf) spends nothing. The minting lens's turn comes only with blue's act after the
+// ruling (lensTurnOn, ruled by gblock 2026-10-30), so while the remand is owed the dispatch readies
+// blue on the gap and not the lens, and blue's item blocks its envelope until it has acted.
 //
 // WHAT THE REMAND'S EXCHANGE DECIDES. The exchange count stays monotone. After a counted remand the
 // gap stays at impasse until its remand's exchange: if that exchange leaves it unmoved it is still
@@ -93,9 +94,9 @@ func countedRemands(rounds []exchangeRound, sittings []int64, p Params) []int64 
 
 // impasseOf is the run's terms applied to the exchanges that ended before upto, under the remands
 // counted before it. With no remand it is Stalled >= K or Exchanges >= KMax. After one, it is the
-// remand's exchange first — the first round since the ruling in which blue acted on the gap: none
-// had, or it left the gap unmoved, and the gap is still at impasse; it moved the gap, and the terms
-// are counted from it.
+// remand's exchange first — the first round begun at the ruling or after it in which blue acted on
+// the gap: none had, or it left the gap unmoved, and the gap is still at impasse; it moved the gap,
+// and the terms are counted from it.
 func impasseOf(rounds []exchangeRound, remands []int64, p Params, upto int64) bool {
 	ruled, remanded := int64(math.MinInt64), false
 	for _, at := range remands {
@@ -105,7 +106,7 @@ func impasseOf(rounds []exchangeRound, remands []int64, p Params, upto int64) bo
 	}
 	var since []exchangeRound
 	for _, r := range rounds {
-		if r.end >= upto || r.start <= ruled || (remanded && len(since) == 0 && !r.acted) {
+		if r.end >= upto || r.start < ruled || (remanded && len(since) == 0 && !r.acted) {
 			continue
 		}
 		since = append(since, r)
@@ -124,8 +125,8 @@ func impasseOf(rounds []exchangeRound, remands []int64, p Params, upto int64) bo
 	return stalled >= p.K || len(since) >= p.KMax
 }
 
-// latestRemandOwed reports whether the latest of a gap's remand sittings has had no exchange since
-// its ruling in which blue acted on the gap: the one statement of "its remand's exchange is
+// latestRemandOwed reports whether the latest of a gap's remand sittings has had no exchange begun
+// at its ruling or after it in which blue acted on the gap: the one statement of "its remand's exchange is
 // owed", which the counted stage (remandStageOf), a remand of a gap that is not material (routeOf)
 // and the PASS gate's list (remandsOwedOf) all read.
 func latestRemandOwed(rounds []exchangeRound, sittings []int64) bool {
@@ -134,7 +135,7 @@ func latestRemandOwed(rounds []exchangeRound, sittings []int64) bool {
 	}
 	ruled := sittings[len(sittings)-1]
 	for _, r := range rounds {
-		if r.start > ruled && r.acted {
+		if r.start >= ruled && r.acted {
 			return false
 		}
 	}
@@ -147,7 +148,7 @@ func latestRemandOwed(rounds []exchangeRound, sittings []int64) bool {
 // ruling is the same under every k.
 func remandsOwedOf(evs []*Event, ids []int64, win WindowIndex, remands map[string][]remandRow) map[string]bool {
 	out := map[string]bool{}
-	for g, x := range exchangeFold(evs, ids, win, WhileRunning) {
+	for g, x := range exchangeFold(evs, ids, win, WhileRunning, remands) {
 		if latestRemandOwed(x.rounds, remandSittingsOf(remands[g])) {
 			out[g] = true
 		}
@@ -273,7 +274,8 @@ const (
 	remandSpent             // remanded at impasse, and its exchange has been had: another remand is refused
 )
 
-// remandStageWords is the stage as the work list's `remand` field states it; notRemanded has none.
+// remandStageWords is the stage as the work list's `remand_stage` field states it (stageOnRoute);
+// notRemanded has none.
 var remandStageWords = map[remandStage]string{remandOwed: "owed", remandSpent: "spent"}
 
 // remandStageOf reads the stage off the fold's counted remands and rounds.
@@ -296,11 +298,28 @@ const (
 	routeNobody        gapRoute = iota // not material and not stranded, nothing docketed, no remand's exchange owed: readies nobody
 	routeBench                         // a docket motion on it stands unruled: the bench's
 	routeGradeMovement                 // its grade movement, with the open gaps', is past the threshold: docketed for the bench
-	routeDebate                        // below its limits: its minting lens and blue
+	routeDebate                        // below its limits: blue, and its minting lens when its turn has come (lensTurnOn)
 	routeDocket                        // at impasse, never remanded there: docketed for the bench
-	routeRemandOwed                    // at impasse and remanded, or not material and remanded: its minting lens and blue, once, on the direction
+	routeRemandOwed                    // at impasse and remanded, or not material and remanded: blue, once, on the direction — the lens's turn comes with blue's act
 	routeRedocket                      // at impasse after its remand's exchange: docketed for the bench again, to be closed
 )
+
+// stageOnRoute is the stage the work list states for an open gap on route, whose counted stage
+// (remandStageOf) is counted: owed exactly when the route readies the remand's exchange — a remand of
+// a gap that is not material is owed whether or not the bench ruled it at impasse, and one whose
+// exchange is unhad states nothing while the route sends the gap to the bench — and spent when that
+// exchange has been had. The stage is never computed beside the route: a work list that said "owed"
+// for a gap the dispatch had sent to the bench for its grade movement held no remand item, and blue
+// read an exchange it was not held to.
+func stageOnRoute(route gapRoute, counted remandStage) remandStage {
+	switch {
+	case route == routeRemandOwed:
+		return remandOwed
+	case counted == remandSpent:
+		return remandSpent
+	}
+	return notRemanded
+}
 
 // routeOf is the route for an open gap: material is the class's answer, stranded whether a successor
 // names it, unruledDocket whether a docket motion on it stands unruled, moved whether its grade
@@ -308,9 +327,8 @@ const (
 // below medium is the movement the bench rules on — and x its exchanges.
 //
 // THE BENCH'S REMAND OUTRANKS MATERIALITY (gblock, 2026-10-24). A gap that is not material readies
-// nobody — until the bench remands it: then its minting lens and blue are readied for the one more
-// exchange the remand grants, as for any remand, and once that exchange has been had it readies
-// nobody again. Whether the bench ruled it at impasse does not matter here: a gap that is not material is
+// nobody — until the bench remands it: then blue is readied for the one more exchange the remand
+// grants, as for any remand, and once that exchange has been had it readies nobody again. Whether the bench ruled it at impasse does not matter here: a gap that is not material is
 // never docketed for impasse, so its remand came from a party's motion or its grade movement.
 func routeOf(material, stranded, unruledDocket, moved bool, x *GapExchanges) gapRoute {
 	switch {

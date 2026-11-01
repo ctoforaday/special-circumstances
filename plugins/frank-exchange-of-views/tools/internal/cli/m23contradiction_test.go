@@ -53,7 +53,7 @@ func TestM23sRefutingCorroborationIsRefusedLiveAndItsArchiveKeepsIt(t *testing.T
 		t.Fatal(err)
 	}
 	if len(fam.Events) != 520 {
-		t.Fatalf("the migrated m23 holds %d events, want 520 — the archive's 476, less its one coining and the 5 positions blue filed, and the 6 reproduces carried to a second proof on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items", len(fam.Events))
+		t.Fatalf("the migrated m23 holds %d events, want 520 — the archive's 476, less its one coining and the 5 positions blue filed, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items", len(fam.Events))
 	}
 	at := -1
 	for i, e := range fam.Events {

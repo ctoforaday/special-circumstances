@@ -8,9 +8,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// ONE LENS OWNS A PROOF NOBODY JUDGED (anchorOwnerOf): the computation lens. Its work list is the
-// only one offering the proof; the proof stays on the record for every lens, `not_judged`.
-func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
+// ONE LENS OWNS A COMPUTATION NOBODY JUDGED (anchorOwnerOf): the computation lens. Its work list is the
+// only one offering the computation; the computation stays on the record for every lens, `not_judged`.
+func TestAComputationIsOfferedToItsOwnerAlone(t *testing.T) {
 	for _, c := range []struct {
 		name  string
 		cast  []string
@@ -20,25 +20,25 @@ func TestAProofIsOfferedToItsOwnerAlone(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			seats := append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")
-			b := newStage(t).cast(seats...).ingest().register("red-chair").proof("P-1", "s1")
+			b := newStage(t).cast(seats...).ingest().register("red-chair").computation("K-1", "s1")
 			for _, lens := range c.cast {
 				b.register(lens)
 			}
 			run := b.seed()
 			for _, lens := range c.cast {
-				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "proof P-1 is on the record and nobody has judged")
+				_, listed := itemNaming(sittingOfRunT(t, run, "lens", lens), "computation K-1 is on the record and nobody has judged")
 				if want := lens == c.owner; listed != want {
-					t.Errorf("%s's work list offers the unjudged proof = %v, want %v", lens, listed, want)
+					t.Errorf("%s's work list offers the unjudged computation = %v, want %v", lens, listed, want)
 				}
 			}
-			// The proof is on the record for every lens: `show evidence` lists it, not judged.
+			// The computation is on the record for every lens: `show evidence` lists it, not judged.
 			raw, err := EvidenceJSONBytes(run)
 			if err != nil {
 				t.Fatal(err)
 			}
 			var ev EvidenceJSON
-			if err := json.Unmarshal(raw, &ev); err != nil || len(ev.Proofs) != 1 || ev.Proofs[0].Soundness != SoundnessNotJudged {
-				t.Errorf("show evidence proofs = %+v (%v), want P-1 listed not judged", ev.Proofs, err)
+			if err := json.Unmarshal(raw, &ev); err != nil || len(ev.Computations) != 1 || ev.Computations[0].Soundness != SoundnessNotJudged {
+				t.Errorf("show evidence computations = %+v (%v), want K-1 listed not judged", ev.Computations, err)
 			}
 		})
 	}
@@ -95,9 +95,9 @@ func TestACitationIsOfferedToItsOwnerAlone(t *testing.T) {
 // reopened one raises are one seat.
 func TestOneOwnerPerAnchorKind(t *testing.T) {
 	for _, c := range []struct {
-		name                 string
-		cast                 []string
-		citation, proofOwner string
+		name                       string
+		cast                       []string
+		citation, computationOwner string
 	}{
 		{"every lens", []string{compLens, evLens, outsideLens}, evLens, compLens},
 	} {
@@ -105,17 +105,17 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 			if got := anchorOwnerOf(false); got != c.citation {
 				t.Errorf("anchorOwnerOf(citation) = %q, want %q", got, c.citation)
 			}
-			if got := anchorOwnerOf(true); got != c.proofOwner {
-				t.Errorf("anchorOwnerOf(proof) = %q, want %q", got, c.proofOwner)
+			if got := anchorOwnerOf(true); got != c.computationOwner {
+				t.Errorf("anchorOwnerOf(computation) = %q, want %q", got, c.computationOwner)
 			}
 			seats := append(append([]string{}, c.cast...), "red-chair", "blue-respond", "judge")
-			// C-1 and P-1 nobody checked; C-2 and P-2 checked by a lens that owns neither, then reopened.
+			// C-1 and K-1 nobody checked; C-2 and K-2 checked by a lens that owns neither, then reopened.
 			b := newStage(t).cast(seats...).ingestCited().register("red-chair")
 			for _, lens := range c.cast {
 				b.sit(2, lens)
 			}
-			b.cite("C-1").proof("P-1", "s1").cite("C-2").supports(outsideLens, "C-2").
-				proof("P-2", "s2").reproduce(outsideLens, "P-2", "s2", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("C-2", "P-2")
+			b.cite("C-1").computation("K-1", "s1").cite("C-2").supports(outsideLens, "C-2").
+				computation("K-2", "s2").reproduce(outsideLens, "K-2", "s2", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("C-2", "K-2")
 			run := b.seed()
 			fam, err := FamilyOf(run)
 			if err != nil {
@@ -131,7 +131,7 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 				owner, never, item, debt, again string
 			}{
 				{c.citation, "C-1", "citation C-1 is on the record and nobody has read its source", "unchecked C-1", "C-2"},
-				{c.proofOwner, "P-1", "proof P-1 is on the record and nobody has judged", "unchecked P-1", "P-2"},
+				{c.computationOwner, "K-1", "computation K-1 is on the record and nobody has judged", "unchecked K-1", "K-2"},
 			} {
 				if got := reopened[k.again]; got != k.owner {
 					t.Errorf("reopened %s's blocker is owned by %q, want %q", k.again, got, k.owner)
@@ -150,5 +150,5 @@ func TestOneOwnerPerAnchorKind(t *testing.T) {
 	}
 }
 
-// compLens is the computation lens: the owner of every unjudged proof.
+// compLens is the computation lens: the owner of every unjudged computation.
 const compLens = "red-lens-computation"

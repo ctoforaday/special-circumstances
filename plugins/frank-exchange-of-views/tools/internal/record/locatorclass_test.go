@@ -13,7 +13,7 @@ import (
 //
 // A gap's location, an edit's replaced span and a lens's prescribed text are all quotes of the
 // report, and the report carries an invisible layer of anchors — `<!--fx:…-->`, `<!--cite:…-->`,
-// `<!--proof:…-->`. Minting a gap PLACES one at the location it names, so the stored location and
+// `<!--computation:…-->`. Minting a gap PLACES one at the location it names, so the stored location and
 // the same sentence as an edit later quotes it differ by bytes nobody typed. Any comparison of two
 // such spans on RAW BYTES therefore stops matching the moment the sentence gains an anchor, and it
 // stops matching SILENTLY: the answer is "these are different spans", which is also the honest

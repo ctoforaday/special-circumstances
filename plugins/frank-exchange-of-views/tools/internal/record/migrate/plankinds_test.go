@@ -16,6 +16,9 @@ import (
 func kindsTranslated(t *testing.T, printed string) string {
 	t.Helper()
 	pl := &recordpb.Plan{Printed: proto.String(printed)}
+	if err := migrate.TranslatePlanParties(pl); err != nil {
+		t.Fatalf("a stored plan's parties do not translate: %v", err)
+	}
 	if err := migrate.TranslatePlanKinds(pl); err != nil {
 		t.Fatalf("a stored plan does not translate: %v", err)
 	}
@@ -75,8 +78,8 @@ func TestTheArchivedAboutKindProofIsAnAnchor(t *testing.T) {
 	for _, e := range fam.Events {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
 			about++
-			if !strings.HasPrefix(m.GetAboutRef(), "P-") {
-				t.Errorf("gap %s is about %q, want the proof's anchor it was about", m.GetGapId(), m.GetAboutRef())
+			if !strings.HasPrefix(m.GetAboutRef(), "K-") {
+				t.Errorf("gap %s is about %q, want the computation anchor the proof it was about translates to", m.GetGapId(), m.GetAboutRef())
 			}
 		}
 	}

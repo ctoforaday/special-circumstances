@@ -31,7 +31,7 @@ func TestTheOrderOfTheReportsTextIsTheRuling(t *testing.T) {
 // it here through the prompts the simulator suite renders and pins.
 func TestBluesPromptsStateTheOrderTheWriteHolds(t *testing.T) {
 	rows, _ := textRows()
-	for seat, from := range map[string]string{"blue-synthesize": "report.md OPENS with the H1 title", "blue-respond": "THEIR ORDER BINDS TOO:"} {
+	for seat, from := range map[string]string{"blue-synthesize": "The report OPENS with the H1 title", "blue-respond": "THEIR ORDER BINDS TOO:"} {
 		prompt := strings.ReplaceAll(renderedPrompt(t, seat), "\n", " ")
 		at := strings.Index(prompt, from)
 		if at < 0 {
@@ -188,7 +188,7 @@ func TestATextInOrderShipsInTheOrderWritten(t *testing.T) {
 			if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(doc)}); err != nil {
+			if _, err := record.Append(id, &recordpb.ReportPart{Text: proto.String(doc)}); err != nil {
 				t.Fatal(err)
 			}
 			docs, err := shippedDocs(run)

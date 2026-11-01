@@ -18,7 +18,7 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 	}{
 		{"F-00001a2b", "finding", "<!--fx:F-00001a2b-->", Strip, false, false},
 		{"C-00001a2b", "citation", "<!--cite:C-00001a2b-->", WeaveSource, true, true},
-		{"P-00001a2b", "proof", "<!--proof:P-00001a2b-->", WeaveProof, false, true},
+		{"K-00001a2b", "computation", "<!--computation:K-00001a2b-->", WeaveComputation, false, true},
 		{"G-00000003", "gap", "<!--gap:G-00000003-->", Strip, false, false},
 	} {
 		if got := Kind(c.id); got != c.kind {
@@ -37,7 +37,7 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 			t.Errorf("Backs(%q) = %v, want %v", c.id, got, c.backs)
 		}
 	}
-	if got, want := Kinds(), []string{"finding", "citation", "proof", "gap"}; !reflect.DeepEqual(got, want) {
+	if got, want := Kinds(), []string{"finding", "citation", "computation", "gap"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Kinds() = %v, want %v — the walk order every reader reports in", got, want)
 	}
 	// AN ID NO ROW CLAIMS HAS NO KIND — an inquiry's, a motion's, a lower-case letter, a word. It is no
@@ -54,7 +54,7 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 	// ONE LIFECYCLE: every kind's label says the same thing after its noun. It names the anchor by its
 	// TOKEN, never the bare id: a finding id in text stands beside its lens's area (S9), which a reader
 	// of report text alone does not know, and the token is what a seat reproduces.
-	for id, noun := range map[string]string{"F-00001a2b": "finding anchor", "C-00001a2b": "citation anchor", "P-00001a2b": "proof anchor", "G-00000003": "gap anchor"} {
+	for id, noun := range map[string]string{"F-00001a2b": "finding anchor", "C-00001a2b": "citation anchor", "K-00001a2b": "computation anchor", "G-00000003": "gap anchor"} {
 		if got := Label(id); got != noun+" "+Token(id)+lifecycle {
 			t.Errorf("Label(%s) = %q", id, got)
 		}
@@ -64,7 +64,7 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 // The id pattern matches what the table spells and nothing else.
 func TestIDPatternReadsTheTable(t *testing.T) {
 	id := regexp.MustCompile(`^` + IDPattern() + `$`)
-	for s, want := range map[string]bool{"F-00001a2b": true, "C-00000000": true, "P-000000ff": true, "G-00000003": true,
+	for s, want := range map[string]bool{"F-00001a2b": true, "C-00000000": true, "K-000000ff": true, "G-00000003": true,
 		"g-0000001a": false, "f-00001a2b": false, "C-": false, "C-0000XY00": false, "C-0000ABCD": false, "00001a2b": false,
 		// EXACTLY eight hex: seven and nine are not an id.
 		"C-0000000": false, "C-000000000": false,
@@ -82,7 +82,7 @@ var idKinds = []struct {
 	name, prefix string
 	anchored     bool
 }{
-	{"finding", "F-", true}, {"citation", "C-", true}, {"proof", "P-", true}, {"gap", "G-", true},
+	{"finding", "F-", true}, {"citation", "C-", true}, {"computation", "K-", true}, {"gap", "G-", true},
 	{"inquiry", "Q-", false}, {"motion", "M-", false},
 }
 
@@ -141,8 +141,8 @@ func TestIDAndIDPatternAgreeForEveryKind(t *testing.T) {
 
 // Replace rewrites each token of a real id, of every kind, and nothing else.
 func TestReplace(t *testing.T) {
-	in := "A<!--fx:F-00000001--> b<!--cite:C-00000002-->. C<!--proof:P-00000003--><!--gap:G-00000004-->."
-	if got, want := Replace(in, func(_, id string) string { return "[" + id + "]" }), "A[F-00000001] b[C-00000002]. C[P-00000003][G-00000004]."; got != want {
+	in := "A<!--fx:F-00000001--> b<!--cite:C-00000002-->. C<!--computation:K-00000003--><!--gap:G-00000004-->."
+	if got, want := Replace(in, func(_, id string) string { return "[" + id + "]" }), "A[F-00000001] b[C-00000002]. C[K-00000003][G-00000004]."; got != want {
 		t.Errorf("Replace = %q, want %q", got, want)
 	}
 	if got := Replace("no anchors", func(string, string) string { return "x" }); got != "no anchors" {

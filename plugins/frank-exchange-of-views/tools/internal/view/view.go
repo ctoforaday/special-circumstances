@@ -703,6 +703,8 @@ func debateMD(in Input) []byte {
 		//     friction that it had "issued a direction to red knowing it has no carrier".
 		//   - a DECLARATION, which has no gap to name by construction and so could never have
 		//     appeared in a list keyed on dispositions.
+		//   - a POSITION RULING on the chair's position on a PASS it withheld, with the work an
+		//     upheld one names.
 		//
 		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
 		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
@@ -737,6 +739,23 @@ func debateMD(in Input) []byte {
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+t.GetOpinion())
 					continue
 				}
+				// THE BENCH'S RULING ON THE CHAIR'S POSITION ON A WITHHELD PASS binds as a petition
+				// ruling does: upheld names the work the debate continues on and its direction,
+				// overruled sends the PASS back to the chair's next sitting.
+				if p, isPosition := t.GetRuling().(*recordpb.MotionRule_Position); isPosition {
+					h := p.Position
+					work := "the PASS goes back to the chair's next sitting, which records the verdict"
+					if h.GetRuling() == recordpb.PositionRuling_POSITION_RULING_UPHELD {
+						named := "lens " + h.GetLens()
+						if h.GetLens() == "" {
+							named = "gaps " + strings.Join(h.GetGapIds(), ", ")
+						}
+						work = "work: " + named + " — direction: " + h.GetDirection()
+					}
+					ops = append(ops, fmt.Sprintf("- **POSITION %s %s** — %s\n%s",
+						t.GetMotionId(), strings.ToUpper(recordpb.Word(h.GetRuling())), work, t.GetOpinion()))
+					continue
+				}
 				// Otherwise only the PETITION subject: a grade or inquiry ruling answers a
 				// motion the motions view already renders with its ask beside it. A petition
 				// ruling is the bench acting on the run itself, and its opinion is the operative
@@ -744,20 +763,16 @@ func debateMD(in Input) []byte {
 				if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 					continue
 				}
-				// THE RELIEF LINE IS GONE BECAUSE IT NEVER RENDERED. `relief` is a field of the
-				// FILING (Motion.relief, written by `motion … file`); a motion-rule event has
-				// carried only motion_id, subject, ruling, opinion and binds since the verb
-				// existed, so `Str("relief")` was empty on every ruling ever recorded and this
-				// paragraph's own header — "including granted relief meant to bind the next
-				// epoch" — described output the code could not produce. Rendering it needs a JOIN
-				// to the motion by id, which record.Motions already resolves; that is new
-				// behaviour, not a conversion, so it is REPORTED rather than done here.
-				binds := ""
+				// A GRANT CARRIES ITS ORDER: the relief the ruling records, and whom it binds.
+				binds, relief := "", ""
 				if b := recordpb.Word(t.GetBinds()); b != "" {
 					binds = " — binds **" + b + "**"
 				}
-				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s",
-					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion()))
+				if r := t.GetRelief(); r != "" {
+					relief = "\n**Relief ordered:** " + r
+				}
+				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s%s",
+					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion(), relief))
 			}
 		}
 		if len(ops) > 0 {

@@ -59,9 +59,9 @@ var (
 	// one the evidence lens had to verify. Counted from the record, not the rendered report, so the
 	// evidence budget never depends on the renderer and cannot shrink under a lens mid-run.
 	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`), false}
-	// Proofs: blue's `proof` rows — every computation recorded on the run. A reproduce is red's
-	// act on a proof and lives in its own table.
-	measureProofs = mintMeasure{"proofs on the record", countRows(`SELECT count(*) FROM "proof"`), false}
+	// Computations: blue's `computation` rows — every computation recorded on the run. A reproduce is red's
+	// act on a computation and lives in its own table.
+	measureComputations = mintMeasure{"computations on the record", countRows(`SELECT count(*) FROM "computation"`), false}
 	// Claims: claimcount.Count on the CURRENT report — citation anchors attached to prose.
 	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count), true}
 	// Paragraphs: claimcount.Paragraphs on the CURRENT report — blank-line-separated blocks that
@@ -94,7 +94,7 @@ func rate(mints, per int, unit string) string {
 // has a row, and no row names an area outside it (TestEveryLensAreaHasAMintScale).
 var mintScales = map[string]mintScale{
 	"evidence":     {measureCitations, 3, 2},
-	"computation":  {measureProofs, 3, 2},
+	"computation":  {measureComputations, 3, 2},
 	"logic":        {measureClaims, 1, 1},
 	"voice":        {measureParagraphs, 3, 5},
 	"dark-side":    {measureParagraphs, 3, 5},
@@ -229,33 +229,35 @@ func countInReport(count func(string) int) func(recordsql.Querier, func() (strin
 
 var errNoRenderer = fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
 
-// reportRenderer replays the report's frozen base and its ordered mutations — the rows
-// ReportProjectionAt reads — into the current report. It is REGISTERED, not imported: the renderer
-// (internal/reportproj) imports this package, so the write path is handed it instead. It asks the
-// record nothing, so a reader holding a read transaction takes the rows on it and replays after the
-// transaction closes.
+// reportRenderer folds the report's ordered ops — the rows ReportProjectionAt reads — from a text
+// into the current report. It is REGISTERED, not imported: the renderer (internal/reportproj)
+// imports this package, so the write path is handed it instead. It asks the record nothing, so a
+// reader holding a read transaction takes the rows on it and replays after the transaction closes.
 //
-// IT IS A LEFT FOLD OF THE OPS OVER THE BASE: replaying B over the text A replayed to is replaying A
-// then B over the base. The write path folds the ops another write added onto a render it made before
-// its lock (landingReport.fold) and reads the result as the report; TestTheReportReplayIsAFold
-// (internal/record/migrate) holds the renderer to it on archived runs.
-var reportRenderer func(base string, haveBase bool, ops []ReportOp) (string, error)
+// IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
+// replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
+// every render that succeeded does; a fold from the empty text starts with none. The write path
+// folds the ops another write added onto a render it made before its lock (landingReport.fold) and
+// reads the result as the report; TestTheReportReplayIsAFold (internal/record/migrate) holds the
+// renderer to it on archived runs.
+var reportRenderer func(text string, parted bool, ops []ReportOp) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.
-func RegisterReportRenderer(fn func(base string, haveBase bool, ops []ReportOp) (string, error)) {
+func RegisterReportRenderer(fn func(text string, parted bool, ops []ReportOp) (string, error)) {
 	reportRenderer = fn
 }
 
-// renderProjection replays a report projection — ReportProjection's or ReportProjectionAt's rows —
-// into the current report, or says why it cannot: the rows did not read, or no renderer is linked.
-func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (string, error) {
+// renderProjection folds a report projection — ReportProjection's or ReportProjectionAt's rows —
+// from the empty text into the current report, or says why it cannot: the rows did not read, or no
+// renderer is linked.
+func renderProjection(ops []ReportOp, err error) (string, error) {
 	if err == nil && reportRenderer == nil {
 		err = errNoRenderer
 	}
 	if err != nil {
 		return "", err
 	}
-	return reportRenderer(base, haveBase, ops)
+	return reportRenderer("", false, ops)
 }
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may hold at
@@ -342,7 +344,7 @@ const mintRefusedNext = "Record what you found as a finding now, and mint it whe
 
 // mintAnswerOutsideBudget is the exemption as every lens-facing surface states it: the refusal, the
 // work list, the PASS blocker and the help say one sentence.
-const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a proof whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; it is admitted at the cap, and does not count while it is open"
+const mintAnswerOutsideBudget = "A gap minted from a finding of yours that raised a contradiction, or about an anchor whose check of yours failed — a computation whose sentence you judged unsound, a citation whose source you could not read — answers it and takes no mint; it is admitted at the cap, and does not count while it is open"
 
 // answersOwnRaiseAt is the contradiction a mint by seatID naming foundBy would answer that seatID's
 // own finding raised — its id, or "" where it answers none. It is the fold's own question asked of

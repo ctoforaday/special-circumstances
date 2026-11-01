@@ -31,8 +31,8 @@ func budgetMint(id string, supersedes ...string) *recordpb.Mint {
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: supersedes}
 }
 
-// budgetRun is a run with the given floor, cites and proofs on the record, and the lens registered.
-func budgetRun(t *testing.T, floor, cites, proofs int, lens string) Identity {
+// budgetRun is a run with the given floor, cites and computations on the record, and the lens registered.
+func budgetRun(t *testing.T, floor, cites, computations int, lens string) Identity {
 	t.Helper()
 	runDir := newRun(t)
 	writeRunConfig(t, runDir, fmt.Sprintf(`{"mintBudget":%d}`, floor))
@@ -40,8 +40,8 @@ func budgetRun(t *testing.T, floor, cites, proofs int, lens string) Identity {
 	for i := 0; i < cites; i++ {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
 	}
-	for i := 0; i < proofs; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("p-%x", i))}))
+	for i := 0; i < computations; i++ {
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("computation:%d", i), &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: proto.String(fmt.Sprintf("p-%x", i))}))
 	}
 	recordtest.Seed(t, runDir, evs...)
 	id := Identity{Run: mustRun(t, runDir), SeatID: lens}
@@ -82,7 +82,7 @@ func TestTheMintScaleTableIsTheRuling(t *testing.T) {
 		mints, per int
 	}{
 		"evidence":     {"citations on the record", 3, 2},
-		"computation":  {"proofs on the record", 3, 2},
+		"computation":  {"computations on the record", 3, 2},
 		"logic":        {"claims in the current report", 1, 1},
 		"voice":        {"prose paragraphs in the current report", 3, 5},
 		"dark-side":    {"prose paragraphs in the current report", 3, 5},
@@ -124,7 +124,7 @@ func TestTheBudgetIsTheLargerOfTheFloorAndTheCeiling(t *testing.T) {
 	}
 }
 
-// Each measure reads its own source: the cite and proof rows, and the rendered report.
+// Each measure reads its own source: the cite and computation rows, and the rendered report.
 func TestEachMeasureReadsTheRecord(t *testing.T) {
 	id := budgetRun(t, 1, 3, 2, "red-lens-evidence")
 	md := "# Report\n\nOne<!--cite:C-00000000-->. Two<!--cite:C-00000001--><!--cite:C-00000002-->.\n\nThree.\n\nFour<!--cite:C-00000000-->.\n\n<!--fx:F-00000001-->\n\nFive.\n\nSix.\n\nSeven."

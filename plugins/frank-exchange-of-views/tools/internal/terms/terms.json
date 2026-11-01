@@ -7,6 +7,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -40,52 +41,9 @@
           "pattern": "deliverables?"
         },
         {
-          "variant": "frozen base, diff-stack",
+          "variant": "blue/report.md",
           "kind": "GATED",
-          "pattern": "frozen base|diff stack",
-          "allow": [
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/seat/help/ingest.md",
-              "reason": "ingest is the act that freezes the base, and its own help says what it builds"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go",
-              "reason": "ingest's own refusals and result describe the base it builds"
-            }
-          ]
-        },
-        {
-          "variant": "blue/report.md after ingest",
-          "kind": "GATED",
-          "pattern": "blue/report\\.md",
-          "masks": [
-            {
-              "phrase": "synthesize ${runDir}/blue/report.md by UNION",
-              "reason": "the synthesizer's own prompt: blue/report.md is that seat's file until ingest removes it"
-            },
-            {
-              "phrase": "INTO ${runDir}/blue/report.md at synthesis",
-              "reason": "the synthesizer's own prompt, as above"
-            },
-            {
-              "phrase": "bash cp it to ${runDir}/blue/report.md, the one path ingest reads",
-              "reason": "the synthesizer's own prompt, at the write step: the path it copies its draft to before ingest"
-            }
-          ],
-          "allow": [
-            {
-              "path": "plugins/frank-exchange-of-views/agents/blue-synthesizer.md",
-              "reason": "the synthesizer writes blue/report.md before ingest; it is that seat's file"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/skills/research-protocol/references/run-directory.md",
-              "reason": "the operator's run-directory map describes the synthesizer's file and its removal at ingest"
-            },
-            {
-              "path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go",
-              "reason": "ingest consumes blue/report.md and removes it; its refusal names the file it could not remove"
-            }
-          ]
+          "pattern": "blue/report\\.md"
         }
       ],
       "collisions": [
@@ -95,7 +53,7 @@
         },
         {
           "word": "report.md",
-          "resolution": "blue/report.md is the synthesizer's file until ingest removes it; report.md at the run root is the assembled report"
+          "resolution": "report.md at the run root is the assembled report; no seat writes blue/report.md"
         }
       ]
     },
@@ -106,6 +64,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -125,6 +84,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -164,6 +124,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -192,6 +153,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -217,6 +179,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -264,6 +227,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -277,6 +241,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -290,6 +255,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -315,6 +281,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -333,6 +300,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -351,7 +319,7 @@
       "collisions": [
         {
           "word": "merge",
-          "resolution": "blue's union of the lane drafts is a merge; the chair is the chair"
+          "resolution": "blue's union of the lanes' parts is a merge; the chair is the chair"
         }
       ]
     },
@@ -362,6 +330,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -388,6 +357,7 @@
       "definition": "A lane is one of blue's parallel first passes at the report, written by one researcher under one method.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -402,9 +372,10 @@
     },
     {
       "term": "synthesizer",
-      "definition": "The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.",
+      "definition": "The synthesizer is the blue seat that merges the lanes' parts into the report by union through the record's acts, and writes the report's authored surfaces.",
       "seats": [
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -418,6 +389,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -460,6 +432,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -473,6 +446,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -517,6 +491,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -536,6 +511,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -555,6 +531,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -581,7 +558,19 @@
       "definition": "A source span is the words a citation quotes from the source's own cached text, which the tool finds there once and keeps on the citation with the source's text around them; it is what the source says, and blue's reason for the citation is blue's account of it.",
       "seats": [
         "lens",
-        "blue"
+        "blue",
+        "lane"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "source search",
+      "definition": "A source search is a read of one cached source's text for a pattern, in the text and the normalisation a source span is located in; each hit carries the source's sentence around it and whether a citation can quote that sentence as printed, and the search records nothing.",
+      "seats": [
+        "lens",
+        "blue",
+        "lane"
       ],
       "bans": [],
       "collisions": []
@@ -592,6 +581,7 @@
       "seats": [
         "lens",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -599,11 +589,12 @@
     },
     {
       "term": "anchor",
-      "definition": "An anchor is the invisible token a citation, a proof, a finding or a gap leaves at its sentence in the report.",
+      "definition": "An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -611,12 +602,13 @@
       "collisions": []
     },
     {
-      "term": "proof",
-      "definition": "A proof is a recorded computation: a script that was run, with its hash and exit status.",
+      "term": "computation",
+      "definition": "A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -630,6 +622,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -654,6 +647,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -678,6 +672,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -691,6 +686,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -715,6 +711,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -733,6 +730,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -782,6 +780,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -847,6 +846,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -899,7 +899,7 @@
     },
     {
       "term": "grade movement",
-      "definition": "Grade movement is the change a regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling.",
+      "definition": "Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.",
       "seats": [
         "lens",
         "chair",
@@ -921,6 +921,7 @@
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -939,12 +940,46 @@
       "collisions": []
     },
     {
+      "term": "relief",
+      "definition": "Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "lane",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "relief sought",
+          "resolution": "the petitioner's ask, on the filing; relief is what the bench ordered on the ruling"
+        }
+      ]
+    },
+    {
+      "term": "new grounds",
+      "definition": "New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "lane",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": []
+    },
+    {
       "term": "scorecard",
       "definition": "A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -964,7 +999,7 @@
     },
     {
       "term": "occasion",
-      "definition": "A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.",
+      "definition": "A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its five sittings share a single id.",
       "seats": [
         "bench"
       ],
@@ -993,11 +1028,12 @@
     },
     {
       "term": "inquiry",
-      "definition": "An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.",
+      "definition": "An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, open to a ruling by the chair, and reviewed against the report once per epoch.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],
@@ -1006,32 +1042,34 @@
     },
     {
       "term": "reopened",
-      "definition": "A citation or proof is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.",
+      "definition": "A citation or computation is reopened when an edit changes its sentence after a check and no sitting opened since has checked it — it is unchecked again; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns computations for a computation — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
       "collisions": [
         {
           "word": "reopen (a gap)",
-          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof"
+          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation"
         },
         {
           "word": "`reopened` (the edit's field)",
-          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened"
+          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened"
         }
       ]
     },
     {
       "term": "unchecked",
-      "definition": "A citation or proof is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.",
+      "definition": "A citation or computation is unchecked when no check of the sentence the report carries stands: nobody has checked it, or it is reopened; its owning lens owes the check and is readied for it, and a PASS waits until one is recorded.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "operator"
       ],
       "bans": [],
@@ -1039,11 +1077,12 @@
     },
     {
       "term": "failed check",
-      "definition": "A failed check is a standing check of a citation or proof that failed — a lens judged the proof's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.",
+      "definition": "A failed check is a standing check of a citation or computation that failed — a lens judged the computation's sentence unsound, or every reading of the citation since its sentence last changed read nothing of the cited work, the source unreachable or the copy not the work — which holds the PASS, is cleared by no bench ruling, and obliges the seat whose check failed to mint a gap about the anchor, outside its mint budget, that does not close while the check stands, until the anchor is checked and holds, an edit changes its sentence, or blue retires it.",
       "seats": [
         "lens",
         "chair",
         "blue",
+        "lane",
         "bench",
         "operator"
       ],

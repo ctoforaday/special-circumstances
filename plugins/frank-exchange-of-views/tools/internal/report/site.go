@@ -184,7 +184,7 @@ var pageIDs = func() []string {
 }()
 
 // siteLink opens a link to target: the set's own cross-file links — `[the board](docket.md)`,
-// `[evidence.md](evidence.md#p-deadbeef)` — as tab switches, any other as itself.
+// `[evidence.md](evidence.md#K-deadbeef)` — as tab switches, any other as itself.
 //
 // WITHOUT THIS THEY ARE DEAD. In the markdown tier they are exactly right: a relative link to
 // a sibling file. In one HTML file there is no sibling file, so the browser would try to open

@@ -34,7 +34,7 @@ import (
 //
 // The marker is read through seat.IsMarked — the one reader of the shape every writer produces —
 // so this gate and helpcontract_test.go cannot disagree about what counts. "REQUIRED to close a
-// gap red minted with --check-kind computation" mid-sentence on `prove --answers` is a condition,
+// gap red minted with --check-kind computation" mid-sentence on `compute --answers` is a condition,
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
 //
 // EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
@@ -59,20 +59,23 @@ type requiredProbe struct {
 // requirement no single-flag marker states, so these are exempt from the marker check and the
 // help carries the alternative in prose (helpcontract_test.go's satisfiedByAnother reads the
 // same shape from the other side). `motion docket rule` answers what follows its ruling with one
-// of three, chosen by --as: --direction on a remand, else --reopens-on or --final.
+// of three, chosen by --as: --direction on a remand, else --reopens-on or --final. `motion position
+// rule` names an upheld ruling's work one of two ways: --lens or --ids.
 var oneOfAnother = map[string]string{
 	"problem":    "reason",
 	"reason":     "problem",
 	"reopens-on": "final",
 	"final":      "reopens-on",
 	"direction":  "final",
+	"lens":       "ids",
+	"ids":        "lens",
 }
 
 // verbsWithAOneOf are the verbs on which oneOfAnother applies — --reason is ordinary everywhere
 // but `mint`, where it stands in for --problem. A pair exempts a flag only where its partner is
 // registered: `motion docket rule` has --final/--reopens-on and no --problem, so its --reason is
 // held to the marker like any other.
-var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true}
+var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true, "motion position rule": true}
 
 func requiredProbes() map[string]requiredProbe {
 	probes := map[string]requiredProbe{}
@@ -133,6 +136,12 @@ func requiredProbes() map[string]requiredProbe {
 	probes["blue register"] = requiredProbe{seat: "blue-respond", args: fixed("register")}
 	// engage runs clean only in a sitting that found an engaged gap closed with an open successor,
 	// which the act fixture does not stage; the record's tests drive it whole (successor_test.go).
+	// The bench rules the chair's position where the chair withheld a PASS its plan permitted.
+	probes["motion position rule"] = requiredProbe{seat: "judge",
+		setup: func(t *testing.T, runDir string) actVars { return actVars{"id": heardPosition(t, runDir)} },
+		args: func(v actVars) []string {
+			return []string{"motion", "position", "rule", "--id", v["id"], "--as", "upheld", "--lens", lensSeat, "--direction", "audit the inference", "--reason", "r"}
+		}}
 	probes["blue engage"] = requiredProbe{seat: "blue-respond", fullIsRefused: true, args: fixed("engage", "--ids", "G1")}
 	return probes
 }
@@ -320,7 +329,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if omit != nil {
 					args, _ = without(args, omit)
 				}
-				_, err := runAt(t, append(append([]string{}, args...), "--run", runDir, "--seat-id", p.seat)...)
+				_, err := runAt(t, ahead(args, "--run", runDir, "--seat-id", p.seat)...)
 				dirty = err == nil
 				return err
 			}
