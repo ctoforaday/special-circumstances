@@ -783,8 +783,8 @@ cmd_supervise() {
   exit "$rc"
 }
 
-# WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows dispatch
-# and verbs; this shows the board — which is the thing a human actually wants to know. Reads the
+# WHAT THE DEBATE ITSELF IS DOING, as against what the harness is doing. The stream shows the
+# workflow's dispatch; this shows the board — which is the thing a human actually wants to know. Reads the
 # record READ-ONLY so it can never disturb a live run.
 #
 # The process state is read BEFORE the board. An outcome is written before the process ends, so a

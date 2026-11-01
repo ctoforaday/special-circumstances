@@ -1,4 +1,4 @@
-prompt sha256: 6b5e79ce84e999660b3719d3576b6bedd52343b570e2aa4033e3067d99172042
+prompt sha256: 26589cf136bb2b72dc831d4b69c2d8cf622f242b9ca742299fb69e85a10f81a8
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -14,7 +14,7 @@ VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small mode
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through `gh issue view <n> --comments`), and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.
 If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.
-YOUR CLOSING ARGUMENT IS OWED ON: G-00000001 — each is DOCKETED, and the bench rules it once you and the other party to it have each filed yours.
+A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE: it is your argument on a DOCKETED gap, and the bench rules the gap once you and the other party to it have each filed yours.
 For EACH, argue in ~120 words why it should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case.
 This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 YOUR PIN IS ON YOUR WORK LIST: read `sitting.last_read` first — its kind decides what to audit.

@@ -2172,10 +2172,10 @@ enum RulingBinds {
 enum Occasion {
   OCCASION_UNSPECIFIED = 0;
   OCCASION_DOCKET = 1 [(means) = "ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting"];
-  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The chair's plan convenes it at the next chair sitting, before any party of that epoch sits"];
+  OCCASION_PETITION = 2 [(means) = "hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close's record_read reports a petition unheard: in the turn that filed it, at no epoch"];
   OCCASION_TERMINAL = 3 [(means) = "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"];
   OCCASION_ASSEMBLE = 4 [(means) = "assembling the final report by union-copy. The last step of the run"];
-  OCCASION_POSITION = 5 [(means) = "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The plan the withholding sitting relays convenes it, before any party of the next epoch sits"];
+  OCCASION_POSITION = 5 [(means) = "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch"];
 }
 
 // Register is every seat's FIRST record action, and the only event Append does not write —
@@ -2429,15 +2429,12 @@ message Dispatch {
     why: "the party engaged; refused unless it is in the cast"
   }];
   repeated string gap_ids = 3;
-  // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
-  // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
-  // is asked, so the row says it, and the bench's sitting for each is the one whose register states
-  // the same occasion. Required on a bench row and refused on any other seat's, at the write.
-  repeated Occasion occasions = 4;
+  // 4 held `occasions`, what the bench was convened for. The chair convenes it for a docket and
+  // nothing else, and a docket is a bench row's gaps.
   // 5 held `remand_owed`, the gaps whose remand exchange the row readied. The plan the row was
   // written from is stored whole (Plan), and its `remand_owed` says the same with the direction.
-  reserved 5;
-  reserved "remand_owed";
+  reserved 4, 5;
+  reserved "occasions", "remand_owed";
 }
 
 // Plan is the plan `dispatch next` printed, WHOLE: the bytes of record.Plan as the verb marshals

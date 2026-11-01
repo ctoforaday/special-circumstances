@@ -16,6 +16,9 @@ import (
 func kindsTranslated(t *testing.T, printed string) string {
 	t.Helper()
 	pl := &recordpb.Plan{Printed: proto.String(printed)}
+	if err := migrate.TranslatePlanParties(pl); err != nil {
+		t.Fatalf("a stored plan's parties do not translate: %v", err)
+	}
 	if err := migrate.TranslatePlanKinds(pl); err != nil {
 		t.Fatalf("a stored plan does not translate: %v", err)
 	}

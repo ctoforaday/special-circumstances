@@ -12,6 +12,7 @@ package setup
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -262,6 +263,95 @@ func expectedSchema(recordBin string) (int, error) {
 		return 0, fmt.Errorf("%s declares no eventSchema, so there is nothing to check the binary against", manifest)
 	}
 	return *m.EventSchema, nil
+}
+
+// clientFloor is the lowest Claude Code this plugin runs on: the `claude` tool's min_version in the
+// manifest beside the binary, the line the doctor holds the same tool to. A manifest stating none is a
+// refusal, as a missing epoch is: a check that cannot be made must not report success.
+func clientFloor(recordBin string) (string, error) {
+	manifest := filepath.Join(filepath.Dir(filepath.Dir(recordBin)), "requirements.json")
+	b, err := os.ReadFile(manifest)
+	if err != nil {
+		return "", fmt.Errorf("cannot read %s (%v), so the client's version cannot be checked against the plugin's minimum", manifest, err)
+	}
+	var m struct {
+		Tools []struct {
+			Name       string `json:"name"`
+			MinVersion string `json:"min_version"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return "", fmt.Errorf("%s is unparseable (%v), so the client's version cannot be checked against the plugin's minimum", manifest, err)
+	}
+	for _, t := range m.Tools {
+		if t.Name == clientBin && t.MinVersion != "" {
+			return t.MinVersion, nil
+		}
+	}
+	return "", fmt.Errorf("%s declares no min_version for %s, so there is nothing to check the client against", manifest, clientBin)
+}
+
+// clientBin is the Claude Code client, as PATH names it and as the manifest's tool row does.
+const clientBin = "claude"
+
+// PreflightClient refuses a client below the plugin's minimum. BELOW IT THE RUN IS NOT MERELY WORSE:
+// the engine learns everything it knows of the record from the field the PreToolUse hook writes on a
+// seat's envelope, and below 2.1.305 a resumed Workflow runs the completed agents of a `parallel()`
+// group again, and the lens group is one. A client whose version cannot be read refuses as well.
+func PreflightClient(floor string, run ExecFunc) Preflight {
+	r := run(clientBin, []string{"--version"})
+	if r.Err != nil || r.Status != 0 {
+		detail := fmt.Sprintf("exit %d", r.Status)
+		if r.Err != nil {
+			detail = r.Err.Error()
+		}
+		return Preflight{
+			Reason: fmt.Sprintf("%s --version did not run (%s), so the client cannot be checked against the minimum %s this plugin requires", clientBin, detail, floor),
+			Remedy: "install Claude Code at " + floor + " or later, with `claude` on PATH",
+		}
+	}
+	fields := strings.Fields(r.Stdout)
+	if len(fields) == 0 || !dottedVersion(fields[0]) {
+		return Preflight{
+			Reason: fmt.Sprintf("%s --version printed %q, which names no version, so the client cannot be checked against the minimum %s this plugin requires", clientBin, strings.TrimSpace(r.Stdout), floor),
+			Remedy: "check that `claude` on PATH is Claude Code",
+		}
+	}
+	if compareVersions(fields[0], floor) < 0 {
+		return Preflight{
+			Reason: fmt.Sprintf("Claude Code %s is below the %s this plugin requires: the engine reads the record off the field a hook writes on each seat's envelope, and below this line a resumed run sits its completed lenses again", fields[0], floor),
+			Remedy: "run `claude update`, then start the run from a new session",
+		}
+	}
+	return Preflight{OK: true, Version: fields[0]}
+}
+
+// dottedVersion reports whether v is dot-separated numbers.
+func dottedVersion(v string) bool {
+	for _, part := range strings.Split(v, ".") {
+		if _, err := strconv.Atoi(part); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// compareVersions orders two dotted versions by number, an absent part reading as zero.
+func compareVersions(a, b string) int {
+	as, bs := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < max(len(as), len(bs)); i++ {
+		var x, y int
+		if i < len(as) {
+			x, _ = strconv.Atoi(as[i])
+		}
+		if i < len(bs) {
+			y, _ = strconv.Atoi(bs[i])
+		}
+		if x != y {
+			return cmp.Compare(x, y)
+		}
+	}
+	return 0
 }
 
 // ExecResult mirrors the spawnSync fields the mjs preflight reads.

@@ -30,13 +30,8 @@ func askedElsewhere(t *testing.T, plan Plan) []*Event {
 		acts = append(acts, recordtest.At(t, "red-chair", "race:motion:"+g, docketMotion("M-race-"+g, g)))
 	}
 	for _, p := range plan.Parties {
-		var occ []recordpb.Occasion
-		for _, w := range p.Occasions {
-			o, _ := OccasionOf(w)
-			occ = append(occ, o)
-		}
 		acts = append(acts, recordtest.At(t, "red-chair", "race:dispatch:"+p.SeatID, &recordpb.Dispatch{
-			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occ}))
+			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs}))
 	}
 	return acts
 }

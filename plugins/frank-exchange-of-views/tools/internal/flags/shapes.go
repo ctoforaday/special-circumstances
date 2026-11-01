@@ -181,6 +181,20 @@ func CitationAnchor() *ShapedValue {
 		hint: "a citation anchor is a `" + anchor.Token("C-…") + "` token in the report or the bare id inside one (" + BareID("C-…") + ") — paste either — while `F-` is a finding and `K-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
+// FindingID refuses anything that is not a finding's id: `mint --found-by` names the findings that
+// surfaced a gap, and a seat copies one out of the findings view or the report's token.
+func FindingID() *ShapedValue {
+	return &ShapedValue{kind: "finding-id", re: idShape("finding"), unwrapsAnchor: true,
+		hint: "a finding id is the bare id inside a `" + anchor.Token("F-…") + "` token in the report (" + BareID("F-…") + "), or the token whole — paste either; `show findings` lists them"}
+}
+
+// AboutAnchor refuses what `--about-kind anchor` cannot name: only a citation and a computation stand
+// behind a sentence, and a finding or a gap has its own way to be named.
+func AboutAnchor() *ShapedValue {
+	return &ShapedValue{kind: "citation or computation anchor", re: idShape("citation", "computation"), unwrapsAnchor: true,
+		hint: "it takes a `" + anchor.Token("C-…") + "` or `" + anchor.Token("K-…") + "` token in the report or the bare id inside one (" + BareID("K-…") + ") — paste either — while `F-` is a finding and `G-` is a gap, which --about-kind gap names; `show evidence` lists every citation and computation by anchor"}
+}
+
 // InquiryID refuses anything that is not an inquiry id. Its letter is Q, for the QUESTION the inquiry
 // asks, which is what `--question` holds.
 func InquiryID() *ShapedValue {

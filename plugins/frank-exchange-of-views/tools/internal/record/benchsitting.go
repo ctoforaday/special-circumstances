@@ -63,7 +63,7 @@ func docketHeld(evs []*Event, ids []int64, win WindowIndex) (gaps []string, moti
 //
 //   - docket: every docket motion on a gap the sitting is convened on (docketHeld).
 //   - petition: every petition filed before the sitting opened. One petition sitting hears a filing
-//     (benchReadiness), so a petition this sitting leaves is one no later plan convenes it for. A
+//     (benchOwedOf), so a petition this sitting leaves is one the bench is not convened for again. A
 //     petition filed during the sitting waits for its own.
 //   - position: every heard position filed before the sitting opened, on the same terms.
 //   - terminal and assemble: every one. The run's outcome is refused while any stands.

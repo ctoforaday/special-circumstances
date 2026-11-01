@@ -683,7 +683,7 @@ No material downside was identified.
 				"A bench that holds a grade wrong sets it with its own regrade while the docket motion stands, then rules; a " +
 				"ruling over a grade it holds wrong records a fate on a gap the record still grades as something else, and " +
 				"only the bench's regrade binds the lens not to move it back."},
-			{Seat: "judge", Verb: "motion petition rule", Because: "A petition convenes the bench at the next chair sitting, before any party of that epoch sits, and the run cannot end in a verdict while one stands. The bench holds this gavel alone."},
+			{Seat: "judge", Verb: "motion petition rule", Because: "A petition convenes the bench as soon as nothing is running, in the turn it was filed, and the run cannot end in a verdict while one stands. The bench holds this gavel alone."},
 			{Seat: "judge", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
 				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +

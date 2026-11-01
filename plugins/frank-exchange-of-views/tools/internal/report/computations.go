@@ -23,7 +23,8 @@ import (
 // and the assembled report carried the raw anchor token while mentioning the
 // computation ZERO times. The evidence existed everywhere except the document a human reads.
 
-// computationNumbers assigns each recorded computation its RUN-WIDE number, in record order.
+// computationNumbers assigns each computation it is handed — the ones the set anchors — its RUN-WIDE
+// number, in record order.
 //
 // The number is not per-document, and it is not first-appearance. Across a multi-file set,
 // first-appearance numbering makes "K3" mean a different computation in the report than in the
@@ -37,6 +38,21 @@ func computationNumbers(computations []record.Computation) (map[string]int, map[
 		byLabel[p.Label] = p
 	}
 	return num, byLabel
+}
+
+// computationLabelsIn is the computation anchors md carries, in reading order, each once — the
+// tokens weaveComputationRefs turns into references.
+func computationLabelsIn(md string) []string {
+	var out []string
+	seen := map[string]bool{}
+	anchor.Replace(md, func(tok, label string) string {
+		if anchor.AssemblyOf(label) == anchor.WeaveComputation && !seen[label] {
+			seen[label] = true
+			out = append(out, label)
+		}
+		return tok
+	})
+	return out
 }
 
 // weaveComputationRefs resolves the invisible computation layer in ONE document: every computation
@@ -108,7 +124,7 @@ func weaveComputationRefs(md string, computations []record.Computation) (string,
 // each bundle file's path and each out/ file's name are the program author's, and a raw one can open
 // a heading, a link, a footnote or raw HTML in the document; outputs and drifts are fenced longer
 // than any backtick run they hold.
-func evidenceDoc(run record.Run, computations []record.Computation, anchored map[string]bool) string {
+func evidenceDoc(run record.Run, computations []record.Computation) string {
 	if len(computations) == 0 {
 		return ""
 	}
@@ -130,9 +146,6 @@ func evidenceDoc(run record.Run, computations []record.Computation, anchored map
 		n := num[label]
 		b.WriteString(computationAnchorMark(label) + "\n\n")
 		fmt.Fprintf(&b, "### K%d — %s\n\n", n, firstNonEmpty(plain(p.Reason), Literal(commandOf(p))))
-		if !anchored[label] {
-			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
-		}
 		fmt.Fprintf(&b, "- **basis**: %s\n", p.Basis)
 		if p.Invariant != "" {
 			fmt.Fprintf(&b, "- **holds across both runs**: %s\n", plain(p.Invariant))

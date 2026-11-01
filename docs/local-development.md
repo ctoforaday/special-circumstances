@@ -113,13 +113,13 @@ answering different questions:
 
 **The harness view** — `universe.sh run` has claude write `--output-format stream-json --verbose` to
 `stream-<stamp>.jsonl`, and tails that file through `scripts/universe-stream.py` into
-`run-<stamp>.log`, which prints dispatches, record verbs and tool errors as they happen. The view
-cannot harm the capture: the renderer reads a file claude writes, so nothing about it can stop claude
-or the raw stream.
+`run-<stamp>.log`, which prints the workflow's dispatch and the session's tool errors as they happen.
+The view cannot harm the capture: the renderer reads a file claude writes, so nothing about it can
+stop claude or the raw stream. The seats sit inside the Workflow, so none of their calls is in this
+stream; what they record is `watch`'s to show:
 
 ```
-[  312s] DISPATCH  red-lens-voice #1
-[  318s]   verb    mint
+[   41s] WORKFLOW DISPATCHED — the debate runs from here
 [  341s]   ERROR   refused: --quote is required
 [  902s] RESULT  success  turns=42  $1.23
 ```

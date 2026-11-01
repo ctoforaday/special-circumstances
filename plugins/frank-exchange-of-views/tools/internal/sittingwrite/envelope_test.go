@@ -38,23 +38,22 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 			Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		at("blue-respond", docket("M1")),
 		at("blue-respond", docket("M2")),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"},
-			Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}}),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}}),
 		at("judge", &recordpb.Register{AgentId: proto.String("agent-bench"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 	)
 	var out bytes.Buffer
-	if err := WriteEnvelopeRefusal(runDir, "agent-bench", &out); err != nil {
+	if err := WriteEnvelopeAnswer(runDir, "agent-bench", &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "motion M1 ") || !strings.Contains(out.String(), "motion M2 ") {
 		t.Fatalf("the writer did not print the refusal naming both twins: %q", out.String())
 	}
 	var stray bytes.Buffer
-	if err := WriteEnvelopeRefusal(runDir, "agent-of-no-seat", &stray); err != nil || stray.Len() != 0 {
+	if err := WriteEnvelopeAnswer(runDir, "agent-of-no-seat", &stray); err != nil || stray.Len() != 0 {
 		t.Errorf("an agent bound to no seat had its envelope refused (%v): %q", err, stray.String())
 	}
 	var none bytes.Buffer
-	if err := WriteEnvelopeRefusal(newRun(t), "agent-bench", &none); err == nil || none.Len() != 0 {
+	if err := WriteEnvelopeAnswer(newRun(t), "agent-bench", &none); err == nil || none.Len() != 0 {
 		t.Errorf("a run with no record was checked as one with nothing to refuse (%v): %q", err, none.String())
 	}
 	evs, _, err := record.EventsOf(mustRun(t, runDir), recordpb.EventType_EVENT_TYPE_LOG)

@@ -640,6 +640,12 @@ type runner struct {
 	// every other run. positionForced is set once that chair has withheld, and heldTrifle once the
 	// gaps run's lens has minted the gap it holds open for the bench to name (mintHeldTrifle).
 	forcePosition string
+	// forcePetitionSeat is the party whose first sitting a petition seed's run files one
+	// (petitionSeatOf), and petitionForced is set once it has. hearingsAfter counts each hearing by
+	// the party whose barrier convened it, and lastParty is the party that returned last.
+	forcePetitionSeat, lastParty string
+	petitionForced               bool
+	hearingsAfter                map[string]int
 	// positionNamedGaps is each gap a bench's upholding of a position named, in ruling order.
 	positionNamedGaps                                []string
 	positionForced, heldTrifle                       bool
@@ -795,6 +801,15 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 		c.args = append(c.args, flag, val)
 	}
 	return c
+}
+
+// sentenceOrEdited is what an anchoring act quotes: the seeded sentence no edit touches, or, one act in
+// four, the one the edit drive rewrites.
+func (r *runner) sentenceOrEdited() string {
+	if r.coin(25) {
+		return "across the whole sampled corpus"
+	}
+	return "§ fuzz sentence"
 }
 
 // noteInquiry remembers a tool-assigned inquiry id so the --about drive can name a real one.
@@ -1029,22 +1044,18 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 }
 
-// closingsOwedBy is the gaps this epoch's plan says seatID owes a closing on: the plan's
-// closing_owed blockers it owns (record/closingowed.go) — read off the plan, as the workflow reads
-// them, never off the docket the chair's sitting filed.
+// closingsOwedBy is the gaps seatID owes a closing on as its work list names them when it sits: the
+// record's closing_owed blockers it owns (record/closingowed.go). The dispatch names none — the plan
+// is read at the epoch's start, and a lens that closes a gap before blue sits ends the duty.
 func (r *runner) closingsOwedBy(seatID string) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	bs, err := record.PassBlockers(r.runHandle)
+	if err != nil {
 		return out
 	}
-	bs, _ := r.planThisSitting["blockers"].([]any)
 	for _, b := range bs {
-		m, _ := b.(map[string]any)
-		if record.BlockerKind(fmt.Sprint(m["kind"])) != record.BlockerClosingOwed || fmt.Sprint(m["owner"]) != seatID {
-			continue
-		}
-		if g, ok := m["subject"].(string); ok {
-			out = append(out, g)
+		if b.Kind == record.BlockerClosingOwed && b.Owner == seatID {
+			out = append(out, b.Subject)
 		}
 	}
 	return out
@@ -1577,16 +1588,28 @@ type filedPetition struct {
 }
 
 // maybePetition sometimes files a petition (W2c) ON THE RECORD — the only channel a petition has —
-// tracking {who,class,motion} so the petition sitting the chair's next plan convenes can rule on it.
+// tracking {who,class,motion} so the petition sitting the engine convenes for it can rule on it.
 // Every party seat is eligible, the lenses included: a lens's envelope carries nothing, and the
 // record is how its petition reaches the bench. The random path never returns a HALT ruling, so the run
 // continues. It files nothing most of the time — a petition detours the run through a bench
 // sitting, so it stays occasional.
 func (r *runner) maybePetition(seatID string) {
-	if !r.forceHalt && !r.coin(20) { // forceHalt guarantees a petition so the halt sitting fires
+	// forceHalt guarantees a petition so the halt sitting fires; a petition seed's seat files its one.
+	if !r.forcesPetition(seatID) && !r.forceHalt && !r.coin(20) {
 		return
 	}
 	r.filePetition(seatID)
+}
+
+// forcesPetition is whether seatID files the one petition its run's seed forces (petitionSeatOf).
+func (r *runner) forcesPetition(seatID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.petitionForced || r.forcePetitionSeat == "" || partyOfBarrier(seatID) != r.forcePetitionSeat {
+		return false
+	}
+	r.petitionForced = true
+	return true
 }
 
 // filePetition files one petition as seatID, and tracks it for the bench.
@@ -1616,27 +1639,20 @@ func (r *runner) petitionsFiledN() int {
 	return len(r.petitionsFiled)
 }
 
-// rulePetitions is the petition sitting: it rules on every pending petition and returns the
-// envelope rulings, clearing the docket. petition-rule takes only granted|denied (a halt is its
-// OWN verb), so a forceHalt run emits `bench halt` and returns a halt ruling — the dedicated
+// rulePetitions is the petition sitting: it rules on every pending petition, and its envelope carries
+// nothing. petition-rule takes only granted|denied (a halt is its OWN verb), so a forceHalt run also
+// records `halt`, which the engine learns of from the read on this envelope — the dedicated
 // halt-path test; the random path rules granted/denied and the run continues.
 func (r *runner) rulePetitions(seatID string) map[string]any {
 	r.rulePending(seatID, "petition")
-	env := map[string]any{}
 	if r.forceHalt {
-		// `bench halt` writes the record; the envelope's halt object is only what stops the
-		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
-		// that told a real judge to record a halt through petition-rule, where the enum refuses
-		// it. The fuzz stayed green over a production path that could not work.
-		haltOpinion := "fuzz judicial halt — safety boundary"
-		r.admit("halt", "--seat-id", seatID, "--reason", haltOpinion)
-		env["halt"] = map[string]any{"opinion": haltOpinion}
+		r.admit("halt", "--seat-id", seatID, "--reason", "fuzz judicial halt — safety boundary")
 	}
-	return env
+	return map[string]any{}
 }
 
 // rulePending rules every pending petition at the bench sitting of the given occasion — the
-// petition sitting a plan convened, the terminal sitting, or the assembly that holds the gavel for
+// petition sitting the engine convened, the terminal sitting, or the assembly that holds the gavel for
 // one filed after the last plan. A grant states its order and whom it binds, and every seat's work
 // list then carries it from the record.
 func (r *runner) rulePending(seatID, occasion string) {
@@ -1697,8 +1713,8 @@ func (r *runner) reliefReachesEverySeat(id, relief, binds string) {
 }
 
 // petitionOracle holds every petition the run filed to its route: each is ruled, and one filed
-// before the last chair plan is ruled at the sitting a plan convened for it — a petition sitting,
-// or the terminal sitting at the exit — never left to the assembly's backstop. A halted run is
+// before the last chair sitting is ruled at the sitting the engine convened for it — a petition
+// sitting, or the terminal sitting at the exit — never left to the assembly's backstop. A halted run is
 // exempt: the bench stopped it, and the outcome refusal exempts a halt too. "" when it holds.
 func (r *runner) petitionOracle(halted bool) string {
 	if halted {
@@ -1710,7 +1726,7 @@ func (r *runner) petitionOracle(halted bool) string {
 		case !ruled:
 			return fmt.Sprintf("petition oracle: %s, filed by %s in chair sitting %d, was never ruled", p.id, p.filer, p.chairSitting)
 		case at != "petition" && at != "terminal" && p.chairSitting < r.chairRegisters:
-			return fmt.Sprintf("petition oracle: %s, filed by %s in chair sitting %d of %d, was ruled at the %s sitting — a later plan should have convened the bench for it", p.id, p.filer, p.chairSitting, r.chairRegisters, at)
+			return fmt.Sprintf("petition oracle: %s, filed by %s in chair sitting %d of %d, was ruled at the %s sitting — the engine hears one as soon as nothing is running", p.id, p.filer, p.chairSitting, r.chairRegisters, at)
 		}
 	}
 	return ""
@@ -1815,9 +1831,7 @@ func (r *runner) chairEnvelope(seatID, verdict, printed string, responses []map[
 	// THE PLAN RELAYED IS THE ONE PRINTED LAST. A verdict prints the plan carrying it, and the
 	// chair relays that; a petition or a heard position filed after it, or a sitting that recorded
 	// no verdict, asks the dispatch again — the workflow reads what still stands at the end of the
-	// sitting off the relayed plan, and capture holds every relayed plan to the record there. A
-	// FAIL's plan relayed over the position filed after it convened no bench: the engine ended the
-	// run UNVERIFIED while the record, holding the position, derived another outcome.
+	// sitting off the relayed plan, and capture holds every relayed plan to the record there.
 	r.mu.Lock()
 	positioned := r.positionFiled
 	r.positionFiled = false
@@ -2032,6 +2046,11 @@ func (r *runner) envelopeOutcome(seatID string, schema any, env map[string]any) 
 		return false, false
 	}
 	accepted := r.envelopeEnds(seatID)
+	// WHAT THE PRETOOLUSE HOOK WRITES on the call the record accepted, before the harness holds it to
+	// the schema, and read through the fold the hook prints.
+	if accepted {
+		r.writeRecordRead(seatID, env)
+	}
 	if why := r.schemas.refusal(schema, env); why != "" {
 		r.noteSchemaRefusal(seatID, why)
 		accepted = false
@@ -3548,9 +3567,6 @@ func (r *runner) mintWith(seatID, foundBy, class string) string {
 	keyed := r.coin(40)
 	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
 	if r.coin(50) {
-		args = append(args, "--severity", r.g())
-	}
-	if r.coin(50) {
 		args = append(args, "--complexity", r.g())
 	}
 	if fl := r.someFinding(); foundBy != "" {
@@ -4577,15 +4593,14 @@ func (r *runner) extras(role, seatID string, open []string) {
 				path = "/" + seatID
 			}
 			url := sourceURL(path)
+			// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
+			// seeded sentence no edit touches, no checked citation is ever reopened, and the
+			// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
+			// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
 			cite := r.do("cite", seatID).
-				set("--quote", "§ fuzz sentence").
+				set("--quote", r.sentenceOrEdited()).
 				set("--url", url).
 				set("--title", sourceTitle).
-				// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
-				// seeded sentence no edit touches, no checked citation is ever reopened, and the
-				// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
-				// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
-				on(25, "--quote", "across the whole sampled corpus").
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			// EVERY CITE OF A SOURCE WITH TEXT QUOTES WORDS THE TOOL FINDS IN IT. The sweep's sources
 			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span the tool
@@ -4692,8 +4707,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// only in the sentence no edit touches, no judged computation is ever reopened, and the
 			// routing of a reopened computation to its owner (anchorOwnerOf) is unreached.
 			pv := r.do("compute", seatID).
-				set("--quote", "§ fuzz sentence").
-				on(25, "--quote", "across the whole sampled corpus").
+				set("--quote", r.sentenceOrEdited()).
 				set("--dir", dir).
 				set("--reason", "fuzz: computing rather than arguing").
 				runs(argv)
@@ -4757,8 +4771,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// compliant blue would: every gap it is repairing this round.
 		for _, id := range open {
 			r.do("manifest-row", seatID).set("--id", id).
-				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
-				on(50, "--reason", "fuzz: the receipt's argument").admit()
+				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").admit()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
@@ -5742,6 +5755,8 @@ type outcome struct {
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits int
+	// hearingsAfter is runner's.
+	hearingsAfter map[string]int
 	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
 	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
 	// partRefused and partsRecorded are runner's.
@@ -5813,6 +5828,7 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		// goja is single-threaded and the Runtime must not be touched from here: the envelope is
 		// built off-loop with no VM access, and vm.ToValue happens back ON the loop.
 		p, resolve, reject := vm.NewPromise()
+		r.hearingOpens(seatID, prompt)
 		r.dispatchOpens(seatID)
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
@@ -5822,6 +5838,7 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 			// as live hands it one: the harness gave up, and agent() throws.
 			admitted, gaveUp := r.envelopeOutcome(seatID, schema, env)
 			r.dispatchReturns(seatID, admitted)
+			r.partyReturned(seatID)
 			if env != nil && !gaveUp {
 				r.envelopeReceived(env)
 			}
@@ -6228,6 +6245,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forcePosition = positionFormOf(seed)
+	r.forcePetitionSeat = petitionSeatOf(seed)
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
@@ -7080,6 +7098,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
+	res.hearingsAfter = r.hearingsAfter
 	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()

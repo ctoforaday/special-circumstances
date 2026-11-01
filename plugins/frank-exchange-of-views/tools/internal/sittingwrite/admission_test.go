@@ -2,10 +2,13 @@ package sittingwrite
 
 import (
 	"bytes"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -105,7 +108,7 @@ func TestTheGateAdmitsNothing(t *testing.T) {
 	run := admissionRun(t)
 	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: chair})
 	var out bytes.Buffer
-	if err := WriteEnvelopeRefusal(run, "AG", &out); err != nil || out.Len() != 0 {
+	if err := WriteEnvelopeAnswer(run, "AG", &out); err != nil || !strings.Contains(out.String(), `"record_read"`) {
 		t.Fatalf("the chair's envelope was refused (%v): %q", err, out.String())
 	}
 	if got := admissions(t, run); len(got) != 0 {
@@ -125,5 +128,39 @@ func TestAnAgentOfNoSeatIsNotAdmitted(t *testing.T) {
 	}
 	if got := admissions(t, run); len(got) != 0 {
 		t.Errorf("an agent bound to no seat had its envelope admitted: %v", got)
+	}
+}
+
+// THE WRITER ANSWERS WITH THE RECORD'S READ, the fold a close acts on and the audit recomputes, and
+// answers nothing for an agent no seat is bound to: that call is not a seat's envelope.
+func TestTheWritersAnswerIsTheRecordsRead(t *testing.T) {
+	run := admissionRun(t)
+	write(t, Sitting{RunDir: run, Phase: Open, AgentID: "AG", AgentType: chair})
+	var out bytes.Buffer
+	if err := WriteEnvelopeAnswer(run, "AG", &out); err != nil {
+		t.Fatal(err)
+	}
+	var answer hookgate.EnvelopeAnswer
+	if err := json.Unmarshal(out.Bytes(), &answer); err != nil {
+		t.Fatalf("the answer does not parse (%v): %q", err, out.String())
+	}
+	var read record.RecordRead
+	if err := json.Unmarshal(answer.Read, &read); err != nil || answer.Refusal != "" {
+		t.Fatalf("the answer carries no read (%v), refusal %q: %q", err, answer.Refusal, out.String())
+	}
+	r, err := record.NewRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := record.ReadRecord(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.Event != want.Event || read.Event == 0 || read.BenchOwed == nil {
+		t.Errorf("the read = %+v, want the record's %+v", read, want)
+	}
+	out.Reset()
+	if err := WriteEnvelopeAnswer(run, "UNBOUND", &out); err != nil || out.Len() != 0 {
+		t.Errorf("an agent bound to no seat answered (%v): %q", err, out.String())
 	}
 }

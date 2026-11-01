@@ -86,7 +86,7 @@ func TestADocketedGapOwesAClosingFromBothPartiesAndTheBenchWaits(t *testing.T) {
 	t.Run("both filed: the bench sits", func(t *testing.T) {
 		run := docketed(t).closing(evLens, "G1").closing("blue-respond", "G1").seed()
 		p, ok := partyOf(planOfT(t, run), "judge")
-		if !ok || !slices.Contains(p.GapIDs, "G1") || !slices.Contains(p.Occasions, occasionDocket) {
+		if !ok || !slices.Contains(p.GapIDs, "G1") {
 			t.Errorf("both closings are filed and the bench is not convened on G1: %+v", p)
 		}
 		if got := closingOwners(t, run); len(got) != 0 {

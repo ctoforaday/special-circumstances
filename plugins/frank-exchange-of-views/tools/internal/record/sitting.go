@@ -230,9 +230,9 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// is not counted, the bench has not sat for the docketing, no exchange is counted for blue or
 	// the minting lens — so the seat is readied again, epoch after epoch, until its sitting opens.
 	// That covers every seat a dispatch names: the lenses, blue-respond and the bench.
-	// THE BENCH'S ROW CAN CONVENE IT TWICE — a petition and a docket, petition first — and its
-	// sitting already registered for one occasion owes the other's register to the NEXT sitting: a
-	// second register in this one is refused as a repeat, so this sitting cannot clear it.
+	// A HEARING CAN SIT BEFORE THE BENCH'S DOCKET: a sitting already registered for its hearing owes
+	// the docket's register to the NEXT sitting: a second register in this one is refused as a repeat,
+	// so this sitting cannot clear it.
 	if d, owed := owedSitting(evs, win, seatID); owed && seatID == benchSeat && benchRegisteredSince(evs, win, d) {
 		may(fmt.Sprintf("the dispatch against report head %d also convenes you for a sitting of its own you have not opened yet — this sitting is registered for its occasion, and the next is registered for the other", d.pin))
 	} else if owed {

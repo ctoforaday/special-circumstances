@@ -19,14 +19,7 @@ import (
 // contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench; empty when it is convened for a petition or a position alone"`
-	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
-	// (the gap_ids, after blue sits), `petition` (the unruled petitions, before any party sits) and
-	// `position` (the chair's position on a PASS it withheld, before any party sits).
-	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
-	// the workflow routes on it — never on an empty gap list. Every other seat has no occasion, and
-	// the field is absent.
-	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (before any other party sits), position (the chair's position on a PASS it withheld, before any other party sits), docket (its gap_ids, after blue)"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head is past its pin, the head it was last served the whole report at — or by a contradiction it read, a check of its that failed, or a position the bench upheld naming its area; empty for blue readied to remedy a failed check — fix or retire a computation judged unsound, retire a citation no check could read; empty for a lens or blue readied for its closing on a docketed gap alone, which the plan's closing_owed blockers name" bench:"the gaps docketed for the bench: the chair convenes it for its docket, and for nothing else"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -123,8 +116,8 @@ type Plan struct {
 	// others there (HeardInTime).
 	FinalSitting bool `json:"final_sitting" key:"-" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
-	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
-	// is not at the limit: it ends as any empty plan does.
+	// readies, or a hearing a filing is owed, and neither is convened — the run ends CEILING. A last
+	// epoch with nobody ready and nothing owed is not at the limit: it ends as any empty plan does.
 	EpochLimitReached bool `json:"epoch_limit_reached" desc:"this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason"`
 	// Blockers is everything holding a PASS, from the list the verdict gate refuses on, each with the
 	// seat that clears it. A blocker whose owner is not the chair readies that owner, once per cause
@@ -312,23 +305,18 @@ func foldPlan(params Params, r planReads) Plan {
 	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil), owedBlockersOf(evs, ids, win, blockerGapsOfOpen(r.gaps, nil))))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
-	occasions := map[string][]string{}
 	order := []string{}
-	// engage readies a seat on gaps; occasion is what the bench is convened for, "" for every other
-	// seat. A seat is one party however many sources ready it.
-	engage := func(seat, occasion string, gaps ...string) {
+	// engage readies a seat on gaps. A seat is one party however many sources ready it.
+	engage := func(seat string, gaps ...string) {
 		if _, seen := parties[seat]; !seen {
 			order = append(order, seat)
 			parties[seat] = []string{}
 		}
 		parties[seat] = append(parties[seat], gaps...)
-		if occasion != "" && !slices.Contains(occasions[seat], occasion) {
-			occasions[seat] = append(occasions[seat], occasion)
-		}
 	}
 	for _, f := range folds {
 		if f.ready {
-			engage(f.seat, "")
+			engage(f.seat)
 		}
 		plan.Why = append(plan.Why, f.why)
 	}
@@ -348,9 +336,9 @@ func foldPlan(params Params, r planReads) Plan {
 	debate := func(g openGap) bool {
 		turn := g.mintedBy != "" && (g.supersededBy != "" || lensTurnOn(acts[g.id], g.mintedBy, mintedAt[g.id], latestBefore(remandPlaces(r.remands[g.id]), math.MaxInt64), math.MaxInt64))
 		if turn {
-			engage(g.mintedBy, "", g.id)
+			engage(g.mintedBy, g.id)
 		}
-		engage(blueRespondSeat, "", g.id)
+		engage(blueRespondSeat, g.id)
 		return turn || g.mintedBy == ""
 	}
 	// waiting is the reason's clause for a gap whose minting lens debate did not ready.
@@ -386,7 +374,7 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 		awaited = append(awaited, blueRespondSeat)
 		for _, p := range awaited {
-			engage(p, "")
+			engage(p)
 		}
 		plan.Why = append(plan.Why, closingsAwaitedWhy(g.id, awaited))
 	}
@@ -445,12 +433,12 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			if len(awaited) > 0 {
 				for _, p := range awaited {
-					engage(p, "")
+					engage(p)
 				}
 				plan.Why = append(plan.Why, closingsAwaitedWhy(g.id, awaited))
 				continue
 			}
-			engage(benchSeat, occasionDocket, g.id)
+			engage(benchSeat, g.id)
 			why := fmt.Sprintf("%s: docketed and unruled — the bench is ready, no party's closing being awaited", g.id)
 			if len(missing) > 0 {
 				why += fmt.Sprintf("; %s sat since the docketing without filing a closing, and the bench rules on the record as it stands", strings.Join(missing, " and "))
@@ -527,7 +515,7 @@ func foldPlan(params Params, r planReads) Plan {
 		uncheckedFor[b.Owner] = append(uncheckedFor[b.Owner], b.Subject)
 	}
 	for _, owner := range uncheckedOwners {
-		engage(owner, "")
+		engage(owner)
 		plan.Why = append(plan.Why, fmt.Sprintf("%s owns %s, placed or changed since the last sitting it sat through, and no check of its sentence as it stands is on the record — ready, to check each", owner, strings.Join(uncheckedFor[owner], ", ")))
 	}
 	for _, b := range blockers {
@@ -542,14 +530,14 @@ func foldPlan(params Params, r planReads) Plan {
 		// stands until the lens is served the report in a sitting opened after the ruling
 		// (upheldPositionBlockers), so the readiness ends with it.
 		case b.Kind == BlockerUpheldPosition && seatclass.RoleOfSeat(b.Owner) == "lens":
-			engage(b.Owner, "")
+			engage(b.Owner)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: the bench upheld the chair's position %s and named its area — ready, to audit it on the ruling's direction: %s", b.Owner, b.Subject, b.Detail))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, contradictionReadiness(b, true))
 				continue
 			}
-			engage(b.Owner, "")
+			engage(b.Owner)
 			plan.Why = append(plan.Why, contradictionReadiness(b, false))
 		// A FAILED CHECK READIES TWO SEATS (gblock, 2026-10-24, for the computation; 2026-10-25, for the
 		// citation): the lens whose check failed to mint its gap, until it has, and blue to remedy it —
@@ -560,7 +548,7 @@ func foldPlan(params Params, r planReads) Plan {
 				if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
 					plan.Why = append(plan.Why, failedCheckReadiness(b, b.Owner, true))
 				} else {
-					engage(b.Owner, "")
+					engage(b.Owner)
 					plan.Why = append(plan.Why, failedCheckReadiness(b, b.Owner, false))
 				}
 			}
@@ -569,12 +557,12 @@ func foldPlan(params Params, r planReads) Plan {
 				plan.Why = append(plan.Why, failedCheckReadiness(b, blueRespondSeat, true))
 				continue
 			}
-			engage(blueRespondSeat, "")
+			engage(blueRespondSeat)
 			plan.Why = append(plan.Why, failedCheckReadiness(b, blueRespondSeat, false))
 		}
 	}
 	for _, s := range order {
-		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s], Occasions: occasions[s]})
+		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s]})
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
 	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
@@ -600,7 +588,10 @@ func foldPlan(params Params, r planReads) Plan {
 	plan.MaxEpochs = params.MaxEpochs
 	plan.Epoch = win.LastEpoch(evs)
 	plan.FinalSitting = isFinalEpoch(params, plan.Epoch)
-	if plan.FinalSitting && len(plan.Parties) > 0 {
+	// A HEARING OWED AT THE LAST EPOCH HOLDS THE LIMIT TOO (gblock, 2026-10-30): the engine convenes no
+	// hearing there, so the terminal bench hears it at the exit, and a position filed there ends the
+	// run CEILING however it is ruled (epochLimitHeldTheBench).
+	if plan.FinalSitting && (len(plan.Parties) > 0 || len(benchOwedOf(evs, ids, win)) > 0) {
 		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
@@ -722,8 +713,6 @@ type dispatchRow struct {
 	at, pin int64
 	seat    string
 	gaps    []string
-	// occasions is what a bench row convened the bench for; empty on every other seat's row.
-	occasions []recordpb.Occasion
 	// engage is a row blue-respond wrote (isEngageRow): its next sitting, in the epoch the chair's
 	// dispatch opened.
 	engage bool
@@ -752,7 +741,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions(), engage: isEngageRow(e)})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), engage: isEngageRow(e)})
 		}
 	}
 	return ds, openings
@@ -774,11 +763,6 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // (lensStates), the bench's sitting for a docketing
 // (benchSatFor), the exchange count (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.
-//
-// A BENCH ROW IS SAT ONCE PER OCCASION, and benchRowSitting answers it. The bench is convened for a
-// petition and a docket on ONE row and sits twice, petition first; the first sitting it opens after
-// the row is the petition sitting, and read here it would count as the docket's too — a docket the
-// bench never sat for would read as heard and never be readied again.
 func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(openings, d.at)
 }
@@ -909,23 +893,14 @@ func placesOf(evs []*Event, seq []int64, win WindowIndex) map[int64]int64 {
 	return out
 }
 
-// benchRowSitting is the bench's sitting for a row: the opening of its first sitting OF EACH
-// OCCASION the row convened it for (the occasion its register states), after the row. It has sat
-// for the row once it has sat for every one of them, and the place returned is the latest. A row
-// with no occasion is not a bench row, and reads sittingFor's way.
+// benchRowSitting is a seat's sitting for a row. The bench's is its first docket sitting after the
+// row, the occasion its register states: a row convenes the bench for its docket and nothing else, so
+// a hearing or an exit sitting answers no row. Every other seat's reads sittingFor's way.
 func benchRowSitting(openings []int64, on map[recordpb.Occasion][]int64, d dispatchRow) (int64, bool) {
-	if len(d.occasions) == 0 {
+	if d.seat != benchSeat {
 		return sittingFor(openings, d)
 	}
-	var last int64
-	for _, o := range d.occasions {
-		r, ok := firstAfter(on[o], d.at)
-		if !ok {
-			return 0, false
-		}
-		last = max(last, r)
-	}
-	return last, true
+	return firstAfter(on[recordpb.Occasion_OCCASION_DOCKET], d.at)
 }
 
 // sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
@@ -1060,8 +1035,8 @@ type DispatchGroup struct {
 	First, Last int      // stream positions of the group's first and last dispatch row
 	Parties     []string // each seat the group names, in the order first named
 	// Sat is each party's sitting for the group, off the last row naming it: the stream position of
-	// the first sitting it opened after that row (sittingFor) — for the bench, of the opening of
-	// its sitting for each occasion the row convened it for, the latest of them (benchRowSitting).
+	// the first sitting it opened after that row (sittingFor) — for the bench, of its first docket
+	// sitting after it (benchRowSitting).
 	// A party absent here has not sat.
 	Sat map[string]int
 	// PartyRows is each party's LAST row in the group — the row Sat reads: a plan that files a
@@ -1076,9 +1051,6 @@ type DispatchGroup struct {
 type PartyRow struct {
 	Pin    int64
 	GapIDs []string
-	// Occasions is what the row convened the bench for, in the enum's words; empty for every other
-	// seat. Capture holds the bench's registers of each to it.
-	Occasions []string
 }
 
 // DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
@@ -1116,7 +1088,7 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 			last[d.seat] = d
 		}
 		for p, d := range last {
-			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
+			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...)}
 			if r, ok := benchRowSitting(openings[p], on, d); ok {
 				g.Sat[p] = int(r)
 			}
@@ -1152,9 +1124,8 @@ const evidenceSeat = "red-lens-evidence"
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
 const blueRespondSeat = "blue-respond"
 
-// PartySeats are the seats a plan's party can name, in the two shapes a party takes: the bench,
-// which carries occasions, and every lens seat on the roster with blue's responding seat, which
-// carry none. The chair's envelope schema in debate.js states the same two lists: devcmd/enginegen
+// PartySeats are the seats a plan's party can name, in the two shapes a party takes: the bench, on
+// its docket, and every lens seat on the roster with blue's responding seat. The chair's envelope schema in debate.js states the same two lists: devcmd/enginegen
 // writes its two party shapes from this one.
 func PartySeats() (bench string, lensOrBlue []string) {
 	lensOrBlue = append(seatclass.SeatsOfRole("lens"), blueRespondSeat)
@@ -1239,24 +1210,21 @@ func dispatchStands(evs []*Event, win WindowIndex, plan Plan) bool {
 			return false
 		}
 	}
-	// The occasions are part of the decision: the bench convened for a petition as well as its
-	// docket is a new decision, on the same gaps. remand_owed is not in the key, and need not be: a
-	// gap's remand exchange becomes owed only by a bench ruling, and the bench opens a sitting to
-	// rule, which ends the standing decision above before any key is compared.
-	key := func(seat string, pin int64, gaps, occasions []string) string {
+	// remand_owed is not in the key, and need not be: a gap's remand exchange becomes owed only by a
+	// bench ruling, and the bench opens a sitting to rule, which ends the standing decision above
+	// before any key is compared.
+	key := func(seat string, pin int64, gaps []string) string {
 		gs := append([]string{}, gaps...)
 		sort.Strings(gs)
-		os := append([]string{}, occasions...)
-		sort.Strings(os)
-		return fmt.Sprintf("%s@%d:%s/%s", seat, pin, strings.Join(gs, ","), strings.Join(os, ","))
+		return fmt.Sprintf("%s@%d:%s", seat, pin, strings.Join(gs, ","))
 	}
 	standing := map[string]bool{}
 	for _, d := range g.rows {
-		standing[key(d.seat, d.pin, d.gaps, wordsOf(d.occasions))] = true
+		standing[key(d.seat, d.pin, d.gaps)] = true
 	}
 	asked := map[string]bool{}
 	for _, p := range plan.Parties {
-		asked[key(p.SeatID, plan.Head, p.GapIDs, p.Occasions)] = true
+		asked[key(p.SeatID, plan.Head, p.GapIDs)] = true
 	}
 	if len(asked) != len(standing) {
 		return false
@@ -1293,17 +1261,16 @@ func owedSitting(evs []*Event, win WindowIndex, seatID string) (dispatchRow, boo
 	return dispatchRow{}, false
 }
 
-// occasionDocket and occasionPetition are the Occasion enum's words for the two sittings dispatch
-// convenes the bench for. The workflow routes a bench party on them, and the bench types the same
-// word at its register.
+// occasionPetition and occasionPosition are the Occasion enum's words for the two sittings a filing
+// convenes (RecordRead.BenchOwed), and the bench types the same word at its register.
 var (
-	occasionDocket   = recordpb.Word(recordpb.Occasion_OCCASION_DOCKET)
 	occasionPetition = recordpb.Word(recordpb.Occasion_OCCASION_PETITION)
 	occasionPosition = recordpb.Word(recordpb.Occasion_OCCASION_POSITION)
 )
 
-// benchSittingFor is the sitting dispatch convenes the bench for to rule a motion of each subject
-// whose gavel the schema gives the bench. A bench-ruled subject with no row has no route to a
+// benchSittingFor is the sitting that hears a motion of each subject whose gavel the schema gives the
+// bench: the docket's the chair convenes, and a petition's and a position's the engine convenes when
+// a close reports one owed. A bench-ruled subject with no row has no route to a
 // ruling, and TestEveryBenchRuledSubjectHasASitting fails naming it.
 var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 	recordpb.MotionSubject_MOTION_SUBJECT_PETITION: recordpb.Occasion_OCCASION_PETITION,
@@ -1340,90 +1307,47 @@ func failedCheckReadiness(b Blocker, seat string, satSince bool) string {
 	return fmt.Sprintf("%s's check of %s %s and no gap of its carries that to blue — ready, to mint its gap about the anchor, which takes no mint of its budget", seat, what, failed)
 }
 
-// benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no
-// open gap's docket has already readied it for, and returns the plan's reason.
+// benchReadiness states why one unruled motion whose gavel is the bench's holds the PASS, and readies
+// the bench where its docket has not already: a docket on a gap that has closed. A petition and a
+// position are not on the plan: the engine hears them when a close's read reports them owed
+// (RecordRead.BenchOwed), so all a plan says of them is that they stand.
 //
-// A PETITION IS HEARD AT A PETITION SITTING, AND ONLY ONE COUNTS. The guard is a bench sitting
-// opened after the filing whose register states occasion `petition` — not any bench sitting: a
-// docket sitting that sat after the filing was convened for something else, and counting it would
-// leave the petition unheard while the plan said it had been.
-func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat, occasion string, gaps ...string)) string {
+// A FILING IS HEARD AT ITS OWN SITTING, AND ONLY ONE COUNTS. The guard is a bench sitting opened after
+// the filing whose register states the occasion, not any bench sitting: a docket sitting that sat
+// after the filing was convened for something else, and counting it would leave the filing unheard
+// while the plan said it had been.
+func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat string, gaps ...string)) string {
 	subj, _ := MotionSubjectEnum(b.motionSubject)
 	switch occ, routed := benchSittingFor[subj]; {
-	// A WITHHELD PASS IS HEARD AT A POSITION SITTING, once per filing, as a petition is at its own
-	// (positionheard.go). The plan the withholding sitting relays convenes it.
 	case routed && occ == recordpb.Occasion_OCCASION_POSITION:
 		if benchSatOnOccasionSince(on, recordpb.Occasion_OCCASION_POSITION, b.since) {
-			return fmt.Sprintf("%s: the chair's position on the PASS it withheld, unruled, and the bench has sat to hear positions since it was filed — one position sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
+			return fmt.Sprintf("%s: the chair's position on the PASS it withheld, unruled, and the bench has sat to hear positions since it was filed — one position sitting per filing, so it is not heard again; the run cannot end in a verdict while it stands", b.Subject)
 		}
-		engage(benchSeat, occasionPosition)
-		return fmt.Sprintf("%s: the chair withheld the PASS its plan permitted and argued why — the bench is ready to hear the position, and rules it upheld, naming the work the debate continues on, or overruled, sending the PASS back to the chair's next sitting", b.Subject)
+		return fmt.Sprintf("%s: the chair withheld the PASS its plan permitted and argued why — the bench hears the position as soon as nothing is running, in this turn, and rules it upheld, naming the work the debate continues on, or overruled, sending the PASS back to the chair", b.Subject)
 	case routed && occ == recordpb.Occasion_OCCASION_PETITION:
 		if benchSatOnOccasionSince(on, recordpb.Occasion_OCCASION_PETITION, b.since) {
-			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not convened again; the run cannot end in a verdict while it stands", b.Subject)
+			return fmt.Sprintf("%s: petition, unruled, and the bench has sat to hear petitions since it was filed — one petition sitting per filing, so it is not heard again; the run cannot end in a verdict while it stands", b.Subject)
 		}
-		engage(benchSeat, occasionPetition)
-		return fmt.Sprintf("%s: petition, unruled — the bench is ready to hear it, before any party of this epoch sits", b.Subject)
+		return fmt.Sprintf("%s: petition, unruled — the bench hears it as soon as nothing is running, in this turn", b.Subject)
 	case routed && occ == recordpb.Occasion_OCCASION_DOCKET:
 		// An open gap's docket was readied above; this one's gap has closed since it was filed.
 		if benchSatFor(dispatches, on, b.About, b.since) {
 			return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open, and the bench has sat since it was filed — not re-readied; the run cannot end in a verdict while it stands", b.About, b.Subject)
 		}
-		engage(benchSeat, occasionDocket, b.About)
+		engage(benchSeat, b.About)
 		return fmt.Sprintf("%s: docket motion %s stands unruled on a gap no longer open — the bench is ready", b.About, b.Subject)
 	}
 	return fmt.Sprintf("%s: %s motion, unruled, and no sitting convenes the bench for its subject — nobody is readied; the run cannot end in a verdict while it stands", b.Subject, b.motionSubject)
 }
 
-// dispatchOccasions is what the chair convenes the bench for, in schema order: a dispatch row
-// names these and no other. The terminal and assembly sittings are the engine's own.
-var dispatchOccasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_POSITION}
-
-// DispatchOccasions is the words a plan's bench party can carry in `occasions` — the set
-// requireDispatchOccasions holds a dispatch row to, which the engine script's party schema is
-// generated from.
-func DispatchOccasions() []string { return wordsOf(dispatchOccasions) }
-
-// requireDispatchOccasions refuses a dispatch row whose occasions disagree with its seat, at the
-// write. The bench's row says what it is convened for — `docket`, `petition`, or both — because its
-// one id cannot; no other seat's row carries an occasion. The two the chair convenes are the only
-// ones a row may name: the terminal and assembly sittings are the engine's, and no dispatch answers
-// for them. A docket is the bench engaged on gaps, so `docket` and a non-empty gap list are one
-// fact, and a row stating only one of them is refused rather than read either way.
-func requireDispatchOccasions(b *recordpb.Dispatch) error {
-	occ := b.GetOccasions()
-	if !SeatOwesOccasion(b.GetSeatId()) {
-		if len(occ) > 0 {
-			return fmt.Errorf("%q is convened for no occasion; only the bench's row says what it sits for", b.GetSeatId())
-		}
-		return nil
-	}
-	if len(occ) == 0 {
-		return fmt.Errorf("a bench row names what the bench is convened for (%s); its one seat id cannot say", strings.Join(wordsOf(dispatchOccasions), ", "))
-	}
-	seen := map[recordpb.Occasion]bool{}
-	for _, o := range occ {
-		if !slices.Contains(dispatchOccasions, o) {
-			return fmt.Errorf("the chair convenes the bench for %s, and %s is a sitting the engine convenes", strings.Join(wordsOf(dispatchOccasions), " or "), recordpb.Word(o))
-		}
-		if seen[o] {
-			return fmt.Errorf("the row names %s twice; the bench sits once per occasion", recordpb.Word(o))
-		}
-		seen[o] = true
-	}
-	if docket, gaps := seen[recordpb.Occasion_OCCASION_DOCKET], len(b.GetGapIds()) > 0; docket != gaps {
-		return fmt.Errorf("a docket sitting is the bench engaged on gaps, and this row has %s with %d gap(s)", strings.Join(wordsOf(occ), ", "), len(b.GetGapIds()))
+// requireBenchDocket refuses a bench row with no gaps, at the write: a row convenes the bench for its
+// docket and nothing else, and a docket is the bench engaged on gaps. A hearing has no row: the engine
+// convenes it off a close's read.
+func requireBenchDocket(b *recordpb.Dispatch) error {
+	if SeatOwesOccasion(b.GetSeatId()) && len(b.GetGapIds()) == 0 {
+		return fmt.Errorf("a bench row convenes the bench for its docket, and this one names no gap; a petition or a position has no row, the engine convenes its hearing")
 	}
 	return nil
-}
-
-// wordsOf spells occasions in the enum's words.
-func wordsOf(occ []recordpb.Occasion) []string {
-	out := make([]string, 0, len(occ))
-	for _, o := range occ {
-		out = append(out, recordpb.Word(o))
-	}
-	return out
 }
 
 // docketedThisSitting reports whether the docket motion filed at `filed` is the chair's own,
@@ -1463,8 +1387,7 @@ func benchSatOnOccasionSince(on map[recordpb.Occasion][]int64, occ recordpb.Occa
 // Keyed on the NEWEST filing rather than the newest unruled one, a motion blue filed into an open
 // sitting and the bench ruled there re-readied the bench for the older motion it had left alone.
 //
-// THE SITTING THAT COUNTS IS A DOCKET SITTING. A row convening the bench for a petition and a
-// docket is sat twice, petition first, and the petition sitting answers no docketing.
+// THE SITTING THAT COUNTS IS A DOCKET SITTING: a hearing the bench sat answers no docketing.
 func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gapID string, unruledFiled int64) bool {
 	for _, d := range dispatches {
 		if d.seat != benchSeat || !slices.Contains(d.gaps, gapID) {

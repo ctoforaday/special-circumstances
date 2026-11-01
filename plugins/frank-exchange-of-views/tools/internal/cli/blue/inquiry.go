@@ -129,7 +129,7 @@ func newInquiryRecord() *cobra.Command {
 			return nil, err
 		}
 		id := seat.Str(cmd, flags.ID)
-		if err := record.RequireInquiryRef(run, id); err != nil {
+		if err := record.RequireInquiryRef(run, id, "--"+flags.ID); err != nil {
 			return nil, err
 		}
 		st, known := record.InquiryStatusOf(seat.Str(cmd, flags.As))
