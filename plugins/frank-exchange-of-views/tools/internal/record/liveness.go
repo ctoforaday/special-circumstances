@@ -246,10 +246,8 @@ func (l Liveness) Says() string {
 // record and is RELABELLED from "final verdict" to "latest verdict (epoch N)". The operator sees a
 // different claim rather than the same claim from a worse source.
 // It is exported for every caller that needs to know whether the bench recorded an outcome —
-// the dashboard SERVER, whose lifetime was keyed only to the run-live marker (a file whose only
-// remover is `capture`, so a killed run left it watching forever, #270), and capture's own
-// liveness audit, which cannot tell a finished run from a killed one without it. The record
-// knows what the marker cannot.
+// the dashboard's verdict tile, and capture's own liveness audit, which cannot tell a finished run
+// from a killed one without it. The record knows what the marker cannot.
 //
 // The error is a record that could not be read, and it is returned rather than folded into "":
 // "" says the run has not ended, and a caller keying a liveness verdict or a server's lifetime to
@@ -258,7 +256,7 @@ func (l Liveness) Says() string {
 // ONE SPELLING, THE SEAT'S: the verdict comes back in capitals whichever read answers it.
 // RunOutcome is stored as the schema's word (`ceiling`) and typed by the bench in capitals
 // (`--as CEILING`), which is also how DeriveVerdict names it; every consumer — the dashboard's
-// verdict tile, capture's liveness audit, the dashboard server's exit line — shows it to an
+// verdict tile, capture's liveness audit — shows it to an
 // operator looking for the state a seat recorded. Folded here, once, so no consumer has to know
 // which of the two reads produced the word.
 //

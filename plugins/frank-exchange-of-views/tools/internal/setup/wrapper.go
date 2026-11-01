@@ -37,7 +37,7 @@ const (
 	// WrapperDir is the run-relative directory the wrapper is written into. It is dotted so it
 	// sorts out of the way of the run's actual contents, and it holds no records: capture takes
 	// records and computations, and a regenerable shim is neither.
-	WrapperDir = ".bin"
+	WrapperDir = seatenv.WrapperDir
 	// WrapperName must match what the prompt appends to binDir, or the wrapper is never run.
 	WrapperName = "feov-record"
 )

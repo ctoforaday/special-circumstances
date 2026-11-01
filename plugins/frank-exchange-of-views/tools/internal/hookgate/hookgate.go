@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -123,13 +124,42 @@ const reportIsReadThroughTheTool = "the report is not a file a seat reads: `show
 	"at the end for the human reader — during the run it does not exist, and afterwards it is a snapshot " +
 	"of a record that has moved."
 
-// Wants says which calls this gate acts on: every Bash call (the injection), and a Read whose
-// file is named like the assembled report. The name check is cheap and runs before anything touches
-// the disk, so an ordinary Read costs nothing here.
+// theWrapperIsNotEdited refuses a seat's file-edit tool on the run's wrapper directory. The wrapper
+// is what binds the run to every call a seat makes, and setup alone writes it.
+//
+// A DENIAL, NOT A READ-ONLY FILE. The client's edit tools write a temporary beside the file and
+// rename it over: measured on 2.1.309, Edit replaced a 0555 file in a writable directory and was
+// refused only where the directory was read-only too. A read-only directory is one `rm -rf` of a
+// run, a universe or a test's temp dir cannot remove, and one a re-run of setup cannot write into.
+//
+// SCOPED TO SEATS, as the report's refusal is: agent_id is present only on a subagent's call.
+const theWrapperIsNotEdited = "the wrapper directory is setup's and no seat edits it: it binds this run to " +
+	"every call you make to the record tool, and you run it, never write it. Record what you found wanting " +
+	"with your log verb."
+
+// isWrapperFile is a path inside this run's wrapper directory.
+func isWrapperFile(path, runDir string) bool {
+	if !filepath.IsAbs(path) {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Join(filepath.Clean(runDir), seatenv.WrapperDir), filepath.Clean(path))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// Wants says which calls this gate acts on: every Bash call (the injection), a Read whose file is
+// named like the assembled report, and a file edit with a directory on its path named like the
+// wrapper's. The name checks are cheap and run before anything touches the disk, so an ordinary Read
+// or edit costs nothing here.
 func Wants(in Input) bool {
 	switch in.ToolName {
 	case "Bash":
 		return true
+	case "Edit", "Write":
+		var ti toolInput
+		if json.Unmarshal(in.ToolInput, &ti) != nil {
+			return false
+		}
+		return slices.Contains(strings.Split(filepath.ToSlash(filepath.Dir(ti.FilePath)), "/"), seatenv.WrapperDir)
 	case "Read":
 		var ti toolInput
 		if json.Unmarshal(in.ToolInput, &ti) != nil {
@@ -172,6 +202,12 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	if in.ToolName == "Read" {
 		if in.AgentID != "" && isAssembledReport(ti.FilePath, runDir) {
 			return OutcomeDeny, reportIsReadThroughTheTool
+		}
+		return OutcomeNone, ""
+	}
+	if in.ToolName != "Bash" {
+		if in.AgentID != "" && isWrapperFile(ti.FilePath, runDir) {
+			return OutcomeDeny, theWrapperIsNotEdited
 		}
 		return OutcomeNone, ""
 	}

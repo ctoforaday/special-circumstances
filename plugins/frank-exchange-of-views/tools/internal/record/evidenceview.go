@@ -433,7 +433,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		// corroboration, and still under independent[] where the check itself lives.
 		if vf.GetLabel() != "" && vf.GetClaim() != "" {
 			corroborations = append(corroborations, EvidenceSourceJSON{
-				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), AccessDate: vf.GetAccessDate(),
+				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), Sha256: vf.GetSha256(), AccessDate: vf.GetAccessDate(),
 				Location: vf.GetClaim(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
 				CorroboratedBy: e.GetSeatId(),
 				// A corroboration's footnote rests on the copy red read, as a cite's rests on blue's.

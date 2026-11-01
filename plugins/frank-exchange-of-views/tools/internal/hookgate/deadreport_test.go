@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // THE REPORT FILE IS DEAD TO SEATS: a seat's Read of it is refused with the one read that works, and
@@ -76,5 +78,44 @@ func TestTheGateWantsAReportReadAndNothingElse(t *testing.T) {
 		if got := Wants(tc.in); got != tc.want {
 			t.Errorf("Wants(%s %s) = %v, want %v", tc.in.ToolName, tc.in.ToolInput, got, tc.want)
 		}
+	}
+}
+
+// THE WRAPPER IS NOT A SEAT'S TO EDIT. On #1677's smoke a seat's Edit reached the run's generated
+// wrapper, stopped only by a probe string that matched three times. Each row is a way the refusal
+// could be wrong.
+func TestASeatsFileEditCannotReachTheWrapper(t *testing.T) {
+	root := t.TempDir()
+	run := filepath.Join(root, "2026-10-31_is-91-prime")
+	call := func(tool, agent, path string) Input {
+		ti, _ := json.Marshal(map[string]string{"file_path": path})
+		return Input{AgentID: agent, ToolName: tool, ToolInput: ti}
+	}
+	wrapper := filepath.Join(run, seatenv.WrapperDir, "feov-record")
+	for _, tc := range []struct {
+		name   string
+		in     Input
+		denied bool
+	}{
+		{"a seat edits the wrapper", call("Edit", "a2d7d8edd5f9f5f68", wrapper), true},
+		{"a seat overwrites the wrapper", call("Write", "a2d7d8edd5f9f5f68", wrapper), true},
+		{"a seat writes a new file beside it", call("Write", "a2d7d8edd5f9f5f68", filepath.Join(run, seatenv.WrapperDir, "other")), true},
+		{"a seat writes its scratch", call("Write", "a2d7d8edd5f9f5f68", filepath.Join(run, "scratch", "notes.txt")), false},
+		{"a directory that only begins with the name", call("Edit", "a2d7d8edd5f9f5f68", filepath.Join(run, seatenv.WrapperDir+"x", "feov-record")), false},
+		{"another run's wrapper is not this run's to answer for", call("Edit", "a2d7d8edd5f9f5f68", filepath.Join(root, "other-run", seatenv.WrapperDir, "feov-record")), false},
+		{"the operator is not a seat", call("Edit", "", wrapper), false},
+		{"a relative path is not guessed at", call("Edit", "a2d7d8edd5f9f5f68", filepath.Join(seatenv.WrapperDir, "feov-record")), false},
+		{"a Read of the wrapper reads", call("Read", "a2d7d8edd5f9f5f68", wrapper), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			outcome, msg := PreOutcome(tc.in, run)
+			if denied := outcome == OutcomeDeny; denied != tc.denied {
+				t.Fatalf("denied = %v, want %v (outcome %v, %q)", denied, tc.denied, outcome, msg)
+			}
+			// The first sentence is what the refusal log keeps (hookcmd cuts at the first full stop).
+			if tc.denied && !strings.Contains(strings.SplitN(msg, ".", 2)[0], "wrapper directory") {
+				t.Errorf("the refusal's first sentence does not name what was refused: %q", msg)
+			}
+		})
 	}
 }
