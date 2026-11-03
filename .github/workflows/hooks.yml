@@ -1776,6 +1776,9 @@ jobs:
       - name: The record's enum-value annotations and the term definitions match record.proto and the terms registry (a stale table gives a value a meaning or a facet the schema does not declare)
         run: go run ./devcmd/vocabgen -check
         working-directory: plugins/frank-exchange-of-views/tools
+      - name: The verbs' help pages and the required-field table match their documents and the schema (a stale page or table teaches a seat what the tool no longer does)
+        run: go run ./devcmd/cmdtreegen -check
+        working-directory: plugins/frank-exchange-of-views/tools
       - name: Nothing in any Go module is unreachable from its binaries, its generators and its tests (every function the pinned deadcode leaves unreached is a failure; there is no allowlist)
         run: go run ./deadcode
         working-directory: scripts
