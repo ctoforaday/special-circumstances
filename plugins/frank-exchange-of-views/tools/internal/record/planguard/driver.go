@@ -6,79 +6,69 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
 )
 
-// Finding is one statement that scanned one growing table.
-type Finding struct {
-	Statement string // the SQL as the code wrote it
-	Table     string // the growth table the plan scanned
-	Detail    string // EXPLAIN QUERY PLAN's own words, kept verbatim
-}
-
-// Recorder collects findings across every connection a guarded database opens.
+// Recorder collects plans across every connection a guarded database opens.
 //
-// It records rather than fails. What counts as a DEFECT is a judgement about the statement — a
-// full replay is supposed to scan `events` — and that judgement belongs to the caller with the
-// statement in front of it, not to the interceptor. Mixing the two would bury a policy decision
-// inside a driver.
+// It records rather than judges. What counts as a defect is a judgement about the statement — a
+// full replay is supposed to scan `events` — and that judgement belongs to Analyzer.Shapes with
+// the statement in front of it, not to the interceptor. Mixing the two would bury a policy
+// decision inside a driver.
 type Recorder struct {
 	mu        sync.Mutex
-	findings  []Finding
-	seen      map[string]bool // one report per (statement, table), however often it runs
-	growth    map[string]bool
 	explained map[string]bool // statement text -> already planned; see shouldExplain
+	plans     []StatementPlan // each distinct statement's plan, in first-seen order
+	planErrs  []string        // statements whose plan could not be read; see PlanErrors
 	stmts     int64           // atomic: how many statements passed through, so zero findings can be told from zero work
 }
 
-// NewRecorder derives the growth set and returns a recorder over it.
-func NewRecorder() (*Recorder, error) {
-	growth, err := GrowthTables()
-	if err != nil {
-		return nil, err
-	}
-	return &Recorder{seen: map[string]bool{}, explained: map[string]bool{}, growth: growth}, nil
+// StatementPlan is one intercepted statement and the plan SQLite chose for it.
+type StatementPlan struct {
+	SQL  string
+	Plan Plan
 }
 
-// Findings is what was seen, in first-seen order.
-func (r *Recorder) Findings() []Finding {
+// Plans is every distinct statement's plan, in first-seen order.
+func (r *Recorder) Plans() []StatementPlan {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]Finding, len(r.findings))
-	copy(out, r.findings)
+	out := make([]StatementPlan, len(r.plans))
+	copy(out, r.plans)
 	return out
 }
 
-// scanDetail matches EXPLAIN QUERY PLAN's scan lines across the wordings SQLite has used:
-// "SCAN TABLE events" (older) and "SCAN events" (3.36+), with or without an alias. Anything
-// SEARCHing is using an index and is not this guard's business.
-//
-// A NO-MATCH HERE IS A SILENT PASS, which is the failure this repo names first, so the pattern
-// is deliberately loose (it matches the table name in either wording) and the CALLER is
-// responsible for noticing that a run produced no statements at all — see Recorder.Statements.
-var scanDetail = regexp.MustCompile(`\bSCAN\s+(?:TABLE\s+)?"?([A-Za-z_][A-Za-z0-9_]*)"?`)
-
-// note records a plan line if it scans a growing table.
-func (r *Recorder) note(stmt, detail string) {
-	m := scanDetail.FindStringSubmatch(detail)
-	if m == nil {
-		return
-	}
-	table := m[1]
+// PlanErrors is every statement the guard tried to plan and could not, with the reason. A
+// statement in this list contributes no plan and no finding, so a caller treating an empty
+// Plans as clean must check this is empty first.
+func (r *Recorder) PlanErrors() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if !r.growth[table] {
-		return // a bounded enum table is correctly scanned at any run length
-	}
-	key := stmt + "\x00" + table
-	if r.seen[key] {
+	return append([]string(nil), r.planErrs...)
+}
+
+func (r *Recorder) keepPlan(stmt string, rows []PlanRow) {
+	p, err := BuildPlan(rows)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil {
+		r.planErrs = append(r.planErrs, fmt.Sprintf("%v\n  sql: %s", err, stmt))
 		return
 	}
-	r.seen[key] = true
-	r.findings = append(r.findings, Finding{Statement: stmt, Table: table, Detail: detail})
+	r.plans = append(r.plans, StatementPlan{SQL: stmt, Plan: p})
+}
+
+func (r *Recorder) planFailed(stmt string, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.planErrs = append(r.planErrs, fmt.Sprintf("%v\n  sql: %s", err, stmt))
+}
+
+// NewRecorder returns an empty recorder.
+func NewRecorder() *Recorder {
+	return &Recorder{explained: map[string]bool{}}
 }
 
 // statements counts every statement the guard actually saw, so a caller can tell "nothing
@@ -86,7 +76,7 @@ func (r *Recorder) note(stmt, detail string) {
 func (r *Recorder) countStatement() { atomic.AddInt64(&r.stmts, 1) }
 
 // Statements is how many statements passed through the guard. ZERO IS NOT A CLEAN BOARD: it
-// means the driver was never used, and every assertion over Findings would pass vacuously.
+// means the driver was never used, and every assertion over Plans would pass vacuously.
 func (r *Recorder) Statements() int64 { return atomic.LoadInt64(&r.stmts) }
 
 // shouldExplain reports whether this statement still needs planning, and marks it planned.
@@ -205,43 +195,63 @@ func (c *guardConn) PrepareContext(ctx context.Context, query string) (driver.St
 // explain asks SQLite how it intends to answer, on the SAME connection, so temp tables and
 // pragmas in effect are the ones the real statement will meet.
 //
-// It is best-effort by design: EXPLAIN QUERY PLAN rejects a few statement forms, and a guard
-// that failed the query it was inspecting would turn a diagnostic into an outage. A statement it
-// cannot explain contributes no finding, which is why the caller is told how many statements ran.
+// It never fails the query it inspects: a guard that did would turn a diagnostic into an outage.
+// A statement it cannot plan contributes no finding and is recorded in PlanErrors instead, and the
+// caller is told how many statements ran, so neither reads as a clean plan.
 func (c *guardConn) explain(ctx context.Context, q driver.QueryerContext, query string, args []driver.NamedValue) {
 	if !isExplainable(query) || !c.rec.shouldExplain(query) {
 		return
 	}
 	rows, err := q.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args)
 	if err != nil {
+		c.rec.planFailed(query, err)
 		return
 	}
 	defer rows.Close()
 	cols := rows.Columns()
-	detailAt := -1
+	at := map[string]int{"id": -1, "parent": -1, "detail": -1}
 	for i, name := range cols {
-		if strings.EqualFold(name, "detail") {
-			detailAt = i
+		if _, ok := at[strings.ToLower(name)]; ok {
+			at[strings.ToLower(name)] = i
 		}
 	}
-	if detailAt < 0 {
-		return
-	}
-	dest := make([]driver.Value, len(cols))
-	for {
-		if err := rows.Next(dest); err != nil {
-			if err == io.EOF {
-				return
-			}
+	for name, i := range at {
+		if i < 0 {
+			c.rec.planFailed(query, fmt.Errorf("EXPLAIN QUERY PLAN returned no %q column (got %v)", name, cols))
 			return
 		}
-		switch v := dest[detailAt].(type) {
-		case string:
-			c.rec.note(query, v)
-		case []byte:
-			c.rec.note(query, string(v))
-		}
 	}
+	dest := make([]driver.Value, len(cols))
+	var plan []PlanRow
+	for {
+		if err := rows.Next(dest); err != nil {
+			if err != io.EOF {
+				c.rec.planFailed(query, err)
+				return
+			}
+			break
+		}
+		row := PlanRow{ID: asInt(dest[at["id"]]), Parent: asInt(dest[at["parent"]]), Detail: asString(dest[at["detail"]])}
+		plan = append(plan, row)
+	}
+	c.rec.keepPlan(query, plan)
+}
+
+func asInt(v driver.Value) int64 {
+	if n, ok := v.(int64); ok {
+		return n
+	}
+	return -1 // not a node id: BuildPlan refuses the parent it cannot find
+}
+
+func asString(v driver.Value) string {
+	switch s := v.(type) {
+	case string:
+		return s
+	case []byte:
+		return string(s)
+	}
+	return ""
 }
 
 // isExplainable keeps the guard away from the statements SQLite will not plan — the transaction
