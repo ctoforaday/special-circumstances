@@ -10,7 +10,8 @@
   leaves by a retire naming it alone, which keeps its sentence word for word. That retire is how a
   cited sentence goes — retire its citations, then edit the sentence out — and how a citation no
   lens can read gives way to one it can: cite the readable source, then retire the dead one. An anchor your quote leaves out stays where it
-  stands. One your quote carries goes into the replacement after the sentence that now holds its
+  stands, and an edit that would leave it bare there is refused: to take its claim out, carry it in
+  both the quote and the replacement, then retire the claim. One your quote carries goes into the replacement after the sentence that now holds its
   claim — never after the last sentence by default. When you split a sentence, each anchor goes
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
   read what each one marks on the record before you place it. The record lists each anchor

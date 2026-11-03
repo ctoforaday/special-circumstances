@@ -59,8 +59,9 @@ its quote — the quote's one occurrence within one paragraph, or the act is ref
 it; the tool puts back one whose sentence an edit keeps word for word; an edit that drops or types one
 is refused. **Retire is the one exit.** A citation never stands bare: an edit that would leave one
 with no prose before it is refused, and `blue retire --anchor` alone takes it off a sentence that
-stays. A claim whose sentence is edited away leaves its other anchors BARE
-(no prose before them in their segment) or carried onto the prose that replaced it; `blue retire` names
+stays. An edit that would leave any other anchor bare without carrying it is refused too: a retire
+reads what the edit carried, so no retire could take it. A claim whose sentence is edited away leaves
+the other anchors it carries BARE (no prose before them in their segment) or on the prose that replaced it; `blue retire` names
 the anchors that stood on the claim in that edit and exit with it — the bare ones computed by the verb,
 one on surviving prose when the seat names it, each validated at the write — and replay removes them
 at that event. The question "did this leave legitimately?" is never asked of the anchor: it leaves only

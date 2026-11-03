@@ -176,7 +176,7 @@ func newEdit() *cobra.Command {
 			//
 			// Computed from the render the validation used, which is the report the edit lands on.
 			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
-			if err := refuseBaredCitations(peek, planned, gapID); err != nil {
+			if err := refuseBaredAnchors(peek, planned, applied, gapID); err != nil {
 				return err
 			}
 			// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
@@ -244,8 +244,9 @@ func newEdit() *cobra.Command {
 	return seat.SaysRequired(c, flags.Reason)
 }
 
-// refuseBaredCitations refuses an edit that would leave a citation's anchor BARE — no prose before it
-// in its sentence — where it stood on prose before (claimcount.BareAnchorIDs).
+// refuseBaredAnchors refuses an edit that would leave an anchor BARE — no prose before it in its
+// sentence — where it stood on prose before (claimcount.BareAnchorIDs), in the two cases where no act
+// could then take it out: a citation, carried or not, and any other kind the edit does not carry.
 //
 // A CITATION THAT ISN'T CHECKED IS A LIE IN WAITING (gblock, 2026-10-25), and a bare one cannot be
 // checked: `verify` reads the sentence holding the anchor, and a bare anchor backs none, so the
@@ -255,20 +256,43 @@ func newEdit() *cobra.Command {
 // sentence word for word and takes the anchor out), then edit the sentence as freely as any prose.
 // An edit answering a gap names that gap on the retire it sends blue to, because the retire is the
 // first half of the repair and joins the gap by the same key the edit does.
-func refuseBaredCitations(before, after, gapID string) error {
+//
+// A BARE ANCHOR THE EDIT DOES NOT CARRY IS AN ORPHAN (the #1677 smoke's D18; gblock, 2026-11-01). A
+// claim retire takes the anchors the edit that cut the claim holds in its replacement (heldAt), so one
+// the quote left out stands where the cut left it with no retire able to name it. applied is what the
+// edit records: carried means there, whichever way the anchor got there. One carried may stand bare
+// until the retire.
+func refuseBaredAnchors(before, after, applied, gapID string) error {
 	was := map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(before) {
 		was[id] = true
 	}
-	var bared []string
+	carried := claimcount.ProtectedAnchorIDs(applied)
+	var citations, leftOut []string
 	for _, id := range claimcount.BareAnchorIDs(after) {
-		if anchor.Kind(id) == "citation" && !was[id] {
-			bared = append(bared, id)
+		switch {
+		case was[id]:
+		case anchor.Kind(id) == "citation":
+			citations = append(citations, id)
+		case !slices.Contains(carried, id):
+			leftOut = append(leftOut, anchor.Token(id))
 		}
 	}
-	if len(bared) == 0 {
+	var refusals []string
+	if len(citations) > 0 {
+		refusals = append(refusals, baredCitations(citations, gapID))
+	}
+	if len(leftOut) > 0 {
+		refusals = append(refusals, baredLeftOut(leftOut))
+	}
+	if len(refusals) == 0 {
 		return nil
 	}
+	return feov.Errorf(feov.Validation, "%s", strings.Join(refusals, " "))
+}
+
+// baredCitations is the refusal of an edit that would leave these citations bare.
+func baredCitations(bared []string, gapID string) string {
 	what, it, its := "citation "+bared[0], "it", "its"
 	if len(bared) > 1 {
 		what, it, its = "citations "+strings.Join(bared, ", "), "them", "their"
@@ -277,10 +301,22 @@ func refuseBaredCitations(before, after, gapID string) error {
 	if gapID != "" {
 		retire = "`retire --anchor <its id> --answers " + gapID + "`"
 	}
-	return feov.Errorf(feov.Validation,
+	return fmt.Sprintf(
 		"this edit would leave %s standing bare — no prose before %s in %s sentence — so nothing would be left for a lens to check %s against. Nothing is recorded. "+
 			"Keep the sentence in --new; or, where the sentence is to go, first retire the citation with %s while the sentence still stands — that takes the anchor out and keeps the sentence word for word — and then edit the sentence as you would any prose",
 		what, it, its, it, retire)
+}
+
+// baredLeftOut is the refusal of an edit that would leave these anchor tokens bare without carrying them.
+func baredLeftOut(tokens []string) string {
+	what, it, its, carry := "anchor "+tokens[0], "it", "its", "the anchor"
+	if len(tokens) > 1 {
+		what, it, its, carry = "anchors "+strings.Join(tokens, ", "), "them", "their", "those anchors"
+	}
+	return fmt.Sprintf(
+		"this edit would leave %s standing bare — no prose before %s in %s sentence — and your quote leaves %s out, so no retire could take %s out with the claim. Nothing is recorded. "+
+			"Keep a sentence before %s in --new; or, where the claim is to go, carry %s: quote the claim with %s as `show report` prints it, write %s in --new, and then retire the claim",
+		what, it, its, it, it, it, carry, carry, carry)
 }
 
 // repeatsEdit refuses a keyed retry that states another edit than the one stored under its key: the
