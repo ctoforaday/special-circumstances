@@ -266,6 +266,8 @@ var tools = []gate{
 		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},
 	{id: "vocabgen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/vocabgen", "-check"}, ciJob: "debate-sim",
 		why: "the enum-value annotations and the term definitions every record process reads are generated as Go literals from record.proto and terms.json; a stale table gives a value a meaning, a facet or a ruler the schema no longer declares"},
+	{id: "cmdtreegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/cmdtreegen", "-check"}, ciJob: "debate-sim",
+		why: "each verb's help page and each event body's required fields are written from the help documents and the schema's annotations; a stale page ships text its document no longer says, and a stale table marks REQUIRED a set the write does not refuse"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because
