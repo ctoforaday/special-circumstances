@@ -54,7 +54,7 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 	// it, which is what an undecodable body IS on this side of the fence — names no sitting, and a
 	// register that names no sitting cannot be written.
 	forgedKey := "blue-respond:register:#2"
-	_, forgeErr := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key") VALUES (?, ?, ?, ?)`,
+	_, forgeErr := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key", "sitting", "epoch") VALUES (?, ?, ?, ?, 0, 0)`,
 		"blue-respond", stamp(5), "register", forgedKey)
 	if forgeErr == nil {
 		t.Fatal("a register with no sitting went onto the record — the envelope CHECK is what makes the two readings one")

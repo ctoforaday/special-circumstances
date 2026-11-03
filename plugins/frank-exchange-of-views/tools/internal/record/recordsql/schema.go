@@ -83,6 +83,23 @@ CREATE TABLE "events" (
   -- answer: nothing on the wire carries it, the foreign key requires the event it names to exist,
   -- and the only thing a seat can do to move it is open a sitting.
   "sitting_id" INTEGER REFERENCES "events" ("id"),
+  -- THE TWO WINDOWS (plans/roundless.md §III.A.0), STAMPED BESIDE sitting_id IN THE SAME WRITE.
+  --
+  -- "sitting" is the rank of the row's sitting among its owner's sittings — which sitting of that
+  -- seat this act belongs to, its opening included; 0 for a row in no sitting. "epoch" is the count
+  -- of red-chair's sittings opened at or before this row, whoever wrote it; 0 before the chair's
+  -- first, which is the base phase (frontier, lanes, synthesis).
+  --
+  -- STORED BECAUSE BOTH ARE FIXED THE MOMENT THE ROW IS WRITTEN. Each depends only on rows with a
+  -- lower id, and the record is append-only, so no later write can move either; a view that
+  -- re-ranked every sitting on every read was paying, on every reader, for a number the write
+  -- already knew. The write path (recordsql.sittingOf) is the one statement of both rules.
+  --
+  -- A ROW IN A SITTING HAS A RANK AND A ROW IN NONE HAS 0, and the CHECK refuses the two
+  -- disagreeing.
+  "sitting"    INTEGER NOT NULL CHECK ("sitting" >= 0),
+  "epoch"      INTEGER NOT NULL CHECK ("epoch" >= 0),
+  CHECK (("sitting_id" IS NULL) = ("sitting" = 0)),
   -- A REGISTER WITHOUT A SITTING IS UNREPRESENTABLE, and that is what retires the degradation rule
   -- this column replaces. A register opens a sitting (its own id), joins the one its agent's
   -- bracket opened (the bracket's id), or repairs one (the sitting it repairs), so NULL here means
@@ -166,6 +183,15 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // because which questions get asked is a decision, not a derivation.
 const QueryIndexDDL = `
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
+-- gap_grade's per-axis lookups: a gap's latest regrade at or before a point.
+CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
+-- A motion's rulings: motion_answers, inquiry_state, the gap view's unruled docket filing, and the
+-- bench's docket readers.
+CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
+-- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
+CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
+-- Whether a computation answers a gap, which the closing and estoppel checks ask per gap.
+CREATE INDEX "computation_answers" ON "computation" ("answers");
 `
 
 func Schema() (string, error) {
