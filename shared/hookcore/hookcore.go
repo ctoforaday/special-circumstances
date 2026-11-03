@@ -629,6 +629,10 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 		fmt.Fprintln(stderr, strings.TrimRight(resp.Warnings, "\n"))
 	}
 
+	if !req.Parsed && len(req.Raw) > 0 {
+		fmt.Fprintf(stderr, "[hookcore] unparseable payload for event %q: %s\n", req.Event, string(bytes.TrimSpace(req.Raw)))
+	}
+
 	if req.Engine == EngineAntigravity {
 		return respondAntigravity(req, resp, stdout, stderr)
 	}

@@ -60,11 +60,11 @@ func TestHookKeysRefuseTheWrongShape(t *testing.T) {
 func TestIsPluginHooks(t *testing.T) {
 	for p, want := range map[string]bool{
 		"plugins/gray-area/.claude-plugin/hooks.json":        true,
-		"plugins/gray-area/hooks/hooks.json":                false,
-		"plugins/gray-area/.claude-plugin/other.json":       false,
+		"plugins/gray-area/hooks/hooks.json":                 false,
+		"plugins/gray-area/.claude-plugin/other.json":        false,
 		"plugins/gray-area/nested/.claude-plugin/hooks.json": false,
-		".claude/settings.json":                             false,
-		"hooks/hooks.json":                                  false,
+		".claude/settings.json":                              false,
+		"hooks/hooks.json":                                   false,
 	} {
 		if got := isPluginHooks(p); got != want {
 			t.Errorf("isPluginHooks(%q) = %v, want %v", p, got, want)
