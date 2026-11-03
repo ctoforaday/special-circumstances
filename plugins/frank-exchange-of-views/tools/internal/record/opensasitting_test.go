@@ -181,14 +181,14 @@ func TestABracketAndItsOwnRegisterAreOneSitting(t *testing.T) {
 			}
 			// Asked of the rows BELONGING to the seat's sittings, not of the rows the seat wrote:
 			// a bracket is harness-seated, so a sitting the seat never answered has none of its own.
-			if err := db.QueryRow(`SELECT COALESCE(max(w."sitting"), 0) FROM "events_w" w
+			if err := db.QueryRow(`SELECT COALESCE(max(w."sitting"), 0) FROM "events" w
 				  JOIN "events" e ON e."id" = w."id"
 				  JOIN "sittings" s ON s."id" = e."sitting_id"
 				 WHERE s."seat_id" = ?`, seat).Scan(&view); err != nil {
 				t.Fatal(err)
 			}
 			if stored != c.want || view != c.want {
-				t.Errorf("the record holds %d sitting(s) and events_w reads %d; want %d — a bracket and the register of its own agent are one sitting, and a register without one is still a sitting", stored, view, c.want)
+				t.Errorf("the record holds %d sitting(s) and events.sitting reads %d; want %d — a bracket and the register of its own agent are one sitting, and a register without one is still a sitting", stored, view, c.want)
 			}
 		})
 	}

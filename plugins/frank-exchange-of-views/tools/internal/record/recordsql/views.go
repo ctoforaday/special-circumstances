@@ -60,31 +60,6 @@ FROM "events" e
 LEFT JOIN "sitting_open" o ON o."event_id" = e."id"
 WHERE e."sitting_id" = e."id";
 
--- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0), as every reader names them.
---
--- "sitting" is the rank of the row's own sitting among its seat's sittings: which sitting of that
--- seat this act belongs to. "epoch" is GLOBAL: the count of red-chair's sittings at or before the
--- row, whoever wrote it — which dispatch cycle this was in, defined for a bench close or a lane's
--- draft because it asks about the chair's sittings, not the row's seat's. Everything before the
--- chair's first sitting is epoch 0, the base phase (frontier, lanes, synthesis), and a row with no
--- sitting — the harness's own bookkeeping, a cast, anything written before its seat opened one —
--- has sitting 0. The harness observes; it does not sit.
---
--- BOTH ARE COLUMNS OF events, stamped by the write beside sitting_id (recordsql.sittingOf), which is
--- the one statement of both rules. Each depends only on rows with a lower id and the record is
--- append-only, so the number a write stores is the number every later read would compute. A window
--- here re-ranks every sitting on every read, and every view joining it for a handful of rows pays
--- for the whole record. This view is the events envelope a reader of the windows asks for.
-CREATE VIEW "events_w" AS
-SELECT e."id"      AS "id",
-       e."seat_id" AS "seat_id",
-       e."ts"      AS "ts",
-       e."type"    AS "type",
-       e."key"     AS "key",
-       e."sitting" AS "sitting",
-       e."epoch"   AS "epoch"
-FROM "events" e;
-
 -- THE AGENT -> SEAT BINDING, the one statement of the rule; every reader of "which seat is this
 -- agent" asks it here (record.SeatOfAgent, and seat_of_agent below for the windows):
 --

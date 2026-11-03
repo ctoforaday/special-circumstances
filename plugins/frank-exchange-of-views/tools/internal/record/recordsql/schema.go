@@ -75,7 +75,7 @@ CREATE TABLE "events" (
   --
   -- It is stamped by recordpb.SeatOpeningSitting at the write, inside the inserting transaction,
   -- and no reader re-derives it. Five readers used to recount openings for themselves and two of
-  -- the spellings had already drifted: the events_w window counted EVERY register while the
+  -- the spellings had already drifted: a window counting openings counted EVERY register while the
   -- idempotency key's count excluded a repair, so one seat's repair sitting was 2 to the view and
   -- 1 to the key. A stored id cannot disagree with itself.
   --

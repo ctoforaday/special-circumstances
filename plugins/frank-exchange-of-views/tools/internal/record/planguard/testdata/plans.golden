@@ -206,9 +206,6 @@
     SCAN (subquery)
   SCAN convergence_at
 
-== view events_w
-  SCAN e
-
 == view gap
   MATERIALIZE gap_grade
     CO-ROUTINE graded
@@ -456,9 +453,9 @@
   SCAN e
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 1e9c215c7f19
--- SELECT "epoch" FROM "events_w" WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events") ORDER BY "id"
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+== stmt f82df4d27e93
+-- SELECT "epoch" FROM "events" WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events") ORDER BY "id"
+  SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
     SEARCH events
   SCALAR SUBQUERY

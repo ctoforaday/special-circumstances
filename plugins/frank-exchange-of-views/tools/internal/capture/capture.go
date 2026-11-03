@@ -211,7 +211,7 @@ func engineStop(run record.Run) (string, error) {
 // TelemetryAudit checks that the telemetry series derived from the record has a row for every red
 // epoch.
 //
-// EVERY EPOCH IS A RED EPOCH: the record numbers its epochs by the chair's sittings (events_w), so
+// EVERY EPOCH IS A RED EPOCH: the record numbers its epochs by the chair's sittings (events.epoch), so
 // the red epochs are 1..N, where N is the last epoch with work in it (WindowIndex.CurrentEpoch). The
 // count is read off that field, never off the chair's positions: a run that ends in PASS files no
 // position, and a count of positions reads 0 on a run of seven epochs — a zero indistinguishable
