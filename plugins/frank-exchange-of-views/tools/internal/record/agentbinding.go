@@ -122,12 +122,13 @@ func RegisteredSeatOfAgent(run Run, agentID string) (string, bool, error) {
 }
 
 // SittingsOf is how many sittings a seat has opened — its own registers AND the harness brackets
-// that name it, less the registers that repair a sitting rather than open one. It is the number
-// events_w gives as its latest sitting, read off the same rows rather than counted a second way.
+// that name it, less the registers that repair a sitting rather than open one: the rank stored on
+// its latest opening (events.sitting), 0 for a seat that never sat.
 func SittingsOf(run Run, seatID string) (int, error) {
 	var n int
 	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`, seatID); err != nil {
+		`SELECT COALESCE((SELECT "sitting" FROM "events"
+		   WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`, seatID); err != nil {
 		return 0, err
 	}
 	return n, nil

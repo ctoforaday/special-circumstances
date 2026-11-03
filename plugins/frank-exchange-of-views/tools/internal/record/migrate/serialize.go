@@ -13,7 +13,7 @@ import (
 // them — and their events interleave almost completely (the quadratic run: L1 at rows 466-510,
 // L2 at 467-509). The roundless record has no concurrent instances of one seat: both are
 // `red-lens-evidence`, and a seat's acts belong to its SITTING, the rank of its stored opening
-// among that seat's sittings (events_w). Replayed in the archived order, L1's verify would land in
+// among that seat's sittings (events.sitting). Replayed in the archived order, L1's verify would land in
 // sitting 2 (L2 had registered by then) and collide with L2's on the once-per-sitting key — 53
 // refusals on the quadratic run, and a wrong attribution for every act that was not refused.
 //

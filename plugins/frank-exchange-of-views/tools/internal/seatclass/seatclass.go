@@ -17,7 +17,7 @@ import "strings"
 type Classification struct {
 	Seat string
 	// THERE IS NO ROUND HERE (plans/roundless.md §III.A.2). A seat's epoch and sitting are the
-	// record's — events_w ranks the seat's stored sittings and counts red-chair's — and a fact
+	// record's — stamped on each row at the write (events.sitting, events.epoch) — and a fact
 	// recovered from prompt wording that the record already holds is a second answer that can
 	// disagree with it. The head names the SEAT only.
 }
