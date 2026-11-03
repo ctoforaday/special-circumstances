@@ -28,10 +28,35 @@
 > MOVED to #1695 (a one-line pointer in §III.16): the reading result's "add what it lacks as a finding
 > about G", the repeat refusal's "a point the gap lacks is a finding about G" (phase-1 code, §III.2d),
 > and §III.9's former translation of each raise into a finding about its citation.
+>
+> **F13b revision (2026-11-03): the targeted round's verdict discharged; no further audit (gblock ruled
+> ONE round).** <!-- CHANGED F13b --> The verdict (`~/.claude/scratch/plan1647/roundF13-verdict.md`) failed two
+> rows and left notes and two forks. gblock ruled the forks and the key, 2026-11-03 (the options he picked;
+> their wording is the lead session's, not his): (1) a found-source reading keys on its SOURCE and its
+> SENTENCE — readings by one seat in one sitting that differ in url or in sentence are each recorded, an
+> identical retry is refused naming the stored reading; (2) a gap a `verify --url` reading mints COUNTS
+> against the lens's mint budget, and a `verify --anchor` reading's gap stays outside it (F6 amended);
+> (3) F13 stays in this PR. Relayed by the #1657 session the same day: gblock picked "drop them, state it"
+> for the 15 lens-placed `C-` anchors (§III.9 item 7's basis), and two 1a′ seam picks (§III.16). Every
+> row this revision touches carries `<!-- CHANGED F13b -->`.
+>
+> **Changed sections (F13b):** this block; §II (materiality); §III.0 (rows 1e, F6's budget row, 12);
+> §III.1 (`unsourced_claim` means and distinguisher, the backing outcomes' means, `keyFields`); §III.2
+> (crash-retry and the key, the repeat rule, the `--key` guard row, `Supplies("claim")`, the requirement
+> order); §III.2a (`unplacedLocationAt`, `consistency.go` rows); §III.2d (the key, materiality, the
+> guard's order, the scope, the phase-1 rework list, the deletions table, tests); §III.5 (F6 amended);
+> §III.9 (item 7: the ruling, the label map's source, list removal, every report-text field, the
+> migrate budget measure; residue wording); §III.12 (identifier count; the label readers);
+> §III.10 (`TestAReadingsGapTakesNoMint`, `TestARetriedNegativeReadingIsRefusedNamingItsGap`); §III.11
+> (the `--url` drive's budget and key oracle, two tally fields); §III.14 (phase 2's row);
+> §III.15 (9b, 9c, NEW 9e, 13a, NEW 13b, 20, 33, 35, 35b, 35c, NEW 35e, NEW 35f); §III.16 (O1's consequence
+> for 1a′, E1′, the two 1a′ picks); §IV (R2, R21, R23, NEW R24); §V (5.v, 5.oo, 5.pp, NEW 5.vv–5.zz, 9);
+> Forks (F6, F13, O1 closed, NEW key and scope rows). Also §I (the budget clause), §III.2's
+> budget-exemption bullet, and §III.7 (`verify.md`: the budget and the key).
 
 > **Status: APPROVED by gblock, 2026-11-01. The audit loop ended at round 8 (gblock, 2026-11-01: "Revise
 > once, then implement"); that revision was the last of the loop. The F13 revision above (2026-11-03) is
-> audited by ONE targeted round over its CHANGED rows before phase 2 (gblock) <!-- CHANGED F13 -->. Audit round 8's three gaps,
+> audited by ONE targeted round over its CHANGED rows before phase 2 (gblock) <!-- CHANGED F13 -->. <!-- CHANGED F13b --> That round ran and failed (two gaps); the F13b revision discharges it, and no further round runs (gblock: ONE round); phase 2 resumes on F13b. Audit round 8's three gaps,
 > its F12 ruling and its notes are discharged below and carried as REQUIRED TESTS (§III.15). Independent
 > review of the implementation is required before merge.**
 
@@ -96,7 +121,8 @@ a negative reading, whatever its `--as`, and mints nothing (§III.2b).
 
 After this change a negative reading **is** the gap: the reading act mints a gap of a real class on the
 sentence. Its Mint meets every write-path rule a mint meets (class, subject, grades, check kind, one-gap
-rule, report voice; the budget through F6's act-paired exemption) and, of `lens mint`'s verb-level
+rule, report voice; the budget — outside it for a citation reading's gap through F6's act-paired
+exemption, counted for a found-source reading's gap, F6 amended <!-- CHANGED F13b -->) and, of `lens mint`'s verb-level
 checks, those §III.2's guard table marks MET — the verified fix among them; it is EXEMPT from estoppel
 (`requireNotEstopped`; ruled F10: a source's refutation is new evidence, not red relitigating its own
 prescription). It is filled as a plain mint is (F11, ruled): the reading's `--reason` is the gap's
@@ -209,8 +235,9 @@ is already proven elsewhere (the failed check, §III.3).
   whatever it is graded; grades still order it (mass). Of the two classes a reading of a source the lens
   found admits (F13), `claim_contradicts_source` is `always` and `unsourced_claim` is
   `CLASS_MATERIAL_BY_GRADE` (`record.proto:461-463`): a backing found-source reading's gap holds the PASS
-  only where its grades make it material. This plan does not change that class's default (open item O1,
-  §III.2d). No seat picks materiality. <!-- CHANGED F13 -->
+  where its grades make it material, exactly as every `unsourced_claim` gap does. This plan does not
+  change that class's default: materiality is the class's, and the ruled option names `unsourced_claim`
+  (O1 closed, §III.2d). No seat picks materiality. <!-- CHANGED F13 --> <!-- CHANGED F13b -->
 - **Constraints.** No backwards compatibility (CLAUDE.md change discipline): no alias for the about-kind,
   no tolerance path for an archived `contradiction` word in live code, no "formerly" prose. Archived
   records are brought forward by one `migrate` translation (F13 adds a second: §III.9 item 7). No alias
@@ -240,12 +267,12 @@ is already proven elsewhere (the failed check, §III.3).
 | 1c. Where the gap stands | `verify --anchor`: at the end of the sentence its `--anchor` token sits in — where every gap's token stands, at its quote's end — found by that token's identity (`Anchor.sentence_of`), never by searching the sentence's text. `verify --url` names no anchor: its gap stands at its `--quote`, and a quote the report holds more than once is refused, as every text placement is <!-- CHANGED F13 --> | **F9** RULED |
 | 1c′. `--new` on a reading | Blue's `--accept` and `record.ProposalOver` locate a gap's prescribed span by the gap's anchor identity — the occurrence of its location whose anchor run holds its token — and the accept's edit is recorded with `exact_span`, located byte for byte on replay. So `--new` on a `verify` over a sentence held twice is verified and accepted at the cited occurrence; nothing refuses it for the repeat | **Fork** RULED (locate by gap anchor) |
 | 1d. Materiality | The class's `material_default` (both `always`), stamped at the write as for every gap | — |
-| 1e. Estoppel | A reading's gap is EXEMPT: the reading verbs attach no `requireNotEstopped`, also where the sentence is text blue applied verbatim from a red `--new`. The gap opens; a `verify --anchor`'s failed check, and a `verify --url` gap that is material, hold the PASS <!-- CHANGED F13 -->. The exemption and its reason are stated wherever estoppel is taught or enforced (§III.2) | **F10** RULED |
+| 1e. Estoppel | A reading's gap is EXEMPT: the reading verbs attach no `requireNotEstopped`, also where the sentence is text blue applied verbatim from a red `--new`. The gap opens; a `verify --anchor`'s failed check, and a `verify --url` gap where its class or its grades make it material, hold the PASS <!-- CHANGED F13 --> <!-- CHANGED F13b -->. The exemption and its reason are stated wherever estoppel is taught or enforced (§III.2) | **F10** RULED |
 | 2. Duplicate | The reading is kept and the one-gap rule refuses the *mint*; `Verify.carried_by` names the standing gap | **F3** RULED |
 | 3. Backing re-check | Found-against is a third **failed-check** state beside unread/unsound. It holds the PASS until its reader's own later reading backs the sentence, blue edits the sentence, or blue retires the citation; another lens's backing reading clears nothing. The lens's close of its gap is refused while it stands (`requireFailedCheckAnswered`); a closing docket ruling closes the gap and the check still holds the PASS. Once it clears, the minting lens closes the gap with its ordinary close (on main; #1657 Part 1a′, landing after this plan, adds its `source` demand on top, §III.16). No new answer kind | **F4**, **F8** RULED |
 | A found-source reading's `absent` | Records the reading; mints no gap (F5, carried to `verify --url`) <!-- CHANGED F13 --> | **F5** RULED |
 | Archived corroboration readings | An archived negative corroboration has no anchor, so after the change it holds no failed check and no PASS: the loss is accepted and stated per archive (§III.9). An archived BACKING corroboration's label, footnote and red-placed citation anchor are translated away: the reading comes forward as a reading of the source it found (§III.9 item 7) <!-- CHANGED F13 --> | **GAP 2** RULED; F13 |
-| Mint budget | A gap a reading mints is outside the mint budget: it takes no mint and does not count while open; the "answers its own raise" exemption is deleted | **F6** RULED |
+| Mint budget | A gap a reading of a CITATION mints (`verify --anchor`) is outside the mint budget: it takes no mint and does not count while open; a gap a reading of a source the lens FOUND mints (`verify --url`, either class) takes a mint and counts while open, as a plain mint does; the "answers its own raise" exemption is deleted <!-- CHANGED F13b --> | **F6** RULED; amended F13b (gblock 2026-11-03) |
 | 4. Delete | Everything in the census (§III.12) | — |
 | 5. migrate | One translation, §III.9 | — |
 | 6. Epoch | 55, re-derived at rebase | — |
@@ -254,7 +281,7 @@ is already proven elsewhere (the failed check, §III.3).
 | 9. The gap's link to its source | `carried_by` printed on `show evidence`'s rows and docket.md's source line (§III.2c) | **F12** RULED |
 | 10. #1657 | This plan governs a refuting reading and lands first; 1a′ builds its `source` demand on `carried_by` (§III.16); 1a′'s corroboration arm is deleted, and a found-source reading's gap is answered by blue's `cite --answers` once 1a′ adds it <!-- CHANGED F13 --> | RULED |
 | 11. The reading verb | ONE verb, `verify`, taking exactly one of `--anchor` and `--url` (with `--title` and `--quote`), enforced by cobra's flag groups at parse; `corroborate` deleted, no alias (§III.2d) <!-- CHANGED F13 --> | **F13** RULED (verb shape: this revision's decision) |
-| 12. A source a lens found | Its reading mints its gap in the same act (`unsourced_claim` for a backing outcome on a sentence no evidence anchor marks; `claim_contradicts_source` for `refutes`); it places no citation, label or footnote; blue answers with a cite and a lens verifies the cite (§III.2d) <!-- CHANGED F13 --> | **F13** RULED |
+| 12. A source a lens found | Its reading mints its gap in the same act (`unsourced_claim` for a backing outcome on a sentence no evidence anchor marks; `claim_contradicts_source` for `refutes`), against the lens's mint budget; it places no citation, label or footnote; blue answers with a cite and a lens verifies the cite (§III.2d). One seat's readings in one sitting are keyed on source AND sentence: each that differs in url or in sentence is recorded, an identical retry is refused naming the stored reading <!-- CHANGED F13 --> <!-- CHANGED F13b --> | **F13** RULED; key and budget F13b |
 
 ### III.1 Record enums and messages — `internal/record/recordpb/record.proto` [MODIFY] (contract: event schema)
 
@@ -267,7 +294,21 @@ is already proven elsewhere (the failed check, §III.3).
   otherwise than the sentence, or not say it at all?". [MODIFY] `citation_figure_misattribution`'s means
   drops "or contradicted by" (it becomes the citation that does not back its sentence: absent from its
   text, a different document, a sentence the source is not about); [MODIFY] `unsourced_claim`'s
-  distinguisher stops saying "says something else". Name grep (AGENTS.md naming rule) run at `9ee7ad95e`:
+  distinguisher stops saying "says something else". <!-- CHANGED F13b --> [MODIFY] (F13b) `unsourced_claim`
+  (`record.proto:461-463`, at `6102f2b09` still "a claim of fact or a quotation the report states with no
+  source or computation behind it on the record", distinguisher "is a source recorded against the claim
+  that does not back it, or is there no source behind the claim at all?") — both are false of the gap a
+  backing `verify --url` mints, whose own carrying Verify puts a backing source on the record and whose
+  source `show evidence` names (§III.2c). Rewritten: means "a claim of fact or a quotation the REPORT
+  states with no citation or computation of its own behind it — no anchor, an anchor that resolves to
+  nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the
+  sentence is not the report's citation: the gap stands until blue cites one"; distinguisher "does the
+  report cite a source for the sentence that does not back it, or does the report cite nothing for it,
+  whatever a lens found?". Its neighbor stays `citation_figure_misattribution`. The property: the
+  definition a lens, blue and the bench read is true of an `unsourced_claim` gap whose carrying reading
+  names a source that backs the sentence and that the report does not cite. Carriers it reaches:
+  `difftest/testdata/gap_class_enum.golden` and the manual golden's `--class` renderings (`mint`,
+  `verify`) REGENERATE, each changed line read. Name grep (AGENTS.md naming rule) run at `9ee7ad95e`:
   `contradicts_source` has 0 hits; value 31 is free (`GAP_CLASS_UNCLASSIFIED = 30` is the last); the sibling `claim_contradicts_own_record` is the parallel the name
   follows (report vs record → report vs source).
 - `SourceOutcome`: [NEW] facet `(gap_classes)` on `REFUTES` (`claim_contradicts_source`,
@@ -284,6 +325,14 @@ is already proven elsewhere (the failed check, §III.3).
   Read by [NEW] `recordpb.FoundSourceGapClassesOf`, beside `GapClassesOf` (`recordpb/gapclass.go:56`).
   `gap_classes` keeps its meaning, now stated as the classes a reading of a CITATION admits. Name grep at
   `6102f2b09`: `found_source_gap_classes`, `FoundSourceGapClassesOf` 0 hits. <!-- CHANGED F13 -->
+  [MODIFY] (F13b) the `(means)` of `SUPPORTS`, `SUPPORTS_WITH_BRIDGE` and `WEAK` (`record.proto:514-516`
+  at `6102f2b09`) say nothing of minting, which a backing `verify --url` reading now does; each gains
+  "On a source you found (no citation), a reading of the work with this outcome on a sentence the report
+  cites nothing for mints an `unsourced_claim` gap in the same act". `REFUTES`' means (`:517`, "A reading
+  of the work with this outcome mints a gap on the sentence") is true of both forms and stays; `ABSENT`'s
+  ("A reading of the work with this outcome on a citation mints a gap …") limits itself to a citation and
+  gains "on a source you found it records the reading and mints nothing" (F5). The `--as` renderings in the manual golden
+  REGENERATE, each changed line read. <!-- CHANGED F13b -->
   So the record declares two predicates over the stored `Verify`, and no site decides from `outcome`
   alone:
   - [NEW] `record.FindsAgainst(v) bool` = `VerifyReads(v)` and the outcome has `gap_classes`. It
@@ -318,13 +367,49 @@ is already proven elsewhere (the failed check, §III.3).
   flag sets them.
   - **Why not `gap_id`.** The idempotency key is matched by field NAME (`record.go:483` `keyFields`,
     `"gap_id"` first, ahead of `anchor` and `url`): a Verify carrying a field named `gap_id` would key
-    on the gap instead of its citation. [MODIFY] (F13) `keyFields` becomes `gap_id, label, id, anchor,
-    carried_by, url` (`label` stays for `Cite`): a citation reading keys on its anchor as today; a
-    found-source reading that mints or names a gap keys on that gap, so one source backs several uncited
-    sentences in one sitting (the archived shape: quadratic-formula ev 316, 318, 320, one seat, one url,
-    three sentences), which the deleted label made possible before; one that mints nothing keys on its
-    url. The key is derived from the body as written, after the held-gap decision sets `carried_by`
-    inside the transaction (§III.2). <!-- CHANGED F13 -->
+    on the gap instead of its citation. <!-- CHANGED F13b --> **The key (F13b, RULED gblock 2026-11-03: a
+    found-source reading keys on its source and its sentence).** `keyFields` becomes `gap_id, label, id,
+    anchor` — `url` LEAVES it, and `carried_by` is NOT added (the F13 text added it). The sweep the round
+    asked for, every reading shape against one seat and one sitting (the key is `seat:verify:#sitting:<first
+    keyFields value>` under a UNIQUE index, derived from the body as written, under replay too,
+    `record.go:522-560`, `:844-890`):
+
+    | The second reading's shape (the first: same seat, same sitting) | same url, same sentence | same url, other sentence | other url, same sentence | other url, other sentence |
+    |---|---|---|---|---|
+    | citation reading (`--anchor`) | one anchor: refused (key `anchor`), as today | another anchor: recorded | — (the url is the citation's) | recorded |
+    | found-source, minting its own G (F13 key: `carried_by` = G) | F13: refused; F13b: refused (retry rule) | F13: recorded (another G); F13b: recorded | only with another class (a standing gap of its class would make it a held reading): F13 recorded (its own G′); F13b recorded | recorded both |
+    | found-source, held (F13 key: `carried_by` = the standing G) | F13: refused; F13b: refused | F13: recorded; F13b: recorded | **F13: refused — the archived b7 shape; F13b: recorded, `carried_by` = G** | recorded both |
+    | found-source, minting nothing (F13 key: `url`) | refused both | **F13: refused (the stated residue); F13b: recorded** | recorded both | recorded both |
+
+    So under F13's key a second url read against the sentence one first url already carried was refused
+    with "has already recorded a verify on "G-…" this sitting" — b7's archived shape (events 152-155,
+    `red-lens-evidence`, keys `…:verify:#2:…`, four urls, one identical sentence), and the act F13's own
+    supersede row sent the seat to. Under F13b every found-source reading by one seat in one sitting that
+    differs in url or in sentence is recorded, the `absent` residue included.
+    **The mechanism.** A found-source Verify carries no `keyFields` value (no `anchor`; `label` is
+    reserved), so `deriveKey` gives it the ordinal key `seat:verify:#N` (`record.go:551-559`), which never
+    collides; the identity a retry repeats is checked by [NEW] `requireNotARetriedReading` (`record.go`'s
+    Verify arm, inside the writing transaction, run FIRST in the arm, before `requireNotARepeatReading`):
+    a Verify with no `anchor` whose seat already holds a Verify with no `anchor`, the same `url` and the
+    same `claim` (as stored, `strings.TrimSpace` as the repeat rule compares it), attributed to the seat's
+    current sitting (`events.sitting_id IS (SELECT max(id) FROM sittings WHERE seat_id = ?)`, the equality
+    `oncePerSittingSQL` asks, `oncepersitting.go:41-44`) is refused, nothing recorded, NAMING THE STORED
+    READING: "you recorded a reading of <url> for this sentence at event N this sitting (<outcome>; gap G
+    carries it | it mints no gap) — the record keeps your first one rather than quietly replacing it" + the
+    superseders tail. It is ON under replay, as the key collision it replaces was: `run-archive/` holds no
+    pair it refuses (re-measured, `~/.claude/scratch/plan1647/f13b/fs-all.txt`: the 22 archived
+    found-source readings, 19 in the sqlite archives and 3 in the shard-era is-7-prime-run2 and
+    sqlite-schema-source, include no two by one seat with one url and one claim). Name grep at `6102f2b09`:
+    `requireNotARetriedReading` 0 hits.
+    Rejected: a composite key string (`url` and `claim` joined into `events.key`) — two fields encoded into
+    one string and a refusal that can name only the key, not the stored reading (facts-are-fields), and a
+    `keyFields` entry that is no longer one field; keying on `carried_by` (F13) — the b7 refusal above.
+    `Cite` keys on `label` (every cite carries one), so `url` leaving the list moves no other type:
+    `Verify` is the only body `url` keyed (`supersede.go:102-105`). The premise F13 cited — "quadratic-formula
+    ev 316, 318, 320, one seat, one url, three sentences" — is false: no such events; quadratic's
+    labelled readings by one seat in one sitting are 295-297 (`red-lens-r2-L1`), three different urls and
+    three sentences, and 514-516 (`red-lens-r3-L5`), likewise. The shape the key must admit is b7's: one
+    sentence, four urls. <!-- CHANGED F13b -->
     A field named `gap_id` would also print as `--id` (`flags/names.go:402`), a flag the reading
     verbs do not have. Name grep run at `9ee7ad95e`: `carried_by` and `carrier_minted`
     have 0 hits. The names' other readers are swept in §III.12 ("Readers of the new Verify fields").
@@ -444,6 +529,19 @@ is already proven elsewhere (the failed check, §III.3).
   clean set that finds against: `--as refutes`, `--confidence`, `--reason`, the seven flags, on the
   fixture's citation. <!-- CHANGED F13 --> Each omission is then refused naming its flag; `--fix`, `--new`, `--complexity` stay out
   of the set and unmarked. The backing path is driven by `TestABackingReadingWithGapFlagsIsRefused`.
+  <!-- CHANGED F13b --> **The subject's one-of.** `--anchor` and `--url` stand in for each other, which no
+  single-flag marker states, so `cli/requiredmarker_test.go` gains the pair in `oneOfAnother`
+  (`"anchor": "url"`, `"url": "anchor"`, `:64-72`) and `"verify"` in `verbsWithAOneOf` (`:78`); without
+  them the probe reads the flag group's refusal as "REFUSED without --anchor and its help does not say
+  so". The page carries the alternative in prose, as `mint`'s `--reason`/`--problem` does
+  (`helpcontract_test.go`'s `satisfiedByAnother`). Gate: `TestHelpSaysRequiredExactlyWhereOmissionIsRefused`.
+  **Which refusal comes first.** A backing `--url` reading of a sentence an evidence anchor marks, sent
+  without the gap flags, meets two refusals: the marked-sentence guard (§III.2d) and "REQUIRED --class".
+  The guard's sentence is the actionable one (read that citation with `--anchor`; the gap flags would
+  only meet the guard next), so `writeVerify` asks `uncitedSentence` of the report it renders, after the
+  completeness stamp and `ReadingGapClasses`, BEFORE the gap-flag requirement; the guard runs again on
+  the landing report inside the append, where it is authoritative under the lock. Tested by the
+  no-gap-flags row of `TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused` (§III.15 35c).
   `mint`'s rendered flag text is byte-unchanged. Tested by
   `TestTheReadingVerbsDescribeTheirGapFlagsByTheirSubject` (§III.10) and the gate above.
 - **`--reason` is the reading's account and the gap's argument (F11, RULED: "Reading takes --reason").**
@@ -477,7 +575,8 @@ is already proven elsewhere (the failed check, §III.3).
 - **The budget exemption comes from the act, not the record (F6).** The Mint's budget check runs before
   the Verify exists in the transaction, so it cannot read a Verify naming the gap. The reading's placed append
   hands the Mint's validation the act's paired bodies (its Anchor and its Verify); `requireMintWithinBudget`
-  admits a Mint so paired without counting it (§III.5), and the one-gap rule places it by the paired
+  admits a Mint so paired without counting it where the paired Verify has an `anchor`, and counts it
+  where it has none (F6 amended, §III.5) <!-- CHANGED F13b -->, and the one-gap rule places it by the paired
   Anchor (§III.2a). A plain `mint` has no paired body and is counted and placed as today. Replay
   writes events one at a time (`migrate/replay.go:448`), so it would hand the Mint no pair: migrate
   re-drives the reading's act whole through the same placed append (§III.9 item 6), and the Mint's
@@ -498,12 +597,12 @@ is already proven elsewhere (the failed check, §III.3).
   | `verifiedFix` on `--new` (`:136-139`, `record.CheckOnReport`) | MET, placed by the verb's subject (§III.2a) |
   | `--check-kind` through `record.CheckKindOf` (`:147-153`); the four grades (`:154-157`) | MET (the shared flag helper) |
   | `--supersedes`, `--found-by` (`:158-159`) | NOT TAKEN: the reading verbs register neither; the gap supersedes none, and its reading is named by `carried_by`. What `found_by` becomes is #1695's (§III.16) <!-- CHANGED F13 --> <!-- FINDING-DEPENDENT --> |
-  | `--key`: `record.ExistingMintByKey`, `seat.RepeatsKeyed`, `seat.PlaceOwed` (`:164-180`) | NOT TAKEN: the reading verbs take no `--key`; a retry meets the repeat refusal (crash-retry, below) |
+  | `--key`: `record.ExistingMintByKey`, `seat.RepeatsKeyed`, `seat.PlaceOwed` (`:164-180`) | NOT TAKEN: the reading verbs take no `--key`; a retry meets the duplicate-key refusal (`--anchor`) or `requireNotARetriedReading` (`--url`), each naming the stored reading (crash-retry, below) <!-- CHANGED F13b --> |
   | `record.NewID("gap")` (`:182`) | MET (one id source) |
   | `requireNotEstopped` (`:208`, `record.EstoppelConflict`), and on its refusal the `LOG_TYPE_ESTOPPEL` entry and `record.ToolLogged` (`:211-247`) | **EXEMPT** (F10). Nothing is checked and nothing is logged, so `EstoppelRejectionsOf` and the change log's "Estoppel rejections" (`view/changes.go:93-103`) count lens mints only, and stay true |
   | `reportvoice.Advised` tells on the result (`:250-260`) | MET: the reading's `gap` result carries `voice_tells` over problem, fix and `--new`, and its human text prints them under `mintResult.Human`'s note — "the risk matrix, the first sentence of the problem and of the fix, while the gap is open; the body, a --new replacement blue accepts" (`mint.go:320`) — `verifyResult`'s "the source's note and Bibliography entry" note is DELETED with the footnote (F13) <!-- CHANGED F13 --> |
   | `mintResult.Check` and its echo (`:300-308`, `:324-325`: "acceptance check RECORDED as: … read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint") | MET (GAP 3): the measured shell-corruption defect the echo exists for (quadratic-formula red-merge-r3) reaches a reading's `--check` alike. `readingGap` gains `acceptance_check`, read back from the stored Mint, and the reading's human text prints the same two lines when it mints. A reading that names a standing gap prints no check (none was written) |
-  | `seat.Supplies("gap_id")`, `seat.Supplies("class_material")` (`:288-289`) | MET: the reading verbs declare both, beside `carried_by` and `carrier_minted` |
+  | `seat.Supplies("gap_id")`, `seat.Supplies("class_material")` (`:288-289`) | MET: the reading verbs declare both, beside `carried_by` and `carrier_minted`. <!-- CHANGED F13b --> `verify` also KEEPS `seat.Supplies(c, "claim", …)` (`verify.go:117`): `Verify.claim` is `(sql) required, flag: "quote"`, and without the declaration `markRequired` makes `--quote` REQUIRED on the `--anchor` form, which takes no `--quote`. Its reason is reworded for both forms: "the sentence holding the --anchor token in the report as it stands (citedSentence); on a source you found, your --quote", and `--quote`'s requirement on the `--url` form is the flag group `MarkFlagsRequiredTogether(url, title, quote)` (§III.2d). Gate: every `verify --anchor` CLI test (a `--quote` demanded there fails them) |
 
   **Every field `lens mint` sets on its body, and every reader of a field the reading leaves unset (F11).**
   Sweep at `0c57758e8`, carried to `9ee7ad95e` by the line map (`mint.go`'s changes there are #1663 smoke D7's refusal clause and `flags.IDList` for two flags, neither a field set): every `p.<Field> =` in `newMint` and `verifiedFix` (`mint.go:68-183, :380-381`), the
@@ -605,8 +704,18 @@ is already proven elsewhere (the failed check, §III.3).
   open — nothing is recorded; the reading and its gap stand" (the `--url` form: "your reading of <url>
   for this sentence at event N … gap G carries that reading"). The phase-1 refusal's closing clause, "a
   point the gap lacks is a finding about G", is DELETED: the advice to make a finding moves to #1695
-  (§III.16) <!-- CHANGED F13 --> <!-- FINDING-DEPENDENT -->. A reading with a *different* outcome is
-  not a repeat. A reading for which `FindsAgainst` does not hold (`unreachable`, any outcome of a
+  (§III.16) <!-- CHANGED F13 --> <!-- FINDING-DEPENDENT -->. <!-- CHANGED F13b --> Both of the rule's gates
+  move to `ReadingGapClasses`, not only the loop's: `requireNotARepeatReading`'s early return
+  `if Migrating || !FindsAgainst(v) { return nil }` (`failedcheck.go:319`) cuts a backing found-source
+  reading off before the unanchored arm, so it becomes `if Migrating || len(ReadingGapClasses(v)) == 0`,
+  and the loop's `!FindsAgainst(prev)` (`:363`) becomes `len(ReadingGapClasses(prev)) == 0`; for a
+  citation reading the two predicates are one set (§III.1), so the anchored arm is unchanged.
+  `repeatReadingRefusal`'s text (`:336`, "finds the source against this sentence (%s)") is false of a
+  backing repeat, so it words by form: the anchored form as above; the found-source form "your reading of
+  <url> for this sentence at event N (<outcome>) is carried by gap G, which is open, and the sentence has
+  not changed — nothing is recorded; the reading and its gap stand. A reading of yours with another
+  outcome is recorded". Within one sitting the retry rule (§III.1) answers first. A reading with a
+  *different* outcome is not a repeat. A reading for which `FindsAgainst` does not hold (`unreachable`, any outcome of a
   `not_the_work` copy) never meets this arm: over a citation it meets the `unread` arm as today, keyed
   on that state (§III.3).
 - Text that states the old model without the word [REWRITE]: the `--as` flag help (`verify.go:304`,
@@ -657,22 +766,28 @@ is already proven elsewhere (the failed check, §III.3).
     opens "this reading reads nothing of the source, and". No `found_against` sentence names an owed
     mint, the budget, or "read nothing first".
   - Tested by `TestAReadingOfAFoundAgainstCitationIsWordedByItsState` (§III.10).
-- **Crash-retry and the repeat refusal.** `verify` takes no `--key`: a reading keys on its `KeysOn`
-  fields — `anchor`, `carried_by`, `url`, in `keyFields` order (§III.1, F13) — per seat and sitting
-  (`record.go:540-552`). <!-- CHANGED F13 --> A crash before the commit leaves nothing (one transaction, R8), and the retry
-  writes the pair afresh. A retry after the commit is the same seat, sentence and source in the same
-  sitting, and meets the repeat refusal above before any write — its validation runs first, and the
-  one-gap read of the retry finds the gap its first write minted — so it is refused, nothing recorded,
-  naming the stored reading's event and its gap. That refusal is how a crash-retried negative reading
-  learns its first write landed; it is not an idempotent return. (F13) `ExistingCorroboration`
-  (`citationid.go:439-473`) and the verb's retry branch (`verify.go:460-484`: `sameReading`,
-  `statedOtherwise` on a corroboration, `seat.PlaceOwed` of a label) are DELETED: no reading mints a
-  label to key on. A found-source reading that mints nothing (`absent`, F5; `unreachable`; any outcome of
-  a `not_the_work` copy) keys on its url, so a second such reading of that url in the sitting meets the
-  duplicate-key refusal, nothing recorded — stated: it reads nothing, or finds the source silent, and
-  records no gap either way. Tested by row (h) of `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` and
-  by `TestOneSourceBacksManySentences` (§III.2d). <!-- CHANGED F13 --> Tested by
-  `TestARetriedNegativeReadingIsRefusedNamingItsGap` (`cli/keyedretry_test.go`, §III.10).
+- **Crash-retry and the repeat refusal.** <!-- CHANGED F13b --> `verify` takes no `--key`. A citation reading
+  keys on its `anchor` per seat and sitting (`record.go:540-549`); a found-source reading takes the
+  ordinal key and is held to one reading per (url, sentence) per seat and sitting by
+  `requireNotARetriedReading` (§III.1, F13b). `seat.KeysOn(c, "anchor")`; the found-source form's answer
+  is the unkeyed `Verify` row of `superseders` (§III.2d's deletions table), which `AnswersFor`
+  (`cli/seat/answer.go:76-96`) renders on every page because it carries no key. A crash before the commit
+  leaves nothing (one transaction, R8), and the retry writes the act afresh. A retry after the commit is
+  the same seat, sentence and source in the same sitting: a citation reading meets the duplicate-key
+  refusal; a found-source reading meets `requireNotARetriedReading`, the arm's first rule, which names
+  the stored reading's event, its outcome and its carrying gap. That refusal is how a crash-retried
+  reading learns its first write landed; it is not an idempotent return. A reading of a later sitting
+  with the same outcome, while that gap is open, meets the repeat refusal above. (F13)
+  `ExistingCorroboration` (`citationid.go:439-473`) and the verb's retry branch (`verify.go:460-484`:
+  `sameReading`, `statedOtherwise` on a corroboration, `seat.PlaceOwed` of a label) are DELETED: no
+  reading mints a label to key on. A found-source reading that mints nothing (`absent`, F5;
+  `unreachable`; any outcome of a `not_the_work` copy) is held by the same rule: a second such reading of
+  that url and that sentence in the sitting is refused naming the first; of that url and another
+  sentence it is recorded (F13's url-keyed residue is gone). Tested by row (h) of
+  `TestAReadingOfACopyThatIsNotTheWorkMintsNothing`, by `TestOneSourceBacksManySentences` and
+  `TestOneSentenceReadAgainstManySources` (§III.2d), and by `TestARetriedNegativeReadingIsRefusedNamingItsGap`
+  (`cli/keyedretry_test.go`, §III.10), which gains a `verify --url` row whose refusal names the stored
+  reading's event. <!-- CHANGED F13b -->
 
 ### III.2a Where a reading's gap stands — by the anchor's identity (F9) [NEW] (contract: event schema)
 
@@ -815,8 +930,10 @@ every hit read; the reading-act ones, the proposal-span ones, and those the new 
 | `record/migrate/gapplace.go:55-70, :78-79, :104-115` | places archived anchors by location | checks sentence_of placements by identity | MODIFY |
 | `record/migrate/replay.go:222-501` (the replay loop) | writes each source event alone | re-drives a reading act's Mint, `{G, sentence_of}` Anchor and Verify as one act, each member keeping its own per-event duties (§III.9 item 6) | MODIFY |
 | `record/batch.go:82-114` `Batch.Append` | one body per savepoint | [NEW] `Batch.AppendBodies` beside it, the act's bodies in one savepoint (§III.9 item 6) | MODIFY |
-| `record/id.go:65-91` `unplacedLocationAt` | the location of an act no Anchor places | a reading's gap always has its Anchor; reads `anchor.id` only | KEEP |
+| `record/id.go:65-91` `unplacedLocationAt` | the location of an act no Anchor places | a reading's gap always has its Anchor; it also reads `"label","claim" FROM "verify"` (`:88`), a column F13 reserves | REWRITE (F13b): the `verify` arm of the UNION is DELETED — no reading places an anchor; the rest KEEP <!-- CHANGED F13b --> |
+| `record/refs.go:130` `requireAboutAnchor`; `record/refs.go:205` `HoldsAnchor` | an about-anchor mint's subject; whether the record holds an anchor id (migrate's `proseRefs` asks it, `migrate/proserefs.go:74`) | each UNIONs `"label" FROM "verify"` | REWRITE (F13b): the `verify` arm DELETED in both; a label is no anchor any act holds. Gates: `TestWriteLookupsAgreeWithTheFoldsTheyReplaced`, every about-anchor mint test, `TestEveryArchivedRunMigrates` (no such column) <!-- CHANGED F13b --> |
 | `consistency/consistency.go:254-256, :521` | reads `Anchor.id` | id only | KEEP |
+| `consistency/consistency.go:272` | `*recordpb.Verify`'s `GetLabel()` as a placed id | the field is reserved | DELETE the arm's `placedIDs` read; its `verifyEvents` count KEEPs (F13b; gate: compile) <!-- CHANGED F13b --> |
 | `record/estoppel.go:175-211` `ProposalOver` | text-located span | located by the gap's token | MODIFY |
 | `record/estoppel.go:159-164, :220-232` `proposalAt`, `ProposalAppliedVerbatim`; `record/landing.go:109`; `cli/blue/edit.go:206` | read `ProposalOver` | unchanged code, the identity-located pair | KEEP |
 | `record/viewjson.go:1995-2031` `locateGap`, `gapSentenceIn` | `ProposalOver`; sentence by token | unchanged code, the identity-located pair | KEEP |
@@ -1011,11 +1128,22 @@ deleted with no alias (no-compat).** This revision decides it; the reasons:
   does not. Measured: `census.json` marks 2 of the 15 labelled archived readings (quadratic `c-95969800`,
   b9 `c-d49a32c4`) as on a sentence blue cited (its overlap test; not re-verified sentence by sentence).
   Name grep at `6102f2b09`: `uncitedSentence` 0 hits.
-- **Materiality — open item O1, not decided here.** `unsourced_claim` is `CLASS_MATERIAL_BY_GRADE`, so a
-  backing found-source gap holds the PASS only where its grades make it material; the agreed cost line
-  "the gap holds PASS until it closes" holds for `claim_contradicts_source` (always) and for a material
-  `unsourced_claim`. Changing the class's default would change every `unsourced_claim` gap and is
-  gblock's call.
+  <!-- CHANGED F13b --> **Decided, not a fork** (the targeted round): `ReadingGapClasses` is decided off the
+  stored body, never the report, so a backing `--url` reading requires the gap flags; on a marked
+  sentence the tool could record it only by dropping the mint the seat stated, and "the tool never makes
+  it up" (refuse, never ignore a seat's stated act) leaves refusal, while the ruled option mints
+  `unsourced_claim` for an UNCITED sentence only. Residue, stated: the 2 archived uses on a cited
+  sentence (quadratic `c-95969800`, b9 `c-d49a32c4`) have no live act beyond a plain mint or a reading of
+  blue's citation with `--anchor`. Which refusal a call without gap flags meets first is §III.2's
+  ordering (the guard). <!-- CHANGED F13b -->
+- **Materiality — O1 CLOSED (F13b; the targeted round: not a fork under the stated rulings).** <!-- CHANGED F13b -->
+  Materiality is the class's (`material_default`; no seat picks it), and the option gblock picked names
+  `unsourced_claim`, which is `CLASS_MATERIAL_BY_GRADE`. A backing found-source gap is therefore
+  material by its grades, exactly as every `unsourced_claim` gap is. "Holds PASS until it closes" was the
+  two sessions' gloss, not gblock's text; changing the class's default would touch every
+  `unsourced_claim` gap, and a new always-material class would contradict the option he picked. The
+  cost line is: the gap **holds the PASS where its grades make it material**; a `claim_contradicts_source`
+  gap holds it always. Its consequence for #1657 1a′ is §III.16's.
 - **Placement**: `Anchor{G, location: --quote}` through `claimRefusal` (§III.2a); a quote the report holds
   twice is refused (F9).
 - **What blue does, and the four acts.** Blue's work list carries G; `show evidence`'s row whose
@@ -1025,21 +1153,38 @@ deleted with no alias (no-compat).** This revision decides it; the reasons:
   mint (inside the reading), cite, verify, close — and the source enters the report only by blue's cite.
   Between this plan and 1a′ nothing ties blue's cite to G: no failed check carries a found-source gap (it
   reads no anchor), so the lens's close of G is its own judgement, as §III.16 states.
-- **The key** (§III.1 `keyFields`): a found-source reading that mints or names a gap keys on it, so one
-  source backs several uncited sentences in one sitting; one that mints nothing keys on its url.
+- **The key** <!-- CHANGED F13b --> (F13b, RULED; §III.1): a found-source reading is identified by its
+  source and its sentence. One seat's found-source readings in one sitting that differ in url or in
+  sentence are each recorded — one source backing several uncited sentences, several sources read
+  against one sentence (b7's archived shape: events 152-155, four urls, one sentence; the first mints G,
+  each later one names G with `carrier_minted` false); an identical retry (same url, same sentence, same
+  sitting) is refused by `requireNotARetriedReading`, naming the stored reading. It takes the ordinal
+  key; `keyFields` loses `url` and gains nothing.
+- **The budget** <!-- CHANGED F13b --> (F13b, RULED; §III.5): any gap a `verify --url` reading mints —
+  `unsourced_claim` or `claim_contradicts_source` — takes a mint of the lens's budget at the act and
+  counts while open, as a plain mint does; at the cap the WHOLE reading act is refused for budget,
+  nothing recorded (the reading and its Mint are one act). A `verify --anchor` reading's gap stays
+  outside the budget (F6). A found-source reading that names a STANDING gap (`carrier_minted` false)
+  mints nothing and takes nothing.
+- **Scope** <!-- CHANGED F13b --> (F13b, RULED: F13 stays in #1694, not split). Phase 1, already built
+  at `6102f2b09`, carries the corroboration arms F13 deletes (`ReadingGapClasses`' corroboration-`absent`
+  arm, the repeat rule's url-and-claim arm, `redcitation_test.go`'s seven tests, the labelled paths the
+  footnote reads); shipping #1647 first with `corroborate` would build those arms out through phases 2-5
+  — its help, its fuzz drive, its seatprobe row, its migrate arm — only for F13 to delete them, which
+  doubles the `corroborate` census (§III.12) for no shipped state anyone runs between the two.
 
 **Deleted, and what replaces each** (no element survives for an archived record: §III.9 item 7 is
 migrate's):
 
 | Element (site at `6102f2b09`) | Replaced by |
 |---|---|
-| `lens corroborate`: `newCorroborate` (`verify.go:271-301`), `lens/command.go:29`, `help/corroborate.md`, its `ReasonIs` row, `requiredProbes` row, `seatprobe` boards row (`boards.go:535`), `diagnostics` leaf list | `verify --url --title --quote` |
+| `lens corroborate`: `newCorroborate` (`verify.go:271-301`), `lens/command.go:29`, `help/corroborate.md`, its `ReasonIs` row, `requiredProbes` row, `seatprobe` boards row (`internal/seatprobe/boards.go:535`), `diagnostics` leaf list | `verify --url --title --quote`. The boards row is MERGED into `:534`'s `verify` expectation for `red-lens-evidence`, not rewritten beside it: one verb, one expectation, its `Because` naming both the cited claim read against its source and the standard blue never cited, read with `--url`, whose reading mints the gap blue answers with a citation <!-- CHANGED F13b --> |
 | The two-verb rationale (`verify.go:84-91`) | a comment stating the flag groups |
 | `citing`, `cites`, `adjudates`, `backsTheClaim`, the footnote decision (`verify.go:313-350, :426-485`) | `ReadingGapClasses`: a backing `--url` reading mints `unsourced_claim` |
 | `Verify.label` (11), `Verify.work_status` (15), `Verify.sha256` (20) | nothing: reserved; the reading's url, title and copy fields name what it read, and a citation's stamp is blue's `Cite`'s |
 | The red citation anchor: `record.NewID("citation")` in the reading, the `C-` Anchor `AppendPlaced` writes with it | the gap's Anchor `{G, location}`; only `blue cite` places a citation anchor |
-| `ExistingCorroboration` (`citationid.go:439-473`) and the verb's retry branch (`verify.go:460-484`, `PlaceOwed` of a label) | the repeat rule (§III.2) and the `carried_by` key |
-| The url-keyed duplicate of a backing `not_the_work` corroboration (§III.2's former crash-retry paragraph) | the key rule: url only for a reading that mints nothing |
+| `ExistingCorroboration` (`citationid.go:439-473`) and the verb's retry branch (`verify.go:460-484`, `PlaceOwed` of a label) | `requireNotARetriedReading` within a sitting and the repeat rule across sittings (§III.1, §III.2) <!-- CHANGED F13b --> |
+| The url-keyed duplicate of a backing `not_the_work` corroboration (§III.2's former crash-retry paragraph) | `requireNotARetriedReading`: same url AND same sentence in the sitting, whatever the reading mints <!-- CHANGED F13b --> |
 | `ReadingClassField(corroboration bool)` | `ReadingClassField()` over both facets (§III.2) |
 | `refuseCorroborationTitleVoice` (`redvoice.go`, its call `record.go:1785`) and the title's voice tells (`verify.go:440-453`) | nothing: a reading's title reaches no report text |
 | `citedSource`'s Verify arm, `Corroborated`, labelled entries in `CitedSources` (`citationid.go:31-210`, `:432`) | blue's cites only |
@@ -1047,7 +1192,7 @@ migrate's):
 | `show evidence`'s `CorroboratedBy`, the verification row's `Label`, the labelled source row (`evidenceview.go:123-127, :234, :381, :409-411, :450-473`) | the row's `carried_by` (§III.2c) |
 | The ledger's hold of a label and a corroboration's check of its own footnote (`anchorchecks.go:229-232, :265-267`) | nothing: no reading holds an anchor of its own |
 | migrate's owed Anchor for a labelled Verify (`gapplace.go:81`), remap's `Verify.label`/`Verify.sha256` rows and `mints` entry | §III.9 item 7 |
-| `supersede.go:102-105` (the url- and label-keyed Verify rows) | one row keyed `carried_by` ("a reading of another source for this sentence, or of this one with another outcome") and the url row reworded for a reading that minted nothing |
+| `supersede.go:102-105` (the url- and label-keyed Verify rows) | ONE unkeyed `Verify` row for the found-source form (`url` and `label` key nothing now): "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now". The F13 row keyed `carried_by` sent the seat to "a reading of another source for this sentence", the act F13's key refused; it is not built <!-- CHANGED F13b --> |
 | `seat/source.go:68` (`show source --anchor`'s "names a corroboration of" arm, reached by a label) and `:20`'s "a source of its own to corroborate one" | every anchor `show source --anchor` takes is a cite, which carries its `sha256`; a source a lens found is searched by `--sha`, from `fetch`'s summary |
 | 1a′'s corroboration arm (V1a′.10(6), `compute-and-show.md:693, :758-759`) | §III.16 |
 
@@ -1059,8 +1204,24 @@ migrate's):
   becomes the facet's absence); the comments naming `corroborate` (`:19`, `:36-38`, `:71`, `:98`, `:177`).
 - `record/failedcheck.go` `requireNotARepeatReading`/`repeatReadingRefusal` (`:315-375`): the unanchored
   arm keys on `ReadingGapClasses` non-empty, not `FindsAgainst`; its refusal drops "a point the gap lacks
-  is a finding about %s" <!-- FINDING-DEPENDENT -->; the comment `:310`.
-- `record/record.go` `keyFields` gains `carried_by` after `anchor`.
+  is a finding about %s" <!-- FINDING-DEPENDENT -->; the comment `:310`. <!-- CHANGED F13b --> Also the early
+  return `if Migrating || !FindsAgainst(v)` (`:319`), which otherwise leaves the unanchored arm dead for
+  every backing reading, and the refusal's text worded by form (§III.2's repeat bullet).
+- <!-- CHANGED F13b --> `record/record.go`: `keyFields` LOSES `url` (and gains nothing; F13's `carried_by`
+  is not built), and the Verify arm gains `requireNotARetriedReading` first (§III.1).
+- <!-- CHANGED F13b --> `record/reading.go`'s two refusal strings, false of a backing found-source
+  reading: `AppendReading`'s "this reading does not find against its sentence (outcome %s, copy %s), so
+  it mints no gap: it is written alone" (`:84`) becomes "this reading mints no gap (outcome %s, copy %s,
+  <form>): it is written alone", and `requireReadingCarrier`'s "a reading that finds its source against
+  the sentence (%s) names the gap that carries it" (`:118`) becomes "a reading that mints a gap (%s) names
+  the gap that carries it".
+- <!-- CHANGED F13b --> `record/mintbudget.go`: the act-paired admission (`:308`, `w.act.pairs(m)`) and the
+  open-count exclusion (`:360-361`, the `carrier_minted` query) each narrow to a Verify with an `anchor`
+  (§III.5).
+- <!-- CHANGED F13b --> The SQL readers of the reserved `verify.label` column: `record/id.go:88`
+  (`unplacedLocationAt`), `record/refs.go:130` (`requireAboutAnchor`), `record/refs.go:205`
+  (`HoldsAnchor`) — each's `verify` UNION arm DELETED (§III.2a's table); `consistency/consistency.go:272`
+  and `record/migrate/proserefs_test.go:112-113` (each a `Verify.GetLabel()`), DELETED.
 - `record/foundagainst_test.go` `TestEveryNegativeOutcomeNamesItsClasses` gains the found-source facet;
   `record/redcitation_test.go` — phase 1's three rewritten tests (`TestACorroborationThatFindsAgainstHoldsThePassThroughItsGap`,
   `TestASecondReadingOfAHeldSentenceNamesItsGap`, `TestARefutingCorroborationCarriesNoFootnote`) and the
@@ -1072,13 +1233,28 @@ migrate's):
 
 **Tests** (NEW, §III.15): `TestAFoundSourceReadingMintsItsGap` (each row of the table above through the
 verb: class, Anchor `{G, location}`, no label, no citation Anchor, `carried_by`); `TestOneSourceBacksManySentences`
-(one seat, one url, three uncited sentences in one sitting → three Verifys, three gaps; an `absent`
-reading of that url twice in the sitting → the second refused on the url key);
-`TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused`; `TestNoReadingPlacesACitation` (record layer:
-`CitedSources`, the Bibliography and `show evidence`'s sources hold blue's cites only after every form
-and outcome); `TestVerifyTakesExactlyOneSubject` (each flag group violated → cobra's refusal through
-`RefuseFlagGroup`, nothing recorded; `lens corroborate` → unknown command). Name grep at `6102f2b09`: all
-five 0 hits. The record half's tests are §III.15 9a–9d, the migrate test 13a, the CLI tests 35a–35d.
+(one seat, one url, three uncited sentences in one sitting → three Verifys, three gaps; <!-- CHANGED F13b -->
+an `absent` reading of that url on two sentences in the sitting → both recorded; the same `absent`
+reading of one sentence twice → the second refused, naming the first's event);
+<!-- CHANGED F13b --> `TestOneSentenceReadAgainstManySources` (b7's archived shape, events 152-155, driven
+through `verify --url`: one seat, one sitting, four urls, one uncited sentence, `--as supports` → four
+Verifys; the first mints G (`unsourced_claim`, `carrier_minted` true), the other three name G
+(`carrier_minted` false), no second gap; a fifth call repeating the second url and sentence → refused by
+`requireNotARetriedReading`, the refusal naming the second reading's `events.id`, nothing recorded);
+`TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused` (<!-- CHANGED F13b --> with a row sent WITHOUT
+the gap flags, refused with the guard's sentence, not "REQUIRED --class"); `TestNoReadingPlacesACitation`
+(record layer: `CitedSources`, the Bibliography and `show evidence`'s sources hold blue's cites only
+after every form and outcome); `TestVerifyTakesExactlyOneSubject` (each flag group violated → cobra's
+refusal through `RefuseFlagGroup`, nothing recorded; `lens corroborate` → unknown command);
+<!-- CHANGED F13b --> `TestAFoundSourceGapTakesAMint` (both arms of the budget ruling, through the verbs: a
+lens AT its cap — (a) a `verify --url --as supports` of an uncited sentence and (b) a `verify --url
+--as refutes` are each refused for budget, the refusal `requireMintWithinBudget`'s, and the record holds
+no Verify, Mint or Anchor from either; (c) a `verify --anchor --as refutes` of a citation at the same cap
+mints its gap; (d) one cap below, a `verify --url` mint is admitted and the lens's open count rises by
+one, while (c)'s gap leaves it unchanged; (e) at the cap, a `verify --url` reading of a sentence a
+standing gap of its class already carries is recorded naming that gap, no mint taken). Name grep at
+`6102f2b09`: all seven 0 hits (`TestOneSentenceReadAgainstManySources`, `TestAFoundSourceGapTakesAMint`
+included). The record half's tests are §III.15 9a–9e, the migrate tests 13a–13b, the CLI tests 35a–35f.
 
 ### III.3 The anchor ledger and the failed check — `internal/record/anchorchecks.go`, `failedcheck.go` [MODIFY] (F4)
 
@@ -1234,8 +1410,27 @@ five 0 hits. The record half's tests are §III.15 9a–9d, the migrate test 13a,
 
 - `answersOwnRaiseAt`, its call (`:301-305`), `ownAnswersAt`'s contradiction half (`:369-397`), the
   `Answering` wording at `:506`, `:562` [DELETE/REWRITE]; the comment block `:33-41` [REWRITE].
-- [NEW] a gap the reading act minted takes no mint and does not count while open. Two readers, two
-  sources, neither inferred from "some Verify names this gap":
+- <!-- CHANGED F13b --> **F6 amended (gblock, 2026-11-03): only a reading of a CITATION's gap is outside the
+  budget.** Any gap a `verify --url` reading mints (`unsourced_claim` or `claim_contradicts_source`)
+  takes a mint at the act and counts while open, exactly as a plain mint; gaps from `verify --anchor`
+  readings, which check blue's citations, stay outside it as F6 states. Unruled, F6 would have exempted a
+  lens's most common class whenever it attached a backing source. Each of the two readers below
+  therefore keys on the paired Verify's `anchor`, a field the record already holds: the act-paired
+  admission (`requireMintWithinBudget`, `mintbudget.go:308`, `w.act.pairs(m)`) admits a paired Mint
+  without counting only when the paired Verify has an `anchor`, and counts it otherwise; the open-count
+  exclusion (`:360-361`) adds `AND COALESCE(v."anchor", '') <> ''`. At the cap a `verify --url` reading
+  whose `ReadingGapClasses` is non-empty and that names no standing gap is refused whole for budget —
+  nothing recorded; a reading that NAMES a standing gap (the held-gap path) writes no Mint and meets no
+  budget. `mintAnswerOutsideBudget` (`:350`) and `lensMintStanding`'s "your readings minted them" (`:554`)
+  say "your readings of citations". Tests `TestAFoundSourceGapTakesAMint` (§III.2d; both arms) and
+  `TestAReadingsGapTakesNoMint` (a `verify --anchor` row only). Partner §V.5.ww.
+  **On replay.** No archived reading comes forward minting a gap: §III.9 items 2 and 7 write no
+  `carried_by` on an archived reading, so the found-source arm meets no archived act. A record written at
+  this epoch replays its found-source act whole (item 6), under the same budget, admitted live within it;
+  `TestARecordWrittenAtThisEpochMigratesWithNoRefusal` gains a `verify --url` minting row by a lens below
+  its cap. Measured against `run-archive/`, §III.9 item 7 ("The budget on replay").
+- [NEW] a gap the reading act minted from a CITATION reading takes no mint and does not count while
+  open. <!-- CHANGED F13b --> Two readers, two sources, neither inferred from "some Verify names this gap":
   - **at the write** (`requireMintWithinBudget`, `mintbudget.go`): the Mint's validation runs before
     the Verify exists in the transaction, so the exemption is read from the ACT — the reading's placed append
     passes its paired Verify body to the Mint's validation (§III.2), and a Mint so paired is admitted
@@ -1253,7 +1448,7 @@ five 0 hits. The record half's tests are §III.15 9a–9d, the migrate test 13a,
     the mint budget stay on"), and replay appends one event at a time, so the act's pairing the write
     reads would be gone and a capped lens's reading Mint refused. migrate re-drives the reading's act
     whole (§III.9 item 6), so the Mint's validation receives the same paired bodies it received live.
-- `mintAnswerOutsideBudget` (`:347`) [REWRITE]: "A gap your reading mints, or about an anchor whose check
+- `mintAnswerOutsideBudget` (`:350`) [REWRITE]: "A gap your reading of a citation mints, or about <!-- CHANGED F13b --> an anchor whose check
   of yours read nothing or judged a computation unsound, takes no mint; …" (today's text names "a
   finding of yours that raised a contradiction" and "a computation whose sentence you judged unsound").
 
@@ -1291,7 +1486,11 @@ five 0 hits. The record half's tests are §III.15 9a–9d, the migrate test 13a,
   source you found, exactly one of the two, and §III.2d's table of what a `--url` reading mints (an
   uncited sentence your source backs → `unsourced_claim`; a sentence it refutes →
   `claim_contradicts_source`; a sentence a citation already marks → read that citation with `--anchor`;
-  your source places no citation: blue cites, and a lens reads blue's citation) <!-- CHANGED F13 -->. `verify.md`'s
+  your source places no citation: blue cites, and a lens reads blue's citation) <!-- CHANGED F13 -->; <!-- CHANGED F13b -->
+  that a `--url` reading's gap takes a mint of your budget, as a plain mint does, while a reading of a
+  citation's gap takes none; and that in one sitting you may read several sources against one sentence
+  and one source against several sentences, each recorded, while repeating a reading of the same source
+  for the same sentence is refused, naming the one you recorded. `verify.md`'s
   two contradiction paragraphs are replaced by one paragraph: a reading of the work that finds the source against the sentence
   mints its gap in the same act, the flags it needs, and that a reading that reads nothing —
   `unreachable`, or any outcome on a copy the tool stamped not_the_work, a backing one included — mints
@@ -1501,8 +1700,11 @@ five 0 hits. The record half's tests are §III.15 9a–9d, the migrate test 13a,
   - `seatprobe/boards.go:532` (the lens-audit board's `mint` expectation) [REWRITE] its `Because`: it
     argues for a defect no source reading carries, since a defect a reading finds against a source is
     minted by the reading's act and counts under the reading's verb. `:535` (the `corroborate`
-    expectation for a standard blue never cited) [REWRITE] to a `verify` expectation, its `Because`
-    naming `--url`; `:534`, `:563` KEEP. <!-- CHANGED F13 -->
+    expectation for a standard blue never cited) <!-- CHANGED F13b --> is MERGED into `:534`'s `verify`
+    expectation for the same seat, not rewritten beside it — two `verify` rows for `red-lens-evidence`
+    would state one verb twice; the merged `Because` names both forms (a cited claim read against its
+    source, and a standard blue never cited read with `--url`, whose reading mints the gap blue answers
+    with a citation); `:563` KEEP. <!-- CHANGED F13 -->
   - `record/viewjson.go:1605, :1917`, `record/evidenceview.go:586` (a narrowed view's event families),
     `record/gapstates.go:207` (the gap family's acts), `record/record.go:458` (a key's shape),
     `recordpb/record.proto:259` — read a Mint as a gap, whichever verb wrote it: KEEP.
@@ -1667,7 +1869,11 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    partners (§V.5.y) turn it red.
 
 7. **An archived labelled corroboration loses its label, footnote and placed citation; the reading comes
-   forward as a reading of the source its lens found (F13).** <!-- CHANGED F13 --> Decided: TRANSLATE, not keep. The live
+   forward as a reading of the source its lens found (F13).** <!-- CHANGED F13 --> <!-- CHANGED F13b --> **Basis: RULED** —
+   gblock picked "drop them, state it" for the 15 lens-placed `C-` anchors (relayed by the #1657 session,
+   2026-11-03; the option wording is that session's). The 15 cross-check against that session's own
+   census (`~/.claude/scratch/anchor-lifecycle/audit-n2/lensplaced.txt`: quadratic 6, b7 4, b9 1, m27 2,
+   m29 1, m35 1, total 15), the table below. Decided: TRANSLATE, not keep. The live
    record has no field to hold the label (`Verify.label`, `work_status`, `sha256` are reserved, §III.1),
    and no rule lets a citation anchor stand with no `Cite`; keeping the anchors would need a live field to
    survive migration, which the change discipline forbids. Re-measured against `run-archive/`
@@ -1697,9 +1903,29 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
      REMOVED (the respelling every field already gets, `remap.go:84-90`, with an empty replacement), so the
      11 report-text values match the render the dropped anchors no longer mark; in `argumentFields` (prose)
      a bare label id is left as written — archived prose naming an id the record no longer holds, the
-     residue `proseRefs` already states for other ids;
+     residue `proseRefs` already states for other ids; <!-- CHANGED F13b --> **every report-text field the
+     strip reaches**, by `remap`'s own classing (`dataFields`, `remap.go:126-140`): `ReportPart.text`,
+     `BlueEdit.old`, `BlueEdit.new`, `Anchor.location`, `Cite.location`, `Computation.location`,
+     `Finding.location`, `Mint.location`, `Mint.fix_new`, `Retire.claim`, `Verify.claim` and
+     `DocketMotion.grounds_quote`; `TestEveryStringFieldIsInOneList` holds the list complete, and the token
+     removal runs in every field whatever its list, so a report-text field added later is stripped too.
+     WHY IT MUST BE EVERY FIELD: `migrate/proserefs.go:74` (`held`) skips, silently, any id
+     `record.HoldsAnchor` rejects, and a dropped label is one — a token left in archived report text
+     would vanish from every id list `proseRefs` fills without a word. Measured, it meets none: no
+     `Close.anchor_tool` or `Declare.holding` of the six archives names a label (`refs.txt`; b7's four
+     labels sit in `close.prose` at 170, which `proseRefs` does not read), and the no-token test (§III.15
+     13b) makes any miss loud;
+   - <!-- CHANGED F13b --> an id-LIST element (`idFields` lists: `BlueEdit.reopened`, `Retire.anchors`,
+     `Close.anchors`, `SpotCheck.ids` and the rest) equal to a dropped label is REMOVED from the list, not
+     respelled to `""`: the respelling with an empty replacement turns a list element into an empty
+     string, not a removal, and `["F-84381c8e", ""]` would pass a test that only asks for the label's
+     absence. b9's `reopened` at 164 and 167 is archived as `[f-84381c8e, c-d49a32c4]` (each, re-read in
+     `blue_edit_reopened`); migrated, each is exactly the one respelled `f-84381c8e`;
    - a Verify whose `anchor` is a dropped label (3) becomes a reading of that label's source: `anchor`
-     cleared, `url` and `title` read from the labelled Verify through the batch's querier;
+     cleared, <!-- CHANGED F13b --> `url` and `title` from a label → (url, title) map built in the pass over
+     the SOURCE stream that collects the dropped-label set — never through the batch's querier, because the
+     migrated labelled Verify has no `label` column to be found by (§III.1 reserves it). A Verify naming a
+     label the map lacks is a refusal naming it (the loud miss);
    - the labelled Verify itself comes forward unanchored — `url`, `title`, `claim` (token removed),
      outcome, confidence, bridge, text, copy fields — carrying no `carried_by`: migrate mints no gap for
      it (its grades would be fabricated, as GAP 2 rules for a refutation), so the 15 readings and the 3
@@ -1707,6 +1933,30 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
    Tested by `TestTheMigratedRedCitationsAreReadingsOfTheirSources` (§III.15 test 13a). An exact-span
    edit whose bytes span a removed token is the one shape this cannot carry by text alone; the b9 edits
    164 and 167 are the archive's only edits over a label, and the test drives them.
+   <!-- CHANGED F13b --> **The dropped Anchor events enter no `newID` entry, and nothing refers to them.**
+   Re-measured (`~/.claude/scratch/plan1647/f13b/`): no column of m27, m29 or m35 holds 333, 335, 387 or
+   508 as a reference — the one equal value is m35's `seat_turn.cache_creation` = 508, a token count; the
+   targeted round's read of `Dispatch.pin`, `Stale.through`, `ReportRead.head`, plan bytes and every text
+   column agrees, and found the same of the raise events (m30 402; m32 92, 109, 162, 180). So "enters no
+   `newID` entry" refuses nothing on the archives, and the existing pin, stale and report-read refusals
+   would make a miss loud (gate: `TestEveryArchivedRunMigrates`).
+   <!-- CHANGED F13b --> **The budget on replay.** The budget stays on under `Migrating`, and two things
+   could now move it on the archives; both measured, neither refuses:
+   (1) *A found-source reading's mint* (F6 amended, §III.5): no archived reading comes forward with a
+   `carried_by` (items 2 and 7), so replay meets no found-source mint. 0 refusals by construction.
+   (2) *The claims measure shrinks*: `measureClaims` counts the citation tokens of the CURRENT report
+   (`mintbudget.go:67`, `claimcount.Count`, one per token on a sentence), and removing the red tokens
+   lowers it for every archived mint measured after them. Only the `logic` area reads it
+   (`mintScales`, `:96-104`: evidence counts `cite` rows, computation `computation` rows, the other four
+   prose paragraphs, which a token removed from a prose sentence does not change). The floor is the
+   archive's `mintBudget` — 3 in m27, m29 and m35 (`inputs/run-config.json`), the default 15 in
+   quadratic, b7 and b9, whose archives carry no run config. By archive: quadratic has no lens mint; b7
+   and b9 hold at most 2 open per lens, under 15; m27 and m35 mint a logic gap with at most 2 open
+   before it, under the floor 3; m29's logic lens mints at 3 open (twice, after the red token at 386), so
+   its budget is read — the claims measure at each of its seven mints, rendered off the migrated
+   record's report ops before each, is 8 with 1 red token counted after event 386 (7 before it): 8 →
+   7 removed, against 4 open at most. 0 refusals. (Scratch tool `devcmd/zzbudget` in a copy of
+   `origin/main`'s tools, run on m29 migrated by `origin/main`'s `feov-migrate`; not committed.)
 
 **Residue (stated, accepted in this plan; ruled, gblock 2026-10-30):**
 - **Archived negative CORROBORATION readings lose their PASS hold (GAP 2, RULED: "accept the loss,
@@ -1744,8 +1994,9 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
   the prose of later events that name their ids (six events, item 1), and nowhere in the migrated
   record. m30 ended with its bench's outcome and m32 UNVERIFIED; no verdict moves. <!-- CHANGED F13 --> <!-- FINDING-DEPENDENT -->
 - **The 15 red-placed citations leave the migrated records** (item 7): their tokens leave every report
-  text, and the migrated reports print 9 fewer Bibliography lines (b7 4, b9 0 — blue cited that url —,
-  m27 2, m29 1, m35 1; 8 urls the reports then name nowhere). The readings stand as readings of the
+  text, and the migrated reports print 8 fewer Bibliography lines (b7 4, m27 2, m29 1, m35 1); the
+  archived reports printed 9 such lines, and b9's survives because blue cited that url too — 8 urls the
+  reports then name nowhere. <!-- CHANGED F13b --> The readings stand as readings of the
   sources their lenses found, carrying no gap; the 3 later re-readings of `c-16fa2ede`/`c-95969800`
   (quadratic) become readings of those sources. No verdict moves: quadratic ended CEILING, b7, b9, m27,
   m29 and m35 carry their recorded outcomes (archived outcomes are carried, not recomputed). NOT
@@ -1766,8 +2017,17 @@ runs it:
   7): 0 refusals; no migrated Anchor, Cite or report text holds any of the 15 labels; every migrated
   Verify that held a label, and the 3 that named one, has an empty `anchor` and the label's `url` and
   `title`; `record.CitedSources` holds blue's cites only; b9's edits 164 and 167 land, their `reopened`
-  without `c-d49a32c4`; each migrated report renders (`TestEveryArchivedRunMigrates`' render) and its
-  Bibliography holds no url only a label carried. <!-- CHANGED F13 -->
+  without `c-d49a32c4` — <!-- CHANGED F13b --> asserted as the EXACT list, the archived list minus the
+  label (`["F-84381c8e"]` in its respelled form), so an element respelled to `""` fails; the 3
+  re-readings' `url` and `title` equal the labelled readings' (the source-stream map); each migrated
+  report renders (`TestEveryArchivedRunMigrates`' render) and its Bibliography holds no url only a label
+  carried. <!-- CHANGED F13 -->
+- <!-- CHANGED F13b --> `TestNoMigratedArchiveHoldsALensPlacedToken` (`migrate/`, every archive
+  `TestEveryArchivedRunMigrates` migrates): for each of the 15 labels, in BOTH spellings — the archived
+  lower-case `c-…` and the respelled `C-…` — and in token form (`<!--cite:…-->`, `<!--C-…-->`) and bare id
+  form, no string field of any migrated event's body holds it outside `argumentFields` (prose, kept as
+  written), and no migrated id field or id-list element equals it; the render of every migrated report
+  holds none. It is the gate the silent skip in `proserefs.go:74` lacks. Partner §V.5.yy.
 - `TestTheMigratedM32HoldsAFailedCheckPerStandingReading` (`record/`, beside `foundagainstm30_test.go`,
   through its `archivedEvents`/`archiveAt` helpers, `reopenedm19_test.go:58-94`): on the migrated m32 cut
   after pos 293 — the four readings standing, before the edit at 294 — `failedOf` holds four checks of
@@ -1830,7 +2090,10 @@ runs it:
   open-gap count unchanged; the migrated render byte-identical; the migrated plan's `why` prints the
   migrated `events.id` of L's Verify; and the three Stales' `through` are the migrated ids of the Mint,
   the Anchor and the Verify respectively, each read back off the migrated record by its body (the Mint
-  whose `gap_id` is G, the Anchor whose `id` is G, L's Verify). As specified before round 6 — L, M and
+  whose `gap_id` is G, the Anchor whose `id` is G, L's Verify). <!-- CHANGED F13b --> The stream also holds a
+  `verify --url` reading by lens N, below its cap, that mints `unsourced_claim` on an uncited sentence
+  (counted against N's budget live, F6 amended): it migrates with 0 refusals and N's open count is
+  unchanged. As specified before round 6 — L, M and
   blue's accept only — it passed with the defect; the plan and the Stales are what fail on it.
   Partners §V.5.y.
 - `TestMigrateChecksAReadingsGapBySentenceOf` (`migrate/`): the same stream with the cite of C dropped
@@ -1890,7 +2153,9 @@ runs it:
   - `TestAReadingsGapTakesNoMint` (`cli/`, driven through the `verify` verb as a seat runs it, so the
     Mint's budget check meets the act's paired Verify before the Verify is written): a lens at its cap
     records a refuting reading; the reading and its gap land in one transaction; the lens's count is
-    unchanged after; a plain `mint` at that cap is still refused. Partner §V.5.e.
+    unchanged after; a plain `mint` at that cap is still refused. <!-- CHANGED F13b --> The refuting reading is
+    a `verify --anchor`; a `verify --url` at the cap is refused for budget (F6 amended), which
+    `TestAFoundSourceGapTakesAMint` (§III.2d) drives. Partner §V.5.e.
   - `TestAPlainMintALaterReadingNamesKeepsItsMint` (`cli/`): L mints G with plain `mint`, class
     `claim_contradicts_source`, quoting sentence S; a sitting later L records a `refutes` reading of S
     with that class — the one-gap rule refuses the reading's mint, `carried_by` = G, `carrier_minted`
@@ -1910,8 +2175,10 @@ runs it:
   - `TestARetriedNegativeReadingIsRefusedNamingItsGap` (`cli/keyedretry_test.go`): the same
     `verify --as refutes …` run twice in one sitting — the second refused (conflict), naming the first
     reading's event and its gap from the first's `--json`; the record holds one Verify and one Mint.
-    The same for `verify --url --as refutes`; `verify --url --as absent` twice meets the duplicate-key
-    refusal on the url and the record holds one Verify and no Mint. <!-- CHANGED F13 --> Partner §V.5.m.
+    The same for `verify --url --as refutes`; <!-- CHANGED F13b --> `verify --url --as absent` of one url and one
+    sentence twice meets `requireNotARetriedReading`, its refusal naming the first reading's `events.id`,
+    and the record holds one Verify and no Mint; the same `absent` of that url for a second sentence is
+    recorded. <!-- CHANGED F13 --> Partner §V.5.m, vv.
   - `TestAFoundSourceAbsentMintsNothing` (F5; renamed from `TestACorroborationAbsentMintsNothing`). <!-- CHANGED F13 -->
   - `TestAReadingsGapIsFilledAsAPlainMints` (`cli/mintreason_test.go`, driven through `mint` and both
     forms of `verify`): one lens gives the same judgment flags and `--reason` to a plain `mint --quote S1`, a
@@ -2072,7 +2339,11 @@ runs it:
   never from the outcome alone; a `verify --url` reading draws them from `found_source_gap_classes`
   (a backing outcome on an uncited sentence of the stock, `refutes` anywhere), and its `absent` draws none
   (F5). <!-- CHANGED F13 --> Every drive that called `corroborate` (`fuzz_test.go`, `acts_test.go`, `copy_test.go`)
-  calls `verify --url`, and no drive expects a label, a footnote or a red `C-`. After the act it checks
+  calls `verify --url`, and no drive expects a label, a footnote or a red `C-`. <!-- CHANGED F13b --> The
+  `verify --url` drive's oracle expects the budget (F6 amended): a minting reading by a lens at its cap
+  refused for budget, nothing recorded, and below the cap admitted and counted; and the key: a second
+  url against a sentence the drive already read in that sitting recorded, naming the standing gap, and
+  an identical repeat in the sitting refused naming the stored reading. After the act it checks
   the result against the stored Verify: `gap` present iff `carried_by` is set; and where
   `carrier_minted` is true, the stored Mint's `mint_reason` equals the `--reason` the drive passed and its
   `fix_basis` is `verified` where `--new` was passed and `proposed` where it was not. Any mismatch is a
@@ -2120,7 +2391,9 @@ runs it:
   sentence already holding a reading's gap); found-against closes refused; `foundAgainstRepeats`;
   `notTheWorkFlagsRefused` and `notTheWorkReadingsUnread`; `foundSourceGaps` (F13: `verify --url`
   readings whose Mint is `unsourced_claim` or `claim_contradicts_source`) and `markedSentenceRefused`
-  (a backing `--url` reading of a cited sentence, refused) <!-- CHANGED F13 -->; `repeatedSentenceGaps` and
+  (a backing `--url` reading of a cited sentence, refused) <!-- CHANGED F13 -->; <!-- CHANGED F13b -->
+  `foundSourceBudgetRefused` (a minting `--url` reading refused at the cap) and `foundSourceRetriesRefused`
+  (an identical `--url` repeat in a sitting, refused); `repeatedSentenceGaps` and
   `repeatedSentenceAccepts`; `readingsOverPrescriptions`. Each new field is
   carried through `sweepTally`, the fold and its merge (the sites listed below for the found-against
   fields). New tally: max open gaps per (class, sentence) — must be ≤ 1.
@@ -2459,7 +2732,8 @@ facet; the file is a census REWRITE row already) [REWRITE]; `record.pb.go` [REGE
 **Readers of the new Verify fields** (`carried_by`, `carrier_minted`): by name — `migrate/remap.go:108-116`
 `idFields` (`Verify.carried_by` listed there; `carrier_minted` is a bool, which the three string lists do
 not class — `TestEveryStringFieldIsInOneList` fails `carried_by` left out), `record.go:483`
-`keyFields` (neither name is on it, so a Verify keys on `label`/`anchor`/`url` as today; the reason the
+`keyFields` (neither name is on it; <!-- CHANGED F13b --> after F13b a citation reading keys on `anchor` and a
+found-source reading on the ordinal, its identity checked by `requireNotARetriedReading`; the reason the
 field is not called `gap_id`, §III.1), `flags/names.go:402` `payloadFlag` (falls back to `--carried-by`,
 never printed: both fields are tool-supplied, `seat.Supplies` in `verify.go`), and the
 required-field sweep (`recordpb/requiredfields_test.go`, both optional); by meaning — `failedChecksOf`
@@ -2502,7 +2776,8 @@ grep -n 'GetLabel()' over the tools tree, each hit read for a Verify receiver
 
 Result: the word census **1,219 hits in 144 files** — this plan 137 (rewritten by this revision), 25
 historical files under `plans/`, `research/`, `feov-memory/` (388 hits, KEEP-historical), and **118 live
-files, 831 hits**; the identifier sweep **100 hits in 38 files** and the phrase sweep **34 hits in 20
+files, 831 hits**; the identifier sweep **100 hits in 37 files** (<!-- CHANGED F13b --> re-run at `6102f2b09`
+by the targeted round and here: 100 hits, 37 files; the F13 text said 38) and the phrase sweep **34 hits in 20
 files**, every file of both already in the word census but `cli/blue/cite.go` and `cli/cite_test.go`
 (`GetWorkStatus()`/`GetSha256()` of a `Cite`: KEEP) and `capture/capture_test.go` (a fixture's "source
 red found" prose: REWRITE with the fixture). Every hit read; dispositions per file (n = word hits):
@@ -2510,7 +2785,7 @@ red found" prose: REWRITE with the fixture). Every hit read; dispositions per fi
 | Disposition | Files (n) |
 |---|---|
 | DELETE | `cli/seat/help/corroborate.md` (2); `cli/corroborate_test.go` (52; its stamp rows move, §III.10); `cli/corroborationsha_test.go` (23); `record/corroborationsource_test.go` (6); `record/redcitation_test.go` (41; replaced by `foundsource_test.go`) |
-| REWRITE — production Go, record | `record/evidenceview.go` (24: `CorroboratedBy`, `Label`, the labelled source row, `independent`'s comments), `record/citationid.go` (17: `Corroborated`, `citedSource`'s Verify arm, `ExistingCorroboration`), `record/recordpb/record.proto` (16: fields 11, 15, 20 reserved, comments; the facet), `record/redvoice.go` (6), `record/reading.go` (5, phase 1's), `record/anchorchecks.go` (3), `record/supersede.go` (3), `record/refs.go` (3), `record/sitting.go` (2, comments), `record/record.go` (2: `:1751` comment, `:1785` call DELETE; `keyFields`), `record/failedcheck.go` (1, phase 1's), `record/viewjson.go` (1), `record/recordsql/views.go` (1, comment), `record/migrate/gapplace.go` (2: the Verify arm DELETE), `record/migrate/eraentries.go` (1: the archived `independent` reason, reworded to "a reading of a source the lens found names no anchor") |
+| REWRITE — production Go, record | `record/evidenceview.go` (24: `CorroboratedBy`, `Label`, the labelled source row, `independent`'s comments), `record/citationid.go` (17: `Corroborated`, `citedSource`'s Verify arm, `ExistingCorroboration`), `record/recordpb/record.proto` (16: fields 11, 15, 20 reserved, comments; the facet), `record/redvoice.go` (6), `record/reading.go` (5, phase 1's), `record/anchorchecks.go` (3), `record/supersede.go` (3), `record/refs.go` (3; <!-- CHANGED F13b --> and, outside the word census, its two SQL readers of `verify.label`, `:130` `requireAboutAnchor` and `:205` `HoldsAnchor`, §III.2a), `record/id.go` (<!-- CHANGED F13b --> outside the word census: `:88`, `unplacedLocationAt`'s `verify` arm), `consistency/consistency.go` (<!-- CHANGED F13b --> outside the word census: `:272`, a `Verify.GetLabel()`), `record/migrate/proserefs_test.go` (<!-- CHANGED F13b --> `:112-113`, a `Verify.GetLabel()`), `record/sitting.go` (2, comments), `record/record.go` (2: `:1751` comment, `:1785` call DELETE; `keyFields`), `record/failedcheck.go` (1, phase 1's), `record/viewjson.go` (1), `record/recordsql/views.go` (1, comment), `record/migrate/gapplace.go` (2: the Verify arm DELETE), `record/migrate/eraentries.go` (1: the archived `independent` reason, reworded to "a reading of a source the lens found names no anchor") |
 | REWRITE — production Go, cli and others | `cli/lens/verify.go` (38), `cli/lens/command.go` (1, DELETE the registration), `cli/root.go` (1), `cli/seat/seat.go` (3), `cli/seat/verbs.go` (2), `cli/seat/source.go` (2), `cli/seat/answer.go` (1), `cli/blue/retire.go` (1, comment), `cli/seat/help/verify.md` (1), `cli/seat/help/finding.md` (2), `report/assemble.go` (7), `report/citations.go` (3), `report/layout.go` (2), `reportproj/render.go` (1, comment), `anchor/anchor.go` (1, comment), `flags/names.go` (1, comment), `seatprobe/boards.go` (1), `seatprobe/grant.go` (1, comment), `devcmd/seatprobe/main.go` (1, comment), `reportvoice/tells.go` (1, comment), `nonet/nonet.go` (1, comment naming the fixture) |
 | REWRITE — tests | `cli/redvoice_test.go` (26: the title-voice cases DELETE), `cli/retryvalidates_test.go` (21), `cli/answers_test.go` (18), `cli/board_test.go` (14), `cli/verifycopy_test.go` (13), `cli/verbs_test.go` (9), `cli/gapanchor_test.go` (7), `cli/m23contradiction_test.go` (6), `cli/verifyconfidence_test.go` (4), `cli/deadpath_test.go` (4), `cli/bridgekind_test.go` (4), `cli/reopen_test.go` (3), `cli/unreadablerefuses_test.go` (2), `cli/requiredmarker_test.go` (2), `cli/vocabulary_test.go`, `cli/siblingverbs_test.go`, `cli/retiremidsentence_test.go` (1 each), `record/migrate/cutfields_test.go` (9), `record/migrate/gapplace_test.go` (8), `record/migrate/archive_test.go`, `record/migrate/entries_test.go` (sweep), `record/evidenceview_test.go` (1 + sweep), `record/idnamespace_test.go` (1), `record/recordpb/keycensus_test.go` (1), `report/assemble_cite_test.go` (5), `report/assemble_pages_test.go` (4), `report/showsthework_test.go` (3), `report/riskvoice_test.go` (2), `report/assemble_dedup_test.go` (1), `reportproj/render_insert_test.go` (2), `seatprobe/fidelity_test.go` (3), `diagnostics/seen_test.go` (5), `difftest/contract_test.go` (1), `consistency/consistency_test.go` (1), `integration/surface/promptverbs_test.go` (1), `capture/capture_test.go` (sweep), `releasegate/fuzz/fuzz_test.go` (21), `acts_test.go` (7), `sweeptally_test.go` (5), `copy_test.go` (2) |
 | REWRITE — agent text and docs | `scripts/agentgen/src/red-lens-evidence.md` (1), `fragments/lens-duties.md`, `fragments/leaf-node-read.md`, `fragments/blue-search.md` (1 each), `fragments/lens-audit-and-mint.md` (3), `src/skills/research-protocol/SKILL.md` (1: "The bibliography is BOTH sides'"), `skills/research-protocol/references/report_template.md` (1), `docs/citations-and-bibliography.md` (6), `docs/seat-command-triggers.md` (3: the `lens corroborate` row DELETE), `docs/seat-surface-naming.md` (7: the verb lists; the dated measurement prose stays), `docs/why-a-seat-stops.md` (3), `tests/simulator/debate.test.mjs` (1, the footnote-title assertion DELETE) |
@@ -2606,7 +2881,7 @@ deleted symbols are used by `migrate` (phase 2), `cli` (phase 3) and the fuzz (p
 | Phase | Scope | Phase loop (must pass to end it) |
 |---|---|---|
 | 1. Record | §III.1 proto, epoch, facets, `FindsAgainst`/`ReadingGapClasses`, `Verify.carried_by`, `Anchor.sentence_of`; §III.2a's record half (`AttachToSentenceOf`, `report_op`'s `'sentence_of'` arm, `sentenceOfMut`, the Anchor validation, the one-gap placement, `ProposalOver` by identity); §III.3 the check state, the open set from the gap view, and every reader of it; §III.4; §III.5; §III.6 deletions; record-package tests of §III.10 (written, run in phase 2) | protogen/schemagen clean (§V.1); `go build ./internal/record/ ./internal/reportproj/ ./internal/anchortext/`; `go test -count=1 ./internal/reportproj/ ./internal/anchortext/` |
-| 2. F13 record half, then migrate | FIRST (F13, §III.2d "Phase-1 code that must change"): the `found_source_gap_classes` facet, `Verify.label`/`work_status`/`sha256` reserved and regenerated, `ReadingGapClasses`' found-source arm, the repeat rule's unanchored arm and its refusal text, `keyFields`' `carried_by`, the record-package deletions of the label paths (`citationid.go`, `evidenceview.go`, `anchorchecks.go`, `redvoice.go`, `supersede.go`, `refs.go`), `record/foundsource_test.go` replacing `redcitation_test.go`; THEN §III.9 translation (`valueRenames` row, the raise recognised by `anchor.Kind(ref)==""` and written as no event, `found_by` entries naming a raise removed, item 7's label translation, <!-- CHANGED F13 --> `TranslateReadingBlockers`, the reading act re-driven whole on replay with each member's own duties and `Batch.AppendBodies`, the deletions in `replay.go` and `planids.go` that phase 1's enum deletions leave uncompiled), `remap.go` `idFields`, `gapplace.go`'s sentence_of check, and the m30/m32/m23/sqlite-schema-source tests and item 7's six-archive test. `cli`, `report` and the fuzz, which read the deleted Verify fields, build in phases 3 and 5 | §V.6; `go test -count=1 ./internal/record/...` (the record package's tests, phase 1's included, and migrate's); `go build ./internal/migratecli/ ./cmd/feov-migrate/ ./devcmd/archdump/ ./devcmd/archiverun/` (not `./devcmd/...` or `./cmd/...`: `devcmd/seatprobe` and `cmd/feov-record` import `internal/cli`, which builds in phase 3) |
+| 2. F13 record half, then migrate | FIRST (F13, §III.2d "Phase-1 code that must change"): the `found_source_gap_classes` facet, `Verify.label`/`work_status`/`sha256` reserved and regenerated, `ReadingGapClasses`' found-source arm, the repeat rule's unanchored arm, its early return (`:319`) and its refusal text, <!-- CHANGED F13b --> `keyFields` losing `url`, `requireNotARetriedReading`, the budget's `anchor` test (§III.5), the SQL readers of `verify.label` (`id.go:88`, `refs.go:130`, `:205`), `reading.go`'s two refusal strings, the record-package deletions of the label paths (`citationid.go`, `evidenceview.go`, `anchorchecks.go`, `redvoice.go`, `supersede.go`, `refs.go`), `record/foundsource_test.go` replacing `redcitation_test.go`, <!-- CHANGED F13b --> `consistency/consistency.go:272`'s and `migrate/proserefs_test.go:112-113`'s `Verify.GetLabel()` (which stop compiling when `label` is reserved; `go build ./internal/consistency/` joins the phase loop); THEN §III.9 translation (`valueRenames` row, the raise recognised by `anchor.Kind(ref)==""` and written as no event, `found_by` entries naming a raise removed, item 7's label translation, <!-- CHANGED F13 --> `TranslateReadingBlockers`, the reading act re-driven whole on replay with each member's own duties and `Batch.AppendBodies`, the deletions in `replay.go` and `planids.go` that phase 1's enum deletions leave uncompiled), `remap.go` `idFields`, `gapplace.go`'s sentence_of check, and the m30/m32/m23/sqlite-schema-source tests and item 7's six-archive test and its no-token test over every archive (13b) <!-- CHANGED F13b -->. `cli`, `report` and the fuzz, which read the deleted Verify fields, build in phases 3 and 5 | §V.6; `go test -count=1 ./internal/record/...` (the record package's tests, phase 1's included, and migrate's); `go build ./internal/migratecli/ ./cmd/feov-migrate/ ./devcmd/archdump/ ./devcmd/archiverun/` (not `./devcmd/...` or `./cmd/...`: `devcmd/seatprobe` and `cmd/feov-record` import `internal/cli`, which builds in phase 3) |
 | 3. Reading act | F13's CLI half: `verify`'s `--url` form and flag groups, `corroborate`'s deletion (verb, help page, registrations), the marked-sentence guard, the footnote path's deletion in `verify.go`, `report`'s red-source arms, `seat/source.go`, `seatprobe` boards row <!-- CHANGED F13 -->; §III.2 flags (`gapFlags`, `ReadingClassField`, `RequiredUnless`, `ReasonIs`), the GAP 2 and GAP 3 result words, §III.2c (F12), the field table, the completeness stamp and the footnote gate, the reading's placed append, held gap inside the transaction, repeat, result words; §III.2a's CLI half (`PlacesToSentenceOf`, `verifiedFix`, the accept's exact span); §III.8 `seatprobe`; cli tests, the GAP 3 record-at-this-epoch test | `go test -count=1 ./internal/record/... ./internal/cli/... ./internal/migratecli/ ./internal/report/ ./internal/capture/ ./internal/seatprobe/ ./devcmd/seatprobe/ ./cmd/...` |
 | 4. Agent text | §III.7 help, terms, agentgen sources (F13's included), debate.js (`:879` included); regenerate; read every changed golden line <!-- CHANGED F13 --> | §V.1 second run no diff; §V.4 census and phrase sweep |
 | 5. Fuzz | §III.11 drives, gates, the four carried tally fields; every `corroborate` drive becomes `verify --url`, with `foundSourceGaps` and `markedSentenceRefused` <!-- CHANGED F13 --> | `go test -count=1 ./releasegate/...` with the gate unset (compiles; the sweep runs in CI) |
@@ -2635,12 +2910,20 @@ phase-1 test is written in phase 1 and first runs in phase 2 (the record package
 9a. `TestReadingGapClassesCoversBothForms` (`record/foundsource_test.go`): every `SourceOutcome` ×
     `SourceCompleteness` × {anchor set, anchor empty} gives the classes §III.1 states, and `FindsAgainst`
     is false on every backing found-source reading — partner nn.
-9b. `TestAFoundSourceReadingKeysOnItsGap` (record layer, `AppendReading`): one seat, one url, two uncited
-    sentences, one sitting → two Verifys, two `unsourced_claim` Mints; an `absent` of that url twice → the
-    second refused on the url key — partner oo.
+9b. <!-- CHANGED F13b --> `TestAFoundSourceReadingKeysOnSourceAndSentence` (record layer, `AppendReading`;
+    renamed from F13's `TestAFoundSourceReadingKeysOnItsGap`): one seat, one sitting — (url1, s1) mints G1;
+    (url1, s2) records and mints G2; (url2, s1) records naming G1 (`carrier_minted` false); an `absent` of
+    url3 on s1 and on s2 records both; (url1, s1) again, any outcome → refused by
+    `requireNotARetriedReading`, its text naming the first reading's `events.id`; the same (url1, s1) in
+    the seat's NEXT sitting with another outcome → recorded — partners oo, vv.
 9c. `TestARepeatedFoundSourceReadingIsRefused`: the same seat's second backing reading of the same
     sentence from the same url, its gap open, in a later sitting → refused naming the gap; the refusal
-    holds no "finding" — partner pp.
+    holds no "finding" <!-- CHANGED F13b --> and none of "finds the source against" (the found-source form's
+    text, §III.2) — partner pp.
+9e. <!-- CHANGED F13b --> `TestTheRepeatRuleReachesABackingFoundSourceReading` (record layer): drives
+    `requireNotARepeatReading` itself on a backing found-source Verify whose earlier twin's gap is open,
+    and asserts the refusal — a change to the loop alone, with `failedcheck.go:319`'s early return left on
+    `FindsAgainst`, leaves it red — partner xx.
 9d. `TestNoReadingPlacesACitation` (record layer): after `verify`'s writes in both forms and every
     outcome, `record.CitedSources`, `show evidence`'s sources and the assembled Bibliography hold blue's
     cites only, and no Verify carries a label — partner qq.
@@ -2649,7 +2932,8 @@ phase-1 test is written in phase 1 and first runs in phase 2 (the record package
 11. `TestTheMigratedM32HoldsAFailedCheckPerStandingReading` — §III.9 item 4.
 12. `TestAMigratedFoundAgainstCheckReadiesBlueAlone` (m32 cut and sqlite-schema-source rows) — §III.3; partners i, j, r.
 13. `TestM23CorroborationReadingComesForward` — §III.9.
-13a. `TestTheMigratedRedCitationsAreReadingsOfTheirSources` (six archives) — §III.9 item 7; partner rr. <!-- CHANGED F13 -->
+13a. `TestTheMigratedRedCitationsAreReadingsOfTheirSources` (six archives; <!-- CHANGED F13b --> the EXACT `reopened` lists, the 3 re-readings' url and title) — §III.9 item 7; partners rr, zz. <!-- CHANGED F13 -->
+13b. <!-- CHANGED F13b --> `TestNoMigratedArchiveHoldsALensPlacedToken` (every archive; the 15 labels in both spellings, token and bare id, outside prose) — §III.9 item 7; partner yy.
 14. KEEP, must stay green: `TestEveryArchivedRunMigrates`, `TestValueRenames`, `TestEveryStringFieldIsInOneList`, `reopenedm19_test`, `foundagainstm30_test`.
 
 **Phase 3 — the reading act**
@@ -2658,7 +2942,7 @@ phase-1 test is written in phase 1 and first runs in phase 2 (the record package
 17. `TestANegativeReadingWithoutGapFlagsIsRefused`, `TestABackingReadingWithGapFlagsIsRefused` — §III.2.
 18. `TestAFoundSourceAbsentMintsNothing` (renamed) — F5. <!-- CHANGED F13 -->
 19. `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` (rows (a)-(i) and the record-layer row; row (b) carries R8 GAP 2) — partners s, w, jj.
-20. `TestAReadingsGapTakesNoMint` — F6; partner e.
+20. `TestAReadingsGapTakesNoMint` (<!-- CHANGED F13b --> `verify --anchor` rows only) — F6; partner e.
 21. `TestAPlainMintALaterReadingNamesKeepsItsMint` — partners p, bb.
 22. `TestTheReadingsHeldGapIsDecidedInsideItsWrite` — partner u.
 23. `TestARetriedNegativeReadingIsRefusedNamingItsGap` (`cli/keyedretry_test.go`) — partner m.
@@ -2671,12 +2955,15 @@ phase-1 test is written in phase 1 and first runs in phase 2 (the record package
 30. `TestTheReadingVerbsDescribeTheirGapFlagsByTheirSubject` — partners dd, hh.
 31. `TestAReadingIsAttributedToTheVerbTheSeatTyped` — §III.8; partner gg.
 32. `TestM23sArchivedCorroborationHoldsNothing` (`cli/m23corroboration_test.go`, renamed) — GAP 2 of round 3.
-33. `TestARecordWrittenAtThisEpochMigratesWithNoRefusal` — §III.9 item 6; partner y.
+33. `TestARecordWrittenAtThisEpochMigratesWithNoRefusal` (<!-- CHANGED F13b --> with lens N's `verify --url` minting row) — §III.9 item 6; partner y.
 34. `TestMigrateChecksAReadingsGapBySentenceOf` (`migrate/`; its stream is written by the verbs) — partner y.
-35a. `TestAFoundSourceReadingMintsItsGap`, 35b. `TestOneSourceBacksManySentences`, 35c.
-    `TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused`, 35d. `TestVerifyTakesExactlyOneSubject` —
+35a. `TestAFoundSourceReadingMintsItsGap`, 35b. `TestOneSourceBacksManySentences` (<!-- CHANGED F13b --> its `absent` rows: two sentences both recorded, one sentence twice refused naming the first), 35c.
+    `TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused` (<!-- CHANGED F13b --> its no-gap-flags row meets the guard first), 35d. `TestVerifyTakesExactlyOneSubject` —
     §III.2d; partners ss, oo, tt, uu. <!-- CHANGED F13 -->
-35. Gates REWRITTEN for the reading verbs: `TestHelpSaysRequiredExactlyWhereOmissionIsRefused` (`requiredProbes`), `TestEverySetShapedFlagIsEitherDeclaredOrExempt` (three `enforcedElsewhere` sites, R8's note), `TestEveryFlagAHelpPageNamesIsOnThatPage` — partners dd, hh.
+35e. <!-- CHANGED F13b --> `TestOneSentenceReadAgainstManySources` (b7's shape, events 152-155, through `verify --url`: four urls, one sentence, four Verifys, one gap; the retry refused naming the stored reading) — §III.2d, gblock's key ruling; partners oo, vv.
+35f. <!-- CHANGED F13b --> `TestAFoundSourceGapTakesAMint` (both arms: the found-source mint refused past the budget, `unsourced_claim` and `claim_contradicts_source`; the anchor-reading mint admitted past it) — §III.5, gblock's budget ruling; partners e, ww.
+    <!-- CHANGED F13b --> Name grep at `6102f2b09`, every name F13b coins (`requireNotARetriedReading`, 9b's, 9e's, 13b's, 35e's, 35f's tests, the two tally fields): 0 hits.
+35. Gates REWRITTEN for the reading verbs: `TestHelpSaysRequiredExactlyWhereOmissionIsRefused` (`requiredProbes`; <!-- CHANGED F13b --> `oneOfAnother`'s `anchor`/`url` pair and `"verify"` in `verbsWithAOneOf`), `TestEverySetShapedFlagIsEitherDeclaredOrExempt` (three `enforcedElsewhere` sites, R8's note), `TestEveryFlagAHelpPageNamesIsOnThatPage` — partners dd, hh.
 
 **Phase 4 — agent text**
 36. `TestTheEmbeddedRegistryLoads` (the one-sentence `failed check`, R8's note) and `TestNoDefinitionUsesABannedVariant` over the new `reading` entry (R8 GAP 1) — partner mm.
@@ -2765,6 +3052,28 @@ reader's own backing re-read (the re-read arm). The demand adds over the check e
   refuting or backing `verify --url` minted `--check-kind source` → met only by `cite --answers G`". On
   main, with no check carrying a found-source gap (§III.3), its lens closes it on its own judgement. <!-- CHANGED F13 -->
 
+**F13b's consequences for 1a′.** <!-- CHANGED F13b -->
+- **A sentence 1a′ states is false after F13.** `compute-and-show.md` (scratch copy
+  `~/.claude/scratch/plan1647-f13/cas.md:812`) says "every reading gap is material by its class". A
+  backing `verify --url` reading's gap is `unsourced_claim`, `CLASS_MATERIAL_BY_GRADE` (O1 closed,
+  §III.2d), so it is material by its grades, not its class; 1a′'s census rewrites that sentence.
+- **Several readings may carry one gap from several sources** (F13b's key): one seat in one sitting reads
+  several urls against one sentence and each later reading names the first's gap. 1a′'s demand over the
+  carrying Verifys reads them all.
+- **E1′, the cross-check once both land.** 1a′'s E1′ ("no verify row carries a label outside
+  evidence_anchor") is the cross-check of item 7's drop of the 15 lens-placed anchors: after this plan no
+  Verify has a `label` column at all (§III.1), so E1′ holds vacuously on every migrated record, and a
+  failure of it then means a label came back. Until 1a′ lands, `TestNoMigratedArchiveHoldsALensPlacedToken`
+  (§III.15 13b) is the gate.
+- **Two 1a′ picks gblock made 2026-11-03 (relayed by the #1657 session; the option wording is that
+  session's).** (a) A gap carried by several readings: any one reading that meets the demand is enough;
+  after an edit, another reading's `unchecked` holds the PASS until it is re-read. (b) A claim retire
+  that removes a citation and the computation citing it in the same act is allowed. Neither touches a
+  row of this plan: (a) is the `source` demand's arm over carrying Verifys, which this plan does not
+  build (it ships `carried_by` and admits several carriers, §III.2's held gap, and nothing it states
+  bounds how many must meet a demand), and the `unchecked` state an edit leaves is main's ledger,
+  unchanged here (§III.3); (b) is `blue retire`'s scope, which this plan does not touch. Both are 1a′'s.
+
 **#1695 (findings fold into gaps).** Relayed by the peer session bridge-cse-01s7d2sa1pneo9oqzevmlwdg-4f
 (2026-11-03): gblock ruled findings fold into gaps under a separate plan, issue #1695, landing after this
 plan and 1a′. This plan makes and keeps no finding: it deletes the contradiction about-kind, the raise
@@ -2785,7 +3094,7 @@ names the seam.
 | # | Risk | L × I × C | Mitigation (step) |
 |---|---|---|---|
 | R1 | A carrier keeps speaking the contradiction (prompt, help, golden, fuzz) — half-state that reads done | H × H × L | §III.12 census re-run as §V.4, identifiers grep must be empty; agentgen/enginegen/vocabdoc `-check` gates (§V.2) |
-| R2 | Lenses stop recording negative readings because the act now costs a full mint's flags | M × H × M | Flags are the same set `mint` already asks; refusal names each; smoke §V.8 checks negative readings still occur; the reading's gap takes no budget (F6) so cap is not a reason to read `supports` |
+| R2 | Lenses stop recording negative readings because the act now costs a full mint's flags | M × H × M | Flags are the same set `mint` already asks; refusal names each; smoke §V.8 checks negative readings still occur; a citation reading's gap takes no budget (F6) so cap is not a reason to read `supports`; a found-source reading's gap takes a mint (F6 amended), as its plain mint would <!-- CHANGED F13b --> |
 | R3 | One-gap rule + lens-picked class lets two lenses split one defect across two classes on one sentence | M × L × L | Ordinary behaviour for any gap; the admitted sets are two classes each; sweep tally reports per-sentence gaps by class |
 | R4 | A bench `not_a_defect` ruling on a misread source closes the gap, and the run still cannot PASS while the reading stands | M × M × M | Ruled (F8): the ruling closes the gap through the bench arm, and the failed check alone holds the PASS, as an unread or unsound check does today; a failed check is not a dispute. It clears when the reader's own later reading backs the sentence (its reading replaced), or blue edits or retires — another lens's backing reading clears nothing. Stated in the bench's constitution (§III.7) and pinned by `TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld` |
 | R5 | migrate drops something other than a raise, or leaves a `found_by` naming a dropped raise | L × H × L | A raise is recognised by `anchor.Kind(ref)==""` and a ref that names a Verify, else refused (§III.9 item 1); `TestTheMigratedM30RaiseIsDropped` (m30 and m32 rows); `TestEveryArchivedRunMigrates` <!-- CHANGED F13 --> |
@@ -2804,9 +3113,10 @@ names the seam.
 | R18 | A field the reading's Mint leaves blank reads as absent where a plain mint's reads: the lens's argument gone from the board and the report, or a `fix_basis` the board calls never omitted | M × M × L | Ruled (F11); §III.2's field table; one fill (`gapFlags.fill`); `TestAReadingsGapIsFilledAsAPlainMints` walks `Mint`'s descriptor, so a new field needs a disposition; `TestAReadingsGapCarriesItsArgumentWhereverAMintsDoes`; §V.5.ee, ff; the fuzz's stored-Mint check |
 | R20 | #1657 Part 1a′ lands on top and a reading's gap meets a `source` demand this plan's close-after-edit rows do not meet, or 1a′ reads a field this plan stopped writing | M × M × L | §III.16 states what 1a′ implements and what it reads; `carried_by` and `carrier_minted` are shipped, documented, readable by SQL, and several readings may carry one gap; the close-after-edit rows are named there as 1a′'s to rewrite |
 | R19 | A tool that maps an event to the act a seat typed reads the reading's Mint as a `mint` | L × L × L | §III.8's sweep; `TestAReadingIsAttributedToTheVerbTheSeatTyped`; §V.5.gg |
-| R21 | A lens stops reading sources it found because the act now costs a gap's judgment flags, and `unsourced_claim` graded low holds no PASS (O1) | M × M × L | One act still; the flags are `mint`'s; the smoke (§V.8) counts `verify --url` readings; O1 is put to gblock, not decided <!-- CHANGED F13 --> |
+| R21 | A lens stops reading sources it found because the act now costs a gap's judgment flags and a mint of its budget, and `unsourced_claim` graded low holds no PASS | M × M × L | One act still; the flags are `mint`'s and the mint is the one a plain `unsourced_claim` mint would take (F6 amended); materiality by grade is the class's, as for every `unsourced_claim` gap (O1 closed); the smoke (§V.8) counts `verify --url` readings <!-- CHANGED F13 --> <!-- CHANGED F13b --> |
 | R22 | migrate's removal of a dropped label's token leaves an archived edit, finding or anchor quote unplaceable, or an exact span off by the removed bytes | M × M × L | The token is removed from every field by the one respelling path (§III.9 item 7); `TestTheMigratedRedCitationsAreReadingsOfTheirSources` drives the six archives, b9's two edits over the label included <!-- CHANGED F13 --> |
-| R23 | One seat reading one found url against several sentences in a sitting is refused as a duplicate | M × M × L | `keyFields` keys a minting found-source reading on its `carried_by` (§III.1); `TestOneSourceBacksManySentences`, `TestAFoundSourceReadingKeysOnItsGap` <!-- CHANGED F13 --> |
+| R23 | One seat's found-source readings in a sitting that differ in url or in sentence are refused as duplicates (one url against several sentences; several urls against one sentence, b7's shape) | M × M × L | Ruled (F13b): `url` leaves `keyFields`, no `carried_by` key; the identity is (seat, sitting, url, sentence), checked by `requireNotARetriedReading` (§III.1); `TestAFoundSourceReadingKeysOnSourceAndSentence`, `TestOneSourceBacksManySentences`, `TestOneSentenceReadAgainstManySources`; §V.5.oo, vv <!-- CHANGED F13 --> <!-- CHANGED F13b --> |
+| R24 | migrate strips a dropped label's token from some fields and not others, and `proseRefs`' silent skip of an id the record does not hold (`proserefs.go:74`) hides the miss; or an id list keeps an empty element | L × M × L | The token is removed in every field; list elements are removed, not respelled; `TestNoMigratedArchiveHoldsALensPlacedToken` (both spellings), 13a's exact lists; §V.5.yy, zz <!-- CHANGED F13b --> |
 
 ## V. Verification Plan
 
@@ -2845,7 +3155,7 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    s. make `ReadingGapClasses` ignore `VerifyReads` (outcome's `gap_classes` alone) → `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` rows (a), (b), (d), (e) fail (flags demanded, or a gap minted on a `not_the_work` reading); and, separately, drop the write-path refusal of a carrier on a non-minting reading → its record-layer row fails;
    t. place a `verify`'s gap by `location` (the anchor-stripped sentence) instead of `sentence_of` → `TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor` fails (refused as ambiguous); drop the `report_op` `'sentence_of'` arm → the same test fails (the gap's token absent from the render); place the gap's token right after the citation's token instead of at the sentence's end → its clause-cited row (d) and the accept row (f) fail; restore `return nil` on a sentence_of placement failure in the one-gap rule → its second-lens row fails (a second gap minted);
    u. decide the held gap before the transaction (read it in the verb, refuse in the Mint's validation) → `TestTheReadingsHeldGapIsDecidedInsideItsWrite` fails (A's act refused whole);
-   v. delete the `"contradiction": "anchor"` row from `valueRenames` → `TestTheMigratedM30RaiseIsAFindingAboutItsCitation` and `TestEveryArchivedRunMigrates` fail (decode refusal); replace the raise's `anchor.Kind(ref) == ""` test with "about_kind is anchor" alone → `TestAFindingAboutAnAnchorIsNoRaise` fails (its finding about `C-…`, and its archived `proof`-kind finding about `P-…`, respelled `K-…`, refused as unparsable events.ids).
+   v. delete the `"contradiction": "anchor"` row from `valueRenames` → `TestTheMigratedM30RaiseIsDropped` <!-- CHANGED F13b --> and `TestEveryArchivedRunMigrates` fail (decode refusal); replace the raise's `anchor.Kind(ref) == ""` test with "about_kind is anchor" alone → `TestAFindingAboutAnAnchorIsNoRaise` fails (its finding about `C-…`, and its archived `proof`-kind finding about `P-…`, respelled `K-…`, refused as unparsable events.ids).
    w. restore the completeness stamp's guard to `body.GetUrl() != ""` → `TestAReadingOfACopyThatIsNotTheWorkMintsNothing` rows (a), (b), (g), (i) fail (a `verify` carries no stamp: its `refutes` demands gap flags, its backing reading clears the citation); drop `record.VerifyReads(body)` from the footnote decision → row (h) fails (a footnote minted from a `not_the_work` copy);
    y. replay the reading's three events one at a time (no re-driven act) → `TestARecordWrittenAtThisEpochMigratesWithNoRefusal` fails (the capped lens's Mint refused for budget, its Verify refused outside its act); write the act at the Mint's iteration and skip the other two (round-6 shape) → it fails (the plan refused: its `why` names the Verify's old id, which wrote no `newID` entry; the Stale through the Mint translated to the Verify's id); map each member from `MAX(id)` after the act → it fails (the Mint's Stale names the Verify); set `record.Now` once for the act → it fails (`ts` differ from the source's); count the act once in `res.Out` → it fails (`res.In`/`res.Out`); run `place.step` on the Anchor after the write → `TestMigrateChecksAReadingsGapBySentenceOf` fails (the act lands first: the migrated record holds G's Mint, Anchor and Verify where it asserts none); skip `gapplace`'s sentence_of check → `TestMigrateChecksAReadingsGapBySentenceOf` fails (admitted);
    z. locate `ProposalOver`'s span by text (`LocateOnce`) again → `TestAVerifyOfARepeatedSentencePlacesItsGapByTheAnchor` row (e) fails (the verified fix refused as ambiguous); drop the accept's exact-span locate → row (e) fails (the accept refused), and row (i) fails if the edit is recorded without `exact_span` (replay ambiguous);
@@ -2863,13 +3173,18 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
    mm. restore the `failed check` definition's four sentences → `TestTheEmbeddedRegistryLoads` fails ("the definition is ONE sentence"); delete the `reading` entry → the manual golden and `vocabdoc -check` fail;
    bb. let the successor of a reading's gap inherit the budget exemption (exclude by `answers` instead of `carrier_minted`) → `TestAPlainMintALaterReadingNamesKeepsItsMint`'s successor row fails (the over-cap successor admitted).
    nn. (F13) drop `found_source_gap_classes` from `SUPPORTS` → `TestReadingGapClassesCoversBothForms` and `TestEveryNegativeOutcomeNamesItsClasses` fail; gate `ReadingGapClasses`' found-source arm on `FindsAgainst` → the backing rows fail;
-   oo. take `carried_by` off `keyFields` → `TestAFoundSourceReadingKeysOnItsGap` and `TestOneSourceBacksManySentences` fail (the second sentence refused on the url key);
-   pp. key the repeat rule's unanchored arm on `FindsAgainst` again → `TestARepeatedFoundSourceReadingIsRefused` fails (a second backing reading admitted);
+   oo. <!-- CHANGED F13b --> put `url` back on `keyFields` → `TestAFoundSourceReadingKeysOnSourceAndSentence`, `TestOneSourceBacksManySentences` and `TestOneSentenceReadAgainstManySources`' second-sentence rows fail (refused on the url key); add `carried_by` to `keyFields` (F13's key) → `TestOneSentenceReadAgainstManySources` fails (the second url refused, b7's shape);
+   pp. key the repeat rule's unanchored arm on `FindsAgainst` again → `TestARepeatedFoundSourceReadingIsRefused` fails (a second backing reading admitted); <!-- CHANGED F13b --> restore the refusal's one text ("finds the source against this sentence") → the same test fails;
    qq. restore `citedSource`'s Verify arm → `TestNoReadingPlacesACitation` fails;
    rr. drop item 7's token removal (or restore `gapplace`'s Verify arm) → `TestTheMigratedRedCitationsAreReadingsOfTheirSources` fails (a refusal, or a label in the render);
    ss. let a backing `verify --url` record without a gap (`found_source_gap_classes` read as empty) → `TestAFoundSourceReadingMintsItsGap` fails;
    tt. delete the `uncitedSentence` guard → `TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused` fails (an `unsourced_claim` minted on a cited sentence);
    uu. drop any one flag group from `verify` → `TestVerifyTakesExactlyOneSubject` fails (the call reaches RunE, or both subjects are recorded). <!-- CHANGED F13 -->
+   vv. <!-- CHANGED F13b --> delete `requireNotARetriedReading` → `TestAFoundSourceReadingKeysOnSourceAndSentence` and `TestOneSentenceReadAgainstManySources` fail (the identical retry recorded); drop the stored event from its text → the same tests fail (the refusal names no reading);
+   ww. <!-- CHANGED F13b --> restore the act-paired budget admission for every paired Mint (no `anchor` test) → `TestAFoundSourceGapTakesAMint` rows (a), (b) fail (admitted at the cap); restore the open-count exclusion for every `carrier_minted` Verify → its row (d) fails (the open count unchanged); narrow the admission to `--url` instead → its row (c) and `TestAReadingsGapTakesNoMint` fail;
+   xx. <!-- CHANGED F13b --> leave `failedcheck.go:319`'s early return on `FindsAgainst` → `TestTheRepeatRuleReachesABackingFoundSourceReading` and `TestARepeatedFoundSourceReadingIsRefused` fail;
+   yy. <!-- CHANGED F13b --> skip the token removal in one report-text field (`Retire.claim`) → `TestNoMigratedArchiveHoldsALensPlacedToken` fails on b9's retire (archived event 166);
+   zz. <!-- CHANGED F13b --> respell a dropped label's list element to `""` instead of removing it → `TestTheMigratedRedCitationsAreReadingsOfTheirSources` fails (b9 164 and 167's `reopened` is `["F-84381c8e", ""]`); read the re-readings' url and title through the batch's querier → it fails (a refusal: no label column).
    Re-armed by: the function or table each names.
 6. migrate on real archives: `go -C plugins/frank-exchange-of-views/tools test -count=1 ./internal/record/migrate/ -run 'M30|M32|M23|EveryArchivedRun|M19|AboutAnAnchor|ValueRenames|StringField|BySentenceOf|RedCitations'` (F13: `RedCitations`) <!-- CHANGED F13 --> and `go -C plugins/frank-exchange-of-views/tools test -count=1 ./internal/record/ ./internal/cli/ -run 'M32|M30|MigratedFoundAgainst|M23s|RecordWrittenAtThisEpoch|EveryIDTheVerb'` → pass, 0 refusals. Re-armed by: `migrate/**`, `record.proto`.
 7. Release fuzz: PR CI only (sharded 4 + tally). Read the tally: new gates non-zero; max gaps per (class, sentence) = 1. NEVER run `FEOV_RELEASE_GATE=1` locally. Re-armed by: any record or flag change (CLAUDE.md requires a full pass before done).
@@ -2884,7 +3199,17 @@ All commands from the worktree root, after `unset $(env | grep -o '^FEOV_[A-Z_]*
 9. **Driveable check on real data.** m30 as archived holds its judge's `outcome` (events.id 467) and the chair's verdict (463), and `requireOpenToSeats` refuses every seat act after an outcome, so the archive is CUT before it is driven: copy m30's `records/record.db` to `~/.claude/scratch/contradiction-is-a-gap/m30/`, and in the copy delete every row with `event_id >= 463` from each table holding an `event_id` column, then `DELETE FROM events WHERE id >= 463` (a scratch step; nothing in the repository changes). Migrate the cut copy (`TestEveryArchivedRunMigrates`' path, or `feov-record migrate`), and confirm a seat act is admitted on it (`register` as `red-lens-evidence`, `show board`) before the drive — a refusal there means the cut is wrong, not the change. Then on the migrated copy as `red-lens-evidence`: `feov-record verify --anchor C-4f4b8cfa --as refutes --class claim_contradicts_source …` → a gap lands (or names G-dc877265 if it is open with that class); a second lens's identical reading → names the same gap, no mint; `close` of that gap → refused while the reading stands; a third lens's `--as supports` reading → recorded, and the close still refused (a disagreement clears nothing); the reader's own `--as supports` re-read a sitting later → the close admitted; `show evidence` has no `unanswered_contradictions` key, and its verification row for the reading
    carries `source_completeness` `not_asked` (the archive holds no fetched-source cache, so the stamp
    says the copy was never asked — the stamp `verify` now writes, read off a real record); `show board --json`
-   lists the gap with the `--reason` as its `mint_reason` and its `fix_basis`. Re-armed by: the reading act, the ledger, the close gate.
+   lists the gap with the `--reason` as its `mint_reason` and its `fix_basis`. <!-- CHANGED F13b --> Then, on the
+   same cut and migrated copy, the found-source form on real data: pick a sentence of the migrated m30
+   render that holds no citation or computation token (named in the PR with its section), and as a lens
+   under its mint cap (`show work` states the standing) run `feov-record verify --url <a url the run's
+   cache holds> --title … --quote "<that sentence>" --as supports --class unsourced_claim …` → an
+   `unsourced_claim` gap lands on the sentence, no `C-` anchor, no Bibliography line, and the lens's open
+   count rises by one (F6 amended); the same lens's reading of a SECOND url against that sentence in the
+   same sitting → recorded, naming that gap, no second gap (gblock's key ruling); the first call
+   repeated → refused, naming the first reading's `events.id`; the same call by a lens AT its cap →
+   refused for budget, nothing recorded. Re-armed by: the reading act, the ledger, the close gate,
+   <!-- CHANGED F13b --> the retry rule and the budget's anchor test.
 10. The audit loop ended at round 8 (gblock, 2026-11-01); the plan is approved and carries round 8's gaps as the required tests of §III.15. BEFORE merge: an INDEPENDENT review of the implementation — a reviewer who did not implement it reads the diff against this plan, re-runs §V.4's sweeps, and confirms each test of §III.15 exists, fails on its §V.5 partner and passes. The merge waits on that review and on a full PR CI fuzz pass (§V.7).
 
 ## Forks — all RULED (gblock, 2026-10-30; F10, F11 2026-10-31; F12, #1657, audit loop 2026-11-01)
@@ -2945,7 +3270,13 @@ Each ruling is recorded here; the alternatives it rejected are deleted from the 
   a read. Every field `newMint` sets has a disposition (§III.2's field table). Tests
   `TestAReadingsGapIsFilledAsAPlainMints`, `TestAReadingsGapCarriesItsArgumentWhereverAMintsDoes` (§III.10).
 - **F5 — Corroboration `absent` (RULED).** Records the reading and mints no gap (§III.1, §III.10); since F13, a `verify --url` reading's `absent`. <!-- CHANGED F13 -->
-- **F6 — Budget (RULED).** A gap a reading mints is outside the mint budget (§III.5).
+- **F6 — Budget (RULED; amended F13b).** A gap a reading of a CITATION mints (`verify --anchor`) is
+  outside the mint budget (§III.5). <!-- CHANGED F13b --> **Amended (gblock, 2026-11-03; the option wording is
+  the lead session's):** any gap a `verify --url` reading mints counts against the lens's mint budget —
+  taken at the act, counted while open; the anchor readings' gaps stay outside it as F6 states. Ruled
+  because F6, decided when only a reading that finds against minted, would otherwise have exempted
+  `unsourced_claim`, a lens's most common class, whenever the lens attached a backing source. Tests
+  `TestAFoundSourceGapTakesAMint`, `TestAReadingsGapTakesNoMint`; the replay measure in §III.9 item 7.
 - **F7 — PR #1642 (RULED).** <!-- FINDING-DEPENDENT --> (its `open_by_found_by` reads `found_by`; §III.11) Closed as superseded; its four diagnostic tally fields — `final_blockers`,
   `final_parties`, `open_by_found_by` (re-keyed `reading | finding | unsound_computation | none`: #1642's
   `contradiction` key becomes `reading`, and its `unsound_proof` key keeps its meaning under #1644's name), `mints_by_epoch` /
@@ -2969,9 +3300,21 @@ Each ruling is recorded here; the alternatives it rejected are deleted from the 
   `claim_contradicts_source` (`refutes`) in the same act; no reading places a citation, label or
   footnote; blue answers with a cite and a lens verifies it. The verb shape — ONE verb, `verify`, exactly
   one of `--anchor` and `--url`, `corroborate` deleted with no alias — is this revision's decision
-  (§III.2d), as is the refusal of a backing `--url` reading on a marked sentence and the `carried_by`
-  key; the archived labels are translated (§III.9 item 7). Open item **O1** (gblock's): `unsourced_claim`
-  is material by grade, so a backing found-source gap graded low holds no PASS. <!-- CHANGED F13 -->
+  (§III.2d), as is the refusal of a backing `--url` reading on a marked sentence (<!-- CHANGED F13b --> a
+  single right answer under the rulings, not a fork: the targeted round; residue quadratic `c-95969800`,
+  b9 `c-d49a32c4`); the archived labels are translated (§III.9 item 7; gblock picked "drop them, state
+  it", relayed 2026-11-03). <!-- CHANGED F13 -->
+  - <!-- CHANGED F13b --> **O1 — CLOSED, not a fork** (the targeted round). Materiality is the class's and the
+    ruled option names `unsourced_claim`; a backing found-source gap holds the PASS where its grades make
+    it material. §III.16 tells 1a′ its "every reading gap is material by its class" is false for
+    `unsourced_claim`.
+  - <!-- CHANGED F13b --> **The key (RULED, gblock 2026-11-03).** A found-source reading keys on its source and
+    its sentence: one seat's readings in one sitting that differ in url or in sentence are each
+    recorded; an identical retry is refused naming the stored reading (§III.1). F13's `carried_by` key is
+    not built.
+  - <!-- CHANGED F13b --> **Scope (RULED, gblock 2026-11-03): F13 stays in #1694, not split.** Phase 1 already
+    built the corroboration arms F13 deletes; splitting would build them out through phases 2-5 and then
+    delete them (§III.2d).
 - **#1695 — findings fold into gaps (RULED by gblock; relayed by the peer session
   bridge-cse-01s7d2sa1pneo9oqzevmlwdg-4f, 2026-11-03).** A separate plan, after this one and 1a′. This
   plan keeps only the finding rows that delete (the about-kind, the raise, its credit); migrate writes the
