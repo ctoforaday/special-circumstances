@@ -40,28 +40,22 @@ func TestATableDroppedUnderAnOpenHandleIsAPlainError(t *testing.T) {
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`DROP TABLE "retire_anchors"`); err != nil {
+	if _, err := db.Exec(`DROP TABLE "blue_edit_reopened"`); err != nil {
 		t.Fatal(err)
 	}
-	_, err = scanLists(db, "retire_anchors")
-	for _, want := range []string{"reading retire_anchors", "no such table"} {
+	_, _, err = Events(db)
+	for _, want := range []string{"reading blue_edit_reopened", "no such table"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("reading a list table dropped under an open handle: %v — want %q", err, want)
 		}
 	}
 	notBlamedOnAnOlderRun(t, "a table dropped under a handle the open already checked", err)
-	// Unquoted: SQLite reads a double-quoted unknown identifier as a string literal, not an error.
-	_, err = scanTable(db, "retire", []string{`no_such_column`})
-	if err == nil {
-		t.Error("a read naming a column no table has returned rows")
-	}
-	notBlamedOnAnOlderRun(t, "a failure on a table that exists", err)
 }
 
-// A COLUMN THAT GOES MISSING UNDER AN OPEN HANDLE IS A PLAIN ERROR. The read refuses the column by
-// name before the SELECT — SQLite reads the quoted name as a string literal and hands back the
-// column's own name as every row's value — and the write returns SQLite's error; neither names an
-// older binary.
+// A COLUMN THAT GOES MISSING UNDER AN OPEN HANDLE IS A PLAIN ERROR. The read names every column
+// qualified by its table, which SQLite resolves as a column or refuses — never as the string literal
+// a bare double-quoted name falls back to, which would hand back the column's own name as every
+// row's value — and the write returns SQLite's error; neither names an older binary.
 func TestAColumnMissingUnderAnOpenHandleIsAPlainError(t *testing.T) {
 	path := filepath.Join(tmpRun(t), "record.db")
 	db, err := Open(path)
@@ -92,16 +86,21 @@ func TestAColumnMissingUnderAnOpenHandleIsAPlainError(t *testing.T) {
 	}
 	// Rebuilt without the column rather than DROP COLUMN, which SQLite refuses while a CHECK
 	// constraint names it: every column but the one under test.
-	cols, err := columnsOf(db, "blue_edit")
+	crows, err := db.Query(`SELECT "name" FROM pragma_table_info('blue_edit')`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var keep []string
-	for c := range cols {
+	for crows.Next() {
+		var c string
+		if err := crows.Scan(&c); err != nil {
+			t.Fatal(err)
+		}
 		if c != "exact_span" {
 			keep = append(keep, `"`+c+`"`)
 		}
 	}
+	crows.Close()
 	for _, stmt := range []string{
 		`CREATE TABLE "blue_edit_older" AS SELECT ` + strings.Join(keep, ", ") + ` FROM "blue_edit"`,
 		`DROP TABLE "blue_edit"`,
@@ -117,19 +116,13 @@ func TestAColumnMissingUnderAnOpenHandleIsAPlainError(t *testing.T) {
 	if _, err := db.Exec(ViewsDDL); err != nil {
 		t.Fatal(err)
 	}
-	_, err = scanTable(db, "blue_edit", []string{`"exact_span"`})
-	for _, want := range []string{"reading blue_edit", "the table has no column", `"exact_span"`} {
+	_, _, err = Events(db)
+	for _, want := range []string{"reading blue_edit", "no such column", "exact_span"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("reading a column the table lacks: %v — want %s named", err, want)
 		}
 	}
 	notBlamedOnAnOlderRun(t, "a read of a column missing under a handle the open already checked", err)
-	// A column the binary does not declare reads the same way.
-	_, err = scanTable(db, "blue_edit", []string{`no_such_column`})
-	if err == nil {
-		t.Error("a read naming a column no table has returned rows")
-	}
-	notBlamedOnAnOlderRun(t, "an undeclared column", err)
 	// THE WRITE PATH MEETS THE SAME TABLE.
 	_, err = Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{ExactSpan: proto.Bool(true)}))
 	for _, want := range []string{"recording a blue_edit", "exact_span"} {

@@ -330,7 +330,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		for _, body := range bodies {
 			// NO EPOCH IS CARRIED. The archived row's epoch was recovered from its seat id by regex
 			// when it was written; the re-driven row's EPOCH comes from the chair sittings already
-			// replayed (events_w."epoch"), which is the same fact from the record rather than from
+			// replayed (events.epoch, stamped by the write), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			// A RE-RUN'S DRIFT IS THE PROGRAM'S BYTES, which are not the debate's wording: an anchor

@@ -108,12 +108,22 @@ func run(root string, checkOnly bool) error {
 	if err != nil {
 		return err
 	}
+	decodeSrc, err := bodyDecode(req)
+	if err != nil {
+		return err
+	}
+	bodySwitchRel := filepath.Join(filepath.Dir(schemaRel), bodySwitchName)
 
 	if checkOnly {
 		if err := verify(root, want); err != nil {
 			return err
 		}
-		return verifyBodySwitch(root, bodySrc)
+		if err := verifyGenerated(root, bodySwitchRel, bodySrc, "body switch",
+			"a switch missing an arm reads that arm's events as having no body"); err != nil {
+			return err
+		}
+		return verifyGenerated(root, bodyDecodeRel, decodeSrc, "body decode",
+			"a decode missing a field reads that field back unset")
 	}
 	if err := checkVersionAgreement(root); err != nil {
 		return err
@@ -123,9 +133,15 @@ func run(root string, checkOnly bool) error {
 	if err != nil {
 		return err
 	}
-	files = append(files, genFile{name: bodySwitchName, content: bodySrc})
+	var dests []genFile
 	for _, f := range files {
-		dest := filepath.Join(filepath.Dir(schema), filepath.Base(f.name))
+		dests = append(dests, genFile{name: filepath.Join(filepath.Dir(schemaRel), filepath.Base(f.name)), content: f.content})
+	}
+	dests = append(dests,
+		genFile{name: bodySwitchRel, content: bodySrc},
+		genFile{name: bodyDecodeRel, content: decodeSrc})
+	for _, f := range dests {
+		dest := filepath.Join(root, f.name)
 		if err := os.WriteFile(dest, f.content, 0o644); err != nil {
 			return fmt.Errorf("writing %s: %w", dest, err)
 		}
@@ -192,7 +208,7 @@ type genFile struct {
 }
 
 // compileRequest compiles the schema to a descriptor and wraps it as the request a protoc plugin
-// reads. protoc-gen-go and the body switch are both generated from this one request.
+// reads. protoc-gen-go, the body switch and the body decode are all generated from this one request.
 func compileRequest(schema string) (*pluginpb.CodeGeneratorRequest, error) {
 	dir := filepath.Dir(schema)
 	base := filepath.Base(schema)

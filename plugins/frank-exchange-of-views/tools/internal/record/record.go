@@ -93,8 +93,8 @@ func massFromVocabulary() map[string]float64 {
 // rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events_w."epoch", the count of the
-// chair's stored sittings at or before a row — and a seat id carries no epoch at all. A terminal
+// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events.epoch, stamped at the write:
+// the count of the chair's sittings at or before a row — and a seat id carries no epoch at all. A terminal
 // seat's epoch is read the same way, so it acts in the epoch the chair has reached.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
@@ -115,8 +115,8 @@ type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
-// An Identity carries no epoch: the epoch is the record's (events_w."epoch", the chair's stored
-// sittings at or before the row), so no caller supplies it.
+// An Identity carries no epoch: the epoch is the record's (events.epoch, the chair's sittings at or
+// before the row, stamped at the write), so no caller supplies it.
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. The PARTY that wrote an event is the role of its seat
 // (PartyOf), and seat.Context.Role answers a different question — which command group the verb is
@@ -299,9 +299,8 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	}
 	// THE DISPATCH NUMBER IS THE SITTING'S RANK, NOT A COUNT OF REGISTERS. A sitting the bracket
 	// opened that the seat never registered in is still a dispatch of it, and a register that joined
-	// its bracket's sitting is not a second one — the same rows events_w ranks "sitting" from.
-	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ? AND "id" <= ?`,
-		seatID, sitting).Scan(&dispatch); err != nil {
+	// its bracket's sitting is not a second one. The rank is stored on the opening (events.sitting).
+	if err := tx.QueryRow(`SELECT "sitting" FROM "events" WHERE "id" = ?`, sitting).Scan(&dispatch); err != nil {
 		return 0, "", err
 	}
 	if found {
@@ -431,8 +430,8 @@ func envelope(ev *Event, ts, seatID string, key string) {
 //
 // SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. One chair sits many times
 // (plans/roundless.md §III.A.1), so a key of `red-chair:position` would make a position once per
-// RUN. The ordinal below is the count of this seat's stored sittings (the `sittings` view), the
-// rank events_w exposes as "sitting", taken inside the writing transaction. The duty itself is asked of the
+// RUN. The ordinal below is the rank of this seat's latest sitting, stored on its opening
+// (events.sitting) and read inside the writing transaction. The duty itself is asked of the
 // ATTRIBUTED sitting, in requireOncePerSitting (oncepersitting.go), which is what makes the
 // refusal's "this sitting" true.
 //
@@ -527,14 +526,14 @@ func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMoti
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
-	// IT ASKS THE RECORD WHICH SITTING, IT DOES NOT WORK IT OUT. `sittings` is the stored fact
-	// (recordsql/views.go): one row per opening, register or harness bracket, stamped at the write.
-	// Counting registers here left a seat woken with nothing to do (#1089) on sitting 0 for every
-	// sitting it ever had, so a singleton act in its second sitting keyed identically to its first
-	// and was refused as a duplicate; counting openings here fixed that number and left the view
-	// counting a different one.
+	// IT ASKS THE RECORD WHICH SITTING, IT DOES NOT WORK IT OUT. The rank of the seat's latest
+	// sitting is stored on its opening (events.sitting), stamped at the write; a seat that has never
+	// sat is on sitting 0. Counting registers here left a seat woken with nothing to do (#1089) on
+	// sitting 0 for every sitting it ever had, so a singleton act in its second sitting keyed
+	// identically to its first and was refused as a duplicate.
 	var sitting int
-	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`,
+	if err := tx.QueryRow(`SELECT COALESCE((SELECT "sitting" FROM "events"
+	    WHERE "id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)), 0)`,
 		seatID).Scan(&sitting); err != nil {
 		return "", fmt.Errorf("counting %s's sittings for its key: %w", seatID, err)
 	}

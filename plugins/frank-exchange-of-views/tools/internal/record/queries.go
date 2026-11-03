@@ -176,12 +176,10 @@ func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, Win
 // projection hangs on, INCLUDING epochs whose only acts are outside that projection's
 // families (an epoch of nothing but mints still renders as an empty debate epoch).
 //
-// TWO ROWS ARE READ, NOT EVERY ROW. A row's epoch (events_w) is the count of the chair's sittings
+// TWO ROWS ARE READ, NOT EVERY ROW. A row's epoch (events.epoch) is the count of the chair's sittings
 // opened at or before it: a step function of the row id that rises by exactly one at each chair
 // opening, and every opening is itself a row. So the epochs touched are every integer from the first
-// row's epoch to the last row's, and those two rows are all this asks events_w for. The DISTINCT scan
-// it replaces ranked every row on the record — a second whole-record pass beside the narrowed read
-// of the projection that asks.
+// row's epoch to the last row's, and those two rows are all this asks events for.
 func Epochs(run Run) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
@@ -195,7 +193,7 @@ func epochsAt(q recordsql.Querier) ([]int, error) {
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT "epoch" FROM "events_w"
+	rows, err := q.Query(`SELECT "epoch" FROM "events"
 	  WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events")
 	  ORDER BY "id"`)
 	if err != nil {

@@ -6777,7 +6777,7 @@ func (x *SittingClose) GetAgentTranscriptPath() string {
 //
 // UNLIKE THE SPAN ENDS IT NAMES THE SEAT. A limit is counted from a register, so the agent is
 // already bound, and the writer resolves the seat from that binding rather than taking it from
-// the hook. The sitting is the seat's own sitting number, as events_w counts it: one per opening
+// the hook. The sitting is the seat's own sitting number, as events.sitting stores it: one per opening
 // — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
 // none.
 type SittingLimit struct {
@@ -6911,7 +6911,7 @@ func (x *Cast) GetLaneSeatIds() []string {
 // Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report
 // head it is to audit (plans/roundless.md §III.B.1). The chair's `dispatch next` writes one of
 // these per ready party in one sitting, so "dispatch D" — the unit the parity audit and the
-// exchange counter reason about — is the set written in one chair sitting, read off events_w.
+// exchange counter reason about — is the set written in one chair sitting, read off events.epoch.
 //
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
