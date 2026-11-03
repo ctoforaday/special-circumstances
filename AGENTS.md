@@ -54,6 +54,7 @@ Always-on rules bind every session (`CLAUDE.md` imports them via `@` for Claude 
   - the agent definitions (`agents/*.md`) and the two preloaded skills (`skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`) — sources under `scripts/agentgen/src/`, written by `go -C scripts run ./agentgen`;
   - two marked regions of `debate.js` — the seat identity block, and the envelope vocabulary with the `PLAN` schema — written from the roster, the record's enums and `record.Plan` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen`. The rest of `debate.js` is authored.
   - the enum-value annotation table (`recordpb/annotations_gen.go`) and the term definitions (`terms/definitions_gen.go`) — written from `record.proto` and `terms.json` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/vocabgen`; re-run it after any edit to either.
+  - each verb's help page (`internal/cli/seat/help_gen.go`) and each event body's required fields (`internal/record/required_gen.go`) — written from `internal/cli/seat/help/*.md` and the record's schema by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/cmdtreegen`; re-run it after editing a help document or record.proto.
 - AFTER changing any of these surfaces, YOU MUST read every changed golden line, and each affected `--help` before and after, one command at a time, for semantic loss.
 
 ### Verification
@@ -97,7 +98,7 @@ Always-on rules bind every session (`CLAUDE.md` imports them via `@` for Claude 
 ### Pull requests
 
 - CI tests the merge with `main`: bring `main` in early. BEFORE merging a PR whose CI ran before another help- or golden-changing PR merged, YOU MUST rebase, regenerate goldens at `-count=1`, read each changed line and re-run CI — goldens conflict semantically, not textually (difftest's `manual` golden renders every help page).
-- Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand. `annotations_gen.go` and `definitions_gen.go` resolve by re-running `vocabgen` after it.
+- Generated conflicts (`record.pb.go`, `record.proto.sha256`, `body_gen.go`, `recordsql/decode_gen.go`) resolve by re-running `go -C scripts run ./protogen`, never by hand. `annotations_gen.go` and `definitions_gen.go` resolve by re-running `vocabgen` after it, and `help_gen.go` and `required_gen.go` by re-running `cmdtreegen`.
 - The repository deletes a branch on merge. BEFORE pushing to a PR's branch, YOU MUST check `gh pr view <n> --json state`; "Create a pull request for" in push output is a HARD STOP — the PR merged and the push re-created its branch. Retarget a stacked child to `main` BEFORE merging its parent, or GitHub closes the child.
 - AFTER committing plan updates or repository-level instruction updates that land directly, YOU MUST push them onto `origin/main` rather than leaving commits stranded on a side branch.
 
