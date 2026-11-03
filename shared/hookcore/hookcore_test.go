@@ -532,3 +532,304 @@ func TestRespondAntigravityTerminateTurn(t *testing.T) {
 		t.Errorf("errorMessage step invalid: %v", out.InjectSteps[0])
 	}
 }
+
+func TestContractPreCompactClaudeAndAntigravity(t *testing.T) {
+	// Claude: Must emit plain text prose verbatim on stdout, NEVER a JSON object.
+	reqClaude := Request{Engine: EngineClaude, Event: "PreCompact"}
+	respClaude := Response{PreCompactSteer: "## Instructions\nPreserve all validation loops."}
+	var stdoutClaude, stderrClaude bytes.Buffer
+	Respond(reqClaude, respClaude, &stdoutClaude, &stderrClaude, nil)
+
+	sClaude := strings.TrimSpace(stdoutClaude.String())
+	if strings.HasPrefix(sClaude, "{") {
+		t.Errorf("Claude PreCompact wrote JSON to stdout, want plain text: %s", sClaude)
+	}
+	if !strings.Contains(sClaude, "Preserve all validation loops") {
+		t.Errorf("Claude PreCompact output missing steer text: %s", sClaude)
+	}
+
+	// Antigravity: Emits injectSteps with systemMessage.
+	reqAgy := Request{Engine: EngineAntigravity, Event: "PreCompact"}
+	respAgy := Response{PreCompactSteer: "## Instructions\nPreserve all validation loops."}
+	var stdoutAgy, stderrAgy bytes.Buffer
+	Respond(reqAgy, respAgy, &stdoutAgy, &stderrAgy, nil)
+
+	var outAgy struct {
+		InjectSteps []map[string]any `json:"injectSteps"`
+	}
+	if err := json.Unmarshal(stdoutAgy.Bytes(), &outAgy); err != nil {
+		t.Fatalf("unmarshal Antigravity PreCompact output: %v", err)
+	}
+	if len(outAgy.InjectSteps) != 1 {
+		t.Fatalf("len(InjectSteps) = %d, want 1", len(outAgy.InjectSteps))
+	}
+	sysMsg, ok := outAgy.InjectSteps[0]["systemMessage"].(map[string]any)
+	if !ok || !strings.Contains(sysMsg["systemMessage"].(string), "Preserve all validation loops") {
+		t.Errorf("Antigravity PreCompact missing steer message: %v", outAgy.InjectSteps[0])
+	}
+}
+
+func TestContractSubagentStopAndSessionEnd(t *testing.T) {
+	// Claude: SubagentStop and SessionEnd seal silently and must never write to stdout.
+	for _, ev := range []string{"SubagentStop", "SessionEnd"} {
+		req := Request{Engine: EngineClaude, Event: ev}
+		var stdout, stderr bytes.Buffer
+		code := Respond(req, Response{AdditionalContext: "unsolicited"}, &stdout, &stderr, nil)
+		if code != 0 {
+			t.Errorf("Claude %s exit code = %d, want 0", ev, code)
+		}
+		if len(stdout.Bytes()) != 0 {
+			t.Errorf("Claude %s wrote to stdout: %q, want zero bytes", ev, stdout.String())
+		}
+	}
+
+	// Antigravity: SubagentStop and SessionEnd emit {} on stdout.
+	for _, ev := range []string{"SubagentStop", "SessionEnd"} {
+		req := Request{Engine: EngineAntigravity, Event: ev}
+		var stdout, stderr bytes.Buffer
+		code := Respond(req, Response{AdditionalContext: "unsolicited"}, &stdout, &stderr, nil)
+		if code != 0 {
+			t.Errorf("Antigravity %s exit code = %d, want 0", ev, code)
+		}
+		if strings.TrimSpace(stdout.String()) != "{}" {
+			t.Errorf("Antigravity %s stdout = %q, want {}", ev, stdout.String())
+		}
+	}
+}
+
+func TestContractToolMappingMatrix(t *testing.T) {
+	cases := []struct {
+		name          string
+		payload       string
+		wantCanonical string
+		wantFile      string
+		wantCommand   string
+	}{
+		{
+			name:          "Claude Bash command",
+			payload:       `{"session_id":"s","tool_name":"Bash","tool_input":{"command":"git diff"}}`,
+			wantCanonical: "Bash",
+			wantCommand:   "git diff",
+		},
+		{
+			name:          "Antigravity run_command CommandLine",
+			payload:       `{"conversationId":"c","toolCall":{"name":"run_command","args":{"CommandLine":"git diff"}}}`,
+			wantCanonical: "Bash",
+			wantCommand:   "git diff",
+		},
+		{
+			name:          "Claude Write file_path",
+			payload:       `{"session_id":"s","tool_name":"Write","tool_input":{"file_path":"foo.go","content":"code"}}`,
+			wantCanonical: "Write",
+			wantFile:      "foo.go",
+		},
+		{
+			name:          "Antigravity write_to_file TargetFile",
+			payload:       `{"conversationId":"c","toolCall":{"name":"write_to_file","args":{"TargetFile":"foo.go","CodeContent":"code"}}}`,
+			wantCanonical: "Write",
+			wantFile:      "foo.go",
+		},
+		{
+			name:          "Antigravity oneharness write_file Path",
+			payload:       `{"conversationId":"c","toolCall":{"name":"write_file","args":{"Path":"foo.go","Content":"code"}}}`,
+			wantCanonical: "Write",
+			wantFile:      "foo.go",
+		},
+		{
+			name:          "Claude Edit file_path",
+			payload:       `{"session_id":"s","tool_name":"Edit","tool_input":{"file_path":"bar.go","old_string":"a","new_string":"b"}}`,
+			wantCanonical: "Edit",
+			wantFile:      "bar.go",
+		},
+		{
+			name:          "Antigravity replace_file_content TargetContent",
+			payload:       `{"conversationId":"c","toolCall":{"name":"replace_file_content","args":{"TargetFile":"bar.go","TargetContent":"a","ReplacementContent":"b"}}}`,
+			wantCanonical: "Edit",
+			wantFile:      "bar.go",
+		},
+		{
+			name:          "Antigravity edit_file Target",
+			payload:       `{"conversationId":"c","toolCall":{"name":"edit_file","args":{"Path":"bar.go","Target":"a","Replacement":"b"}}}`,
+			wantCanonical: "Edit",
+			wantFile:      "bar.go",
+		},
+		{
+			name:          "Claude Read file_path",
+			payload:       `{"session_id":"s","tool_name":"Read","tool_input":{"file_path":"doc.md"}}`,
+			wantCanonical: "Read",
+			wantFile:      "doc.md",
+		},
+		{
+			name:          "Antigravity view_file AbsolutePath",
+			payload:       `{"conversationId":"c","toolCall":{"name":"view_file","args":{"AbsolutePath":"/abs/doc.md"}}}`,
+			wantCanonical: "Read",
+			wantFile:      "/abs/doc.md",
+		},
+		{
+			name:          "Antigravity read_file Path",
+			payload:       `{"conversationId":"c","toolCall":{"name":"read_file","args":{"Path":"/abs/doc.md"}}}`,
+			wantCanonical: "Read",
+			wantFile:      "/abs/doc.md",
+		},
+		{
+			name:          "Claude WebSearch query",
+			payload:       `{"session_id":"s","tool_name":"WebSearch","tool_input":{"query":"go test"}}`,
+			wantCanonical: "WebSearch",
+		},
+		{
+			name:          "Antigravity search_web Query",
+			payload:       `{"conversationId":"c","toolCall":{"name":"search_web","args":{"Query":"go test"}}}`,
+			wantCanonical: "WebSearch",
+		},
+		{
+			name:          "Claude WebFetch url",
+			payload:       `{"session_id":"s","tool_name":"WebFetch","tool_input":{"url":"https://example.com"}}`,
+			wantCanonical: "WebFetch",
+		},
+		{
+			name:          "Antigravity read_url_content Url",
+			payload:       `{"conversationId":"c","toolCall":{"name":"read_url_content","args":{"Url":"https://example.com"}}}`,
+			wantCanonical: "WebFetch",
+		},
+		{
+			name:          "Antigravity find_by_name SearchDirectory",
+			payload:       `{"conversationId":"c","toolCall":{"name":"find_by_name","args":{"SearchDirectory":"/src","Pattern":"*.go"}}}`,
+			wantCanonical: "Glob",
+		},
+		{
+			name:          "Antigravity grep_search SearchPath",
+			payload:       `{"conversationId":"c","toolCall":{"name":"grep_search","args":{"SearchPath":"/src","Query":"func"}}}`,
+			wantCanonical: "Grep",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := Read("PreTool", strings.NewReader(c.payload))
+			if req.ToolName != c.wantCanonical {
+				t.Errorf("ToolName = %q, want %q", req.ToolName, c.wantCanonical)
+			}
+			if c.wantFile != "" && req.FilePath != c.wantFile {
+				t.Errorf("FilePath = %q, want %q", req.FilePath, c.wantFile)
+			}
+			if c.wantCommand != "" && req.Command != c.wantCommand {
+				t.Errorf("Command = %q, want %q", req.Command, c.wantCommand)
+			}
+		})
+	}
+}
+
+func TestContractMultiTurnPendingFeedbackQueue(t *testing.T) {
+	dataDir := t.TempDir()
+	sessionID := "turn-cycle-1"
+
+	// Turn 1, Tool 1: PostTool records linter feedback
+	req1 := Request{
+		Engine:        EngineAntigravity,
+		Event:         "PostTool",
+		SessionID:     sessionID,
+		PluginDataDir: dataDir,
+	}
+	Respond(req1, Response{Feedback: "qlty: unformatted code in a.go"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
+
+	// Turn 1, Tool 2: PostTool records strike counter context
+	req2 := Request{
+		Engine:        EngineAntigravity,
+		Event:         "PostTool",
+		SessionID:     sessionID,
+		PluginDataDir: dataDir,
+	}
+	Respond(req2, Response{AdditionalContext: "Strike count 2 on test error"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
+
+	// Turn 1, Tool 3: PreTool records push freeze advisory Say
+	req3 := Request{
+		Engine:        EngineAntigravity,
+		Event:         "PreTool",
+		SessionID:     sessionID,
+		PluginDataDir: dataDir,
+	}
+	Respond(req3, Response{Decision: DecisionAllow, Say: "[push-freeze] pushing directly to main"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
+
+	// Turn 2: PreInvocation flushes all 3 items in order
+	reqTurn2 := Request{
+		Engine:        EngineAntigravity,
+		Event:         "PreInvocation",
+		SessionID:     sessionID,
+		PluginDataDir: dataDir,
+	}
+	var stdoutTurn2, stderrTurn2 bytes.Buffer
+	Respond(reqTurn2, Response{}, &stdoutTurn2, &stderrTurn2, nil)
+
+	var outTurn2 struct {
+		InjectSteps []map[string]any `json:"injectSteps"`
+	}
+	if err := json.Unmarshal(stdoutTurn2.Bytes(), &outTurn2); err != nil {
+		t.Fatalf("unmarshal Turn 2 output: %v", err)
+	}
+	if len(outTurn2.InjectSteps) != 3 {
+		t.Fatalf("len(InjectSteps) = %d, want 3", len(outTurn2.InjectSteps))
+	}
+	if outTurn2.InjectSteps[0]["ephemeralMessage"] != "qlty: unformatted code in a.go" {
+		t.Errorf("Step 0 = %v, want qlty feedback", outTurn2.InjectSteps[0])
+	}
+	if outTurn2.InjectSteps[1]["ephemeralMessage"] != "Strike count 2 on test error" {
+		t.Errorf("Step 1 = %v, want strike context", outTurn2.InjectSteps[1])
+	}
+	step2Sys := outTurn2.InjectSteps[2]["systemMessage"].(map[string]any)["systemMessage"]
+	if !strings.Contains(step2Sys.(string), "push-freeze") {
+		t.Errorf("Step 2 = %v, want push freeze systemMessage", outTurn2.InjectSteps[2])
+	}
+
+	// Queue file must now be deleted
+	queueFile := filepath.Join(dataDir, "pending_"+sessionID+".jsonl")
+	if _, err := os.Stat(queueFile); !os.IsNotExist(err) {
+		t.Errorf("queue file still exists after Turn 2 flush")
+	}
+
+	// Turn 3: Subsequent PreInvocation with no pending items produces empty injectSteps
+	var stdoutTurn3, stderrTurn3 bytes.Buffer
+	Respond(reqTurn2, Response{}, &stdoutTurn3, &stderrTurn3, nil)
+	var outTurn3 struct {
+		InjectSteps []map[string]any `json:"injectSteps"`
+	}
+	if err := json.Unmarshal(stdoutTurn3.Bytes(), &outTurn3); err != nil {
+		t.Fatalf("unmarshal Turn 3 output: %v", err)
+	}
+	if len(outTurn3.InjectSteps) != 0 {
+		t.Errorf("len(InjectSteps) = %d, want 0 on empty queue", len(outTurn3.InjectSteps))
+	}
+}
+
+func TestContractSettlerPersistence(t *testing.T) {
+	rec := &mockSettler{settleMsg: "failure settlement recorded"}
+	req := Request{Engine: EngineClaude, Event: "SessionStart"}
+	var stdout, stderr bytes.Buffer
+
+	Respond(req, Response{Say: "Welcome"}, &stdout, &stderr, rec)
+
+	if !rec.persisted {
+		t.Errorf("rec.Persist() was not called")
+	}
+	var out struct {
+		SystemMessage string `json:"systemMessage"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !strings.Contains(out.SystemMessage, "Welcome") || !strings.Contains(out.SystemMessage, "failure settlement recorded") {
+		t.Errorf("SystemMessage = %q, missing settlement text", out.SystemMessage)
+	}
+}
+
+func TestContractMalformedStdinSecretsScanning(t *testing.T) {
+	// Exact raw byte preservation for secretsgate (#211)
+	malformed := "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo ghp_SECRET\""
+	req := Read("PreToolUse", strings.NewReader(malformed))
+
+	if req.Parsed {
+		t.Errorf("req.Parsed = true, want false")
+	}
+	if !strings.Contains(string(req.Raw), "ghp_SECRET") {
+		t.Errorf("req.Raw does not preserve raw secret token: %q", string(req.Raw))
+	}
+}

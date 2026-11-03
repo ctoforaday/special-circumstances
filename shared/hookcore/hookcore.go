@@ -647,6 +647,19 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, string(b))
 		return 0
 
+	case "PreCompact":
+		// On Claude Code, PreCompact's stdout becomes the custom compact instructions (plain text).
+		if resp.PreCompactSteer != "" {
+			fmt.Fprintln(stdout, resp.PreCompactSteer)
+		} else if resp.AdditionalContext != "" {
+			fmt.Fprintln(stdout, resp.AdditionalContext)
+		}
+		return 0
+
+	case "SubagentStop", "SessionEnd":
+		// SubagentStop and SessionEnd seal silently and must never write to stdout.
+		return 0
+
 	default:
 		if resp.AdditionalContext != "" || resp.Say != "" {
 			out := map[string]any{}
@@ -779,6 +792,34 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		} else {
 			fmt.Fprintln(stdout, "{}")
 		}
+		return 0
+
+	case "PreCompact":
+		text := resp.PreCompactSteer
+		if text == "" {
+			text = resp.AdditionalContext
+		}
+		if text != "" {
+			out := map[string]any{
+				"injectSteps": []map[string]any{
+					{
+						"systemMessage": map[string]any{
+							"systemMessage": text,
+							"metadata":      map[string]any{"user_markdown": text},
+						},
+					},
+				},
+				"terminationBehavior": "force_continue",
+			}
+			b, _ := json.Marshal(out)
+			fmt.Fprintln(stdout, string(b))
+		} else {
+			fmt.Fprintln(stdout, "{}")
+		}
+		return 0
+
+	case "SubagentStop", "SessionEnd":
+		fmt.Fprintln(stdout, "{}")
 		return 0
 
 	default:
