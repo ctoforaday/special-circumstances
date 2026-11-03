@@ -264,6 +264,8 @@ var tools = []gate{
 		why: "a function nothing reaches reads as part of the design to whoever opens the file; every Go module is analysed with its tests, on each platform it ships on, a generated copy's caller keeps its authored source alive, and every function left is a failure"},
 	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
 		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},
+	{id: "vocabgen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/vocabgen", "-check"}, ciJob: "debate-sim",
+		why: "the enum-value annotations and the term definitions every record process reads are generated as Go literals from record.proto and terms.json; a stale table gives a value a meaning, a facet or a ruler the schema no longer declares"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

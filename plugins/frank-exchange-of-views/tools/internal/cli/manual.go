@@ -168,15 +168,9 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 	// THE WORDS, ONCE, BEFORE ANY PAGE. The registry is the single source of the protocol's concept
 	// nouns, and a seat reads a constitution, a prompt and these pages in one sitting: a word it
 	// meets with no definition is one it can take for a second thing. Printed here rather than on
-	// any leaf page, because each command's own --help stays that command's.
-	//
-	// A registry that does not load is refused, not skipped: a manual without its words would read
-	// exactly like a surface that uses none.
-	reg, err := terms.Load()
-	if err != nil {
-		return fmt.Errorf("the terms registry does not load, so this surface's words cannot be printed: %w", err)
-	}
-	if words := reg.ForSeat(seatclass.RoleOfSeat(seatID)); len(words) > 0 {
+	// any leaf page, because each command's own --help stays that command's. They come from the
+	// registry's generated table, which vocabgen writes only from a registry that loads.
+	if words := terms.DefinitionsFor(seatclass.RoleOfSeat(seatID)); len(words) > 0 {
 		fmt.Fprintln(&b)
 		fmt.Fprintln(&b, diagnostics.ManualWordsHeading)
 		for _, e := range words {
