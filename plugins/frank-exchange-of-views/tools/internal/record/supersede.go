@@ -98,7 +98,7 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_SPOT_CHECK}:                            {act: "a new spot-check", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_VERDICT}: {whole: "the verdict of your next sitting (a sitting holds one, and this sitting's stands); " +
 		"after a PASS no chair sitting follows and nothing answers it"},
-	{typ: recordpb.EventType_EVENT_TYPE_VERIFY, keyed: "anchor"}: {act: "a new verification of the citation", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_VERIFY, keyed: "anchor"}: {act: "a new verification of the citation", own: true, when: "for a verification of a citation"},
 	// A reading of a source the lens found carries no key field (url keys nothing): its repeat in a
 	// sitting is refused by requireNotARetriedReading, which reads this unkeyed row.
 	{typ: recordpb.EventType_EVENT_TYPE_VERIFY}: {whole: "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now",

@@ -259,6 +259,11 @@ type EvidenceVerificationJSON struct {
 	// fuller copy is a verdict on that copy.
 	CopySubstitution string `json:"copy_substitution,omitempty"`
 	CopyURL          string `json:"copy_url,omitempty"`
+	// CarriedBy is the gap that carries this reading — the one its act minted, or the open gap of its
+	// class the sentence already held — read off the stored reading's carried_by, never off the gap's
+	// text; omitted on a reading no gap carries. Under `independent` it is how blue finds the source a
+	// lens found for a gap it answers.
+	CarriedBy string `json:"carried_by,omitempty"`
 }
 
 // FindsAgainst reports whether this verification found AGAINST the claim — record.FindsAgainst over
@@ -367,6 +372,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Title:      vf.GetTitle(),
 			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
+			CarriedBy:  vf.GetCarriedBy(),
 			Epoch:      w.Epoch,
 
 			Page:             vf.GetPage(),

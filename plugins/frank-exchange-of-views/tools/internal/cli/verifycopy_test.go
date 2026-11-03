@@ -193,16 +193,16 @@ func TestAVerifyOfASourceTheCacheNoLongerHoldsIsNotCached(t *testing.T) {
 	}
 }
 
-// A CORROBORATION RECORDS THE COPY TOO: the cache's entry for the url red names, or not_cached for a
-// source red read outside the tool. A labelled one is a source of the report, so its source row and
-// the citation set the report assembles from carry the copy.
-func TestACorroborationRecordsTheCopyItsReadingWasMadeAgainst(t *testing.T) {
-	corroborate := func(t *testing.T, runDir string) string {
+// A READING OF A SOURCE THE LENS FOUND RECORDS THE COPY TOO: the cache's entry for the url red names,
+// or not_cached for a source red read outside the tool. It places no citation, so the copy is on the
+// reading and its row under `independent`, and on no source of the report.
+func TestAFoundSourceReadingRecordsTheCopyItsReadingWasMadeAgainst(t *testing.T) {
+	read := func(t *testing.T, runDir string) string {
 		t.Helper()
-		out, err := run(t, "corroborate", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
-			"--quote", fermatClaim, "--as", "supports", "--confidence", "high", "--reason", "read at the leaf")
+		out, err := run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--url", fermatURL, "--title", "Fermat pseudoprime",
+			"--quote", fermatClaim, "--as", "supports", "--confidence", "high", "--reason", "read at the leaf"}, gapFlagArgs("unsourced_claim")...)...)
 		if err != nil {
-			t.Fatalf("corroborate: %v\n%s", err, out)
+			t.Fatalf("verify --url: %v\n%s", err, out)
 		}
 		return out
 	}
@@ -211,43 +211,41 @@ func TestACorroborationRecordsTheCopyItsReadingWasMadeAgainst(t *testing.T) {
 		writeReport(t, runDir, fermatReport)
 		cachedCopy(t, runDir, fetchcache.SubstitutionRecovered, "https://web.archive.org/x")
 		registerLensOnce(t, runDir)
-		out := corroborate(t, runDir)
+		out := read(t, runDir)
 		v := firstVerify(t, runDir)
 		if v.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED || v.GetCopyUrl() != "https://web.archive.org/x" {
 			t.Errorf("recorded copy %v %q, want recovered from the snapshot", v.GetCopySubstitution(), v.GetCopyUrl())
 		}
 		if !copyWordsSaid(out, "recovered", "https://web.archive.org/x") {
-			t.Errorf("corroborate's line does not name the copy:\n%s", out)
+			t.Errorf("the reading's line does not name the copy:\n%s", out)
 		}
 		srcs, err := record.CitedSources(runtest.Open(t, runDir))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(srcs) != 1 || srcs[0].CopySubstitution != recordpb.CopySubstitution_COPY_SUBSTITUTION_RECOVERED || srcs[0].CopyURL != "https://web.archive.org/x" {
-			t.Errorf("the corroboration's footnote does not carry its copy: %+v", srcs)
+		if len(srcs) != 0 {
+			t.Errorf("a reading of a source the lens found placed a source of the report: %+v", srcs)
 		}
-		word, copyURL := evidenceCopy(t, runDir)
-		if word != "recovered" || copyURL == nil || *copyURL != "https://web.archive.org/x" {
-			t.Errorf("the corroboration's source row: copy_substitution %q copy_url %v", word, copyURL)
+		rows := evidenceReadings(t, runDir)
+		if len(rows) != 1 || rows[0]["copy_substitution"] != "recovered" || rows[0]["copy_url"] != "https://web.archive.org/x" {
+			t.Errorf("the reading's independent row does not carry its copy: %v", rows)
 		}
 	})
 	t.Run("not cached", func(t *testing.T) {
 		runDir := newRun(t)
 		writeReport(t, runDir, fermatReport)
 		withFetcher(t, fetchFunc(func(u string) (*fetchcache.Response, error) {
-			t.Fatalf("corroborate fetched %s", u)
+			t.Fatalf("verify fetched %s", u)
 			return nil, nil
 		}))
 		registerLensOnce(t, runDir)
-		corroborate(t, runDir)
+		read(t, runDir)
 		v := firstVerify(t, runDir)
 		if v.GetCopySubstitution() != recordpb.CopySubstitution_COPY_SUBSTITUTION_NOT_CACHED || v.CopyUrl != nil {
 			t.Errorf("recorded copy %v %v, want not_cached and no url", v.GetCopySubstitution(), v.CopyUrl)
 		}
-		// The check renders under independent and on the corroboration's own source row.
-		rows := evidenceReadings(t, runDir)
-		if len(rows) != 2 || rows[0]["copy_substitution"] != "not_cached" || rows[1]["copy_substitution"] != "not_cached" {
-			t.Errorf("the evidence rows do not say not_cached: %v", rows)
+		if rows := evidenceReadings(t, runDir); len(rows) != 1 || rows[0]["copy_substitution"] != "not_cached" {
+			t.Errorf("the evidence row does not say not_cached: %v", rows)
 		}
 	})
 }

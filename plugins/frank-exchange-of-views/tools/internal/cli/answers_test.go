@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -138,8 +137,7 @@ const (
 	rowManifest     = "a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands)"
 	rowRegrade      = "a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)"
 	rowVerify       = "a new verification of the citation at your next sitting (a sitting holds one per --anchor, and this sitting's stands)"
-	rowCorroborate  = "a new corroboration of the source at your next sitting (a sitting holds one per --url, and this sitting's stands)"
-	rowBacking      = "a verification of the citation this corroboration placed, at your next sitting"
+	rowFoundSource  = "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now"
 	rowClose        = "a docket motion on the gap"
 	rowGradeRule    = "a docket motion on the gap"
 	rowDocketRule   = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
@@ -275,7 +273,7 @@ func answerDrives() []answerDrive {
 			d.nextSitting("judge")
 			d.refused("a regrade of a closed gap", "judge", regrade("low", "the first was wrong")...)
 		}},
-		{name: "verify", row: rowVerify, helps: []string{"lens verify"}, drive: func(d drive) {
+		{name: "verify", row: rowVerify, when: "for a verification of a citation", helps: []string{"lens verify"}, drive: func(d drive) {
 			withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/v": []byte("<html>the source</html>")}})
 			d.admitted("cite", "blue-respond", "cite", "--quote", quoteTwo, "--url", "https://src/v", "--title", "T")
 			anchor := firstCiteEvent(d.t, d.run).GetLabel()
@@ -287,43 +285,24 @@ func answerDrives() []answerDrive {
 			d.nextSitting(lensSeat)
 			d.admitted("the next sitting's verification", lensSeat, verify("weak")...)
 		}},
-		{name: "corroborate, a determination that does not back the claim", row: rowCorroborate,
-			when: "for a determination that does not back the claim", helps: []string{"lens corroborate"}, drive: func(d drive) {
-				withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>")}})
-				corroborate := func(as string) []string {
-					return []string{"corroborate", "--url", "https://src/c", "--title", "T", "--quote", quoteTwo, "--as", as, "--confidence", "high", "--reason", "it says otherwise"}
+		{name: "verify --url, a reading of a source the lens found", row: rowFoundSource,
+			when: "for a reading of a source you found", helps: []string{"lens verify"}, drive: func(d drive) {
+				withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>"), "https://src/d": []byte("<html>another source</html>")}})
+				read := func(url, quote, as string) []string {
+					args := []string{"verify", "--url", url, "--title", "T", "--quote", quote, "--as", as, "--confidence", "high", "--reason", "it says otherwise"}
+					if as == "refutes" {
+						args = append(args, gapFlagArgs("claim_contradicts_source")...)
+					}
+					return args
 				}
-				d.admitted("the first", lensSeat, corroborate("refutes")...)
-				d.endsWithRow(d.refused("a second on the source in the sitting", lensSeat, corroborate("refutes")...), rowCorroborate)
-				// Whatever the second determination: the key is the source.
-				d.endsWithRow(d.refused("a second with another determination", lensSeat, corroborate("absent")...), rowCorroborate)
+				d.admitted("the first", lensSeat, read("https://src/c", quoteTwo, "refutes")...)
+				d.endsWithRow(d.refused("a second of the source for the sentence in the sitting", lensSeat, read("https://src/c", quoteTwo, "refutes")...), rowFoundSource)
+				// Whatever the second determination: the reading is keyed on its source and its sentence.
+				d.endsWithRow(d.refused("a second with another determination", lensSeat, read("https://src/c", quoteTwo, "absent")...), rowFoundSource)
+				d.admitted("a reading of another source for the sentence, now", lensSeat, read("https://src/d", quoteTwo, "absent")...)
+				d.admitted("a reading of the source for another sentence, now", lensSeat, read("https://src/c", quoteThree, "absent")...)
 				d.nextSitting(lensSeat)
-				d.admitted("the next sitting's corroboration", lensSeat, corroborate("absent")...)
-			}},
-		{name: "corroborate, a determination that backs the claim", row: rowBacking,
-			when: "for a determination that backs the claim, which placed a citation", helps: []string{"lens corroborate"}, drive: func(d drive) {
-				withFetcher(d.t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>")}})
-				corroborate := []string{"corroborate", "--url", "https://src/c", "--title", "T", "--quote", quoteTwo, "--as", "supports", "--confidence", "high", "--reason", "it states it"}
-				d.admitted("the first", lensSeat, corroborate...)
-				placed := eventsOfWord(d.t, d.run, "verify")
-				if len(placed) != 1 || placed[0].GetVerify().GetLabel() == "" {
-					t := d.t
-					t.Fatalf("a backing corroboration is keyed on the label the tool mints, and this one holds none: %v", placed)
-				}
-				label := placed[0].GetVerify().GetLabel()
-				// A REPEAT IS NOT REFUSED: it answers idempotently and writes nothing, so this row
-				// reaches a seat through the help page alone.
-				if out := d.admitted("the same corroboration again", lensSeat, append(append([]string{}, corroborate...), "--json")...); !strings.Contains(out, `"idempotent":true`) || !strings.Contains(out, `"claim":`+strconv.Quote(quoteTwo)) {
-					d.t.Fatalf("a repeated backing corroboration is not answered as idempotent, with the claim it holds:\n%s", out)
-				}
-				if n := len(eventsOfWord(d.t, d.run, "verify")); n != 1 {
-					d.t.Fatalf("a repeated backing corroboration wrote %d verify events, want the one", n)
-				}
-				verify := []string{"verify", "--anchor", label, "--as", "weak", "--confidence", "low", "--reason", "on rereading it only gestures at it"}
-				// "at your next sitting": this sitting's verification of that citation shares the key.
-				d.endsWithRow(d.refused("a verification of the placed citation in the same sitting", lensSeat, verify...), rowVerify)
-				d.nextSitting(lensSeat)
-				d.admitted("the next sitting's verification of the placed citation", lensSeat, verify...)
+				d.admitted("the next sitting's reading", lensSeat, read("https://src/c", quoteTwo, "absent")...)
 			}},
 		{name: "close, the lens", row: rowClose, helps: []string{"lens close"}, drive: func(d drive) {
 			d.closeG1(lensSeat)

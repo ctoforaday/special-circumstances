@@ -97,6 +97,10 @@ func (b Blocker) AnsweredBy() string { return b.answeredBy }
 // CheckState is a failed check's state, "" for every other kind.
 func (b Blocker) CheckState() CheckState { return b.state }
 
+// Since is the events.id a blocker arose at — for a failed check, the reading that failed it — and 0
+// for the kinds that carry none.
+func (b Blocker) Since() int64 { return b.since }
+
 // owed reports whether a failed check's own seat owes its gap: an unread or unsound check no gap
 // carries (failedCheck.owed).
 func (b Blocker) owed() bool {

@@ -342,3 +342,30 @@ func MustEnum(typ, key string) EnumField {
 	}
 	return e
 }
+
+// ReadingClassField is the class a reading's gap may take, as `verify --class` registers it: the mint's
+// class field (its key, flag and why) narrowed to the classes some reading admits — the union, over
+// every SourceOutcome, of its `gap_classes` (a reading of a citation) and its
+// `found_source_gap_classes` (a reading of a source the lens found), read off the descriptor. A
+// Verify has no class field, so no EnumFields row declares it: the class is the reading's Mint's. The
+// parse refuses a class outside the union; ReadingGapClasses then narrows to the form's and the
+// outcome's at the write.
+func ReadingClassField() EnumField {
+	e := MustEnum("mint", "class")
+	admitted := map[recordpb.GapClass]bool{}
+	vals := recordpb.SourceOutcome(0).Descriptor().Values()
+	for i := range vals.Len() {
+		o := recordpb.SourceOutcome(vals.Get(i).Number())
+		for _, c := range append(recordpb.GapClassesOf(o), recordpb.FoundSourceGapClassesOf(o)...) {
+			admitted[c] = true
+		}
+	}
+	var narrowed []EnumValue
+	for _, v := range e.Values {
+		if c, ok := GapClassOf(v.Name); ok && admitted[c] {
+			narrowed = append(narrowed, v)
+		}
+	}
+	e.Values = narrowed
+	return e
+}

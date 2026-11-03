@@ -16,8 +16,8 @@ const keysOnKey = "feov.keys_on"
 
 // KeysOn declares which key fields this verb's act can be keyed on. One event type written by two
 // verbs with different keys is answered differently per key (record's superseders), and the verb
-// is where the key is decided — `verify` names a citation, `corroborate` a source, and the tool
-// mints a label when that source backs the claim. teachAnswer reads it to show a verb its own
+// is where the key is decided — `verify --anchor` names a citation, and `verify --url` takes the
+// ordinal key. teachAnswer reads it to show a verb its own
 // rows; TestEveryHelpAnswerIsAdmitted drives each declared field and fails one the verb's act is
 // not keyed on.
 func KeysOn(c *cobra.Command, fields ...string) *cobra.Command {

@@ -128,7 +128,7 @@ func newRetire() *cobra.Command {
 			// A MARKER INSIDE A SENTENCE IS NEVER BARE: when the claim was a clause, the rest of the
 			// sentence still stands before its marker. The seat names it, and the tool checks the name
 			// against the edit that left the marker alone. B9's G4 was two retires that took nothing
-			// and said nothing, over a corroboration marker on a mid-sentence clause.
+			// and said nothing, over a citation marker on a mid-sentence clause.
 			left := leftByTheCut(claim, spans)
 			for _, id := range named.Value() {
 				if err := namedExits(md, claim, id, left, spans); err != nil {

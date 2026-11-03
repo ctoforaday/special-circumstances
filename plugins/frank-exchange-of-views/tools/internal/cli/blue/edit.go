@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -332,12 +333,51 @@ type Accepted struct {
 // on, its anchor placed — so a verified fix is one the accept applies, and one the accept would refuse
 // is refused at the mint. Two judges of one pair are how a mint came to verify fixes every accept
 // refused (m25: 0 of 3 applied).
+//
+// THE PAIR CARRIES THE GAP'S TOKEN, which the report holds once by construction (record.ProposalOver
+// locates the span by it). Where the gap's sentence is words the report holds more than once — a
+// reading's gap is placed by its citation's identity, not by text — the ordinary locate, which skips
+// the anchor layer, finds every copy and refuses the pair as ambiguous; the accept then takes the
+// span byte for byte (planExact), the cited occurrence alone, and records it as an exact span that
+// replay reads and never re-decides.
 func PlanAccept(report, gapID, loc, fix string) (Accepted, error) {
 	old, new := record.ProposalOver(report, gapID, loc, fix)
 	if err := typedPair(old, new); err != nil {
 		return Accepted{}, err
 	}
+	if _, _, err := anchortext.LocateOnce(report, old, anchortext.CrossParagraphs); errors.Is(err, anchortext.ErrAmbiguous) && strings.Contains(old, anchor.Token(gapID)) {
+		if a, ok, err := planExact(report, old, new); ok {
+			return a, err
+		}
+	}
 	return planTyped(report, old, new)
+}
+
+// planExact is the edit of old by new over report at old's literal span (bluedoc.LocateLiteral),
+// held to the checks every planned edit meets — anchors transit unchanged, no marker dropped, no
+// terminator doubled, a change made, a composed document — and false where old does not occur
+// byte for byte exactly once.
+func planExact(report, old, new string) (Accepted, bool, error) {
+	start, end, _, ok := bluedoc.LocateLiteral(report, old)
+	if !ok {
+		return Accepted{}, false, nil
+	}
+	applied, err := bluedoc.AnchorsTransitUnchanged(report[start:end], new)
+	if err != nil {
+		return Accepted{}, true, err
+	}
+	planned := reportproj.ApplySplice(report, start, end, applied)
+	if planned == report {
+		return Accepted{}, true, &reportproj.NoChangeError{}
+	}
+	if dropped := droppedMarker(report, planned); dropped != "" {
+		return Accepted{}, true, feov.Errorf(feov.Internal, "internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+	}
+	if run := reportproj.DoubledTerminator(report, planned); run != "" {
+		return Accepted{}, true, feov.Errorf(feov.Validation, "this replacement would leave %q in the report — a terminator beside another, where the edit meets the text it keeps", run)
+	}
+	a := Accepted{Old: old, New: new, Planned: planned, Applied: applied, Exact: true}
+	return a, true, composedRefusal(report, planned)
 }
 
 // planTyped is the edit of old by new over report, as every edit plans it.

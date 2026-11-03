@@ -160,32 +160,6 @@ func TestASuccessorOfTheOpenGapIsAdmitted(t *testing.T) {
 	}
 }
 
-// The gap minted from the finding that raised a contradiction is the contradiction's one answer, so
-// an open gap of its class on its sentence does not refuse it.
-func TestAContradictionsAnsweringGapIsAdmitted(t *testing.T) {
-	runDir, anchor := citedClause(t)
-	registerChairOnce(t, runDir)
-	if out, err := verifyAs(t, runDir, anchor, "refutes"); err != nil {
-		t.Fatalf("verify: %v\n%s", err, out)
-	}
-	const class = "citation_figure_misattribution"
-	held, out, err := mintOn(t, runDir, class, "the sentence misstates its source", "--quote", verifiedSentence)
-	if err != nil {
-		t.Fatalf("the open gap: %v\n%s", err, out)
-	}
-	if _, out, err := mintOn(t, runDir, class, "the sentence misstates its source again", "--quote", verifiedSentence); err == nil {
-		t.Fatalf("a second gap of the class on the sentence, answering nothing, was admitted: %s", out)
-	}
-	raising := lensFinding(t, runDir, lensSeat, "k1", "--about-kind", "contradiction", "--about", unansweredContradictions(t, runDir)[0].ID)
-	answer, out, err := mintOn(t, runDir, class, "the source says the sky is green", "--quote", verifiedSentence, "--found-by", raising)
-	if err != nil {
-		t.Fatalf("the gap answering the contradiction was refused beside %s: %v\n%s", held, err, out)
-	}
-	if answer == "" || len(unansweredContradictions(t, runDir)) != 0 {
-		t.Errorf("the answering mint %q left the contradiction unanswered", answer)
-	}
-}
-
 // TWO CONCURRENT MINTS ARE ONE GAP AND ONE REFUSAL. Another lens's mint of the same class on the same
 // sentence commits on its own connection at the instant this lens's write opens its transaction
 // (runtest.Overtaken); the check runs under the write lock, so it reads the other gap.

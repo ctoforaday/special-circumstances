@@ -340,7 +340,7 @@ func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, s
 	}
 	refuseFound := func(url string, at int64, gap string) error {
 		return feov.Errorf(feov.Conflict,
-			"your reading of %s for this sentence at event %d (%s) is carried by gap %s, which is open, and the sentence has not changed — nothing is recorded; the reading and its gap stand. "+
+			"your reading of %s for this sentence at event %d (%s) stands, gap %s carries it and is open, and the sentence has not changed — nothing is recorded; the reading and its gap stand. "+
 				"A reading of yours with another outcome is recorded",
 			url, at, recordpb.Word(v.GetOutcome()), gap)
 	}

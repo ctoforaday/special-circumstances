@@ -21,11 +21,11 @@ import (
 // refuse — the fixtures were demonstrating the bug.
 func seedReferents(t *testing.T, runDir string) {
 	t.Helper()
-	// THE REPORT IS PART OF THE WORLD THESE VERBS OPERATE IN. A supporting `lens corroborate`
-	// splices a citation anchor at the claim, so the claim must be a real span of the live
-	// document — the same rule blue's cite has always been held to. Without this the corroborate
-	// case was refused for quoting a sentence that existed nowhere, which reads as the verb being
-	// broken rather than as the fixture being a placeholder.
+	// THE REPORT IS PART OF THE WORLD THESE VERBS OPERATE IN. A reading of a source the lens found
+	// quotes the report's sentence, which must be a real span of the live document — the same rule
+	// blue's cite has always been held to. Without this the reading was refused for quoting a sentence
+	// that existed nowhere, which reads as the verb being broken rather than as the fixture being a
+	// placeholder.
 	seedBlueReport(t, runDir)
 	// THE LENS MINTS (plans/roundless.md §III.B.3). The chair sits first so the epoch is 1, then
 	// `lensSeat` mints — and is the seat that closes G2 below, because the originator closes.
@@ -91,14 +91,14 @@ func TestVerbPayloads(t *testing.T) {
 		says string
 	}{
 		{
-			name: "lens corroborate records the access date under its payload name",
-			path: []string{"corroborate"}, seatID: "red-lens-evidence",
-			// THE QUOTE IS A REAL SPAN of the seeded report. A supporting corroboration splices a
-			// citation anchor at the claim, so the claim must be in the live document — the same
-			// rule blue's cite is held to. `"the claim"` was a placeholder and is now refused.
+			name: "lens verify --url records the access date under its payload name",
+			path: []string{"verify"}, seatID: "red-lens-evidence",
+			// THE QUOTE IS A REAL SPAN of the seeded report: a reading's quote is held to the live
+			// document — the same rule blue's cite is held to. `"the claim"` was a placeholder and is
+			// now refused.
 			args: []string{"--quote", "the parser accepts an empty body in this line.",
 				"--url", "https://example.test/a", "--title", "Example A",
-				"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+				"--as", "absent", "--confidence", "high", "--reason", "read at the leaf",
 				"--access-date", "2026-07-18"},
 			typ: recordpb.EventType_EVENT_TYPE_VERIFY,
 			// The flag is --access-date; the payload key is access_date, and the
@@ -107,18 +107,18 @@ func TestVerbPayloads(t *testing.T) {
 				// `text`, not `reason`: --reason is the flag, and a verify stores its reading as
 				// `text`. The old key named a field Verify does not carry, so the row asserted
 				// nothing until fieldText started failing on an unknown name.
-				"outcome": "supports", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
-			says: "corroborating source Example A verified: supports",
+				"outcome": "absent", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
+			says: "source Example A (https://example.test/a) does NOT contain the claim",
 		},
 		{
-			name: "lens corroborate without an access date leaves the key absent",
-			path: []string{"corroborate"}, seatID: "red-lens-evidence",
-			args: []string{"--quote", "§1 first — a finding sits in sec 1 here.", "--url", "https://example.test/b", "--title", "Example B",
-				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
+			name: "lens verify --url without an access date leaves the key absent",
+			path: []string{"verify"}, seatID: "red-lens-evidence",
+			args: append([]string{"--quote", "§1 first — a finding sits in sec 1 here.", "--url", "https://example.test/b", "--title", "Example B",
+				"--as", "refutes", "--confidence", "low", "--reason", "it says otherwise"}, gapFlagArgs("claim_contradicts_source")...),
 			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
-			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "weak", "confidence": "low"},
+			want:   map[string]string{"url": "https://example.test/b", "title": "Example B", "outcome": "refutes", "confidence": "low"},
 			absent: []string{"access_date"},
-			says:   "corroborating source Example B verified: weak",
+			says:   "source Example B (https://example.test/b) REFUTES the claim",
 		},
 		{
 			name: "motion grade rule records the chair's answer",
