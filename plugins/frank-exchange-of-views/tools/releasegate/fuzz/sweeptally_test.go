@@ -114,6 +114,7 @@ type runTally struct {
 	OrdersRefused              int                       `json:"orders_refused"`
 	SpansRefused               int                       `json:"spans_refused"`
 	LeftOutRefused             int                       `json:"left_out_refused"`
+	MintBareRefused            int                       `json:"mint_bare_refused"`
 	SourceSearches             int                       `json:"source_searches"`
 	CopiesRead                 map[string]map[string]int `json:"copies_read"`
 	FragmentsDriven            int                       `json:"fragments_driven"`
@@ -180,7 +181,7 @@ func tallyOf(o outcome) runTally {
 		Estoppels: o.estoppels, InquiryRecords: o.inquiryRecords, ClosingsFiled: o.closingsFiled,
 		ClosingsRefused: o.closingsRefused, ClosingWaits: o.closingWaits, PositionsWithheld: o.positionsWithheld,
 		PositionsUpheldLens: o.positionsUpheldLens, PositionsUpheldGaps: o.positionsUpheldGaps, PositionsOverruled: o.positionsOverruled,
-		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, LeftOutRefused: o.leftOutRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
+		OrdersRefused: o.ordersRefused, SpansRefused: o.spansRefused, LeftOutRefused: o.leftOutRefused, MintBareRefused: o.mintBareRefused, SourceSearches: o.sourceSearches, CopiesRead: o.copiesRead,
 		FragmentsDriven: o.fragmentsDriven, TruncationsDriven: o.truncationsDriven, QuotesRefused: o.quotesRefused,
 		BridgesRefused: o.bridgesRefused, BridgesNamed: o.bridgesNamed, ReopenedReadied: o.reopenedReadied,
 		ReopenedPlans: o.reopenedPlans, UnsoundReadied: o.unsoundReadied, UnsoundPlans: o.unsoundPlans,
@@ -521,7 +522,7 @@ type sweepFold struct {
 	inquiryRecords, quotesRefused                   int
 	bridgesRefused, bridgesNamed                    int
 	ordersRefused, spansRefused, forcedSpansRefused int
-	leftOutRefused                                  int
+	leftOutRefused, mintBareRefused                 int
 	sourceSearches                                  int
 	copiesRead                                      map[string]map[string]int
 	closingsFiled, closingsRefused, closingWaits    int
@@ -610,6 +611,7 @@ func foldRuns(runs []runTally) sweepFold {
 		f.ordersRefused += r.OrdersRefused
 		f.spansRefused += r.SpansRefused
 		f.leftOutRefused += r.LeftOutRefused
+		f.mintBareRefused += r.MintBareRefused
 		f.sourceSearches += r.SourceSearches
 		if r.Seed == absentSpanSeed {
 			f.forcedSpansRefused += r.SpansRefused
@@ -728,6 +730,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 	t.Logf("unsound computations: %d plan(s) readied the judge or blue for every unsound computation they held (of %d holding one), %d of them seed %d's forced run; %d gap(s) minted carrying an unsound judgement", f.unsoundReadied, f.unsoundPlans, f.forcedUnsoundReadied, unsoundComputationSeed, f.unsoundAnswers)
 	t.Logf("source spans: %d cite(s) refused for a span the source does not hold, %d of them seed %d's forced run", f.spansRefused, f.forcedSpansRefused, absentSpanSeed)
 	t.Logf("left-out anchors: %d edit(s) refused for leaving bare an anchor their quote left out, all seed %d's forced run", f.leftOutRefused, leftOutSeed)
+	t.Logf("bare prescriptions: %d mint(s) refused for a prescription that would leave a citation bare, all seed %d's forced run", f.mintBareRefused, mintBareSeed)
 	t.Logf("source searches: %d search(es) of a cited source whose every hit's source_span is the span cite took", f.sourceSearches)
 	if f.completed > 0 && (f.unsoundReadied == 0 || f.unsoundAnswers == 0) {
 		t.Errorf("fuzz readied for an unsound computation in %d plan(s) (of %d holding one) and minted %d gap(s) carrying one, across %d runs — the unsound-computation blocker's readiness or its answering gap is unexercised (false green)", f.unsoundReadied, f.unsoundPlans, f.unsoundAnswers, f.completed)
@@ -893,6 +896,11 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// one that leaves an anchor out is reached only by the forced drive.
 		if f.leftOutRefused == 0 {
 			t.Errorf("seed %d's forced run drove ZERO edits refused for leaving bare an anchor their quote left out across %d runs — the refusal that keeps an orphan anchor out of the report is unexercised (false green)", leftOutSeed, f.completed)
+		}
+		// THE BARE-PRESCRIPTION GATE. No drawn prescription leaves an anchor bare, so the mint's refusal
+		// of one is reached only by the forced drive.
+		if f.mintBareRefused == 0 {
+			t.Errorf("seed %d's forced run drove ZERO mints refused for a prescription that would leave a citation bare across %d runs — the refusal that keeps an unappliable fix off the board is unexercised (false green)", mintBareSeed, f.completed)
 		}
 		// THE SOURCE-SEARCH GATE. A search of a cited source prints, at each hit, the span cite takes;
 		// the drive that searches every admitted cite's source is the only one that checks it.
