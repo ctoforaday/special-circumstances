@@ -274,7 +274,7 @@ func TestEveryRegisteredHookBinaryIsGatedOrNamedUngated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot locate the repository root: %v", err)
 	}
-	manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", "hooks", "hooks.json")
+	manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", ".claude-plugin", "hooks.json")
 	raw, err := os.ReadFile(manifest)
 	if err != nil {
 		t.Fatalf("cannot read the hook manifest, which is what decides which binaries run: %v", err)

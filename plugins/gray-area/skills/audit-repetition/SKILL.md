@@ -7,7 +7,7 @@ Report repetition from the trajectory. Model [[terse-communication]]: relay the 
 
 The grouping logic lives in the tested binary, not in this prompt. Your job is to run it and report what it says.
 
-1. Run `${CLAUDE_PLUGIN_ROOT}/bin/gray-area` (`.exe` on Windows) as `gray-area stalls` for the [[anti-spinning]] question, or `gray-area rework` for every repeated act. Pass `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used.
+1. Run `gray-area` (`B="${CLAUDE_PLUGIN_ROOT}/bin/gray-area"; [ -x "$B" ] || B="gray-area"; "$B"` as `gray-area stalls` for the [[anti-spinning]] question, or `gray-area rework` for every repeated act; append `.exe` on Windows). Pass `--json` straight through if the caller gave it. With no transcript argument the binary resolves this session's from gray-area's own manifest and prints which row it used.
 2. Relay the rows verbatim, including the coverage line at the end.
 3. Both exit 0. **Repetition is not a failure**, and neither verb is a gate.
 

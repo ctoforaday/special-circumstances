@@ -49,7 +49,7 @@ func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hooksPath, err := repotree.Plugin("hooks", "hooks.json")
+	hooksPath, err := repotree.Plugin(".claude-plugin", "hooks.json")
 	if err != nil {
 		t.Fatal(err)
 	}

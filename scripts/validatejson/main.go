@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	bad, hooks := 0, 0
+	bad, claudeHooks, agyHooks := 0, 0, 0
 	for _, f := range files {
 		b, err := os.ReadFile(filepath.Join(root, f))
 		if err != nil {
@@ -55,21 +55,30 @@ func main() {
 			continue
 		}
 		if isPluginHooks(f) {
-			hooks++
+			claudeHooks++
 			for _, p := range hookKeyProblems(b) {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", f, p)
 				bad++
 			}
 		}
+		if isAntigravityPluginHooks(f) {
+			agyHooks++
+			for _, p := range antigravityHookKeyProblems(b) {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", f, p)
+				bad++
+			}
+		}
 	}
-	if hooks == 0 {
-		// Every plugin that registers a hook has one of these; none found means the pattern
-		// stopped matching, and a key check that checked nothing must not read as a pass.
-		fmt.Fprintln(os.Stderr, "validate-json: no plugins/*/hooks/hooks.json is tracked — the pattern is wrong, not the tree")
+	if claudeHooks == 0 {
+		fmt.Fprintln(os.Stderr, "validate-json: no plugins/*/.claude-plugin/hooks.json is tracked — the pattern is wrong, not the tree")
+		bad++
+	}
+	if agyHooks == 0 {
+		fmt.Fprintln(os.Stderr, "validate-json: no plugins/*/hooks.json is tracked — the pattern is wrong, not the tree")
 		bad++
 	}
 	if bad > 0 {
 		os.Exit(1)
 	}
-	fmt.Printf("%d JSON files valid, %d plugin hooks.json held to the documented keys\n", len(files), hooks)
+	fmt.Printf("%d JSON files valid, %d Claude and %d Antigravity plugin hooks.json held to documented keys\n", len(files), claudeHooks, agyHooks)
 }

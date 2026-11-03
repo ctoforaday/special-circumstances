@@ -1639,7 +1639,7 @@ jobs:
           EMPTY="$(mktemp -d)"
           node -e "
             const fs = require('fs');
-            const files = fs.globSync('plugins/*/hooks/hooks.json');
+            const files = fs.globSync('plugins/*/.claude-plugin/hooks.json');
             if (!files.length) { console.error('no hooks.json found — the glob is wrong'); process.exit(1); }
             const rows = [];
             for (const f of files) {

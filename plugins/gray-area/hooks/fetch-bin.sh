@@ -19,7 +19,7 @@
 #
 # `hook` always exits 0 and never waits on the network: a guard must not fail or slow a tool call.
 
-ROOT=${CLAUDE_PLUGIN_ROOT:-}
+ROOT=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}}
 SELF=$0
 STATE=
 [ -n "$ROOT" ] && STATE="$ROOT/.fetch"
@@ -30,8 +30,11 @@ DISPLAYING=0
 # field prints a top-level string field of plugin.json, or nothing. Top level is the two-space
 # indent: author.name sits deeper and must not answer for name.
 field() {
-	[ -n "$ROOT" ] && [ -f "$ROOT/.claude-plugin/plugin.json" ] || return 0
-	sed -n "s/^  \"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$ROOT/.claude-plugin/plugin.json" | head -n 1
+	if [ -n "$ROOT" ] && [ -f "$ROOT/.claude-plugin/plugin.json" ]; then
+		sed -n "s/^  \"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$ROOT/.claude-plugin/plugin.json" | head -n 1
+	elif [ -n "$ROOT" ] && [ -f "$ROOT/.antigravity-plugin/plugin.json" ]; then
+		sed -n "s/^  \"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$ROOT/.antigravity-plugin/plugin.json" | head -n 1
+	fi
 }
 
 # clean makes text safe inside a JSON string: it drops double quotes and backslashes (octal 042,
@@ -59,6 +62,12 @@ speak() {
 		: >"$mark" 2>/dev/null
 	fi
 	m=$(printf '%s' "$2" | clean)
+	if { [ -n "${ANTIGRAVITY_CONVERSATION_ID:-}" ] || [ -n "${PLUGIN_ROOT:-}" ]; } && [ -z "${CLAUDE_PLUGIN_ROOT:-}" ] && [ "${SC_ENSURE_INTERNAL:-}" != "1" ]; then
+		if [ "$EVENT" = SessionStart ] || [ "$EVENT" = PreInvocation ]; then
+			printf '{"injectSteps":[{"systemMessage":{"systemMessage":"%s","metadata":{"user_markdown":"%s"}}}]}\n' "$m" "$m"
+		fi
+		return 0
+	fi
 	if [ "$EVENT" = SessionStart ]; then
 		printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$m" "$m"
 	else
