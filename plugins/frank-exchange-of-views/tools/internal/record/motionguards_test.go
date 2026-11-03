@@ -220,7 +220,7 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 		  SELECT a."inquiry", mr."opinion", w."epoch"
 		  FROM "motion_answers" a
 		  LEFT JOIN "motion_rule" mr ON mr."event_id" = a."ruled_seq"
-		  LEFT JOIN "events_w" w ON w."id" = a."ruled_seq"
+		  LEFT JOIN "events" w ON w."id" = a."ruled_seq"
 		  WHERE a."motion_id" = ?`, a.ID).Scan(&ruling, &why, &epoch)
 		if err != nil && err != sql.ErrNoRows {
 			t.Fatal(err)

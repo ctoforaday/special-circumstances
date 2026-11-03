@@ -123,7 +123,7 @@ type Context struct {
 	SeatID string
 	Role   string
 	// There is no epoch here. The epoch (chair sittings) and the sitting ordinal are windows the
-	// record computes over its stored sittings at read time (events_w); a seat never carries
+	// record stamps on each row at the write (events.epoch, events.sitting); a seat never carries
 	// or stamps either. The epoch was once injected by the dispatcher and before that recovered
 	// from the seat id by regex (#348).
 	// RunVia says which of the three paths supplied the run — the hook's injection, the seat's

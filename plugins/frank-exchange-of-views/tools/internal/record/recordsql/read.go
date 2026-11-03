@@ -44,7 +44,7 @@ import (
 // # Each event comes back with the window it sits in
 //
 // The second slice is aligned with the first by position: where each event sits on the record,
-// read off events_w, the stored sitting_id and that sitting's owner in ONE statement. A reader that
+// read off the row's stored sitting_id, sitting and epoch and that sitting's owner in ONE statement. A reader that
 // needs which sitting an act belongs to takes it from here rather than counting openings over the
 // slice — the write path decided that once (sittingOf), and a second count is a second definition.
 //
@@ -61,10 +61,8 @@ func Events(db Querier) ([]*recordpb.Event, []Window, error) {
 // the rest is read beside it. OWNER is the seat whose sitting that is (the `sittings` view's owner:
 // a register's seat, or the seat a hook bracket's body names). SITTING is the rank of that sitting
 // among its owner's, and EPOCH is how many of the chair's sittings opened at or before this row.
-// Both numbers come off the events_w view, which ranks the stored sittings; neither is stamped on
-// the row, and nothing in Go counts them again. The envelope's own history says why: seq, nonce and
-// epoch were each a derivation stored at the write, each cost the write a read, and each was
-// retired once the record could simply be asked.
+// Both numbers are columns of the row, stamped by the write beside SittingID (sittingOf), and
+// nothing in Go counts them again.
 //
 // A row in no sitting — the harness's own bookkeeping, a cast, a seat's act before it ever sat —
 // has SittingID 0, Owner "" and Sitting 0. An OPENING is a row whose SittingID is its own ID.
@@ -134,19 +132,16 @@ func EventAt(db Querier, id int64) (*recordpb.Event, error) {
 	return evs[0], nil
 }
 
-// eventsWhere is the one read path. withWindows reads each row's Window beside it, off events_w
-// joined to the stored sitting_id and the `sittings` view's owner, in one statement; without it the
-// read is the events table alone. events_w ranks every sitting on the record, so a windowed read
-// pays for the whole record however narrow its WHERE: a read by one key, which prints no window,
-// does not ask for one.
+// eventsWhere is the one read path. withWindows reads each row's Window beside it — the stored
+// sitting_id, sitting and epoch, and the `sittings` view's owner — in one statement; without it the
+// read is the events table alone. A read by one key prints no window and does not ask for one.
 func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
 	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
-		q = `SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting",
+		q = `SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting",
 		            COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')
-		     FROM "events_w" w
-		     JOIN "events" e ON e."id" = w."id"
-		     LEFT JOIN "sittings" s ON s."id" = e."sitting_id"` + where + ` ORDER BY w."id"`
+		     FROM "events" e
+		     LEFT JOIN "sittings" s ON s."id" = e."sitting_id"` + where + ` ORDER BY e."id"`
 	}
 	rows, err := db.Query(q, args...)
 	if err != nil {

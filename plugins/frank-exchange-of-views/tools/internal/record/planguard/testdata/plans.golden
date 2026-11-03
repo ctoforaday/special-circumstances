@@ -19,204 +19,109 @@
 
 == view board_counts
   CO-ROUTINE board_counts
-    SCAN CONSTANT ROW
-    SCALAR SUBQUERY
-      MATERIALIZE seat_sitting
+    MATERIALIZE gap_grade
+      CO-ROUTINE graded
         CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+          CO-ROUTINE turn
+            MERGE (UNION)
+              LEFT
+                SCAN m
+              RIGHT
+                SCAN m
+                SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
+          SCAN t
+          SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+        SCAN (subquery)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+      SCAN g
+      SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+      SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+      SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    MATERIALIZE closure
+      CO-ROUTINE closure_act
+        COMPOUND QUERY
+          LEFT-MOST SUBQUERY
+            SCAN c
+          UNION ALL
+            SCAN rd
+            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+            SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+            SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+      SCAN closure_act
+      USE TEMP B-TREE FOR GROUP BY
+    MATERIALIZE latest_remand
+      CO-ROUTINE (subquery)
+        CO-ROUTINE (subquery)
+          CO-ROUTINE remand
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                SCAN rd
+                SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+                SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+                SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+              UNION ALL
+                SCAN rp
+                SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+          SCAN remand
           USE TEMP B-TREE FOR ORDER BY
         SCAN (subquery)
-      MATERIALIZE gap_grade
-        CO-ROUTINE graded
-          CO-ROUTINE (subquery)
-            CO-ROUTINE turn
-              MERGE (UNION)
-                LEFT
-                  SCAN m
-                RIGHT
-                  MATERIALIZE act
-                    SCAN r
-                  SCAN a
-                  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  USE TEMP B-TREE FOR ORDER BY
-            SCAN t
-            SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-          SCAN (subquery)
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-        SCAN g
-        SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-      MATERIALIZE cx
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN c0
-        USE TEMP B-TREE FOR GROUP BY
-      MATERIALIZE bc
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN b0
-        USE TEMP B-TREE FOR GROUP BY
-      SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-      BLOOM FILTER ON gg (minted_event=?)
-      SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-      BLOOM FILTER ON cx (gap_id=?)
-      SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-      BLOOM FILTER ON bc (gap_id=?)
-      SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-    SCALAR SUBQUERY
-      MATERIALIZE seat_sitting
+      SCAN (subquery)
+    MATERIALIZE unruled_docket
+      SCAN md USING COVERING INDEX motion_docket_gap
+      SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+    MATERIALIZE superseded
+      CO-ROUTINE s
         CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+          SCAN mint_supersedes
           USE TEMP B-TREE FOR ORDER BY
         SCAN (subquery)
-      MATERIALIZE gap_grade
-        CO-ROUTINE graded
-          CO-ROUTINE (subquery)
-            CO-ROUTINE turn
-              MERGE (UNION)
-                LEFT
-                  SCAN m
-                RIGHT
-                  MATERIALIZE act
-                    SCAN r
-                  SCAN a
-                  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  USE TEMP B-TREE FOR ORDER BY
-            SCAN t
-            SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-          SCAN (subquery)
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-        SCAN g
-        SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-      MATERIALIZE cx
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN c0
-        USE TEMP B-TREE FOR GROUP BY
-      MATERIALIZE bc
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN b0
-        USE TEMP B-TREE FOR GROUP BY
-      SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-      BLOOM FILTER ON gg (minted_event=?)
-      SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-      BLOOM FILTER ON cx (gap_id=?)
-      SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-      BLOOM FILTER ON bc (gap_id=?)
-      SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+      SCAN s
+      SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+    MATERIALIZE computed
+      SEARCH computation USING COVERING INDEX computation_answers (answers>?)
+    SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
+    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+    BLOOM FILTER ON gg (minted_event=?)
+    SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
+    BLOOM FILTER ON c (gap_id=?)
+    SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON lr (gap_id=?)
+    SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON ud (gap_id=?)
+    SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON sp (gap_id=?)
+    SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON cp (gap_id=?)
+    SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    SEARCH um USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     SCALAR SUBQUERY
       SCAN events USING COVERING INDEX events_sitting
   SCAN board_counts
 
 == view change
-  CO-ROUTINE change
+  CO-ROUTINE x
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
-        MATERIALIZE seat_sitting
-          CO-ROUTINE (subquery)
-            SCAN e USING INDEX events_sitting
-            SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            USE TEMP B-TREE FOR ORDER BY
-          SCAN (subquery)
         SCAN b
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        BLOOM FILTER ON ss (id=?)
-        SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-        CORRELATED SCALAR SUBQUERY
-          MATERIALIZE chair_sitting
-            CO-ROUTINE (subquery)
-              SCAN e
-              SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            SCAN (subquery)
-          SCAN cs
-          USE TEMP B-TREE FOR ORDER BY
       UNION ALL
-        MATERIALIZE seat_sitting
-          CO-ROUTINE (subquery)
-            SCAN e USING INDEX events_sitting
-            SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            USE TEMP B-TREE FOR ORDER BY
-          SCAN (subquery)
         SCAN ra
         SEARCH r USING INTEGER PRIMARY KEY (rowid=?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-        BLOOM FILTER ON ss (id=?)
-        SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-        CORRELATED SCALAR SUBQUERY
-          MATERIALIZE chair_sitting
-            CO-ROUTINE (subquery)
-              SCAN e
-              SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-            SCAN (subquery)
-          SCAN cs
-          USE TEMP B-TREE FOR ORDER BY
-  SCAN change
+  SCAN x
+  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
 
 == view closure_act
   COMPOUND QUERY
@@ -234,12 +139,6 @@
     CO-ROUTINE (subquery)
       CO-ROUTINE at
         MATERIALIZE point
-          MATERIALIZE seat_sitting
-            CO-ROUTINE (subquery)
-              SCAN e USING INDEX events_sitting
-              SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-              USE TEMP B-TREE FOR ORDER BY
-            SCAN (subquery)
           MULTI-INDEX OR
             INDEX 1
               SEARCH e USING INDEX events_type (type=?)
@@ -249,37 +148,11 @@
               SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
           SCALAR SUBQUERY
             SEARCH events
-          BLOOM FILTER ON ss (id=?)
-          SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
           SEARCH v USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-          CORRELATED SCALAR SUBQUERY
-            MATERIALIZE chair_sitting
-              CO-ROUTINE (subquery)
-                SCAN e
-                SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-              SCAN (subquery)
-            SCAN cs
-            USE TEMP B-TREE FOR ORDER BY
         MATERIALIZE board
           MATERIALIZE minted
-            MATERIALIZE seat_sitting
-              CO-ROUTINE (subquery)
-                SCAN e USING INDEX events_sitting
-                SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-                USE TEMP B-TREE FOR ORDER BY
-              SCAN (subquery)
             SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
             SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-            BLOOM FILTER ON ss (id=?)
-            SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-            CORRELATED SCALAR SUBQUERY
-              MATERIALIZE chair_sitting
-                CO-ROUTINE (subquery)
-                  SCAN e
-                  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-                SCAN (subquery)
-              SCAN cs
-              USE TEMP B-TREE FOR ORDER BY
             CORRELATED SCALAR SUBQUERY
               SEARCH s USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
           MATERIALIZE held
@@ -290,34 +163,27 @@
                     LEFT
                       SCAN m
                     RIGHT
-                      MATERIALIZE act
-                        SCAN r
-                      SCAN a
-                      SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                      USE TEMP B-TREE FOR ORDER BY
+                      SCAN m
+                      SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
                 SCAN t
                 SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
               SCAN (subquery)
               CORRELATED SCALAR SUBQUERY
-                SCAN a
-                USE TEMP B-TREE FOR ORDER BY
+                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
               CORRELATED SCALAR SUBQUERY
-                SCAN a
-                USE TEMP B-TREE FOR ORDER BY
+                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
               CORRELATED SCALAR SUBQUERY
-                SCAN a
-                USE TEMP B-TREE FOR ORDER BY
+                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
               CORRELATED SCALAR SUBQUERY
-                SCAN a
-                USE TEMP B-TREE FOR ORDER BY
+                SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
             SCAN g
             SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
             SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
             SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
           SCAN p
-          SCAN h
-          BLOOM FILTER ON b (minted_event=?)
-          SEARCH b USING AUTOMATIC COVERING INDEX (minted_event=?)
+          SCAN b
+          BLOOM FILTER ON h (minted_event=?)
+          SEARCH h USING AUTOMATIC COVERING INDEX (minted_event=?)
           CORRELATED SCALAR SUBQUERY
             MATERIALIZE closed
               COMPOUND QUERY
@@ -340,32 +206,7 @@
     SCAN (subquery)
   SCAN convergence_at
 
-== view events_w
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  SCAN e
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-
 == view gap
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
@@ -374,31 +215,24 @@
             LEFT
               SCAN m
             RIGHT
-              MATERIALIZE act
-                SCAN r
-              SCAN a
-              SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              USE TEMP B-TREE FOR ORDER BY
+              SCAN m
+              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
         SCAN t
         SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
       SCAN (subquery)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-  MATERIALIZE cx
+  MATERIALIZE closure
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
@@ -409,137 +243,63 @@
           SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
           SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
           SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN c0
+    SCAN closure_act
     USE TEMP B-TREE FOR GROUP BY
-  MATERIALIZE bc
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN b0
-    USE TEMP B-TREE FOR GROUP BY
+  MATERIALIZE latest_remand
+    CO-ROUTINE (subquery)
+      CO-ROUTINE (subquery)
+        CO-ROUTINE remand
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN rd
+              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+            UNION ALL
+              SCAN rp
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+        SCAN remand
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN (subquery)
+  MATERIALIZE unruled_docket
+    SCAN md USING COVERING INDEX motion_docket_gap
+    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  MATERIALIZE superseded
+    CO-ROUTINE s
+      CO-ROUTINE (subquery)
+        SCAN mint_supersedes
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN s
+    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+  MATERIALIZE computed
+    SEARCH computation USING COVERING INDEX computation_answers (answers>?)
   SCAN m
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
   BLOOM FILTER ON gg (minted_event=?)
   SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-  BLOOM FILTER ON cx (gap_id=?)
-  SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON bc (gap_id=?)
-  SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    BLOOM FILTER ON f (gap_id=?)
-    SEARCH f USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
+  BLOOM FILTER ON c (gap_id=?)
+  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON lr (gap_id=?)
+  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ud (gap_id=?)
+  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON sp (gap_id=?)
+  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON cp (gap_id=?)
+  SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  SEARCH um USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
     SEARCH s USING COVERING INDEX sqlite_autoindex_mint_supersedes_1 (event_id=?)
   CORRELATED SCALAR SUBQUERY
     SEARCH f USING COVERING INDEX sqlite_autoindex_mint_found_by_1 (event_id=?)
-  CORRELATED SCALAR SUBQUERY
-    SCAN p
-  CORRELATED SCALAR SUBQUERY
-    SCAN p
-  CORRELATED SCALAR SUBQUERY
-    SEARCH md3
-    SEARCH mo3 USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SCAN mr3
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE remand
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN rp
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-    BLOOM FILTER ON r (gap_id=?)
-    SEARCH r USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE remand
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN rp
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-    BLOOM FILTER ON r (gap_id=?)
-    SEARCH r USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    SCAN s2
-    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    SCAN s3
-  CORRELATED SCALAR SUBQUERY
-    SEARCH md3
-    SEARCH mo3 USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SCAN mr3
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE remand
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN rp
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-    BLOOM FILTER ON r (gap_id=?)
-    SEARCH r USING AUTOMATIC COVERING INDEX (gap_id=?)
-  CORRELATED SCALAR SUBQUERY
-    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SEARCH md3
-      SEARCH mo3 USING INTEGER PRIMARY KEY (rowid=?)
-      CORRELATED SCALAR SUBQUERY
-        SCAN mr3
 
 == view gap_grade
   CO-ROUTINE graded
@@ -549,26 +309,19 @@
           LEFT
             SCAN m
           RIGHT
-            MATERIALIZE act
-              SCAN r
-            SCAN a
-            SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-            USE TEMP B-TREE FOR ORDER BY
+            SCAN m
+            SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
       SCAN t
       SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
     SCAN (subquery)
     CORRELATED SCALAR SUBQUERY
-      SCAN a
-      USE TEMP B-TREE FOR ORDER BY
+      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     CORRELATED SCALAR SUBQUERY
-      SCAN a
-      USE TEMP B-TREE FOR ORDER BY
+      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     CORRELATED SCALAR SUBQUERY
-      SCAN a
-      USE TEMP B-TREE FOR ORDER BY
+      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     CORRELATED SCALAR SUBQUERY
-      SCAN a
-      USE TEMP B-TREE FOR ORDER BY
+      SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
   SCAN g
   SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
   SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
@@ -580,12 +333,11 @@
     USE TEMP B-TREE FOR GROUP BY
   MATERIALIZE motion_answers
     CO-ROUTINE ids
-      SCAN motion_rule
-      USE TEMP B-TREE FOR DISTINCT
+      SCAN motion_rule USING COVERING INDEX motion_rule_motion
     SCAN ids
     SEARCH fr USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      SEARCH x
+      SEARCH x USING COVERING INDEX motion_rule_motion (motion_id=?)
     SEARCH rd USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
     SEARCH fre USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SCAN p
@@ -600,12 +352,11 @@
 
 == view motion_answers
   CO-ROUTINE ids
-    SCAN motion_rule
-    USE TEMP B-TREE FOR DISTINCT
+    SCAN motion_rule USING COVERING INDEX motion_rule_motion
   SCAN ids
   SEARCH fr USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   CORRELATED SCALAR SUBQUERY
-    SEARCH x
+    SEARCH x USING COVERING INDEX motion_rule_motion (motion_id=?)
   SEARCH rd USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
   SEARCH fre USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
@@ -630,17 +381,13 @@
   CO-ROUTINE report_op
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
-        SCAN e USING COVERING INDEX events_sitting
-        SEARCH p USING INTEGER PRIMARY KEY (rowid=?)
+        SCAN p
       UNION ALL
-        SCAN e USING COVERING INDEX events_sitting
-        SEARCH b USING INTEGER PRIMARY KEY (rowid=?)
+        SCAN b
       UNION ALL
         SCAN a
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SCAN ra
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SCAN report_op
 
 == view seat_metrics
@@ -659,29 +406,13 @@
               SCAN r2
             CORRELATED SCALAR SUBQUERY
               SEARCH o2
-      MATERIALIZE seat_sitting
-        CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-          USE TEMP B-TREE FOR ORDER BY
-        SCAN (subquery)
       SCAN b
       SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
     SCAN t USING INDEX seat_turn_agent
     BLOOM FILTER ON s (agent_id=?)
     SEARCH s USING AUTOMATIC COVERING INDEX (agent_id=?) LEFT-JOIN
     CORRELATED SCALAR SUBQUERY
-      MATERIALIZE seat_sitting
-        CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-          USE TEMP B-TREE FOR ORDER BY
-        SCAN (subquery)
-      SCAN e
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+      SCAN ew
   SCAN seat_metrics
 
 == view seat_of_agent
@@ -698,24 +429,8 @@
           SCAN r2
         CORRELATED SCALAR SUBQUERY
           SEARCH o2
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
   SCAN b
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
 
 == view seat_time_decomposition
   CO-ROUTINE seat_time_decomposition
@@ -738,29 +453,13 @@
   SCAN e
   SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
-== stmt 1e9c215c7f19
--- SELECT "epoch" FROM "events_w" WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events") ORDER BY "id"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+== stmt f82df4d27e93
+-- SELECT "epoch" FROM "events" WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events") ORDER BY "id"
+  SEARCH events USING INTEGER PRIMARY KEY (rowid=?)
   SCALAR SUBQUERY
     SEARCH events
   SCALAR SUBQUERY
     SEARCH events
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
 
 == stmt 0de60ae3d82b
 -- SELECT "epoch" FROM "schema_epoch" WHERE "id" = 1
@@ -772,16 +471,12 @@
     COMPOUND QUERY
       LEFT-MOST SUBQUERY
         SEARCH p USING INTEGER PRIMARY KEY (rowid>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SEARCH b USING INTEGER PRIMARY KEY (rowid>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SEARCH a USING INTEGER PRIMARY KEY (rowid>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
       UNION ALL
         SEARCH ra USING INDEX sqlite_autoindex_retire_anchors_1 (event_id>?)
-        SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
   SCAN report_op
   USE TEMP B-TREE FOR ORDER BY
 
@@ -795,12 +490,6 @@
 
 == stmt 3c1bc16b29d8
 -- SELECT "gap_id", "minted_epoch", "open", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix", "acceptance_check", "check_kind", "awaiting_computation", "fix_basis", "fix_new", "minted_by", "minted_event", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last", "material", "remanded", "docket_direction" FROM "gap" ORDER BY "minted_event"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
@@ -809,31 +498,24 @@
             LEFT
               SCAN m
             RIGHT
-              MATERIALIZE act
-                SCAN r
-              SCAN a
-              SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              USE TEMP B-TREE FOR ORDER BY
+              SCAN m
+              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
         SCAN t
         SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
       SCAN (subquery)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-  MATERIALIZE cx
+  MATERIALIZE closure
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
@@ -844,104 +526,61 @@
           SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
           SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
           SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN c0
+    SCAN closure_act
     USE TEMP B-TREE FOR GROUP BY
-  MATERIALIZE bc
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN b0
-    USE TEMP B-TREE FOR GROUP BY
+  MATERIALIZE latest_remand
+    CO-ROUTINE (subquery)
+      CO-ROUTINE (subquery)
+        CO-ROUTINE remand
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN rd
+              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+            UNION ALL
+              SCAN rp
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+        SCAN remand
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN (subquery)
+  MATERIALIZE unruled_docket
+    SCAN md USING COVERING INDEX motion_docket_gap
+    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  MATERIALIZE superseded
+    CO-ROUTINE s
+      CO-ROUTINE (subquery)
+        SCAN mint_supersedes
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN s
+    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+  MATERIALIZE computed
+    SEARCH computation USING COVERING INDEX computation_answers (answers>?)
   SCAN m
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
   BLOOM FILTER ON gg (minted_event=?)
   SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-  BLOOM FILTER ON cx (gap_id=?)
-  SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON bc (gap_id=?)
-  SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    SCAN p
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    BLOOM FILTER ON f (gap_id=?)
-    SEARCH f USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    SEARCH md3
-    SEARCH mo3 USING INTEGER PRIMARY KEY (rowid=?)
-    CORRELATED SCALAR SUBQUERY
-      SCAN mr3
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE remand
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN rp
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-    BLOOM FILTER ON r (gap_id=?)
-    SEARCH r USING AUTOMATIC COVERING INDEX (gap_id=?)
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE remand
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        UNION ALL
-          SCAN rp
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
-    BLOOM FILTER ON r (gap_id=?)
-    SEARCH r USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
+  BLOOM FILTER ON c (gap_id=?)
+  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON lr (gap_id=?)
+  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ud (gap_id=?)
+  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON sp (gap_id=?)
+  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON cp (gap_id=?)
+  SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
 
 == stmt 4770e2cd76cb
 -- SELECT "gap_id", "minted_epoch", "open", "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "material", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last" FROM "gap" ORDER BY "minted_event"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
   MATERIALIZE gap_grade
     CO-ROUTINE graded
       CO-ROUTINE (subquery)
@@ -950,31 +589,24 @@
             LEFT
               SCAN m
             RIGHT
-              MATERIALIZE act
-                SCAN r
-              SCAN a
-              SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-              USE TEMP B-TREE FOR ORDER BY
+              SCAN m
+              SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
         SCAN t
         SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
       SCAN (subquery)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
       CORRELATED SCALAR SUBQUERY
-        SCAN a
-        USE TEMP B-TREE FOR ORDER BY
+        SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
     SCAN g
     SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
     SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-  MATERIALIZE cx
+  MATERIALIZE closure
     CO-ROUTINE closure_act
       COMPOUND QUERY
         LEFT-MOST SUBQUERY
@@ -985,208 +617,153 @@
           SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
           SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
           SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN c0
+    SCAN closure_act
     USE TEMP B-TREE FOR GROUP BY
-  MATERIALIZE bc
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    SCAN b0
-    USE TEMP B-TREE FOR GROUP BY
+  MATERIALIZE latest_remand
+    CO-ROUTINE (subquery)
+      CO-ROUTINE (subquery)
+        CO-ROUTINE remand
+          COMPOUND QUERY
+            LEFT-MOST SUBQUERY
+              SCAN rd
+              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+            UNION ALL
+              SCAN rp
+              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+              SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+        SCAN remand
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN (subquery)
+  MATERIALIZE unruled_docket
+    SCAN md USING COVERING INDEX motion_docket_gap
+    SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+    CORRELATED SCALAR SUBQUERY
+      SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+  MATERIALIZE superseded
+    CO-ROUTINE s
+      CO-ROUTINE (subquery)
+        SCAN mint_supersedes
+        USE TEMP B-TREE FOR ORDER BY
+      SCAN (subquery)
+    SCAN s
+    SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+  MATERIALIZE computed
+    SEARCH computation USING COVERING INDEX computation_answers (answers>?)
   SCAN m
   SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
   BLOOM FILTER ON gg (minted_event=?)
   SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-  BLOOM FILTER ON cx (gap_id=?)
-  SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  BLOOM FILTER ON bc (gap_id=?)
-  SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  CORRELATED SCALAR SUBQUERY
-    CO-ROUTINE closure_act
-      COMPOUND QUERY
-        LEFT-MOST SUBQUERY
-          SCAN c
-        UNION ALL
-          SCAN rd
-          SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-          SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-          SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-          SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-    BLOOM FILTER ON f (gap_id=?)
-    SEARCH f USING AUTOMATIC COVERING INDEX (gap_id=?)
-    USE TEMP B-TREE FOR ORDER BY
+  BLOOM FILTER ON c (gap_id=?)
+  SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON lr (gap_id=?)
+  SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON ud (gap_id=?)
+  SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON sp (gap_id=?)
+  SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+  BLOOM FILTER ON cp (gap_id=?)
+  SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
 
 == stmt f2743f0cdeaa
 -- SELECT "open_gaps", "closed_gaps" FROM "board_counts"
   CO-ROUTINE board_counts
-    SCAN CONSTANT ROW
-    SCALAR SUBQUERY
-      MATERIALIZE seat_sitting
+    MATERIALIZE gap_grade
+      CO-ROUTINE graded
         CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+          CO-ROUTINE turn
+            MERGE (UNION)
+              LEFT
+                SCAN m
+              RIGHT
+                SCAN m
+                SEARCH a USING COVERING INDEX regrade_gap (gap_id=?)
+          SCAN t
+          SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
+        SCAN (subquery)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+        CORRELATED SCALAR SUBQUERY
+          SEARCH a USING INDEX regrade_gap (gap_id=? AND event_id<?)
+      SCAN g
+      SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+      SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+      SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
+    MATERIALIZE closure
+      CO-ROUTINE closure_act
+        COMPOUND QUERY
+          LEFT-MOST SUBQUERY
+            SCAN c
+          UNION ALL
+            SCAN rd
+            SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+            SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+            SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+            SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+      SCAN closure_act
+      USE TEMP B-TREE FOR GROUP BY
+    MATERIALIZE latest_remand
+      CO-ROUTINE (subquery)
+        CO-ROUTINE (subquery)
+          CO-ROUTINE remand
+            COMPOUND QUERY
+              LEFT-MOST SUBQUERY
+                SCAN rd
+                SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
+                SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
+                SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
+              UNION ALL
+                SCAN rp
+                SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+                SEARCH pg USING INDEX sqlite_autoindex_motion_rule_position_gap_ids_1 (event_id=?)
+          SCAN remand
           USE TEMP B-TREE FOR ORDER BY
         SCAN (subquery)
-      MATERIALIZE gap_grade
-        CO-ROUTINE graded
-          CO-ROUTINE (subquery)
-            CO-ROUTINE turn
-              MERGE (UNION)
-                LEFT
-                  SCAN m
-                RIGHT
-                  MATERIALIZE act
-                    SCAN r
-                  SCAN a
-                  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  USE TEMP B-TREE FOR ORDER BY
-            SCAN t
-            SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-          SCAN (subquery)
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-        SCAN g
-        SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-      MATERIALIZE cx
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN c0
-        USE TEMP B-TREE FOR GROUP BY
-      MATERIALIZE bc
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN b0
-        USE TEMP B-TREE FOR GROUP BY
-      SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-      BLOOM FILTER ON gg (minted_event=?)
-      SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-      BLOOM FILTER ON cx (gap_id=?)
-      SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-      BLOOM FILTER ON bc (gap_id=?)
-      SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-    SCALAR SUBQUERY
-      MATERIALIZE seat_sitting
+      SCAN (subquery)
+    MATERIALIZE unruled_docket
+      SCAN md USING COVERING INDEX motion_docket_gap
+      SEARCH mo USING INTEGER PRIMARY KEY (rowid=?)
+      CORRELATED SCALAR SUBQUERY
+        SEARCH mr USING COVERING INDEX motion_rule_motion (motion_id=?)
+    MATERIALIZE superseded
+      CO-ROUTINE s
         CO-ROUTINE (subquery)
-          SCAN e USING INDEX events_sitting
-          SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+          SCAN mint_supersedes
           USE TEMP B-TREE FOR ORDER BY
         SCAN (subquery)
-      MATERIALIZE gap_grade
-        CO-ROUTINE graded
-          CO-ROUTINE (subquery)
-            CO-ROUTINE turn
-              MERGE (UNION)
-                LEFT
-                  SCAN m
-                RIGHT
-                  MATERIALIZE act
-                    SCAN r
-                  SCAN a
-                  SEARCH m USING COVERING INDEX sqlite_autoindex_mint_1 (gap_id=?)
-                  USE TEMP B-TREE FOR ORDER BY
-            SCAN t
-            SEARCH m USING INTEGER PRIMARY KEY (rowid=?)
-          SCAN (subquery)
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-          CORRELATED SCALAR SUBQUERY
-            SCAN a
-            USE TEMP B-TREE FOR ORDER BY
-        SCAN g
-        SEARCH gl USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gi USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-        SEARCH gs USING INDEX sqlite_autoindex_enum_grade_1 (value=?) LEFT-JOIN
-      MATERIALIZE cx
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN c0
-        USE TEMP B-TREE FOR GROUP BY
-      MATERIALIZE bc
-        CO-ROUTINE closure_act
-          COMPOUND QUERY
-            LEFT-MOST SUBQUERY
-              SCAN c
-            UNION ALL
-              SCAN rd
-              SEARCH d USING INDEX sqlite_autoindex_enum_disposition_1 (value=?)
-              SEARCH mr USING INTEGER PRIMARY KEY (rowid=?)
-              SEARCH mo USING COVERING INDEX sqlite_autoindex_motion_1 (motion_id=?)
-              SEARCH md USING INTEGER PRIMARY KEY (rowid=?)
-        SCAN b0
-        USE TEMP B-TREE FOR GROUP BY
-      SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
-      SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-      BLOOM FILTER ON ss (id=?)
-      SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-      BLOOM FILTER ON gg (minted_event=?)
-      SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
-      BLOOM FILTER ON cx (gap_id=?)
-      SEARCH cx USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
-      BLOOM FILTER ON bc (gap_id=?)
-      SEARCH bc USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+      SCAN s
+      SEARCH m2 USING INTEGER PRIMARY KEY (rowid=?)
+    MATERIALIZE computed
+      SEARCH computation USING COVERING INDEX computation_answers (answers>?)
+    SCAN m USING COVERING INDEX sqlite_autoindex_mint_1
+    SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
+    BLOOM FILTER ON gg (minted_event=?)
+    SEARCH gg USING AUTOMATIC PARTIAL COVERING INDEX (minted_event=?) LEFT-JOIN
+    BLOOM FILTER ON c (gap_id=?)
+    SEARCH c USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON lr (gap_id=?)
+    SEARCH lr USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON ud (gap_id=?)
+    SEARCH ud USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON sp (gap_id=?)
+    SEARCH sp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    BLOOM FILTER ON cp (gap_id=?)
+    SEARCH cp USING AUTOMATIC COVERING INDEX (gap_id=?) LEFT-JOIN
+    SEARCH um USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+    SCALAR SUBQUERY
+      SCAN events USING COVERING INDEX events_sitting
   SCAN board_counts
 
 == stmt 2aadb2015b93
@@ -1210,9 +787,11 @@
 -- SELECT 1 FROM "halt" LIMIT 1
   SCAN halt
 
-== stmt 68fcc290934f
--- SELECT COALESCE(max("id"), 0) + 1 FROM "events"
+== stmt b225f6c6764f
+-- SELECT COALESCE(max("id"), 0) + 1, COALESCE((SELECT "epoch" FROM "events" ORDER BY "id" DESC LIMIT 1), 0) FROM "events"
   SEARCH events
+  SCALAR SUBQUERY
+    SCAN events
 
 == stmt 5c99c3b8890b
 -- SELECT DISTINCT type FROM events
@@ -1226,6 +805,45 @@
 -- SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'
   SCAN sqlite_master
 
+== stmt c8f27ee8ea40
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY e."id"
+  MATERIALIZE sittings
+    SCAN e
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SCAN e
+  BLOOM FILTER ON s (id=?)
+  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+
+== stmt 98b157b7f9fa
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?) ORDER BY e."id"
+  MATERIALIZE sittings
+    SCAN e
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH e USING INDEX events_type (type=?)
+  BLOOM FILTER ON s (id=?)
+  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 738391e7eee3
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?) ORDER BY e."id"
+  MATERIALIZE sittings
+    SCAN e
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH e USING INDEX events_type (type=?)
+  BLOOM FILTER ON s (id=?)
+  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  USE TEMP B-TREE FOR ORDER BY
+
+== stmt 4bfb6148843b
+-- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
+  MATERIALIZE sittings
+    SCAN e
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+  SEARCH e USING INDEX events_type (type=?)
+  BLOOM FILTER ON s (id=?)
+  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
+  USE TEMP B-TREE FOR ORDER BY
+
 == stmt a10e28afe1a9
 -- SELECT l."event_id", l."value" FROM "mint_found_by" l ORDER BY l."event_id", l."ord"
   SCAN l USING INDEX sqlite_autoindex_mint_found_by_1
@@ -1234,10 +852,12 @@
 -- SELECT l."event_id", l."value" FROM "mint_supersedes" l ORDER BY l."event_id", l."ord"
   SCAN l USING INDEX sqlite_autoindex_mint_supersedes_1
 
-== stmt bfeb81a5c037
--- SELECT max("id") FROM "sittings" WHERE "seat_id" = ?
-  SEARCH e
-  SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
+== stmt 3d352b108dd8
+-- SELECT o."id", o."sitting" FROM "events" o WHERE o."id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)
+  SEARCH o USING INTEGER PRIMARY KEY (rowid=?)
+  SCALAR SUBQUERY
+    SEARCH e
+    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
 
 == stmt 433d9661d97b
 -- SELECT o."verdict" FROM "outcome" o ORDER BY o."event_id" DESC LIMIT 1
@@ -1252,110 +872,3 @@
   SEARCH v USING INDEX sqlite_autoindex_cast_seat_ids_1 (event_id=?)
   SCALAR SUBQUERY
     SEARCH cast
-
-== stmt eda7526d72d9
--- SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events_w" w JOIN "events" e ON e."id" = w."id" LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY w."id"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SCAN e
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-
-== stmt fff480bb7d2b
--- SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events_w" w JOIN "events" e ON e."id" = w."id" LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?) ORDER BY w."id"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SEARCH e USING INDEX events_type (type=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  USE TEMP B-TREE FOR ORDER BY
-
-== stmt 871f3a06ac4a
--- SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events_w" w JOIN "events" e ON e."id" = w."id" LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?) ORDER BY w."id"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SEARCH e USING INDEX events_type (type=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  USE TEMP B-TREE FOR ORDER BY
-
-== stmt 70c97f0fd00d
--- SELECT w."id", w."seat_id", w."ts", w."type", w."key", w."epoch", w."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events_w" w JOIN "events" e ON e."id" = w."id" LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?) ORDER BY w."id"
-  MATERIALIZE seat_sitting
-    CO-ROUTINE (subquery)
-      SCAN e USING INDEX events_sitting
-      SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      USE TEMP B-TREE FOR ORDER BY
-    SCAN (subquery)
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SEARCH e USING INDEX events_type (type=?)
-  SEARCH e USING INTEGER PRIMARY KEY (rowid=?)
-  BLOOM FILTER ON ss (id=?)
-  SEARCH ss USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  CORRELATED SCALAR SUBQUERY
-    MATERIALIZE chair_sitting
-      CO-ROUTINE (subquery)
-        SCAN e
-        SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-      SCAN (subquery)
-    SCAN cs
-    USE TEMP B-TREE FOR ORDER BY
-  USE TEMP B-TREE FOR ORDER BY

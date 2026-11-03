@@ -122,14 +122,14 @@ func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 		byKey[e.GetKey()] = e
 	}
 
-	// 1. The loader's window is the record's, row for row: events_w's ranks, the stored sitting_id,
+	// 1. The loader's window is the record's, row for row: the stored ranks, the stored sitting_id,
 	// and the owner the `sittings` view names.
 	db, err := openRunForRead(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, err := db.Query(`SELECT w."id", w."epoch", w."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')
-		FROM "events_w" w JOIN "events" e ON e."id" = w."id" LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY w."id"`)
+	rows, err := db.Query(`SELECT e."id", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')
+		FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY e."id"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(want) != len(m.Events) {
-		t.Fatalf("events_w has %d rows and the loader %d events", len(want), len(m.Events))
+		t.Fatalf("events has %d rows and the loader %d events", len(want), len(m.Events))
 	}
 	for i, e := range m.Events {
 		if got := m.At.Of(e); got != want[i] {
@@ -406,7 +406,7 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 }
 
 // EPOCHS IS EVERY EPOCH THE RECORD TOUCHED, read off two rows: the same set the DISTINCT scan over
-// events_w returns, on records that start before the chair's first sitting and at it, and that open
+// events returns, on records that start before the chair's first sitting and at it, and that open
 // chair sittings by register and by bracket.
 func TestEpochsIsTheDistinctSetOfStoredEpochs(t *testing.T) {
 	chairBracket := func(agent string) *Event {
@@ -438,7 +438,7 @@ func TestEpochsIsTheDistinctSetOfStoredEpochs(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				rows, err := db.Query(`SELECT DISTINCT "epoch" FROM "events_w" ORDER BY "epoch"`)
+				rows, err := db.Query(`SELECT DISTINCT "epoch" FROM "events" ORDER BY "epoch"`)
 				if err != nil {
 					t.Fatal(err)
 				}

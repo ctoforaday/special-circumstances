@@ -571,7 +571,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	gutToAnchor(t, runDir, "The sky is blue.", anchor.Token(computeSentence(t, runDir, "The sky is blue.")))
 
 	i := strings.Index(recordsql.ViewsDDL, `CREATE VIEW "report_op" AS`)
-	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT e.\"id\", 'remove'")
+	j := strings.Index(recordsql.ViewsDDL[i:], "\n  UNION ALL\n  SELECT ra.\"event_id\", 'remove'")
 	if i < 0 || j < 0 {
 		t.Fatal("cannot find the report_op view's remove branch to rebuild the pre-change view")
 	}

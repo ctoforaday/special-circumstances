@@ -28,7 +28,7 @@ import (
 )
 
 // chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an event
-// (events_w), so a fixture that means "in epoch N" must seat the chair N times. The seat id carries
+// (events.epoch), so a fixture that means "in epoch N" must seat the chair N times. The seat id carries
 // no number, and a chair that has not sat leaves every event in epoch 0 whatever it is called.
 func chairRegister(t *testing.T, sitting int) *recordpb.Event {
 	t.Helper()
