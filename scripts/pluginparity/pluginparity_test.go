@@ -182,3 +182,90 @@ func TestCommittedBinariesRefusesToPassOnAnEmptyListing(t *testing.T) {
 		t.Errorf("a zero-file listing must be reported as unmeasured, not as a pass: %v", got)
 	}
 }
+
+func TestAntigravityPluginsConfigAndManifestParity(t *testing.T) {
+	write := func(t *testing.T, root, rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	healthy := func(t *testing.T) string {
+		t.Helper()
+		root := t.TempDir()
+		write(t, root, ".agents/plugins.json", `{"entries":[{"path":"plugins"}]}`)
+		for _, p := range []string{"alpha", "beta"} {
+			write(t, root, "plugins/"+p+"/.claude-plugin/plugin.json",
+				`{"name":"`+p+`","displayName":"D `+p+`","version":"1.0.0","description":"desc","author":{"name":"A"},"license":"MIT","keywords":["k"],"dependencies":["alpha"]}`)
+			write(t, root, "plugins/"+p+"/.antigravity-plugin/plugin.json",
+				`{"name":"`+p+`","displayName":"D `+p+`","version":"1.0.0","description":"desc","author":{"name":"A"},"license":"MIT","keywords":["k"]}`)
+		}
+		return root
+	}
+
+	if got := antigravityPluginProblems(healthy(t), []string{"alpha", "beta"}); len(got) != 0 {
+		t.Fatalf("healthy tree reported problems: %v", got)
+	}
+
+	t.Run("missing .agents/plugins.json", func(t *testing.T) {
+		root := healthy(t)
+		_ = os.Remove(filepath.Join(root, ".agents", "plugins.json"))
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, ".agents/plugins.json: cannot read") {
+			t.Fatalf("want missing .agents/plugins.json error, got:\n%s", got)
+		}
+	})
+
+	t.Run("excluded plugin in .agents/plugins.json", func(t *testing.T) {
+		root := healthy(t)
+		write(t, root, ".agents/plugins.json", `{"entries":[{"path":"plugins","exclude":["beta"]}]}`)
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, "never discovers beta") {
+			t.Fatalf("want never discovers beta error, got:\n%s", got)
+		}
+	})
+
+	t.Run("undeclared plugin directory under plugins/", func(t *testing.T) {
+		root := healthy(t)
+		if err := os.MkdirAll(filepath.Join(root, "plugins", "rogue"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, "discovers rogue") {
+			t.Fatalf("want discovers rogue error, got:\n%s", got)
+		}
+	})
+
+	t.Run("missing .antigravity-plugin/plugin.json", func(t *testing.T) {
+		root := healthy(t)
+		_ = os.Remove(filepath.Join(root, "plugins", "beta", ".antigravity-plugin", "plugin.json"))
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, "plugins/beta/.antigravity-plugin/plugin.json: cannot read") {
+			t.Fatalf("want missing .antigravity-plugin/plugin.json error, got:\n%s", got)
+		}
+	})
+
+	t.Run("Claude-only dependencies field leaked into .antigravity-plugin/plugin.json", func(t *testing.T) {
+		root := healthy(t)
+		write(t, root, "plugins/beta/.antigravity-plugin/plugin.json",
+			`{"name":"beta","version":"1.0.0","dependencies":["alpha"]}`)
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, `unknown field "dependencies"`) {
+			t.Fatalf("want unknown field dependencies error, got:\n%s", got)
+		}
+	})
+
+	t.Run("shared field drift between .claude-plugin and .antigravity-plugin", func(t *testing.T) {
+		root := healthy(t)
+		write(t, root, "plugins/beta/.antigravity-plugin/plugin.json",
+			`{"name":"beta","displayName":"D beta","version":"0.9.0","description":"desc","author":{"name":"A"},"license":"MIT","keywords":["k"]}`)
+		got := strings.Join(antigravityPluginProblems(root, []string{"alpha", "beta"}), "\n")
+		if !strings.Contains(got, "shared manifest fields disagree") {
+			t.Fatalf("want shared field drift error, got:\n%s", got)
+		}
+	})
+}

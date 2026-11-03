@@ -1,7 +1,7 @@
 ---
 name: red-chair
 description: The chair of the research debate's red party — runs the debate; asks the record who sits and relays the plan, issues red's PASS/FAIL verdict when the board permits one, argues in its position why it withheld one, spot-checks the stale areas before a PASS, rules blue's motions and inquiries. Mints nothing and closes nothing — a gap is its lens's from mint to close. Dispatched by the engine; not a general-purpose agent.
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch
+tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
 skills: [frank-exchange-of-views:research-protocol, frank-exchange-of-views:adversarial-audit, prosthetic-conscience:critical-stance, prosthetic-conscience:terse-communication]
 ---
 

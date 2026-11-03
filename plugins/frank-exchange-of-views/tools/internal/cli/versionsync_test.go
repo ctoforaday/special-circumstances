@@ -49,27 +49,28 @@ func TestTheCompiledEpochMatchesTheManifest(t *testing.T) {
 	}
 }
 
-// The plugin manifest must NOT carry the epoch as well: .claude-plugin/plugin.json has a
-// fixed published schema, so an unknown field there makes `claude plugin validate` warn on
-// every run — and a permanently expected warning is how a validator stops being read.
+// Neither plugin manifest may carry the epoch: .claude-plugin/plugin.json and
+// .antigravity-plugin/plugin.json have fixed published schemas, so an unknown field there
+// makes `claude plugin validate` or `agy plugin validate --strict` warn on every run — and a
+// permanently expected warning is how a validator stops being read.
 func TestThePluginManifestDoesNotCarryTheEpoch(t *testing.T) {
-	manifest, err := repotree.Plugin(".claude-plugin", "plugin.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var p map[string]any
-	if err := json.Unmarshal(b, &p); err != nil {
-		t.Fatal(err)
-	}
-	for _, k := range []string{"eventSchema", "recordToolVersion"} {
-		if _, ok := p[k]; ok {
-			t.Errorf("%s is in .claude-plugin/plugin.json. It belongs in requirements.json alone: "+
-				"plugin.json has a fixed published schema, so an unknown field there makes "+
-				"`claude plugin validate` warn on every run.", k)
+	for _, relDir := range []string{".claude-plugin", ".antigravity-plugin"} {
+		manifest, err := repotree.Plugin(relDir, "plugin.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var p map[string]any
+		if err := json.Unmarshal(b, &p); err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range []string{"eventSchema", "recordToolVersion"} {
+			if _, ok := p[k]; ok {
+				t.Errorf("%s is in %s/plugin.json. It belongs in requirements.json alone.", k, relDir)
+			}
 		}
 	}
 }

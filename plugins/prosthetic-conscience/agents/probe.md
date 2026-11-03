@@ -1,7 +1,7 @@
 ---
 name: probe
 description: "Harness-spike probe agent (Phase 1) — verifies skills: preloading reaches a subagent, that the communication-model skills load, and that PostToolUse hooks fire on the subagent's writes. Not for production use."
-tools: Read, Write, Bash
+tools: [Read, Write, Bash]
 skills: [critical-stance, terse-communication, design-by-contract]
 ---
 

@@ -52,8 +52,12 @@ func GrantedTools(constitutionPath string) ([]string, error) {
 		if !ok {
 			continue
 		}
+		rest = strings.TrimSpace(rest)
+		if !strings.HasPrefix(rest, "[") || !strings.HasSuffix(rest, "]") {
+			return nil, fmt.Errorf("%s declares `tools:` as %q rather than a YAML flow sequence `[...]` — Antigravity's loader skips agents whose tools field is a scalar string", constitutionPath, rest)
+		}
 		var out []string
-		for _, t := range strings.Split(rest, ",") {
+		for _, t := range strings.Split(rest[1:len(rest)-1], ",") {
 			if t = strings.TrimSpace(t); t != "" {
 				out = append(out, t)
 			}
