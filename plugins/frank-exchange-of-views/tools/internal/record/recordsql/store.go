@@ -470,7 +470,7 @@ func openUncached(path string) (*sql.DB, error) {
 	// a writer waiting for a writer is a queue rather than a deadlock. It also fixes the correctness
 	// half: a deferred transaction's count could be read from a snapshot another writer has already
 	// moved past, which is what SQLITE_BUSY_SNAPSHOT exists to refuse.
-	db, err := sql.Open(driverName(), dsnFor(path))
+	db, err := openDB(dsnFor(path))
 	if err != nil {
 		return nil, err
 	}

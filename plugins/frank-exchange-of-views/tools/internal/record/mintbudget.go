@@ -186,6 +186,37 @@ func lensBudgetOver(q recordsql.Querier, report func() (string, error), area str
 	return b, nil
 }
 
+// heldStream is the whole stream a reader already took off a querier, with its index (eventsAt), so
+// a fold asked on the same querier takes its events from it rather than reading them again. A nil
+// heldStream holds nothing, and its reads go to the querier.
+type heldStream struct {
+	evs []*Event
+	win WindowIndex
+}
+
+// all is the whole stream q holds.
+func (h *heldStream) all(q recordsql.Querier) ([]*Event, WindowIndex, error) {
+	if h == nil {
+		return eventsAt(q)
+	}
+	return h.evs, h.win, nil
+}
+
+// of is the events of types q holds, in record order — eventsOfAt's answer. The held index serves
+// the subset: it is keyed by the event, so a filtered slice still finds each event's window.
+func (h *heldStream) of(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, WindowIndex, error) {
+	if h == nil {
+		return eventsOfAt(q, types...)
+	}
+	var out []*Event
+	for _, e := range h.evs {
+		if slices.Contains(types, e.GetType()) {
+			out = append(out, e)
+		}
+	}
+	return out, h.win, nil
+}
+
 // renderFrom is the report q holds, rendered when asked.
 func renderFrom(q recordsql.Querier) func() (string, error) {
 	return func() (string, error) { return RenderAt(q) }
@@ -310,7 +341,7 @@ func requireMintWithinBudget(w writeView, seatID string, m *recordpb.Mint) error
 	} else if own != "" {
 		return nil
 	}
-	st, err := lensMintStanding(w.q, w.report, w.files.params, seatID, area)
+	st, err := lensMintStanding(w.q, w.report, nil, w.files.params, seatID, area)
 	if err != nil {
 		return err
 	}
@@ -368,9 +399,10 @@ func answersOwnRaiseAt(q recordsql.Querier, seatID string, foundBy []string) (st
 
 // ownAnswersAt is the gaps minted to answer a contradiction seatID's own finding raised, or a
 // standing failed check of seatID's own (ownFailedCheckAnswers). Those seatID minted are the gaps its budget does not count (lensMintStanding); one another seat minted from
-// that finding answers it all the same, and counts against its own minter's budget.
-func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
-	evs, win, err := eventsOfAt(q, contradictionActs...)
+// that finding answers it all the same, and counts against its own minter's budget. held is the
+// stream q holds where the reader already took it (heldStream).
+func ownAnswersAt(q recordsql.Querier, held *heldStream, seatID string) (map[string]bool, error) {
+	evs, win, err := held.of(q, contradictionActs...)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +419,7 @@ func ownAnswersAt(q recordsql.Querier, seatID string) (map[string]bool, error) {
 		recordpb.Word(recordpb.AboutKind_ABOUT_KIND_ANCHOR), seatID); err != nil || !about {
 		return out, err
 	}
-	all, allWin, err := eventsAt(q)
+	all, allWin, err := held.all(q)
 	if err != nil {
 		return nil, err
 	}
@@ -447,9 +479,11 @@ func (s mintStanding) Left() (left int, measured bool) {
 // any disposition, or the bench disposed of, holds no mint; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
 // lens closes it — superseding closes nothing, and the view calls such a gap stranded.
 //
-// q is the mint's writing transaction, or the run's handle for the work list; report is the report
-// it holds (lensBudgetOver); params reads the run's terms.
-func lensMintStanding(q recordsql.Querier, report func() (string, error), params func() (Params, error), seatID, area string) (mintStanding, error) {
+// q is the mint's writing transaction, or the work list's read transaction (workReadsAt); report is
+// the report it holds (lensBudgetOver) and held the stream it holds (ownAnswersAt) — the work list
+// hands over the render and the stream it already took off q, so neither is read twice; params
+// reads the run's terms.
+func lensMintStanding(q recordsql.Querier, report func() (string, error), held *heldStream, params func() (Params, error), seatID, area string) (mintStanding, error) {
 	p, err := params()
 	if err != nil {
 		return mintStanding{}, err
@@ -458,7 +492,7 @@ func lensMintStanding(q recordsql.Querier, report func() (string, error), params
 	open, err := openGapsMintedBy(q, seatID)
 	if err == nil {
 		var own map[string]bool
-		if own, err = ownAnswersAt(q, seatID); err == nil {
+		if own, err = ownAnswersAt(q, held, seatID); err == nil {
 			for _, id := range open {
 				if own[id] {
 					st.Answering++
@@ -524,20 +558,42 @@ type MintBudgetJSON struct {
 	Measured bool `json:"measured"`
 }
 
-// mintBudgetOf is the work list's two carriers of a lens's standing — the block and its sentence —
-// from the one reading the write refuses on. A seat that is no lens on the roster spends no budget
-// and has neither. A standing that cannot be read at all is said in the sentence, with no block:
-// a block of zeros would read as a lens with nothing left.
-func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
+// budgetAsk is the lens whose standing a work list reads on its own snapshot (workReadsAt): the
+// seat, its area, and the run's terms. Nil on a list for a seat that is no lens on the roster, which
+// spends no budget.
+type budgetAsk struct {
+	seatID, area string
+	params       func() (Params, error)
+}
+
+// budgetAskOf is the ask for seatID's work list: nil unless it is a lens whose area has a scale.
+func budgetAskOf(run Run, role, seatID string) *budgetAsk {
 	area := AreaOf(seatID)
+	if role != "lens" {
+		return nil
+	}
 	if _, err := mintScaleOf(area); err != nil {
+		return nil
+	}
+	return &budgetAsk{seatID: seatID, area: area, params: filesOf(run).params}
+}
+
+// budgetRead is a lens's standing as the work list read it (workReadsAt), or why it did not read.
+type budgetRead struct {
+	st  mintStanding
+	err error
+}
+
+// mintBudgetOf is the work list's two carriers of a lens's standing — the block and its sentence —
+// from the one reading the write refuses on (lensMintStanding), taken on the list's own snapshot. A
+// seat that is no lens on the roster spends no budget and has neither (read is nil). A standing that
+// cannot be read at all is said in the sentence, with no block: a block of zeros would read as a
+// lens with nothing left.
+func mintBudgetOf(read *budgetRead) (*MintBudgetJSON, string) {
+	if read == nil {
 		return nil, ""
 	}
-	db, err := openRunForRead(run)
-	var st mintStanding
-	if err == nil {
-		st, err = lensMintStanding(db, renderFrom(db), filesOf(run).params, seatID, area)
-	}
+	st, err := read.st, read.err
 	if err != nil {
 		return nil, fmt.Sprintf("your mint budget is NOT MEASURED — %v — and that is not a report that no mint is left to you", err)
 	}
