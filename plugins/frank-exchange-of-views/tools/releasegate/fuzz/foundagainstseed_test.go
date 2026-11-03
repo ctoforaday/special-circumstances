@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
@@ -224,10 +225,9 @@ func (r *runner) forcedRepeatedReading(seatID string) {
 }
 
 // foundAgainstForcedErr is the run's error where foundAgainstSeed's run did not drive each path it is
-// forced through, naming the last step the chain reached; "" otherwise and on every other run.
+// forced through, naming the last step the chain reached; "" otherwise and on every other run. The
+// caller holds r.mu: runOne reads it beside the other forced-run errors under the run's lock.
 func (r *runner) foundAgainstForcedErr() string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if !r.forceFoundAgainst || r.foundAgainstRepeats > 0 && r.foundAgainstClearedByOwnReading > 0 && r.repeatedSentenceAccepts > 0 {
 		return ""
 	}
@@ -237,6 +237,25 @@ func (r *runner) foundAgainstForcedErr() string {
 	}
 	return fmt.Sprintf("forced found-against chain: %d repeat(s) refused, %d close(s) after the owner's own re-read, %d accept(s) on the twice-held sentence; the chain reached %s",
 		r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading, r.repeatedSentenceAccepts, stage)
+}
+
+// forcedErrUnderTheRunLock reads foundAgainstForcedErr the way runOne does, holding r.mu, and fails
+// rather than hangs if the read takes the lock again.
+func forcedErrUnderTheRunLock(t *testing.T, r *runner) string {
+	t.Helper()
+	got := make(chan string, 1)
+	go func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		got <- r.foundAgainstForcedErr()
+	}()
+	select {
+	case msg := <-got:
+		return msg
+	case <-time.After(10 * time.Second):
+		t.Fatal("foundAgainstForcedErr did not return under the run's lock: it takes r.mu, which runOne already holds")
+		return ""
+	}
 }
 
 // citeAs is blue's citation of quote, by a source at path, and its label.
@@ -271,7 +290,7 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 				t.Fatalf("record the lanes' parts: %v", err)
 			}
 			const blue = "blue-respond"
-			if msg := r.foundAgainstForcedErr(); !strings.Contains(msg, "never sat") {
+			if msg := forcedErrUnderTheRunLock(t, r); !strings.Contains(msg, "never sat") {
 				t.Fatalf("a forced run nothing has driven reads %q, want the stage it never reached", msg)
 			}
 			r.sit("blue", blue)
@@ -310,7 +329,7 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 			if r.actErr != "" {
 				t.Fatalf("the drive: %s", r.actErr)
 			}
-			if msg := r.foundAgainstForcedErr(); msg != "" {
+			if msg := forcedErrUnderTheRunLock(t, r); msg != "" {
 				t.Errorf("the forced run drove every path and still reads %q", msg)
 			}
 			if r.repeatedSentenceGaps != 1 || r.repeatedSentenceAccepts != 1 {
@@ -334,8 +353,8 @@ func TestTheFoundAgainstSeedDrivesEachPathItIsForcedThrough(t *testing.T) {
 		if r.foundAgainstCite != "" {
 			t.Errorf("a run not forced cited the chain's sentence (%s)", r.foundAgainstCite)
 		}
-		if r.foundAgainstRepeats+r.foundAgainstClearedByOwnReading != 0 || r.foundAgainstForcedErr() != "" {
-			t.Errorf("a run not forced drove the chain (%d repeats, %d cleared) or owes it (%q)", r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading, r.foundAgainstForcedErr())
+		if r.foundAgainstRepeats+r.foundAgainstClearedByOwnReading != 0 || forcedErrUnderTheRunLock(t, r) != "" {
+			t.Errorf("a run not forced drove the chain (%d repeats, %d cleared) or owes it (%q)", r.foundAgainstRepeats, r.foundAgainstClearedByOwnReading, forcedErrUnderTheRunLock(t, r))
 		}
 	})
 }
