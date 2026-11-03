@@ -248,42 +248,42 @@ func SeatsThatSat(run Run) ([]string, error) {
 	return out, rows.Err()
 }
 
-// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "edit"
-// (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or "remove" (A=anchor id).
-// reportproj folds these over the base; the SELECTION and ordering are the view's, not a Go walk
-// of the event log. Exact is an edit's exact_span: the splice replaces A as written rather than the
+// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "append"
+// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or
+// "remove" (A=anchor id). reportproj folds these from the empty text; the SELECTION and ordering are
+// the view's, not a Go walk of the event log. EventID is the event the op is of. Exact is an edit's exact_span: the splice replaces A as written rather than the
 // span the ordinary locate finds. False for every insert and remove, and for every edit recorded
 // without the field.
 type ReportOp struct {
-	Kind  string
-	A, B  string
-	Exact bool
+	EventID int64
+	Kind    string
+	A, B    string
+	Exact   bool
 }
 
-// ReportProjection returns the frozen base of blue's report and the ordered stream of text
-// mutations that reconstruct it (#709) — the inputs reportproj.Render folds. haveBase is false for a
-// run that never ingested (no base_ingest event); a run that recorded nothing yet is the same
-// honest zero. TWO base rows is a record-integrity error, never a silent pick — the base is
-// written once. The ops arrive in event-id order straight from the report_op view, so no reader
-// rebuilds that selection by scanning every event.
-func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err error) {
+// ReportProjection returns the ordered stream of report ops that reconstruct blue's report — the
+// input reportproj.Render folds from the empty text. The lanes' parts are its `append` ops, so a run
+// whose lanes have recorded nothing yet has no part, and the render says so. The ops arrive in
+// event-id order straight from the report_op view, so no reader rebuilds that selection by scanning
+// every event.
+func ReportProjection(run Run) (ops []ReportOp, err error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
-		return "", false, nil, err // no record yet — no base, nothing to render
+		return nil, err // no record yet — no part, nothing to render
 	}
 	return ReportProjectionAt(db)
 }
 
-// RenderAt is the report as q holds it: the frozen base and its mutations, read from q and replayed
-// by the registered renderer. q is the run's handle, a read transaction, or a migration's batch
-// (Batch.Querier), whose own writes the render then includes. It is the ONE render over a querier;
-// RenderRun asks it of the run's handle.
+// RenderAt is the report as q holds it: its ops, read from q and folded by the registered renderer. q
+// is the run's handle, a read transaction, or a migration's batch (Batch.Querier), whose own writes
+// the render then includes. It is the ONE render over a querier; RenderRun asks it of the run's
+// handle.
 func RenderAt(q recordsql.Querier) (string, error) {
 	return renderProjection(ReportProjectionAt(q))
 }
 
-// RenderRun is RenderAt asked of run's record, opened for reading: a run that has recorded nothing
-// has no base, and says so.
+// RenderRun is RenderAt asked of run's record, opened for reading: a run that has recorded no part
+// has no report, and says so.
 func RenderRun(run Run) (string, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
@@ -295,41 +295,48 @@ func RenderRun(run Run) (string, error) {
 // ReportProjectionAt is ReportProjection asked of q — a read transaction a projection holds, so
 // the report it renders is the one on the snapshot its other answers came off. A nil q is a run
 // with no record yet.
-func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops []ReportOp, err error) {
+func ReportProjectionAt(db recordsql.Querier) (ops []ReportOp, err error) {
 	if noRecord(db) {
-		return "", false, nil, nil
+		return nil, nil
 	}
-	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)
+	return reportOpsAfter(db, 0)
+}
+
+// ReportAtPart is the report as it stood once seat's part was recorded: the ops up to and including
+// that part, folded. `ingest` asks it of the part it has just recorded, so another lane's part recorded
+// after it is not read as this one's. A seat with no part is an error: there is no such report.
+func ReportAtPart(run Run, seat string) (string, error) {
+	db, err := openRunForRead(run)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("reading the report base: %w", err)
+		return "", err
 	}
-	defer baseRows.Close()
-	seen := 0
-	for baseRows.Next() {
-		if seen++; seen > 1 {
-			return "", false, nil, fmt.Errorf("two base_ingest events on this run — the base is written once and never rewritten")
+	var at int64
+	found := false
+	if !noRecord(db) {
+		found, err = queryRowAt(db, []any{&at}, `SELECT p."event_id" FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  WHERE e."seat_id" = ? ORDER BY p."event_id" LIMIT 1`, seat)
+		if err != nil {
+			return "", err
 		}
-		var t sql.NullString
-		if err := baseRows.Scan(&t); err != nil {
-			return "", false, nil, err
+	}
+	if !found {
+		return "", fmt.Errorf("%s has recorded no part of the report", seat)
+	}
+	ops, err := reportOpsAfter(db, 0)
+	var upto []ReportOp
+	for _, op := range ops {
+		if op.EventID <= at {
+			upto = append(upto, op)
 		}
-		base, haveBase = t.String, true
 	}
-	if err := baseRows.Err(); err != nil {
-		return "", false, nil, err
-	}
-	if !haveBase {
-		return "", false, nil, nil
-	}
-	ops, err = reportOpsAfter(db, 0)
-	return base, haveBase, ops, err
+	return renderProjection(upto, err)
 }
 
 // reportOpsAfter is the report_op rows of the events after event id `after`, in replay order: every
 // row, for an `after` of 0. The second key orders the one case where an event yields several rows — a
 // retire naming more than one anchor — so replay is deterministic rather than whatever SQLite returns.
 func reportOpsAfter(db recordsql.Querier, after int64) ([]ReportOp, error) {
-	opRows, err := db.Query(`SELECT "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? ORDER BY "event_id", "a"`, after)
+	opRows, err := db.Query(`SELECT "event_id", "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? ORDER BY "event_id", "a"`, after)
 	if err != nil {
 		return nil, fmt.Errorf("reading the report ops: %w", err)
 	}
@@ -338,7 +345,7 @@ func reportOpsAfter(db recordsql.Querier, after int64) ([]ReportOp, error) {
 	for opRows.Next() {
 		var op ReportOp
 		var a, b sql.NullString
-		if err := opRows.Scan(&op.Kind, &a, &b, &op.Exact); err != nil {
+		if err := opRows.Scan(&op.EventID, &op.Kind, &a, &b, &op.Exact); err != nil {
 			return nil, err
 		}
 		op.A, op.B = a.String, b.String
@@ -347,10 +354,32 @@ func reportOpsAfter(db recordsql.Querier, after int64) ([]ReportOp, error) {
 	return ops, opRows.Err()
 }
 
-// ReportBaseExists reports whether this run has a frozen base — the write-once state test behind
-// `blue ingest`, answered by an EXISTS rather than a walk.
-func ReportBaseExists(run Run) (bool, error) {
-	return recordHas(run, `SELECT 1 FROM "base_ingest" LIMIT 1`)
+// ReportHasParts reports whether any lane has recorded its part of the report — whether the report
+// has text to assemble — answered by an EXISTS rather than a walk.
+func ReportHasParts(run Run) (bool, error) {
+	return recordHas(run, `SELECT 1 FROM "report_part" LIMIT 1`)
+}
+
+// PartStanding is what decides whether seat may record its part of the report on the record q holds:
+// whether it has recorded one (a lane records one), and whether the report has an op other than a
+// part (after which no part is recorded). `ingest` asks it before it reads the file and again inside
+// the write (Landing.PartStanding), so two writes cannot both pass it.
+func PartStanding(run Run, seat string) (recorded, changed bool, err error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return false, false, err
+	}
+	if noRecord(db) {
+		return false, false, nil
+	}
+	return partStandingAt(db, seat)
+}
+
+func partStandingAt(q recordsql.Querier, seat string) (recorded, changed bool, err error) {
+	_, err = queryRowAt(q, []any{&recorded, &changed}, `SELECT
+  EXISTS (SELECT 1 FROM "report_part" p JOIN "events" e ON e."id" = p."event_id" WHERE e."seat_id" = ?),
+  EXISTS (SELECT 1 FROM "report_op" WHERE "kind" != 'append')`, seat)
+	return recorded, changed, err
 }
 
 // FindingMarkerRecorded / ComputationMarkerRecorded — the "does an event already name this marker id"

@@ -484,6 +484,14 @@ func fitSections(parts []string, budget int, path string) (out []string, shorten
 	return out, shortened
 }
 
+// forkPointerReason is why a fork gets a pointer: the session it copied still owns the cursor.
+const forkPointerReason = "this session is a fork, and the session it copied still owns this work"
+
+// rearmHeading opens the re-arm notice as a line of its own. A reader recovers the notice by
+// that line, never by a word inside it: the digest also carries the note's path, and a path
+// may hold any word.
+const rearmHeading = "Validation checks whose trigger surface changed after the recorded result — the `last run` above is stale for these:"
+
 // rearmLines states which checks have had their trigger surface move since the
 // note recorded a result. Declarative, like everything else the hook emits: it
 // says what changed and what recorded it, never what to do about it.
@@ -495,7 +503,7 @@ func rearmLines(s checkpoint.RearmState) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("Validation checks whose trigger surface changed after the recorded result — the `last run` above is stale for these:\n")
+	b.WriteString(rearmHeading + "\n")
 	for _, r := range rs {
 		fmt.Fprintf(&b, "- check %d (%s) — %s %s at %s\n", r.Index, r.Check, r.Event, r.By, r.At)
 	}
@@ -632,7 +640,7 @@ func compose(projectDir, source string, rec *hookfailures.Recorder) (string, []s
 		case clearIsPointerOnly:
 			why = "the context was cleared"
 		case forkIsPointerOnly:
-			why = "this session is a fork, and the session it copied still owns this work"
+			why = forkPointerReason
 		}
 		// No watch on a pointer: the session is not resuming this work, so
 		// registering its surfaces would collect re-arms nobody asked for.

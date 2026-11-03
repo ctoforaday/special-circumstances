@@ -1,8 +1,6 @@
 package fuzz
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,13 +20,6 @@ import (
 func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	// THE CAST, as setup writes it: the chair's dispatch below is checked against it.
 	stageRun, err := record.NewRun(runDir)
 	if err != nil {
@@ -39,9 +30,8 @@ func TestTheBenchRulesEverySiblingDocketMotion(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := newRunner(bin, runDir, newLockedRand(7))
-	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
-		t.Fatalf("ingest the round-0 report: %v", err)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
+		t.Fatalf("record the lane's part: %v", err)
 	}
 	r.register("chair", "red-chair")
 	lens := fuzzLensSeats[0]

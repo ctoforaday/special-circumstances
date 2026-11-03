@@ -29,19 +29,20 @@ import (
 type BlockerKind string
 
 const (
-	BlockerStrandedGap   BlockerKind = "stranded_gap"
-	BlockerMaterialGap   BlockerKind = "material_gap"
-	BlockerRemandOwed    BlockerKind = "remand_owed"
-	BlockerContradiction BlockerKind = "contradiction"
-	BlockerUnchecked     BlockerKind = "unchecked"
-	BlockerFailedCheck   BlockerKind = "failed_check"
-	BlockerNoReport      BlockerKind = "no_report"
-	BlockerLensReady     BlockerKind = "lens_ready"
-	BlockerStaleArea     BlockerKind = "stale_area"
-	BlockerGradeMovement BlockerKind = "grade_movement"
-	BlockerClosingOwed   BlockerKind = "closing_owed"
-	BlockerUnruledMotion BlockerKind = "unruled_motion"
-	BlockerInquiryReview BlockerKind = "inquiry_review"
+	BlockerStrandedGap    BlockerKind = "stranded_gap"
+	BlockerMaterialGap    BlockerKind = "material_gap"
+	BlockerRemandOwed     BlockerKind = "remand_owed"
+	BlockerContradiction  BlockerKind = "contradiction"
+	BlockerUnchecked      BlockerKind = "unchecked"
+	BlockerFailedCheck    BlockerKind = "failed_check"
+	BlockerNoReport       BlockerKind = "no_report"
+	BlockerLensReady      BlockerKind = "lens_ready"
+	BlockerStaleArea      BlockerKind = "stale_area"
+	BlockerGradeMovement  BlockerKind = "grade_movement"
+	BlockerClosingOwed    BlockerKind = "closing_owed"
+	BlockerUnruledMotion  BlockerKind = "unruled_motion"
+	BlockerUpheldPosition BlockerKind = "upheld_position"
+	BlockerInquiryReview  BlockerKind = "inquiry_review"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
@@ -322,8 +323,8 @@ var blockerKinds = []blockerKind{
 	// A REMAND OF A GAP THAT IS NOT MATERIAL HOLDS THE PASS UNTIL ITS EXCHANGE HAS BEGUN (ruled by
 	// gblock 2026-10-24). A material gap holds it as material_gap
 	// whatever its remand; this row is the one a gap below material holds once the bench has sent it
-	// back, so the plan that readies its minting lens and blue never reads as permitting a PASS over
-	// the exchange it readies them for (routeOf).
+	// back, so the plan that readies blue for the exchange never reads as permitting a PASS over it
+	// (routeOf).
 	{
 		kind:  BlockerRemandOwed,
 		gloss: "a gap that is not material, remanded by the bench, whose one more exchange has not been had",
@@ -331,7 +332,7 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("gap %s is not material and the BENCH REMANDED it — PASS is refused until the one more exchange the remand grants, between %s and blue, has been had — an exchange that begins when blue records an act on the gap; the dispatch readies them on the ruling's direction", b.Subject, ownerOr(b, "the lens that minted it"))
 		},
 		refusal: func(bs []Blocker) string {
-			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies them. PASS waits for it; `--as FAIL` does not",
+			return fmt.Sprintf("%d gap(s) the bench REMANDED are owed the one more exchange each remand grants: %s. The bench's remand outranks materiality, so a gap that is not material holds the PASS until its minting lens and blue have had that exchange — one that begins when blue records an act on the gap — on the ruling's direction; the dispatch readies blue for it. PASS waits for it; `--as FAIL` does not",
 				len(bs), strings.Join(subjects(bs), ", "))
 		},
 	},
@@ -535,6 +536,29 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: motion (%s) filed and never ruled — %s", b.Subject, b.Detail, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
+	// AN UPHELD POSITION NAMING A LENS HOLDS THE PASS UNTIL THAT LENS HAS AUDITED ITS AREA (gblock,
+	// 2026-10-30; positionheard.go): the lens is served the report in a sitting opened after the
+	// ruling. The owner is the lens, so the plan readies it; the subject is the position's id.
+	{
+		kind:  BlockerUpheldPosition,
+		gloss: "an audit the bench named in upholding the chair's position, not yet had",
+		item: func(b Blocker) string {
+			return fmt.Sprintf("the bench upheld the chair's position %s and named %s's area: it owes an audit of it on the ruling's direction — %q — and has been served the report in no sitting since the ruling; PASS is refused until it has", b.Subject, ownerOr(b, "a lens"), b.Detail)
+		},
+		refusal: func(bs []Blocker) string {
+			var named []string
+			for _, b := range bs {
+				named = append(named, fmt.Sprintf("%s (%s, on %q)", b.Subject, ownerOr(b, "a lens"), b.Detail))
+			}
+			return fmt.Sprintf("%d position(s) the bench upheld name a lens whose audit of its area has not been had: %s. "+
+				"The bench held that the PASS was rightly withheld and named the work the debate continues on; the lens is readied to audit its area on the ruling's direction, and a defect it finds enters the board as a gap. "+
+				"PASS waits for that audit, and `--as FAIL` does not",
+				len(bs), strings.Join(named, ", "))
+		},
+		why: func(b Blocker) string {
+			return fmt.Sprintf("%s: the bench upheld the chair's position, naming %s to audit its area on %q — %s", b.Subject, ownerOr(b, "a lens"), b.Detail, planHold(b, "PASS is not permitted until it has"))
+		},
+	},
 	// THE INQUIRIES ARE READ ONCE FOR EACH CHANGE TO WHAT THE READ READS. One statement per read, not
 	// one per inquiry: presence is not the question, because the inquiries are generated onto the page
 	// from the record. What the read owes is a judgement on whether the BODY delivered them, and where
@@ -693,6 +717,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
+	out = append(out, upheldPositionBlockers(evs, ids, win)...)
 	if InquiryReviewDueOf(evs, win) {
 		out = append(out, Blocker{Kind: BlockerInquiryReview, Owner: chairSeat})
 	}
@@ -834,6 +859,13 @@ func requireBenchMotionsRuled(q recordsql.Querier) error {
 	var named []string
 	for _, b := range blockers {
 		if b.Kind != BlockerUnruledMotion || b.Owner != benchSeat {
+			continue
+		}
+		// NOT UNDER A MIGRATION for a withheld PASS's position (gblock, 2026-10-30, the ruling that
+		// made one a motion). An archived run's positions were argued to a bench that was never
+		// convened for them, and its outcome is what the run did; migrate translates that history
+		// and does not re-judge it under the rule. The migrated record holds the position unruled.
+		if Migrating && b.motionSubject == positionSubject {
 			continue
 		}
 		named = append(named, b.Subject+" ("+b.Detail+")")

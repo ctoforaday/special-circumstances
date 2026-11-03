@@ -229,33 +229,35 @@ func countInReport(count func(string) int) func(recordsql.Querier, func() (strin
 
 var errNoRenderer = fmt.Errorf("this binary registers no report renderer (internal/reportproj registers one wherever it is linked)")
 
-// reportRenderer replays the report's frozen base and its ordered mutations — the rows
-// ReportProjectionAt reads — into the current report. It is REGISTERED, not imported: the renderer
-// (internal/reportproj) imports this package, so the write path is handed it instead. It asks the
-// record nothing, so a reader holding a read transaction takes the rows on it and replays after the
-// transaction closes.
+// reportRenderer folds the report's ordered ops — the rows ReportProjectionAt reads — from a text
+// into the current report. It is REGISTERED, not imported: the renderer (internal/reportproj)
+// imports this package, so the write path is handed it instead. It asks the record nothing, so a
+// reader holding a read transaction takes the rows on it and replays after the transaction closes.
 //
-// IT IS A LEFT FOLD OF THE OPS OVER THE BASE: replaying B over the text A replayed to is replaying A
-// then B over the base. The write path folds the ops another write added onto a render it made before
-// its lock (landingReport.fold) and reads the result as the report; TestTheReportReplayIsAFold
-// (internal/record/migrate) holds the renderer to it on archived runs.
-var reportRenderer func(base string, haveBase bool, ops []ReportOp) (string, error)
+// IT IS A LEFT FOLD OF THE OPS FROM THE EMPTY TEXT: replaying B over the text A replayed to is
+// replaying A then B from empty. `parted` says whether the text it starts from holds a part, which
+// every render that succeeded does; a fold from the empty text starts with none. The write path
+// folds the ops another write added onto a render it made before its lock (landingReport.fold) and
+// reads the result as the report; TestTheReportReplayIsAFold (internal/record/migrate) holds the
+// renderer to it on archived runs.
+var reportRenderer func(text string, parted bool, ops []ReportOp) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.
-func RegisterReportRenderer(fn func(base string, haveBase bool, ops []ReportOp) (string, error)) {
+func RegisterReportRenderer(fn func(text string, parted bool, ops []ReportOp) (string, error)) {
 	reportRenderer = fn
 }
 
-// renderProjection replays a report projection — ReportProjection's or ReportProjectionAt's rows —
-// into the current report, or says why it cannot: the rows did not read, or no renderer is linked.
-func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (string, error) {
+// renderProjection folds a report projection — ReportProjection's or ReportProjectionAt's rows —
+// from the empty text into the current report, or says why it cannot: the rows did not read, or no
+// renderer is linked.
+func renderProjection(ops []ReportOp, err error) (string, error) {
 	if err == nil && reportRenderer == nil {
 		err = errNoRenderer
 	}
 	if err != nil {
 		return "", err
 	}
-	return reportRenderer(base, haveBase, ops)
+	return reportRenderer("", false, ops)
 }
 
 // requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may hold at

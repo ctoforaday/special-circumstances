@@ -2,7 +2,6 @@ package cli
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,7 +44,7 @@ func refusesTheNote(t *testing.T, out string, err error, label string) {
 }
 
 func TestIngestRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
-	const head = "# On 91\n\n## TL;DR\n\n"
+	const head = "## The factors\n\n"
 	for _, tc := range []struct{ name, body, label string }{
 		{"a citation's label, reference and definition", "91 is 7 x 13.[^1]\n\n[^1]: A note about seven.\n", "[^1]"},
 		{"a computation's label, the definition alone", "91 is 7 x 13.\n\n[^K2]: A note about thirteen.\n", "[^K2]"},
@@ -53,23 +52,14 @@ func TestIngestRefusesAFootnoteUnderALabelTheWeaveWrites(t *testing.T) {
 		{"a computation's label in lower case", "91 is 7 x 13[^k1].\n\n[^k1]: A note.\n", "[^k1]"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := newRun(t)
-			path := filepath.Join(runDir, "blue", "report.md")
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(path, []byte(head+tc.body), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-				t.Fatalf("register: %v", err)
-			}
-			out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+			runDir := laneRun(t, 1)
+			writePart(t, runDir, "blue-lane-1", head+tc.body)
+			out, err := ingestPart(t, runDir, "blue-lane-1")
 			refusesTheNote(t, out, err, tc.label)
-			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
-				t.Errorf("the refused ingest recorded %d base(s)", n)
+			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPORT_PART); n != 0 {
+				t.Errorf("the refused ingest recorded %d part(s)", n)
 			}
-			if _, err := os.Stat(path); err != nil {
+			if _, err := os.Stat(partFile(runDir, "blue-lane-1")); err != nil {
 				t.Errorf("the refused ingest did not leave the file for its author to fix: %v", err)
 			}
 		})
@@ -164,7 +154,7 @@ func TestAnEditIsRefusedForWhatItAddsNotForWhatTheRecordHolds(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(held)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.ReportPart{Text: proto.String(held)}); err != nil {
 		t.Fatal(err)
 	}
 	registerBlue(t, runDir)

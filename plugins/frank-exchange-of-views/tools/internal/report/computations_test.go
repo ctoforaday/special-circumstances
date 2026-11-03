@@ -71,7 +71,7 @@ func TestComputationsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T)
 		}
 	}
 
-	ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), computations)
 	for _, want := range []string{
 		"## Computations",                   // the section
 		computationAnchorMark("K-deadbeef"), // where the anchor the footnote links to ships
@@ -100,7 +100,7 @@ func TestAComputationWithNoReasonIsNamedByItsCommand(t *testing.T) {
 	c := seedComputation(t, runDir, "K-deadbeef", "script.py", "print(91 % 7)", "0\n")
 	computations := []record.Computation{c}
 	out, _ := weaveComputationRefs("Seven divides 91<!--computation:K-deadbeef-->.\n", computations)
-	ev := evidenceDoc(runtest.Open(t, runDir), computations, map[string]bool{"K-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), computations)
 	if !strings.Contains(out, `[^K1]: python3 script\.py`) {
 		t.Errorf("the report's note does not name the command:\n%s", out)
 	}
@@ -125,7 +125,7 @@ func TestEveryReRunOfAComputationIsAttributedToRed(t *testing.T) {
 			c.Rerun = &record.ComputationRerun{SeatID: "red-lens-evidence", Sitting: 5, Rerun: rerun}
 			c.Soundness = soundness
 			c.Judgements = []record.ComputationJudgement{{SeatID: "red-lens-evidence", Sound: sound, Note: "read it"}}
-			ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, map[string]bool{"K-deadbeef": true})
+			ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c})
 			if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") {
 				t.Errorf("%s, sound=%v: a re-run is attributed to a seat:\n%s", rerun, sound, ev)
 			}
@@ -157,7 +157,7 @@ func TestAComputationSaysWhatOfItWasCheckedAndWhatWasNot(t *testing.T) {
 	} {
 		p := base
 		p.Rerun, p.Soundness = c.p.Rerun, c.p.Soundness
-		ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{p}, map[string]bool{"K-deadbeef": true})
+		ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{p})
 		for _, w := range c.want {
 			if !strings.Contains(ev, w) {
 				t.Errorf("%s: the evidence document does not say %q:\n%s", c.name, w, ev)
@@ -204,7 +204,7 @@ func TestAVariantComputationIsLabelledInTheReport(t *testing.T) {
 	c := seedComputation(t, runDir, "K-00000001", "s.py", "import random; print(random.random())", "0.42\n")
 	c.Basis, c.Reason = "variant", "live sample"
 	c.Drift, c.Invariant = "output differs from byte 2 between runs", "a number in [0, 1)"
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, map[string]bool{"K-00000001": true})
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c})
 	for _, want := range []string{"basis**: variant", "differs from byte 2", "**holds across both runs**: a number in [0, 1)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("a variant computation was not distinguished from a reproducible one — missing %q:\n%s", want, out)
@@ -218,23 +218,11 @@ func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	runDir := newRun(t)
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{
 		Label: "K-00000009", SHA: "notonthisdisk", Basis: "reproducible", Argv: []string{"node", "gone.js"},
-	}}, map[string]bool{"K-00000009": true})
+	}})
 	for _, want := range []string{"the bundle is missing from computations/notonthisdisk/dir/", "the output is missing from computations/notonthisdisk/acts/K-00000009/"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("a missing artifact was silently omitted, so the report shows a computation it cannot produce — missing %q:\n%s", want, out)
 		}
-	}
-}
-
-// A computation on the record that NO document references is still shown, and said to be
-// unreferenced. Dropping it would hide a computation the run paid to run.
-func TestAnUnanchoredComputationIsShownAndLabelled(t *testing.T) {
-	runDir := newRun(t)
-	c := seedComputation(t, runDir, "K-00000005", "e.py", "x", "y")
-	c.Reason = "nobody cited it"
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, map[string]bool{})
-	if !strings.Contains(out, "anchored to nothing") {
-		t.Errorf("a computation no document references was rendered as if it were cited:\n%s", out)
 	}
 }
 
@@ -248,7 +236,7 @@ func TestEachActShowsItsOwnOutput(t *testing.T) {
 	if err := compute.WriteAct(runDir, first.SHA, second.Label, []byte("second act\n"), nil); err != nil {
 		t.Fatal(err)
 	}
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{first, second}, map[string]bool{"K-00000001": true, "K-00000002": true})
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{first, second})
 	at := strings.Index(out, "### K2")
 	if at < 0 || !strings.Contains(out[:at], "first act") || strings.Contains(out[:at], "second act") || !strings.Contains(out[at:], "second act") {
 		t.Errorf("an act's output is not its own:\n%s", out)
@@ -268,7 +256,7 @@ func TestABinaryBundleFileIsNamedNotPrinted(t *testing.T) {
 	if err := compute.WriteAct(runDir, bundle, "K-00000001", []byte("1\n"), nil); err != nil {
 		t.Fatal(err)
 	}
-	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}}, map[string]bool{"K-00000001": true})
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Computation{{Label: "K-00000001", SHA: bundle, Argv: argv, Basis: "reproducible"}})
 	if !strings.Contains(out, `- data\.bin: 3 bytes, sha256 `) || !strings.Contains(out, "print(1)") {
 		t.Errorf("a binary file was printed, or the text file was not:\n%s", out)
 	}
@@ -292,7 +280,7 @@ func TestNoComputationsLeavesTheReportAlone(t *testing.T) {
 	if got != md || used != nil {
 		t.Errorf("an empty computation layer was appended:\n%s", got)
 	}
-	if ev := evidenceDoc(runtest.Open(t, recordtest.TmpRun(t)), nil, nil); ev != "" {
+	if ev := evidenceDoc(runtest.Open(t, recordtest.TmpRun(t)), nil); ev != "" {
 		t.Errorf("evidence.md was composed for a run with no computations:\n%s", ev)
 	}
 }
@@ -315,7 +303,7 @@ func TestADifferingReRunShowsItsDriftFenced(t *testing.T) {
 	runDir := newRun(t)
 	c := seedComputation(t, runDir, "K-deadbeef", "s.py", "print(1)", "1\n")
 	c.Rerun = &record.ComputationRerun{Rerun: recordpb.Rerun_RERUN_DIFFERS, Drift: "on re-run the program wrote: ```\n# 2"}
-	ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c}, map[string]bool{"K-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), []record.Computation{c})
 	if !strings.Contains(ev, "it DID NOT REPRODUCE") || !strings.Contains(ev, "  ````\n  on re-run the program wrote: ```\n  # 2\n  ````") {
 		t.Errorf("the re-run's drift is not shown fenced under its line:\n%s", ev)
 	}

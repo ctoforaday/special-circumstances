@@ -435,25 +435,30 @@ func anchorOwnerOf(computation bool) string {
 	return evidenceSeat
 }
 
-// remandItemsOf is the item a remand's exchange puts on the list of each seat the dispatch readies
-// for it — blue-respond, and the gap's minting lens — carrying the research direction the ruling
-// states, so the bench's words reach the two seats that owe them. blue says which of the two seatID
-// is.
+// remandItemsOf is the item a remand's exchange puts on the list of blue-respond, which the dispatch
+// readies for it, and of the gap's minting lens, whose turn comes after blue's act — carrying the
+// research direction the ruling states, so the bench's words reach both parties to the exchange. blue
+// says which of the two seatID is.
 //
-// IT BLOCKS UNTIL THE SEAT HAS ACTED ON THE GAP (gblock, 2026-10-25), by the per-seat envelope gate
-// (EnvelopeRefusal): an act on the gap after the ruling (gapActsOf) clears it, and until then the
-// seat's sitting cannot end. On universe-m34 the item was offered and not owed, blue worked other
+// BLUE'S ITEM BLOCKS UNTIL BLUE HAS ACTED ON THE GAP (gblock, 2026-10-25), by the per-seat envelope
+// gate (EnvelopeRefusal): an act on the gap after the ruling (gapActsOf) clears it, and until then
+// blue's sitting cannot end. On universe-m34 the item was offered and not owed, blue worked other
 // gaps, and a sitting that never touched the remanded gap was the exchange the remand granted.
 //
-// A SEAT SITTING FOR A DISPATCH MADE BEFORE THE RULING IS NOT HELD BY IT: the plan that dispatched
-// it carried no remand, the next plan readies the seat, and that sitting owes it. The dispatch row
-// is the reading, not the seat's latest sitting, because a sitting is not the seat's until it
-// registers: blue's harness bracket names no seat, so before its register the latest sitting of
-// blue-respond is the one before. On universe-m35 the item read "the ruling landed after this
-// sitting opened" (non-blocking, and false) before register, and blocked after it. The dispatch row
-// is on the record before the seat sits, so the item says the same thing before and after register.
-// Once the seat has acted the item stays on the list, not owed, while the remand's exchange is: the
-// direction is still what the exchange is about.
+// THE LENS'S ITEM NEVER BLOCKS (ruled by gblock 2026-10-30): the exchange begins with blue's act, and
+// the lens's turn on the gap comes with it (lensTurnOn), so while the exchange is owed blue has not
+// acted since the ruling and there is nothing for the lens to audit. A lens that sits for another
+// reason reads the direction its next audit of the gap is held to.
+//
+// A BLUE SITTING FOR A DISPATCH MADE BEFORE THE RULING IS NOT HELD BY IT: the plan that dispatched
+// it carried no remand, the next plan readies blue, and that sitting owes it. The dispatch row is the
+// reading, not blue's latest sitting, because a sitting is not the seat's until it registers: blue's
+// harness bracket names no seat, so before its register the latest sitting of blue-respond is the
+// one before. On universe-m35 the item read "the ruling landed after this sitting opened"
+// (non-blocking, and false) before register, and blocked after it. The dispatch row is on the record
+// before the seat sits, so the item says the same thing before and after register. Once blue has
+// acted the item stays on the list, not owed, while the remand's exchange is: the direction is still
+// what the exchange is about.
 //
 // It stands while the plan's own route (routeOf) owes the remand's exchange, so it goes when the gap
 // closes, when a docket motion on it puts it back before the bench, and when an exchange in which
@@ -461,17 +466,21 @@ func anchorOwnerOf(computation bool) string {
 func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
 	minted := mintedBy(evs)
 	var acts map[string][]gapAct
-	var dispatched int64 // the seat's latest dispatch row, read with acts
+	var dispatched int64 // blue's latest dispatch row, read with acts
 	var out []Item
 	for _, g := range gaps {
 		if !g.Open || g.route != routeRemandOwed || (!blue && minted[g.ID] != seatID) {
+			continue
+		}
+		what := remandItem(g, blue)
+		if !blue {
+			out = append(out, Item{What: what})
 			continue
 		}
 		if acts == nil {
 			acts = gapActsOf(evs, win.IDs(evs))
 			dispatched = latestDispatchOf(evs, win, seatID)
 		}
-		what := remandItem(g, blue)
 		switch {
 		case seatActedSince(acts[g.ID], seatID, g.remandRuled):
 			out = append(out, Item{What: what + " — you have recorded an act on it since the ruling, so it does not hold your sitting"})
@@ -501,11 +510,11 @@ func latestDispatchOf(evs []*Event, win WindowIndex, seatID string) int64 {
 func remandItem(g WorkGapState, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
 	if blue {
-		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + g.DocketDirection +
-			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a computation that answers it, a fate on the inquiry it is anchored on, or a motion on it" + next
+		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the research direction the ruling states: " + g.DocketDirection +
+			". Your sitting cannot end until you record an act on " + g.ID + ": an edit or a computation that answers it, a fate on the inquiry it is anchored on, or a motion on it. Its minting lens audits your answer after you have acted" + next
 	}
-	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — audit blue's answer against the research direction the ruling states: " + g.DocketDirection +
-		". Your sitting cannot end until you record an act on " + g.ID + ": a regrade (one that keeps the grade says what your check still finds failing), a close, or a finding about it. Your act does not begin the exchange: it begins when blue records an act on " + g.ID + next
+	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — it begins when blue records an act on " + g.ID + " against the research direction the ruling states: " + g.DocketDirection +
+		". The dispatch readies you on " + g.ID + " once blue has acted, and you audit blue's answer against that direction then" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
@@ -514,7 +523,7 @@ func remandedGapForChair(g WorkGapState) string {
 	const head = "gap "
 	switch g.route {
 	case routeRemandOwed:
-		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketDirection
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its minting lens once blue has acted: " + g.DocketDirection
 	case routeRedocket:
 		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again, to be closed"
 	case routeDocket:
@@ -524,5 +533,5 @@ func remandedGapForChair(g WorkGapState) string {
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	}
-	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies its minting lens and blue on it"
+	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its minting lens once blue has acted on it since the lens last did"
 }

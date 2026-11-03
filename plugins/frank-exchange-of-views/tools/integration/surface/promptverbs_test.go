@@ -771,7 +771,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 
 	// Every backticked token in a table row's FIRST cell that looks like a command path.
 	documented := map[string]bool{}
-	pathTok := regexp.MustCompile("`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`")
+	pathTok := regexp.MustCompile("`((?:lens|chair|blue|lane|bench|motion) [a-z][a-z -]*)`")
 	for _, line := range strings.Split(string(b), "\n") {
 		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
 			continue
@@ -797,7 +797,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// "root command a prompt names" would take a second prompt scan and the honest cost of that is
 	// a rule stated in one place instead of enforced in two. Stated rather than left as a silent
 	// hole.
-	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|bench|motion) `)
+	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|lane|bench|motion) `)
 	real := map[string]bool{}
 	var missing []string
 	for _, p := range cli.CommandPaths() {
@@ -830,7 +830,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// (~~`blue dispute`~~) are DELIBERATE history — the map records what a collapse retired and
 	// why — so they are exempt by the strikethrough, which is a mark the author makes on purpose.
 	struck := map[string]bool{}
-	for _, m := range regexp.MustCompile("~~`((?:lens|chair|blue|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
+	for _, m := range regexp.MustCompile("~~`((?:lens|chair|blue|lane|bench|motion) [a-z][a-z -]*)`~~").FindAllStringSubmatch(string(b), -1) {
 		struck[strings.TrimSpace(m[1])] = true
 	}
 	var stale []string

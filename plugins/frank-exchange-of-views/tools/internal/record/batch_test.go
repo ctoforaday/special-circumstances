@@ -101,7 +101,7 @@ func TestABatchTakesTheActAfterOneValidationRefused(t *testing.T) {
 	chair := sit(t, run, "red-chair")
 	migrating(t)
 	b := mustBegin(t, run)
-	_, err := b.Append(chair, &recordpb.Position{})
+	_, err := b.Append(chair, &recordpb.Position{PositionId: proto.String(NewID("position"))})
 	mustRefuse(t, err, "requires --reason")
 	if errors.Is(err, ErrBatchFailed) {
 		t.Fatalf("a refused act was reported as the batch's failure: %v", err)

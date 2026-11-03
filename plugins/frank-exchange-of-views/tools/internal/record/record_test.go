@@ -248,10 +248,10 @@ func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(id, &recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {
+	if _, err := Append(id, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the board is clean going in")}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := Append(id, &recordpb.Position{Text: proto.String("changed my mind")})
+	_, err := Append(id, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("changed my mind")})
 	if err == nil {
 		t.Fatal("a second position was recorded — the record kept two answers to a once-per-sitting question")
 	}

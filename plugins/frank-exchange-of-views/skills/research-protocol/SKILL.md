@@ -51,6 +51,8 @@ To find text inside the run's own artifacts, search for it lexically — with th
 session offers, or the shell's `grep` where it offers none: the terms you want are the terms you
 already have, and a lexical match over a known file beats a ranked guess over a corpus. A search's
 count mode — the search tool's or `grep -c` — counts LINES, not occurrences (anchor patterns when counting).
+A cached source is the exception: search it with the run's source search, which reads it as a citation is
+located in it and says, at each hit, whether its sentence can be quoted as printed.
 
 ## Report structure
 

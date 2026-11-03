@@ -74,6 +74,8 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
 		return blue.Verbs(), "blue seats — the report and its edits, manifest rows, inquiries. No board verbs at all."
+	case seatclass.Lane.Role:
+		return blue.LaneVerbs(), "a lane — researches, records inquiries, and records its part of the report, once; what becomes of the report after that is blue's."
 	case "bench":
 		// "opinions" NAMED A VERB THE BENCH NO LONGER HAS. `bench opinion` is retired (#681) and
 		// the disposition is a docket motion's ruling, so the line offered a capability the
@@ -108,19 +110,9 @@ func noSeatNote(seatID string) string {
 	return ""
 }
 
-// readsSources reports whether a role reads a SOURCE, and so carries `fetch`.
-//
-// Blue reads what it cites and a lens reads the same cached bytes to verify the citation, or a
-// source of its own to corroborate one. The chair and the bench are handed no source to read: the
-// chair reads the report, the board and the changes since a stale area's pin, and the bench's
-// ruling basis is confined to the closings, the transcript and the artifacts as the record renders
-// them. A verb on a surface is a thing its seat reaches for, and every seat reads its whole
-// surface at its opening act, so a read no duty asks for is cost on every sitting.
-//
-// THE TREE IS THE GATE. `fetch` writes no event, so there is no write path to refuse it on: a
-// seat whose tree does not mount it is answered by the wrong-seat refusal, which names the seats
-// that hold it.
-func readsSources(role string) bool { return role == "lens" || role == "blue" }
+// readsSources is seat.ReadsSources: the one statement of which roles read a source, shared with
+// the `show source` projection.
+func readsSources(role string) bool { return seat.ReadsSources(role) }
 
 // newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {
@@ -524,9 +516,10 @@ func Execute() {
 	}
 }
 
-// Invoke is everything the binary does with an argv short of exiting: the refusal that answers a
-// command nobody holds before cobra parses a flag, the tree, and — for a refusal from either — the
-// ONE renderer, handed the command that resolved. It returns that command with the error.
+// Invoke is everything the binary does with an argv short of exiting: the refusals of a command
+// nobody holds and of a flag stated twice, both before cobra parses a flag, the tree, and — for a
+// refusal from any of them — the ONE renderer, handed the command that resolved. It returns that
+// command with the error.
 //
 // Exported because a TEST HARNESS must reproduce the binary. One that drove the tree and rendered
 // for itself would measure a shape the binary does not produce; the in-process drivers (this
@@ -538,6 +531,9 @@ func Execute() {
 func Invoke(root *cobra.Command, argv []string, seatID string) (*cobra.Command, error) {
 	root.SetArgs(argv)
 	leaf, err := root, refuseUnknownCommandNoted(root, append([]string{InvokedAs()}, argv...), seatID)
+	if err == nil {
+		leaf, err = refuseRepeatedFlagNoted(root, argv)
+	}
 	if err == nil {
 		leaf, err = ExecuteRoot(root)
 	}

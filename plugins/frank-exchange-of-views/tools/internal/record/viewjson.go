@@ -846,13 +846,15 @@ type WorkGapJSON struct {
 	// DocketSettled is what the latest remand settles — the proposition a party may no longer
 	// assert though the gap is back in the debate; absent where it settles none.
 	DocketSettled string `json:"docket_settled,omitempty"`
-	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
-	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
-	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
-	// minting lens and blue, is owed — and for a gap that is not material, after any remand, at
-	// impasse or not), "spent" (that exchange has been had: one in which blue acted on the gap).
-	// "" when the bench has ruled no remand while the gap was at impasse — a remand of a material
-	// gap's docket filed before impasse spends nothing.
+	// RemandStage is where the gap stands against the bench's remands, read off the dispatch's own
+	// route (stageOnRoute), so a seat reads the stage the plan acts on rather than matching it out of
+	// the work list's sentence: "owed" (the plan readies its one more exchange, which begins with
+	// blue's act — and for a gap that is not material, after any remand, at impasse or not), "spent"
+	// (that exchange has been had: one in which blue acted on the gap). "" when the bench has ruled
+	// no remand while the gap was at impasse — a remand of a material gap's docket filed before
+	// impasse spends nothing — and while the dispatch sends a gap whose exchange is unhad to the
+	// bench instead: a docket motion on it stands unruled, or its grade movement is past the
+	// threshold.
 	RemandStage string   `json:"remand_stage,omitempty"`
 	FoundBy     []string `json:"found_by"`
 	// Material is whether this open gap holds the PASS gate, by the one definition the record
@@ -887,9 +889,10 @@ type WorkGapJSON struct {
 // words, "the projection has to record WHO closed it, not merely that it is closed." This
 // projection dropped both.
 //
-// WHO closed it is not decoration: red may reopen its own closure on new evidence, while a bench
-// ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
-// obey either rule.
+// A ROW HERE IS THE BENCH'S WORD BY WHAT THE REGISTER IS: red may reopen its own closure on new
+// evidence, while re-raising a bench ruling is relitigation, and a closure of red's the bench did not
+// rule after is not listed. So the row names no closer. Who ended the gap is the board's question
+// (closed_by_bench), and a lens's close the bench ruled after answers it "not the bench".
 type EstoppedJSON struct {
 	ID string `json:"id"`
 	// LocationState and Location: see GapJSON.
@@ -915,8 +918,6 @@ type EstoppedJSON struct {
 	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
 	Fate string `json:"fate"`
-	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
-	ClosedBy string `json:"closed_by"`
 	// ArtifactState is the SECOND AXIS, derived from Fate — see record.ArtifactStateOf. The
 	// docket closing and the defect going away are different facts, and three of the six
 	// fates settle the first while leaving the second. Carried here so a seat reading its
@@ -986,9 +987,9 @@ type WorkGapState struct {
 	// DocketSettled is the proposition the latest remand settles, "" where it settles none or the
 	// bench never remanded the gap — the gap view's `docket_settled`.
 	DocketSettled string
-	// remand is where the gap stands against the bench's counted remands, and route what the
-	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
-	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
+	// route is what the dispatch does with the gap (routeOf) — the plan's own predicate over the
+	// plan's own fold (exchangesOf) — and remand the stage the work list states, read off the route
+	// (stageOnRoute), so the stage, the remand items and the plan say one thing. unruledDocket is the view's
 	// `unruled_docket_filed`, which routeOf reads as the plan does. Open gaps only.
 	remand           remandStage
 	route            gapRoute
@@ -1027,8 +1028,6 @@ type workReads struct {
 	win                 WindowIndex
 	foundBy, supersedes map[int64][]string
 	edits               map[string][]GapEdit
-	reportBase          string
-	haveBase            bool
 	reportOps           []ReportOp
 	reportErr           error
 	gaps                []workGapRow
@@ -1060,7 +1059,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	if r.edits, err = reopeningEditsAt(q); err != nil {
 		return r, err
 	}
-	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
+	r.reportOps, r.reportErr = ReportProjectionAt(q)
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_computation", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
@@ -1116,7 +1115,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	}
 	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
-	located := newLocatedReport(renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr))
+	located := newLocatedReport(renderProjection(r.reportOps, r.reportErr))
 	var out []WorkGapState
 	for _, row := range r.gaps {
 		g := row.WorkGapState
@@ -1155,14 +1154,10 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		if x == nil {
 			x = &GapExchanges{GapID: g.ID}
 		}
-		g.remand, g.route = x.Remand, routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.route = routeOf(g.Material, g.Stranded, g.unruledDocket, moved.docketed(g.ID), x)
+		g.remand = stageOnRoute(g.route, x.Remand)
 		g.latestRemandOwed, g.remandRuled = x.latestRemandOwed, x.latestRemand
 		g.remandLimit, _ = remandPastLimit(x, r.remands[g.ID], r.win.LatestSittingOf(benchSeat))
-		// A REMAND OF A GAP THAT IS NOT MATERIAL IS OWED ITS EXCHANGE whether or not the bench ruled it
-		// at impasse (routeOf), so the stage says what the route does.
-		if g.route == routeRemandOwed {
-			g.remand = remandOwed
-		}
 	}
 	return out, nil
 }
@@ -1267,7 +1262,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 		if !g.benchClosedLast {
 			continue
 		}
-		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
+		ci := EstoppedJSON{ID: g.ID, LocationState: g.LocationState, Location: g.Location,
 			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate,
 			Settled: g.benchRuling.GetSettled(), ReopensOn: g.benchRuling.GetReopensOn(), Final: g.benchRuling.GetFinal()}
 		if s, ok := ArtifactStateOf(ci.Fate); ok {
@@ -1311,7 +1306,7 @@ func unverifiableIn(r workReads) unverifiableFunc {
 	return func(id string) string {
 		if !rendered {
 			rendered = true
-			report, renderErr = renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
+			report, renderErr = renderProjection(r.reportOps, r.reportErr)
 			if renderErr == nil {
 				bare = claimcount.BareAnchorIDs(report)
 			}

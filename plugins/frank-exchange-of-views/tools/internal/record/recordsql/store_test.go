@@ -257,7 +257,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 func TestEventsReadBackInRecordOrder(t *testing.T) {
 	db := store(t)
 	for i, seat := range []string{"blue-respond", "red-chair", "judge"} {
-		ev := event(t, int32(i), recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{
+		ev := event(t, int32(i), recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{PositionId: proto.String(fmt.Sprintf("A-%08x", i)),
 			Text: proto.String(seat + " speaks"),
 		})
 		ev.SeatId = proto.String(seat)

@@ -157,8 +157,11 @@ func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 // review, the gate's list and the blocking items are the plan's; the gate admits the PASS exactly
 // where the plan named nothing, and refuses it on the review the plan named, which the review then
 // clears.
+//
+// A POSITION IS THE ONE ACT OF THE CHAIR'S THAT DOES MOVE IT, and it is not driven here: filed where
+// the plan permits a PASS, it withholds the PASS and the bench hears it (gblock, 2026-10-30;
+// positionheard.go, held by withheldpass_test.go).
 func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
-	position := &recordpb.Position{Text: proto.String("ask the bench to hold the PASS")}
 	logged := &recordpb.Log{Text: proto.String("nothing cost a call"),
 		Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 	inquiry := &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
@@ -185,9 +188,7 @@ func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
 		acts []proto.Message
 	}{
 		{"the verdict first", nil},
-		{"a position, then the verdict", []proto.Message{position}},
 		{"a log, then the verdict", []proto.Message{logged}},
-		{"a position and a log, then the verdict", []proto.Message{position, logged}},
 	}
 	for _, bd := range boards {
 		for _, c := range acts {

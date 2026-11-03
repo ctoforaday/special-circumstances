@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -42,7 +43,7 @@ func (b *stage) cast(seats ...string) *stage {
 	return b.add("harness", &recordpb.Cast{SeatIds: seats})
 }
 func (b *stage) ingest() *stage {
-	return b.add("harness", &recordpb.BaseIngest{Text: proto.String("# report")})
+	return b.add("harness", &recordpb.ReportPart{Text: proto.String("# report")})
 }
 func (b *stage) mint(evLens, gap, severity string) *stage {
 	sev, _ := GradeOf(severity)
@@ -71,11 +72,7 @@ func docketMotion(id, gap string) *recordpb.Motion {
 func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }
 
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
-	d := &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps}
-	if seat == "judge" {
-		d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET} // the bench on gaps is a docket
-	}
-	return b.add("red-chair", d)
+	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})
 }
 func (b *stage) edit(gap, old, new string) *stage {
 	return b.add("blue-respond", &recordpb.BlueEdit{Answers: proto.String(gap), Old: proto.String(old), New: proto.String(new), EditKey: proto.String(fmt.Sprintf("E%d", b.n+1))})
@@ -343,7 +340,8 @@ func TestAStrandedAncestorIsReadyWorkWhateverItsGrade(t *testing.T) {
 }
 
 // Empty is the termination signal: every cast lens retired and no material gap is open — PASS
-// permitted. With a material gap open and below its limits, its two parties are ready.
+// permitted. With a material gap open and below its limits, blue is ready on it, and its minting
+// lens once blue has acted on it.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").sit(2, evLens).sit(2, evLens). // two barren sittings: retired
@@ -360,13 +358,17 @@ func TestAnEmptyDispatchIsTermination(t *testing.T) {
 		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high").
 		register("red-chair")
 	plan2, _ := PlanDispatch(b2.seed())
-	want := map[string][]string{evLens: {"G1"}, "blue-respond": {"G1"}}
-	if len(plan2.Parties) != 2 || plan2.PassPermitted {
-		t.Fatalf("plan = %+v, want the lens and blue engaged on G1", plan2)
+	if len(plan2.Parties) != 1 || !slices.Equal(gapsOf(plan2, "blue-respond"), []string{"G1"}) || plan2.PassPermitted {
+		t.Fatalf("plan = %+v, want blue engaged on G1", plan2)
 	}
-	for _, p := range plan2.Parties {
-		if w := want[p.SeatID]; len(w) != len(p.GapIDs) || (len(w) > 0 && w[0] != p.GapIDs[0]) {
-			t.Errorf("%s engaged on %v, want %v", p.SeatID, p.GapIDs, w)
+	// Blue's proof answering G1 is its act; the proof readies its own checker too, which is not G1's.
+	plan3, _ := PlanDispatch(b2.more().blueComputes("G1").seed())
+	if plan3.PassPermitted {
+		t.Fatalf("plan = %+v, want the lens and blue engaged on G1", plan3)
+	}
+	for _, seat := range []string{evLens, "blue-respond"} {
+		if got := gapsOf(plan3, seat); !slices.Equal(got, []string{"G1"}) {
+			t.Errorf("%s engaged on %v once blue has acted on G1, want [G1]", seat, got)
 		}
 	}
 }

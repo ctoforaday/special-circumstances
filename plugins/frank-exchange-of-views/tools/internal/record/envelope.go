@@ -90,6 +90,10 @@ func recordPresent(run Run) error {
 // to the seats after it. A field here would be a second account of the record or a value no reader
 // reads. The envelope exists so that the sitting ends through the call EnvelopeRefusal answers.
 //
+// THE RECORD'S READ IS NOT A FIELD OF THIS DECLARATION, AND THE SCHEMA STILL CARRIES IT: every envelope
+// declares `record_read` for the hook to write (RecordRead). It is the tool's reading of the record,
+// which the seat cannot supply or change, not the seat's account of its sitting.
+//
 // THE ENGINE'S SCHEMA FOR IT IS GENERATED FROM THIS DECLARATION (LensEnvelopeFields), closed, so a
 // key it does not declare is refused by the harness and handed back to the lens.
 type LensEnvelope struct{}
@@ -99,6 +103,15 @@ type LensEnvelope struct{}
 func LensEnvelopeFields() []PlanField { return fieldsOf(reflect.TypeFor[LensEnvelope]()) }
 
 // WorkArrivesAsItems reports whether a seat's work reaches it as items on its work list: every seat
-// but the blue seats no plan names — the frontier, a lane and the synthesizer — which are dispatched
-// to write the inquiries, a draft and the report, and owe nothing that is ever an item.
-func WorkArrivesAsItems(role, seatID string) bool { return role != "blue" || seatID == blueRespondSeat }
+// but the lanes and the blue seats no plan names — the frontier and the synthesizer — which are
+// dispatched to write a part of the report, the inquiries and the report, and owe nothing that is
+// ever an item.
+func WorkArrivesAsItems(role, seatID string) bool {
+	switch role {
+	case seatclass.Lane.Role:
+		return false
+	case "blue":
+		return seatID == blueRespondSeat
+	}
+	return true
+}

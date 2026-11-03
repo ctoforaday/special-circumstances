@@ -436,6 +436,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, sour
 		// network and turn an unreachable host into a refused corroboration.
 		if cached {
 			body.WorkStatus = record.WorkStatusOf(held.Retraction()).Enum()
+			body.Sha256 = proto.String(held.Sha)
 		} else {
 			body.WorkStatus = recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED.Enum()
 		}
@@ -685,6 +686,9 @@ func (c *readingContradiction) words() string {
 }
 
 func (r verifyResult) Human() string {
+	if r.Idempotent {
+		return seat.Repeated("corroboration "+r.Label+" of "+r.Source+" ("+r.Outcome+")") + seat.CopyWords(r.CopySubstitution, r.CopyURL) + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
+	}
 	return r.human() + seat.CopyWords(r.CopySubstitution, r.CopyURL) + r.Contradiction.words() + r.FailedCheck.words(r.Anchor) + reportvoice.Note("the source's note and Bibliography entry", r.VoiceTells)
 }
 

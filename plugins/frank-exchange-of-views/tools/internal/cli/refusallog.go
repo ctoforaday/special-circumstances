@@ -53,7 +53,7 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		return
 	}
 	// A REFUSAL BEFORE THE SEAT'S FIRST SITTING IS LOGGED, in no sitting. The hook's bracket names no
-	// blue seat — blue-researcher is every blue seat's agent type — so a lane's sitting opens at its
+	// lane — blue-lane is every lane's agent type — so a lane's sitting opens at its
 	// register, and a read before it is in none; the entry opens none either, and the register that
 	// follows opens the lane's first (#1601 smoke: a lane's `show report` before the ingest, unlogged).
 	if captured, cerr := record.RunCaptured(run); cerr != nil || captured {
@@ -118,6 +118,27 @@ func persistentOnly(root *cobra.Command, argv []string) []string {
 		}
 	}
 	return out
+}
+
+// refuseRepeatedFlagNoted refuses a call that states a single-value flag twice, on every command of
+// the tree, before cobra parses it and keeps the last (flags.FirstRepeat). It returns the command the
+// argv resolved to. A word Find cannot resolve is cobra's to refuse.
+//
+// THE PARSE IT STANDS IN FRONT OF STILL RUNS, for the refusal alone: the log reads the run, the seat
+// and the flags given off the parsed command.
+func refuseRepeatedFlagNoted(root *cobra.Command, argv []string) (*cobra.Command, error) {
+	leaf, args, err := root.Find(argv)
+	if err != nil {
+		return root, nil
+	}
+	repeat := flags.FirstRepeat(leaf, args)
+	if repeat == nil {
+		return root, nil
+	}
+	_ = leaf.ParseFlags(args)
+	refused := seat.RefuseRepeatedFlag(leaf, repeat)
+	noteRefusal(leaf, refused)
+	return leaf, refused
 }
 
 // refuseUnknownCommandNoted is refuseUnknownCommandFirst with its refusal logged. A VERB THAT DOES

@@ -44,7 +44,7 @@ func TestARepeatedProposalReturnsTheSameQuestion(t *testing.T) {
 	}
 	// AND IT SAYS SO, because a seat that cannot tell a retry from a fresh record will not know its
 	// ledger is intact.
-	if !strings.Contains(second, "idempotent") {
+	if !strings.Contains(second, repeatedWords) || strings.Contains(first, repeatedWords) {
 		t.Errorf("the retry does not say it wrote nothing: %q", second)
 	}
 	// NOTHING WAS WRITTEN. The id matching is not enough on its own: an implementation that wrote a

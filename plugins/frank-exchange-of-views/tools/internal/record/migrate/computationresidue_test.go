@@ -254,7 +254,7 @@ func reproducesOf(bodies []any) []*recordpb.Reproduce {
 // AN ARCHIVED `not_run` IS AN ACT THAT RAN NOTHING, ON EVERY ARCHIVE (T11): each migrated `ran` =
 // false stands on a `ran` reproduce of its bundle before it and states that reproduce's comparison.
 // Two archived shapes become one: a `not_run` — 56 over the seven runs the plan's census counted,
-// and 42 more in 1565 and m35, archived after it, every one on a re-run that reproduced — and a
+// and 43 more in 1565, m35 and m36, archived after it, every one on a re-run that reproduced — and a
 // reproduce before epoch 28 carried to a second anchor on its script (reproduceanchor_test.go).
 func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 	notRun := map[string]int{
@@ -267,6 +267,7 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		"2026-10-24_is-91-prime-m32.tar.gz":   10,
 		"2026-10-24_is-91-prime-1565.tar.gz":  18,
 		"2026-10-27_is-91-prime-m35.tar.gz":   24,
+		"2026-10-29_is-91-prime-m36.tar.gz":   1,
 	}
 	carried := map[string]int{
 		"2026-08-23_research-loop-counterparts.tar.gz": 4,
@@ -317,7 +318,7 @@ func TestEveryArchivedNotRunStandsOnItsBundlesReRun(t *testing.T) {
 		if stood != notRun[name]+carried[name] {
 			t.Errorf("%s: %d act(s) ran nothing, want %d not_run and %d carried", name, stood, notRun[name], carried[name])
 		}
-		if name != "2026-10-24_is-91-prime-1565.tar.gz" && name != "2026-10-27_is-91-prime-m35.tar.gz" {
+		if name != "2026-10-24_is-91-prime-1565.tar.gz" && name != "2026-10-27_is-91-prime-m35.tar.gz" && name != "2026-10-29_is-91-prime-m36.tar.gz" {
 			ledger += archived
 		}
 	}
@@ -379,7 +380,7 @@ func TestEveryArchivedDiffersCarriesWhatTheProgramWrote(t *testing.T) {
 }
 
 // RESIDUE: A PRINTED PLAN KEEPS ITS WORDING. `Plan.printed` is what the plan was when it was
-// printed, and its `P-` ids stay: 50 in m28, m29, m30 and m32 (26, 6, 2, 16), and 81 more in the two
+// printed, and its `P-` ids stay: 50 in m28, m29, m30 and m32 (26, 6, 2, 16), and 82 more in the three
 // archived after the plan's census.
 func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 	want := map[string]int{
@@ -389,6 +390,7 @@ func TestAPrintedPlanKeepsItsProofIds(t *testing.T) {
 		"2026-10-24_is-91-prime-m32.tar.gz":  16,
 		"2026-10-24_is-91-prime-1565.tar.gz": 31,
 		"2026-10-27_is-91-prime-m35.tar.gz":  50,
+		"2026-10-29_is-91-prime-m36.tar.gz":  1,
 	}
 	for _, name := range archivedRuns(t) {
 		bodies, _, _ := migratedBodies(t, name)
@@ -501,10 +503,10 @@ func TestActsSharingABundleHoldItsOneOutput(t *testing.T) {
 			runs++
 		}
 	}
-	// Measured over the 32 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
-	// over 30, before 1565 and m35 were archived.
-	if acts != 156 || bundles != 38 || runs != 25 {
-		t.Errorf("%d acts share %d bundles in %d runs, want 156, 38, 25", acts, bundles, runs)
+	// Measured over the 33 archives; the plan's census counted 110 acts on 27 bundles in 20 runs
+	// over 30, before 1565, m35 and m36 were archived.
+	if acts != 158 || bundles != 39 || runs != 26 {
+		t.Errorf("%d acts share %d bundles in %d runs, want 158, 39, 26", acts, bundles, runs)
 	}
 }
 

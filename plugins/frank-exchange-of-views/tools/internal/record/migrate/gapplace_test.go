@@ -45,7 +45,7 @@ func newShapeSource(t *testing.T, base string) *shapeSource {
 			t.Fatal(err)
 		}
 	}
-	s.add(record.HarnessSeat, &recordpb.BaseIngest{Text: proto.String(base)})
+	s.add(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String(base)})
 	return s
 }
 

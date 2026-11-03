@@ -703,6 +703,8 @@ func debateMD(in Input) []byte {
 		//     friction that it had "issued a direction to red knowing it has no carrier".
 		//   - a DECLARATION, which has no gap to name by construction and so could never have
 		//     appeared in a list keyed on dispositions.
+		//   - a POSITION RULING on the chair's position on a PASS it withheld, with the work an
+		//     upheld one names.
 		//
 		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
 		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
@@ -735,6 +737,23 @@ func debateMD(in Input) []byte {
 						// error.
 						docketGapOf[t.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+t.GetOpinion())
+					continue
+				}
+				// THE BENCH'S RULING ON THE CHAIR'S POSITION ON A WITHHELD PASS binds as a petition
+				// ruling does: upheld names the work the debate continues on and its direction,
+				// overruled sends the PASS back to the chair's next sitting.
+				if p, isPosition := t.GetRuling().(*recordpb.MotionRule_Position); isPosition {
+					h := p.Position
+					work := "the PASS goes back to the chair's next sitting, which records the verdict"
+					if h.GetRuling() == recordpb.PositionRuling_POSITION_RULING_UPHELD {
+						named := "lens " + h.GetLens()
+						if h.GetLens() == "" {
+							named = "gaps " + strings.Join(h.GetGapIds(), ", ")
+						}
+						work = "work: " + named + " — direction: " + h.GetDirection()
+					}
+					ops = append(ops, fmt.Sprintf("- **POSITION %s %s** — %s\n%s",
+						t.GetMotionId(), strings.ToUpper(recordpb.Word(h.GetRuling())), work, t.GetOpinion()))
 					continue
 				}
 				// Otherwise only the PETITION subject: a grade or inquiry ruling answers a

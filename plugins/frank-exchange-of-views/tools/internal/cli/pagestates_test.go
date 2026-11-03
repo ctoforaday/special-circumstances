@@ -62,9 +62,9 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	for name, says := range map[string]string{
 		"window":    "ONLY with --anchor, and refused without it",
 		"anchor":    "--match, --quote and --assembled are each refused with it",
-		"assembled": "without --json they are refused beside it, and --anchor and --window are refused beside it in either form",
-		"match":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json",
-		"quote":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json",
+		"assembled": "--match and --quote select its sections and print them in the --json form, with or without --json; --anchor and --window are refused beside it in either form",
+		"match":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, printed in the --json form with or without --json",
+		"quote":     "Refused beside --anchor. Beside --assembled it selects SECTIONS, printed in the --json form with or without --json",
 	} {
 		if !strings.Contains(usage(name), says) {
 			t.Errorf("show report --%s does not say %q:\n%s", name, says, usage(name))
@@ -83,8 +83,6 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	}
 	for _, refused := range [][]string{
 		{"--window", "2"},
-		{"--assembled", "--match", "parser"},
-		{"--assembled", "--quote", "parser"},
 		{"--assembled", "--window", "2"},
 	} {
 		if out, err := call(refused...); err == nil {
@@ -93,6 +91,8 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 	}
 	for _, taken := range [][]string{
 		{"--assembled", "--json", "--match", "parser"},
+		{"--assembled", "--match", "parser"},
+		{"--assembled", "--quote", "parser"},
 		{"--assembled", "--json"},
 		{"--match", "parser"},
 		{"--json", "--quote", "parser"},

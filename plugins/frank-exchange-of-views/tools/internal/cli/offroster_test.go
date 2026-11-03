@@ -33,7 +33,7 @@ func TestAnIdOffTheRosterSelectsNoSurface(t *testing.T) {
 		}
 	}
 	// A seat on the roster, and a lane, keep their surface.
-	for id, verb := range map[string]string{"judge": "halt", "red-lens-evidence": "mint", "blue-lane-2": "edit", "operator": "setup"} {
+	for id, verb := range map[string]string{"judge": "halt", "red-lens-evidence": "mint", "blue-lane-2": "ingest", "operator": "setup"} {
 		if cmdAt(NewRootFor(id), []string{verb}) == nil {
 			t.Errorf("--seat-id %s builds a surface without %q", id, verb)
 		}

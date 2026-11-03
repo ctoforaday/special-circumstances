@@ -252,7 +252,7 @@ func TestTheDashboardCountsClaimsFromTheReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := "The sky is blue<!--cite:C-0000000a-->. Water is wet<!--cite:C-0000000b-->. Nobody cited this."
-	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.ReportPart{Text: proto.String(base)}); err != nil {
 		t.Fatal(err)
 	}
 	md, err := reportproj.RenderFromRecord(run)

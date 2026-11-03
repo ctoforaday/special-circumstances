@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -63,15 +64,21 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
 				}
 				src := want[n]
+				// AN ARCHIVED REPORT HEAD MAY BE ITS INGESTED TEXT, which the record now holds as the
+				// report's one part, under that word in its key.
+				word, key := src.Word, src.Key
+				if word == "base_ingest" {
+					word, key = "report_part", strings.Replace(key, ":base_ingest:", ":report_part:", 1)
+				}
 				got := at[d.GetPin()]
 				switch {
 				case got == nil:
 					t.Errorf("dispatch %d pins %d, which is no event of the migrated record", n, d.GetPin())
-				case recordpb.Word(got.GetType()) != src.Word || got.GetKey() != src.Key:
+				case recordpb.Word(got.GetType()) != word || got.GetKey() != key:
 					t.Errorf("dispatch %d pins %s %q; its source pinned %s %q (source id %d)",
 						n, recordpb.Word(got.GetType()), got.GetKey(), src.Word, src.Key, src.ID)
-				case src.Word != "blue_edit" && src.Word != "base_ingest":
-					t.Errorf("dispatch %d pins a %s; a pin names the report head, a blue_edit or the base ingest", n, src.Word)
+				case word != "blue_edit" && word != "report_part":
+					t.Errorf("dispatch %d pins a %s; a pin names the report head, a blue_edit or a part", n, src.Word)
 				}
 				if d.GetPin() != src.ID {
 					renumbered++

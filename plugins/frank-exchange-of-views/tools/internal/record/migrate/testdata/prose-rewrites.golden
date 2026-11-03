@@ -8108,3 +8108,17 @@
 2026-10-27_is-91-prime-m35	Log.text	P-ba59cbe7 -> K-ba59cbe7	divisors 7 and 13" and the proof anchor P-ba59cbe7 unchanged, so the arithmetic claim stan
 2026-10-27_is-91-prime-m35	Log.text	P-d4687249 -> K-d4687249	s-computation judged the sentence proof P-d4687249 backs unsound at event 636, and that ju
 2026-10-27_is-91-prime-m35	Log.text	P-d4687249 -> K-d4687249	s-computation judged the sentence proof P-d4687249 backs unsound at event 636, and that ju
+2026-10-29_is-91-prime-m36	Reproduce.note	P-f3bf83f1 -> K-f3bf83f1	is sentence rests on the same script as P-f3bf83f1 (sha 76cfb52e191b), which re-ran and re
+2026-10-29_is-91-prime-m36	Finding.text	P-f3bf83f1 -> K-f3bf83f1	een OEIS A005935 and base 3. The proofs P-f3bf83f1 and P-8740b23f compute 3 to the 90th po
+2026-10-29_is-91-prime-m36	Finding.text	P-8740b23f -> K-8740b23f	5 and base 3. The proofs P-f3bf83f1 and P-8740b23f compute 3 to the 90th power modulo 91 a
+2026-10-29_is-91-prime-m36	Mint.mint_reason	P-f3bf83f1 -> K-f3bf83f1	Dark-side audit of the proof's scope: P-f3bf83f1 and P-8740b23f establish that 91 is a b
+2026-10-29_is-91-prime-m36	Mint.mint_reason	P-8740b23f -> K-8740b23f	it of the proof's scope: P-f3bf83f1 and P-8740b23f establish that 91 is a base-3 Fermat ps
+2026-10-29_is-91-prime-m36	ManifestRow.row	P-f3bf83f1 -> K-f3bf83f1	nly with the base-3 result (computation P-f3bf83f1 at line 41), and states the OEIS A00593
+2026-10-29_is-91-prime-m36	ManifestRow.row	P-f3354ca4 -> K-f3354ca4	returns no line. Derivation attached as P-f3354ca4 (reproducible, exit 0, judgement of the
+2026-10-29_is-91-prime-m36	Close.anchor_tool	P-f3354ca4 -> K-f3354ca4	feov-record reproduce --anchor P-f3354ca4 (re-run reproduced) and feov-record sho
+2026-10-29_is-91-prime-m36	Close.anchor_target	P-f3354ca4 -> K-f3354ca4	stored proof script for P-f3354ca4 run against the cached math.answers cop
+2026-10-29_is-91-prime-m36	Finding.text	P-ef98551b -> K-ef98551b	lf rests on the standard-library proofs P-ef98551b and P-14aaf55f, which reproduce, so the
+2026-10-29_is-91-prime-m36	Finding.text	P-14aaf55f -> K-14aaf55f	standard-library proofs P-ef98551b and P-14aaf55f, which reproduce, so the confidence lev
+2026-10-29_is-91-prime-m36	Finding.text	P-fc0334bc -> K-fc0334bc	6 fail), which matches the body's proof P-fc0334bc. Over 1 to 90, the population a reader
+2026-10-29_is-91-prime-m36	Mint.mint_reason	P-fc0334bc -> K-fc0334bc	er 1 to 90, 72 and 36. The body's proof P-fc0334bc fixes the 2-to-90 range, so the figures
+2026-10-29_is-91-prime-m36	Regrade.basis	[^P7] -> [^K7]	dy-only pass would still leave footnote [^P7] in the Bibliography, composed from the

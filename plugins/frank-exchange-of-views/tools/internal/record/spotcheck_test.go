@@ -87,5 +87,5 @@ func TestSpotChecksHandlesANilBoard(t *testing.T) {
 // worked in.
 func chairActs(t *testing.T) *Event {
 	t.Helper()
-	return recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("the chair acts")})
+	return recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the chair acts")})
 }

@@ -88,7 +88,6 @@ CREATE TABLE "enum_event_type" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'a marker placed in the report');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
@@ -113,6 +112,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the c
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'the chair''s argument to the bench on what is about no one gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s grade changed, with the basis for the change');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_part', 'a lane''s part of the report, stored verbatim as the lane ingested it; the report is the parts, in event order, with every recorded edit, anchor and retire folded over them');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('report_read', 'the tool serving a lens the whole report at a head — evidence the text was served to it, not that it was read; the latest in a sitting the lens sat through is its pin');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'red checking a recorded computation against its bundle''s re-run, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim retired from the report, with the reason and what supersedes it');
@@ -130,7 +130,8 @@ CREATE TABLE "enum_occasion" (
 ) STRICT;
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('assemble', 'assembling the final report by union-copy. The last step of the run');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('docket', 'ruling the docket: the gaps that reached impasse and were docketed for adjudication. The chair dispatches this sitting');
-INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the petitions filed since the bench last sat to hear one. The chair''s plan convenes it at the next chair sitting, before any party of that epoch sits');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('petition', 'hearing the petitions filed since the bench last sat to hear one. The engine convenes it as soon as nothing is running, when a close''s record_read reports a petition unheard: in the turn that filed it, at no epoch');
+INSERT INTO "enum_occasion" ("value", "means") VALUES ('position', 'hearing the chair''s position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close''s record_read reports a position unheard: in the turn that filed it, at no epoch');
 INSERT INTO "enum_occasion" ("value", "means") VALUES ('terminal', 'the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here');
 
 CREATE TABLE "enum_verdict" (
@@ -213,9 +214,16 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_acce
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('moot', 'the gap''s predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap; its minting lens''s act alone begins nothing. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap''s limits count afresh from it', 0);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('remanded', 'NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap''s limits count afresh from it', 0);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
+
+CREATE TABLE "enum_position_ruling" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('overruled', 'the objection does not hold: the PASS goes back to the chair, whose next sitting decides on the PASS with a verdict and may not argue the same withholding again. It names no work');
+INSERT INTO "enum_position_ruling" ("value", "means") VALUES ('upheld', 'the objection holds and the debate continues on the work you name: a lens, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue''s act on it and audited by its minting lens after — a remand, and the gap''s one remand at impasse. Name one or the other, with --direction stating the work');
 
 CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
@@ -444,7 +452,8 @@ CREATE TABLE "outcome" (
 
 CREATE TABLE "position" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "text" TEXT
+  "text" TEXT,
+  "position_id" TEXT NOT NULL UNIQUE
 ) STRICT;
 
 CREATE TABLE "halt" (
@@ -506,6 +515,11 @@ CREATE TABLE "motion_docket" (
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
+CREATE TABLE "motion_position" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
+  "position_id" TEXT
+) STRICT;
+
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL,
@@ -539,6 +553,23 @@ CREATE TABLE "motion_rule_docket" (
   CHECK ("disposition" <> 'remanded' OR (coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> '' AND "reopens_on" IS NULL AND "final" IS NULL)),
   CHECK ("disposition" = 'remanded' OR "direction" IS NULL),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_position" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion_rule"("event_id"),
+  "ruling" TEXT NOT NULL,
+  "lens" TEXT,
+  "direction" TEXT,
+  CHECK ("ruling" = 'upheld' OR ("lens" IS NULL AND "direction" IS NULL)),
+  CHECK ("ruling" <> 'upheld' OR coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> ''),
+  FOREIGN KEY ("ruling") REFERENCES "enum_position_ruling"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_position_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "motion_rule_position"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "mint" (
@@ -731,6 +762,7 @@ CREATE TABLE "verify" (
   "bridge" TEXT,
   "copy_substitution" TEXT,
   "copy_url" TEXT,
+  "sha256" TEXT,
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
@@ -856,7 +888,7 @@ CREATE TABLE "inquiry_review" (
   "reason" TEXT
 ) STRICT;
 
-CREATE TABLE "base_ingest" (
+CREATE TABLE "report_part" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT
 ) STRICT;
@@ -899,13 +931,6 @@ CREATE TABLE "dispatch" (
 ) STRICT;
 
 CREATE TABLE "dispatch_gap_ids" (
-  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
-  "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
-CREATE TABLE "dispatch_occasions" (
   "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
@@ -1243,7 +1268,10 @@ WHERE r."claim_kept" = 1;
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
 -- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
--- proposition it settles, empty where it settles none.
+-- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
+-- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
+-- remand too, on the ruling's direction, settling nothing, and the gap's one remand at impasse like
+-- any other.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -1262,7 +1290,18 @@ JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
 JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 JOIN "events" e ON e."id" = mr."event_id"
-WHERE NOT d."closes";
+WHERE NOT d."closes"
+UNION ALL
+SELECT pg."value"                           AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rp."direction"                       AS "direction",
+       NULL                                 AS "settled"
+FROM "motion_rule_position_gap_ids" pg
+JOIN "motion_rule_position" rp ON rp."event_id" = pg."event_id"
+JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE rp."ruling" = 'upheld';
 
 -- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
@@ -1680,10 +1719,12 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
--- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
--- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
+-- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b, exact):
+--   append → a=a lane's part, as it ingested it; exact=0. On the empty text the part is the text;
+--            otherwise the text, its trailing newlines trimmed, a blank line, then the part.
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
@@ -1695,8 +1736,10 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
-  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
-         COALESCE(b."exact_span", 0) AS "exact"
+  SELECT e."id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+    FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  UNION ALL
+  SELECT e."id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0

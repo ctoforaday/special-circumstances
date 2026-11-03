@@ -339,7 +339,10 @@ WHERE r."claim_kept" = 1;
 -- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
 -- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
 -- the research direction it states, which the DocketRuling CHECKs require of a remand, and the
--- proposition it settles, empty where it settles none.
+-- proposition it settles, empty where it settles none — and every gap an upheld ruling on the chair's
+-- withheld PASS sends back for one more exchange, one row per gap (gblock, 2026-10-30): that is a
+-- remand too, on the ruling's direction, settling nothing, and the gap's one remand at impasse like
+-- any other.
 --
 -- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
@@ -358,7 +361,18 @@ JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
 JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
 JOIN "events" e ON e."id" = mr."event_id"
-WHERE NOT d."closes";
+WHERE NOT d."closes"
+UNION ALL
+SELECT pg."value"                           AS "gap_id",
+       mr."event_id"                        AS "event_id",
+       COALESCE(e."sitting_id", e."id")     AS "sitting_id",
+       rp."direction"                       AS "direction",
+       NULL                                 AS "settled"
+FROM "motion_rule_position_gap_ids" pg
+JOIN "motion_rule_position" rp ON rp."event_id" = pg."event_id"
+JOIN "motion_rule" mr ON mr."event_id" = rp."event_id"
+JOIN "events" e ON e."id" = mr."event_id"
+WHERE rp."ruling" = 'upheld';
 
 -- A GAP'S GRADES OVER THE RECORD, AND WHETHER IT IS MATERIAL: one row per gap (per mint) per stretch
 -- of the record over which its grades held — from "from_seq" up to, not including, "until_seq" (NULL:
@@ -776,10 +790,12 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
--- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
--- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report. The report is
+-- this stream folded from the empty text, so the SELECTION of which events mutate the text — and
 -- how each names its change — is a projection, authored HERE where every reader sees the same one,
 -- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b, exact):
+--   append → a=a lane's part, as it ingested it; exact=0. On the empty text the part is the text;
+--            otherwise the text, its trailing newlines trimmed, a blank line, then the part.
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
@@ -791,8 +807,10 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
 -- SQL cannot carry — but nothing here builds state by scanning the whole event log.
 CREATE VIEW "report_op" AS
-  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b",
-         COALESCE(b."exact_span", 0) AS "exact"
+  SELECT e."id" AS "event_id", 'append' AS "kind", p."text" AS "a", NULL AS "b", 0 AS "exact"
+    FROM "report_part" p JOIN "events" e ON e."id" = p."event_id"
+  UNION ALL
+  SELECT e."id", 'edit', b."old", b."new", COALESCE(b."exact_span", 0)
     FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
   UNION ALL
   SELECT e."id", 'insert', a."location", a."id", 0

@@ -340,6 +340,8 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("manual", "--seat-id", "operator", "--for", "judge"),
 				base("manual", "--seat-id", "operator", "--for", "blue-respond"),
+				// A LANE'S OWN, which carries no verb that changes the report once a part is on it.
+				base("manual", "--seat-id", "operator", "--for", "blue-lane-1"),
 				// AND THE OPERATOR'S OWN, which nothing pinned: the two rows above walk OTHER seats'
 				// surfaces THROUGH this one, so every operator page — the diagnostics, the migration,
 				// the dashboards — was help text no golden read. The rule that a surface change is

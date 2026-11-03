@@ -286,7 +286,7 @@ type computeResult struct {
 func (r computeResult) Human() string {
 	note := reportvoice.Note("the computation's footnote, and its heading in evidence.md", r.VoiceTells)
 	if r.Idempotent {
-		return "blue compute (idempotent retry — already recorded as " + compute.Short(r.SHA) + ")" + note
+		return seat.Repeated("the computation of bundle "+compute.Short(r.SHA)) + note
 	}
 	out := fmt.Sprintf("computation %s recorded (%s, exit %d) — anchored, program and output stored", r.Label, r.Basis, r.Exit)
 	if r.Drift != "" {

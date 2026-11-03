@@ -33,7 +33,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 		// a type and leaves the words out.
 		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}, "--reason"},
 		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}, "--reason"},
-		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
+		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{PositionId: proto.String(NewID("position"))}, "--reason"},
 	} {
 		t.Run(recordpb.Word(tc.typ), func(t *testing.T) {
 			err := validateRun(mustRun(t, recordtest.TmpRun(t)), tc.seat, tc.typ, tc.body)
@@ -57,7 +57,7 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 	}{
 		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}},
 		{"blue-respond", recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}},
-		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
+		{"red-chair", recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{PositionId: proto.String(NewID("position")), Text: prose}},
 	} {
 		if err := validateRun(mustRun(t, recordtest.TmpRun(t)), c.seat, c.typ, c.body); err != nil {
 			t.Errorf("%s with a reason was refused: %v", recordpb.Word(c.typ), err)

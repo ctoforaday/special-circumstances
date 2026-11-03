@@ -26,7 +26,7 @@ func stageEvents(t *testing.T, runDir string, more ...*record.Event) {
 	}
 	evs := []*record.Event{
 		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# report")}),
+		at("harness", &recordpb.ReportPart{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),

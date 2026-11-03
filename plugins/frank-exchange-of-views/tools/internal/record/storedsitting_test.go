@@ -335,7 +335,7 @@ func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
 func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir, recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("the chair relays the plan")}))
+		recordtest.Event(t, "red-chair", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("the chair relays the plan")}))
 	m, err := MergedEvents(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
@@ -414,7 +414,7 @@ func TestEpochsIsTheDistinctSetOfStoredEpochs(t *testing.T) {
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")})
 	}
 	lens := func() *Event {
-		return recordtest.Event(t, "red-lens-logic", &recordpb.Position{Text: proto.String("x")})
+		return recordtest.Event(t, "red-lens-logic", &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("x")})
 	}
 	chair := func() *Event { return recordtest.Event(t, "red-chair", &recordpb.Register{}) }
 	for name, evs := range map[string][]*Event{
@@ -518,12 +518,12 @@ func TestTheBenchSittingIsItsStoredOpeningNotItsRegister(t *testing.T) {
 	joins := &recordpb.Register{AgentId: proto.String("bench-a"), Occasion: docket.Enum()}
 
 	if benchSat(t, func(b *stage) *stage {
-		return b.bracket(benchSeat, "bench-a").benchDispatch(2, []string{"G1"}, docket).add(benchSeat, joins)
+		return b.bracket(benchSeat, "bench-a").benchDispatch(2, []string{"G1"}).add(benchSeat, joins)
 	}) {
 		t.Error("a bench sitting the hook opened BEFORE the dispatch row answers it — the sitting was placed at the register that joined it, not at its stored opening")
 	}
 	if !benchSat(t, func(b *stage) *stage {
-		return b.benchDispatch(2, []string{"G1"}, docket).bracket(benchSeat, "bench-a").add(benchSeat, joins)
+		return b.benchDispatch(2, []string{"G1"}).bracket(benchSeat, "bench-a").add(benchSeat, joins)
 	}) {
 		t.Error("a bench sitting the hook opened AFTER the dispatch row does not answer it")
 	}

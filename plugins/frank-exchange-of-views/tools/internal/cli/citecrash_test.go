@@ -39,7 +39,7 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the retry itself failed: %v", err)
 	}
-	if !strings.Contains(out, "F-0badf00d") {
+	if !strings.Contains(out, "F-0badf00d") || !strings.Contains(out, repeatedWords) {
 		t.Errorf("the retry did not answer idempotently with the prior label: %q", out)
 	}
 	owed, err := record.UnplacedLocation(runtest.Open(t, runDir), "F-0badf00d")

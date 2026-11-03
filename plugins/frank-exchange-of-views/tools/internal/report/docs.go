@@ -218,7 +218,7 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		return nil, nil, "", fmt.Errorf("recorded computations: %w", err)
 	}
 
-	used := map[string]bool{}
+	anchored := map[string]bool{}
 	for i := range docs {
 		if docs[i].Body == "" {
 			continue
@@ -231,19 +231,31 @@ func (rd readers) assemble(run record.Run, mark string) ([]Doc, map[string]bool,
 		if docs[i].File == FileReport {
 			composed[bibliographyHeading] = woven != body
 		}
-		body, hit := weaveComputationRefs(collapseBlanks(woven), computations)
-		for _, label := range hit {
-			used[label] = true
+		docs[i].Body = collapseBlanks(woven)
+		for _, label := range computationLabelsIn(docs[i].Body) {
+			anchored[label] = true
 		}
+	}
+	// A COMPUTATION IS EVIDENCE FOR THE SENTENCE IT IS ANCHORED TO, AND ONLY WHILE THAT ANCHOR STANDS.
+	// One whose anchor left the set — its claim retired — is numbered, footnoted and shown nowhere:
+	// its retire is in CHANGELOG. Shown under the reason it was recorded with, a retired computation
+	// shipped as evidence for a claim the report no longer makes (#1663 smoke, G-7dcf6270: "gives
+	// eight" beside a report that says seven). The numbering is over the standing ones, so the set
+	// has no gaps in it.
+	computations = slices.DeleteFunc(computations, func(c record.Computation) bool { return !anchored[c.Label] })
+	for i := range docs {
+		if docs[i].Body == "" {
+			continue
+		}
+		body, _ := weaveComputationRefs(docs[i].Body, computations)
 		docs[i].Body = collapseBlanks(body)
 	}
-	// evidence.md is composed LAST, from the computations the set actually anchors, so a computation no
-	// document references is still shown (it is on the record) and a reference to a computation that
-	// is not on the record is still stated (it is a defect, and a silent drop reads as clean).
+	// evidence.md is composed LAST, from the computations the set anchors; a reference to a computation
+	// that is not on the record is still stated (it is a defect, and a silent drop reads as clean).
 	// The citations follow the computations, each with every reading of it.
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			computationSec, citeSec := evidenceDoc(run, computations, used), citationsSection(fam)
+			computationSec, citeSec := evidenceDoc(run, computations), citationsSection(fam)
 			composed[evidenceHeading], composed[citationsHeading] = computationSec != "", citeSec != ""
 			docs[i].Body = rd.escapeNotes(strings.TrimRight(strings.Join(slices.DeleteFunc([]string{computationSec, citeSec}, func(s string) bool { return s == "" }), "\n"), "\n"))
 		}
@@ -344,11 +356,11 @@ func wovenToken(tok string) bool {
 	return woven
 }
 
-// blueReport renders the report's text from the record. A run with no base ingested has none, and
-// assembles with none of blue's sections. A report the record HOLDS and cannot replay is an error:
+// blueReport renders the report's text from the record. A run no lane recorded a part of has none,
+// and assembles with none of blue's sections. A report the record HOLDS and cannot replay is an error:
 // assembled as though blue wrote nothing, the set would ship without a word of the report.
 func blueReport(run record.Run) (string, error) {
-	have, err := reportproj.BaseIngested(run)
+	have, err := record.ReportHasParts(run)
 	if err == nil && have {
 		var md string
 		if md, err = reportproj.RenderFromRecord(run); err == nil {

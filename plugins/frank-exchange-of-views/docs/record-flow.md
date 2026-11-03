@@ -76,7 +76,7 @@ checks, and assembly into notes and a Bibliography — has its own page, with th
 step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What this flow depends on:
 
 - **A citation is a record event, and its marker is an insert op.** `cite` records the event and a
-  marker insertion at the quoted sentence; the report is its frozen base plus the replayed ops, so
+  marker insertion at the quoted sentence; the report is the lanes' parts plus the replayed ops, so
   there is no file to splice and no torn-splice window.
 - **cite events ⟺ `<!--cite:-->` anchors is a strict bijection.** `blue edit` refuses a span that
   drops or splits an anchor of any kind, and `unbacked_citations` flags any divergence.
@@ -85,5 +85,5 @@ step: **[citations-and-bibliography.md](citations-and-bibliography.md)**. What t
 
 ## Out of scope (separate concepts)
 
-`blue/candidates/` (blue best-of-N lane drafts) is unrelated and untouched. `#62 pt2`
+`blue/candidates/<lane>.md` is where a lane writes its part before `ingest` records it and removes the file. `#62 pt2`
 (de-editorialising the chair via `supersedes`/tool-side dedup) is a later change.

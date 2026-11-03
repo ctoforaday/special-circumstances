@@ -124,9 +124,9 @@ var occasionRe = regexp.MustCompile(`OCCASION:\s*([a-z_]+)`)
 // every seat but the bench.
 //
 // A BACKEND STANDING IN FOR A SEAT MUST BRANCH ON THIS, NOT ON THE PROMPT'S OPENING WORDS. The
-// bench's four sittings are one seat id and four questions; `seatclass.ClassifySeat` answers WHO
+// bench's five sittings are one seat id and five questions; `seatclass.ClassifySeat` answers WHO
 // sat and deliberately no longer answers WHICH sitting it was. A backend that asks it the second
-// question gets `judge` for all four, returns one envelope shape for every one of them, and the
+// question gets `judge` for all five, returns one envelope shape for every one of them, and the
 // engine dies on the field the shape does not carry — measured twice now, both times as
 // "TypeError: Cannot convert undefined or null to object" with 40 of 40 fuzzed runs failing.
 func OccasionOf(prompt string) string {
@@ -188,6 +188,20 @@ func WithKey(plan map[string]any) map[string]any {
 	return plan
 }
 
+// StandInRead is the read for a drive with no record behind it: nothing owed, no halt, and at the
+// assembly the outcome the engine told the seat to stamp, which a real assembly seat records. A backend
+// driving a hearing states its own.
+func StandInRead(d Dispatch) any {
+	read := map[string]any{"event": 1, "bench_owed": []any{}, "halted": false}
+	if m := outcomeRe.FindStringSubmatch(d.Prompt); d.Occasion == "assemble" && m != nil {
+		read["outcome"] = m[1]
+	}
+	return read
+}
+
+// outcomeRe reads the word the assembly prompt tells its seat to stamp.
+var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
+
 // Backend answers one dispatch. seatID is empty when the prompt carried no SEAT_ID (the frontier
 // re-prompt); label is always set.
 type Backend func(seatID, label, prompt string) Envelope
@@ -203,6 +217,13 @@ type Config struct {
 	Model         string
 	JudgmentModel string
 	Backend       Backend
+	// Read is what the PreToolUse hook writes on an envelope returned under a schema, for a backend
+	// standing in for a seat: `record_read`, which the seat's own call would carry. Nil is StandInRead,
+	// for a backend with no record behind it. A backend's own record_read is left alone: the hook is
+	// what overwrites a seat's, and its test is in internal/hookcmd.
+	Read func(d Dispatch) any
+	// DeadHook is a run whose hook does not fire: no envelope carries a read.
+	DeadHook bool
 	// Timeout bounds the whole drive. A debate that never settles is a hang, and a hang inside a
 	// probe build reads as a slow build.
 	Timeout time.Duration
@@ -458,6 +479,13 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 				}
 				got = append(got, d)
 				env := cfg.Backend(d.SeatID, d.Label, d.Prompt)
+				if _, typed := env["record_read"]; !typed && d.Schema != nil && env != nil && !cfg.DeadHook {
+					read := cfg.Read
+					if read == nil {
+						read = StandInRead
+					}
+					env["record_read"] = read(d)
+				}
 				p, resolve, _ := vm.NewPromise()
 				resolve(vm.ToValue(map[string]any(env)))
 				return vm.ToValue(p)

@@ -46,7 +46,7 @@ type Result struct {
 	computations []migratedComputation // every computation written, and where its artifact is (computations.go)
 	reruns       map[string][]string   // bundle -> the rerun_sha of each reproduce written that names one
 
-	base string // the report's base as the source wrote it
+	parts []string // each part of the report as the source wrote it, in record order
 }
 
 // preFieldFillWhy is the reason a mint whose source predates class_material records for the
@@ -91,7 +91,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 // replay writes src's events through batch, which its caller began on dst, holds and commits, with
 // record.Migrating set; it pins record.Now per event and restores it on return, so each pass — the
 // reorder trial and the replay as written after it — starts from the clock its caller had. With
-// inOrder set, the report's base is written in the order its text ships in (order.go).
+// inOrder set, each part of the report is written in the order its text ships in (order.go).
 //
 // dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
 // record's one connection, and anything that takes dst and opens the record waits on it forever. So
@@ -331,19 +331,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			} else if drop {
 				continue
 			}
-			if b, ok := body.(*recordpb.BaseIngest); ok {
-				res.base = b.GetText()
+			if b, ok := body.(*recordpb.ReportPart); ok {
+				res.parts = append(res.parts, b.GetText())
 				if inOrder {
-					b.Text = proto.String(report.Ordered(res.base))
+					b.Text = proto.String(report.Ordered(b.GetText()))
 				}
-			}
-			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before
-			// epoch 19 the chair readied the bench only on a docketed gap, and a petition was heard
-			// off an envelope with no row. The write refuses a bench row naming no occasion, so the
-			// row says what it always meant; one with no gap was never written then, and the write
-			// refuses it rather than this guessing.
-			if d, ok := body.(*recordpb.Dispatch); ok && len(d.GetOccasions()) == 0 && record.SeatOwesOccasion(d.GetSeatId()) {
-				d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
 			}
 			if d, ok := body.(*recordpb.Dispatch); ok && d.Pin != nil {
 				to, landed := newID[d.GetPin()]
@@ -379,6 +371,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// key is over them. TranslatePlanIDs carries each through newID and re-keys the plan, and
 			// refuses an id it cannot place; TranslatePlanKinds first respells its archived blocker kinds.
 			if pl, ok := body.(*recordpb.Plan); ok {
+				if err := TranslatePlanParties(pl); err != nil {
+					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
 				if err := TranslatePlanKinds(pl); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue

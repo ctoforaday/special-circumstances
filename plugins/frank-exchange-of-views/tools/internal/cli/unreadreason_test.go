@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -86,31 +85,23 @@ func TestCiteWithoutAReasonRecordsNoText(t *testing.T) {
 	}
 }
 
-// INGEST HAS NOWHERE TO PUT A REASON — BaseIngest carries the report and nothing else — so it does
+// INGEST HAS NOWHERE TO PUT A REASON — ReportPart carries the part and nothing else — so it does
 // not accept one. A refusal at parse is the honest answer; accepting and dropping was the defect.
 func TestIngestDoesNotAcceptAReason(t *testing.T) {
-	runDir := newRun(t)
-	// The FILE, not writeReport: that helper ingests, and a second ingest is refused for being
-	// second — which would pass this test for the wrong reason.
-	dir := filepath.Join(runDir, "blue")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	runDir := laneRun(t, 1)
+	writePart(t, runDir, "blue-lane-1", "## Findings\n\nThe sky is blue.\n")
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-lane-1"); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte("# Findings\n\nThe sky is blue.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
-		t.Fatal(err)
-	}
-	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize", "--reason", "freeze it")
+	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-lane-1", "--reason", "record it")
 	if err == nil {
 		t.Fatalf("ingest accepted a --reason it has no field for:\n%s", out)
 	}
 	if !strings.Contains(err.Error()+out, "unknown flag: --reason") {
 		t.Errorf("the refusal is not the parse refusal naming the flag: %v\n%s", err, out)
 	}
-	// Refused at parse, so nothing was frozen: the file is still there to ingest properly.
-	if _, statErr := os.Stat(filepath.Join(dir, "report.md")); statErr != nil {
+	// Refused at parse, so nothing was recorded: the file is still there to ingest properly.
+	if _, statErr := os.Stat(partFile(runDir, "blue-lane-1")); statErr != nil {
 		t.Errorf("a refused ingest removed the report file: %v", statErr)
 	}
 }

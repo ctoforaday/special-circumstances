@@ -86,7 +86,7 @@ func TestADocketedGapOwesAClosingFromBothPartiesAndTheBenchWaits(t *testing.T) {
 	t.Run("both filed: the bench sits", func(t *testing.T) {
 		run := docketed(t).closing(evLens, "G1").closing("blue-respond", "G1").seed()
 		p, ok := partyOf(planOfT(t, run), "judge")
-		if !ok || !slices.Contains(p.GapIDs, "G1") || !slices.Contains(p.Occasions, occasionDocket) {
+		if !ok || !slices.Contains(p.GapIDs, "G1") {
 			t.Errorf("both closings are filed and the bench is not convened on G1: %+v", p)
 		}
 		if got := closingOwners(t, run); len(got) != 0 {
@@ -239,7 +239,7 @@ func TestTheWritePathAdmitsAClosingOnlyFromAPartyOnADocketedGap(t *testing.T) {
 // the verb and under Migrating alike: a party argues a docketed gap in its closing.
 func TestTheWritePathAdmitsAPositionOnlyFromTheChair(t *testing.T) {
 	run := docketed(t).seed()
-	position := &recordpb.Position{Text: proto.String("why the PASS was withheld")}
+	position := &recordpb.Position{PositionId: proto.String(NewID("position")), Text: proto.String("why the PASS was withheld")}
 	for _, replaying := range []bool{false, true} {
 		if replaying {
 			migrating(t)

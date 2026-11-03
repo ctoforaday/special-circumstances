@@ -54,12 +54,28 @@ registered as a seat (the main session, an operator) is never counted. Under a h
 seat the payload carries no agent_id, so the identity and run come from FEOV_AGENT_ID and FEOV_RUN in
 the environment the hook inherits.
 
+THE WRAPPER IS NOT EDITED: a seat's `Edit` or `Write` inside the run's `.bin` is denied, and the refusal
+is logged under the seat. `setup` alone writes that directory, and the wrapper in it binds the run to
+every call a seat makes. The file's mode cannot refuse it: the client's edit tools write a temporary
+beside the file and rename it over, so a read-only file is replaced, and a read-only directory is one
+`rm -rf` and a re-run of `setup` cannot write into.
+
 THE ENVELOPE GATE covers `StructuredOutput`, the call a seat returns its envelope with and that ends
 its sitting. The hook asks feov-sitting-write (`-phase envelope`) whether the record refuses it: while
 a blocking item on the seat's own work list stands, the call is denied naming each item, and the
 refusal is logged under the seat. A check that cannot run refuses the envelope naming the error. The
 gate admits nothing: an envelope it lets through still faces the harness's schema check, which runs
 inside the tool's own call, after every PreToolUse hook. The admission is PostToolUse's.
+
+THE RECORD'S READ goes on the same call. An envelope the record does not refuse is allowed with the
+input it carried and `record_read` set to what feov-sitting-write answers (`record.RecordRead`: the
+event read at, the hearings owed, whether the bench has halted, the outcome once stamped), overwriting
+anything the seat typed there. The engine runs in a sandbox with no tools, and this field is the only
+thing it learns of the record, so an envelope that comes back without it, or with a value missing a
+required field or naming an event below 1 (what a seat types there), stops the run UNVERIFIED and names
+the seat. `capture`'s envelope-read audit recomputes each read at the event it names, which is what
+catches a seat that typed a plausible event under a dead hook. Claude Code
+2.1.305 is the floor (`requirements.json`), which `sc-doctor` and `setup` both hold.
 
 ## PostToolUse
 

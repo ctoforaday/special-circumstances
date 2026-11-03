@@ -13,7 +13,7 @@ func TestTheRoleOfASeatIsItsRosterRow(t *testing.T) {
 		"judge": "bench", "operator": "operator",
 		"red-lens-adversary": "lens", "red-lens-architecture": "lens", "red-lens-computation": "lens",
 		"red-lens-dark-side": "lens", "red-lens-evidence": "lens", "red-lens-logic": "lens", "red-lens-voice": "lens",
-		"blue-lane-1": "blue", "blue-lane-2": "blue", "blue-lane-3": "blue", "blue-lane-12": "blue",
+		"blue-lane-1": "lane", "blue-lane-2": "lane", "blue-lane-3": "lane", "blue-lane-12": "lane",
 		"blue-x": "", "judge-x": "", "judgement": "", "red-chair-x": "", "red-lens-banana": "",
 		"frontierx": "", "operatorX": "", "harness": "", "": "", " ": "",
 		"blue-lane-0": "", "blue-lane-01": "", "blue-lane-": "", "blue-lane-+1": "", "blue-lane--1": "", "blue-lane-1x": "",
@@ -40,7 +40,7 @@ func TestTheSeatsOfARoleAreItsRosterRows(t *testing.T) {
 	if got := SeatsOfRole("nobody"); len(got) != 0 {
 		t.Errorf("SeatsOfRole(nobody) = %v, want none", got)
 	}
-	if got := Roles(); !slices.Equal(got, []string{"bench", "blue", "chair", "lens", "operator"}) {
+	if got := Roles(); !slices.Equal(got, []string{"bench", "blue", "chair", "lane", "lens", "operator"}) {
 		t.Errorf("Roles() = %v", got)
 	}
 }

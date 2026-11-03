@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // CommandPaths returns every invocable command path in the real tree — "verify",
@@ -99,7 +100,7 @@ func commandsByPath() map[string]*cobra.Command {
 	// (role, verb), because `closing`, `position`, `log`, `register` and `show` each exist
 	// under several roles with different contracts. The key is a JOIN KEY for the trigger map and
 	// the gates, not an invocation.
-	for _, role := range []string{"lens", "chair", "blue", "bench"} {
+	for _, role := range seatRoles {
 		walkSurface(NewRootFor(dispatchedSeatFor(role)), func(path []string, c *cobra.Command) {
 			if !keep(c) {
 				return
@@ -263,7 +264,7 @@ func AllRoots() map[string]*cobra.Command {
 // seatRoles are the roles with a seat surface, in the order every walk over the trees takes. A map
 // range picked a different tree's copy of a shared verb from run to run, so a flag check could pass
 // on one run and fail the next.
-var seatRoles = []string{"lens", "chair", "blue", "bench"}
+var seatRoles = []string{"lens", "chair", "blue", seatclass.Lane.Role, "bench"}
 
 // SurfaceRoles names every tree AllRoots builds, without building one: a tree is the most
 // expensive value in this package, and a caller wanting five words should not pay for five.
@@ -311,7 +312,7 @@ func PersistentFlagNames() []string {
 	}
 	// The same four roles CommandPaths walks, and through the same dispatchedSeatFor: the tree
 	// is per-role, and a walker that forgets that measures the operator's surface only (#654).
-	for _, role := range []string{"lens", "chair", "blue", "bench"} {
+	for _, role := range seatRoles {
 		add(NewRootFor(dispatchedSeatFor(role)).PersistentFlags())
 	}
 	sort.Strings(out)

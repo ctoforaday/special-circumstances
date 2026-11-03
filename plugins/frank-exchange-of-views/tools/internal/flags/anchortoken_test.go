@@ -1,6 +1,37 @@
 package flags
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+// THE TEXT INSIDE A TOKEN'S DELIMITERS IS REFUSED, AND THE REFUSAL NAMES IT AGAINST THE BARE ID.
+//
+// MEASURED on universe-m35 and m36: a lens passed `fx:F-1d8a5455` to `close --anchor`, reading "the
+// id inside one" as everything between `<!--` and `-->`. The tool stores the bare id and takes no
+// third spelling, so the value stays refused; what changes is that the refusal names the form the
+// seat typed as the one that is not the id, rather than leaving it to re-read the same words.
+func TestTheTaggedTextIsRefusedByNameAgainstTheBareID(t *testing.T) {
+	for _, c := range []struct {
+		shape  func() *ShapedValue
+		value  string
+		naming string
+	}{
+		{ClosureAnchorID, "fx:F-1d8a5455", "`F-…`, never `fx:F-…`"},
+		{AnchorID, "fx:F-1d8a5455", "`F-…`, never `fx:F-…`"},
+		{CitationAnchor, "cite:C-db9ddfe6", "`C-…`, never `cite:C-…`"},
+		{ComputationAnchor, "computation:K-e0738d11", "`K-…`, never `computation:K-…`"},
+	} {
+		err := c.shape().Set(c.value)
+		if err == nil {
+			t.Errorf("%q was accepted; the bare id is the one stored form", c.value)
+			continue
+		}
+		if !strings.Contains(err.Error(), c.naming) {
+			t.Errorf("refusal of %q does not name %s: %v", c.value, c.naming, err)
+		}
+	}
+}
 
 // AN ANCHOR IS ACCEPTED AS THE REPORT WRITES IT, because that is where a seat gets one.
 //

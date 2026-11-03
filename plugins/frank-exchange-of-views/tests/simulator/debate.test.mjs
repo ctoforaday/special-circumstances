@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, withKey, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, read, standInRead, blocker, withKey, judgeEnv, petitionRulingEnv, assembleEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -78,7 +78,7 @@ const failing = (prefix, n, how, seats) => {
 }
 const engaged = () => chairEnv() // the evidence lens and blue on G-00000001
 const docketed = () => chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) })
-const petitioned = () => chairEnv({ plan: plan([petitionBench()], { blockers: [blocker('M-00000001', 'judge')] }) })
+const petitioned = () => chairEnv({ plan: plan([], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) })
 
 // EACH SINGLE DISPATCH IN THE LOOP: the seat fails once, the run goes on, the next plan readies it
 // again (the record still lists what it owes), it sits, and the run reaches its outcome.
@@ -124,7 +124,7 @@ test('three chair failures in a row stop the run UNVERIFIED, naming the chair', 
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
   assert.equal(labelsOf(world, 'red-chair').length, NO_PROGRESS_EPOCHS)
-  assert.deepEqual(out.termination, { seat_stop: { seat: 'red-chair', failures: NO_PROGRESS_EPOCHS } })
+  assert.deepEqual(out.termination, { seat_stop: { seat: 'red-chair', failures: NO_PROGRESS_EPOCHS }, read_stop: null })
   const assembly = firstPrompt(world, 'judge · assemble')
   assert.ok(/it is UNVERIFIED, ended UNVERIFIED — the engine stopped the debate on a seat that kept failing: seat failure: red-chair failed 3 sittings in a row/.test(assembly), `the stamp names the chair: ${assembly.slice(0, 600)}`)
 })
@@ -138,7 +138,7 @@ test('a failed synthesis is sat again in place; three in a row stop the debate b
   const out = await thrice.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
   assert.equal(labelsOf(thrice, 'red-chair').length, 0, 'the debate does not open')
-  assert.deepEqual(out.termination, { seat_stop: { seat: 'blue-synthesize', failures: NO_PROGRESS_EPOCHS } })
+  assert.deepEqual(out.termination, { seat_stop: { seat: 'blue-synthesize', failures: NO_PROGRESS_EPOCHS }, read_stop: null })
 })
 
 test('a failed assembly sitting is sat again in place; three in a row stop the run naming the verdict it could not record', async () => {
@@ -240,7 +240,7 @@ test('VERIFIED: the chair records PASS on a plan that permits it; phases in orde
   const world = makeWorld(makeResponder({ chair: [passChair()] }))
   const out = await world.run(script, ARGS)
   assert.deepEqual({ verdict: out.verdict, epochs: out.epochs, gaps: out.gaps_outstanding, term: out.termination },
-    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, why: [], no_progress: null, seat_stop: null } })
+    { verdict: 'VERIFIED', epochs: 1, gaps: 0, term: { pass_permitted: true, ceiling: false, epoch_limit_reached: false, no_progress: null, seat_stop: null, read_stop: null } })
   assert.deepEqual(world.phases, ['Frontier', 'Blue', 'Red', 'Assemble'])
   assert.equal(labelsOf(world, 'blue-lane').length, 3)
   assert.ok(world.logs.some((m) => m.includes('researching: test topic')))
@@ -279,9 +279,33 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], blockers: [blocker('M-00000001', 'judge')] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
-  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null, seat_stop: null })
+  assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, no_progress: null, seat_stop: null, read_stop: null })
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
+  assert.ok(/The terminal sitting ruled after that plan, so the board is what stands now/.test(asm), 'a reason the terminal sitting overtook says so')
+})
+
+test('UNVERIFIED with no terminal sitting: the plan\'s reasons stand unqualified', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: open, material — stalled'], blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }) })] }))
+  await world.run(script, ARGS)
+  const asm = firstPrompt(world, 'judge · assemble')
+  assert.ok(/ended UNVERIFIED/.test(asm) && /G-00000001: open, material — stalled/.test(asm), asm.slice(0, 600))
+  assert.ok(!/The terminal sitting ruled/.test(asm), 'no terminal sitting sat, so nothing overtook the plan')
+})
+
+// THE RETURN CARRIES NO REASON: the last plan's `why` said a motion stood unruled after the terminal
+// sitting had ruled it, and the lead repeated that to the operator (#1677's smoke). The reason is the
+// outcome the assembly sitting records.
+test('the return states no reason of the last plan\'s, however the run ended', async () => {
+  const ruled = plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 1,
+    why: ['G-00000001: docket motion M-00000001 stands unruled on a gap no longer open — the bench is ready'],
+    blockers: [blocker('M-00000001', 'judge')] })
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: ruled })] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'CEILING')
+  assert.ok(labelsOf(world, 'judge · terminal').length > 0, 'the terminal sitting sat')
+  assert.ok(!('why' in out.termination), JSON.stringify(out.termination))
+  assert.ok(!/stands unruled/.test(JSON.stringify(out)), 'no word of the overtaken plan reaches the return')
 })
 
 // ── the no-progress valve: a plan whose key repeats stops the debate ──
@@ -368,7 +392,6 @@ test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the l
   const world = makeWorld(makeResponder({ chair: toTheLimit(limitPlan()) }))
   const out = await world.run(script, ARGS)
   assert.deepEqual([out.verdict, out.epochs, out.termination.epoch_limit_reached, out.termination.ceiling], ['CEILING', 4, true, true])
-  assert.ok(out.termination.why.some((w) => /epoch limit 4 reached/.test(w)), 'the record\'s reason travels in the termination')
   const asm = firstPrompt(world, 'judge · assemble')
   assert.ok(/it is CEILING/.test(asm) && /epoch limit 4 reached/.test(asm) && !/every open material gap reached its limit/.test(asm), asm.slice(0, 900))
   assert.ok(world.logs.some((m) => /epoch 4: the epoch limit \(4\) is reached/.test(m)))
@@ -412,23 +435,21 @@ test('the terminal bench sitting fires only when the last plan holds a blocker t
   assert.ok(!labelsOf(notAMotion, 'judge · terminal').length, 'a bench-owned blocker that is not a motion convened the terminal bench')
 })
 
-// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and what it returns is a
-// petition sitting's: a halt, which stamps the run HALTED. The ruling stays on the record.
-test('a petition standing at the exit: the terminal sitting rules it, and its halt stamps the run HALTED', async () => {
+// A PETITION FILED IN THE FINAL EPOCH IS HEARD AT THE TERMINAL SITTING, and a halt its close reads
+// stamps the run HALTED. The ruling stays on the record.
+test('a petition standing at the exit: the terminal sitting rules it, and a halt on its close stamps the run HALTED', async () => {
   const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('M-00000001', 'judge')] }) })
-  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ halt: { opinion: 'the human must decide this' } })] }))
+  const halting = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv({ record_read: read({ halted: true }) })] }))
   const out = await halting.run(script, ARGS)
   const terminal = labelsOf(halting, 'judge · terminal')[0]
   assert.ok(terminal, 'the terminal sitting fired on the standing petition')
-  assert.equal(terminal.opts.schema.properties.halt.required[0], 'opinion', 'the terminal envelope carries the halt')
-  assert.deepEqual(Object.keys(terminal.opts.schema.properties), ['halt'], 'the terminal envelope relays a ruling')
+  assert.deepEqual(Object.keys(terminal.opts.schema.properties), ['record_read'], 'the terminal envelope declares only the read')
   assert.ok(/a grant with its relief and whom it binds/.test(terminal.prompt), 'the terminal sitting is not told a grant records its order')
   assert.ok(/A HALT IS A DIFFERENT DECISION FROM A RULING/.test(terminal.prompt) && /stamps the run HALTED/.test(terminal.prompt))
   assert.equal(out.verdict, 'HALTED')
   assert.equal(out.halted, true)
-  assert.ok(out.halt_opinion.includes('the human must decide'))
   const asm = firstPrompt(halting, 'judge · assemble')
-  assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'), 'the assembly stamps the halt the terminal sitting recorded')
+  assert.ok(asm.includes('it is HALTED'), 'the assembly stamps the halt the terminal sitting recorded')
   // Ruled without a halt, the run keeps its stamp.
   const ruled = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()], judge: [judgeEnv()] }))
   const out2 = await ruled.run(script, ARGS)
@@ -543,7 +564,23 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
-test('blue is engaged on named gaps, works from the report and its work list, and files closings only where the plan holds one owed', async () => {
+// THE ORDER IS THE RECORD'S, NOT THE SCRIPT'S (ruled by gblock 2026-10-30): a lens's turn on a gap
+// comes with blue's act, and the plan says when. An epoch whose plan engages blue alone on a fresh gap
+// sits no lens; the next, whose plan engages the minting lens on it after blue's answer, sits the lens
+// on it with the gap named, and blue after it.
+test('a plan that engages blue alone on a gap sits no lens, and the lens sits on it when the plan engages it', async () => {
+  const world = makeWorld(makeResponder({
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }),
+      chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
+  }))
+  await world.run(script, ARGS)
+  const seats = world.calls.map((c) => c.opts.label.replace(/ #\d+.*$/, '')).filter((l) => l === 'red-chair' || l === 'blue-respond' || l.startsWith('red-lens-'))
+  assert.deepEqual(seats, ['red-chair', 'blue-respond', 'red-chair', 'red-lens-logic', 'blue-respond', 'red-chair'], 'each epoch sits exactly the parties its plan names')
+  const [lens] = labelsOf(world, 'red-lens-logic').map((c) => c.prompt)
+  assert.ok(lens.includes('YOU ARE ENGAGED ON: G-00000001 —'), 'the lens is told the gap it sits on')
+})
+
+test('blue is engaged on named gaps, works from the report and its work list, and is told how to argue the closings its work list names', async () => {
   const owed = [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-logic' }, { kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' },
     { kind: 'closing_owed', subject: 'G-00000002', owner: 'red-lens-logic' }, { kind: 'unruled_motion', subject: 'M-00000001', owner: 'judge' }]
   const world = makeWorld(makeResponder({
@@ -565,10 +602,11 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
     assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
-  // THE CLOSINGS OWED ARE THE PLAN'S closing_owed BLOCKERS THIS SEAT OWNS — not the lens's, and not
-  // the docket the chair's sitting filed.
-  assert.ok(/YOUR CLOSING ARGUMENT IS OWED ON: G-00000002 — each is DOCKETED/.test(first) && /argue in ~120 words/.test(first))
-  assert.ok(!/YOUR CLOSING ARGUMENT IS OWED/.test(second), 'a docket with no closing the plan holds blue to owes none')
+  // THE WORK LIST NAMES THE CLOSINGS OWED; THE DISPATCH NAMES NONE. The plan is read at the epoch's
+  // start, and a lens that closes the gap before blue sits ends the duty (#1663 smoke, ev530, ev608).
+  assert.ok(/A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE/.test(first) && /argue in ~120 words/.test(first))
+  assert.ok(!/A CLOSING ARGUMENT IS OWED/.test(second), 'a plan that holds blue to no closing tells it of one')
+  for (const prompt of [first, second]) assert.ok(!/OWED ON/.test(prompt) && !/G-00000002/.test(prompt), 'the dispatch names a gap a closing is owed on')
   assert.ok(!/round \d/.test(first), 'no round is named to blue')
   // #1209: blue rules nothing, so the bench's law clause is not blue's; every read is a projection,
   // so no scratch-file copy of one; and a clean sitting owes no log entry.
@@ -586,7 +624,7 @@ test('the bench rules on docketed gaps from the closings, the transcript and the
     assert.ok(bench.includes(want), `the bench lost: ${want}`)
   }
   const schema = labelsOf(world, 'judge')[0].opts.schema
-  assert.deepEqual(schema, { type: 'object', additionalProperties: false, properties: {} }, 'the docket envelope declares a field: its rulings are on the record')
+  assert.deepEqual(Object.keys(schema.properties), ['record_read'], 'the docket envelope declares a field beside the read: its rulings are on the record')
 })
 
 // THE BENCH'S RULINGS AND ORDERS REACH THE SEATS FROM THE RECORD (gblock, 2026-10-30). No envelope
@@ -662,7 +700,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // `[minority: lane-N]` tag on every single-lane claim — which blue's own constitution names
   // as the measured failure it exists to prevent, and which reportvoice flags. Six of them
   // shipped in a VERIFIED report before this was found. The fact is real and the record
-  // already holds it: the lane drafts, the frozen base and every recorded edit.
+  // already holds it: the lanes' parts and every recorded edit.
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
@@ -684,7 +722,20 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
     'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  // THE SYNTHESIZER RECORDS NO INQUIRY, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
+  // THE SYNTHESIZER WORKS ON THE LANES' PARTS THROUGH ITS ACTS. The lanes record their parts; the
+  // synthesizer reads the report they make and changes it on the record, so it is told of no draft
+  // directory, no file to write and nothing to freeze, and records no part of its own.
+  assert.ok(/The lanes have recorded their parts of the report/.test(synth) && /through your acts on the record/.test(synth),
+    'the synthesis prompt does not say the report is the lanes\' parts, changed through the synthesizer\'s acts')
+  assert.ok(!/candidates|report\.md|scratch\/|cp it|FREEZE|frozen/i.test(synth), 'the synthesis prompt names a draft, a file to write or a freeze')
+  assert.ok(/A part is a lane's, and your seat records none/.test(synth), 'the synthesis prompt does not say the synthesizer records no part')
+  // EACH LANE WRITES ITS PART TO THE PATH ITS SEAT NAMES AND RECORDS IT, holding only the report's own sections.
+  for (const lane of ['blue-lane-1', 'blue-lane-2', 'blue-lane-3']) {
+    const p = firstPrompt(world, lane)
+    assert.ok(p.includes(`/blue/candidates/${lane}.md, then record it`), `${lane}'s prompt does not name its part's path and the act that records it`)
+    assert.ok(/YOUR PART HOLDS THE REPORT'S OWN SECTIONS ONLY/.test(p) && /no title, no TL;DR, Catechism or open questions/.test(p), `${lane}'s prompt does not say what a part holds`)
+  }
+  // THE SYNTHESIZER RECORDS NO INQUIRY, AND ITS PROMPT ASKS FOR NONE. It merges the lanes' parts; the
   // approaches are the frontier's and the lanes', who did the work. What it is told is what the
   // report holds of them: the tool composes the three sections, and the report carries no list of
   // approaches under any heading.
@@ -790,7 +841,7 @@ test('every seat prompt carries the speed clause and the record contract, and le
 
 test('the record contract binds each seat to the id it hands the tool, petition sittings included', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   // A PETITION SITTING IS THE BENCH. The filer is on the petition the sitting rules, on the record,
@@ -805,36 +856,293 @@ test('the record contract binds each seat to the id it hands the tool, petition 
   }
 })
 
-test('W2c: a plan that convenes the bench for petitions seats it before any party; denied continues; a halt ends the run HALTED', async () => {
-  const convened = () => chairEnv({ plan: plan([party('red-lens-evidence'), petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) })
-  const denied = makeWorld(makeResponder({ chair: [convened(), passChair()] }))
+test('W2c: a read that owes a petition seats the bench before any party; denied continues; a halt on its close ends the run HALTED', async () => {
+  const owing = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) })
+  const denied = makeWorld(makeResponder({ chair: [owing(), passChair()] }))
   const out = await denied.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   const sitting = denied.calls.findIndex((c) => c.opts.label.startsWith('judge · petition'))
   const lens = denied.calls.findIndex((c) => c.opts.label.startsWith('red-lens-evidence'))
   const blue = denied.calls.findIndex((c) => c.opts.label.startsWith('blue-respond'))
   assert.ok(sitting >= 0 && sitting < lens && sitting < blue, 'the sitting fired before any party sat')
-  assert.deepEqual(Object.keys(denied.calls[sitting].opts.schema.properties), ['halt'], 'the petition envelope relays a ruling')
+  assert.deepEqual(Object.keys(denied.calls[sitting].opts.schema.properties), ['record_read'], 'the petition envelope declares only the read')
   assert.ok(denied.calls[sitting].prompt.includes('A GRANT RECORDS TWO THINGS') && denied.calls[sitting].prompt.includes('The seats it binds read it on their work lists'), 'the petition sitting is not told a grant records its order')
   assert.ok(denied.calls[sitting].prompt.includes('never sanctioned') && /A HALT IS A DIFFERENT DECISION FROM A RULING/.test(denied.calls[sitting].prompt))
-  const halting = makeWorld(makeResponder({
-    chair: [convened()],
-    petition: [petitionRulingEnv({ halt: { opinion: 'the human must decide this' } })],
-  }))
+  const halting = makeWorld(makeResponder({ chair: [owing()], petition: [petitionRulingEnv({ record_read: read({ halted: true }) })] }))
   const out2 = await halting.run(script, ARGS)
   assert.equal(out2.verdict, 'HALTED')
   assert.equal(out2.halted, true)
-  assert.ok(out2.halt_opinion.includes('the human must decide'))
-  assert.ok(!halting.calls.some((c) => c.opts.label.startsWith('blue-respond')), 'nothing sat past the halt')
-  const asm = firstPrompt(halting, 'judge · assemble')
-  assert.ok(asm.includes('it is HALTED') && asm.includes('the human must decide'))
+  assert.ok(!halting.calls.some((c) => c.opts.label.startsWith('blue-respond') || c.opts.label.startsWith('red-lens')), 'nothing sat past the halt')
+  assert.ok(firstPrompt(halting, 'judge · assemble').includes('it is HALTED'))
 })
 
-test('W2c: no plan convenes it, no sitting — whatever an envelope carries', async () => {
+// THE DEFECT THIS READ REPLACES: the engine took a halt from the judge's envelope, so a judge writing
+// "Not halted…" read as HALTED. What a seat typed beside the read is nothing to the engine.
+test('a seat typing a halt on its envelope stops nothing: only the read does', async () => {
+  const owing = chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) })
+  const world = makeWorld(makeResponder({ chair: [owing, passChair()], petition: [{ halt: { opinion: 'Not halted — the petition is denied on its merits' } }] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(out.halted, false)
+  assert.ok(labelsOf(world, 'blue-respond').length, 'blue sat: nothing halted the run')
+})
+
+// THE CHAIR'S POSITION ON A PASS IT WITHHELD IS HEARD WITH NOTHING RUNNING (gblock, 2026-10-30): the read
+// on the chair's close owes it, the sitting is asked to rule it upheld | overruled and told what each
+// sets in motion, and a halt on its close ends the run HALTED as a petition sitting's does. A plan with
+// no party and a hearing owed is more of the turn: the next chair sits, on what the ruling set in motion.
+test('a read that owes the chair\'s position seats the bench; the next chair sits; a halt on its close ends the run HALTED', async () => {
+  const owing = () => chairEnv({ plan: plan([], { blockers: [blocker('A-00000001', 'judge')] }), record_read: read({ bench_owed: ['position'] }) })
+  const heard = makeWorld(makeResponder({ chair: [owing(), passChair()] }))
+  const out = await heard.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(labelsOf(heard, 'red-chair').length, 2, 'nobody ready with a hearing owed does not end the debate')
+  const sitting = heard.calls.findIndex((c) => c.opts.label.startsWith('judge · position'))
+  assert.ok(sitting >= 0, 'the position sitting fired')
+  assert.ok(!heard.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'a position convened a petition sitting')
+  const prompt = heard.calls[sitting].prompt
+  for (const clause of ['upheld | overruled', 'NAMES THE WORK', 'one remand at impasse', 'next sitting decides on the PASS with a verdict', 'EITHER WAY THE OBJECTION IS DECIDED', 'not disposing of a position']) {
+    assert.ok(prompt.includes(clause), `the position sitting's prompt lacks: ${clause}`)
+  }
+  const halting = makeWorld(makeResponder({ chair: [owing()], position: [{ record_read: read({ halted: true }) }] }))
+  const out2 = await halting.run(script, ARGS)
+  assert.equal(out2.verdict, 'HALTED')
+  assert.equal(labelsOf(halting, 'red-chair').length, 1, 'nothing sat past the halt')
+})
+
+// A respond that gives each label prefix its read, over a default responder.
+const readsAt = (seats, reads) => (p, o) => {
+  const hit = Object.keys(reads).find((prefix) => o.label.startsWith(prefix))
+  if (!hit) return seats(p, o)
+  const env = seats(p, o)
+  return { ...(env && typeof env === 'object' ? env : {}), record_read: reads[hit] }
+}
+const labels = (world) => world.calls.map((c) => c.opts.label.replace(/ · test$/, ''))
+const lensAndBlue = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('blue-respond', 'G-00000001')]) })
+
+// THE BENCH HEARS WHENEVER NOTHING IS RUNNING (gblock, 2026-10-31): after the lens group, after each blue
+// sitting, after the docket bench. Any close of a group says so: an earlier close with nothing owed read
+// before the filing landed, and the last close alone would read nothing when that seat died.
+test('a lens that files in a parallel group is heard before blue sits, whichever close reports it', async () => {
+  for (const reader of ['red-lens-evidence', 'red-lens-logic']) {
+    const world = makeWorld(readsAt(makeResponder({ chair: [lensAndBlue(), passChair()] }), { [reader]: read({ bench_owed: ['petition'] }) }))
+    assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
+    const order = labels(world)
+    assert.ok(order.indexOf('judge · petition') > order.indexOf('red-lens-logic #1'), `the hearing sat with a lens still to come (${reader})`)
+    assert.ok(order.indexOf('judge · petition') < order.indexOf('blue-respond #1'), `blue sat before the hearing (${reader})`)
+    assert.equal(order.filter((l) => l === 'judge · petition').length, 1, 'one hearing')
+  }
+  // A DEAD LAST SEAT: the filing read off the close that came back.
+  const dead = makeWorld(readsAt(failing('red-lens-logic', 1, 'returns null', makeResponder({ chair: [lensAndBlue(), passChair()] })), { 'red-lens-evidence': read({ bench_owed: ['petition'] }) }))
+  await dead.run(script, ARGS)
+  assert.ok(labels(dead).includes('judge · petition'), 'a dead last lens lost the filing an earlier close reported')
+})
+
+test('a halt on a lens\'s hearing stops blue and the docket bench from sitting that turn', async () => {
+  const chair = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000002')], { docket: ['G-00000002'] }) })
+  const world = makeWorld(readsAt(makeResponder({ chair: [chair()], petition: [{ record_read: read({ halted: true }) }] }), { 'red-lens-evidence': read({ bench_owed: ['petition'] }) }))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'HALTED')
+  assert.deepEqual(labels(world).filter((l) => /^(blue-respond|judge #|red-chair)/.test(l)), ['red-chair #1'], 'a seat sat past the halt')
+  assert.equal(labelsOf(world, 'judge · terminal').length, 0, 'a halted run has no terminal sitting')
+})
+
+test('blue\'s filing is heard after its sitting and before the docket bench; a halt there stops the bench', async () => {
+  const chair = () => chairEnv({ plan: plan([party('blue-respond', 'G-00000001'), party('judge', 'G-00000002')], { docket: ['G-00000002'] }) })
+  const heard = makeWorld(readsAt(makeResponder({ chair: [chair(), passChair()] }), { 'blue-respond': read({ bench_owed: ['petition'] }) }))
+  await heard.run(script, ARGS)
+  const order = labels(heard)
+  assert.ok(order.indexOf('blue-respond #1') < order.indexOf('judge · petition') && order.indexOf('judge · petition') < order.indexOf('judge #1'), order.join(' > '))
+  const halted = makeWorld(readsAt(makeResponder({ chair: [chair()], petition: [{ record_read: read({ halted: true }) }] }), { 'blue-respond': read({ bench_owed: ['petition'] }) }))
+  assert.equal((await halted.run(script, ARGS)).verdict, 'HALTED')
+  assert.ok(!labels(halted).includes('judge #1'), 'the docket bench sat past the halt')
+})
+
+test('a halt on the hearing after blue stops its second sitting on a successor', async () => {
+  const blueRespond = [blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] })]
+  const world = makeWorld(readsAt(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')]) })], blueRespond, petition: [{ record_read: read({ halted: true }) }] }), { 'blue-respond': read({ bench_owed: ['petition'] }) }))
+  assert.equal((await world.run(script, ARGS)).verdict, 'HALTED')
+  assert.equal(world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).length, 1, 'blue sat again past the halt')
+})
+
+test('the docket bench\'s close is read like any other: a halt there ends the run, and a filing there is heard', async () => {
+  const chair = () => chairEnv({ plan: plan([party('judge', 'G-00000002')], { docket: ['G-00000002'] }) })
+  const halted = makeWorld(readsAt(makeResponder({ chair: [chair()] }), { 'judge #1': read({ halted: true }) }))
+  assert.equal((await halted.run(script, ARGS)).verdict, 'HALTED')
+  assert.equal(labelsOf(halted, 'red-chair').length, 1, 'a chair sat past the halt')
+  const filed = makeWorld(readsAt(makeResponder({ chair: [chair(), passChair()] }), { 'judge #1': read({ bench_owed: ['position'] }) }))
+  await filed.run(script, ARGS)
+  assert.ok(labels(filed).includes('judge · position'))
+})
+
+test('both hearings owed sit in order, petition first; a halt on the first stops the second', async () => {
+  const owing = () => chairEnv({ plan: plan([], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['position', 'petition'] }) })
+  const both = makeWorld(makeResponder({ chair: [owing(), passChair()] }))
+  await both.run(script, ARGS)
+  const order = labels(both)
+  assert.ok(order.indexOf('judge · petition') >= 0 && order.indexOf('judge · petition') < order.indexOf('judge · position'), order.join(' > '))
+  const halted = makeWorld(makeResponder({ chair: [owing()], petition: [{ record_read: read({ halted: true }) }] }))
+  await halted.run(script, ARGS)
+  assert.ok(!labels(halted).includes('judge · position'), 'a hearing sat past the halt')
+})
+
+// A HEARING'S OWN CLOSE IS READ ONLY FOR THE HALT: re-entering on it is the one way a hearing could
+// repeat within a turn. What it reports waits for the next close, which reads the record again.
+test('a hearing\'s close that reports a filing does not re-enter: the next close carries it', async () => {
+  const owing = () => chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) })
+  const world = makeWorld(makeResponder({ chair: [owing(), passChair()], petition: [{ record_read: read({ bench_owed: ['petition'] }) }] }))
+  await world.run(script, ARGS)
+  const order = labels(world)
+  assert.equal(order.filter((l) => l === 'judge · petition').length, 1, order.join(' > '))
+})
+
+// ONE CHAIR SITTING IS ONE EPOCH, AND THE EPOCH LIMIT ENDS A CHAIR THAT FILES EVERY TURN. No bound on
+// hearings is added (gblock, 2026-10-31): each round costs a chair sitting, the parties sit each round,
+// and the plan at the limit dispatches nobody.
+test('a chair that files a petition every turn ends at the epoch limit, one hearing and one party sitting per epoch', async () => {
+  const LIMIT = 12
+  let sat = 0
+  const chairs = (_p, o) => {
+    sat++
+    const held = [blocker(`M-${String(sat).padStart(8, '0')}`, 'judge')]
+    return sat < LIMIT
+      ? chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: held, max_epochs: LIMIT }), record_read: read({ bench_owed: ['petition'] }) })
+      : chairEnv({ plan: plan([], { blockers: held, max_epochs: LIMIT, final_sitting: true, ceiling: true, epoch_limit_reached: true, why: [`epoch limit ${LIMIT} reached`] }), record_read: read({ bench_owed: ['petition'] }) })
+  }
+  const seats = makeResponder()
+  const world = makeWorld((p, o) => (o.label.startsWith('red-chair') ? chairs(p, o) : seats(p, o)))
+  const out = await world.run(script, ARGS)
+  assert.equal(out.verdict, 'CEILING')
+  assert.equal(out.epochs, LIMIT)
+  assert.equal(labelsOf(world, 'red-chair').length, LIMIT, 'a hearing took a chair sitting of its own')
+  assert.equal(labelsOf(world, 'judge · petition').length, LIMIT - 1, 'no hearing at the last epoch: the terminal sitting has it')
+  assert.equal(labelsOf(world, 'blue-respond').length, LIMIT - 1, 'the parties sit each turn all the same')
+  assert.equal(labelsOf(world, 'judge · terminal').length, 1)
+})
+
+// A FINAL-SITTING POSITION ENDS CEILING (gblock, 2026-10-30), and the limit holds on the read when the
+// chair relayed the plan it asked for before filing: no hearing is convened there, and no chair follows.
+test('a hearing owed at the last epoch on a plan asked before the filing: nobody sits, and the run is told CEILING', async () => {
+  const stale = chairEnv({ plan: plan([], { pass_permitted: true, blockers: [], final_sitting: true, max_epochs: 1 }), record_read: read({ bench_owed: ['position'] }) })
+  const world = makeWorld(makeResponder({ chair: [stale] }))
+  const out = await world.run(script, ARGS)
+  assert.equal(labelsOf(world, 'red-chair').length, 1)
+  assert.equal(labelsOf(world, 'judge · position').length, 0, 'a hearing was convened at the last epoch')
+  assert.ok(firstPrompt(world, 'judge · assemble').includes('it is CEILING'))
+  assert.equal(out.verdict, 'CEILING')
+})
+
+// NOTHING READY AND NOTHING OWED ENDS THE DEBATE, and a hearing that fails leaves its filing standing.
+test('a plan with nobody ready ends the debate only with nothing owed', async () => {
+  const empty = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { blockers: [blocker('M-00000001', 'judge')] }) })] }))
+  await empty.run(script, ARGS)
+  assert.equal(labelsOf(empty, 'red-chair').length, 1)
+  assert.equal(labelsOf(empty, 'judge · petition').length, 0, 'an empty bench_owed convened a hearing')
+})
+
+// THE OUTCOME IS THE RECORD'S, READ OFF THE ASSEMBLY SEAT'S CLOSE: never the word this script told it.
+test('the run\'s verdict is the outcome on the assembly\'s close, and a close with none sits again', async () => {
+  const world = makeWorld(makeResponder({ chair: [passChair()], assemble: [assembleEnv({ record_read: read({ outcome: 'UNVERIFIED' }) })] }))
+  assert.equal((await world.run(script, ARGS)).verdict, 'UNVERIFIED')
+  const again = makeWorld(makeResponder({ chair: [passChair()], assemble: [assembleEnv({ record_read: read() }), assembleEnv({ record_read: read({ outcome: 'VERIFIED' }) })] }))
+  assert.equal((await again.run(script, ARGS)).verdict, 'VERIFIED')
+  assert.equal(labelsOf(again, 'judge · assemble').length, 2)
+  const never = makeWorld(makeResponder({ chair: [passChair()], assemble: [assembleEnv({ record_read: read() })] }))
+  await assert.rejects(never.run(script, ARGS), /the assembly sitting failed 3 sittings in a row/)
+})
+
+// ABSENT IS NOT EMPTY: an envelope with no read stops the run UNVERIFIED and names the seat, at every
+// close the engine reads, and nobody else sits. Empty never reads as absent: every other test here runs on `bench_owed: []`.
+test('an envelope with no record_read stops the run UNVERIFIED, naming the seat, wherever it comes back', async () => {
+  // THE HOOK DOES NOT FIRE ON ONE SEAT'S CLOSE: that envelope goes through as the seat returned it.
+  const raw = (prefix, seats) => (p, o) => {
+    const env = seats(p, o)
+    if (o.label.startsWith(prefix) || !o.schema || env.record_read !== undefined) return env
+    return { ...env, record_read: standInRead(p) }
+  }
+  const owing = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000002')], { docket: ['G-00000002'], blockers: [blocker('M-00000001', 'judge')] }) })
+  const cases = [
+    ['blue-synthesize', 'blue-synthesize', {}],
+    ['red-chair', 'red-chair', {}],
+    ['red-lens-evidence', 'red-lens-evidence', {}],
+    ['blue-respond', 'blue-respond', {}],
+    ['judge #1', 'judge', {}],
+  ]
+  for (const [prefix, seat] of cases) {
+    const world = makeWorld(raw(prefix, makeResponder({ chair: [owing(), passChair()] })), { deadHook: true })
+    const out = await world.run(script, ARGS)
+    assert.equal(out.verdict, 'UNVERIFIED', prefix)
+    assert.equal(out.termination.read_stop.seat, seat, prefix)
+    assert.ok(world.logs.some((l) => l.startsWith(`${seat}: the envelope came back with no record_read`)), prefix)
+    const stopAt = world.calls.findIndex((c) => c.opts.label.startsWith(prefix))
+    const after = world.calls.slice(stopAt + 1).map((c) => c.opts.label).filter((l) => !l.startsWith('judge · assemble'))
+    assert.deepEqual(after, [], `${prefix}: a seat sat past the stop`)
+    assert.ok(firstPrompt(world, 'judge · assemble').includes(`the envelope ${seat} returned carries no record_read`), prefix)
+  }
+  // A DEAD HOOK ON EVERY SEAT stops at the first close, and the assembly's own close carries no outcome.
+  const dead = makeWorld(makeResponder({ chair: [passChair()] }), { deadHook: true })
+  const out = await dead.run(script, ARGS)
+  assert.equal(out.verdict, 'UNVERIFIED')
+  assert.equal(out.termination.read_stop.seat, 'blue-synthesize')
+  assert.equal(labelsOf(dead, 'red-chair').length, 0)
+  // A HEARING'S CLOSE AND THE ASSEMBLY'S OWN stop it the same way.
+  const hearing = makeWorld(raw('judge · petition', makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]), record_read: read({ bench_owed: ['petition'] }) })] })), { deadHook: true })
+  assert.equal((await hearing.run(script, ARGS)).termination.read_stop.seat, 'judge')
+  assert.equal(labelsOf(hearing, 'blue-respond').length, 0, 'blue sat past the stop')
+  const assembly = makeWorld(raw('judge · assemble', makeResponder({ chair: [passChair()] })), { deadHook: true })
+  const end = await assembly.run(script, ARGS)
+  assert.equal(end.verdict, 'UNVERIFIED')
+  assert.equal(end.termination.read_stop.seat, 'judge')
+  assert.equal(labelsOf(assembly, 'judge · assemble').length, 1, 'a missing read is not a failed sitting: sitting it again does not bring the hook back')
+})
+
+// WHAT SEATS TYPED IN THE LIVE SMOKE (D14 of #1677's audit): 11 of 13 typed `event: 0`, one typed `{}`. The
+// hook overwrites them, so a dead hook is the one way they reach the engine, and neither is a read.
+test('a typed placeholder under a dead hook stops the run UNVERIFIED and names the seat; a real read passes', async () => {
+  const real = makeWorld(makeResponder({ chair: [passChair()] }))
+  const realOut = await real.run(script, ARGS)
+  assert.equal(realOut.verdict, 'VERIFIED')
+  assert.equal(realOut.termination.read_stop, null)
+  const schema = real.calls.find((c) => c.opts.schema).opts.schema.properties.record_read
+  assert.equal(schemaAccepts(schema, read()), true)
+  for (const [name, typed] of [
+    ['event 0', { event: 0, bench_owed: [], halted: false }],
+    ['an empty object', {}],
+    ['a halt with no event', { halted: true }],
+    ['null', null],
+  ]) {
+    assert.equal(schemaAccepts(schema, typed), false, `the schema took ${name}`)
+    const seats = makeResponder({ chair: [passChair()] })
+    const world = makeWorld(async (p, o) => {
+      const env = await seats(p, o)
+      return o.schema ? { ...env, record_read: typed } : env
+    }, { deadHook: true })
+    const out = await world.run(script, ARGS)
+    assert.equal(out.verdict, 'UNVERIFIED', name)
+    assert.equal(out.termination.read_stop.seat, 'blue-synthesize', name)
+    assert.ok(world.logs.some((l) => l.startsWith('blue-synthesize: the envelope came back with no record_read the hook wrote')), name)
+    assert.equal(labelsOf(world, 'red-chair').length, 0, `${name}: a seat sat past the stop`)
+    assert.ok(firstPrompt(world, 'judge · assemble').includes('the envelope blue-synthesize returned carries no record_read the hook wrote'), name)
+  }
+})
+
+// A POSITION STANDING AT THE EXIT — the chair withheld the PASS at its final sitting — is heard by the
+// terminal bench, and the run ends at its ceiling however it is ruled (gblock, 2026-10-30).
+test('a position standing at the exit: the terminal sitting rules it, and the run ends CEILING', async () => {
+  const lastEpoch = () => chairEnv({ plan: plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 2, blockers: [blocker('A-00000001', 'judge')] }) })
+  const world = makeWorld(makeResponder({ chair: [chairEnv(), lastEpoch()] }))
+  const out = await world.run(script, ARGS)
+  const terminal = labelsOf(world, 'judge · terminal')[0]
+  assert.ok(terminal, 'the terminal sitting fired on the standing position')
+  assert.ok(/A POSITION among them/.test(terminal.prompt) && /the run ends at its ceiling however you rule it/.test(terminal.prompt), terminal.prompt.slice(0, 600))
+  assert.equal(out.verdict, 'CEILING')
+})
+
+test('W2c: no read owes it, no sitting — whatever an envelope carries', async () => {
   const quiet = makeWorld(makeResponder({ chair: [passChair()] }))
   await quiet.run(script, ARGS)
   assert.ok(!quiet.calls.some((c) => c.opts.label.startsWith('judge · petition')))
-  // AN ENVELOPE IS NOT A PETITION CHANNEL: the record is, relayed in the plan. Every seat here
+  // AN ENVELOPE IS NOT A PETITION CHANNEL: the record is, read at a close. Every seat here
   // returns a `petitions` field and nothing convenes the bench.
   const petitions = [{ class: 'ethical', basis: 'x', relief: 'narrow' }]
   const envelopes = makeWorld(makeResponder({
@@ -844,7 +1152,7 @@ test('W2c: no plan convenes it, no sitting — whatever an envelope carries', as
   await envelopes.run(script, ARGS)
   assert.ok(!envelopes.calls.some((c) => c.opts.label.startsWith('judge · petition')), 'an envelope field convened the bench')
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   // THE RIGHT IS STATED AT THE SEAT, ONCE: in its constitution, and in no prompt.
@@ -976,6 +1284,17 @@ test('R2: blue sits a second time on the successor it engaged, once per successo
   assert.ok(world.logs.some((l) => l.includes('engaged its next sitting on the successor(s) G-1ac85c33 — blue sits again this epoch')), world.logs.join(' | '))
   assert.ok(world.logs.some((l) => l.includes('G-00000003 it does not sit again on — this was its second sitting this epoch')), world.logs.join(' | '))
 })
+// THE CLOSING DUTY IS STATED ONCE AN EPOCH, at the sitting the plan dispatched, and not to blue's second
+// sitting on a successor: that sitting is engaged on the successor alone.
+test('R2: the closing duty is stated to the sitting the plan dispatched, and not to the second sitting', async () => {
+  const blockers = [{ kind: 'closing_owed', subject: 'G-00000002', owner: 'blue-respond' }]
+  const blueRespond = [blueEnv({ manifest: [], found_closed: ['G-77cc033b'], successors: ['G-1ac85c33'] }), blueEnv({ manifest: ['G-1ac85c33'] })]
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-77cc033b')], { blockers }) }), passChair()], blueRespond }))
+  await world.run(script, ARGS)
+  const [first, second] = world.calls.filter((c) => /^blue-respond /.test(c.opts.label)).map((c) => c.prompt)
+  assert.ok(first.includes('A CLOSING ARGUMENT IS OWED WHERE YOUR WORK LIST NAMES ONE'), 'the dispatched sitting is not told how to argue a closing')
+  assert.ok(second && !second.includes('A CLOSING ARGUMENT IS OWED'), 'the second sitting is told of a closing')
+})
 test('R2: no second sitting without a gap found closed, or on a successor this epoch already engaged blue on', async () => {
   const sittings = async (env, ...gaps) => {
     const w = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', ...gaps)]) }), passChair()], blueRespond: [env] }))
@@ -1065,7 +1384,9 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
   for (const area of LENS_AREAS) {
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
-    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on. Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes('the record readies you for your first look, again whenever the report head is past your pin — the head the tool last served you the whole report at, in a sitting you sat through, so a sitting that ends without the whole report served to you leaves you ready at the head — and whenever your gap needs acting on.') &&
+      md.includes('Three sittings in a row without fresh material retire you, and a head move does not ready you after that — unless your work list still owes something'), `red-lens-${area}: readiness is the pin behind the head, until retirement owing nothing`)
+    assert.ok(md.includes("On a gap you minted, your turn comes with blue's: the record readies you on it once blue has acted on it since your own last act there, your mint included, and never before"), `red-lens-${area}: a lens's turn on its gap comes with blue's act`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)
     assert.ok(md.includes("a corroborating source's title ships in the source's note and Bibliography entry") && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
   }
@@ -1165,20 +1486,18 @@ const relayEnds = async (env) => {
 }
 
 // m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
-// both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
-// there, 42 minutes in. The fixture is that sitting's plan, verdict and notes, off its transcript; the
-// envelope below is its plan and notes, as the chair's envelope now carries them.
-// `exchanges` and the key are the fields written into it here: the plan carries an entry per engaged gap, and
-// the sitting's transcript states no count for any of the four. The rebuilt plan also dropped every
-// blocker, and a plan that permits no PASS names what holds it, so the schema refuses that relay
-// now; the empty occasions lists are accepted once its blockers stand.
-test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and blue — is accepted by the schema and dispatches its parties', async () => {
+// both lenses and blue, a key no plan holds. The schema took the envelope and the plan check threw on
+// it, and the run ended there, 42 minutes in. The fixture is that sitting's plan, verdict and notes,
+// off its transcript. The schema refuses that relay now, so the harness hands it back to the chair.
+test('m16: chair sitting 6\'s relay is refused by the schema, and the plan without what it added dispatches its parties', async () => {
   const relayed = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
   assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
   assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
-  assert.ok(!schemaAccepts(await chairSchema(), { ...relayed.plan, notes: relayed.notes }), 'the schema refuses a plan that permits no PASS and names nothing holding it')
-  const env = { ...withKey({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }), notes: relayed.notes }
-  assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
+  const blockers = ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap'))
+  assert.ok(!schemaAccepts(await chairSchema(), { ...relayed.plan, blockers, notes: relayed.notes }), 'the schema refuses a key no plan holds')
+  const parties = relayed.plan.parties.map(({ occasions, ...p }) => p)
+  const env = { ...withKey({ ...relayed.plan, parties, blockers }), notes: relayed.notes }
+  assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the plan')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),
     ['red-lens-adversary #1 · test', 'red-lens-architecture #1 · test', 'blue-respond #1 · test'])
@@ -1227,14 +1546,12 @@ test('a plan that permits no PASS and names nothing holding it stops the run rat
 
 // EACH SHAPE THE PLAN CHECK REFUSES IS ONE THE SCHEMA REFUSES FIRST — named, so a reader sees which
 // shapes those are; the sweep below is what holds the two together.
-test('the schema refuses what the plan check refuses: a bench with no occasion, an occasion on a lens or blue, a seat with no sitting, a blank direction', async () => {
+test('the schema refuses what the plan check refuses: a bench with no gap, an occasion on any party, a seat with no sitting, a blank direction', async () => {
   const schema = await chairSchema()
   const refused = {
-    'a bench party with no occasions': plan([{ seat_id: 'judge', gap_ids: ['G-00000001'] }]),
-    'a bench party with an empty occasions list': plan([{ seat_id: 'judge', gap_ids: ['G-00000001'], occasions: [] }]),
-    'a bench party convened for a word that is not an occasion the plan names': plan([{ seat_id: 'judge', gap_ids: [], occasions: ['terminal'] }]),
-    'a lens convened for an occasion': plan([{ seat_id: 'red-lens-logic', gap_ids: [], occasions: ['docket'] }]),
-    'blue convened for an occasion': plan([{ seat_id: 'blue-respond', gap_ids: ['G-00000001'], occasions: ['petition'] }]),
+    'a bench party with no gap': plan([{ seat_id: 'judge', gap_ids: [] }]),
+    'a bench party naming an occasion': plan([{ seat_id: 'judge', gap_ids: ['G-00000001'], occasions: ['docket'] }]),
+    'a lens naming an occasion': plan([{ seat_id: 'red-lens-logic', gap_ids: [], occasions: [] }]),
     'a seat the workflow has no sitting for': plan([party('frontier')]),
     'a lens area the workflow does not declare': plan([party('red-lens-typography')]),
     'a remand with a blank direction': plan([], { remand_owed: [{ gap_id: 'G-00000001', direction: ' ' }] }),
@@ -1244,9 +1561,7 @@ test('the schema refuses what the plan check refuses: a bench with no occasion, 
   }
   const accepted = {
     'the bench on its docket': plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }),
-    'the bench for a petition and its docket': plan([{ seat_id: 'judge', gap_ids: ['G-00000001'], occasions: ['petition', 'docket'] }]),
-    'a lens with no occasions field': plan([party('red-lens-logic')]),
-    'a lens with an empty occasions list': plan([{ seat_id: 'red-lens-logic', gap_ids: [], occasions: [] }]),
+    'a lens on no gap': plan([party('red-lens-logic')]),
   }
   for (const [what, p] of Object.entries(accepted)) {
     assert.ok(schemaAccepts(schema, chairEnv({ plan: p })), `the schema must accept ${what}`)
@@ -1267,8 +1582,9 @@ test('the chair envelope is the plan, and declares no field beside it the engine
   const relayed = new Set([...Object.keys(plan()), 'verdict'])
   assert.deepEqual([...relayed].filter((k) => !schema.properties[k]), [], 'every field the verb prints is a field of the envelope')
   const beside = Object.keys(schema.properties).filter((k) => !relayed.has(k))
-  assert.deepEqual(beside, ['notes'], 'the envelope adds one field to the plan')
-  for (const key of beside) {
+  assert.deepEqual(beside, ['notes', 'record_read'], 'the envelope adds the chair\'s line and the hook\'s read to the plan')
+  assert.ok(src.includes('env.record_read'), 'CHAIR_ENVELOPE declares `record_read` beside the plan, which the engine never reads')
+  for (const key of beside.filter((k) => k !== 'record_read')) {
     assert.ok(src.includes(`chairEnv.${key}`), `CHAIR_ENVELOPE declares \`${key}\` beside the plan, which the engine never reads as chairEnv.${key}`)
   }
 })
@@ -1295,7 +1611,7 @@ test('the chair envelope schema holds no oneOf, allOf or anyOf at its top level'
 // dropped. Driven through a run that reaches the petition bench, the docket, the terminal sitting
 // and assembly, so every schema the script dispatches is read as dispatched.
 test('every envelope schema the script dispatches is closed at its top level', async () => {
-  const chair = [chairEnv({ plan: plan([petitionBench(), party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }) }),
+  const chair = [chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { docket: ['G-00000001'], blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) }),
     chairEnv({ plan: plan([], { blockers: [blocker('M-00000002', 'judge')] }) })]
   const world = makeWorld(makeResponder({ chair }))
   await world.run(script, ARGS)
@@ -1308,7 +1624,7 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   const schema = await chairSchema()
   const full = () => chairEnv({
     plan: plan(
-      [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), { seat_id: 'judge', gap_ids: ['G-00000002'], occasions: ['petition', 'docket'] }],
+      [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), party('judge', 'G-00000002')],
       { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], exchanges: [{ gap_id: 'G-00000001', count: 2, unresolved: 1 }, { gap_id: 'G-00000002', count: 3, unresolved: 0 }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
     notes: 'n',
   })
@@ -1321,9 +1637,9 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   walk(full(), [])
   const DELETE = Symbol('delete')
   const pool = [DELETE, null, '', ' ', 'x', 'judge', 'blue-respond', 'red-lens-logic', 'frontier', 'docket', 0, -1, 1.5, 7, true, false, {}, [], [''], ['x'], ['docket'], ['petition'], ['terminal'], [{}], 'PASS', 'FAIL']
-  // A key the verb omits and a seat may add: `occasions` on the lens and on blue, and the verdict the
-  // verb prints only once the sitting has recorded one.
-  const added = [['parties', 0, 'occasions'], ['parties', 1, 'occasions'], ['verdict']]
+  // A key the verb omits and a seat may add: the verdict the verb prints only once the sitting has
+  // recorded one, and the read, which the hook writes.
+  const added = [['verdict'], ['record_read']]
   let accepted = 0, refused = 0
   for (const path of [...paths.filter((p) => p.length), ...added]) {
     for (const value of pool) {
@@ -1408,8 +1724,9 @@ test('every envelope schema the engine dispatches compiles under strict types wi
   const declared = new Set([...src.matchAll(/\bschema: ([A-Z_]+)\b/g)].map((m) => m[1]))
   const worlds = [
     makeResponder(),
-    makeResponder({ chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()] }),
+    makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }), record_read: read({ bench_owed: ['petition'] }) }), passChair()] }),
     makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')]) }), passChair()] }),
+    makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')], { blockers: [blocker('A-00000001', 'judge')] }), record_read: read({ bench_owed: ['position'] }) }), passChair()] }),
     makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M-00000001', 'judge')] }) })] }),
   ]
   const seen = new Map()

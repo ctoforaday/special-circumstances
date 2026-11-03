@@ -47,6 +47,8 @@ var viewWriters = map[string][]string{
 	"inquiries": {"inquiry", "propose"},
 	"telemetry": {},
 	"board":     {"mint", "close", "regrade", "retire"},
+	// No act writes it: `fetch` fills the cache it reads.
+	"source": {"fetch"},
 }
 
 // EVERY VIEW'S HELP NAMES THE VERB THAT FILLS IT.

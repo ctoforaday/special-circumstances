@@ -53,7 +53,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 	if p, c := claimcount.Paragraphs(md), claimcount.Count(md); p != 29 || c != 11 {
 		t.Fatalf("the fixture is not B4's shape: %d paragraphs, %d claims", p, c)
 	}
-	evs := []*recordpb.Event{recordtest.At(t, "blue-synthesize", "base", &recordpb.BaseIngest{Text: proto.String(md)})}
+	evs := []*recordpb.Event{recordtest.At(t, "blue-synthesize", "base", &recordpb.ReportPart{Text: proto.String(md)})}
 	for i := 0; i < 11; i++ {
 		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("C-%08x", i))}))
 	}

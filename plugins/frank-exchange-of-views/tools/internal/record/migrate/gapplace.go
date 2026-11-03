@@ -58,7 +58,7 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		}
 		text, err := record.RenderAt(p.q)
 		if err != nil {
-			return nil, nil // no base: the gap reads unrendered
+			return nil, nil // no part: the gap reads unrendered
 		}
 		if _, err := anchortext.Attach(text, b.GetGapId(), b.GetLocation()); err != nil {
 			p.census.NeverPlaced = append(p.census.NeverPlaced, b.GetGapId())

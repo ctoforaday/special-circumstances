@@ -282,7 +282,7 @@ func requireBound(cmd *cobra.Command, s Context) error {
 //
 // A register carries the binding, and on one surface it carries one thing more, as a flag:
 //
-//	bench   --occasion        which of its four questions this sitting answers. Only its prompt knows.
+//	bench   --occasion        which of its five questions this sitting answers. Only its prompt knows.
 //
 // It can be supplied by nothing but the seat, so it cannot be silent. Every other surface's
 // register is the binding and nothing else, which is a fact the tool already holds — so the seat
@@ -430,6 +430,18 @@ func roleOf(cmd *cobra.Command) string {
 // returns a nil Result to say nothing.
 type Result interface {
 	Human() string
+}
+
+// Repeated is the human line of a call that wrote NOTHING because it repeats an act already on the
+// record — a keyed retry, or a corroboration or proposal stated again — told apart from a write in
+// the words the seat reads. act names what the call repeats, by the id the record holds it under.
+//
+// ONE PHRASE FOR EVERY SUCH VERB. Each verb worded its own ("existing id returned", "no second
+// one"), and the corroboration retry worded none: it printed its verdict as a fresh reading,
+// "recorded" included, while the record took nothing. The --json form carries the same fact as
+// `idempotent`.
+func Repeated(act string) string {
+	return act + " — this call repeats an act already on the record, so nothing was written"
 }
 
 // Relayed is a result whose machine form IS the object the seat relays, and nothing else: --json

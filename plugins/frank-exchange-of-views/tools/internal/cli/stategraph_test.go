@@ -689,7 +689,8 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	// notProbed are surface verbs deliberately left out, each with the reason. A verb in NEITHER
 	// list fails: that is what makes a newly-added one loud instead of silently unprobed.
 	notProbed := map[string]string{
-		"chair carry": "a carry restates a closure an EARLIER ROUND argued, and every probe here builds a single round-1 board, so it can only ever be refused for a reason that is not about the gap's state. Driving it needs a two-round fixture, which is the fuzz's shape rather than this prober's. It IS attempted and reported as `refused (not a state fact)` so the absence is visible in the matrix rather than only here.",
+		"motion position rule": "a position is before the bench only where the chair's sitting stored a plan permitting the PASS and withheld it, and this prober builds each board by seat acts on one sitting, where no plan permits a PASS. The ruling's states — unruled, upheld on a lens or on gaps, overruled, a second ruling refused — are held by record's withheldpass_test.go and this package's positionheard_test.go and answers_test.go.",
+		"chair carry":          "a carry restates a closure an EARLIER ROUND argued, and every probe here builds a single round-1 board, so it can only ever be refused for a reason that is not about the gap's state. Driving it needs a two-round fixture, which is the fuzz's shape rather than this prober's. It IS attempted and reported as `refused (not a state fact)` so the absence is visible in the matrix rather than only here.",
 	}
 
 	var missing []string

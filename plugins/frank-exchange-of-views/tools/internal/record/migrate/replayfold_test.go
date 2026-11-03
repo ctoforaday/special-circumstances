@@ -15,11 +15,11 @@ func TestTheReportReplayIsAFold(t *testing.T) {
 	for _, name := range []string{"2026-10-12_is-91-prime-wave-b.tar.gz", "2026-10-13_is-91-prime-m23.tar.gz", "2026-09-11_is-91-prime-b9.tar.gz"} {
 		t.Run(name, func(t *testing.T) {
 			_, dst := migrateArchive(t, name)
-			base, haveBase, ops, err := record.ReportProjection(dst)
-			if err != nil || !haveBase {
-				t.Fatalf("the report projection: base %v, %v", haveBase, err)
+			ops, err := record.ReportProjection(dst)
+			if err != nil || len(ops) == 0 || ops[0].Kind != "append" {
+				t.Fatalf("the report projection: %d ops, %v", len(ops), err)
 			}
-			whole, err := reportproj.Replay(base, true, ops)
+			whole, err := reportproj.Replay("", false, ops)
 			if err != nil {
 				t.Fatalf("the archived run does not replay: %v", err)
 			}
@@ -27,7 +27,10 @@ func TestTheReportReplayIsAFold(t *testing.T) {
 				t.Fatalf("%d ops is too few to say anything about a fold", len(ops))
 			}
 			for k := range len(ops) + 1 {
-				prefix, err := reportproj.Replay(base, true, ops[:k])
+				if k == 0 {
+					continue // the empty fold is no report: NoPart, which the render states
+				}
+				prefix, err := reportproj.Replay("", false, ops[:k])
 				if err != nil {
 					t.Fatalf("the first %d of %d ops do not replay: %v", k, len(ops), err)
 				}

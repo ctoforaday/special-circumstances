@@ -32,7 +32,7 @@ import (
 // once, for a reader who will never edit again.
 func BlueReportForReading(run record.Run) ([]byte, error) {
 	// The report is the record projection now (#709): there is no file. RenderFromRecord is loud
-	// when no base has been ingested — "there is nothing to read" rather than the plausible zero of
+	// when no part has been recorded — "there is nothing to read" rather than the plausible zero of
 	// an empty read — which is the same distinction the file-not-exist branch used to draw.
 	md, err := reportproj.RenderFromRecord(run)
 	if err != nil {

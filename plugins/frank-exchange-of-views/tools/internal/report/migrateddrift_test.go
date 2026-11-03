@@ -30,11 +30,9 @@ func TestAMigratedDriftOpensNothingInTheEvidenceDocument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	anchored := map[string]bool{}
 	bare := make([]record.Computation, len(computations))
 	drifts, setext := 0, 0
 	for i, k := range computations {
-		anchored[k.Label] = true
 		bare[i] = k
 		if k.Drift != "" {
 			bare[i].Drift = "moved"
@@ -53,5 +51,5 @@ func TestAMigratedDriftOpensNothingInTheEvidenceDocument(t *testing.T) {
 	if drifts == 0 || setext == 0 {
 		t.Fatalf("the migrated record holds %d DIFFERS with a drift, %d of them with a `====` rule; this measures nothing", drifts, setext)
 	}
-	report.SameShapes(t, report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, bare, anchored))), report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, computations, anchored))))
+	report.SameShapes(t, report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, bare))), report.Shapes(report.ResolveMarks(report.EvidenceDoc(run, computations))))
 }

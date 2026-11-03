@@ -17,7 +17,7 @@ import (
 // source, and every seat reads its whole surface at its opening act — so a page on their surfaces
 // is read at every chair and bench sitting and called at none.
 func TestFetchIsOnTheSurfaceOfTheSeatsThatReadSources(t *testing.T) {
-	want := map[string]bool{"lens": true, "blue": true, "chair": false, "bench": false}
+	want := map[string]bool{"lens": true, "blue": true, "lane": true, "chair": false, "bench": false}
 	for role, has := range want {
 		got := false
 		for _, c := range NewRootFor(record.SampleSeatOf(role)).Commands() {
@@ -44,7 +44,7 @@ func TestASeatWithoutFetchIsRefusedAndCachesNothing(t *testing.T) {
 		if err == nil {
 			t.Fatalf("%s ran `fetch` and was not refused", seatID)
 		}
-		for _, wantText := range []string{`"fetch" is not on your surface`, "blue and lens"} {
+		for _, wantText := range []string{`"fetch" is not on your surface`, "blue and lane and lens"} {
 			if !strings.Contains(err.Error(), wantText) {
 				t.Errorf("%s: the refusal does not say %q:\n%v", seatID, wantText, err)
 			}

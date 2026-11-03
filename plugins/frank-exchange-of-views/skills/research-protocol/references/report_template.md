@@ -2,7 +2,8 @@
   WHAT A RUN HANDS OVER IS A SET OF DOCUMENTS, ASSEMBLED FROM THE RECORD by the bench seat's assemble
   verb. Nothing is authored at assembly. Two ownership classes, marked per section below:
 
-    [BLUE] — authored by blue INSIDE the report (the synthesizer writes it, then `edit`),
+    [BLUE] — authored by blue INSIDE the report (the lanes' parts, then the synthesizer's and
+             blue's acts),
              audited by red every sitting (red
              re-reads the full report each sitting), and SHIPPED AS WRITTEN here, in the
              order written. A synthesis surface authored at assembly would be authored after
@@ -10,8 +11,9 @@
              never filled: it ships nothing.
 
   ONE ORDER. The report's text ships in the order its author writes it, and that order is the
-  one below: the title, TL;DR, The Catechism, the report's own sections, Open questions. Freezing
-  the report and every edit refuse a text that holds one of those out of its place, and the
+  one below: the title, TL;DR, The Catechism, the report's own sections, Open questions. Every
+  edit refuses a text that holds one of those out of its place, a lane's part holds none of the
+  rest but the report's own sections, and the
   refusal names the section and where it belongs. The [RECORD] sections of report.md stand
   between the report's own sections and Open questions; assembly moves no line of the text.
 
@@ -61,7 +63,7 @@
                                               its author gave it — a heading that names the reader's question the
                                               section answers. No heading stands above them and this entry is not one.
                                               A [RECORD] heading of this template written into the report's text is
-                                              refused when the report is frozen and at every edit; the refusal says how
+                                              refused in a lane's part and at every edit; the refusal says how
                                               content reaches that section, and the report view's assembled form lists
                                               it for all of them. -->
 

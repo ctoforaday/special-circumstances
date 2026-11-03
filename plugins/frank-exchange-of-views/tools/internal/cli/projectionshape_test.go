@@ -46,12 +46,9 @@ func TestProjectionShapeMatchesEmittedKeys(t *testing.T) {
 		// `inquest` verbs on the judge's surface; asked for under `show` as the chair they were
 		// refused, the refusal counted as "emitted nothing", and debate, motions and telemetry
 		// passed this test for their whole lives without one byte of theirs being compared.
-		group, reader := seat.GroupOf(view), "red-chair"
-		if group == "inquest" {
-			reader = "judge"
-		}
+		group, reader, read := viewReader(t, runDir, view)
 		trimmed, found := "", false
-		for _, args := range [][]string{{view}, {view, "--json"}} {
+		for _, args := range [][]string{read, append(append([]string{}, read...), "--json")} {
 			out, err := run(t, append([]string{group, "--run", runDir, "--seat-id", reader}, args...)...)
 			if err != nil {
 				continue // this seat cannot open it, or the form is refused — neither is evidence

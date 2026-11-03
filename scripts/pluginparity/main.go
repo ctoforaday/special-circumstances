@@ -184,6 +184,10 @@ func main() {
 		fail("%s", p)
 	}
 
+	for _, p := range antigravityPluginProblems(root, declared) {
+		fail("%s", p)
+	}
+
 	if failed {
 		os.Exit(1)
 	}
@@ -419,4 +423,182 @@ func committedBinaries(root string) []string {
 		return []string{"the committed-binary check listed zero tracked files, so it has been passing without reading anything."}
 	}
 	return problems
+}
+
+type manifestAuthor struct {
+	Name string `json:"name"`
+}
+
+type claudePluginManifest struct {
+	Name         string          `json:"name"`
+	DisplayName  string          `json:"displayName,omitempty"`
+	Version      string          `json:"version"`
+	Description  string          `json:"description,omitempty"`
+	Author       *manifestAuthor `json:"author,omitempty"`
+	License      string          `json:"license,omitempty"`
+	Keywords     []string        `json:"keywords,omitempty"`
+	Dependencies []string        `json:"dependencies,omitempty"`
+	Hooks        string          `json:"hooks,omitempty"`
+}
+
+type agyPluginManifest struct {
+	Name        string          `json:"name"`
+	DisplayName string          `json:"displayName,omitempty"`
+	Version     string          `json:"version"`
+	Description string          `json:"description,omitempty"`
+	Author      *manifestAuthor `json:"author,omitempty"`
+	License     string          `json:"license,omitempty"`
+	Keywords    []string        `json:"keywords,omitempty"`
+}
+
+type agyPluginsConfig struct {
+	Entries []struct {
+		Path        string   `json:"path"`
+		IncludeOnly []string `json:"include_only,omitempty"`
+		Exclude     []string `json:"exclude,omitempty"`
+	} `json:"entries"`
+}
+
+// antigravityPluginProblems verifies that .agents/plugins.json discovers the exact plugin set
+// declared in .claude-plugin/marketplace.json and that every plugin carries a synced,
+// schema-clean .antigravity-plugin/plugin.json alongside its .claude-plugin/plugin.json.
+func antigravityPluginProblems(root string, declared []string) []string {
+	var problems []string
+	add := func(format string, a ...any) { problems = append(problems, fmt.Sprintf(format, a...)) }
+
+	cfgRel := ".agents/plugins.json"
+	cfgBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cfgRel)))
+	if err != nil {
+		add("%s: cannot read (%v) — Antigravity workspace discovery needs this file to locate plugins/*.", cfgRel, err)
+		return problems
+	}
+	dec := json.NewDecoder(bytes.NewReader(cfgBytes))
+	dec.DisallowUnknownFields()
+	var cfg agyPluginsConfig
+	if err := dec.Decode(&cfg); err != nil {
+		add("%s: invalid JSON or unknown field: %v", cfgRel, err)
+		return problems
+	}
+	if len(cfg.Entries) == 0 {
+		add("%s: entries list is empty — Antigravity discovers zero workspace plugins.", cfgRel)
+		return problems
+	}
+
+	discoveredSet := map[string]bool{}
+	for _, e := range cfg.Entries {
+		p := strings.TrimSpace(e.Path)
+		if p == "" || filepath.IsAbs(p) || strings.HasPrefix(filepath.ToSlash(filepath.Clean(p)), "..") {
+			add("%s: entry path %q must be a non-empty repository-relative path.", cfgRel, e.Path)
+			continue
+		}
+		dir := filepath.Join(root, filepath.FromSlash(p))
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			add("%s: entry path %q cannot be read: %v", cfgRel, e.Path, err)
+			continue
+		}
+		subDirs := map[string]bool{}
+		for _, d := range entries {
+			if d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
+				subDirs[d.Name()] = true
+			}
+		}
+		excluded := map[string]bool{}
+		for _, ex := range e.Exclude {
+			excluded[ex] = true
+		}
+		if len(e.IncludeOnly) > 0 {
+			for _, inc := range e.IncludeOnly {
+				if !subDirs[inc] {
+					add("%s: include_only names %q under %s, which is not a directory on disk.", cfgRel, inc, e.Path)
+					continue
+				}
+				if !excluded[inc] {
+					discoveredSet[inc] = true
+				}
+			}
+			continue
+		}
+		for name := range subDirs {
+			if !excluded[name] {
+				discoveredSet[name] = true
+			}
+		}
+	}
+
+	var discovered []string
+	for name := range discoveredSet {
+		discovered = append(discovered, name)
+	}
+	sort.Strings(discovered)
+
+	for _, p := range declared {
+		if !discoveredSet[p] {
+			add("%s: never discovers %s — declared in .claude-plugin/marketplace.json but not reachable from .agents/plugins.json entries.", cfgRel, p)
+		}
+	}
+	for _, p := range discovered {
+		if !contains(declared, p) {
+			add("%s: discovers %s, which .claude-plugin/marketplace.json does not declare.", cfgRel, p)
+		}
+	}
+
+	for _, p := range declared {
+		claudeRel := filepath.ToSlash(filepath.Join("plugins", p, ".claude-plugin", "plugin.json"))
+		agyRel := filepath.ToSlash(filepath.Join("plugins", p, ".antigravity-plugin", "plugin.json"))
+
+		cb, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(claudeRel)))
+		if err != nil {
+			add("%s: cannot read: %v", claudeRel, err)
+			continue
+		}
+		ab, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(agyRel)))
+		if err != nil {
+			add("%s: cannot read (%v) — every plugin must carry both .claude-plugin/plugin.json and .antigravity-plugin/plugin.json.", agyRel, err)
+			continue
+		}
+
+		cdec := json.NewDecoder(bytes.NewReader(cb))
+		cdec.DisallowUnknownFields()
+		var cm claudePluginManifest
+		if err := cdec.Decode(&cm); err != nil {
+			add("%s: %v", claudeRel, err)
+			continue
+		}
+
+		adec := json.NewDecoder(bytes.NewReader(ab))
+		adec.DisallowUnknownFields()
+		var am agyPluginManifest
+		if err := adec.Decode(&am); err != nil {
+			add("%s: %v (Antigravity rejects Claude-only fields such as dependencies or hooks under `agy plugin validate --strict`)", agyRel, err)
+			continue
+		}
+
+		if cm.Name != p {
+			add("%s: name %q does not match directory %q.", claudeRel, cm.Name, p)
+		}
+		if am.Name != p {
+			add("%s: name %q does not match directory %q.", agyRel, am.Name, p)
+		}
+		want := agyPluginManifest{
+			Name:        cm.Name,
+			DisplayName: cm.DisplayName,
+			Version:     cm.Version,
+			Description: cm.Description,
+			Author:      cm.Author,
+			License:     cm.License,
+			Keywords:    cm.Keywords,
+		}
+		if !agyManifestsEqual(am, want) {
+			add("%s: shared manifest fields disagree with %s — run `go -C scripts run ./marketplacegen`.", agyRel, claudeRel)
+		}
+	}
+
+	return problems
+}
+
+func agyManifestsEqual(a, b agyPluginManifest) bool {
+	ab, err1 := json.Marshal(a)
+	bb, err2 := json.Marshal(b)
+	return err1 == nil && err2 == nil && bytes.Equal(ab, bb)
 }

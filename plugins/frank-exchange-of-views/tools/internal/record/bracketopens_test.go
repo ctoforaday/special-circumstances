@@ -39,7 +39,7 @@ func bracketedRun(t *testing.T) (string, record.Run) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{SeatIds: []string{lensSeat, "red-chair", "blue-respond", "judge"}}),
-		recordtest.At(t, record.HarnessSeat, "harness:ingest", &recordpb.BaseIngest{Text: proto.String("# report\n\nOne paragraph.\n")}))
+		recordtest.At(t, record.HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\nOne paragraph.\n")}))
 	run, err := record.NewRun(dir)
 	if err != nil {
 		t.Fatal(err)

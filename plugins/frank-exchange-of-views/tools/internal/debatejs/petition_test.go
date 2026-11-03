@@ -21,7 +21,6 @@ func planWith(parties, blockers []any) map[string]any {
 
 var (
 	lensParty     = map[string]any{"seat_id": "red-lens-logic", "gap_ids": []any{}}
-	petitionBench = map[string]any{"seat_id": "judge", "gap_ids": []any{}, "occasions": []any{"petition"}}
 	benchPetition = map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}
 	chairGrade    = map[string]any{"kind": "unruled_motion", "subject": "M2", "owner": "red-chair"}
 )
@@ -69,11 +68,17 @@ func occasions(ds []Dispatch) []string {
 	return out
 }
 
-// THE ENGINE HEARS THE PETITIONS THE PLAN CONVENES THE BENCH FOR, BEFORE ANY PARTY OF THE EPOCH
-// (#1203). A lens files on the record; the chair's next plan readies the bench with occasion
-// `petition`; the workflow seats that sitting first, then the lens.
-func TestTheEngineHearsThePetitionsThePlanConvenes(t *testing.T) {
-	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, petitionBench}, []any{benchPetition})}, nil)
+// owing is a plan whose chair's close reports these hearings owed, as the hook writes it.
+func owing(plan map[string]any, occasions ...any) map[string]any {
+	plan["record_read"] = map[string]any{"event": 1, "bench_owed": occasions, "halted": false}
+	return plan
+}
+
+// THE ENGINE HEARS WHAT A CLOSE SAYS IS OWED, WITH NOTHING RUNNING (gblock, 2026-10-31). A lens files on
+// the record; the read on the next close reports the hearing owed; the workflow seats that sitting
+// before any party sits after that close, with no plan naming it.
+func TestTheEngineHearsWhatACloseSaysIsOwed(t *testing.T) {
+	ds, _ := drivePlans(t, []map[string]any{owing(planWith([]any{lensParty}, []any{benchPetition}), "petition")}, nil)
 	petition := slices.IndexFunc(ds, func(d Dispatch) bool { return d.Occasion == "petition" })
 	if petition < 0 {
 		t.Fatalf("no petition sitting dispatched; occasions %q", occasions(ds))
@@ -83,10 +88,10 @@ func TestTheEngineHearsThePetitionsThePlanConvenes(t *testing.T) {
 	}
 	lens := slices.IndexFunc(ds, func(d Dispatch) bool { return d.SeatID == "red-lens-logic" })
 	if lens < 0 || lens < petition {
-		t.Errorf("the lens sat at %d and the petition sitting at %d — a petition is heard before any party of the epoch sits", lens, petition)
+		t.Errorf("the lens sat at %d and the petition sitting at %d — the chair's filing is heard before any party sits", lens, petition)
 	}
 	if n := strings.Count(strings.Join(occasions(ds), " "), "docket"); n != 0 {
-		t.Errorf("%d docket sitting(s) for a bench convened only for a petition", n)
+		t.Errorf("%d docket sitting(s) for a bench that owes only a hearing", n)
 	}
 }
 
@@ -115,7 +120,7 @@ func TestTheTerminalBenchFiresOnABenchOwnedBlocker(t *testing.T) {
 }
 
 // AN ENVELOPE IS NOT A PETITION CHANNEL. Every seat's envelope carries a `petitions` field here and
-// no plan convenes the bench for one: no petition sitting is dispatched. The negative control
+// no read reports one owed: no petition sitting is dispatched. The negative control
 // against a second reader of the fact the record carries.
 func TestAnEnvelopePetitionIsNotAChannel(t *testing.T) {
 	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, map[string]any{"seat_id": "blue-respond", "gap_ids": []any{"G1"}}}, []any{})},
@@ -125,21 +130,20 @@ func TestAnEnvelopePetitionIsNotAChannel(t *testing.T) {
 	}
 }
 
-// A BENCH PARTY WITH NO OCCASION IS REFUSED, NOT GUESSED AT. An empty gap list does not mean
-// "petition"; a relay that dropped the field is altered in transit.
-func TestABenchPartyWithoutAnOccasionIsRefused(t *testing.T) {
+// A BENCH PARTY WITH NO GAP IS REFUSED, NOT GUESSED AT. The chair convenes the bench for its docket and
+// nothing else; a relay that emptied the list is altered in transit, and an empty gap list does not
+// mean "petition".
+func TestABenchPartyWithNoGapIsRefused(t *testing.T) {
 	wd, _ := os.Getwd()
-	chair := 0
 	_, _, err := CaptureRun(ScriptPath(filepath.Join(wd, "..", "..")), Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
 		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: func(seatID, label, prompt string) Envelope {
 			e := Envelope{"rulings": []any{}, "dispositions": []any{}, "open_gaps": 0}
 			if seatID == "red-chair" {
-				chair++
 				e.Relay(planWith([]any{map[string]any{"seat_id": "judge", "gap_ids": []any{}}}, []any{benchPetition}))
 			}
 			return e
 		}})
-	if err == nil || !strings.Contains(err.Error(), "occasions") {
-		t.Errorf("a bench party with no occasions drove to %v, want the relay refused naming the field", err)
+	if err == nil || !strings.Contains(err.Error(), "a bench party with no gap") {
+		t.Errorf("a bench party with no gap drove to %v, want the relay refused naming it", err)
 	}
 }

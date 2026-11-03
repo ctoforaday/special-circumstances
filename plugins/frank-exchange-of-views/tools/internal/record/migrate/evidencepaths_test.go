@@ -59,11 +59,21 @@ func TestTheShippedSetNamesNoScriptPathAndNoSeatInItsComputations(t *testing.T) 
 	if evidence == "" {
 		t.Fatal("the shipped set holds no evidence document")
 	}
+	// THE SET SHOWS THE COMPUTATIONS IT ANCHORS (one whose claim was retired is shown nowhere but its
+	// retire), so the command is asked of each computation evidence.md shows.
+	shown := 0
 	for _, p := range computations {
+		if !strings.Contains(evidence, p.Label) {
+			continue
+		}
+		shown++
 		want := report.Literal(strings.Join(p.Argv, " ")) + " (bundle sha256 `" + p.SHA[:12] + "`)"
 		if !strings.Contains(evidence, want) {
 			t.Errorf("evidence.md does not name computation %s's stored command %s", p.Label, want)
 		}
+	}
+	if shown == 0 {
+		t.Fatal("no computation of the archive is anchored in its shipped set, so this measures nothing")
 	}
 	for _, d := range docs {
 		if d.File != report.FileEvidence && d.File != report.FileReport {

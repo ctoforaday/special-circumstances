@@ -15,9 +15,9 @@ var ErrSpanMidClause = errors.New("span cuts into a clause")
 // SpanBoundary is the boundary rule in a seat's words: the one statement of it that cite's --help
 // and the mid-clause refusal both render, beside SpanNormalisation.
 const SpanBoundary = "a span starts and ends at a boundary; a clause mark is a comma, semicolon or colon followed by whitespace, or a dash (a hyphen counts when spaced or doubled). " +
-	"A span STARTS at the start of the text (or of an OCR page); with an opening bracket or quote; just after a clause mark or an opening bracket or quote; " +
+	"A span STARTS at the start of the text (or of an OCR page); with an opening bracket or quote; just after a clause mark, an opening bracket or quote, or a list marker (- * or • opening a line); " +
 	"or just after one of these when its first character is not a lowercase letter: a sentence end (. ! ? or …, closers and reference marks such as [12] allowed, then whitespace), a blank line, or a markup tag. " +
-	"It ENDS at the end of the text (or of an OCR page), or before a blank line or a markup tag; with a clause mark or a closing bracket or quote; just before a clause mark, a closing bracket or quote, or a spaced opening bracket ( or [; " +
+	"It ENDS at the end of the text (or of an OCR page), or before a blank line, a markup tag or a list marker; with a clause mark or a closing bracket or quote; just before a clause mark, a closing bracket or quote, or a spaced opening bracket ( or [; " +
 	"or on or just before a sentence end: . ! ? or … (closers and reference marks allowed), then whitespace and a character that is not a lowercase letter. " +
 	"In «" + spanExample + "» the spans «" + spanExampleWhole + "» and «" + spanExampleClause + "» are accepted; «" + spanExampleCutStart + "» is refused (it starts mid-clause), as is «" + spanExampleCutEnd + "» (it ends mid-clause). " +
 	"The tool never widens a span: quote more"
@@ -51,6 +51,11 @@ const (
 // qualifies, as "p divides b (that is, p ∣ ab ⟹ …)" does. An unspaced one is inside an expression,
 // as in "f(x)".
 //
+// A LIST ITEM IS A UNIT WHATEVER ITS CASE. An item is routinely a predicate of the list's heading
+// ("91 is: * the smallest pseudoprime …"), and the marker that opens it is what tells it from a
+// sentence carried on after a formula, which has no marker. Only a marker opening a line is one:
+// "2 * 3" is a product.
+//
 // THE START OF A TEXT IS A START WHATEVER ITS CASE. An OCR page that opens mid-sentence continues
 // the page before, and a span may not run across pages (ErrSpanStraddles): refusing the page's
 // opening words would leave the part of that sentence on it unquotable.
@@ -65,7 +70,7 @@ func spanStartsAtBoundary(text string, start int) bool {
 	if j < 0 {
 		return true
 	}
-	if clauseMarkEnds(text, j, start) || opensUnit(text, j) {
+	if clauseMarkEnds(text, j, start) || opensUnit(text, j) || listMarkerEnds(text, j, start) {
 		return true
 	}
 	return (blank || terminatorEnds(text, j, start) || closesTag(text, j)) && notLower(text, start)
@@ -94,7 +99,7 @@ func spanAtBoundaries(text string, start, end int) error {
 // clause of text, under SpanBoundary.
 func spanEndsAtBoundary(text string, end int) bool {
 	k, blank := nextNonSpace(text, end)
-	if k < 0 || blank || opensTag(text, k) {
+	if k < 0 || blank || opensTag(text, k) || listMarkerStarts(text, k) {
 		return true
 	}
 	lastAt := end - utf8.RuneLen(runeBefore(text, end))
@@ -243,11 +248,25 @@ func opensTag(text string, k int) bool {
 }
 
 // sentenceAround is the source's sentence a span at [start, end) sits in, its whitespace folded
-// to single spaces: from the nearest sentence start at or before start to the first sentence end
-// at or after end, each looked for no further than spanReach bytes away, an ellipsis marking
-// where the search stopped.
+// to single spaces, an ellipsis marking where sentenceBounds stopped looking.
 func sentenceAround(text string, start, end int) string {
-	a, cutA := start, false
+	a, z, cutA, cutZ := sentenceBounds(text, start, end)
+	s := strings.Join(strings.Fields(text[a:z]), " ")
+	if cutA {
+		s = "…" + s
+	}
+	if cutZ {
+		s += "…"
+	}
+	return s
+}
+
+// sentenceBounds is where the source's sentence a span at [start, end) sits in starts and ends:
+// from the nearest sentence start at or before start to the first sentence end at or after end,
+// each looked for no further than spanReach bytes away. cutA and cutZ say the search stopped
+// there rather than at the sentence's edge.
+func sentenceBounds(text string, start, end int) (a, z int, cutA, cutZ bool) {
+	a = start
 	for a > 0 {
 		if start-a > spanReach {
 			cutA = true
@@ -259,7 +278,7 @@ func sentenceAround(text string, start, end int) string {
 		_, n := utf8.DecodeLastRuneInString(text[:a])
 		a -= n
 	}
-	z, cutZ := end, false
+	z = end
 	for z < len(text) {
 		if z-end > spanReach {
 			cutZ = true
@@ -271,14 +290,7 @@ func sentenceAround(text string, start, end int) string {
 		_, n := utf8.DecodeRuneInString(text[z:])
 		z += n
 	}
-	s := strings.Join(strings.Fields(text[a:z]), " ")
-	if cutA {
-		s = "…" + s
-	}
-	if cutZ {
-		s += "…"
-	}
-	return s
+	return a, z, cutA, cutZ
 }
 
 // spanReach is how far sentenceAround looks for a sentence's start or end: a text with no
@@ -288,6 +300,9 @@ const spanReach = 2 * SpanWindow
 // sentenceStarts reports whether a sentence starts at the non-space character text[i].
 func sentenceStarts(text string, i int) bool {
 	j, blank := prevNonSpace(text, i)
+	if j >= 0 && listMarkerEnds(text, j, i) {
+		return true
+	}
 	return (j < 0 || blank || terminatorEnds(text, j, i) || closesTag(text, j)) && notLower(text, i)
 }
 
@@ -300,7 +315,7 @@ func sentenceEndsAt(text string, z int) bool {
 	if !unicode.IsSpace(runeAt(text, z)) {
 		return false
 	}
-	if blankAhead(text, z) {
+	if k, blank := nextNonSpace(text, z); blank || (k >= 0 && listMarkerStarts(text, k)) {
 		return true
 	}
 	return z > 0 && !unicode.IsSpace(runeBefore(text, z)) && closesTerminatorRun(text, beforeReferences(text, z-utf8.RuneLen(runeBefore(text, z))))
@@ -368,6 +383,52 @@ func closesTag(text string, j int) bool {
 		}
 	}
 	return false
+}
+
+// isListMarker is a character that marks a list item when it opens a line.
+func isListMarker(r rune) bool { return r == '-' || r == '*' || r == '•' }
+
+// listMarkerStarts reports whether the character at k, and any repeats of it (wikitext's "**"),
+// open their line as a list marker: only spaces or tabs before them on the line, and a space or a
+// tab after them.
+func listMarkerStarts(text string, k int) bool {
+	r := runeAt(text, k)
+	if !isListMarker(r) || !opensLine(text, k) {
+		return false
+	}
+	z := k
+	for z < len(text) && runeAt(text, z) == r {
+		z += utf8.RuneLen(r)
+	}
+	return z < len(text) && (text[z] == ' ' || text[z] == '\t')
+}
+
+// listMarkerEnds reports whether the character at j, the last before a span at start, closes a
+// list marker that opens its line.
+func listMarkerEnds(text string, j, start int) bool {
+	r := runeAt(text, j)
+	if j+utf8.RuneLen(r) >= start || !isListMarker(r) {
+		return false
+	}
+	for j > 0 && runeBefore(text, j) == r {
+		j -= utf8.RuneLen(r)
+	}
+	return listMarkerStarts(text, j)
+}
+
+// opensLine reports whether only spaces and tabs stand between the line's start and k.
+func opensLine(text string, k int) bool {
+	for k > 0 {
+		switch text[k-1] {
+		case ' ', '\t':
+			k--
+		case '\n':
+			return true
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // opensUnit reports whether text[i] is an opening bracket or quote: ( [ { “ ‘ «, or a straight
