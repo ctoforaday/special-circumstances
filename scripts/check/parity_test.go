@@ -68,8 +68,11 @@ var (
 // `needsBase` FIELD rather than in a string. Folding a parameter into the identity would make
 // the two sides disagree forever over a difference that is not one — which is what the first
 // run of this test did, and the reason it is written down here.
+//
+// `golden -subsume <module>=<job>` is a parameter of the same kind: it names which leg another
+// job already runs, and check passes its own -subsume at run time.
 func toolID(name, flag string) string {
-	if flag == "" || flag == "-base" {
+	if flag == "" || flag == "-base" || flag == "-subsume" {
 		return name
 	}
 	return name + " " + flag

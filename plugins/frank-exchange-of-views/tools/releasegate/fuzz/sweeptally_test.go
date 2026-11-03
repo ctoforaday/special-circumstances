@@ -32,6 +32,13 @@ import (
 // THE ONCE-PER-SWEEP DRIVES ARM IN PART 0 ONLY (gblock, 2026-10-28): `close --as moot`, the engage
 // refusal and the deliberate class mints each belong to the sweep, and arming them in every part
 // would drive each K times.
+//
+// THE DEDICATED PATHS RUN IN THE LAST PART ONLY (#1624): the halt path, the unverified and verified
+// paths and the shipped-hook sweep each belong to the sweep once, like the drives. The halt path runs
+// before TestFuzzDebate takes its snapshot, so its process counts reach exactly one part's tally and
+// the merge holds them once, as the whole sweep does; the other three run after the snapshot and
+// reach no tally in either shape. They go to the last part because part 0 carries the drives and is
+// the longest part.
 
 // sweepPart is which part of the sweep this process runs: K of Of.
 type sweepPart struct{ K, Of int }
@@ -81,6 +88,22 @@ func (p sweepPart) split() bool { return p.Of > 1 }
 
 // armsSweepDrives reports whether this process carries the once-per-sweep drives.
 func (p sweepPart) armsSweepDrives() bool { return p.K == 0 }
+
+// runsSweepPaths reports whether this process runs the sweep's dedicated paths.
+func (p sweepPart) runsSweepPaths() bool { return p.K == p.Of-1 }
+
+// sweepPath skips t in every part but the one that runs the sweep's dedicated paths. A FUZZ_PART it
+// cannot read fails t, as it fails TestFuzzDebate, rather than reading as some part.
+func sweepPath(t *testing.T) {
+	t.Helper()
+	part, err := parseSweepPart(os.Getenv("FUZZ_PART"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !part.runsSweepPaths() {
+		t.Skipf("part %d of %d: the sweep runs this path once, in part %d", part.K, part.Of, part.Of-1)
+	}
+}
 
 // runTally is what the sweep's fold reads from one run.
 type runTally struct {

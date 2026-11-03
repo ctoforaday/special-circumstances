@@ -57,8 +57,10 @@ updates:
   #
   # It will also propose actions/setup-node v4 -> a later major, which is what makes
   # `package-manager-cache: false` available and closes zizmor's last four findings.
+  # The workflows, and the composite action hooks.yml's jobs share, whose actions/cache pin
+  # moves with the workflows' own.
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/.github/actions/go-cache"]
     schedule:
       interval: weekly
     groups:
