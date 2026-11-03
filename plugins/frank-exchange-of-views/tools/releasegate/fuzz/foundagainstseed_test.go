@@ -96,7 +96,9 @@ func (r *runner) citeForFoundAgainst(seatID string) {
 // forcedFoundAgainstChain is the citation owner's chain in foundAgainstSeed's run (foundAgainstSeed):
 // the reading that finds against a citation, then, at its next sitting, the repeat, the refused close
 // and its own re-read. It draws the reading's gap flags as the drawn reading does, and pins the check
-// kind to a document check, so the close needs no computation.
+// kind of a gap it mints to a document check; a reading the one-gap rule holds is carried by another
+// lens's gap, whose check kind is that gap's, so each close of the carrier answers a computation check
+// first (answerComputationCheck).
 func (r *runner) forcedFoundAgainstChain(seatID string) {
 	r.mu.Lock()
 	due := r.forceFoundAgainst && seatID == citationOwner && !r.foundAgainstChained

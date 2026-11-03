@@ -132,3 +132,105 @@ func (r *runner) mintAbout(t *testing.T, seatID, anchorID string) string {
 	r.noteMint(seatID, env.Result.GapID)
 	return env.Result.GapID
 }
+
+// A COMPUTATION-CHECK GAP THAT CARRIES A FOUND-AGAINST CHECK IS REFUSED OVER THE CHECK, once its
+// computation is answered. The close guard asks for a computation before it reads any failed check
+// (requireComputationAnswered), so a drive that closes such a gap with no computation is refused for
+// that, correctly, and the refusal names no anchor: seed 15 of 025fa6f4b's sweep, where the owner's
+// refuting reading was carried by red-lens-architecture's computation gap G-28ecb624. Run outside the
+// release gate: L's refuting reading mints a computation gap; the drive's refused close of it is the
+// found-against refusal, tallied as one.
+func TestAStandingCloseOfAComputationGapIsRefusedOverItsCheck(t *testing.T) {
+	r := stagedRunner(t)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const blue, lensL = "blue-respond", "red-lens-evidence"
+	r.sit("blue", blue)
+	out, ok := r.do("cite", blue).set("--quote", "The cost is rising over time").set("--url", sourceURL("/computation-carrier")).
+		set("--title", sourceTitle).set("--source-span", sourceBody("/computation-carrier")).bare("--json").admit()
+	var env struct {
+		Result struct {
+			Label string `json:"label"`
+		} `json:"result"`
+	}
+	if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.Label == "" {
+		t.Fatalf("blue's cite: %s (%s)", out, r.actErr)
+	}
+	r.sit("lens", lensL)
+	out, ok = r.do("verify", lensL).set("--anchor", env.Result.Label).set("--as", "refutes").set("--confidence", "high").
+		set("--reason", "fuzz: the source says the cost fell").bare("--json").
+		set("--class", "claim_contradicts_source").set("--problem", "fuzz: the source says the cost fell").
+		set("--check-kind", "computation").set("--check", "a run of the source's figures shows the trend").
+		set("--severity", "high").set("--likelihood", "high").set("--impact", "high").admit()
+	res, parsed := readingResultOf(out)
+	if !ok || !parsed || res.Gap == nil || !res.Gap.Minted {
+		t.Fatalf("L's refuting reading minted no gap: %s (%s)", out, r.actErr)
+	}
+	b, stands := r.standingFailedCheckOf(res.Gap.ID)
+	if !stands || b.CheckState() != record.CheckFoundAgainst {
+		t.Fatalf("%s carries no standing found-against check", res.Gap.ID)
+	}
+	r.refuseStandingClose(lensL, res.Gap.ID, "repaired", b)
+	if r.actErr != "" {
+		t.Fatalf("the refused close of computation gap %s: %s", res.Gap.ID, r.actErr)
+	}
+	if r.foundAgainstClosesRefused != 1 {
+		t.Errorf("foundAgainstClosesRefused = %d, want 1", r.foundAgainstClosesRefused)
+	}
+}
+
+// A SATISFIED GAP WHOSE CLOSE THE RECORD REFUSED OVER A STANDING CHECK IS NOT WORK LEFT UNFINISHED.
+// The terminal-fate oracle read every satisfied gap red sat on and left open as a repair the board
+// never recorded; a found-against check the gap carries — a sibling lens's reading the one-gap rule
+// holds on it — refuses its close until blue's remedy or a backing reading, so a run that ends there
+// holds it open by the record's rule (seed 18 of 025fa6f4b's sweep, inferred: the failed run's tally
+// carries no gap or event). Run outside the release gate: an APPLY gap red sat on, its close refused
+// over the check, is not done-but-open; once red's next close attempt is not refused over one, it is.
+func TestASatisfiedGapHeldOpenByAStandingCheckIsNotDoneButOpen(t *testing.T) {
+	r := stagedRunner(t)
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const blue, lensL = "blue-respond", "red-lens-evidence"
+	r.sit("blue", blue)
+	out, ok := r.do("cite", blue).set("--quote", "The cost is rising over time").set("--url", sourceURL("/held-open")).
+		set("--title", sourceTitle).set("--source-span", sourceBody("/held-open")).bare("--json").admit()
+	var env struct {
+		Result struct {
+			Label string `json:"label"`
+		} `json:"result"`
+	}
+	if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.Label == "" {
+		t.Fatalf("blue's cite: %s (%s)", out, r.actErr)
+	}
+	r.sit("lens", lensL)
+	out, ok = r.do("verify", lensL).set("--anchor", env.Result.Label).set("--as", "refutes").set("--confidence", "high").
+		set("--reason", "fuzz: the source says the cost fell").bare("--json").
+		set("--class", "claim_contradicts_source").set("--problem", "fuzz: the source says the cost fell").
+		set("--check-kind", "document").set("--check", "the sentence says what the source says").
+		set("--severity", "high").set("--likelihood", "high").set("--impact", "high").set("--fix", dirApply).admit()
+	res, parsed := readingResultOf(out)
+	if !ok || !parsed || res.Gap == nil || !res.Gap.Minted {
+		t.Fatalf("L's refuting reading minted no gap: %s (%s)", out, r.actErr)
+	}
+	g := res.Gap.ID
+	r.presented.add(g)
+	r.evaluated.add(g)
+	b, stands := r.standingFailedCheckOf(g)
+	if !stands {
+		t.Fatalf("%s carries no standing failed check", g)
+	}
+	r.refuseStandingClose(lensL, g, "repaired", b)
+	if r.actErr != "" {
+		t.Fatalf("the refused close of %s: %s", g, r.actErr)
+	}
+	if r.doneButOpen(g, dirApply, true) {
+		t.Errorf("%s, its close refused over the check standing on it, reads as work done and never finished", g)
+	}
+	// RED'S NEXT ATTEMPT IS ITS OWN: an attempt not refused over a check leaves the gap judged again.
+	r.heldByCheck.remove(g)
+	if !r.doneButOpen(g, dirApply, true) {
+		t.Errorf("%s, open with no refusal over a check, does not read as done-but-open", g)
+	}
+}

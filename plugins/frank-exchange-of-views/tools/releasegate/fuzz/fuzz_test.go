@@ -301,6 +301,12 @@ func (g *gapSet) add(ids ...string) {
 	}
 }
 
+func (g *gapSet) remove(id string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	delete(g.m, id)
+}
+
 func (g *gapSet) has(id string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -624,6 +630,10 @@ type runner struct {
 	// whose terminal fate red is answerable for. Blue repairing in the final round leaves a
 	// satisfied gap legitimately open, because red never sits again.
 	evaluated gapSet
+	// heldByCheck records the gaps whose latest close the record refused over a failed check standing
+	// on them (standingCloseRefused): red sat and the record held the gap open, so its open fate is
+	// the record's, not work left unfinished. closeGap clears it before each attempt.
+	heldByCheck gapSet
 	// reproduced records the COMPUTE gaps whose computation a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced gapSet
@@ -4009,6 +4019,7 @@ func (r *runner) openGaps() []string {
 // here is the closer's own, against its own budget. The chair's `carry` lives in carryPrior.
 func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
+	r.heldByCheck.remove(id)
 	closer := r.minterOf(id)
 	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
 	//
@@ -4228,6 +4239,11 @@ func (r *runner) standingFailedCheckOf(id string) (record.Blocker, bool) {
 // the gap and the anchor, both ids — since its code (conflict) is shared with every other refused
 // close.
 func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
+	// THE COMPUTATION IS ANSWERED FIRST: the close guard asks for one before it reads a failed check,
+	// so a computation gap closed with none is refused for that, naming no anchor.
+	if !r.answerComputationCheck(id, "fuzz-standing-"+id+".js") {
+		return
+	}
 	args := []string{"close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as " + as,
 		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec", "--json"}
 	out, err := r.exec(args...)
@@ -4237,6 +4253,38 @@ func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
 		return
 	}
 	r.standingCloseRefused(argv, id, out, b)
+}
+
+// answerComputationCheck has blue answer gap id's computation check where the record holds id minted
+// --check-kind computation and no computation answers it yet — whichever act minted it, since a reading
+// the one-gap rule holds is carried by another lens's gap — so a close of id meets the guards after
+// requireComputationAnswered. name is the bundle's file. ok is false where a read or the compute
+// failed, which is noted as the run's.
+func (r *runner) answerComputationCheck(id, name string) bool {
+	kind, err := record.MintCheckKind(r.run(), id)
+	if err != nil {
+		r.noteActErr("the check kind gap " + id + " was minted with could not be read: " + err.Error())
+		return false
+	}
+	if kind != recordpb.CheckKind_CHECK_KIND_COMPUTATION {
+		return true
+	}
+	answered, err := record.ComputationAnswers(r.run(), id)
+	if err != nil {
+		r.noteActErr("whether a computation answers gap " + id + " could not be read: " + err.Error())
+		return false
+	}
+	if answered {
+		return true
+	}
+	r.register("blue", "blue-respond")
+	dir, argv, err := r.writeBundle(name, "console.log('answers "+id+"');")
+	if err != nil {
+		return false
+	}
+	_, ok := r.admit(append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+		"--dir", dir, "--answers", id, "--reason", "fuzz: settling the computation check", "--"}, argv...)...)
+	return ok
 }
 
 // standingCloseRefused holds a refused close of gap id, under --json, to the refusal of failed check
@@ -4252,6 +4300,7 @@ func (r *runner) standingCloseRefused(argv, id, out string, b record.Blocker) bo
 		r.noteActErr(fmt.Sprintf("%s: refused (%s), and the refusal does not name gap %s and the anchor %s it carries: %s", argv, env.Code, id, b.Subject, firstLine(env.Error)))
 		return false
 	}
+	r.heldByCheck.add(id)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch b.CheckState() {
@@ -4268,6 +4317,14 @@ func (r *runner) standingCloseRefused(argv, id, out string, b record.Blocker) bo
 		return false
 	}
 	return true
+}
+
+// doneButOpen is the terminal-fate oracle's judgement of gap id, whose scenario is fix: a satisfied
+// scenario red sat on after blue answered, still open — unless red's latest close of it was refused
+// over a failed check standing on it, a refusal the record owes while the check stands (a sibling's
+// found-against reading the gap carries, or one landed between the drive's read and its act).
+func (r *runner) doneButOpen(id, fix string, open bool) bool {
+	return satisfied(fix) && r.evaluated.has(id) && open && !r.heldByCheck.has(id)
 }
 
 // carryPrior is the CHAIR's one closure act (roundless §III.B.3): restating a closure the archive
@@ -6765,7 +6822,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
 			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
 			// final round leaves the gap legitimately open, because red never sits again.
-			if satisfied(g.Mint.GetRequiredFix()) && r.evaluated.has(id) && g.Open {
+			if r.doneButOpen(id, g.Mint.GetRequiredFix(), g.Open) {
 				res.err = "scenario " + g.Mint.GetRequiredFix() + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
 				return res
 			}

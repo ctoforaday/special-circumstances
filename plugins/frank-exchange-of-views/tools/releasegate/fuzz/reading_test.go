@@ -438,16 +438,8 @@ func (r *runner) foundAgainstCleared(seatID, anchorID string, f record.Blocker) 
 		return
 	}
 	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, as closeGap satisfies it.
-	if r.computationGaps.has(g) {
-		r.register("blue", "blue-respond")
-		dir, argv, err := r.writeBundle("fuzz-cleared-"+g+".js", "console.log('answers "+g+"');")
-		if err != nil {
-			return
-		}
-		if _, ok := r.admit(append([]string{"compute", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
-			"--dir", dir, "--answers", g, "--reason", "fuzz: settling the computation check", "--"}, argv...)...); !ok {
-			return
-		}
+	if !r.answerComputationCheck(g, "fuzz-cleared-"+g+".js") {
+		return
 	}
 	if _, ok := r.admitFresh(g, "close", "--seat-id", closer, "--id", g, "--as", "not_a_defect",
 		"--reason", "fuzz: the reader's own reading of the sentence as it stands backs it",
