@@ -58,6 +58,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/hookfailures"
 	"sort"
 )
@@ -603,6 +604,7 @@ func statSize(p string) (int64, error) {
 }
 
 func main() {
+	gcpolicy.Short()
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
 		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), statSize))
 }

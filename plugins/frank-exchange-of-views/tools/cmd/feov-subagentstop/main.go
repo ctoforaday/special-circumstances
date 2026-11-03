@@ -14,10 +14,12 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookcmd"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittinghook"
 )
 
 func main() {
+	gcpolicy.Short()
 	os.Exit(hookcmd.Run("feov-subagentstop", "SubagentStop", sittinghook.Stop, os.Stdin, os.Stdout))
 }

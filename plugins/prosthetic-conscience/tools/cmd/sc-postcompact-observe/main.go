@@ -5,7 +5,11 @@ package main
 import (
 	"os"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/gcpolicy"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/postcompactobserve"
 )
 
-func main() { os.Exit(postcompactobserve.Main()) }
+func main() {
+	gcpolicy.Short()
+	os.Exit(postcompactobserve.Main())
+}

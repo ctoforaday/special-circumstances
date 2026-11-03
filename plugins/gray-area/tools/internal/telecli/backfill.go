@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/catalogue"
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/gcpolicy"
 )
 
 func newBackfillCmd(env *Env) *cobra.Command {
@@ -39,6 +40,9 @@ longer on disk (v_transcript.gone_at). Their rows are kept: they are then the
 only record of those files.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// A backfill reads every transcript on the box: a long-running mode, so the GC main
+			// turned off comes back on.
+			gcpolicy.Long()
 			if env.Store == "" {
 				return fmt.Errorf("no catalogue path: neither --store nor a home directory could be resolved")
 			}
