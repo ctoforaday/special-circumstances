@@ -84,7 +84,7 @@ func TestEachShapeIsCaughtAndItsFixIsNot(t *testing.T) {
 		{
 			name:  "a correlated max() over an unindexed column walks the table per row",
 			kind:  planguard.CorrelatedScan,
-			want:  "b",
+			want:  "b [min/max]",
 			query: `SELECT (SELECT max(x.w) FROM b x WHERE x.k = a.k) FROM a`,
 			fix:   `CREATE INDEX b_k ON b(k);`,
 		},
@@ -144,7 +144,7 @@ func TestACorrelatedScanOfAnEnumVocabularyIsNotReported(t *testing.T) {
 	}
 	// The same statement over a growing table is: the exemption is the table, not the shape.
 	got, plan = shapesOf(t, "", `SELECT (SELECT max(t.w) FROM b t WHERE t.k = a.k) FROM a`)
-	if !has(got, planguard.CorrelatedScan, "b") {
+	if !has(got, planguard.CorrelatedScan, "b [min/max]") {
 		t.Errorf("the same shape over a growing table was not reported\n  plan:\n%s  found: %v", plan, got)
 	}
 }
@@ -155,10 +155,10 @@ func TestAScanInsideAMaterializationRunsOnce(t *testing.T) {
 	const q = `WITH c AS MATERIALIZED (SELECT k, count(*) AS n FROM b GROUP BY k)
 		SELECT (SELECT max(c.n) FROM c WHERE c.n > a.v) FROM a`
 	got, plan := shapesOf(t, "", q)
-	if has(got, planguard.CorrelatedScan, "b") {
+	if has(got, planguard.CorrelatedScan, "b") || has(got, planguard.CorrelatedScan, "b [min/max]") {
 		t.Errorf("the scan of b inside the materialization was reported as per-row\n  plan:\n%s  found: %v", plan, got)
 	}
-	if !has(got, planguard.CorrelatedScan, "c") {
+	if !has(got, planguard.CorrelatedScan, "c [min/max]") {
 		t.Errorf("the per-row scan of the materialized CTE was not reported\n  plan:\n%s  found: %v", plan, got)
 	}
 }

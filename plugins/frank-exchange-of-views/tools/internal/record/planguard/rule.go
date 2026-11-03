@@ -2,7 +2,10 @@ package planguard
 
 import "strings"
 
-// Defects is the subset of Findings that indicate a MISSING INDEX rather than a design cost.
+// The constrained-scan shape (ConstrainedScan) is a statement that narrows what it reads and
+// still walks the whole of a growing table — the signature of a MISSING INDEX rather than a
+// design cost. The scan is read off the plan tree by heapScan, so "SCAN p" is judged as the table
+// `p` is bound to (Scope) and a bare "SEARCH t" with no index counts as the full scan it is.
 //
 // # Why not every scan over a growing table
 //
@@ -31,8 +34,8 @@ import "strings"
 //     the question this guard asks.
 //
 // What is left is the signature of a dropped index: a statement that CONSTRAINS a growing table
-// and still walks all of it. Today that set is empty, which is the same answer #684 F8 reached by
-// hand — the difference is that this one re-asks on every run.
+// and still walks all of it. The findings it reports today are in testdata/shapes.golden, kind
+// constrained-scan, and a fix removes its line.
 //
 // # The limit, stated rather than papered over
 //
@@ -40,9 +43,10 @@ import "strings"
 // one table while legitimately scanning another would be reported. That is a LOUD false positive:
 // someone reads it, and either finds a real defect or learns the rule needs sharpening. There is
 // deliberately NO allowlist to silence one — an allowlist is the hand-kept list this package
-// exists to avoid, and none has been earned, because the board is currently clean. The first
-// genuine false positive is the moment to decide what shape the exception takes, with the case in
-// hand rather than a slot waiting to be filled.
+// exists to avoid. A false positive sits in the generated baseline, visible, until the rule is
+// sharpened or the statement is rewritten. `SELECT MIN("id") FROM "events"` inside a statement
+// with a WHERE is one: its "SEARCH events" reads one row, and the rule cannot tell it from a walk
+// (heapScan says why).
 //
 // There is a SECOND limit, and it is the one worth knowing before trusting this: dropping an
 // index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "type"
@@ -52,23 +56,6 @@ import "strings"
 // records every planned statement's whole plan; the per-row and repeated-work shapes are read off
 // the plan tree by Analyzer.Shapes against a committed baseline (TestPlanShapesMatchTheBaseline).
 // This rule stays what it is: the missing-index signature on a constrained statement.
-func Defects(findings []Finding) []Finding {
-	var out []Finding
-	for _, f := range findings {
-		if indexTraversal(f.Detail) || !constrains(f.Statement) {
-			continue
-		}
-		out = append(out, f)
-	}
-	return out
-}
-
-// indexTraversal reports whether the plan reached the rows through an index. SQLite writes
-// "SCAN t USING INDEX i" and "SCAN t USING COVERING INDEX i"; both walk index order, and the
-// covering form never touches the table at all.
-func indexTraversal(detail string) bool {
-	return strings.Contains(strings.ToUpper(detail), " USING ")
-}
 
 // constrains reports whether the statement narrows what it reads. A WHERE clause or a join
 // predicate means the author asked for a subset — and a subset that still costs a full walk is

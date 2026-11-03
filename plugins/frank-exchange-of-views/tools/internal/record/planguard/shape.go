@@ -19,6 +19,10 @@ const (
 	// RepeatedSubplan is one CTE or view materialized or co-routined more than once in a plan:
 	// the same rows are computed again for each appearance.
 	RepeatedSubplan ShapeKind = "repeated-subplan"
+	// ConstrainedScan is a statement that narrows what it reads (WHERE or JOIN) whose plan still
+	// walks the whole of a growing table: the signature of a missing index. rule.go says why the
+	// constraint is what separates it from a bulk read that must scan.
+	ConstrainedScan ShapeKind = "constrained-scan"
 	// CorrelatedSort is a temporary b-tree beneath a correlated subquery: a sort per outer row.
 	CorrelatedSort ShapeKind = "correlated-sort"
 )
@@ -36,7 +40,8 @@ func (s Shape) String() string { return fmt.Sprintf("%s | %s | x%d", s.Kind, s.N
 // Analyzer reads shapes out of plans of statements against one schema.
 type Analyzer struct {
 	views  []View
-	prefix string // the enum vocabularies' table-name prefix, read from the generator
+	prefix string          // the enum vocabularies' table-name prefix, read from the generator
+	growth map[string]bool // the schema's growing tables (GrowthTables)
 }
 
 // NewAnalyzer returns an analyzer over the database's views.
@@ -45,7 +50,11 @@ func NewAnalyzer(views []View) (*Analyzer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Analyzer{views: views, prefix: prefix}, nil
+	growth, err := GrowthTables()
+	if err != nil {
+		return nil, err
+	}
+	return &Analyzer{views: views, prefix: prefix, growth: growth}, nil
 }
 
 // Shapes is every finding in p, sorted by kind and name. stmt is the SQL p is the plan of; its
@@ -55,11 +64,15 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 	counts := map[[2]string]int{}
 	add := func(k ShapeKind, name string) { counts[[2]string{string(k), name}]++ }
 	subplans := map[string]int{}
+	constrained := constrains(stmt)
 
 	p.Walk(func(n *PlanNode, _ int) {
 		f := strings.Fields(n.Detail)
 		if len(f) < 2 {
 			return
+		}
+		if constrained && heapScan(f) && a.grows(scope.Targets(f[1])) {
+			add(ConstrainedScan, scanName(f, scope))
 		}
 		switch {
 		case (f[0] == "MATERIALIZE" || f[0] == "CO-ROUTINE") && !strings.HasPrefix(f[1], "("):
@@ -69,7 +82,7 @@ func (a *Analyzer) Shapes(stmt string, p Plan) []Shape {
 		case automaticIndex(f):
 			add(AutomaticIndex, scope.Name(f[1])+" "+constraintOf(f))
 		case heapScan(f) && perRow(n) && !a.bounded(scope.Targets(f[1])):
-			add(CorrelatedScan, scope.Name(f[1]))
+			add(CorrelatedScan, scanName(f, scope))
 		case f[0] == "USE" && len(f) >= 3 && f[1] == "TEMP" && f[2] == "B-TREE" && perRow(n):
 			add(CorrelatedSort, sortName(f, n, scope))
 		}
@@ -104,6 +117,17 @@ func (a *Analyzer) bounded(targets []string) bool {
 	return len(targets) > 0
 }
 
+// grows reports whether any table the word may stand for is one of the schema's growing tables.
+// An ambiguous alias counts if any candidate grows: the finding is then read, not dropped.
+func (a *Analyzer) grows(targets []string) bool {
+	for _, t := range targets {
+		if a.growth[t] {
+			return true
+		}
+	}
+	return false
+}
+
 // automaticIndex reads "SEARCH ss USING AUTOMATIC [PARTIAL] [COVERING] INDEX (id=?)".
 func automaticIndex(f []string) bool {
 	for i := 0; i+1 < len(f); i++ {
@@ -125,9 +149,12 @@ func constraintOf(f []string) string {
 }
 
 // heapScan reads a loop that walks a table's rows rather than an index: "SCAN t", and also
-// "SEARCH t" with no USING — SQLite says SEARCH for a min()/max() loop it can stop early, and
-// with no index named the loop still visits every row (measured: the same 2.7s as SCAN over
-// 5,000×5,000 rows on this driver's SQLite 3.54.1).
+// "SEARCH t" with no USING — SQLite says SEARCH for a min()/max() loop it may stop early, and the
+// plan does not say whether it can. Measured on this driver's SQLite 3.54.1 over 1,000,000 rows:
+// max(id) on the rowid answers in 26us, max(w) on an unindexed column walks every row (113ms), and
+// max(id) with a filter on an unindexed column walks back from the end until a row matches — one
+// row when matches are dense, the whole table when there are none. The cost is the data's, so the
+// loop is reported, and scanName marks it so the reader can tell which form it is.
 func heapScan(f []string) bool {
 	if f[0] != "SCAN" && f[0] != "SEARCH" {
 		return false
@@ -141,6 +168,15 @@ func heapScan(f []string) bool {
 		}
 	}
 	return true
+}
+
+// scanName names a heap scan by its table, marking the min()/max() SEARCH form (see heapScan).
+func scanName(f []string, scope *Scope) string {
+	name := scope.Name(f[1])
+	if f[0] == "SEARCH" {
+		return name + " [min/max]"
+	}
+	return name
 }
 
 // perRow reports whether the node runs once per row of an outer query: its nearest ancestor that
