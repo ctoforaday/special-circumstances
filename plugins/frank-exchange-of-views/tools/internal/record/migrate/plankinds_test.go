@@ -13,8 +13,9 @@ import (
 )
 
 // readingBlockersTranslated is a source plan's printing with each archived reading blocker carried to
-// the failed check TranslateReadingBlockers writes for it: kind failed_check, subject the anchor the
-// source's reading at that events.id names (anchors, sourceReadingAnchors), re-keyed.
+// the failed check TranslateReadingBlockers writes for it — kind failed_check, subject the anchor the
+// source's reading at that events.id names (anchors, sourceReadingAnchors) — or, for a reading that
+// names no anchor, dropped; re-keyed.
 func readingBlockersTranslated(t *testing.T, printed string, anchors map[int64]string) string {
 	t.Helper()
 	p, _, err := record.ReadPlan([]byte(printed))
@@ -22,19 +23,27 @@ func readingBlockersTranslated(t *testing.T, printed string, anchors map[int64]s
 		t.Fatalf("a stored plan does not read: %v", err)
 	}
 	changed := false
-	for i, b := range p.Blockers {
+	kept := p.Blockers[:0:0]
+	for _, b := range p.Blockers {
 		if b.Kind != "contradiction" {
+			kept = append(kept, b)
 			continue
 		}
 		n, err := strconv.ParseInt(b.Subject, 10, 64)
-		if err != nil || anchors[n] == "" {
-			t.Fatalf("a stored plan's reading blocker names %q, which is no reading of a citation in the source", b.Subject)
+		a, read := anchors[n]
+		if err != nil || !read {
+			t.Fatalf("a stored plan's reading blocker names %q, which is no reading in the source", b.Subject)
 		}
-		p.Blockers[i].Kind, p.Blockers[i].Subject, changed = record.BlockerFailedCheck, anchors[n], true
+		changed = true
+		if a != "" {
+			b.Kind, b.Subject = record.BlockerFailedCheck, a
+			kept = append(kept, b)
+		}
 	}
 	if !changed {
 		return printed
 	}
+	p.Blockers = kept
 	return p.WithKey().Printed()
 }
 

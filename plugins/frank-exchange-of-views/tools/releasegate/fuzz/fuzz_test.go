@@ -1036,8 +1036,8 @@ func (r *runner) noteSourceSearch(msg string) {
 // whatever the source did for it, and the gap a reading mints stands at it, so a quote the report
 // does not hold places nothing. A reading of a citation takes no quote — its claim is the sentence
 // its anchor marks — so it has no such case. A reading that would mint carries the gap flags, so the
-// refusal it meets is the quote's; at the lens's cap the budget refuses it first, which is not this
-// drive's refusal and is not counted.
+// refusal it meets is the quote's: the act's placement guard refuses the quote before validation
+// reaches the budget, at the lens's cap as below it.
 //
 // IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome turns with
 // that count: a draw here would move every later draw of the run, and the forced
@@ -1071,7 +1071,6 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 		if r.quoteAdmittedErr == "" {
 			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `verify --url` recorded it: " + firstLine(out)
 		}
-	case strings.Contains(out, "its mint budget admits no more"):
 	case !strings.Contains(out, "REPORT's sentence"):
 		if r.quoteAdmittedErr == "" {
 			r.quoteAdmittedErr = seatID + "'s `verify --url --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
@@ -1332,12 +1331,21 @@ func (r *runner) fixFailed(seatID string) {
 }
 
 // wordsBefore is the run of prose standing right before the anchor run that holds id's token in cur
-// — back to the previous anchor token or line break — when it is non-blank and occurs once in cur;
-// "" otherwise.
+// — back to the previous anchor token, line break or the start of the token's sentence — when it is
+// non-blank and occurs once in cur; "" otherwise. An edit of it rewrites the sentence id backs and no
+// other: a line holds more than one sentence (lanePartText), and words reaching into the one before
+// would leave id's own sentence as it stood, which the record rightly does not list reopened.
 func wordsBefore(cur, id string) string {
 	at := strings.Index(cur, anchor.Token(id))
 	if at < 0 {
 		return ""
+	}
+	sentenceStart := 0
+	for _, sp := range anchor.Sentences(cur) {
+		if sp[0] <= at && at < sp[1] {
+			sentenceStart = sp[0]
+			break
+		}
 	}
 	// THE RUN THE TOKEN STANDS IN: anchors abut (anchor.SkipRun), so the prose ends where the first
 	// token of the run begins.
@@ -1363,6 +1371,7 @@ func wordsBefore(cur, id string) string {
 	if nl := strings.LastIndexByte(cur[:at], '\n'); nl+1 > start {
 		start = nl + 1
 	}
+	start = max(start, sentenceStart)
 	words := strings.TrimSpace(cur[start:at])
 	if words == "" || strings.Count(cur, words) != 1 {
 		return ""
@@ -4151,15 +4160,16 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	r.admit(args...)
 }
 
-// standingFailedCheckOf is the standing failed check whose seat minted gap id about its anchor
-// (record.BlockerFailedCheck's AnsweredBy), if there is one.
+// standingFailedCheckOf is the standing failed check gap id carries (record.Blocker's Carriers), if
+// there is one: for a found-against check that is any gap of its reading's carrier tree, an open
+// ancestor of the gap that names it as much as the gap itself, and the record refuses each one's close.
 func (r *runner) standingFailedCheckOf(id string) (record.Blocker, bool) {
 	bs, err := record.PassBlockers(r.runHandle)
 	if err != nil {
 		return record.Blocker{}, false
 	}
 	for _, b := range bs {
-		if b.Kind == record.BlockerFailedCheck && b.AnsweredBy() == id {
+		if b.Kind == record.BlockerFailedCheck && slices.Contains(b.Carriers(), id) {
 			return b, true
 		}
 	}

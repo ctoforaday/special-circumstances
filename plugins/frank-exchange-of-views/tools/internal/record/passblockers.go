@@ -83,6 +83,11 @@ type Blocker struct {
 	// successors — "" while none does, and answeredAt that gap's mint's events.id.
 	answeredBy string
 	answeredAt int64
+	// carriers is every gap that carries a failed check, answeredBy among them — for unread and
+	// unsound, every gap its seat minted about the anchor from the check's sitting on; for
+	// found_against, the gap its reading names and its whole successor tree — each a gap whose close
+	// the record refuses while the check stands (requireFailedCheckAnswered); nil for every other kind.
+	carriers []string
 	// awaited is a closing blocker whose party has sat through no sitting opened since the
 	// docketing (ClosingAwaited); false for a missing one, whose party sat and filed none.
 	awaited bool
@@ -93,6 +98,10 @@ type Blocker struct {
 
 // AnsweredBy is the gap that carries a failed check, "" while none does — and for every other kind.
 func (b Blocker) AnsweredBy() string { return b.answeredBy }
+
+// Carriers is every gap that carries a failed check, each one's close refused while the check
+// stands; nil for every other kind.
+func (b Blocker) Carriers() []string { return b.carriers }
 
 // CheckState is a failed check's state, "" for every other kind.
 func (b Blocker) CheckState() CheckState { return b.state }
@@ -307,7 +316,7 @@ func failedCheckRefusal(bs []Blocker) string {
 			"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it.")
 	}
 	if states[CheckFoundAgainst] {
-		said = append(said, "A PASS would certify a sentence a lens's reading of its cited source finds against: the reading found the source against the sentence, and its reader owes no mint — the gap a reading mints in its act carries it, and an archived reading names none; blue edits the sentence, or retires or replaces the citation. "+
+		said = append(said, "A PASS would certify a sentence a lens's reading of its cited source finds against: the reading found the source against the sentence, and its reader owes no mint — the gap a reading mints in its act carries it, or no gap names it; blue edits the sentence, or retires or replaces the citation. "+
 			"It clears when its reader's own later reading of the sentence as it stands backs it, or when blue edits the sentence, which leaves it unchecked, or retires the citation; another lens's backing reading beside it is a disagreement and clears nothing. "+
 			"The close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it.")
 	}
@@ -705,7 +714,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex, open map[string
 		out = append(out, Blocker{Kind: BlockerUnchecked, Subject: u.anchor, Owner: anchorOwnerOf(u.computation), Detail: u.sha, since: u.edit, placed: u.placed, lastCheck: u.lastCheck, rerun: u.rerun})
 	}
 	for _, f := range failedChecksOf(evs, win, open) {
-		out = append(out, Blocker{Kind: BlockerFailedCheck, Subject: f.anchor, Owner: f.owner, Detail: f.sha, state: f.state, since: f.since, answeredBy: f.answeredBy, answeredAt: f.answeredAt})
+		out = append(out, Blocker{Kind: BlockerFailedCheck, Subject: f.anchor, Owner: f.owner, Detail: f.sha, state: f.state, since: f.since, answeredBy: f.answeredBy, answeredAt: f.answeredAt, carriers: f.answers})
 	}
 	if castOfEvents(evs) != nil && reportHeadOf(evs, ids) == 0 {
 		out = append(out, Blocker{Kind: BlockerNoReport})

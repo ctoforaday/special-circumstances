@@ -83,8 +83,9 @@ import (
 // reading of a source the lens found — so the verb splits there too. The contract differs only in
 // WHICH flag names the subject, and cobra states that at the parse, before the handler: exactly one
 // of --anchor and --url (MarkFlagsOneRequired, MarkFlagsMutuallyExclusive), --url with its --title and
-// --quote (MarkFlagsRequiredTogether), and --anchor with neither, nor --url with a --page. Nothing is
-// policed in the handler; a violated group is refused with each flag's usage (seat.RefuseFlagGroup).
+// --quote (MarkFlagsRequiredTogether), which together leave --anchor with neither, and no --url with a
+// --page. Nothing is policed in the handler; a violated group is refused with each flag's usage
+// (seat.RefuseFlagGroup).
 //
 // # A reading that finds a defect mints its gap
 //
@@ -145,8 +146,6 @@ func newVerify() *cobra.Command {
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page. Refused on a citation with none, and with --url")
 	c.MarkFlagsOneRequired(flags.Anchor, flags.URL)
 	c.MarkFlagsMutuallyExclusive(flags.Anchor, flags.URL)
-	c.MarkFlagsMutuallyExclusive(flags.Anchor, flags.Quote)
-	c.MarkFlagsMutuallyExclusive(flags.Anchor, flags.Title)
 	c.MarkFlagsMutuallyExclusive(flags.URL, flags.Page)
 	c.MarkFlagsRequiredTogether(flags.URL, flags.Title, flags.Quote)
 	// A reading of a citation is keyed on the citation it names; a reading of a source the lens found

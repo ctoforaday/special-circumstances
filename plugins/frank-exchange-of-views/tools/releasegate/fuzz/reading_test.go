@@ -1170,7 +1170,7 @@ func (r *runner) readOverPrescription(seatID, line string) {
 	if !r.mintsFresh(seatID) {
 		return
 	}
-	estoppels := r.estoppelEntries()
+	estoppels := r.estoppelEntries(seatID)
 	var args []string
 	anchor.Each(line, func(_, _ int, id string) {
 		if args == nil && anchor.Kind(id) == "citation" && !r.isNotTheWorkCite(id) {
@@ -1202,8 +1202,8 @@ func (r *runner) readOverPrescription(seatID, line string) {
 		r.noteActErr("a refuting reading over text blue applied from a red --new names no gap: " + firstLine(out))
 		return
 	}
-	if n := r.estoppelEntries(); n != estoppels {
-		r.noteActErr(fmt.Sprintf("a reading over text blue applied from a red --new wrote an estoppel entry (%d before, %d after)", estoppels, n))
+	if n := r.estoppelEntries(seatID); n != estoppels {
+		r.noteActErr(fmt.Sprintf("%s's reading over text blue applied from a red --new wrote an estoppel entry under its seat (%d before, %d after)", seatID, estoppels, n))
 		return
 	}
 	r.mu.Lock()
@@ -1211,16 +1211,18 @@ func (r *runner) readOverPrescription(seatID, line string) {
 	r.mu.Unlock()
 }
 
-// estoppelEntries is the tool's estoppel log entries on the record.
-func (r *runner) estoppelEntries() int {
+// estoppelEntries is the tool's estoppel log entries on the record written under seatID — the seat
+// whose mint the tool refused. The lenses sit concurrently and each lens's estopped mint writes one
+// (mintEstopped), so a count over every seat moves with whichever sibling lands inside the window.
+func (r *runner) estoppelEntries(seatID string) int {
 	b, ok := r.board()
 	if !ok {
 		return -1
 	}
 	n := 0
 	for _, e := range b.Events {
-		if l, isL := recordpb.BodyAs[*recordpb.Log](e); isL && l.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL &&
-			l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
+		if l, isL := recordpb.BodyAs[*recordpb.Log](e); isL && e.GetSeatId() == seatID &&
+			l.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL && l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
 			n++
 		}
 	}

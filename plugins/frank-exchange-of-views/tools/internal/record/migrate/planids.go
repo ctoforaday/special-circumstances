@@ -182,18 +182,22 @@ const archivedReadingBlocker record.BlockerKind = "contradiction"
 // TranslateReadingBlockers carries each of a stored plan's archived reading blockers
 // (archivedReadingBlocker) to the failed check the migrated record holds for it: kind failed_check,
 // subject the anchor of the Verify the reading was written as — its source events.id carried through
-// newID and read through q, the replay's batch — and its owner unchanged, the reader. The plan is
-// re-keyed and re-printed when any moved, and left untouched otherwise. A subject that is no
-// events.id, that wrote no event, or that names no Verify with an anchor (a reading of a source the
-// lens found) is a refusal naming the reading: the loud miss.
+// newID and read through q, the replay's batch — and its owner unchanged, the reader. A blocker whose
+// reading names no anchor (a reading of a source the lens found) leaves the plan: the migrated record
+// holds no failed check for it and no gap carries it, the loss the plan's residue states (GAP 2). The
+// plan is re-keyed and re-printed when any moved, and left untouched otherwise. A subject that is no
+// events.id, or that wrote no event or no reading, is a refusal naming it: the loud miss; so is a plan
+// that permits no PASS and would be left holding no blocker.
 func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q recordsql.Querier) error {
 	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
 	if err != nil {
 		return fmt.Errorf("this stored plan does not read as a plan: %v", err)
 	}
 	changed := false
-	for i, b := range p.Blockers {
+	kept := p.Blockers[:0:0]
+	for _, b := range p.Blockers {
 		if b.Kind != archivedReadingBlocker {
+			kept = append(kept, b)
 			continue
 		}
 		n, perr := strconv.ParseInt(b.Subject, 10, 64)
@@ -208,11 +212,17 @@ func TranslateReadingBlockers(pl *recordpb.Plan, newID map[int64]int64, q record
 		if err := q.QueryRow(`SELECT COALESCE("anchor", '') FROM "verify" WHERE "event_id" = ?`, m).Scan(&anchorID); err != nil {
 			return fmt.Errorf("this stored plan's reading blocker names event %d (written as %d), which is no reading on the migrated record: %v", n, m, err)
 		}
+		changed = true
 		if anchorID == "" {
-			return fmt.Errorf("this stored plan's reading blocker names event %d (written as %d), a reading of a source its lens found, which names no citation for a failed check to stand on", n, m)
+			continue
 		}
-		p.Blockers[i].Kind, p.Blockers[i].Subject, changed = record.BlockerFailedCheck, anchorID, true
+		b.Kind, b.Subject = record.BlockerFailedCheck, anchorID
+		kept = append(kept, b)
 	}
+	if len(kept) == 0 && len(p.Blockers) > 0 && !p.PassPermitted {
+		return fmt.Errorf("this stored plan permits no PASS and its every blocker is a reading of a source its lens found, which the migrated record holds no failed check for: the plan would hold no blocker while it permits no PASS")
+	}
+	p.Blockers = kept
 	if !changed {
 		return nil
 	}

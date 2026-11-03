@@ -167,6 +167,7 @@ func TestABenchRulingClosesAFoundAgainstGapAndThePassStaysHeld(t *testing.T) {
 // A SUPERSEDED READING'S GAP HANDS THE CHECK TO ITS SUCCESSOR. The check's carriers are the gap its
 // reading names and every gap on that gap's successor tree; the one that names it is the OPEN one
 // minted last, read from the gap view. The close of every carrier is refused while the check stands,
+// each carrier is among the blocker's Carriers — an open ancestor beside the gap that names it too —
 // and so is the reader's repeat of its reading.
 func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 	run := foundAgainstBoard(t).seed()
@@ -193,6 +194,9 @@ func TestASupersededReadingGapHandsTheCheckToItsSuccessor(t *testing.T) {
 		for _, g := range gaps {
 			_, err := Append(lens, closeOf(g, recordpb.Disposition_DISPOSITION_REPAIRED))
 			mustRefuse(t, err, "gap "+g+" carries citation C-1")
+			if c := foundAgainstOf(t, run).Carriers(); !slices.Contains(c, g) {
+				t.Errorf("the record refuses the close of %s, and the check's Carriers %v do not list it", g, c)
+			}
 		}
 	}
 	carried("G-2")

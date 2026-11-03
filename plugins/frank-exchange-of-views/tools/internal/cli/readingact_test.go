@@ -483,25 +483,32 @@ func TestABackingFoundSourceReadingOfAMarkedSentenceIsRefused(t *testing.T) {
 	}
 }
 
-// 35d. verify takes exactly one subject, through cobra's flag groups.
+// 35d. verify takes exactly one subject, through cobra's flag groups: each refusal's diagnosis — its
+// first line, before the usage of the flags involved — names the group the arguments violate.
 func TestVerifyTakesExactlyOneSubject(t *testing.T) {
 	b := readingRun(t)
 	tail := []string{"--as", "supports", "--confidence", "high", "--reason", "r"}
 	for _, c := range []struct {
 		name string
 		args []string
-		says []string
+		says string
 	}{
-		{"neither", tail, []string{"--anchor", "--url"}},
-		{"both", append([]string{"--anchor", b.c1, "--url", rdU3, "--title", "T", "--quote", rdFree1}, tail...), []string{"--anchor", "--url"}},
-		{"--anchor with --quote", append([]string{"--anchor", b.c1, "--quote", rdCited}, tail...), []string{"--anchor", "--quote"}},
-		{"--anchor with --title", append([]string{"--anchor", b.c1, "--title", "T"}, tail...), []string{"--anchor", "--title"}},
-		{"--url with --page", append([]string{"--url", rdU3, "--title", "T", "--quote", rdFree1, "--page", "2"}, tail...), []string{"--url", "--page"}},
-		{"--url without --title", append([]string{"--url", rdU3, "--quote", rdFree1}, tail...), []string{"--url", "--title", "--quote"}},
-		{"--url without --quote", append([]string{"--url", rdU3, "--title", "T"}, tail...), []string{"--url", "--title", "--quote"}},
+		{"neither", tail, "at least one of the flags in the group [anchor url] is required"},
+		{"both", append([]string{"--anchor", b.c1, "--url", rdU3, "--title", "T", "--quote", rdFree1}, tail...), "[anchor url] were all set"},
+		{"--anchor with --quote", append([]string{"--anchor", b.c1, "--quote", rdCited}, tail...), "group [url title quote] are set they must all be set; missing [title url]"},
+		{"--anchor with --title", append([]string{"--anchor", b.c1, "--title", "T"}, tail...), "group [url title quote] are set they must all be set; missing [quote url]"},
+		{"--url with --page", append([]string{"--url", rdU3, "--title", "T", "--quote", rdFree1, "--page", "2"}, tail...), "[page url] were all set"},
+		{"--url without --title", append([]string{"--url", rdU3, "--quote", rdFree1}, tail...), "group [url title quote] are set they must all be set; missing [title]"},
+		{"--url without --quote", append([]string{"--url", rdU3, "--title", "T"}, tail...), "group [url title quote] are set they must all be set; missing [quote]"},
 	} {
 		_, err := b.verify(lensL, c.args...)
-		mustRefuse(t, err, c.name, c.says...)
+		if err == nil {
+			t.Errorf("%s: admitted; want a refusal saying %q", c.name, c.says)
+			continue
+		}
+		if diag, _, _ := strings.Cut(err.Error(), "\n"); !strings.Contains(diag, c.says) {
+			t.Errorf("%s: the refusal's diagnosis %q does not say %q", c.name, diag, c.says)
+		}
 	}
 	if c := b.counts(); c != [3]int{} {
 		t.Errorf("refused readings wrote verify/mint/anchor %v", c)
