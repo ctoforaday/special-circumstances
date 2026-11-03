@@ -263,21 +263,7 @@ func newEdit() *cobra.Command {
 // edit records: carried means there, whichever way the anchor got there. One carried may stand bare
 // until the retire.
 func refuseBaredAnchors(before, after, applied, gapID string) error {
-	was := map[string]bool{}
-	for _, id := range claimcount.BareAnchorIDs(before) {
-		was[id] = true
-	}
-	carried := claimcount.ProtectedAnchorIDs(applied)
-	var citations, leftOut []string
-	for _, id := range claimcount.BareAnchorIDs(after) {
-		switch {
-		case was[id]:
-		case anchor.Kind(id) == "citation":
-			citations = append(citations, id)
-		case !slices.Contains(carried, id):
-			leftOut = append(leftOut, anchor.Token(id))
-		}
-	}
+	citations, leftOut := BaredAnchors(before, after, applied)
 	var refusals []string
 	if len(citations) > 0 {
 		refusals = append(refusals, baredCitations(citations, gapID))
@@ -289,6 +275,30 @@ func refuseBaredAnchors(before, after, applied, gapID string) error {
 		return nil
 	}
 	return feov.Errorf(feov.Validation, "%s", strings.Join(refusals, " "))
+}
+
+// BaredAnchors is THE judgement of which anchors an edit leaves bare where no act could then take
+// them out (refuseBaredAnchors): the citations it bares, carried or not, and the tokens of the other
+// anchors it bares without carrying them in applied. before and after are the report the edit plans
+// over and the report it plans; applied is the replacement it records. `lens mint` asks it of a
+// prescription over the report the mint lands on, so a fix the accept would refuse for this is
+// refused where red writes it.
+func BaredAnchors(before, after, applied string) (citations, leftOut []string) {
+	was := map[string]bool{}
+	for _, id := range claimcount.BareAnchorIDs(before) {
+		was[id] = true
+	}
+	carried := claimcount.ProtectedAnchorIDs(applied)
+	for _, id := range claimcount.BareAnchorIDs(after) {
+		switch {
+		case was[id]:
+		case anchor.Kind(id) == "citation":
+			citations = append(citations, id)
+		case !slices.Contains(carried, id):
+			leftOut = append(leftOut, anchor.Token(id))
+		}
+	}
+	return citations, leftOut
 }
 
 // baredCitations is the refusal of an edit that would leave these citations bare.

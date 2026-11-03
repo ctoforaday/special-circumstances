@@ -432,6 +432,13 @@ type runner struct {
 	// fails the run.
 	leftOutRefused     int
 	leftOutAdmittedErr string
+	// mintBareRefused counts the mints the tool REFUSED for a prescription that would leave a citation
+	// bare (mintBaringCitation). The sweep gates it at zero, and mintBareSeed's run fails without one.
+	// mintBareAdmittedErr is the first such mint the tool recorded, or refused without saying so; it
+	// fails the run. mintBareOther is the first other refusal the drive met, which a run that never
+	// counts one names.
+	mintBareRefused                    int
+	mintBareAdmittedErr, mintBareOther string
 	// sourceSearches counts the source searches whose hits round-tripped through `cite --source-span`
 	// (sourceSearchCited). The sweep gates it at zero. sourceSearchErr is the first search that was
 	// refused, found nothing, or printed a hit whose source_span is not the span cite took; it fails
@@ -710,6 +717,10 @@ type runner struct {
 	forceAbsentSpan, absentSpanDriven bool
 	// forceLeftOut drives cutLeavingAnchorOut on leftOutSeed's run, once.
 	forceLeftOut, leftOutDriven bool
+	// forceMintBare drives citeForBareMint and then mintBaringCitation on mintBareSeed's run;
+	// mintBareCited is whether blue's half has fired, and mintBareDriving holds the lens's half to one
+	// sitting at a time.
+	forceMintBare, mintBareCited, mintBareDriving bool
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -2970,6 +2981,82 @@ func (r *runner) cutLeavingAnchorOut(seatID string) {
 	r.do("retire", seatID).set("--quote", claim+".").set("--reason", "fuzz: the claim went with the edit").admit()
 }
 
+// mintBareClaim is the sentence mintBareSeed's run adds and cites, for a lens to prescribe away.
+const mintBareClaim = "Whether the cited claim stands"
+
+// citeForBareMint is blue's half of mintBareSeed's forced run: blue-respond's first sitting adds a
+// sentence and cites it, so a lens can prescribe a fix that would leave the citation bare
+// (mintBaringCitation). It draws nothing from the run's RNG.
+func (r *runner) citeForBareMint(seatID string) {
+	r.mu.Lock()
+	due := r.forceMintBare && !r.mintBareCited && seatID == "blue-respond"
+	if due {
+		r.mintBareCited = true
+	}
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	const open = "Whether the trend outlasts the sample"
+	if _, ok := r.do("edit", seatID).set("--quote", open).set("--new", open+". "+mintBareClaim).
+		set("--reason", "fuzz: a claim added to be cited").admit(); !ok {
+		return
+	}
+	r.do("cite", seatID).set("--quote", mintBareClaim).set("--url", sourceURL("/blue-shared")).
+		set("--title", sourceTitle).set("--source-span", sourceBody("/blue-shared")).admit()
+}
+
+// mintBaringCitation is the lens's half of mintBareSeed's forced run: a lens sitting after blue cited
+// mintBareClaim prescribes the citation's token alone as the sentence's replacement, which blue's
+// accept would refuse for leaving the citation bare, and the mint must refuse it with the report
+// unchanged. A mint refused for anything else (the lens's budget, say) leaves the drive to the next
+// lens sitting. It draws nothing from the run's RNG.
+func (r *runner) mintBaringCitation(seatID string) {
+	r.mu.Lock()
+	due := r.forceMintBare && r.mintBareCited && !r.mintBareDriving && r.mintBareRefused == 0 && r.mintBareAdmittedErr == ""
+	if due {
+		r.mintBareDriving = true
+	}
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	defer func() {
+		r.mu.Lock()
+		r.mintBareDriving = false
+		r.mu.Unlock()
+	}()
+	before, err := reportproj.RenderFromRecord(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered for mintBareSeed's mint: " + err.Error())
+		return
+	}
+	cite := ""
+	for _, id := range anchor.IDs(abuttingRun(before, mintBareClaim)) {
+		if anchor.Kind(id) == "citation" {
+			cite = id
+		}
+	}
+	if cite == "" {
+		return // blue's cite has not landed on the sentence
+	}
+	out, err := r.do("mint", seatID).set("--quote", mintBareClaim).set("--new", anchor.Token(cite)+".").
+		set("--class", mintPoolClasses[0]).set("--problem", "fuzz problem").set("--check-kind", "document").
+		set("--check", "acc").set("--fix", dirApply).set("--severity", "low").set("--likelihood", "low").
+		set("--impact", "low").set("--reason", "fuzz: a prescription that would leave the citation bare").result()
+	after, _ := reportproj.RenderFromRecord(r.run())
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case err == nil || after != before:
+		r.mintBareAdmittedErr = seatID + " minted a prescription leaving citation " + cite + " bare: " + firstLine(out)
+	case strings.Contains(out, "--new would leave citation "+cite+" standing bare"):
+		r.mintBareRefused++
+	case r.mintBareOther == "":
+		r.mintBareOther = seatID + ": " + firstLine(out)
+	}
+}
+
 // anchorRef is a citation or computation the record holds unchecked: its anchor, and a computation's script sha
 // ("" for a citation).
 type anchorRef struct{ Anchor, Sha string }
@@ -4640,6 +4727,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.computeOwed(seatID)
 		r.citeAbsentSpan(seatID)
 		r.cutLeavingAnchorOut(seatID)
+		r.citeForBareMint(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
 		// comply or contest, one decision per inquiry. A second writer recording fates at random
@@ -5235,6 +5323,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.readOnly("show", seatID, "report", "--json", "--match", "§")
 		}
 		r.checkAnchorOffers(seatID)
+		r.mintBaringCitation(seatID)
 		r.closeDocketed(seatID)
 		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
 		locked := r.lensMovesBenchAxis(seatID)
@@ -5763,6 +5852,9 @@ type outcome struct {
 	// leftOutRefused is the edits the tool refused for leaving bare an anchor their quote left out
 	// (runner.leftOutRefused).
 	leftOutRefused int
+	// mintBareRefused is the mints the tool refused for a prescription that would leave a citation
+	// bare (runner.mintBareRefused).
+	mintBareRefused int
 	// sourceSearches is the source searches whose hits round-tripped through cite
 	// (runner.sourceSearches).
 	sourceSearches int
@@ -6279,6 +6371,12 @@ const absentSpanSeed = 8
 // reach. It is none of the forced seeds before it.
 const leftOutSeed = 15
 
+// mintBareSeed is the seed whose run is FORCED to mint a prescription that would leave a citation bare
+// (forceMintBare). The drawn prescriptions swap one phrasing for another and carry the run beside
+// it, so none leaves an anchor bare, and the refusal has no other reach. It is none of the forced
+// seeds before it.
+const mintBareSeed = 16
+
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
@@ -6326,6 +6424,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
 	r.forceLeftOut = seed == leftOutSeed
+	r.forceMintBare = seed == mintBareSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
@@ -6421,6 +6520,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.leftOutAdmittedErr != "" {
 		res.err = "left-out anchor: " + r.leftOutAdmittedErr
+		return res
+	}
+	if r.mintBareAdmittedErr != "" {
+		res.err = "bare prescription: " + r.mintBareAdmittedErr
 		return res
 	}
 	if r.sourceSearchErr != "" {
@@ -7124,6 +7227,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
 	res.leftOutRefused = r.leftOutRefused
+	res.mintBareRefused = r.mintBareRefused
 	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
 	res.fragmentsDriven, res.truncationsDriven = r.fragmentsDriven, r.truncationsDriven
@@ -7165,6 +7269,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "forced left-out anchor: no edit leaving bare an anchor its quote left out was refused"
 		if !r.leftOutDriven {
 			res.err += "; blue-respond never sat"
+		}
+	}
+	if r.forceMintBare && r.mintBareRefused == 0 && res.err == "" {
+		res.err = "forced bare prescription: no mint prescribing a citation bare was refused"
+		switch {
+		case !r.mintBareCited:
+			res.err += "; blue-respond never sat"
+		case r.mintBareOther != "":
+			res.err += "; the drive was refused otherwise: " + r.mintBareOther
+		default:
+			res.err += "; no lens sat with the citation in the report"
 		}
 	}
 	res.repeatsRefused = r.repeatsRefused
