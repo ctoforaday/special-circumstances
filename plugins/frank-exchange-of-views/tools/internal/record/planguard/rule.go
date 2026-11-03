@@ -48,10 +48,10 @@ import "strings"
 // index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "type"
 // FROM "events"` walks events_type as a covering index today; delete that index
 // and the plan becomes a bare `SCAN events`, with no WHERE to make it a defect, and this stays
-// green while the query got slower. Catching that needs a different instrument — a recorded
-// baseline of each statement's plan, failing when a plan gets WORSE — which is a plan-golden, not
-// a rule. Named rather than papered over, because "the guard is green" must not be read as more
-// than it says.
+// green while the query got slower. That change is caught by testdata/plans.golden, which
+// records every planned statement's whole plan; the per-row and repeated-work shapes are read off
+// the plan tree by Analyzer.Shapes against a committed baseline (TestPlanShapesMatchTheBaseline).
+// This rule stays what it is: the missing-index signature on a constrained statement.
 func Defects(findings []Finding) []Finding {
 	var out []Finding
 	for _, f := range findings {

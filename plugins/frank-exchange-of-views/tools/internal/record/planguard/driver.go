@@ -31,7 +31,50 @@ type Recorder struct {
 	seen      map[string]bool // one report per (statement, table), however often it runs
 	growth    map[string]bool
 	explained map[string]bool // statement text -> already planned; see shouldExplain
+	plans     []StatementPlan // each distinct statement's plan, in first-seen order
+	planErrs  []string        // statements whose plan could not be read; see PlanErrors
 	stmts     int64           // atomic: how many statements passed through, so zero findings can be told from zero work
+}
+
+// StatementPlan is one intercepted statement and the plan SQLite chose for it.
+type StatementPlan struct {
+	SQL  string
+	Plan Plan
+}
+
+// Plans is every distinct statement's plan, in first-seen order.
+func (r *Recorder) Plans() []StatementPlan {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]StatementPlan, len(r.plans))
+	copy(out, r.plans)
+	return out
+}
+
+// PlanErrors is every statement the guard tried to plan and could not, with the reason. A
+// statement in this list contributes no plan and no finding, so a caller treating an empty
+// Findings or Plans as clean must check this is empty first.
+func (r *Recorder) PlanErrors() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.planErrs...)
+}
+
+func (r *Recorder) keepPlan(stmt string, rows []PlanRow) {
+	p, err := BuildPlan(rows)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil {
+		r.planErrs = append(r.planErrs, fmt.Sprintf("%v\n  sql: %s", err, stmt))
+		return
+	}
+	r.plans = append(r.plans, StatementPlan{SQL: stmt, Plan: p})
+}
+
+func (r *Recorder) planFailed(stmt string, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.planErrs = append(r.planErrs, fmt.Sprintf("%v\n  sql: %s", err, stmt))
 }
 
 // NewRecorder derives the growth set and returns a recorder over it.
@@ -205,43 +248,64 @@ func (c *guardConn) PrepareContext(ctx context.Context, query string) (driver.St
 // explain asks SQLite how it intends to answer, on the SAME connection, so temp tables and
 // pragmas in effect are the ones the real statement will meet.
 //
-// It is best-effort by design: EXPLAIN QUERY PLAN rejects a few statement forms, and a guard
-// that failed the query it was inspecting would turn a diagnostic into an outage. A statement it
-// cannot explain contributes no finding, which is why the caller is told how many statements ran.
+// It never fails the query it inspects: a guard that did would turn a diagnostic into an outage.
+// A statement it cannot plan contributes no finding and is recorded in PlanErrors instead, and the
+// caller is told how many statements ran, so neither reads as a clean plan.
 func (c *guardConn) explain(ctx context.Context, q driver.QueryerContext, query string, args []driver.NamedValue) {
 	if !isExplainable(query) || !c.rec.shouldExplain(query) {
 		return
 	}
 	rows, err := q.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args)
 	if err != nil {
+		c.rec.planFailed(query, err)
 		return
 	}
 	defer rows.Close()
 	cols := rows.Columns()
-	detailAt := -1
+	at := map[string]int{"id": -1, "parent": -1, "detail": -1}
 	for i, name := range cols {
-		if strings.EqualFold(name, "detail") {
-			detailAt = i
+		if _, ok := at[strings.ToLower(name)]; ok {
+			at[strings.ToLower(name)] = i
 		}
 	}
-	if detailAt < 0 {
-		return
-	}
-	dest := make([]driver.Value, len(cols))
-	for {
-		if err := rows.Next(dest); err != nil {
-			if err == io.EOF {
-				return
-			}
+	for name, i := range at {
+		if i < 0 {
+			c.rec.planFailed(query, fmt.Errorf("EXPLAIN QUERY PLAN returned no %q column (got %v)", name, cols))
 			return
 		}
-		switch v := dest[detailAt].(type) {
-		case string:
-			c.rec.note(query, v)
-		case []byte:
-			c.rec.note(query, string(v))
-		}
 	}
+	dest := make([]driver.Value, len(cols))
+	var plan []PlanRow
+	for {
+		if err := rows.Next(dest); err != nil {
+			if err != io.EOF {
+				c.rec.planFailed(query, err)
+				return
+			}
+			break
+		}
+		row := PlanRow{ID: asInt(dest[at["id"]]), Parent: asInt(dest[at["parent"]]), Detail: asString(dest[at["detail"]])}
+		c.rec.note(query, row.Detail)
+		plan = append(plan, row)
+	}
+	c.rec.keepPlan(query, plan)
+}
+
+func asInt(v driver.Value) int64 {
+	if n, ok := v.(int64); ok {
+		return n
+	}
+	return -1 // not a node id: BuildPlan refuses the parent it cannot find
+}
+
+func asString(v driver.Value) string {
+	switch s := v.(type) {
+	case string:
+		return s
+	case []byte:
+		return string(s)
+	}
+	return ""
 }
 
 // isExplainable keeps the guard away from the statements SQLite will not plan — the transaction

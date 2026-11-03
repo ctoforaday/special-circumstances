@@ -25,8 +25,8 @@ import (
 const statementFloor = 30
 
 // seedAndSweep opens a guarded run, drives the record's read paths through it, and returns the
-// recorder.
-func seedAndSweep(t *testing.T) *planguard.Recorder {
+// recorder and the path of the record it swept.
+func seedAndSweep(t *testing.T) (*planguard.Recorder, string) {
 	t.Helper()
 	rec, err := planguard.NewRecorder()
 	if err != nil {
@@ -64,7 +64,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	_, _ = record.SeatsThatSat(run)
 	_, _ = record.TerminalVerdict(run)
 	_, _ = record.RecordedOutcome(run)
-	return rec
+	return rec, filepath.Join(run.Records(), "record.db")
 }
 
 // NO STATEMENT CONSTRAINS A GROWING TABLE AND THEN WALKS ALL OF IT.
@@ -74,7 +74,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 // still passes, and the only difference is how the run scales. #684 F8 established by hand that
 // the indexes were correct; this asks the same question on every run instead.
 func TestNoConstrainedScanOfAGrowingTable(t *testing.T) {
-	rec := seedAndSweep(t)
+	rec, _ := seedAndSweep(t)
 
 	// A CLEAN BOARD AND AN UNMEASURED ONE ARE THE SAME EMPTY SLICE. Checked first, so a sweep
 	// that stopped reaching the driver fails here rather than passing below.
