@@ -133,13 +133,14 @@ type gate struct {
 // run by scripts/testsplit has it passed for it, on both of that tool's paths.
 const noCache = testsplit.NoCache
 
-// modules are the four Go modules. Enumerated rather than globbed for the same reason CI
+// modules are the five Go modules. Enumerated rather than globbed for the same reason CI
 // enumerates them: a glob that matches nothing is a silent pass.
 var modules = []struct{ dir, ciJob string }{
 	{"plugins/prosthetic-conscience/tools", "run"},
 	{"plugins/frank-exchange-of-views/tools", "feov-record"},
 	{"plugins/gray-area/tools", "gray-area"},
 	{"scripts", "scripts"},
+	{"shared", "shared"},
 }
 
 // raceScope is what each job races. NOT uniform, and the difference is deliberate. Encoding
@@ -184,6 +185,7 @@ var raceScope = map[string][]string{
 	// package list: a hand-kept list of "the concurrent ones" is the next thing to go stale,
 	// and this module's suite is seconds.
 	"scripts": {"./..."},
+	"shared":  {"./..."},
 }
 
 // depsScopePrefix marks a race scope that is a binary's module-local import graph. A scope so

@@ -104,10 +104,11 @@ jobs:
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
             scripts/go.sum
+            shared/go.mod
       - name: gofmt, once, for the whole repository
         run: |
           set -euo pipefail
-          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts shared; do
             # An explicit `if`, not `cd && test || {...}`: that reads as if-then-else and is
             # not one (shellcheck SC2015) — a failed `cd` would take the else branch and
             # report the module unformatted when the truth is that it was never looked at.
@@ -121,7 +122,7 @@ jobs:
       - name: vet every module against every operating system we ship
         run: |
           set -euo pipefail
-          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts shared; do
             for os in windows darwin linux; do
               echo "== $mod :: $os =="
               ( cd "$mod" && GOOS="$os" GOARCH=amd64 go vet ./... )
@@ -1131,6 +1132,29 @@ jobs:
       - uses: ./.github/actions/go-cache
         with:
           phase: save
+
+  shared:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: shared
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          cache: ${{ github.event_name != 'push' }}
+          cache-dependency-path: |
+            shared/go.mod
+          go-version: "1.27"
+      - run: go test ./...
+      - run: go test -race -timeout=30m ./...
+        env:
+          CGO_ENABLED: "1"
 
   fetch-bin-platforms:
     # The hooks' fetcher, driven the way a guard drives it, on each OS a consumer runs: the uname

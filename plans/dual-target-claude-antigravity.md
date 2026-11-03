@@ -15,7 +15,7 @@
 
 1. **Manifests:** Place `.antigravity-plugin/plugin.json` beside `.claude-plugin/plugin.json` in all four plugins, generated from `.claude-plugin/plugin.json` by `scripts/marketplacegen` (the shared fields `name`, `displayName`, `version`, `description`, `author`, `license`, `keywords`; Claude-only `dependencies` and `hooks` omitted so `(*pluginValidator).checkManifestKeys` emits `0` warnings) and held to it by `marketplacegen -check`, `scripts/versionguard` and `scripts/pluginparity`. Register the workspace's plugins for Antigravity with `.agents/plugins.json` (`{"entries":[{"path":"plugins"}]}`) — without it `agy` looks only in `.agents/plugins/<name>/` and the workspace holds no plugin ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)).
 2. **Hook Manifest Coexistence (No Symlinks, Zero Validator Warnings):** Relocate Claude Code's hook manifest from `hooks/hooks.json` to `.claude-plugin/hooks.json` (declared via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) while keeping `hooks/fetch-bin.sh` and `hooks/README.md` in `hooks/`, and place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json`, validated by `scripts/validatejson` ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468)). This eliminates the unconditional `hooks/hooks.json: never loaded` warning in `agy 1.4.12` (`(*pluginValidator).checkHooks` at `0x98ca0c5`) and gives each harness its own unambiguous hook manifest. Future migration to Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories (`com.google*/hooks/hooks.json` and `com.anthropic*/hooks/hooks.json`) is tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456).
-3. **One Common Wire-Adapter Library (`hookcore`):** Abstract all four hook process boundaries (`env`, `stdin`, `stdout`, `stderr` + `exitCode`) in one pure-stdlib package authored at `scripts/internal/hookcore` and propagated byte-identically into `plugins/{prosthetic-conscience,frank-exchange-of-views,gray-area}/tools/internal/hookcore` via `scripts/hookcoregen` ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470), [#1471](https://github.com/ctoforaday/special-circumstances/issues/1471), [#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).
+3. **One Common Wire-Adapter Library (`hookcore`):** Abstract all four hook process boundaries (`env`, `stdin`, `stdout`, `stderr` + `exitCode`) in one pure-stdlib package authored at `shared/hookcore` under the `shared` Go module (`module github.com/ctoforaday/special-circumstances/shared`), referenced directly via standard Go module dependencies (`require` + `replace`) without code-copying generators ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470), [#1471](https://github.com/ctoforaday/special-circumstances/issues/1471), [#1472](https://github.com/ctoforaday/special-circumstances/issues/1472)).
 4. **Skills & Agents Parity:** Convert `tools:` in `scripts/agentgen/src/fragments/seat-tools.md` (regenerating all 11 `frank-exchange-of-views` agents via `scripts/agentgen`) and `plugins/prosthetic-conscience/agents/{plan-auditor,probe}.md` to dual-target YAML sequences (including both classic Antigravity tool names and `agy 1.4.10+` `oneharness` tool names `read_file`, `write_file`, `edit_file`) enforced by `scripts/frontmatter`, withholding `WebFetch`/`read_url_content`/`read_browser_page` in `frank-exchange-of-views` to preserve its evidence-cache invariant; update the 6 `${CLAUDE_PLUGIN_ROOT}` skills to fall back to bare binary names on `PATH` ([#1469](https://github.com/ctoforaday/special-circumstances/issues/1469)).
 
 **Success criteria.**
@@ -28,10 +28,10 @@
    - `sc-pretooluse` blocks a leaked secret on `run_command` / `Bash` and surfaces the denial reason to the model;
    - `sc-posttooluse` (`qualitygate`) queues lint/format feedback on Antigravity `write_to_file` / `write_file` into `<PluginDataDir>/pending_<SessionID>.jsonl` and `sc-sessionstart -event PreInvocation` injects it on the next turn;
    - `feov-pretooluse` rewrites `CommandLine` via `PreToolHookResult.overwrite` on Antigravity and `updatedInput.command` on Claude.
-6. **Repository Gates:** `go -C scripts run ./check` (including `hookcoregen -check`, `hookfailgen -check`, `buildidgen -check`, `fetchbingen -check`, `agentgen -check`, `validatejson`, `frontmatter`, `versionguard`, `pluginparity`, `deadcode`) and `FEOV_RELEASE_GATE=1` fuzz pass with `0` failures (§V.8).
+6. **Repository Gates:** `go -C scripts run ./check` (including `shared` module vet/fmt/test/race, `hookfailgen -check`, `buildidgen -check`, `fetchbingen -check`, `agentgen -check`, `validatejson`, `frontmatter`, `versionguard`, `pluginparity`, `deadcode`) and `FEOV_RELEASE_GATE=1` fuzz pass with `0` failures (§V.8).
 
 **Value case.** Against the naive alternatives — (a) per-binary `if isAntigravity` branches scattered across 15 hook entrypoints in three Go modules, or (b) symlinked `hooks.json -> hooks-jetski.json` manifests with separate Antigravity shim binaries in `tools/cmd/` — this architecture:
-- Centralizes all wire translation (`env`, `stdin`, `stdout`, `stderr`, `exitCode`, tool/arg canonicalization, and the `PostTool` → `PreInvocation` queue) into one ~250-line stdlib-only package (`scripts/internal/hookcore`), propagated by `scripts/hookcoregen` using the exact pattern already proven by `scripts/buildidgen` and `scripts/hookfailgen`.
+- Centralizes all wire translation (`env`, `stdin`, `stdout`, `stderr`, `exitCode`, tool/arg canonicalization, and the `PostTool` → `PreInvocation` queue) into one ~250-line stdlib-only package (`shared/hookcore`), consumed via standard Go module dependencies without building a custom code generator or duplicating files.
 - Leaves every `hookunit.Unit` (`secretsgate`, `pushfreezeguard`, `qualitygate`, `toolchainnudge`, `checkpointrestore`) and `feov`'s `hookgate` untouched by synthesizing canonical snake_case keys inside `req.ToolInput`.
 - Avoids Windows git symlink failures (`core.symlinks=false` checkouts turning `hooks.json` into a plain-text filename string) and `agy plugin validate --strict` warnings by pairing `.antigravity-plugin/plugin.json` + root `hooks.json` with `.claude-plugin/plugin.json` + `.claude-plugin/hooks.json`.
 - Avoids adding a 16th hook binary directory in `tools/cmd/` by handling `PreInvocation` via `sc-sessionstart -event PreInvocation` (matching `gray-area-capture -event <Event>`) and folding `strikecounter` into `sc-posttooluse` when `req.ToolError != ""` on Antigravity (preserving `fetchbingen`'s one-hook-per-event invariant).
@@ -54,7 +54,11 @@
    - [ ] Place Antigravity named-hook group manifests at `<plugin_root>/hooks.json`.
    - [ ] Update `scripts/validatejson` for Antigravity schema.
    - [ ] Update `fetch-bin.sh` and `hookfailures.Ensure` for dual-harness detection.
-3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `scripts/internal/hookcore` & `scripts/hookcoregen`):** `[NOT STARTED]` The common wire-adapter library, its unit tests over Claude and `.exa.hooks_pb` fixtures, and the `hookcoregen` gate in `scripts/check` and `.github/workflows/hooks.yml`.
+3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `shared/hookcore` Wire Adapter):** `[COMPLETED]`
+   - [x] Created `shared/go.mod` (`module github.com/ctoforaday/special-circumstances/shared`).
+   - [x] Authored pure-stdlib wire adapter `shared/hookcore/hookcore.go` with tool argument normalization, dual-engine stdin decoding, and stdout/stderr/queue response emission.
+   - [x] Authored table-driven test suite `shared/hookcore/hookcore_test.go` verifying Claude Code and Antigravity fixtures across all hook events.
+   - [x] Integrated `shared` Go module into `scripts/check/gates.go` (`modules`, `raceScope`), `scripts/check/parity_test.go`, and `.github/workflows/hooks.yml` (`vet`, `fmt`, `shared` test matrix).
 4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** `[NOT STARTED]` Wire all 10 `prosthetic-conscience` hook binaries onto `hookcore`.
 5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** `[NOT STARTED]` Wire `feov-*` (updating `hookgraph_test.go`) and `gray-area-capture` onto `hookcore`.
 
@@ -62,7 +66,7 @@
 
 ## II. Technical Context
 
-- **Toolchain & Modules:** Go 1.25+, `GOTOOLCHAIN=local` in CI. Four Go modules: `scripts/`, `plugins/prosthetic-conscience/tools` (0 external dependencies), `plugins/frank-exchange-of-views/tools`, and `plugins/gray-area/tools`. Each plugin's `tools/` module compiles standalone so `sc-doctor --fix` can build from an installed plugin directory without the monorepo.
+- **Toolchain & Modules:** Go 1.25+, `GOTOOLCHAIN=local` in CI. Five Go modules: `scripts/`, `shared/`, `plugins/prosthetic-conscience/tools` (0 external dependencies), `plugins/frank-exchange-of-views/tools`, and `plugins/gray-area/tools`. Each plugin's `tools/` module compiles standalone so `sc-doctor --fix` can build from an installed plugin directory without the monorepo.
 - **Primary Source Verification:** All binary offsets, `.gopclntab` symbols (`0x1625570`, `text_start` `0x6819000` in `agy 1.4.12`), `.exa.hooks_pb` protobuf descriptors (`0x5f93cc8` in `agy 1.4.12`), and `claude 2.1.309` decompiled JS functions referenced below are documented with reproducible extraction commands in [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) §6–§7.
 
 ### II.1 Empirical Answers to Core Architectural Questions (Q1–Q5)
@@ -170,7 +174,7 @@ plugins/prosthetic-conscience/
 
 ---
 
-### III.4 Unified Hook Wire-Adapter Library (`scripts/internal/hookcore` & `scripts/hookcoregen` — [#1470](https://github.com/ctoforaday/special-circumstances/issues/1470))
+### III.4 Unified Hook Wire-Adapter Library (`shared/hookcore` — [#1470](https://github.com/ctoforaday/special-circumstances/issues/1470))
 
 #### III.4.1 Process Boundary Normalization Matrix (`env`, `stdin`, `stdout`, `stderr`, `exit`)
 
@@ -197,9 +201,9 @@ plugins/prosthetic-conscience/
 | **File Search** | `Glob` | `find_by_name` | `path`, `pattern` | `SearchDirectory`, `Pattern` | `"path"`, `"pattern"` |
 | **Grep Search** | `Grep` | `grep_search` | `path`, `pattern` | `SearchPath`, `Query` | `"path"`, `"pattern"` |
 
-#### III.4.3 Pure-Stdlib Interface of `scripts/internal/hookcore`
+#### III.4.3 Pure-Stdlib Interface of `shared/hookcore`
 
-Because `scripts/hookcoregen` copies `hookcore.go` byte-identically into `prosthetic-conscience`, `frank-exchange-of-views`, and `gray-area`, `hookcore` imports **only the Go standard library** and accepts `*hookfailures.Recorder` via a structural `Settler` interface (zero module-local imports):
+`shared/hookcore` imports **only the Go standard library** and accepts `*hookfailures.Recorder` via a structural `Settler` interface (zero module-local imports). Plugins import `github.com/ctoforaday/special-circumstances/shared/hookcore` directly via standard Go module dependency (`require` + `replace github.com/ctoforaday/special-circumstances/shared => ../../../shared`). Because `hookcore` has no hook-implementation-specific code, plugins only need updates if the harness wire protocol itself changes:
 
 ```go
 package hookcore
@@ -279,8 +283,8 @@ func ProjectDir(env, cwd string, workspacePaths []string, toolDir string) string
 func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) int
 ```
 
-- **`[NEW]` `scripts/hookcoregen/main.go` & `main_test.go`:** Copies `scripts/internal/hookcore/*.go` (with `// Code generated by scripts/hookcoregen from scripts/internal/hookcore/<name>. DO NOT EDIT.`) into all three plugin modules; `-check` verifies zero drift.
-- **`[MODIFY]` `scripts/check/gates.go`, `scripts/check/parity_test.go`, & `.github/workflows/hooks.yml`:** Register `hookcoregen` (`go run ./hookcoregen -check`, `ciJob: "debate-sim"`). `scripts/deadcode/main.go:142` already matches `^// Code generated by \S+ from (\S+\.go)\. DO NOT EDIT\.$` with no change needed.
+- **`[NEW]` `shared/go.mod` & `shared/hookcore/*.go`:** Pure-stdlib wire adapter library under module `github.com/ctoforaday/special-circumstances/shared` and comprehensive table-driven tests over Claude (`2.1.309`) and Antigravity (`1.4.12` `.exa.hooks_pb`) captured fixtures.
+- **`[MODIFY]` `scripts/check/gates.go`, `scripts/check/parity_test.go`, & `.github/workflows/hooks.yml`:** Register `shared` Go module under `modules` and `raceScope` so `vet`, `fmt`, `test`, and `-race` validate `shared` alongside other modules in CI and local checks.
 
 ---
 
@@ -452,7 +456,7 @@ scripts/deadcode/main.go:21,142
 ```
 </details>
 
-- **Changes:** `.github/workflows/hooks.yml`, `scripts/check/gates.go`, and `scripts/check/parity_test.go` add `hookcoregen` alongside `buildidgen` and `hookfailgen` (§III.4.3).
+- **Changes:** `.github/workflows/hooks.yml`, `scripts/check/gates.go`, and `scripts/check/parity_test.go` register `shared` Go module alongside other modules (§III.4.3).
 
 <details><summary>C6 — <code>git grep -nE 'hooks/hooks\.json|"hooks\.json"' -- plugins/ scripts/ .github/</code> (18 lines — A2 Option 1 relocation to <code>.claude-plugin/hooks.json</code>)</summary>
 
@@ -516,13 +520,12 @@ scripts/validatejson/main.go:68:		fmt.Fprintln(os.Stderr, "validate-json: no plu
    go -C scripts run ./fetchbingen -check
    go -C scripts run ./buildidgen -check
    go -C scripts run ./hookfailgen -check
-   go -C scripts run ./hookcoregen -check
    go -C scripts run ./check
    ```
    Confirm `git ls-files -s | awk '$1 == "120000"'` outputs `0` lines (zero symlinks).
 3. **`hookcore` Unit & Wire-Descriptor Contract Tests (PR 3):**
    ```bash
-   go -C scripts test -count=1 -v ./internal/hookcore/... ./hookcoregen/...
+   go -C shared test -count=1 -v ./...
    ```
    Table-driven tests over captured Claude (`2.1.309`) and Antigravity (`1.4.12` `.exa.hooks_pb`) payloads covering `SessionStart`, `PreInvocation` (`terminationBehavior: "terminate"`, `metadata.user_markdown`), `PreTool` / `PreToolUse` (allow, deny, ask, `UpdatedCommand` → `overwrite.CommandLine`, classic + `oneharness` tool names and `Path` arg, malformed non-secret raw bytes, malformed secret-containing raw bytes), `PostTool` / `PostToolUse` (`Feedback` queue write on Antigravity vs `stderr` + `exit 2` on Claude, `PostToolHookArgs.result` field 4, `ToolError != ""` strike counting), and `PostInvocation` / `Stop`.
 4. **Module Test Suites & Invariant Guards (PR 4 & PR 5):**
@@ -551,6 +554,6 @@ scripts/validatejson/main.go:68:		fmt.Fprintln(os.Stderr, "validate-json: no plu
 
 - **F1 — Manifest location:** `.antigravity-plugin/plugin.json` alongside `.claude-plugin/plugin.json` (no root `plugin.json` clutter; omit `"dependencies"` in `frank-exchange-of-views/.antigravity-plugin/plugin.json`): **RULED.**
 - **F2 — Hook manifest coexistence (updated 2026-11-01 for `agy 1.4.12`):** Relocate Claude's hook manifest from `hooks/hooks.json` to `.claude-plugin/hooks.json` (declared via `"hooks": "./.claude-plugin/hooks.json"` in `.claude-plugin/plugin.json`) and place Antigravity's named-hook group manifest at `<plugin_root>/hooks.json` with zero symlinks and zero `agy plugin validate --strict` warnings; track future Agent Plugins `1.1.0+` §8.2 reverse-domain extension directories in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456): **RULED.**
-- **F3 — Common wire-adapter library (`hookcore`):** Single-source `scripts/internal/hookcore` abstracting `env`, `stdin`, `stdout`, `stderr`, and `exitCode` (including `ANTIGRAVITY_CONVERSATION_ID`, `artifactDirectoryPath` fallback, `oneharness` tool names `read_file`/`write_file`/`edit_file` + `Path`, `PostToolHookArgs.result`, `PreInvocation` `terminationBehavior`, and `HookSystemMessage.metadata.user_markdown`), propagated byte-identically into all three plugin Go modules via `scripts/hookcoregen`: **RULED.**
+- **F3 — Common wire-adapter library (`hookcore`):** Single-source `shared/hookcore` (under `shared` Go module `github.com/ctoforaday/special-circumstances/shared`) abstracting `env`, `stdin`, `stdout`, `stderr`, and `exitCode` (including `ANTIGRAVITY_CONVERSATION_ID`, `artifactDirectoryPath` fallback, `oneharness` tool names `read_file`/`write_file`/`edit_file` + `Path`, `PostToolHookArgs.result`, `PreInvocation` `terminationBehavior`, and `HookSystemMessage.metadata.user_markdown`), consumed directly via standard Go module dependencies (`require` + `replace` to `../../../shared`), without code-copying generators: **RULED (gblock, 2026-11-03).**
 - **F4 — Zero new binaries in `tools/cmd/`:** Handle Antigravity `PreInvocation` via `sc-sessionstart -event PreInvocation` and fold Antigravity `PostTool` (`error != ""`) strike counting into `sc-posttooluse`: **RULED.**
 

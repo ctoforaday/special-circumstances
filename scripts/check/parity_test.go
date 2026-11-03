@@ -150,7 +150,7 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 		declared[m.dir] = true
 	}
 	// working-directory lines naming a module path.
-	re := regexp.MustCompile(`working-directory:\s+(plugins/[a-z-]+/tools|scripts)`)
+	re := regexp.MustCompile(`working-directory:\s+(plugins/[a-z-]+/tools|scripts|shared)`)
 	seen := map[string]bool{}
 	for _, m := range re.FindAllStringSubmatch(wf, -1) {
 		seen[m[1]] = true
