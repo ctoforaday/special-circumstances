@@ -838,8 +838,9 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 //
 // It walks the SAME descriptors the DDL was derived from, so a field the schema has and the writer
 // skips is not possible: both loops are the same loop over the same objects in the same process.
-// A generated mapper would be a second derivation of one source, committed at a different moment
-// from the schema, and the two could disagree.
+// The READ is generated (decode_gen.go), because it runs over every body of the record on every
+// read; TestEveryBodyRoundTripsThroughTheGeneratedDecode writes every field of every body through
+// this walk and reads it back through that code, and `protogen -check` fails a stale copy.
 func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	md := m.Descriptor()
 	table := TableName(md)
