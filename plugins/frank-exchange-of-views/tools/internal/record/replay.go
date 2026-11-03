@@ -343,7 +343,7 @@ func priorClosureEpochs(q recordsql.Querier, gapID string) ([]int, error) {
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
+	rows, err := q.Query(`SELECT e."epoch" FROM "close" c JOIN "events" e ON e."id" = c."event_id"
 	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for prior closures of %s: %w", gapID, err)

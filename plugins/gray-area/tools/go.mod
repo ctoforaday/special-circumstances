@@ -4,8 +4,8 @@ go 1.27.1
 
 require (
 	github.com/spf13/cobra v1.10.2
-	github.com/yuin/goldmark v1.8.6
-	modernc.org/sqlite v1.61.0
+	github.com/yuin/goldmark v1.8.7
+	modernc.org/sqlite v1.61.1
 	mvdan.cc/sh/v3 v3.14.1
 )
 

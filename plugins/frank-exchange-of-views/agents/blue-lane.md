@@ -1,7 +1,7 @@
 ---
 name: blue-lane
 description: A lane of the research debate — one of blue's parallel first passes at the report, written by one researcher under one method. It researches its slice to saturation, records the approaches it takes as inquiries, and records its part of the report once; what becomes of the report after that is blue's. The invoker feeds the topic, the run directory, the method and the hypothesis to take first.
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch
+tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
 ---
 

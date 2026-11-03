@@ -44,9 +44,11 @@ func TestAMissingGrantIsLoud(t *testing.T) {
 	dir := t.TempDir()
 	for name, body := range map[string]string{
 		"no-frontmatter.md": "just prose\n",
-		"unterminated.md":   "---\nname: x\ntools: Bash\n",
+		"unterminated.md":   "---\nname: x\ntools: [Bash]\n",
 		"no-tools.md":       "---\nname: x\ndescription: y\n---\nbody\n",
 		"empty-tools.md":    "---\nname: x\ntools:\n---\nbody\n",
+		"empty-seq.md":      "---\nname: x\ntools: []\n---\nbody\n",
+		"scalar-tools.md":   "---\nname: x\ntools: Read, Bash\n---\nbody\n",
 	} {
 		p := filepath.Join(dir, name)
 		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
@@ -62,7 +64,7 @@ func TestAMissingGrantIsLoud(t *testing.T) {
 	}
 	// And a well-formed one parses to exactly what it declares.
 	p := filepath.Join(dir, "ok.md")
-	if err := os.WriteFile(p, []byte("---\nname: x\ntools: Read, Bash , WebSearch\nskills: [a]\n---\nbody\n"), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte("---\nname: x\ntools: [Read, Bash , WebSearch]\nskills: [a]\n---\nbody\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got, err := GrantedTools(p)

@@ -142,6 +142,23 @@ func check(root, base string) (problems []string, checked int, err error) {
 			problems = append(problems, fmt.Sprintf("%s: no version to check", rel))
 			continue
 		}
+		agyRel := filepath.ToSlash(filepath.Join("plugins", plugin, ".antigravity-plugin", "plugin.json"))
+		agyBytes, agyErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(agyRel)))
+		if agyErr != nil {
+			problems = append(problems, fmt.Sprintf("%s: %v", agyRel, agyErr))
+			continue
+		}
+		var agyNow manifest
+		if json.Unmarshal(agyBytes, &agyNow) != nil || agyNow.Version == "" {
+			problems = append(problems, fmt.Sprintf("%s: no version to check", agyRel))
+			continue
+		}
+		if agyNow.Version != now.Version {
+			problems = append(problems, fmt.Sprintf(
+				"%s: version %s disagrees with %s (%s) — run `go -C scripts run ./marketplacegen` so both manifests carry the same version.",
+				agyRel, agyNow.Version, rel, now.Version))
+			continue
+		}
 		was, ok := versionAt(root, mb, rel)
 		if !ok {
 			continue // new plugin: nothing to compare against
@@ -215,6 +232,18 @@ func releaseTagMatchesManifest(root, tag string) error {
 			"A release is ONE act: bump the manifest and tag that commit. A tag whose manifest "+
 			"disagrees publishes assets a consumer's `/plugin update` will never ask for — which "+
 			"is the state #405 measured across all four plugins.", tag, version, rel, m.Version)
+	}
+	agyRel := filepath.Join("plugins", plugin, ".antigravity-plugin", "plugin.json")
+	ab, err := os.ReadFile(filepath.Join(root, agyRel))
+	if err != nil {
+		return fmt.Errorf("tag %q names plugin %q, which has no Antigravity manifest at %s: %w", tag, plugin, agyRel, err)
+	}
+	var am manifest
+	if err := json.Unmarshal(ab, &am); err != nil {
+		return fmt.Errorf("%s: %w", agyRel, err)
+	}
+	if am.Version != version {
+		return fmt.Errorf("tag %s says %s, but %s says %s at this commit — run `go -C scripts run ./marketplacegen` before tagging", tag, version, agyRel, am.Version)
 	}
 	return nil
 }

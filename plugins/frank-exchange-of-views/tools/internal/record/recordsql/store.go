@@ -759,8 +759,25 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 	return id, tx.Commit()
 }
 
-// sittingOf mints this event's id and answers which sitting it belongs to, in the transaction that
-// is about to insert it.
+// chairSeat is the seat whose sittings number the epochs.
+const chairSeat = "red-chair"
+
+// place is where a row about to be written sits on the record: its minted id, the sitting it
+// belongs to (nil for none), that sitting's rank among its owner's sittings, and the epoch.
+type place struct {
+	id        int64
+	sittingID any
+	sitting   int64
+	epoch     int64
+}
+
+// sittingOf mints this event's id and answers which sitting it belongs to and where it sits on the
+// two windows, in the transaction that is about to insert it.
+//
+// THE WINDOWS ARE READ OFF THE ROWS THEY EXTEND. The epoch is the previous row's, plus one when
+// this row opens a chair sitting; a new sitting's rank is one past its owner's latest, and a row
+// joining a sitting takes the rank stored on the opening it joins. Each reads one stored row beside
+// the sitting lookup this write already makes, and none re-ranks the record.
 //
 // THE ID IS MINTED RATHER THAN TAKEN FROM last_insert_rowid() BECAUSE AN OPENING NAMES ITSELF. An
 // event that opens a sitting carries its OWN id in sitting_id, and the events table is append-only
@@ -772,9 +789,23 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 // A NON-OPENING JOINS THE SEAT'S LATEST SITTING, or none. "Latest" is by id, which is append order;
 // a seat that has never opened one — the harness's own bookkeeping, a verb run before the seat's first opening —
 // gets NULL, and every reader that counts sittings then counts none rather than inventing one.
-func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error) {
-	if err := tx.QueryRow(`SELECT COALESCE(max("id"), 0) + 1 FROM "events"`).Scan(&id); err != nil {
-		return 0, nil, fmt.Errorf("minting the event's id: %w", err)
+func sittingOf(tx *sql.Tx, ev *recordpb.Event) (place, error) {
+	var p place
+	if err := tx.QueryRow(`SELECT COALESCE(max("id"), 0) + 1,
+	         COALESCE((SELECT "epoch" FROM "events" ORDER BY "id" DESC LIMIT 1), 0) FROM "events"`).
+		Scan(&p.id, &p.epoch); err != nil {
+		return place{}, fmt.Errorf("minting the event's id: %w", err)
+	}
+	// latest is the opening of seat's latest sitting and its rank, or none.
+	latest := func(seat string) (sql.NullInt64, int64, error) {
+		var open sql.NullInt64
+		var rank int64
+		err := tx.QueryRow(`SELECT o."id", o."sitting" FROM "events" o
+		  WHERE o."id" = (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?)`, seat).Scan(&open, &rank)
+		if errors.Is(err, sql.ErrNoRows) {
+			return sql.NullInt64{}, 0, nil
+		}
+		return open, rank, err
 	}
 	if seat, opens := recordpb.SeatOpeningSitting(ev); opens {
 		// A REGISTER UNDER AN AGENT THE HARNESS ALREADY BRACKETED JOINS THAT SITTING RATHER THAN
@@ -783,28 +814,37 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 		// and it is the harness's id for one subagent invocation, so a pair cannot span two
 		// dispatches; a resume carries no bracket and finds nothing here.
 		if agent := recordpb.AgentOpening(ev); agent != "" {
-			var bracket sql.NullInt64
+			var bracket, rank sql.NullInt64
 			if err := tx.QueryRow(
-				`SELECT max(e."id") FROM "events" e JOIN "sitting_open" o ON o."event_id" = e."id"
-				  WHERE o."agent_id" = ? AND o."seat_id" = ? AND e."sitting_id" = e."id"`,
-				agent, seat).Scan(&bracket); err != nil {
-				return 0, nil, fmt.Errorf("asking whether %s was already bracketed into a sitting: %w", agent, err)
+				`SELECT e."id", e."sitting" FROM "events" e WHERE e."id" = (
+				   SELECT max(e2."id") FROM "events" e2 JOIN "sitting_open" o ON o."event_id" = e2."id"
+				    WHERE o."agent_id" = ? AND o."seat_id" = ? AND e2."sitting_id" = e2."id")`,
+				agent, seat).Scan(&bracket, &rank); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return place{}, fmt.Errorf("asking whether %s was already bracketed into a sitting: %w", agent, err)
 			}
 			if bracket.Valid {
-				return id, bracket.Int64, nil
+				p.sittingID, p.sitting = bracket.Int64, rank.Int64
+				return p, nil
 			}
 		}
-		return id, id, nil
+		_, rank, err := latest(seat)
+		if err != nil {
+			return place{}, fmt.Errorf("asking how many sittings %s has had: %w", seat, err)
+		}
+		p.sittingID, p.sitting = p.id, rank+1
+		if seat == chairSeat {
+			p.epoch++
+		}
+		return p, nil
 	}
-	var open sql.NullInt64
-	if err := tx.QueryRow(
-		`SELECT max("id") FROM "sittings" WHERE "seat_id" = ?`, ev.GetSeatId()).Scan(&open); err != nil {
-		return 0, nil, fmt.Errorf("asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
+	open, rank, err := latest(ev.GetSeatId())
+	if err != nil {
+		return place{}, fmt.Errorf("asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
 	}
-	if !open.Valid {
-		return id, nil, nil
+	if open.Valid {
+		p.sittingID, p.sitting = open.Int64, rank
 	}
-	return id, open.Int64, nil
+	return p, nil
 }
 
 // InsertTx writes one event inside a transaction the CALLER owns.
@@ -815,14 +855,15 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 // unit, which is a guarantee the shard layout got by giving each seat its own file and lost the
 // moment two processes shared one.
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
-	id, sitting, err := sittingOf(tx, ev)
+	p, err := sittingOf(tx, ev)
 	if err != nil {
 		return 0, err
 	}
+	id := p.id
 	if _, err := tx.Exec(
-		`INSERT INTO events (id, seat_id, ts, type, key, sitting_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO events (id, seat_id, ts, type, key, sitting_id, sitting, epoch) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, ev.GetSeatId(), ev.GetTs(),
-		recordpb.Word(ev.GetType()), nullable(ev.GetKey()), sitting,
+		recordpb.Word(ev.GetType()), nullable(ev.GetKey()), p.sittingID, p.sitting, p.epoch,
 	); err != nil {
 		return 0, fmt.Errorf("recording the event: %w", err)
 	}
@@ -838,8 +879,9 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 //
 // It walks the SAME descriptors the DDL was derived from, so a field the schema has and the writer
 // skips is not possible: both loops are the same loop over the same objects in the same process.
-// A generated mapper would be a second derivation of one source, committed at a different moment
-// from the schema, and the two could disagree.
+// The READ is generated (decode_gen.go), because it runs over every body of the record on every
+// read; TestEveryBodyRoundTripsThroughTheGeneratedDecode writes every field of every body through
+// this walk and reads it back through that code, and `protogen -check` fails a stale copy.
 func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	md := m.Descriptor()
 	table := TableName(md)

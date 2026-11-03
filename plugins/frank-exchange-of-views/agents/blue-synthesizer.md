@@ -1,7 +1,7 @@
 ---
 name: blue-synthesizer
 description: The AUTHOR of the research debate's opening report — merges the lanes' parts into one report by union through the record's acts, and writes the report's authored surfaces, which its prompt names. The invoker feeds the topic and the run directory; blue brings breadth, depth, and its own first audit.
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch
+tools: [Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch]
 skills: [frank-exchange-of-views:research-protocol, prosthetic-conscience:critical-stance, prosthetic-conscience:think-around-problem, prosthetic-conscience:terse-communication]
 ---
 

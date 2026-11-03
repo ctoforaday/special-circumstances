@@ -182,3 +182,28 @@ func TestASkillNameMustMatchItsDirectory(t *testing.T) {
 		t.Errorf("an agent is not held to a directory name: %v", p)
 	}
 }
+
+// AN AGENT'S tools AND skills ARE SEQUENCES. Antigravity decodes both into []string and skips
+// the whole agent on a scalar, so `tools: Read, Write` loads in Claude Code and vanishes from
+// `agy agents` with nothing said.
+func TestAnAgentToolsFieldMustBeAList(t *testing.T) {
+	const f = "plugins/p/agents/probe.md"
+	if p, _ := check(f, "---\nname: probe\ndescription: d\ntools: [Read, Write, Bash]\nskills: [a, b]\n---\n"); len(p) > 0 {
+		t.Errorf("YAML sequence tools and skills fields must pass: %v", p)
+	}
+	for _, tc := range []struct{ block, want string }{
+		{"---\nname: probe\ndescription: d\ntools: Read, Write, Bash\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{"---\nname: probe\ndescription: d\ntools: []\n---\n", "`tools` must be a non-empty YAML sequence"},
+		{"---\nname: probe\ndescription: d\ntools: [Read, \"\"]\n---\n", "every entry in `tools`"},
+		{"---\nname: probe\ndescription: d\nskills: a, b\n---\n", "`skills` must be a non-empty YAML sequence"},
+	} {
+		p, _ := check(f, tc.block)
+		if got := fmt.Sprint(p); !strings.Contains(got, tc.want) {
+			t.Errorf("block %q: want a problem containing %q, got %v", tc.block, tc.want, p)
+		}
+	}
+	// Only agents are held to it: a skill's frontmatter is not an agent definition.
+	if p, _ := check("plugins/p/skills/s/SKILL.md", "---\nname: s\ndescription: d\ntools: Read, Write\n---\n"); len(p) > 0 {
+		t.Errorf("a SKILL.md is not an agent and must not be held to the agent list rule: %v", p)
+	}
+}
