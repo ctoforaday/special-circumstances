@@ -17,8 +17,6 @@ stmt 4770e2cd76cb | automatic-index | gap_grade (minted_event=?) | x1
 stmt 4770e2cd76cb | automatic-index | latest_remand (gap_id=?) | x1
 stmt 4770e2cd76cb | automatic-index | superseded (gap_id=?) | x1
 stmt 4770e2cd76cb | automatic-index | unruled_docket (gap_id=?) | x1
-stmt 4bfb6148843b | automatic-index | sittings (id=?) | x1
-stmt 4bfb6148843b | constrained-scan | events | x1
 stmt 738391e7eee3 | automatic-index | sittings (id=?) | x1
 stmt 738391e7eee3 | constrained-scan | events | x1
 stmt 98b157b7f9fa | automatic-index | sittings (id=?) | x1

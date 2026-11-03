@@ -387,6 +387,8 @@
       UNION ALL
         SCAN a
       UNION ALL
+        SCAN a
+      UNION ALL
         SCAN ra
   SCAN report_op
 
@@ -473,6 +475,8 @@
         SEARCH p USING INTEGER PRIMARY KEY (rowid>?)
       UNION ALL
         SEARCH b USING INTEGER PRIMARY KEY (rowid>?)
+      UNION ALL
+        SEARCH a USING INTEGER PRIMARY KEY (rowid>?)
       UNION ALL
         SEARCH a USING INTEGER PRIMARY KEY (rowid>?)
       UNION ALL
@@ -826,16 +830,6 @@
 
 == stmt 738391e7eee3
 -- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?) ORDER BY e."id"
-  MATERIALIZE sittings
-    SCAN e
-    SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
-  SEARCH e USING INDEX events_type (type=?)
-  BLOOM FILTER ON s (id=?)
-  SEARCH s USING AUTOMATIC COVERING INDEX (id=?) LEFT-JOIN
-  USE TEMP B-TREE FOR ORDER BY
-
-== stmt 4bfb6148843b
--- SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting", COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '') FROM "events" e LEFT JOIN "sittings" s ON s."id" = e."sitting_id" WHERE e."type" IN (?, ?, ?, ?, ?, ?, ?, ?) ORDER BY e."id"
   MATERIALIZE sittings
     SCAN e
     SEARCH o USING INTEGER PRIMARY KEY (rowid=?) LEFT-JOIN
