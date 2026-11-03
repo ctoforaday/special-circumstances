@@ -3,7 +3,7 @@ module github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-vie
 go 1.27.1
 
 require (
-	github.com/dop251/goja v0.0.0-20261024144015-2a9269b6b6de
+	github.com/dop251/goja v0.0.0-20261102223426-a177d211bf60
 	github.com/dop251/goja_nodejs v0.0.0-20260918173711-b481721df8a2
 	github.com/gofrs/flock v0.13.1
 	github.com/google/go-cmp v0.7.0
@@ -14,16 +14,16 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/thediveo/enumflag/v2 v2.2.1
-	github.com/yuin/goldmark v1.8.6
-	golang.org/x/net v0.61.0
+	github.com/yuin/goldmark v1.8.7
+	golang.org/x/net v0.62.0
 	golang.org/x/sys v0.49.0
 	google.golang.org/protobuf v1.36.12
-	modernc.org/sqlite v1.61.0
+	modernc.org/sqlite v1.61.1
 )
 
 require (
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.8.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.11.0 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 // indirect
