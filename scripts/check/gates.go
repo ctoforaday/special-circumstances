@@ -255,7 +255,7 @@ var tools = []gate{
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
 		why: "the binary and the plugin must read the same event-schema epoch"},
 	{id: "protogen", kind: kindTool, dir: "scripts", args: []string{"run", "./protogen", "-check"}, ciJob: "debate-sim",
-		why: "the record's bindings and body switch are generated from record.proto; a stale switch reads an arm's events as having no body"},
+		why: "the record's bindings, body switch and body decode are generated from record.proto; a stale switch reads an arm's events as having no body, and a stale decode reads a field back unset"},
 	{id: "vocabdoc", kind: kindTool, dir: "scripts", args: []string{"run", "./vocabdoc", "-check"}, ciJob: "debate-sim",
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",

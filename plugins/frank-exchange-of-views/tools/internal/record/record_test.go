@@ -150,9 +150,9 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 	}
 }
 
-// THE EPOCH IS THE RECORD'S, READ BACK FROM events_w.
+// THE EPOCH IS THE RECORD'S, READ BACK FROM events.epoch.
 //
-// The epoch is events_w."epoch", the chair's sittings already on the record; the seat id carries
+// The epoch is events.epoch, stamped from the chair's sittings already on the record; the seat id carries
 // nothing, and there is no round for a caller to hand in. `judge` is the probe: its name carries no
 // round, so whatever the event shows can only have come from the record.
 func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {

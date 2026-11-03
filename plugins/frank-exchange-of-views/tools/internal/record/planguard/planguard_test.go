@@ -25,13 +25,10 @@ import (
 const statementFloor = 30
 
 // seedAndSweep opens a guarded run, drives the record's read paths through it, and returns the
-// recorder.
-func seedAndSweep(t *testing.T) *planguard.Recorder {
+// recorder and the path of the record it swept.
+func seedAndSweep(t *testing.T) (*planguard.Recorder, string) {
 	t.Helper()
-	rec, err := planguard.NewRecorder()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rec := planguard.NewRecorder()
 	name, err := planguard.Install(rec)
 	if err != nil {
 		t.Fatal(err)
@@ -64,31 +61,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	_, _ = record.SeatsThatSat(run)
 	_, _ = record.TerminalVerdict(run)
 	_, _ = record.RecordedOutcome(run)
-	return rec
-}
-
-// NO STATEMENT CONSTRAINS A GROWING TABLE AND THEN WALKS ALL OF IT.
-//
-// That is the signature of a dropped index, and it is the one thing a passing test suite cannot
-// otherwise notice: remove an index and every read still returns the right answer, every test
-// still passes, and the only difference is how the run scales. #684 F8 established by hand that
-// the indexes were correct; this asks the same question on every run instead.
-func TestNoConstrainedScanOfAGrowingTable(t *testing.T) {
-	rec := seedAndSweep(t)
-
-	// A CLEAN BOARD AND AN UNMEASURED ONE ARE THE SAME EMPTY SLICE. Checked first, so a sweep
-	// that stopped reaching the driver fails here rather than passing below.
-	if n := rec.Statements(); n < statementFloor {
-		t.Fatalf("the guard saw %d statements, below the floor of %d — the sweep is no longer "+
-			"reaching the read paths through the guarded driver, and an empty findings list "+
-			"below would mean nothing", n, statementFloor)
-	}
-
-	for _, d := range planguard.Defects(rec.Findings()) {
-		t.Errorf("this statement narrows what it reads and still walks the whole of %q, which is "+
-			"what a missing index looks like:\n  plan: %s\n  sql:  %s",
-			d.Table, d.Detail, strings.Join(strings.Fields(d.Statement), " "))
-	}
+	return rec, filepath.Join(run.Records(), "record.db")
 }
 
 // THE GROWTH SET IS DERIVED, AND MUST STAY BIG ENOUGH TO MEAN SOMETHING. A derivation that
@@ -125,9 +98,29 @@ func TestGrowthSetIsDerivedFromTheSchema(t *testing.T) {
 	}
 }
 
-// THE RULE IS THE INTERESTING PART, so it is tested on its own rather than only through a sweep
-// that currently reports nothing. Each case here is a real plan line observed during calibration.
-func TestDefectsSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
+// constrainedOf is the constrained-scan findings for one statement whose plan is one line.
+func constrainedOf(t *testing.T, stmt, detail string) []planguard.Shape {
+	t.Helper()
+	an, err := planguard.NewAnalyzer(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := planguard.BuildPlan([]planguard.PlanRow{{ID: 2, Detail: detail}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []planguard.Shape
+	for _, s := range an.Shapes(stmt, p) {
+		if s.Kind == planguard.ConstrainedScan {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// THE RULE IS THE INTERESTING PART, so it is tested on its own rather than only through the sweep.
+// Each case here is a real plan line observed during calibration.
+func TestConstrainedScanSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 	for _, tc := range []struct {
 		name, stmt, detail string
 		defect             bool
@@ -138,44 +131,38 @@ func TestDefectsSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 		{"last row by rowid", `SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1`, "SCAN outcome", false},
 		{"covering index walk", `SELECT DISTINCT "type" FROM "events" ORDER BY "type"`, "SCAN events USING COVERING INDEX events_type", false},
 		{"autoindex walk", `SELECT "event_id" FROM "mint_supersedes" ORDER BY "event_id"`, "SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1", false},
+		{"filtered scan of an enum vocabulary", `SELECT "value" FROM "enum_grade" WHERE "value" > ?`, "SCAN enum_grade", false},
 
 		{"filtered scan is the defect", `SELECT "gap_id" FROM "mint" WHERE "gap_id" = ?`, "SCAN mint", true},
 		{"joined scan is the defect", `SELECT * FROM "close" JOIN "events" ON "events"."id" = "close"."event_id"`, "SCAN close", true},
+		{"an aliased scan is judged as its table", `SELECT m."gap_id" FROM "mint" m WHERE m."problem" = ?`, "SCAN m", true},
+		{"a bare SEARCH may walk the whole table", `SELECT max(m."event_id") FROM "mint" m WHERE m."problem" = ?`, "SEARCH m", true},
 	} {
-		got := planguard.Defects([]planguard.Finding{{Statement: tc.stmt, Table: "x", Detail: tc.detail}})
+		got := constrainedOf(t, tc.stmt, tc.detail)
 		if (len(got) > 0) != tc.defect {
-			t.Errorf("%s: reported=%v, want %v\n  sql:  %s\n  plan: %s", tc.name, len(got) > 0, tc.defect, tc.stmt, tc.detail)
+			t.Errorf("%s: reported=%v, want %v\n  sql:  %s\n  plan: %s", tc.name, got, tc.defect, tc.stmt, tc.detail)
 		}
 	}
 }
 
 // A COLUMN NAMED LIKE A KEYWORD MUST NOT MANUFACTURE A DEFECT. Substring matching on "WHERE"
 // would call this bulk read constrained and report a correct query as broken.
-func TestDefectsDoesNotMatchKeywordsInsideIdentifiers(t *testing.T) {
-	got := planguard.Defects([]planguard.Finding{{
-		Statement: `SELECT "wherefore", "joined_at" FROM "mint"`,
-		Table:     "mint",
-		Detail:    "SCAN mint",
-	}})
-	if len(got) != 0 {
+func TestConstrainedScanDoesNotMatchKeywordsInsideIdentifiers(t *testing.T) {
+	if got := constrainedOf(t, `SELECT "wherefore", "joined_at" FROM "mint"`, "SCAN mint"); len(got) != 0 {
 		t.Errorf("a column named `wherefore` was read as a WHERE clause: %+v", got)
 	}
 }
 
 // THE GUARD HAS TEETH, DEMONSTRATED AGAINST THE REAL DATABASE AND THE REAL SCHEMA.
 //
-// Every other test here would pass over a guard that reported nothing, because the board is
-// currently clean. This one issues two statements that differ only in WHICH COLUMN they filter
+// The rule's table test feeds it plan lines; this one issues two statements that differ only in WHICH COLUMN they filter
 // on: `event_id` is the table's INTEGER PRIMARY KEY, so SQLite reaches the row directly, and
 // `problem` carries no index, so it walks the table. One must be reported and the other must not.
 //
 // It is the answer to "would this notice a dropped index" — the question coverage cannot ask,
 // and the reason this package exists rather than a second hand audit of the kind #684 F8 was.
 func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) {
-	rec, err := planguard.NewRecorder()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rec := planguard.NewRecorder()
 	name, err := planguard.Install(rec)
 	if err != nil {
 		t.Fatal(err)
@@ -207,9 +194,17 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 		rows.Close()
 	}
 
+	an, err := planguard.NewAnalyzer(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var reported []string
-	for _, d := range planguard.Defects(rec.Findings()) {
-		reported = append(reported, strings.Join(strings.Fields(d.Statement), " "))
+	for _, sp := range rec.Plans() {
+		for _, sh := range an.Shapes(sp.SQL, sp.Plan) {
+			if sh.Kind == planguard.ConstrainedScan {
+				reported = append(reported, strings.Join(strings.Fields(sp.SQL), " "))
+			}
+		}
 	}
 	found := func(q string) bool {
 		for _, r := range reported {

@@ -414,7 +414,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	// itself the convergence signal: a zero row says "nothing moved", a missing row says nothing
 	// at all. Dense also makes the audit's premise true by construction rather than by luck.
 	//
-	// The epoch is the record's (the chair's sittings opened at or before each row, events_w):
+	// The epoch is the record's (the chair's sittings opened at or before each row, events.epoch):
 	// Gap.Epoch/ClosedEpoch and the index's CurrentEpoch read the same stored windows.
 	seenEpoch := map[int]bool{}
 	for r := 1; r <= in.At.CurrentEpoch(in.Events); r++ {

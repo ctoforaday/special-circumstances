@@ -54,7 +54,7 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 	// it, which is what an undecodable body IS on this side of the fence — names no sitting, and a
 	// register that names no sitting cannot be written.
 	forgedKey := "blue-respond:register:#2"
-	_, forgeErr := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key") VALUES (?, ?, ?, ?)`,
+	_, forgeErr := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key", "sitting", "epoch") VALUES (?, ?, ?, ?, 0, 0)`,
 		"blue-respond", stamp(5), "register", forgedKey)
 	if forgeErr == nil {
 		t.Fatal("a register with no sitting went onto the record — the envelope CHECK is what makes the two readings one")
@@ -181,14 +181,14 @@ func TestABracketAndItsOwnRegisterAreOneSitting(t *testing.T) {
 			}
 			// Asked of the rows BELONGING to the seat's sittings, not of the rows the seat wrote:
 			// a bracket is harness-seated, so a sitting the seat never answered has none of its own.
-			if err := db.QueryRow(`SELECT COALESCE(max(w."sitting"), 0) FROM "events_w" w
+			if err := db.QueryRow(`SELECT COALESCE(max(w."sitting"), 0) FROM "events" w
 				  JOIN "events" e ON e."id" = w."id"
 				  JOIN "sittings" s ON s."id" = e."sitting_id"
 				 WHERE s."seat_id" = ?`, seat).Scan(&view); err != nil {
 				t.Fatal(err)
 			}
 			if stored != c.want || view != c.want {
-				t.Errorf("the record holds %d sitting(s) and events_w reads %d; want %d — a bracket and the register of its own agent are one sitting, and a register without one is still a sitting", stored, view, c.want)
+				t.Errorf("the record holds %d sitting(s) and events.sitting reads %d; want %d — a bracket and the register of its own agent are one sitting, and a register without one is still a sitting", stored, view, c.want)
 			}
 		})
 	}

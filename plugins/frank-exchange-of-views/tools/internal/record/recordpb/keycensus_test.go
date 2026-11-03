@@ -45,7 +45,7 @@ func loadKeyCensus(t *testing.T) []string {
 // class this migration exists to remove.
 var notFields = map[string]string{
 	"reproduced": "REPLACED at epoch 28 by Reproduce.rerun: a bool read false both where the script printed something else and where nothing re-ran it; migrate's reproduce entry translates true to reproduced and false to differs",
-	"round":      "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events_w.\"epoch\" is the chair-sitting count at the row, events_w.\"sitting\" the seat's own; a migrated record carries neither and every reader derives them",
+	"round":      "RETIRED (plans/roundless.md §III.A.2): the envelope stamped a derived count and the record now answers it — events.epoch is the chair-sitting count at the row, events.sitting the seat's own; a migrated record carries neither and every reader derives them",
 	// LEGACY VOCABULARY — read only by the retired-type arms §II.6 deletes in PR3.
 	"as":       "the legacy landing key for a ruling; available.go:196 reads it beside `verdict` as a pre-collapse fallback. MotionRule.ruling replaces it",
 	"evidence": "the legacy `dispute` prose key, read only at view.go:519 and assemble.go:885 — both legacy arms. Motion.basis replaces it",

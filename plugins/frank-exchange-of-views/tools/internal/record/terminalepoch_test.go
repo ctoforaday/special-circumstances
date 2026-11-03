@@ -10,8 +10,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// lastWindow reads the LAST event's epoch and sitting back off the record. Nothing stamps them
-// (plans/roundless.md §III.A.2): they are the events_w view's answer, which is what every reader
+// lastWindow reads the LAST event's epoch and sitting back off the record. No caller stamps them
+// (plans/roundless.md §III.A.2): they are the record's stored columns, which is what every reader
 // gets, so this is the assertion a test about "which epoch did this act land in" has to make.
 func lastWindow(t *testing.T, runDir string) recordsql.Window {
 	t.Helper()
