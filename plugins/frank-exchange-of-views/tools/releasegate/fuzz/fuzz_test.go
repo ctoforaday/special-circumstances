@@ -7514,6 +7514,7 @@ var coverExempt = map[string]bool{
 // record, not a broken one). This is the dedicated coverage for `halt`, which the sweep exempts.
 func TestFuzzHaltPath(t *testing.T) {
 	releaseGate(t)
+	sweepPath(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 	runDir, err := os.MkdirTemp("", "fuzz-halt-")
@@ -8780,6 +8781,7 @@ func seatOfRole(role string) string {
 // invocations land in the same package-level tally the gate reads.
 func TestFuzzUnverifiedPath(t *testing.T) {
 	releaseGate(t)
+	sweepPath(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 	runDir, err := os.MkdirTemp("", "fuzz-unverified-")
@@ -8855,6 +8857,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 // runs after TestFuzzDebate's census and cannot supply the word to it.
 func TestFuzzVerifiedPath(t *testing.T) {
 	releaseGate(t)
+	sweepPath(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 	o := runOne(t, wrapped, bin, verifiedSeed, false, false, true)

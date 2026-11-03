@@ -108,8 +108,9 @@ type gate struct {
 	why   string
 }
 
-// noCache is the difference between running the suite and reading a memory of it, and it is
-// the one flag here that CI does NOT pass — deliberately, because CI cannot need it.
+// noCache is the difference between running the suite and reading a memory of it. CI passes it
+// too, as GOFLAGS=-count=1, set by .github/actions/go-cache in every job that restores a build
+// cache.
 //
 // A GREEN CACHE AND A GREEN SUITE ARE THE SAME BYTES. Go caches a test package's PASS keyed on
 // the inputs it can see, and a test that shells out to a built binary — which is what the help
@@ -121,11 +122,11 @@ type gate struct {
 // exit 0. The same package under `-count=1` FAILED on a stale help golden that a commit three
 // back had invalidated. The green was reported to a human as verification.
 //
-// CI never sees this because every job runs on a fresh runner with an empty cache and
-// `cache: false` on setup-go — so a stale PASS is structurally impossible there and structurally
-// available here. That asymmetry is precisely the drift this whole command was built to remove;
-// leaving it in place would mean the local gate set can pass where CI fails, which is the
-// original defect wearing this tool's name. parity_test.go compares gate IDENTITY (which module,
+// CI is exposed to it the same way: a pull request's jobs restore main's Go build cache, and the
+// build cache is where Go keeps test results. So the defeat is set in both places — here per gate,
+// in CI per job — and a stale PASS is impossible in either. Leaving either side without it would
+// mean one gate set can pass where the other fails, which is the original defect wearing this
+// tool's name. parity_test.go compares gate IDENTITY (which module,
 // which race scope, which tool), not argv, so declaring it here claims no coverage CI lacks.
 //
 // One constant for both carriers: a suite gate passes it itself, and a module whose suite is
