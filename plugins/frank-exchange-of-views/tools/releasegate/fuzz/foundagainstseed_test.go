@@ -582,3 +582,55 @@ func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
 		t.Errorf("COMPUTE gap %s was closed by the chain", g)
 	}
 }
+
+// A DRAWN BACKING RE-READ CLEARS ITS CHECK AND LEAVES A COMPUTE CARRIER TO ITS SCENARIO: a lens's refuting
+// reading held by the one-gap rule on a COMPUTE-scenario gap, cleared at its next sitting by its own
+// backing re-read (readCitation's coin), closes nothing — the gap closes only behind a reproduction.
+func TestABackingReReadLeavesAComputeCarrierOpen(t *testing.T) {
+	r := stagedRunner(t)
+	// LANE 1 HOLDS THE SENTENCE blue's computation of the carrier quotes (answerComputationCheck).
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2")); err != nil {
+		t.Fatal(err)
+	}
+	const blue, lens = "blue-respond", "red-lens-logic"
+	r.sit("blue", blue)
+	cite := r.citeAs(t, blue, "The cost is rising over time", "/compute-carrier")
+	classes, _ := r.readingClasses(r.citationURL(cite), "refutes", true)
+	if len(classes) == 0 {
+		t.Fatal("a refuting reading of the citation mints in no class")
+	}
+	r.sit("lens", lens)
+	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "across the whole sampled corpus", "--class", classes[0],
+		"--problem", "fuzz: the trend's figure is computed wrong", "--check-kind", "computation", "--check", "the figure recomputes",
+		"--fix", dirCompute, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
+	var env struct {
+		Result struct {
+			GapID string `json:"gap_id"`
+		} `json:"result"`
+	}
+	if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
+		t.Fatalf("the COMPUTE gap's mint: %s (%s)", out, r.actErr)
+	}
+	g := env.Result.GapID
+	r.noteMint(lens, g)
+	r.computationGaps.add(g)
+	r.sit("lens", citationOwner)
+	if out, ok := r.foundAgainstReading(citationOwner, cite, classes[:1]).admit(); !ok {
+		t.Fatalf("the owner's refuting reading: %s (%s)", out, r.actErr)
+	}
+	f, held := r.ownFoundAgainstGapOpen(citationOwner, cite, "refutes")
+	if !held || f.AnsweredBy() != g {
+		t.Fatalf("the owner's reading is not held by COMPUTE gap %s (held %v, carrier %q)", g, held, f.AnsweredBy())
+	}
+	r.sit("lens", citationOwner)
+	r.foundAgainstCleared(citationOwner, cite, f)
+	if r.actErr != "" {
+		t.Fatalf("the re-read: %s", r.actErr)
+	}
+	if _, still := r.checkCarriedBy(g, cite, citationOwner); still {
+		t.Errorf("the owner's backing re-read left its check standing on %s", g)
+	}
+	if !slices.Contains(r.openGaps(), g) || r.foundAgainstClearedByOwnReading != 0 {
+		t.Errorf("COMPUTE gap %s was closed by the re-read (open %v, cleared %d)", g, slices.Contains(r.openGaps(), g), r.foundAgainstClearedByOwnReading)
+	}
+}

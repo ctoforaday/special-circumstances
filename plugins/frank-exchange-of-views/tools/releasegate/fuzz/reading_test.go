@@ -397,7 +397,8 @@ func (r *runner) repeatReadingRefused(seatID, anchorID, outcome string, f record
 
 // foundAgainstCleared is the found-against check's clearing by its own reader: seatID reads citation
 // anchorID again, as backing, in a sitting after the reading that found against it, and the close of
-// the gap carrying the check — refused while it stood — is admitted. By coin another lens's backing
+// the gap carrying the check — refused while it stood — is admitted, unless the gap's scenario closes
+// it behind a reproduction (scenarioOwnsClose), which leaves the close to that scenario. By coin another lens's backing
 // reading lands first, which is a disagreement and clears nothing: the close is still refused then.
 func (r *runner) foundAgainstCleared(seatID, anchorID string, f record.Blocker) {
 	g := f.AnsweredBy()
@@ -435,6 +436,11 @@ func (r *runner) foundAgainstCleared(seatID, anchorID string, f record.Blocker) 
 	// ANOTHER CHECK THE GAP CARRIES STILL STANDS — another lens's reading the gap holds, or an unread
 	// one — so the close stays refused, and is not this drive's to admit.
 	if _, other := r.standingFailedCheckOf(g); other {
+		return
+	}
+	// A GAP ITS SCENARIO CLOSES BEHIND A REPRODUCTION IS LEFT TO IT: the re-read cleared the check, and
+	// a close here would reproduce nothing (scenarioOwnsClose).
+	if scenarioOwnsClose(r.scenarioOf(g)) {
 		return
 	}
 	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, as closeGap satisfies it.
