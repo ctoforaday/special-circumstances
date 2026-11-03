@@ -426,6 +426,12 @@ type runner struct {
 	// recorded, or refused without saying the span is not in the text; it fails the run.
 	spansRefused    int
 	spanAdmittedErr string
+	// leftOutRefused counts the edits the tool REFUSED for leaving an anchor bare that their quote left
+	// out (cutLeavingAnchorOut). The sweep gates it at zero, and leftOutSeed's run fails without one.
+	// leftOutAdmittedErr is the first such edit the tool recorded, or refused without saying so; it
+	// fails the run.
+	leftOutRefused     int
+	leftOutAdmittedErr string
 	// sourceSearches counts the source searches whose hits round-tripped through `cite --source-span`
 	// (sourceSearchCited). The sweep gates it at zero. sourceSearchErr is the first search that was
 	// refused, found nothing, or printed a hit whose source_span is not the span cite took; it fails
@@ -702,6 +708,8 @@ type runner struct {
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
+	// forceLeftOut drives cutLeavingAnchorOut on leftOutSeed's run, once.
+	forceLeftOut, leftOutDriven bool
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -2907,6 +2915,61 @@ func (r *runner) citeAbsentSpan(seatID string) {
 	r.citeSpanRefused(seatID, out, err)
 }
 
+// cutLeavingAnchorOut is the forced drive of leftOutSeed's run, one claim out of the report as a seat
+// takes it: blue adds a sentence and computes it, a cut whose quote stops before the anchor is refused
+// and changes nothing, the cut carrying the anchor is admitted and leaves it bare, and the retire takes
+// it. The report ends as it stood but for the sentence's join. It draws nothing from the run's RNG.
+func (r *runner) cutLeavingAnchorOut(seatID string) {
+	r.mu.Lock()
+	due := r.forceLeftOut && !r.leftOutDriven && seatID == "blue-respond"
+	if due {
+		r.leftOutDriven = true
+	}
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	const open, claim = "Whether the trend outlasts the sample", "Whether the forced claim stands"
+	r.do("edit", seatID).set("--quote", open).set("--new", open+". "+claim).
+		set("--reason", "fuzz: a claim added to be taken out").admit()
+	dir, argv, err := r.writeBundle("fuzz-left-out.js", "console.log('fuzz: the claim that leaves');")
+	if err != nil {
+		return
+	}
+	if _, ok := r.do("compute", seatID).set("--quote", claim).set("--dir", dir).
+		set("--reason", "fuzz: the anchor the cut leaves or carries").runs(argv).admit(); !ok {
+		return
+	}
+	before, err := reportproj.RenderFromRecord(r.run())
+	if err != nil {
+		r.noteActErr("the report could not be rendered for leftOutSeed's cut: " + err.Error())
+		return
+	}
+	out, err := r.do("edit", seatID).set("--quote", claim).set("--new", "").
+		set("--reason", "fuzz: the claim cannot stand").result()
+	after, _ := reportproj.RenderFromRecord(r.run())
+	r.mu.Lock()
+	switch {
+	case err == nil || after != before:
+		if r.leftOutAdmittedErr == "" {
+			r.leftOutAdmittedErr = seatID + " left a computation's anchor bare that its quote left out and the edit was recorded: " + firstLine(out)
+		}
+	case !strings.Contains(out, "your quote leaves it out"):
+		if r.leftOutAdmittedErr == "" {
+			r.leftOutAdmittedErr = seatID + "'s cut of a claim without its anchor was refused without saying so: " + firstLine(out)
+		}
+	default:
+		r.leftOutRefused++
+	}
+	r.mu.Unlock()
+	run := abuttingRun(before, claim)
+	if _, ok := r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run).
+		set("--reason", "fuzz: the claim cannot stand").admit(); !ok {
+		return
+	}
+	r.do("retire", seatID).set("--quote", claim+".").set("--reason", "fuzz: the claim went with the edit").admit()
+}
+
 // anchorRef is a citation or computation the record holds unchecked: its anchor, and a computation's script sha
 // ("" for a citation).
 type anchorRef struct{ Anchor, Sha string }
@@ -4576,6 +4639,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.computeToJudgeUnsound(seatID)
 		r.computeOwed(seatID)
 		r.citeAbsentSpan(seatID)
+		r.cutLeavingAnchorOut(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
 		// comply or contest, one decision per inquiry. A second writer recording fates at random
@@ -5696,6 +5760,9 @@ type outcome struct {
 	// spansRefused is the cites the tool refused for a span the source does not hold
 	// (runner.spansRefused).
 	spansRefused int
+	// leftOutRefused is the edits the tool refused for leaving bare an anchor their quote left out
+	// (runner.leftOutRefused).
+	leftOutRefused int
 	// sourceSearches is the source searches whose hits round-tripped through cite
 	// (runner.sourceSearches).
 	sourceSearches int
@@ -6207,6 +6274,11 @@ const owedComputationSeed = 4
 // sweep where no run does reads ZERO.
 const absentSpanSeed = 8
 
+// leftOutSeed is the seed whose run is FORCED to cut a claim down to an anchor its quote left out
+// (forceLeftOut). No drawn edit cuts a sentence: every one rewrites words, so the refusal has no other
+// reach. It is none of the forced seeds before it.
+const leftOutSeed = 15
+
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
@@ -6253,6 +6325,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
+	r.forceLeftOut = seed == leftOutSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
@@ -6344,6 +6417,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.spanAdmittedErr != "" {
 		res.err = "source span: " + r.spanAdmittedErr
+		return res
+	}
+	if r.leftOutAdmittedErr != "" {
+		res.err = "left-out anchor: " + r.leftOutAdmittedErr
 		return res
 	}
 	if r.sourceSearchErr != "" {
@@ -7046,6 +7123,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.positionsUpheldLens, res.positionsUpheldGaps, res.positionsOverruled = r.positionsUpheldLens, r.positionsUpheldGaps, r.positionsOverruled
 	res.ordersRefused = r.ordersRefused
 	res.spansRefused = r.spansRefused
+	res.leftOutRefused = r.leftOutRefused
 	res.sourceSearches = r.sourceSearches
 	res.copiesRead = r.copiesRead
 	res.fragmentsDriven, res.truncationsDriven = r.fragmentsDriven, r.truncationsDriven
@@ -7081,6 +7159,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"
 		if !r.absentSpanDriven {
 			res.err += "; no blue sitting reached the cite"
+		}
+	}
+	if r.forceLeftOut && r.leftOutRefused == 0 && res.err == "" {
+		res.err = "forced left-out anchor: no edit leaving bare an anchor its quote left out was refused"
+		if !r.leftOutDriven {
+			res.err += "; blue-respond never sat"
 		}
 	}
 	res.repeatsRefused = r.repeatsRefused
