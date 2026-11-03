@@ -44,23 +44,28 @@
    - [x] `scripts/frontmatter` gate updated and tested to enforce sequences and prevent `agents 0`.
    - [x] `seatprobe.GrantedTools` updated and tested to enforce sequence format.
    - [ ] Six CLI-invoking `SKILL.md` binary execution path fallbacks (`doctor`, 4 `audit-*`, `feov/research`).
-2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[IN PROGRESS]`
+2. **PR 2 ([#1468](https://github.com/ctoforaday/special-circumstances/issues/1468) — Dual-Target Manifests, `.claude-plugin/hooks.json`, Root `hooks.json`, & `fetch-bin.sh`):** `[COMPLETED]` (`9c833e605`)
    - [x] `.antigravity-plugin/plugin.json` generated for all 4 plugins from `.claude-plugin/plugin.json` via `scripts/marketplacegen`.
    - [x] `.agents/plugins.json` workspace registration created and verified.
    - [x] `scripts/versionguard` checks `.antigravity-plugin/plugin.json` against `.claude-plugin/plugin.json` and release tags.
    - [x] `scripts/pluginparity` verifies `.agents/plugins.json` discovery and manifest schema parity.
    - [x] `scripts/pluginparity/harness_load_test.go` live tests verify Claude and Antigravity validate, install, and load all plugins and agents.
-   - [ ] Relocate Claude hook manifests to `.claude-plugin/hooks.json` (`"hooks": "./.claude-plugin/hooks.json"`).
-   - [ ] Place Antigravity named-hook group manifests at `<plugin_root>/hooks.json`.
-   - [ ] Update `scripts/validatejson` for Antigravity schema.
-   - [ ] Update `fetch-bin.sh` and `hookfailures.Ensure` for dual-harness detection.
-3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `shared/hookcore` Wire Adapter):** `[COMPLETED]`
+   - [x] Relocate Claude hook manifests to `.claude-plugin/hooks.json` (`"hooks": "./.claude-plugin/hooks.json"`).
+   - [x] Place Antigravity named-hook group manifests at `<plugin_root>/hooks.json`.
+   - [x] Update `scripts/validatejson` for Antigravity schema.
+   - [x] Update `fetch-bin.sh` and `hookfailures.Ensure` for dual-harness detection.
+3. **PR 3 ([#1470](https://github.com/ctoforaday/special-circumstances/issues/1470) — `shared/hookcore` Wire Adapter & Live Contract Tests):** `[COMPLETED]` (`88ef622bd`, `07ee767f4`)
    - [x] Created `shared/go.mod` (`module github.com/ctoforaday/special-circumstances/shared`).
    - [x] Authored pure-stdlib wire adapter `shared/hookcore/hookcore.go` with tool argument normalization, dual-engine stdin decoding, and stdout/stderr/queue response emission.
    - [x] Authored table-driven test suite `shared/hookcore/hookcore_test.go` verifying Claude Code and Antigravity fixtures across all hook events.
    - [x] Integrated `shared` Go module into `scripts/check/gates.go` (`modules`, `raceScope`), `scripts/check/parity_test.go`, and `.github/workflows/hooks.yml` (`vet`, `fmt`, `shared` test matrix).
-4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** `[NOT STARTED]` Wire all 10 `prosthetic-conscience` hook binaries onto `hookcore`.
-5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** `[NOT STARTED]` Wire `feov-*` (updating `hookgraph_test.go`) and `gray-area-capture` onto `hookcore`.
+   - [x] Authored comprehensive live harness contract tests (`shared/hookcore/live_harness_test.go`) executing real `claude` and `agy` CLIs across all hook events (`PreInvocation`/`SessionStart`, `PreToolUse`, `PostToolUse`, `PostInvocation`/`Stop`) in isolated temporary environments with session archiving.
+4. **PR 4 ([#1471](https://github.com/ctoforaday/special-circumstances/issues/1471) — `prosthetic-conscience` Hook Migration):** `[COMPLETED]` (`8ee6c8aab`)
+   - [x] Wire all 10 `prosthetic-conscience` hook entrypoints onto `hookcore` (`sc-sessionstart`, `sc-pretooluse`, `sc-posttooluse`, `sc-stop`, `sc-strike-counter`, `sc-checkpointseal`, `sc-filechanged-rearm`, `sc-postcompact-observe`, `sc-precompact`, `sc-sessionend`).
+5. **PR 5 ([#1472](https://github.com/ctoforaday/special-circumstances/issues/1472) — `frank-exchange-of-views` & `gray-area` Hook Migration):** `[COMPLETED]` (`4595dba1f`)
+   - [x] Wire `frank-exchange-of-views` hooks onto `hookcore` (`feov-pretooluse`, `feov-posttooluse`, `feov-posttoolusefailure`, `feov-subagentstart`, `feov-subagentstop`).
+   - [x] Wire `gray-area` hook onto `hookcore` (`gray-area-capture`).
+   - [x] Verified all 17 check gates locally passing with `0` failures under `-race`.
 
 ---
 
