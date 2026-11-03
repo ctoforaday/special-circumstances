@@ -776,7 +776,10 @@ jobs:
             echo "::error::HEAD is not the pull request's merge commit, so its changes cannot be read"
             exit 1
           }
-          hits=$(git diff --name-only HEAD^1 HEAD | grep -E '^(plugins/frank-exchange-of-views/(tools/|hooks/|skills/research-protocol/scripts/debate\.js$)|\.github/workflows/hooks\.yml$|\.github/actions/go-cache/)' || true)
+          hits=$(git diff --name-only HEAD^1 HEAD | grep -E \
+            -e '^plugins/frank-exchange-of-views/(tools/|hooks/|skills/research-protocol/scripts/debate\.js$)' \
+            -e '^\.github/workflows/hooks\.yml$' \
+            -e '^\.github/actions/go-cache/' || true)
           if [ -z "$hits" ]; then
             echo "::notice::this pull request changes nothing the release sweeps drive; they skip"
             echo "run=false" >> "$GITHUB_OUTPUT"
