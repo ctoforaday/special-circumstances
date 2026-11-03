@@ -63,7 +63,21 @@ func TestEveryNegativeOutcomeNamesItsClasses(t *testing.T) {
 				t.Errorf("%s names class %d, which GapClass does not carry", o, c)
 			}
 		}
+		// A READING OF A SOURCE THE LENS FOUND names its own: a backing outcome mints the sentence's
+		// missing citation, a refuting one the contradiction, and absent and unreachable none.
+		found := recordpb.FoundSourceGapClassesOf(o)
+		if want := foundSource[o]; !slices.Equal(found, want) {
+			t.Errorf("%s names found-source classes %v, want %v", o, found, want)
+		}
 	}
+}
+
+// foundSource is the classes a reading of a source the lens found admits, per outcome (§III.1).
+var foundSource = map[recordpb.SourceOutcome][]recordpb.GapClass{
+	recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS:             {recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM},
+	recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE: {recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM},
+	recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK:                 {recordpb.GapClass_GAP_CLASS_UNSOURCED_CLAIM},
+	recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES:              {recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE},
 }
 
 // THE LENS'S CLOSE OF A READING'S GAP IS REFUSED WHILE THE CITATION STANDS FOUND AGAINST, for every

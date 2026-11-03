@@ -37,7 +37,7 @@ import (
 // surface by two to answer one question ("what does this token point to"), and left a seat
 // holding a `K-` id to guess which view took it. `citation-ledger` — red's
 // verifications, and nothing of what blue cited — is subsumed here: anchored checks attach to the
-// source they name, and red's own corroboration is the `independent` array.
+// source they name, and red's readings of sources it found are the `independent` array.
 //
 // # Both halves now carry their join
 //
@@ -48,7 +48,7 @@ import (
 // source now carries the verifications OF THAT SOURCE, and `verified: []` means nobody has
 // checked it — stated, not inferred from an absence.
 //
-// Red's INDEPENDENT checks (corroboration it found itself, which blue never cited) have no
+// Red's INDEPENDENT checks (readings of sources it found itself, which blue never cited) have no
 // anchor to join on and never will; they are the `independent` array, and that is a different
 // fact from an unverified citation rather than a missing one.
 //
@@ -80,13 +80,12 @@ type EvidenceSourceJSON struct {
 	// that paraphrases a definition reads like the definition, and a lens that took one for the
 	// source judged the sentence against blue's inverted paraphrase of it (universe-m30). Rendered on
 	// every blue cite: "" is "blue offered no argument", which red reads when deciding what to
-	// verify. Absent on a corroboration, whose reading is its check's. It is never printed in the
-	// report.
+	// verify. It is never printed in the report.
 	BlueReason *string `json:"blue_reason,omitempty"`
 	SeatID     string  `json:"seat_id"`
 	Epoch      int     `json:"epoch"`
 	// SourceTextOrigin is where the cited text came from — embedded, ocr, none or not_recorded —
-	// stamped by the tool. Empty on a corroboration, which red read itself.
+	// stamped by the tool.
 	SourceTextOrigin string `json:"source_text_origin,omitempty"`
 	// WorkStatus is what a maintained index says about the cited WORK — standing, retracted, or
 	// not_checked. Red reads this view to decide what to verify, and a retraction is the one
@@ -102,8 +101,7 @@ type EvidenceSourceJSON struct {
 	// CopySubstitution is WHOSE BYTES the citation read: `none` states they are the url's own,
 	// and every other word names the route by which a copy stood in for it — followed_link,
 	// recovered, fuller_copy, named_backend — with CopyURL naming where that copy was read.
-	// not_recorded is a citation from before the field; not_cached, on a corroboration, a source
-	// the run's cache held no copy of when red read it. Rendered on every source, because a lens
+	// not_recorded is a citation from before the field. Rendered on every source, because a lens
 	// verifying against the url would otherwise check bytes nobody cited, and the blank that meant
 	// "the url's own" would read the same as the blank that meant "nobody said".
 	CopySubstitution string `json:"copy_substitution,omitempty"`
@@ -120,12 +118,6 @@ type EvidenceSourceJSON struct {
 	Pages      []int32 `json:"pages,omitempty"`
 	OCREngine  string  `json:"ocr_engine,omitempty"`
 	OCRTextSha string  `json:"ocr_text_sha,omitempty"`
-	// CorroboratedBy names the red seat whose labelled corroboration placed this source's marker;
-	// empty for a blue cite. A corroboration is a source of the report like any cite — the
-	// assembler resolves its marker to a footnote — so it is listed here (gblock's ruling,
-	// 2026-09-11; B9's evidence lens read its own marker as a citation with no source).
-	CorroboratedBy string `json:"corroborated_by,omitempty"`
-
 	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
 	// where to spend its next pass, and an absent key would leave that to be inferred.
@@ -231,10 +223,6 @@ type EvidenceVerificationJSON struct {
 	Claim string `json:"claim"`
 	// Anchor is the citation adjudicated, empty on an independent check.
 	Anchor string `json:"anchor"`
-	// Label is the footnote this reading MINTED, on a corroboration that supported the claim.
-	// Empty on an anchored verify (it adjudicates a footnote blue already made) and on a reading
-	// that did not back the claim — those splice nothing, by design.
-	Label string `json:"label,omitempty"`
 	// Outcome is what the source DID for the claim, and it has a negative half: `refutes` and
 	// `absent` are the values that used to have nowhere to go, so the strongest finding on this
 	// axis left as prose and the assembly screen looked for a verdict no field could carry.
@@ -248,10 +236,8 @@ type EvidenceVerificationJSON struct {
 	// Text is red's reading — required, because a verdict with nothing behind it is the
 	// assertion the verb exists to replace.
 	Text string `json:"text"`
-	// URL and Title name the source red read. They replace `reference`, a free-text third
-	// spelling of a source on the one verb that reads one red found itself: the corroboration a
-	// run rests on was identified less precisely than the citations it audits. A source is named
-	// by url + title here as it is on a cite.
+	// URL and Title name the source a reading of a source red found read, by url + title as a
+	// cite names one.
 	URL        string `json:"url"`
 	Title      string `json:"title"`
 	AccessDate string `json:"access_date"`
@@ -263,10 +249,6 @@ type EvidenceVerificationJSON struct {
 	Page             int32  `json:"page,omitempty"`
 	PageRenderSha    string `json:"page_render_sha,omitempty"`
 	ReadingRenderSha string `json:"reading_render_sha,omitempty"`
-	// WorkStatus is what a maintained index says about the work red read. It is here as well as
-	// on the source row because a labelled corroboration is a source in its own right — red found
-	// it, blue never cited it, and it renders in `independent`, which reads no source row at all.
-	WorkStatus string `json:"work_status,omitempty"`
 	// SourceCompleteness is which part of the work red's copy was. A `supports` read off an
 	// abstract confirms what the abstract says, not what the study shows, and a reader of this
 	// verdict needs to know which it is.
@@ -300,7 +282,7 @@ func (v EvidenceVerificationJSON) FindsAgainst() bool {
 type EvidenceJSON struct {
 	Sources      []EvidenceSourceJSON      `json:"sources"`
 	Computations []EvidenceComputationJSON `json:"computations"`
-	// Independent is red's corroboration — sources it went and found, which blue never cited and
+	// Independent is red's readings of sources it went and found, which blue never cited and
 	// which therefore have no anchor. A separate array rather than anchorless rows mixed into the
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
@@ -353,9 +335,8 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
-	// so each source carries its own; the rest are corroboration and stand alone.
+	// so each source carries its own; the rest are readings of sources red found and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
-	var corroborations []EvidenceSourceJSON
 	for _, e := range evs {
 		w := win.Of(e)
 		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
@@ -378,7 +359,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		v := EvidenceVerificationJSON{
 			Claim:      vf.GetClaim(),
 			Anchor:     vf.GetAnchor(),
-			Label:      vf.GetLabel(),
 			Outcome:    recordpb.Word(vf.GetOutcome()),
 			Bridge:     recordpb.Word(vf.GetBridge()),
 			Confidence: recordpb.Word(vf.GetConfidence()),
@@ -392,7 +372,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			Page:             vf.GetPage(),
 			PageRenderSha:    vf.GetPageRenderSha(),
 			ReadingRenderSha: vf.GetReadingRenderSha(),
-			WorkStatus:       recordpb.Word(vf.GetWorkStatus()),
 
 			SourceCompleteness: recordpb.Word(vf.GetSourceCompleteness()),
 			CopySubstitution:   recordpb.Word(vf.GetCopySubstitution()),
@@ -402,22 +381,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		// THE SPLIT IS ON THE ANCHOR, and the empty string is deliberate. A verification indexed
 		// under "" would join no source and disappear from both arrays; sending it to
 		// `independent` keeps it visible.
-		// A LABELLED VERIFY WITH A CLAIM PLACED A MARKER in the report — it is the corroboration
-		// its Anchor follows — and the assembler resolves it to a footnote like any cite. So it is a SOURCE
-		// of the report as well as a check: listed with the cites below, marked as red's
-		// corroboration, and still under independent[] where the check itself lives.
-		if vf.GetLabel() != "" && vf.GetClaim() != "" {
-			corroborations = append(corroborations, EvidenceSourceJSON{
-				Anchor: vf.GetLabel(), URL: vf.GetUrl(), Title: vf.GetTitle(), Sha256: vf.GetSha256(), AccessDate: vf.GetAccessDate(),
-				Location: vf.GetClaim(), SeatID: e.GetSeatId(), Epoch: w.Epoch,
-				CorroboratedBy: e.GetSeatId(),
-				// A corroboration's footnote rests on the copy red read, as a cite's rests on blue's.
-				CopySubstitution: v.CopySubstitution, CopyURL: v.CopyURL,
-				// ITS OWN CHECK COMES FIRST: a corroboration is red reading the source, so the source
-				// is not "unverified" — the lens is not sent to check its own reading again.
-				Verified: []EvidenceVerificationJSON{v},
-			})
-		}
 		if v.Anchor == "" {
 			out.Independent = append(out.Independent, v)
 			continue
@@ -442,11 +405,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		switch bd := body.(type) {
 		case *recordpb.Cite:
 			// A cite with no label names no anchor, so it is not a citation a reader can reach.
-			//
-			// THIS IS NO LONGER "the label is what tells blue from red". It was, and citationid.go
-			// used the same discriminator; since red's supporting corroborations mint a label too,
-			// the two are told apart by EVENT TYPE (a Cite here, a Verify below) rather than by
-			// whether a label is present. The filter stays for its own reason, stated above.
 			label := bd.GetLabel()
 			if label == "" {
 				continue
@@ -527,12 +485,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			// must carry its verifications and a cite event may arrive after the check of it.
 		}
 	}
-	// Red's corroborations are sources too, after blue's cites, each with every later check naming it.
-	for _, c := range corroborations {
-		c.Verified = append(c.Verified, byAnchor[c.Anchor]...)
-		out.Sources = append(out.Sources, c)
-	}
-
 	out.Counts.Sources = len(out.Sources)
 	out.Counts.Computations = len(out.Computations)
 	for _, p := range out.Computations {
@@ -572,7 +524,7 @@ func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(
 // single entry, where "0 computations unverified" reads as a fact about that entry.
 type EvidenceAtJSON struct {
 	Anchor string `json:"anchor"`
-	// Source is set when the anchor is a citation's (or a labelled corroboration's), Computation
+	// Source is set when the anchor is a citation's, Computation
 	// when it is a computation's. Exactly one is present.
 	Source      *EvidenceSourceJSON        `json:"source,omitempty"`
 	Computation *EvidenceComputationAtJSON `json:"computation,omitempty"`

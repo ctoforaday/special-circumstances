@@ -99,11 +99,10 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_VERDICT}: {whole: "the verdict of your next sitting (a sitting holds one, and this sitting's stands); " +
 		"after a PASS no chair sitting follows and nothing answers it"},
 	{typ: recordpb.EventType_EVENT_TYPE_VERIFY, keyed: "anchor"}: {act: "a new verification of the citation", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_VERIFY, keyed: "url"}:    {act: "a new corroboration of the source", own: true, when: "for a determination that does not back the claim"},
-	// A corroboration that backs the claim is keyed on a label the tool mints, and its repeat is
-	// answered idempotently rather than refused: this row reaches a seat through the verb's help.
-	{typ: recordpb.EventType_EVENT_TYPE_VERIFY, keyed: "label"}: {whole: "a verification of the citation this corroboration placed, at your next sitting",
-		when: "for a determination that backs the claim, which placed a citation"},
+	// A reading of a source the lens found carries no key field (url keys nothing): its repeat in a
+	// sitting is refused by requireNotARetriedReading, which reads this unkeyed row.
+	{typ: recordpb.EventType_EVENT_TYPE_VERIFY}: {whole: "a new reading of that source for this sentence, at your next sitting — a reading of another source, or of this source for another sentence, is recorded now",
+		when: "for a reading of a source you found"},
 }
 
 // Answer is one row as a surface renders it.

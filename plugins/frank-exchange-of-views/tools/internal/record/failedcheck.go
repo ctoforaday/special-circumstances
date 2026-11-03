@@ -1,7 +1,6 @@
 package record
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -304,19 +303,19 @@ func requireNotARepeatFailedCheck(q recordsql.Querier, seatID, anchor string, fa
 	return nil
 }
 
-// requireNotARepeatReading refuses a reading that repeats one of the seat's own failed checks: over a
-// citation, a reading that reads nothing meets the unread arm (requireNotARepeatFailedCheck); a
-// reading that finds against its sentence (FindsAgainst) by the same lens, of the same sentence from
-// the same source — the anchor for `verify`, the url and claim for `corroborate` — with the same
-// outcome as an earlier such reading of its own, the sentence unchanged, while a gap of that earlier
-// reading's carrier tree is open, is refused, naming the earlier reading's event and its gap. A
-// reading with a different outcome is not a repeat. It is also how a crash-retried reading learns
-// its first write landed. Replay exempts it.
+// requireNotARepeatReading refuses a reading that repeats one of the seat's own: over a citation, a
+// reading that reads nothing meets the unread arm (requireNotARepeatFailedCheck); a reading that
+// mints (ReadingGapClasses non-empty) by the same lens, of the same sentence from the same source —
+// the anchor for `verify --anchor`, the url and claim for `verify --url` — with the same outcome as
+// an earlier such reading of its own, the sentence unchanged, while a gap of that earlier reading's
+// carrier tree is open, is refused, naming the earlier reading's event and its gap. A reading with a
+// different outcome is not a repeat. Within one sitting requireNotARetriedReading answers a
+// found-source retry first. Replay exempts it.
 func requireNotARepeatReading(q recordsql.Querier, seatID string, v *recordpb.Verify) error {
 	if v.GetAnchor() != "" && !VerifyReads(v) {
 		return requireNotARepeatFailedCheck(q, seatID, v.GetAnchor(), true)
 	}
-	if Migrating || !FindsAgainst(v) {
+	if Migrating || len(ReadingGapClasses(v)) == 0 {
 		return nil
 	}
 	evs, win, err := eventsAt(q)
@@ -329,13 +328,21 @@ func requireNotARepeatReading(q recordsql.Querier, seatID string, v *recordpb.Ve
 	return feov.Wrap(feov.Conflict, err, "the record's readings could not be read, so whether %s already stands on this sentence cannot be told: %v", seatID, err)
 }
 
-// repeatReadingRefusal is requireNotARepeatReading's fold, nil where v repeats nothing.
+// repeatReadingRefusal is requireNotARepeatReading's fold, nil where v repeats nothing. Its refusal is
+// worded by form: a reading of a citation finds the source against the sentence; a reading of a
+// source the lens found may back it, so it says only that the gap carries it.
 func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, seatID string, v *recordpb.Verify) error {
 	refuse := func(what string, at int64, gap string) error {
 		return feov.Errorf(feov.Conflict,
 			"your reading of %s at event %d finds the source against this sentence (%s), the sentence has not changed, and gap %s carries that reading and is open — nothing is recorded; the reading and its gap stand. "+
-				"A reading of yours with another outcome is recorded; a point the gap lacks is a finding about %s",
-			what, at, recordpb.Word(v.GetOutcome()), gap, gap)
+				"A reading of yours with another outcome is recorded",
+			what, at, recordpb.Word(v.GetOutcome()), gap)
+	}
+	refuseFound := func(url string, at int64, gap string) error {
+		return feov.Errorf(feov.Conflict,
+			"your reading of %s for this sentence at event %d (%s) is carried by gap %s, which is open, and the sentence has not changed — nothing is recorded; the reading and its gap stand. "+
+				"A reading of yours with another outcome is recorded",
+			url, at, recordpb.Word(v.GetOutcome()), gap)
 	}
 	if v.GetAnchor() != "" {
 		for _, f := range failedChecksOf(evs, win, open) {
@@ -360,7 +367,7 @@ func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, s
 		prev, ok := recordpb.BodyAs[*recordpb.Verify](e)
 		if !ok || e.GetSeatId() != seatID || prev.GetAnchor() != "" || prev.GetCarriedBy() == "" ||
 			strings.TrimSpace(prev.GetClaim()) != claim || prev.GetUrl() != v.GetUrl() ||
-			prev.GetOutcome() != v.GetOutcome() || !FindsAgainst(prev) {
+			prev.GetOutcome() != v.GetOutcome() || len(ReadingGapClasses(prev)) == 0 {
 			continue
 		}
 		if succ == nil {
@@ -368,7 +375,7 @@ func repeatReadingRefusal(evs []*Event, win WindowIndex, open map[string]bool, s
 		}
 		answers, by := carrierTree(prev.GetCarriedBy(), succ, mintAt, open)
 		if slices.ContainsFunc(answers, func(g string) bool { return open[g] }) {
-			return refuse(fmt.Sprintf("%q from %s", claim, v.GetUrl()), win.Of(e).ID, by)
+			return refuseFound(v.GetUrl(), win.Of(e).ID, by)
 		}
 	}
 	return nil

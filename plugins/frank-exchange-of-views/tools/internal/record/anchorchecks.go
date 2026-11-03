@@ -68,8 +68,8 @@ type anchorStanding struct {
 	computation bool
 	// sha is a computation's bundle_sha — the script every computation anchor on it shares; "" for a citation.
 	sha string
-	// placed is the events.id of the act that put the anchor on the record: blue's cite or computation, or
-	// red's corroboration. Neither moves the report head, so dispatch readies the owner off it.
+	// placed is the events.id of the act that put the anchor on the record: blue's cite or computation.
+	// Neither moves the report head, so dispatch readies the owner off it.
 	placed int64
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
 	// the anchor was placed or last retired.
@@ -227,10 +227,6 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		switch b := body.(type) {
 		case *recordpb.Cite:
 			hold(e, b.GetLabel(), false, "")
-		case *recordpb.Verify:
-			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
-				hold(e, b.GetLabel(), false, "")
-			}
 		case *recordpb.Computation:
 			hold(e, b.GetComputationId(), true, b.GetBundleSha())
 		}
@@ -262,10 +258,6 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 			reads := VerifyReads(b)
 			c := anchorCheck{reads: reads, holds: reads && !FindsAgainst(b)}
 			check(l.byAnchor[b.GetAnchor()], c)
-			// A corroboration that minted its own footnote is a check of that footnote's sentence.
-			if b.GetClaim() != "" && b.GetLabel() != "" && b.GetLabel() != b.GetAnchor() {
-				check(l.byAnchor[b.GetLabel()], c)
-			}
 		case *recordpb.Reproduce:
 			check(l.byAnchor[b.GetComputationId()], anchorCheck{
 				reads:     true,

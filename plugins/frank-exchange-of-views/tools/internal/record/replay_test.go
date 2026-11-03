@@ -622,7 +622,10 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 	}{
 		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
 		{"a finding's id when there is no gap_id", &recordpb.Finding{Id: proto.String("F-f0000001")}, "F-f0000001"},
-		{"url is a label too", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Url: proto.String("https://x")}, "https://x"},
+		{"a citation reading keys on its anchor", &recordpb.Verify{Anchor: proto.String("C-1"), Url: proto.String("https://x")}, "C-1"},
+		// A reading of a source the lens found is identified by its url AND its sentence, two fields:
+		// it takes the ordinal, and requireNotARetriedReading holds the pair to one per sitting.
+		{"url keys nothing", &recordpb.Verify{Url: proto.String("https://x"), Claim: proto.String("A sentence.")}, ""},
 		{"an empty label is not a label", &recordpb.Finding{Id: proto.String("")}, ""},
 		{"no label at all", &recordpb.Log{}, ""},
 	} {

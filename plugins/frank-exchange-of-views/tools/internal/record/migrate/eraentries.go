@@ -309,10 +309,14 @@ func inquiryEntry(renames ren) Entry {
 	}}
 }
 
-// verifyEra is the verify word across both eras: the shard era's `reason` is the body's text, and
-// its `independent` restated the empty anchor.
+// verifyEra is the verify word across both eras: the shard era's `reason` is the body's text, its
+// `independent` restated the empty anchor, and a labelled corroboration's label, its retraction
+// stamp and the copy it read were its footnote (replay drops the label's anchor and token).
 var verifyEra = mapped("verify", ren{"reason": "text"}, drops{
 	"independent": "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
+	"label":       "the footnote a backing corroboration minted; no reading mints one",
+	"work_status": "the footnote a backing corroboration minted; no reading mints one",
+	"sha256":      "the footnote a backing corroboration minted; no reading mints one",
 }, nil)
 
 // verifyEntry: a verification is kept word for word, and one from before epoch 41 is stamped with

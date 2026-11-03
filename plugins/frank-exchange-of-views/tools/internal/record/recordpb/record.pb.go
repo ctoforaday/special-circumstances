@@ -4493,35 +4493,17 @@ func (x *Cite) GetCopyUrl() string {
 type Verify struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Claim *string                `protobuf:"bytes,1,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
-	// A SOURCE IS NAMED BY url + title, here as in Cite. `reference` was a free-text third
-	// spelling on the one verb that reads a source red found itself, so the corroboration a run
-	// rests on was identified less precisely than the citations it audits.
+	// A SOURCE IS NAMED BY url + title, here as in Cite, on a reading of a source the lens found;
+	// a reading of a citation reads the citation's source and names it by its anchor.
 	Url   *string `protobuf:"bytes,9,opt,name=url,proto3,oneof" json:"url,omitempty"`
 	Title *string `protobuf:"bytes,10,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	// anchor names the citation checked, and `verify` requires it. A corroboration — a source red
-	// found itself — names none: the empty anchor IS the corroboration, and every reader splits on it.
+	// anchor names the citation read (`verify --anchor`). A reading of a source the lens found
+	// (`verify --url`) names none: the empty anchor IS that form, and every reader splits on it.
 	Anchor     *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
 	AccessDate *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
 	Outcome    *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
 	Confidence *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
 	Text       *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	// label IS THE FOOTNOTE, and it is what moves this event's key off the source.
-	//
-	// Set ONLY by `corroborate`, and only when the outcome supports: a source red found itself,
-	// for a claim blue made, becomes an ordinary footnote in the assembled bibliography. A human
-	// reader cares that the text has appropriate references, not which team inserted them —
-	// `citationid.go` used to say the opposite in as many words ("Red's `lens cite` carries no
-	// label and is EXCLUDED"), and the consequence was that red's independent corroboration
-	// reached no reader of the document at all.
-	//
-	// IT ALSO FIXES THE KEY, WITHOUT TOUCHING keyFields. That list is walked first-match, and
-	// `label` sits before `url` — so a corroboration with a label keys on the minted id and one
-	// source may corroborate many claims, exactly as `blue cite` may cite one url many times.
-	// Keyed on `url`, only the FIRST claim recorded and the rest were refused. Crash-retry
-	// idempotency stays where blue's is: on `--key`.
-	//
-	// `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
-	Label *string `protobuf:"bytes,11,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	// THE PAGE IMAGE RED CHECKED, for a citation whose OCR span carries pages. page is the one red
 	// names; page_render_sha is the sha256 of the image on disk when the verification was written,
 	// and reading_render_sha the render the reading was made from. A mismatch between the two is
@@ -4530,11 +4512,6 @@ type Verify struct {
 	Page             *int32  `protobuf:"varint,12,opt,name=page,proto3,oneof" json:"page,omitempty"`
 	PageRenderSha    *string `protobuf:"bytes,13,opt,name=page_render_sha,json=pageRenderSha,proto3,oneof" json:"page_render_sha,omitempty"`
 	ReadingRenderSha *string `protobuf:"bytes,14,opt,name=reading_render_sha,json=readingRenderSha,proto3,oneof" json:"reading_render_sha,omitempty"`
-	// A LABELLED CORROBORATION IS A FOOTNOTE, so it carries the same stamp a cite does. Red finding
-	// a supporting source for blue's claim and that source being retracted is the worst case this
-	// field exists for: the strongest thing an adversarial process produces, resting on withdrawn
-	// work, with nothing in the document saying so.
-	WorkStatus *WorkStatus `protobuf:"varint,15,opt,name=work_status,json=workStatus,proto3,enum=feov.record.v1.WorkStatus,oneof" json:"work_status,omitempty"`
 	// WHICH PART OF THE WORK RED'S COPY IS. A verdict read off an abstract confirms what the abstract
 	// says; this is what lets a reader of the record tell that from a verdict on the study.
 	SourceCompleteness *SourceCompleteness `protobuf:"varint,16,opt,name=source_completeness,json=sourceCompleteness,proto3,enum=feov.record.v1.SourceCompleteness,oneof" json:"source_completeness,omitempty"`
@@ -4545,24 +4522,17 @@ type Verify struct {
 	Bridge *BridgeKind `protobuf:"varint,17,opt,name=bridge,proto3,enum=feov.record.v1.BridgeKind,oneof" json:"bridge,omitempty"`
 	// WHOSE BYTES RED'S READING WAS MADE AGAINST, stamped by the tool from the run's fetch cache as
 	// Cite's pair is: the entry the source's url resolves to when the reading is written — the
-	// citation's url for `verify`, the typed url for `corroborate`. A cache with no copy of it is
-	// not_cached. Their readers: `show evidence`'s verification rows and a labelled corroboration's
-	// source row, and a labelled corroboration's note and Bibliography line in the report.
+	// citation's url for `verify --anchor`, the typed url for `verify --url`. A cache with no copy of
+	// it is not_cached. Their reader: `show evidence`'s verification rows.
 	CopySubstitution *CopySubstitution `protobuf:"varint,18,opt,name=copy_substitution,json=copySubstitution,proto3,enum=feov.record.v1.CopySubstitution,oneof" json:"copy_substitution,omitempty"`
 	CopyUrl          *string           `protobuf:"bytes,19,opt,name=copy_url,json=copyUrl,proto3,oneof" json:"copy_url,omitempty"`
-	// THE COPY A LABELLED CORROBORATION READ, by the sha the run's cache holds it under, stamped by the
-	// tool with the footnote as a cite's sha256 is. Empty where the cache held no copy
-	// (copy_substitution says not_cached), and on a reading that minted no footnote. Its readers: the
-	// corroboration's source row in `show evidence`, which is how a lens names that copy to `show
-	// source` and `render-page`, and `show source --anchor`.
-	Sha256 *string `protobuf:"bytes,20,opt,name=sha256,proto3,oneof" json:"sha256,omitempty"`
-	// THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that finds
-	// against (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
+	// THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that mints
+	// (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
 	// minted, or the open gap of the reading's class on that sentence that refused the mint.
 	// carrier_minted says which — true when this reading's own act minted it, false when it names a
 	// standing gap. No flag sets either. Several readings may carry one gap. Their readers: the
-	// failed check (the found-against check's carrier), the mint budget (a gap its reading minted
-	// takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
+	// failed check (the found-against check's carrier), the mint budget (a gap a reading of a
+	// citation minted takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
 	// source line. Not `gap_id`: the idempotency key matches a field by that name first.
 	CarriedBy     *string `protobuf:"bytes,21,opt,name=carried_by,json=carriedBy,proto3,oneof" json:"carried_by,omitempty"`
 	CarrierMinted *bool   `protobuf:"varint,22,opt,name=carrier_minted,json=carrierMinted,proto3,oneof" json:"carrier_minted,omitempty"`
@@ -4656,13 +4626,6 @@ func (x *Verify) GetText() string {
 	return ""
 }
 
-func (x *Verify) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
-	}
-	return ""
-}
-
 func (x *Verify) GetPage() int32 {
 	if x != nil && x.Page != nil {
 		return *x.Page
@@ -4682,13 +4645,6 @@ func (x *Verify) GetReadingRenderSha() string {
 		return *x.ReadingRenderSha
 	}
 	return ""
-}
-
-func (x *Verify) GetWorkStatus() WorkStatus {
-	if x != nil && x.WorkStatus != nil {
-		return *x.WorkStatus
-	}
-	return WorkStatus_WORK_STATUS_UNSPECIFIED
 }
 
 func (x *Verify) GetSourceCompleteness() SourceCompleteness {
@@ -4715,13 +4671,6 @@ func (x *Verify) GetCopySubstitution() CopySubstitution {
 func (x *Verify) GetCopyUrl() string {
 	if x != nil && x.CopyUrl != nil {
 		return *x.CopyUrl
-	}
-	return ""
-}
-
-func (x *Verify) GetSha256() string {
-	if x != nil && x.Sha256 != nil {
-		return *x.Sha256
 	}
 	return ""
 }
@@ -7719,6 +7668,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "record.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: ([]GapClass)(nil),
+		Field:         50015,
+		Name:          "feov.record.v1.found_source_gap_classes",
+		Tag:           "varint,50015,rep,packed,name=found_source_gap_classes,enum=feov.record.v1.GapClass",
+		Filename:      "record.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: ([]*SqlCheck)(nil),
 		Field:         50002,
@@ -7830,21 +7787,29 @@ var (
 	E_Neighbor = &file_record_proto_extTypes[9]
 	// optional string distinguisher = 50013;
 	E_Distinguisher = &file_record_proto_extTypes[10]
-	// gap_classes ARE THE GAP CLASSES A READING WITH THIS OUTCOME MAY MINT ITS GAP IN, declared on the
-	// SourceOutcome values that find against a sentence (`refutes`, `absent`) and absent on every
-	// other. It says which classes an OUTCOME admits, never that a reading mints: a reading of a copy
-	// that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
+	// gap_classes ARE THE GAP CLASSES A READING OF A CITATION WITH THIS OUTCOME MAY MINT ITS GAP IN,
+	// declared on the SourceOutcome values that find against a sentence (`refutes`, `absent`) and
+	// absent on every other. It says which classes an OUTCOME admits, never that a reading mints: a
+	// reading of a copy that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
 	// record.ReadingGapClasses). An option, not a vocabulary facet: it is a list, and absent is its
 	// answer on a value that admits no gap.
 	//
 	// repeated feov.record.v1.GapClass gap_classes = 50014;
 	E_GapClasses = &file_record_proto_extTypes[11]
+	// found_source_gap_classes ARE THE GAP CLASSES A READING OF A SOURCE THE LENS FOUND (a Verify with
+	// no anchor) WITH THIS OUTCOME MAY MINT ITS GAP IN. A backing outcome admits `unsourced_claim` —
+	// the source backs the sentence, and the defect is that the report cites nothing for it — and
+	// `refutes` admits `claim_contradicts_source`; `absent` and `unreachable` admit none, so such a
+	// reading is recorded and mints nothing. Read through record.ReadingGapClasses, beside gap_classes.
+	//
+	// repeated feov.record.v1.GapClass found_source_gap_classes = 50015;
+	E_FoundSourceGapClasses = &file_record_proto_extTypes[12]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[12]
+	E_Check = &file_record_proto_extTypes[13]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -8177,7 +8142,7 @@ const file_record_proto_rawDesc = "" +
 	"\x14_source_completenessB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
 	"\t_copy_urlJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x05claimR\x10source_text_read\"\xf8\x0e\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\xfb\r\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
@@ -8190,22 +8155,18 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\x06R\n" +
 	"confidence\x88\x01\x01\x12\xa3\x01\n" +
-	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\aR\x04text\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\v \x01(\tH\bR\x05label\x88\x01\x01\x12\x17\n" +
-	"\x04page\x18\f \x01(\x05H\tR\x04page\x88\x01\x01\x12+\n" +
-	"\x0fpage_render_sha\x18\r \x01(\tH\n" +
-	"R\rpageRenderSha\x88\x01\x01\x121\n" +
-	"\x12reading_render_sha\x18\x0e \x01(\tH\vR\x10readingRenderSha\x88\x01\x01\x12F\n" +
-	"\vwork_status\x18\x0f \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\fR\n" +
-	"workStatus\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
-	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\x0eR\x06bridge\x88\x01\x01\x12X\n" +
-	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\x0fR\x10copySubstitution\x88\x01\x01\x12$\n" +
-	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x10R\acopyUrl\x88\x01\x01\x12!\n" +
-	"\x06sha256\x18\x14 \x01(\tB\x04\xc0\xb5\x18\x00H\x11R\x06sha256\x88\x01\x01\x125\n" +
+	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\aR\x04text\x88\x01\x01\x12\x17\n" +
+	"\x04page\x18\f \x01(\x05H\bR\x04page\x88\x01\x01\x12+\n" +
+	"\x0fpage_render_sha\x18\r \x01(\tH\tR\rpageRenderSha\x88\x01\x01\x121\n" +
+	"\x12reading_render_sha\x18\x0e \x01(\tH\n" +
+	"R\x10readingRenderSha\x88\x01\x01\x12^\n" +
+	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\vR\x12sourceCompleteness\x88\x01\x01\x12E\n" +
+	"\x06bridge\x18\x11 \x01(\x0e2\x1a.feov.record.v1.BridgeKindB\f\x82\xb5\x18\b\x12\x06bridgeH\fR\x06bridge\x88\x01\x01\x12X\n" +
+	"\x11copy_substitution\x18\x12 \x01(\x0e2 .feov.record.v1.CopySubstitutionB\x04\xc0\xb5\x18\x00H\rR\x10copySubstitution\x88\x01\x01\x12$\n" +
+	"\bcopy_url\x18\x13 \x01(\tB\x04\xc0\xb5\x18\x00H\x0eR\acopyUrl\x88\x01\x01\x125\n" +
 	"\n" +
-	"carried_by\x18\x15 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x12R\tcarriedBy\x88\x01\x01\x12*\n" +
-	"\x0ecarrier_minted\x18\x16 \x01(\bH\x13R\rcarrierMinted\x88\x01\x01B\b\n" +
+	"carried_by\x18\x15 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x0fR\tcarriedBy\x88\x01\x01\x12*\n" +
+	"\x0ecarrier_minted\x18\x16 \x01(\bH\x10R\rcarrierMinted\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
@@ -8214,19 +8175,16 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
-	"\x05_textB\b\n" +
-	"\x06_labelB\a\n" +
+	"\x05_textB\a\n" +
 	"\x05_pageB\x12\n" +
 	"\x10_page_render_shaB\x15\n" +
-	"\x13_reading_render_shaB\x0e\n" +
-	"\f_work_statusB\x16\n" +
+	"\x13_reading_render_shaB\x16\n" +
 	"\x14_source_completenessB\t\n" +
 	"\a_bridgeB\x14\n" +
 	"\x12_copy_substitutionB\v\n" +
-	"\t_copy_urlB\t\n" +
-	"\a_sha256B\r\n" +
+	"\t_copy_urlB\r\n" +
 	"\v_carried_byB\x11\n" +
-	"\x0f_carrier_mintedJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\xcd\t\n" +
+	"\x0f_carrier_mintedJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\x0f\x10\x10J\x04\b\x14\x10\x15R\treferenceR\vindependentR\x05labelR\vwork_statusR\x06sha256\"\xcd\t\n" +
 	"\vComputation\x12*\n" +
 	"\x0ecomputation_id\x18\x01 \x01(\tH\x00R\rcomputationId\x88\x01\x01\x12 \n" +
 	"\x03key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\x03key\x88\x01\x01\x12\"\n" +
@@ -8637,7 +8595,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1aCLASS_MATERIAL_UNSPECIFIED\x10\x00\x12\x91\x01\n" +
 	"\x15CLASS_MATERIAL_ALWAYS\x10\x01\x1av\x8a\xb5\x18revery gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on\x12\x85\x01\n" +
 	"\x14CLASS_MATERIAL_NEVER\x10\x02\x1ak\x8a\xb5\x18gno gap of this class is material, whatever its grade — it stays on the board and never holds the gate\x12m\n" +
-	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\xf9W\n" +
+	"\x17CLASS_MATERIAL_BY_GRADE\x10\x03\x1aP\x8a\xb5\x18La gap of this class is material when its current severity is medium or above*\x81Y\n" +
 	"\bGapClass\x12\x19\n" +
 	"\x15GAP_CLASS_UNSPECIFIED\x10\x00\x12\xda\x02\n" +
 	"%GAP_CLASS_CROSS_SECTION_CONTRADICTION\x10\x01\x1a\xae\x02\x8a\xb5\x18}two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for themص\x18\x01\xe2\xb5\x18\x1cclaim_contradicts_own_record\xea\xb5\x18\x84\x01are both statements in the report's text, or is one of them the run's record — an inquiry's fate, an edit, a computation's output?\x12\xc3\x03\n" +
@@ -8668,8 +8626,8 @@ const file_record_proto_rawDesc = "" +
 	"(GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION\x10\x19\x1a\xf9\x02\x8a\xb5\x18\xed\x01a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not aboutص\x18\x01\xe2\xb5\x18\x0funsourced_claim\xea\xb5\x18lis a source recorded against the claim that does not back it, or is there no source behind the claim at all?\x12\xf3\x02\n" +
 	"0GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION\x10\x1a\x1a\xbc\x02\x8a\xb5\x18\xb0\x01the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is droppedص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18]does the source state the result, under a condition the report drops, or not state it at all?\x12\xd7\x02\n" +
 	"\x1bGAP_CLASS_LIVE_SOURCE_DRIFT\x10\x1b\x1a\xb5\x02\x8a\xb5\x18\xa7\x01a claim or computation rests on a source's or tree's current state rather than the state the report cites or pins, so it reads differently now from when it was writtenص\x18\x01\xe2\xb5\x18\x15artifact_preservation\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\xd3\x02\n" +
-	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xad\x02\x8a\xb5\x18\xa3\x01an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x8c\x03\n" +
-	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xec\x02\x8a\xb5\x18\xd1\x01a claim of fact or a quotation the report states with no source or computation behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never namesص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18lis a source recorded against the claim that does not back it, or is there no source behind the claim at all?\x12\x86\x01\n" +
+	"\x1fGAP_CLASS_ARTIFACT_PRESERVATION\x10\x1c\x1a\xad\x02\x8a\xb5\x18\xa3\x01an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it isص\x18\x03\xe2\xb5\x18\x11live_source_drift\xea\xb5\x18his the artifact present and changed or read live, or missing or broken where the report says it is kept?\x12\x94\x04\n" +
+	"\x19GAP_CLASS_UNSOURCED_CLAIM\x10\x1d\x1a\xf4\x03\x8a\xb5\x18\xc0\x02a claim of fact or a quotation the REPORT states with no citation or computation of its own behind it — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names. A source a lens read that backs the sentence is not the report's citation: the gap stands until blue cites oneص\x18\x03\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18\x84\x01does the report cite a source for the sentence that does not back it, or does the report cite nothing for it, whatever a lens found?\x12\x86\x01\n" +
 	"\x16GAP_CLASS_UNCLASSIFIED\x10\x1e\x1aj\x8a\xb5\x18bno other value fits this gap. The mint's reason names the nearest value and what it does not coverص\x18\x03\x12\x86\x02\n" +
 	"\"GAP_CLASS_CLAIM_CONTRADICTS_SOURCE\x10\x1f\x1a\xdd\x01\x8a\xb5\x18ia source read against the sentence — cited by blue or found by red — states otherwise than the reportص\x18\x01\xe2\xb5\x18\x1ecitation_figure_misattribution\xea\xb5\x18Fdoes the source say otherwise than the sentence, or not say it at all?*\xdc\r\n" +
 	"\vDisposition\x12\x1b\n" +
@@ -8681,14 +8639,14 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x9c\x04\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\x81\x04\x8a\xb5\x18\xf8\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xda\v\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xab\x10\n" +
 	"\rSourceOutcome\x12\x1e\n" +
-	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +
-	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\xda\x01\x8a\xb5\x18\xd5\x01you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows\x12\x9a\x01\n" +
-	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
-	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12\xad\x01\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x90\x01\x8a\xb5\x18\x85\x01you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act\xf2\xb5\x18\x02\x1f\x1a\x12\xa9\x02\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\x8d\x02\x8a\xb5\x18\x82\x02you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act\xf2\xb5\x18\x02\x19\x1a\x12\xc8\x03\n" +
+	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xa5\x03\n" +
+	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\x87\x03\x8a\xb5\x18\xfd\x02you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xc9\x02\n" +
+	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1a\x9f\x02\x8a\xb5\x18\x95\x02it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\x99\x02\n" +
+	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1a\xff\x01\x8a\xb5\x18\xf5\x01it gestures at the claim, or is itself uncorroborated: thin support, not none. On a source you found (no citation), a reading of the work with this outcome on a sentence the report cites nothing for mints an `unsourced_claim` gap in the same act\xfa\xb5\x18\x01\x1d\x12\xb2\x01\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x95\x01\x8a\xb5\x18\x85\x01you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act\xf2\xb5\x18\x02\x1f\x1a\xfa\xb5\x18\x01\x1f\x12\xe9\x02\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xcd\x02\x8a\xb5\x18\xc2\x02you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act; on a source you found it records the reading and mints nothing\xf2\xb5\x18\x02\x19\x1a\x12\xc8\x03\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xa7\x03\x8a\xb5\x18\xa2\x03you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read*\xc6\x04\n" +
 	"\n" +
 	"BridgeKind\x12\x1b\n" +
@@ -8833,7 +8791,8 @@ const file_record_proto_rawDesc = "" +
 	"\bneighbor\x12!.google.protobuf.EnumValueOptions\x18܆\x03 \x01(\tR\bneighbor\x88\x01\x01:L\n" +
 	"\rdistinguisher\x12!.google.protobuf.EnumValueOptions\x18݆\x03 \x01(\tR\rdistinguisher\x88\x01\x01:^\n" +
 	"\vgap_classes\x12!.google.protobuf.EnumValueOptions\x18ކ\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\n" +
-	"gapClasses:Q\n" +
+	"gapClasses:v\n" +
+	"\x18found_source_gap_classes\x12!.google.protobuf.EnumValueOptions\x18߆\x03 \x03(\x0e2\x18.feov.record.v1.GapClassR\x15foundSourceGapClasses:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
@@ -9007,57 +8966,58 @@ var file_record_proto_depIdxs = []int32{
 	23,  // 65: feov.record.v1.Cite.copy_substitution:type_name -> feov.record.v1.CopySubstitution
 	8,   // 66: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
 	10,  // 67: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	21,  // 68: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
-	22,  // 69: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	9,   // 70: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
-	23,  // 71: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
-	24,  // 72: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
-	11,  // 73: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	12,  // 74: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	13,  // 75: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	26,  // 76: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	25,  // 77: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	59,  // 78: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	60,  // 79: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	65,  // 80: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	61,  // 81: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	63,  // 82: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
-	27,  // 83: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 84: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	28,  // 85: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 86: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	17,  // 87: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
-	15,  // 88: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	16,  // 89: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	18,  // 90: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	62,  // 91: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	64,  // 92: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
-	29,  // 93: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	30,  // 94: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	2,   // 95: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 96: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	83,  // 97: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	83,  // 98: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	84,  // 99: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	84,  // 100: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	84,  // 101: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	84,  // 102: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	84,  // 103: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	84,  // 104: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	84,  // 105: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
-	84,  // 106: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
-	84,  // 107: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
-	84,  // 108: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
+	22,  // 68: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	9,   // 69: feov.record.v1.Verify.bridge:type_name -> feov.record.v1.BridgeKind
+	23,  // 70: feov.record.v1.Verify.copy_substitution:type_name -> feov.record.v1.CopySubstitution
+	24,  // 71: feov.record.v1.Computation.basis:type_name -> feov.record.v1.Basis
+	11,  // 72: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	12,  // 73: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	13,  // 74: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	26,  // 75: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	25,  // 76: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	59,  // 77: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	60,  // 78: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	65,  // 79: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	61,  // 80: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	63,  // 81: feov.record.v1.Motion.position:type_name -> feov.record.v1.PositionMotion
+	27,  // 82: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 83: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	28,  // 84: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 85: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	17,  // 86: feov.record.v1.PositionHearing.ruling:type_name -> feov.record.v1.PositionRuling
+	15,  // 87: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	16,  // 88: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	18,  // 89: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	62,  // 90: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	64,  // 91: feov.record.v1.MotionRule.position:type_name -> feov.record.v1.PositionHearing
+	29,  // 92: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	30,  // 93: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	2,   // 94: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 95: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	83,  // 96: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	83,  // 97: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	84,  // 98: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	84,  // 99: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	84,  // 100: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	84,  // 101: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	84,  // 102: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	84,  // 103: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	84,  // 104: feov.record.v1.material_default:extendee -> google.protobuf.EnumValueOptions
+	84,  // 105: feov.record.v1.neighbor:extendee -> google.protobuf.EnumValueOptions
+	84,  // 106: feov.record.v1.distinguisher:extendee -> google.protobuf.EnumValueOptions
+	84,  // 107: feov.record.v1.gap_classes:extendee -> google.protobuf.EnumValueOptions
+	84,  // 108: feov.record.v1.found_source_gap_classes:extendee -> google.protobuf.EnumValueOptions
 	85,  // 109: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
 	32,  // 110: feov.record.v1.sql:type_name -> feov.record.v1.Sql
 	5,   // 111: feov.record.v1.material_default:type_name -> feov.record.v1.ClassMaterial
 	6,   // 112: feov.record.v1.gap_classes:type_name -> feov.record.v1.GapClass
-	31,  // 113: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	114, // [114:114] is the sub-list for method output_type
-	114, // [114:114] is the sub-list for method input_type
-	110, // [110:114] is the sub-list for extension type_name
-	97,  // [97:110] is the sub-list for extension extendee
-	0,   // [0:97] is the sub-list for field type_name
+	6,   // 113: feov.record.v1.found_source_gap_classes:type_name -> feov.record.v1.GapClass
+	31,  // 114: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	115, // [115:115] is the sub-list for method output_type
+	115, // [115:115] is the sub-list for method input_type
+	110, // [110:115] is the sub-list for extension type_name
+	96,  // [96:110] is the sub-list for extension extendee
+	0,   // [0:96] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -9172,7 +9132,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      31,
 			NumMessages:   52,
-			NumExtensions: 13,
+			NumExtensions: 14,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

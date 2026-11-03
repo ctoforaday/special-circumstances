@@ -382,7 +382,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// that sitting open on it would hold it on work it cannot do; the next plan readies the lens, and
 	// that sitting lists it.
 	//
-	// Nothing else blocks a lens. The acts a lens genuinely has open to it — corroborating a source
+	// Nothing else blocks a lens. The acts a lens genuinely has open to it — reading a source
 	// blue never cited, among others — come from availableOf and land on this same list carrying
 	// Blocks:false: available work, none of it owed.
 	case "lens":

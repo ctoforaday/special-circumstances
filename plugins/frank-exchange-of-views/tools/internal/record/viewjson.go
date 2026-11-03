@@ -688,7 +688,7 @@ type GapBackingJSON struct {
 	Outcome    string `json:"outcome,omitempty"`
 	Confidence string `json:"confidence,omitempty"`
 	// VerifiedBy is the seat that checked it, so a lens can see whether its OWN check is the one
-	// standing — re-verifying your own corroboration is not independent.
+	// standing — re-verifying your own reading is not independent.
 	VerifiedBy string `json:"verified_by,omitempty"`
 }
 

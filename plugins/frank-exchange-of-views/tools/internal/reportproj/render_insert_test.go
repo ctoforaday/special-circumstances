@@ -54,15 +54,8 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append computation: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{CopySubstitution: recordpb.CopySubstitution_COPY_SUBSTITUTION_NONE.Enum(),
-		Label: proto.String("C-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
-		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
-		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf"),
-	}); err != nil {
-		t.Fatalf("append corroboration: %v", err)
-	}
 	if got, err := RenderFromRecord(runtest.Open(t, runDir)); err != nil || got != base {
-		t.Fatalf("a cite, a computation and a corroboration with no Anchor event rendered a marker: %q, %v", got, err)
+		t.Fatalf("a cite and a computation with no Anchor event rendered a marker: %q, %v", got, err)
 	}
 	for _, id := range []string{citeID, computationID} {
 		if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Anchor{

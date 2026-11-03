@@ -28,12 +28,9 @@ type Source struct {
 	Title      string
 	AccessDate string
 	Location   string
-	// Pages are the PDF pages an OCR span was found on, from blue's cite; a corroboration has
-	// none. Assembly prints them in the source's note, never in the Bibliography.
+	// Pages are the PDF pages an OCR span was found on, from blue's cite. Assembly prints them in
+	// the source's note, never in the Bibliography.
 	Pages []int32
-	// Corroborated marks a source red found itself (a supporting corroboration) rather than one
-	// blue cited. The Bibliography prefers blue's title for a URL both name.
-	Corroborated bool
 	// WorkStatus is what a maintained index says about the cited work — stamped by the tool at
 	// the cite, never typed. It reaches the reader: assembly prints a retraction in the source's
 	// note AND in its Bibliography line, because a reader who follows one may never see the
@@ -45,79 +42,39 @@ type Source struct {
 	// study and nothing else in the document tells the reader which it was.
 	SourceCompleteness recordpb.SourceCompleteness
 	// CopySubstitution and CopyURL say whose bytes a citation read when they are not the url's
-	// own, and where they came from — blue's cite, or the reading a corroboration was made against.
-	// Assembly prints the copy beside the url, because the url is what a reader follows and it is
+	// own, and where they came from. Assembly prints the copy beside the url, because the url is what a reader follows and it is
 	// not what was read.
 	CopySubstitution recordpb.CopySubstitution
 	CopyURL          string
 }
 
-// citedSource reads a citable source off an event body, if it is one.
-//
-// TWO EVENT TYPES CARRY A CITATION NOW, and that is the change. Blue's `cite` attaches a source
-// to a claim it is AUTHORING; red's `corroborate` records a source it FOUND, for a claim blue
-// made. #341 split them deliberately and this does not undo that — they stay separate acts with
-// separate verbs and separate readers. What they share is a minted label, and a label is what
-// makes a footnote.
-//
-// The comments here used to state red's exclusion as a property of the system: "Red's `lens cite`
-// carries no label and is EXCLUDED, so this is exactly the tool-inserted citation set." That was
-// accurate and it was the defect — red's independent corroboration reached no reader of the
-// document, and the strongest thing an adversarial process produces (a claim confirmed by a
-// source its author never chose) died in a projection. A human reader cares that the text has
-// appropriate references, not which team inserted them.
-//
-// ONLY A SUPPORTING CORROBORATION CARRIES A LABEL. The verb withholds it for `refutes`, `absent`
-// and `weak`: a source that CONTRADICTS the sentence is not a reference backing it, and rendered
-// in the bibliography it would read as support. A reading of the work that finds against the
-// sentence reaches the board as the gap its act mints (AppendReading).
+// citedSource reads a citable source off an event body, if it is one: blue's `cite`, the one act that
+// places a citation. A lens's reading of a source it found places none — it mints the gap blue
+// answers with a cite — so a source enters the report only by blue's cite.
 func citedSource(body proto.Message) (Source, bool) {
-	switch b := body.(type) {
-	case *recordpb.Cite:
-		return Source{
-			Label:      b.GetLabel(),
-			URL:        b.GetUrl(),
-			Sha256:     b.GetSha256(),
-			Title:      b.GetTitle(),
-			AccessDate: b.GetAccessDate(),
-			Location:   b.GetLocation(),
-			Pages:      b.GetPages(),
-			WorkStatus: b.GetWorkStatus(),
-
-			SourceCompleteness: b.GetSourceCompleteness(),
-			CopySubstitution:   b.GetCopySubstitution(),
-			CopyURL:            b.GetCopyUrl(),
-		}, true
-	case *recordpb.Verify:
-		// No sha: the bibliography renders title + url + access date, never the hash, and the copy
-		// red's reading was made against is the copy pair below. `location` is blue's
-		// placement field; a corroboration's span is its `claim`.
-		return Source{
-			Label:        b.GetLabel(),
-			URL:          b.GetUrl(),
-			Title:        b.GetTitle(),
-			AccessDate:   b.GetAccessDate(),
-			Location:     b.GetClaim(),
-			Corroborated: true,
-			WorkStatus:   b.GetWorkStatus(),
-
-			SourceCompleteness: b.GetSourceCompleteness(),
-			CopySubstitution:   b.GetCopySubstitution(),
-			CopyURL:            b.GetCopyUrl(),
-		}, true
+	b, ok := body.(*recordpb.Cite)
+	if !ok {
+		return Source{}, false
 	}
-	return Source{}, false
+	return Source{
+		Label:      b.GetLabel(),
+		URL:        b.GetUrl(),
+		Sha256:     b.GetSha256(),
+		Title:      b.GetTitle(),
+		AccessDate: b.GetAccessDate(),
+		Location:   b.GetLocation(),
+		Pages:      b.GetPages(),
+		WorkStatus: b.GetWorkStatus(),
+
+		SourceCompleteness: b.GetSourceCompleteness(),
+		CopySubstitution:   b.GetCopySubstitution(),
+		CopyURL:            b.GetCopyUrl(),
+	}, true
 }
 
 // CitedSources returns the distinct cited sources — one per blue `cite` label, in
 // first-seen (label) order. It is the composer input for the assembled ## Bibliography and,
 // via its labels, the EXPECTED set the unbacked_citations detector checks.
-//
-// IT IS BOTH TEAMS' CITATIONS NOW. This said "Red's `lens cite` carries no label and is excluded,
-// so this is exactly the tool-inserted citation set" — the second half is still true and the
-// first is the thing that changed: a supporting corroboration mints a label and splices an
-// anchor, so it MUST be in this set or the blue-report lockdown reads red's anchor as a citation
-// blue dropped. See citedSource for why red's evidence stopped being excluded.
 func CitedSources(run Run) ([]Source, error) {
 	m, err := MergedEvents(run)
 	if err != nil {
@@ -137,9 +94,9 @@ func CitedSources(run Run) ([]Source, error) {
 		if !ok {
 			continue
 		}
-		// The empty-label filter is UNCHANGED and still load-bearing: an event with no label
-		// names no anchor, and CitationLabels — the EXPECTED set the lockdown compares against
-		// the report — must not gain a phantom. What changed is WHICH events can carry one.
+		// The empty-label filter is load-bearing: an event with no label names no anchor, and
+		// CitationLabels — the EXPECTED set the lockdown compares against the report — must not
+		// gain a phantom.
 		if src.Label == "" || seen[src.Label] {
 			continue
 		}
@@ -190,11 +147,8 @@ func citationLabelsAt(q recordsql.Querier) ([]string, error) {
 // CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,
 // which would otherwise re-derive the set inline and become a second copy of the rule.
 //
-// It exists because one already had. internal/scorecard built the unbacked_citations detector's
-// EXPECTED set with its own loop over `Cite` events, so widening this function to include red's
-// labelled corroborations left that detector on the old rule: blue dropping a RED citation
-// anchor would be caught by the hookgate lockdown and MISSED by the scorecard, two detectors
-// disagreeing about one protection. That is the duplication this schema exists to remove.
+// One rule, one function: the unbacked_citations detector and the hookgate lockdown read this
+// set, so the two cannot disagree about which anchors must be present.
 func CitationLabelsOf(events []*Event) []string { return citationLabelsOf(events) }
 
 func citationLabelsOf(events []*Event) []string {
@@ -434,41 +388,4 @@ func ComputationAt(run Run, anchorID string) (Computation, error) {
 		}
 	}
 	return Computation{}, fmt.Errorf("--anchor names %s, which no computation on this record carries (%d computation(s)) — it takes the id inside a computation's token in the report; `show evidence` lists every computation by its anchor", anchorID, len(computations))
-}
-
-// ExistingCorroboration returns the labelled corroboration this seat already recorded for the same
-// source and the same claim, nil for none, so a crash-retried `lens corroborate` returns its anchor
-// instead of splicing a second one — and the verb can hold the retry to the reading it repeats.
-//
-// IT REPLACES AN IDEMPOTENCY THE LABEL TOOK AWAY. A corroboration used to key on its `url`, so a
-// retry collided and was refused — the same mechanism that also capped one source at one claim
-// per sitting, which is why the key moved to the minted label. But a minted label is fresh every
-// call, so nothing collided any more and a retry wrote a DUPLICATE: the exact cost that made
-// "drop url from keyFields" the wrong answer, arrived at by another route.
-//
-// Keyed on (source, claim) rather than on a seat-supplied `--key` like blue's cite, because the
-// pair IS the act — corroborating one claim from one source twice is one corroboration, and a
-// retry should not need the seat to have anticipated it.
-func ExistingCorroboration(run Run, seatID, url, claim string) (*recordpb.Verify, error) {
-	if url == "" || claim == "" {
-		return nil, nil
-	}
-	var label string
-	if _, err := queryRow(run, []any{&label},
-		`SELECT v."label" FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
-		  WHERE e."seat_id" = ? AND v."url" = ? AND v."claim" = ? AND COALESCE(v."label", '') != ''
-		  ORDER BY v."event_id" LIMIT 1`,
-		seatID, url, claim); err != nil || label == "" {
-		return nil, err
-	}
-	m, err := MergedEvents(run)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range m.Events {
-		if v := e.GetVerify(); v != nil && v.GetLabel() == label {
-			return v, nil
-		}
-	}
-	return nil, fmt.Errorf("corroboration %s is in the record's verify table and in none of its events", label)
 }

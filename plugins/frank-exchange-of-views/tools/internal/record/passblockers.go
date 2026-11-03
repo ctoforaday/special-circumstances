@@ -303,7 +303,7 @@ func failedCheckRefusal(bs []Blocker) string {
 			"A computation clears when it is judged sound again or retired, a citation when a lens reads its source or blue retires it, and either when blue's edit changes its sentence, which leaves it unchecked; the close of the gap that carries it is refused while the check stands, and no bench ruling clears it.")
 	}
 	if states[CheckFoundAgainst] {
-		said = append(said, "A PASS would certify a sentence a lens's reading of its cited source finds against. Its gap was minted by that reading, and its reader owes no mint; blue edits the sentence, or retires or replaces the citation. "+
+		said = append(said, "A PASS would certify a sentence a lens's reading of its cited source finds against: the reading found the source against the sentence, and its reader owes no mint — the gap a reading mints in its act carries it, and an archived reading names none; blue edits the sentence, or retires or replaces the citation. "+
 			"It clears when its reader's own later reading of the sentence as it stands backs it, or when blue edits the sentence, which leaves it unchecked, or retires the citation; another lens's backing reading beside it is a disagreement and clears nothing. "+
 			"The close of the gap that carries it is refused while it stands; a closing ruling of the bench closes that gap, and the check still holds the PASS — no bench ruling clears it.")
 	}

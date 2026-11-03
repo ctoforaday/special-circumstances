@@ -49,6 +49,11 @@ type remap struct {
 	// archivedNotes is whether the source predates the computation (epoch 49), whose seats' wording
 	// names a computation's note `[^P<n>]` (notes).
 	archivedNotes bool
+	// dropped is every citation label an archived reading of a source its lens found minted, in
+	// both the archived and the migrated spelling (dropLabels). No reading places a citation, so
+	// each label's token is removed from every field and its id from every id list; in a seat's
+	// wording a bare label is left as written.
+	dropped map[string]bool
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -108,7 +113,7 @@ var (
 var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
-		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Computation.computation_id
+		Finding.about_ref Anchor.id Anchor.sentence_of Cite.label Verify.anchor Verify.carried_by Computation.computation_id
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors Retire.answers
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		DocketMotion.grounds InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
@@ -137,9 +142,9 @@ var (
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.copy_url Verify.page_render_sha
-		Verify.reading_render_sha Verify.sha256 Verify.title Verify.url`)
+		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
-		"Verify.label": "citation", "Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",
+		"Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",
 		"Position.position_id": "position"}
 )
 
@@ -221,13 +226,32 @@ func (r *remap) id(kind, old string) string {
 	if old == "" || currentID.MatchString(old) {
 		return old
 	}
+	r.ids[old] = r.spelling(kind, old)
+	return r.ids[old]
+}
+
+// spelling is the id of a kind the migrated record would carry for an archived one, remembering
+// nothing.
+func (r *remap) spelling(kind, old string) string {
+	if old == "" || currentID.MatchString(old) {
+		return old
+	}
 	sum := sha256.Sum256([]byte(r.sourceHash + old))
 	b := [4]byte(sum[:4])
 	if m := hexID.FindStringSubmatch(old); m != nil {
 		hex.Decode(b[:], []byte(m[1]))
 	}
-	r.ids[old] = anchor.ID(kind, b)
-	return r.ids[old]
+	return anchor.ID(kind, b)
+}
+
+// dropLabels records the citation labels to drop (remap.dropped), each in both spellings.
+func (r *remap) dropLabels(labels []string) {
+	if r.dropped == nil {
+		r.dropped = map[string]bool{}
+	}
+	for _, l := range labels {
+		r.dropped[l], r.dropped[r.spelling("citation", l)] = true, true
+	}
 }
 
 // apply respells one translated body in place, by the three field lists. archived is the label its
@@ -261,8 +285,18 @@ func (r *remap) walk(m protoreflect.Message) {
 		case fd.Kind() == protoreflect.MessageKind && !fd.IsMap():
 			r.walk(v.Message())
 		case fd.Kind() == protoreflect.StringKind && fd.IsList():
-			for l, j := v.List(), 0; j < l.Len(); j++ {
-				l.Set(j, protoreflect.ValueOfString(r.respell(name, l.Get(j).String())))
+			// A DROPPED LABEL LEAVES AN ID LIST, its element removed rather than respelled to "": an
+			// empty element would read as an id nobody minted.
+			l := v.List()
+			var kept []string
+			for j := 0; j < l.Len(); j++ {
+				if e := l.Get(j).String(); !idFields[name] || !r.dropped[e] {
+					kept = append(kept, r.respell(name, e))
+				}
+			}
+			l.Truncate(0)
+			for _, e := range kept {
+				l.Append(protoreflect.ValueOfString(e))
 			}
 		case fd.Kind() == protoreflect.StringKind:
 			m.Set(fd, protoreflect.ValueOfString(r.respell(name, v.String())))
@@ -296,10 +330,17 @@ func (r *remap) notes(field, v string) string {
 	return b.String()
 }
 
-// respellIDs is respell's tokens and ids.
+// respellIDs is respell's tokens and ids. A dropped label's token is removed from every field
+// whatever its list. Only its archived spelling is read: the archives whose labels are in the one
+// shape (m27, m29, m35) hold no token of one in any source field (their citations reach a render
+// through the label's Anchor row, which replay writes as no event), and
+// TestNoMigratedArchiveHoldsALensPlacedToken fails on a migrated field that holds one.
 func (r *remap) respellIDs(field, v string) string {
 	v = archivedToken.ReplaceAllStringFunc(v, func(tok string) string {
 		m := archivedToken.FindStringSubmatch(tok)
+		if r.dropped[m[2]] {
+			return ""
+		}
 		return anchor.Token(r.id(tagKind[m[1]], m[2]))
 	})
 	switch {

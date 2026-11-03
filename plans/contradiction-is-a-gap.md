@@ -1920,7 +1920,8 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
      respelled to `""`: the respelling with an empty replacement turns a list element into an empty
      string, not a removal, and `["F-84381c8e", ""]` would pass a test that only asks for the label's
      absence. b9's `reopened` at 164 and 167 is archived as `[f-84381c8e, c-d49a32c4]` (each, re-read in
-     `blue_edit_reopened`); migrated, each is exactly the one respelled `f-84381c8e`;
+     `blue_edit_reopened`); migrated, each is exactly `[F-84381c8e, G-ddb5c38b]` — the respelled finding,
+     and the gap the edit answers, as the migration of b9's 114 and 115 adds theirs (measured, phase 2);
    - a Verify whose `anchor` is a dropped label (3) becomes a reading of that label's source: `anchor`
      cleared, <!-- CHANGED F13b --> `url` and `title` from a label → (url, title) map built in the pass over
      the SOURCE stream that collects the dropped-label set — never through the batch's querier, because the
@@ -1999,12 +2000,16 @@ Translation (in `migrate/replay.go`, beside `contradictionRef`, which it replace
   reports then name nowhere. <!-- CHANGED F13b --> The readings stand as readings of the
   sources their lenses found, carrying no gap; the 3 later re-readings of `c-16fa2ede`/`c-95969800`
   (quadratic) become readings of those sources. No verdict moves: quadratic ended CEILING, b7, b9, m27,
-  m29 and m35 carry their recorded outcomes (archived outcomes are carried, not recomputed). NOT
-  MEASURED: whether any end-of-run PASS blocker rests on a red citation — b9's blue edits 164 and 167
-  reopened `c-d49a32c4`, so b9's migrated end state may lose an `unchecked` blocker; the item-7 test
-  prints each of the six records' end blockers before and after, and the implementing phase states the
-  difference here. Prose that
-  names a label is archived text and stays as written. <!-- CHANGED F13 -->
+  m29 and m35 carry their recorded outcomes (archived outcomes are carried, not recomputed). MEASURED
+  (phase 2, the item-7 test's end blockers against the PR base's migration of the six records): b9 loses
+  one end blocker, `unchecked C-d49a32c4` (owner red-lens-evidence), and stays held by `material_gap
+  G-5cbbdc12` and three `lens_ready`; b7, m27, m29 and m35 hold the same end blockers before and after;
+  quadratic loses its three `contradiction` blockers — 187 and 531 (the GAP 2 corroborations above) and
+  553, the dark-side's `refutes` of `C-4e4c92af`, the contradiction that outlived the edit (the bullet
+  above) — and keeps its 12 `unchecked`, 3 `lens_ready` and `inquiry_review`. Prose that
+  names a label is archived text and stays as written. No archived computation's `cites` names any of
+  the 15 (measured by the #1657 session: none of the 39 archived `cites`), so the drop leaves no
+  dangling `--cites`. <!-- CHANGED F13 -->
 
 Tests [NEW / REWRITE], each driven through `migrate.Migrate` on the real archive, as `feov-migrate`
 runs it:
@@ -2018,7 +2023,8 @@ runs it:
   Verify that held a label, and the 3 that named one, has an empty `anchor` and the label's `url` and
   `title`; `record.CitedSources` holds blue's cites only; b9's edits 164 and 167 land, their `reopened`
   without `c-d49a32c4` — <!-- CHANGED F13b --> asserted as the EXACT list, the archived list minus the
-  label (`["F-84381c8e"]` in its respelled form), so an element respelled to `""` fails; the 3
+  label (`["F-84381c8e", "G-ddb5c38b"]`, the gap answered included), so an element respelled to `""`
+  fails; the 3
   re-readings' `url` and `title` equal the labelled readings' (the source-stream map); each migrated
   report renders (`TestEveryArchivedRunMigrates`' render) and its Bibliography holds no url only a label
   carried. <!-- CHANGED F13 -->
@@ -3060,11 +3066,12 @@ reader's own backing re-read (the re-read arm). The demand adds over the check e
 - **Several readings may carry one gap from several sources** (F13b's key): one seat in one sitting reads
   several urls against one sentence and each later reading names the first's gap. 1a′'s demand over the
   carrying Verifys reads them all.
-- **E1′, the cross-check once both land.** 1a′'s E1′ ("no verify row carries a label outside
-  evidence_anchor") is the cross-check of item 7's drop of the 15 lens-placed anchors: after this plan no
-  Verify has a `label` column at all (§III.1), so E1′ holds vacuously on every migrated record, and a
-  failure of it then means a label came back. Until 1a′ lands, `TestNoMigratedArchiveHoldsALensPlacedToken`
-  (§III.15 13b) is the gate.
+- **E1′, the cross-check once both land.** 1a′'s E1′, `TestEveryMigratedEvidenceAnchorHasAPlacingRow`,
+  reads no `verify` column: it asserts that every evidence anchor an `anchor` row or a report token names
+  is in `evidence_anchor`. It is the cross-check of item 7's drop of the 15 lens-placed anchors: measured
+  by the #1657 session on the epoch-50 archives, it fails on exactly the 15 lens-placed `C-` ids until the
+  drop lands and holds after it, so a failure of it then means a lens-placed anchor came back. Until 1a′
+  lands, `TestNoMigratedArchiveHoldsALensPlacedToken` (§III.15 13b) is the gate.
 - **Two 1a′ picks gblock made 2026-11-03 (relayed by the #1657 session; the option wording is that
   session's).** (a) A gap carried by several readings: any one reading that meets the demand is enough;
   after an edit, another reading's `unchecked` holds the PASS until it is re-read. (b) A claim retire

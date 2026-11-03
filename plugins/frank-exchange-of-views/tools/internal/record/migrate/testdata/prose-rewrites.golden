@@ -3875,27 +3875,19 @@
 2026-09-02_quadratic-formula	Finding.text	R2-7 -> G-7c6c6aa3	0". Reading the script, leg (b) — the R2-7 probe, "every `controll` form being abo
 2026-09-02_quadratic-formula	Finding.text	R2-6 -> G-47de120c	tely. LINEAGE, DECLARED. Descends from R2-6 (unsourced-quotation-or-appeal / punctu
 2026-09-02_quadratic-formula	Finding.text	R2-7 -> G-7c6c6aa3	tion, closed repaired by the bench) and R2-7 (exhaustive-sweep-omits-case, closed re
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	DOES NOT BACK. `show evidence` resolves c-95969800 to a red corroboration recorded in roun
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	lysis C. The anchor does not: `grep -c "c-95969800"` over blue/report.md returns 1, at lin
 2026-09-02_quadratic-formula	Finding.text	R2-6 -> G-47de120c	No predecessor. Related in kind to the R2-6 opinion's holding that an edit verb's s
 2026-09-02_quadratic-formula	Finding.text	R2-6 -> G-47de120c	resh finding rather than a successor to R2-6. RISK, GRADED. Likelihood: high that i
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	CCEPTANCE CHECK. At re-audit: `grep -n "c-95969800" blue/report.md` must place the anchor
 2026-09-02_quadratic-formula	Finding.text	p-941e30b3 -> K-941e30b3	ead()) = 79219 The anchored program p-941e30b3 prints `len(raw)` where `raw` is the DE
 2026-09-02_quadratic-formula	Finding.text	R1-2 -> G-7fc21236	word. LINEAGE, DECLARED. Same class as R1-2 -> R2-2 (figure-recount-fails): a state
 2026-09-02_quadratic-formula	Finding.text	R2-2 -> G-e684016d	INEAGE, DECLARED. Same class as R1-2 -> R2-2 (figure-recount-fails): a stated figure
 2026-09-02_quadratic-formula	Finding.text	R2-2 -> G-e684016d	re-raise of either — both are closed, R2-2 by the bench — but a fresh instance o
 2026-09-02_quadratic-formula	Finding.text	R2-2 -> G-e684016d	h — but a fresh instance of the class R2-2's repair declared open when it said "a
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	t is a substring of the second. I found c-95969800 sitting in the report's TITLE, backing
 2026-09-02_quadratic-formula	Log.text	p-be841542 -> K-be841542	TWO ANCHORS ON TWO DIFFERENT SENTENCES. p-be841542 and p-2184cf8d resolve to the same sha,
 2026-09-02_quadratic-formula	Log.text	p-2184cf8d -> K-2184cf8d	TWO DIFFERENT SENTENCES. p-be841542 and p-2184cf8d resolve to the same sha, 4ce45cca11d2…
 2026-09-02_quadratic-formula	Log.text	Q6 -> Q-585fa4aa	ce; blue-lane-2's single deferred line (Q6) is described accurately in the report
 2026-09-02_quadratic-formula	Verify.text	R2-7 -> G-7c6c6aa3	VED: blue's round-2 edit #21 (answering R2-7) rewrote the neighbouring "conflicting
 2026-09-02_quadratic-formula	Verify.text	R2-7 -> G-7c6c6aa3	g the source's self-contradiction. THE R2-7 REPAIR'S OWN PREMISE ALSO CHECKS AT THI
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	he corroboration that backs this count, c-95969800, is spliced into the report's TITLE. `s
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	e report's TITLE. `show report --anchor c-95969800` returns line 1: "# Is there a simpler
 2026-09-02_quadratic-formula	Finding.text	R2-2 -> G-e684016d	ent a whole round-2 edit (#5, answering R2-2 leg 3) making its counting recipe repro
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	-audit I will run `show report --anchor c-95969800` and require that the line it returns i
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	quadratic" -- and `show report --anchor c-95969800` confirms it. So the composed bibliogra
 2026-09-02_quadratic-formula	Log.text	L2-F2 -> F-253b5000	t match. I could not, so I raised it as L2-F2 instead and said in the finding that ne
 2026-09-02_quadratic-formula	Finding.text	L2-F1 -> F-dfee2fde	LIKE SIX DISCOVERIES. red-lens-r3-L2's L2-F1 has already found that the Matthew Yuan
 2026-09-02_quadratic-formula	Finding.text	L2-F1 -> F-dfee2fde	re-raising that site. What I hold that L2-F1 does not is the CAUSE, and the causes a
@@ -3946,9 +3938,6 @@
 2026-09-02_quadratic-formula	Mint.mint_reason	Q31 -> Q-ccd53337	sclosed. On the line-of-inquiry record, Q31 was DECLINED in round 2 on this reason:
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-5 -> G-0a58f64b	LINEAGE, DECLARED. Class successor to R2-5, which the bench closed as repaired for
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-5 -> G-0a58f64b	run this round. It does not relitigate R2-5's subject and the Medium-essay repair s
-2026-09-02_quadratic-formula	Mint.problem	c-95969800 -> C-95969800	The citation anchor c-95969800 is spliced into the report title after
-2026-09-02_quadratic-formula	Mint.acceptance_check	c-95969800 -> C-95969800	Run: feov-record show report --anchor c-95969800. It must return the Analysis C line con
-2026-09-02_quadratic-formula	Mint.mint_reason	c-95969800 -> C-95969800	…". The evidence projection resolves c-95969800 to a red corroboration recorded in roun
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-6 -> G-47de120c	h. It is related in kind to the bench's R2-6 holding that a span-locating operation
 2026-09-02_quadratic-formula	Mint.mint_reason	R2-6 -> G-47de120c	e this fresh rather than a successor to R2-6. WHAT MUST BECOME TRUE. The reference
 2026-09-02_quadratic-formula	Mint.problem	R2-7 -> G-7c6c6aa3	ks.py and reading it shows leg (b), the R2-7 probe, has no comparison, no RESULT lin
@@ -4041,7 +4030,6 @@
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	hen show work told me, unprompted: "gap R2-4 had a grade motion ACCEPTED and no regr
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	ning. The deltas, so they are not lost: R2-8 likelihood high -> medium; R2-4 likelih
 2026-09-02_quadratic-formula	Log.text	R2-4 -> G-396865bd	t lost: R2-8 likelihood high -> medium; R2-4 likelihood medium_high -> medium. Both
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	CHOR, AND ONE IS IN THE REPORT'S TITLE. c-95969800 was minted by a red corroboration in ro
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	on survives without the splice. This is R3-4, and its acceptance check explicitly al
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	ising to run. Bash substituted them, so R3-2's check reached the record reading "Fro
 2026-09-02_quadratic-formula	Log.text	R3-3 -> G-c58ddc4e	— the outputs, not the commands — and R3-3 lost its projection name entirely. The
@@ -4118,8 +4106,6 @@
 2026-09-02_quadratic-formula	ManifestRow.row	Q31 -> Q-ccd53337	techism 4 and Catechism 5 — PASS; (d) Q31 moved this round — PASS. NEW CLAIMS
 2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	eference at the sentence that makes it (c-aa79b982). The stranded anchor in the title cann
 2026-09-02_quadratic-formula	ManifestRow.row	p-7980f1e0 -> K-7980f1e0	f is re-derived in r3_absence_class.py (p-7980f1e0): 76 under the case-folded script-dropp
-2026-09-02_quadratic-formula	ManifestRow.row	c-95969800 -> C-95969800	K. Red's check is "show report --anchor c-95969800", and that flag does not exist on my su
-2026-09-02_quadratic-formula	ManifestRow.row	c-95969800 -> C-95969800	nd printing what precedes each. Result: c-95969800 and c-e606dcbe both in line 1; c-aa79b9
 2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	t precedes each. Result: c-95969800 and c-e606dcbe both in line 1; c-aa79b982 at the 76 se
 2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	95969800 and c-e606dcbe both in line 1; c-aa79b982 at the 76 sentence. Red's alternative b
 2026-09-02_quadratic-formula	ManifestRow.row	p-50c744cc -> K-50c744cc	Six legs adjudicated, 0 failing (proof p-50c744cc). Leg (c): 5 "sign choice" occurrences,
@@ -4145,7 +4131,6 @@
 2026-09-02_quadratic-formula	Log.text	c-7fd26be4 -> C-7fd26be4	s whose quotes contained double quotes (c-7fd26be4, c-5dce15c4) were spliced at an interio
 2026-09-02_quadratic-formula	Log.text	c-5dce15c4 -> C-5dce15c4	es contained double quotes (c-7fd26be4, c-5dce15c4) were spliced at an interior position i
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	PED FORM, so red's acceptance check for R3-4 ("show report --anchor c-95969800") is
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	e check for R3-4 ("show report --anchor c-95969800") is not runnable on my surface. The sh
 2026-09-02_quadratic-formula	Log.text	R1-6 -> G-d304bbb2	; and I deliberately did NOT re-dispute R1-6's impact, which red rejected last round
 2026-09-02_quadratic-formula	BlueEdit.text	R3-5 -> G-48310782	R3-5, FOLLOW-THROUGH, AND THE CHECK CAUGHT I
 2026-09-02_quadratic-formula	Computation.text	R3-5 -> G-48310782	R3-5, the shipped version. This is the same
@@ -4230,9 +4215,7 @@
 2026-09-02_quadratic-formula	MotionRule.opinion	R3-4 -> G-057d5781	TOOLING. AND FIRST, AGAIN, THE DOCKET. R3-4 WAS ALSO WITHHELD AS "MINTED FRESH THIS
 2026-09-02_quadratic-formula	MotionRule.opinion	Q33 -> Q-8123d799	an a control, and filed line of inquiry Q33 on it. That is a persisting dispute in
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-5 -> G-0a58f64b	but mint round. Under my predecessor's R2-5 holding the withholding rule needs the
-2026-09-02_quadratic-formula	MotionRule.opinion	c-95969800 -> C-95969800	EAD, AT THIS SEAT. show report --anchor c-95969800 returns line 1: the report's TITLE, whi
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	which now carries TWO citation anchors, c-e606dcbe and c-95969800, both resolving to the 2
-2026-09-02_quadratic-formula	MotionRule.opinion	c-95969800 -> C-95969800	es TWO citation anchors, c-e606dcbe and c-95969800, both resolving to the 2026 systematic
 2026-09-02_quadratic-formula	MotionRule.opinion	c-aa79b982 -> C-aa79b982	imes — now carries its own reference, c-aa79b982, at the sentence. So the substantive ha
 2026-09-02_quadratic-formula	MotionRule.opinion	R2-8 -> G-5a1d57a9	n the page. My predecessor's holding at R2-8 governs — a seat's concession does no
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	e control, all in the shipped artifact: c-e606dcbe, quote containing double-quote characte
@@ -4295,21 +4278,12 @@
 2026-09-02_quadratic-formula	Log.text	R3-3 -> G-c58ddc4e	luding the egress-proxy caveat, because R3-3 turns on a distinction between a contai
 2026-09-02_quadratic-formula	Log.text	R2-8 -> G-5a1d57a9	, because my predecessor established at R2-8 that this projection cannot support its
 2026-09-02_quadratic-formula	Log.text	R1-5 -> G-6722bfb9	leaves no event, and `show changes --id R1-5` renders nothing at the primary site of
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	d. Evidence I used only to confirm what c-95969800 resolved to for R3-4. - `declare` — I
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	confirm what c-95969800 resolved to for R3-4. - `declare` — I did use it, but I wa
 2026-09-02_quadratic-formula	Log.text	R3-2 -> G-99effe8a	ace for my cadence construal was inside R3-2's rationale, where it directly explains
 2026-09-02_quadratic-formula	Log.text	Q31 -> Q-ccd53337	red the lines-of-inquiry projection for Q31, and read the record store read-only to
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	ad-only to confirm the friction entries R3-4's alternative branch requires. The one
 2026-09-02_quadratic-formula	Verify.text	c-e606dcbe -> C-e606dcbe	The anchor c-e606dcbe is one of the two citation anchors phys
-2026-09-02_quadratic-formula	Verify.text	c-95969800 -> C-95969800	jection records for this anchor and for c-95969800. RECOMPUTED, NOT RE-READ. I implemente
-2026-09-02_quadratic-formula	Log.text	c-16fa2ede -> C-16fa2ede	endent-corroborations list with labels (c-16fa2ede, c-95969800, c-a3573578, c-bb0b387b, c-
-2026-09-02_quadratic-formula	Log.text	c-95969800 -> C-95969800	borations list with labels (c-16fa2ede, c-95969800, c-a3573578, c-bb0b387b, c-e2616972, c-
-2026-09-02_quadratic-formula	Log.text	c-a3573578 -> C-a3573578	st with labels (c-16fa2ede, c-95969800, c-a3573578, c-bb0b387b, c-e2616972, c-2d485fad), a
-2026-09-02_quadratic-formula	Log.text	c-bb0b387b -> C-bb0b387b	ls (c-16fa2ede, c-95969800, c-a3573578, c-bb0b387b, c-e2616972, c-2d485fad), all from prio
-2026-09-02_quadratic-formula	Log.text	c-e2616972 -> C-e2616972	de, c-95969800, c-a3573578, c-bb0b387b, c-e2616972, c-2d485fad), all from prior rounds. No
-2026-09-02_quadratic-formula	Log.text	c-2d485fad -> C-2d485fad	00, c-a3573578, c-bb0b387b, c-e2616972, c-2d485fad), all from prior rounds. Nothing in sli
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	ment defect (title-stranded anchors) is R3-4, bench-ruled defect_owed_elsewhere and
-2026-09-02_quadratic-formula	Log.text	c-bb0b387b -> C-bb0b387b	ach is already carried on the record as c-bb0b387b `weak` and banded low-medium in section
 2026-09-02_quadratic-formula	Log.text	p-7980f1e0 -> K-7980f1e0	s sitting. Eight proofs are unverified (p-7980f1e0, p-50c744cc, p-80431fbb, p-f8e4e0fe, p-
 2026-09-02_quadratic-formula	Log.text	p-50c744cc -> K-50c744cc	ight proofs are unverified (p-7980f1e0, p-50c744cc, p-80431fbb, p-f8e4e0fe, p-760bab00, p-
 2026-09-02_quadratic-formula	Log.text	p-80431fbb -> K-80431fbb	are unverified (p-7980f1e0, p-50c744cc, p-80431fbb, p-f8e4e0fe, p-760bab00, p-cf1655f9, p-
@@ -4329,12 +4303,10 @@
 2026-09-02_quadratic-formula	Verify.text	R3-4 -> G-057d5781	tence. I AM NOT RE-RAISING THE ANCHOR. R3-4 covers it and the bench ruled it defect
 2026-09-02_quadratic-formula	Verify.text	p-9bc5562c -> K-9bc5562c	he instrument-window argument and proof p-9bc5562c both rest on. - "Finally, 38 papers rem
 2026-09-02_quadratic-formula	Verify.text	R1-3 -> G-2dbf2d55	ng recommendation is inferred FROM, and R1-3 was about exactly that inference being
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	ent to "an auditing seat" in "round 2". c-95969800 is indeed red's, from round 2. c-e606dc
 2026-09-02_quadratic-formula	Finding.text	c-e606dcbe -> C-e606dcbe	95969800 is indeed red's, from round 2. c-e606dcbe is blue's own, minted in round 3 by blu
 2026-09-02_quadratic-formula	Finding.text	R3-4 -> G-057d5781	as the other side. I AM NOT RE-RAISING R3-4 AND I HAVE READ ITS RULING BEFORE FILIN
 2026-09-02_quadratic-formula	Finding.text	R3-4 -> G-057d5781	ORE FILING. LINEAGE: this descends from R3-4 (class misplaced-citation-anchor, close
 2026-09-02_quadratic-formula	Finding.text	c-e606dcbe -> C-e606dcbe	which now carries TWO citation anchors, c-e606dcbe and c-95969800 ... The first was splice
-2026-09-02_quadratic-formula	Finding.text	c-95969800 -> C-95969800	es TWO citation anchors, c-e606dcbe and c-95969800 ... The first was spliced by a red lens
 2026-09-02_quadratic-formula	Finding.text	c-e606dcbe -> C-e606dcbe	aph states, and the paragraph must name c-e606dcbe as placed by blue in round 3. I will re
 2026-09-02_quadratic-formula	Finding.text	c-e606dcbe -> C-e606dcbe	ice; I file it because the board routed c-e606dcbe to me as an unverified citation and bec
 2026-09-02_quadratic-formula	Log.text	R3-4 -> G-057d5781	fects (the two stranded title anchors / R3-4 defect_owed_elsewhere, doubled terminat
@@ -4352,9 +4324,7 @@
 2026-09-02_quadratic-formula	Log.text	Q32 -> Q-37996eaf	es (Q1-Q5,Q7,Q9-Q13,Q15-Q17,Q27,Q29,Q31,Q32,Q33) under "Awaiting a decision … not
 2026-09-02_quadratic-formula	Log.text	Q33 -> Q-8123d799	Q1-Q5,Q7,Q9-Q13,Q15-Q17,Q27,Q29,Q31,Q32,Q33) under "Awaiting a decision … not mov
 2026-09-02_quadratic-formula	Mint.problem	L2-F3 -> F-0d28b626	han left to be discovered." Surfaced by L2-F3 (red-lens-r4-L2); I verified every fact
-2026-09-02_quadratic-formula	Mint.problem	c-95969800 -> C-95969800	enance against the evidence projection: c-95969800 is red's round-2 corroboration of the "
 2026-09-02_quadratic-formula	Mint.problem	c-e606dcbe -> C-e606dcbe	endent` list, seat a round-2 red lens); c-e606dcbe is blue's own source, minted round 3 by
-2026-09-02_quadratic-formula	Mint.problem	c-95969800 -> C-95969800	nchor cannot be moved". It accounts for c-95969800 and is silent on c-e606dcbe. Two paragr
 2026-09-02_quadratic-formula	Mint.problem	c-e606dcbe -> C-e606dcbe	ccounts for c-95969800 and is silent on c-e606dcbe. Two paragraphs earlier the same sectio
 2026-09-02_quadratic-formula	Mint.problem	R3-4 -> G-057d5781	ve hides it. LINEAGE — descends from R3-4 (misplaced-citation-anchor, closed roun
 2026-09-02_quadratic-formula	Mint.problem	R3-4 -> G-057d5781	), named in supersedes. I have read the R3-4 opinion before filing and I honour it.
@@ -4364,11 +4334,8 @@
 2026-09-02_quadratic-formula	Mint.problem	c-e606dcbe -> C-e606dcbe	fix asks blue to state that BLUE placed c-e606dcbe in round 3 — blue attributing to its
 2026-09-02_quadratic-formula	Mint.problem	R3-4 -> G-057d5781	its OWN conduct — and the bench's own R3-4 rationale already recorded both anchors
 2026-09-02_quadratic-formula	Mint.problem	c-e606dcbe -> C-e606dcbe	id, say which seat placed each and that c-e606dcbe came from the round-3 repair, and recon
-2026-09-02_quadratic-formula	Mint.required_fix	c-95969800 -> C-95969800	(not one), names both by id, attributes c-95969800 to a red auditing seat in round 2 and c
 2026-09-02_quadratic-formula	Mint.required_fix	c-e606dcbe -> C-e606dcbe	0 to a red auditing seat in round 2 and c-e606dcbe to blue in round 3, and says that the s
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	via `show report`: expect exactly two, c-e606dcbe and c-95969800 (their presence is not a
-2026-09-02_quadratic-formula	Mint.acceptance_check	c-95969800 -> C-95969800	rt`: expect exactly two, c-e606dcbe and c-95969800 (their presence is not a failure and no
-2026-09-02_quadratic-formula	Mint.acceptance_check	c-95969800 -> C-95969800	e anchors, names both by id, attributes c-95969800 to a red auditing seat in round 2 and c
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	0 to a red auditing seat in round 2 and c-e606dcbe to blue in round 3, and is consistent w
 2026-09-02_quadratic-formula	Mint.acceptance_check	c-e606dcbe -> C-e606dcbe	A paragraph left singular, or silent on c-e606dcbe or on its round-3 blue origin, FAILS.
 2026-09-02_quadratic-formula	MotionRule.opinion	R1-6 -> G-d304bbb2	the program count. The scale is set by R1-6, where impact medium was a record-holde
@@ -4405,7 +4372,6 @@
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	fact at the leaf before minting R4-1. R4-1 (supersedes R3-4). The title line rende
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	before minting R4-1. R4-1 (supersedes R3-4). The title line renders TWO cite ancho
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	ers TWO cite anchors on "quadratic" — c-e606dcbe (blue's own, minted round 3 by blue-res
-2026-09-02_quadratic-formula	Position.text	c-95969800 -> C-95969800	le adding the Analysis C reference) and c-95969800 (a red auditing seat's round-2 corrobor
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	s singular throughout, and is silent on c-e606dcbe. Two paragraphs above it, the same sect
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	— the bench's own principle. I honour R3-4: I ask no anchor moved and accept none
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	no anchor moved and accept none can be. R3-4 adjudicated the anchor DEBT; it never a
@@ -4425,7 +4391,6 @@
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	alue is the bench's call, not mine, and R4-1 is a cheap, low-severity prose repair —
 2026-09-02_quadratic-formula	BlueEdit.text	R4-1 -> G-dd976878	R4-1 accepted and repaired. Red is right and
 2026-09-02_quadratic-formula	BlueEdit.text	R3-4 -> G-057d5781	own; no anchor is moved, honouring the R3-4 ruling that the splice is a tooling deb
-2026-09-02_quadratic-formula	BlueEdit.text	c-95969800 -> C-95969800	t the leaf via the evidence projection: c-95969800 is red-lens-r2-L1's round-2 corroborati
 2026-09-02_quadratic-formula	BlueEdit.text	c-e606dcbe -> C-e606dcbe	red-lens-r2-L1's round-2 corroboration; c-e606dcbe is blue-respond-r3's round-3 source, wh
 2026-09-02_quadratic-formula	BlueEdit.text	c-aa79b982 -> C-aa79b982	d. The 76-count sentence itself carries c-aa79b982 (verified at line 156). The repair stat
 2026-09-02_quadratic-formula	BlueEdit.text	c-e606dcbe -> C-e606dcbe	ts placing seat and round, records that c-e606dcbe stranded during the round-3 repair, and
@@ -4448,14 +4413,11 @@
 2026-09-02_quadratic-formula	Inquiry.reason	R4-1 -> G-dd976878	irmed pursued. Round 4's only open gap, R4-1, was a prose-consistency repair to the
 2026-09-02_quadratic-formula	Inquiry.reason	R4-1 -> G-dd976878	irmed pursued. Round 4's only open gap, R4-1, was a prose-consistency repair to the
 2026-09-02_quadratic-formula	Inquiry.reason	R4-1 -> G-dd976878	Reaffirmed pursued. R4-1 (red-lens-r4-L2) is the direct successo
-2026-09-02_quadratic-formula	Inquiry.reason	c-95969800 -> C-95969800	ed the disclosure to name both anchors (c-95969800, red round 2; c-e606dcbe, blue round 3)
 2026-09-02_quadratic-formula	Inquiry.reason	c-e606dcbe -> C-e606dcbe	both anchors (c-95969800, red round 2; c-e606dcbe, blue round 3), attribute each to its p
 2026-09-02_quadratic-formula	Inquiry.reason	c-e606dcbe -> C-e606dcbe	ch to its placing seat, and record that c-e606dcbe stranded while blue was adding the Anal
 2026-09-02_quadratic-formula	Inquiry.reason	R3-4 -> G-057d5781	ebt remains owed outside the debate per R3-4. The remedy this line named (never put
 2026-09-02_quadratic-formula	ManifestRow.row	R4-1 -> G-dd976878	R4-1 receipt. FIGURE recomputed: cite-anchor
 2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	t line 1 via show report = exactly two (c-e606dcbe, c-95969800), matching the repaired pro
-2026-09-02_quadratic-formula	ManifestRow.row	c-95969800 -> C-95969800	show report = exactly two (c-e606dcbe, c-95969800), matching the repaired prose's 'TWO' a
-2026-09-02_quadratic-formula	ManifestRow.row	c-95969800 -> C-95969800	at the leaf in the evidence projection: c-95969800 = red-lens-r2-L1 round-2 corroboration;
 2026-09-02_quadratic-formula	ManifestRow.row	c-e606dcbe -> C-e606dcbe	= red-lens-r2-L1 round-2 corroboration; c-e606dcbe = blue-respond-r3 round-3 source record
 2026-09-02_quadratic-formula	ManifestRow.row	c-aa79b982 -> C-aa79b982	count clause and stranded in the title; c-aa79b982 = the reference actually at the 76-coun
 2026-09-02_quadratic-formula	ManifestRow.row	R3-4 -> G-057d5781	ed: the repair moves no anchor (honours R3-4's tooling-debt ruling) and attributes c
@@ -4471,17 +4433,13 @@
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	three rounds without a verdict moving. R4-1 does not disturb that: it is a self-con
 2026-09-02_quadratic-formula	Position.text	L2-F3 -> F-0d28b626	nst 'the two known stranded ones'. Red (L2-F3) is right that this is the prose-versus
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	ructive fact is that the second anchor, c-e606dcbe, stranded while blue was repairing the
-2026-09-02_quadratic-formula	Position.text	c-95969800 -> C-95969800	repair naming both anchors, attributing c-95969800 to a red auditing seat in round 2 and c
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	0 to a red auditing seat in round 2 and c-e606dcbe to blue in round 3, recording the repai
 2026-09-02_quadratic-formula	Position.text	c-aa79b982 -> C-aa79b982	ount sentence carries its own reference c-aa79b982, and reconciling with leg (f)'s count o
 2026-09-02_quadratic-formula	Position.text	R3-4 -> G-057d5781	s count of two. No anchor is moved: the R3-4 ruling that the splice is a tooling deb
 2026-09-02_quadratic-formula	MotionRule.opinion	R4-1 -> G-dd976878	T IT LANDED. The docket reached me with R4-1 open and red's verdict FAIL resting on
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	ine 1 carries exactly two cite anchors, c-e606dcbe and c-95969800 — their presence is no
-2026-09-02_quadratic-formula	MotionRule.opinion	c-95969800 -> C-95969800	xactly two cite anchors, c-e606dcbe and c-95969800 — their presence is not the defect an
-2026-09-02_quadratic-formula	MotionRule.opinion	c-95969800 -> C-95969800	ors sit in this report's TITLE line ... c-95969800, placed by a red auditing seat in round
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	by a red auditing seat in round 2, and c-e606dcbe, placed by blue in round 3", records th
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	bit a REPAIR attempt" when blue minted c-e606dcbe while adding the Analysis C 76-count re
-2026-09-02_quadratic-formula	MotionRule.opinion	c-95969800 -> C-95969800	tates two, names both by id, attributes c-95969800 to a red seat in round 2 and c-e606dcbe
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	c-95969800 to a red seat in round 2 and c-e606dcbe to blue in round 3, consistent with leg
 2026-09-02_quadratic-formula	MotionRule.opinion	c-e606dcbe -> C-e606dcbe	ger singular and is no longer silent on c-e606dcbe. PASS. ANCESTOR READS, NAMED AS REQUIR
 2026-09-02_quadratic-formula	MotionRule.opinion	R3-4 -> G-057d5781	OR READS, NAMED AS REQUIRED. I read the R3-4 opinion (misplaced-citation-anchor, clo
@@ -4507,7 +4465,6 @@
 2026-09-02_quadratic-formula	Verify.text	R4-1 -> G-dd976878	-anchor tooling defect, docketed R3-4 / R4-1). STALENESS re-check three rounds on. R
 2026-09-02_quadratic-formula	SpotCheck.reason	R4-1 -> G-dd976878	against the shipped report this round. R4-1 (title-anchor count): grep over the ren
 2026-09-02_quadratic-formula	SpotCheck.reason	c-e606dcbe -> C-e606dcbe	line returns exactly two cite anchors, c-e606dcbe and c-95969800, plus two fx and one pro
-2026-09-02_quadratic-formula	SpotCheck.reason	c-95969800 -> C-95969800	xactly two cite anchors, c-e606dcbe and c-95969800, plus two fx and one proof anchor — t
 2026-09-02_quadratic-formula	SpotCheck.reason	R2-2 -> G-e684016d	ors, both seats, both rounds. No drift. R2-2 (v1->v2 prose survival): re-derived the
 2026-09-02_quadratic-formula	InquiryReview.reason	Q1 -> Q-a9a6c274	ines are still carried by the document. Q1 (symbolic derivation identity, char !=
 2026-09-02_quadratic-formula	InquiryReview.reason	Q2 -> Q-07427124	ial checks, the 175-instance agreement. Q2 (primary-source prior art) -> Analysis
@@ -4520,7 +4477,6 @@
 2026-09-02_quadratic-formula	InquiryReview.reason	Q23 -> Q-3d6fc4ce	ound 4. Q6 remains deferred and Q20/Q22/Q23 remain declined, each carrying its ruli
 2026-09-02_quadratic-formula	Position.text	R4-1 -> G-dd976878	verified a sampled closure at the leaf (R4-1: the title line carries exactly two cit
 2026-09-02_quadratic-formula	Position.text	c-e606dcbe -> C-e606dcbe	line carries exactly two cite anchors, c-e606dcbe and c-95969800, and Technical foundatio
-2026-09-02_quadratic-formula	Position.text	c-95969800 -> C-95969800	xactly two cite anchors, c-e606dcbe and c-95969800, and Technical foundations 5's disclosu
 2026-09-02_quadratic-formula	Position.text	M3 -> M-15adda71	charge is a bookkeeping desync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact)
 2026-09-02_quadratic-formula	Position.text	R2-4 -> G-396865bd	ge is a bookkeeping desync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were r
 2026-09-02_quadratic-formula	Position.text	M4 -> M-2061da56	esync: motions M3 (R2-4 likelihood) and M4 (R3-2 impact) were ruled ACCEPTED by pr
@@ -6021,19 +5977,11 @@
 2026-09-11_is-91-prime-b7	Close.prose	G3 -> G-d4d7e173	ot by a blue edit -- `show changes --id G3` confirms blue recorded no edit against
 2026-09-11_is-91-prime-b7	Close.prose	G1 -> G-8f9ef62a	ue-synthesize, 1 blue-respond answering G1). What closed the gap instead is my own
 2026-09-11_is-91-prime-b7	InquiryReview.reason	G3 -> G-d4d7e173	evidence's corroborate attached at the G3 sentence, which I confirmed present ver
-2026-09-11_is-91-prime-b7	InquiryReview.reason	c-b1abd4e2 -> C-b1abd4e2	med present verbatim this sitting (cite:c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9, al
-2026-09-11_is-91-prime-b7	InquiryReview.reason	c-8dd74d38 -> C-8dd74d38	verbatim this sitting (cite:c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9, all on the sam
-2026-09-11_is-91-prime-b7	InquiryReview.reason	c-b3fdfad9 -> C-b3fdfad9	s sitting (cite:c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9, all on the same line as th
-2026-09-11_is-91-prime-b7	InquiryReview.reason	c-c3c245d9 -> C-c3c245d9	ite:c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9, all on the same line as the fx anchor)
 2026-09-11_is-91-prime-b7	InquiryReview.reason	G1 -> G-8f9ef62a	y as read across my prior sittings; the G1-answering sentence is also still presen
 2026-09-11_is-91-prime-b7	SpotCheck.reason	G1 -> G-8f9ef62a	Archive now holds two closures (G1, G3). Re-sampled both directly against
 2026-09-11_is-91-prime-b7	SpotCheck.reason	G3 -> G-d4d7e173	Archive now holds two closures (G1, G3). Re-sampled both directly against the
 2026-09-11_is-91-prime-b7	SpotCheck.reason	G1 -> G-8f9ef62a	: grepped show report and confirmed the G1-answering sentence in Catechism item 4
 2026-09-11_is-91-prime-b7	SpotCheck.reason	G3 -> G-d4d7e173	ent verbatim, and confirmed all four of G3's citation anchors (c-b1abd4e2, c-8dd74
-2026-09-11_is-91-prime-b7	SpotCheck.reason	c-b1abd4e2 -> C-b1abd4e2	rmed all four of G3's citation anchors (c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9) ar
-2026-09-11_is-91-prime-b7	SpotCheck.reason	c-8dd74d38 -> C-8dd74d38	r of G3's citation anchors (c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9) are still atta
-2026-09-11_is-91-prime-b7	SpotCheck.reason	c-b3fdfad9 -> C-b3fdfad9	tation anchors (c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9) are still attached at the
-2026-09-11_is-91-prime-b7	SpotCheck.reason	c-c3c245d9 -> C-c3c245d9	rs (c-b1abd4e2, c-8dd74d38, c-b3fdfad9, c-c3c245d9) are still attached at the exact senten
 2026-09-11_is-91-prime-b7	SpotCheck.reason	Q5 -> Q-62b06648	lso spot-checked show lines-of-inquiry: Q5's path still ends "e2 pursued", unrever
 2026-09-11_is-91-prime-b7	Position.text	G3 -> G-d4d7e173	Both closures re-verified and hold. G3's closure is unusual and I am crediting
 2026-09-11_is-91-prime-b7	Position.text	G2 -> G-7b484cd6	report. The board now has one open gap, G2, correctly graded below material and re
@@ -6323,8 +6271,6 @@
 2026-09-11_is-91-prime-b9	Close.anchor_target	f-353551d2 -> F-353551d2	rt as rendered by show report at anchor f-353551d2, line 61
 2026-09-11_is-91-prime-b9	Close.prose	G1 -> G-8bd21b5d	dit side by side via `show changes --id G1`: blue's single `blue-respond` edit (-3
 2026-09-11_is-91-prime-b9	Close.prose	f-353551d2 -> F-353551d2	rt, not the diff: `show report --anchor f-353551d2 --window 2` shows the passage now reads
-2026-09-11_is-91-prime-b9	Finding.text	c-d49a32c4 -> C-d49a32c4	:c-<hex>-->), and `show report --anchor c-d49a32c4` locates it in the text. But `show evid
-2026-09-11_is-91-prime-b9	Finding.text	c-d49a32c4 -> C-d49a32c4	eyed into -- lists no entry with anchor c-d49a32c4 among its 8 sources; the id appears exa
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G1 -> G-8bd21b5d	port, not against their recorded prose. G1: show report --anchor f-353551d2 --wind
 2026-09-11_is-91-prime-b9	SpotCheck.reason	f-353551d2 -> F-353551d2	ecorded prose. G1: show report --anchor f-353551d2 --window 2 confirms line 61 reads only
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G2 -> G-3b07168d	closure's own acceptance check exactly. G2: show report --anchor f-dd2fb944 confir
@@ -6340,41 +6286,25 @@
 2026-09-11_is-91-prime-b9	Position.text	G1 -> G-8bd21b5d	G1 and G2 are genuinely repaired -- re-sam
 2026-09-11_is-91-prime-b9	Position.text	G2 -> G-3b07168d	G1 and G2 are genuinely repaired -- re-sampled bo
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	res hold exactly as recorded, no drift. G4 is a well-founded new finding from red-
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	ces array holds 8 anchors, none of them c-d49a32c4, and the independent array's sole entry
 2026-09-11_is-91-prime-b9	Position.text	G3 -> G-5cbbdc12	but was never actually authored as one. G3 stays below material and untouched. Bot
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	parties (evidence, blue) are engaged on G4 this epoch.
 2026-09-11_is-91-prime-b9	Regrade.basis	G4 -> G-ddb5c38b	sting my own history: show changes --id G4 confirms blue recorded NO edit answerin
 2026-09-11_is-91-prime-b9	Regrade.basis	evidence-F1 -> F-84381c8e	r the tool itself inserted when I filed evidence-F1 -- not a repair. show evidence still li
-2026-09-11_is-91-prime-b9	Regrade.basis	c-d49a32c4 -> C-d49a32c4	l lists 8 sources, still none at anchor c-d49a32c4. The chair's own epoch-4 closing indepe
 2026-09-11_is-91-prime-b9	Verify.text	c-ce4ccd3c -> C-ce4ccd3c	y epoch gap. Same live A005935 fetch as c-ce4ccd3c: COMMENTS field's Firoozbakht theorem t
 2026-09-11_is-91-prime-b9	Verify.text	c-7067b06f -> C-7067b06f	epoch gap. Same live Wikipedia fetch as c-7067b06f: sha256 byte-identical to cache, zero d
-2026-09-11_is-91-prime-b9	BlueEdit.text	c-d49a32c4 -> C-d49a32c4	what this edit cut. The citation anchor c-d49a32c4 is dangling -- show evidence has no sou
 2026-09-11_is-91-prime-b9	BlueEdit.text	f-84381c8e -> F-84381c8e	s to actually leave. The finding anchor f-84381c8e stays, since the gap it marks (G4) is s
 2026-09-11_is-91-prime-b9	BlueEdit.text	G4 -> G-ddb5c38b	84381c8e stays, since the gap it marks (G4) is still open. The claim itself is not
-2026-09-11_is-91-prime-b9	Retire.reason	c-d49a32c4 -> C-d49a32c4	Taking out the citation anchor c-d49a32c4 that a prior sitting's edit left dangli
 2026-09-11_is-91-prime-b9	Retire.reason	f-84381c8e -> F-84381c8e	ilure mode red-lens-evidence's finding (f-84381c8e) exists to catch. The underlying claim
 2026-09-11_is-91-prime-b9	Retire.reason	f-84381c8e -> F-84381c8e	econd offered path). The finding anchor f-84381c8e is not retired here: G4 is still open,
 2026-09-11_is-91-prime-b9	Retire.reason	G4 -> G-ddb5c38b	anchor f-84381c8e is not retired here: G4 is still open, so it stays on the claim
-2026-09-11_is-91-prime-b9	Retire.reason	c-d49a32c4 -> C-d49a32c4	attempt proves did not actually strike c-d49a32c4: the tool still refused to drop it, unc
-2026-09-11_is-91-prime-b9	Retire.reason	c-d49a32c4 -> C-d49a32c4	nchanged). Retiring the citation anchor c-d49a32c4 specifically: show evidence has no sour
 2026-09-11_is-91-prime-b9	Retire.reason	f-84381c8e -> F-84381c8e	sharing the same id. The finding anchor f-84381c8e is not retired -- G4 is still open -- s
 2026-09-11_is-91-prime-b9	Retire.reason	G4 -> G-ddb5c38b	ing anchor f-84381c8e is not retired -- G4 is still open -- so it is named in --ne
-2026-09-11_is-91-prime-b9	BlueEdit.text	c-d49a32c4 -> C-d49a32c4	p text) neither removed citation anchor c-d49a32c4 from the live text nor released edit's
-2026-09-11_is-91-prime-b9	BlueEdit.text	c-d49a32c4 -> C-d49a32c4	act. This does not remove the dangling c-d49a32c4 token -- that appears to be a tool limi
-2026-09-11_is-91-prime-b9	Cite.text	c-d49a32c4 -> C-d49a32c4	r sitting left citing a dangling token (c-d49a32c4, no sources[] entry -- red-lens-evidenc
 2026-09-11_is-91-prime-b9	Cite.text	f-84381c8e -> F-84381c8e	[] entry -- red-lens-evidence's finding f-84381c8e, gap G4). Read the cached Wikipedia "Fe
 2026-09-11_is-91-prime-b9	Cite.text	G4 -> G-ddb5c38b	lens-evidence's finding f-84381c8e, gap G4). Read the cached Wikipedia "Fermat pse
-2026-09-11_is-91-prime-b9	ManifestRow.row	c-d49a32c4 -> C-d49a32c4	itation-syntax tokens (the old dangling c-d49a32c4 and my new, genuinely-backed c-4aa1edf3
 2026-09-11_is-91-prime-b9	ManifestRow.row	c-4aa1edf3 -> C-4aa1edf3	c-d49a32c4 and my new, genuinely-backed c-4aa1edf3) rather than one clean anchor, which is
-2026-09-11_is-91-prime-b9	ManifestRow.row	c-d49a32c4 -> C-d49a32c4	_fix and acceptance_check both call for c-d49a32c4 itself to either resolve to a real sour
-2026-09-11_is-91-prime-b9	ManifestRow.row	c-d49a32c4 -> C-d49a32c4	d a follow-up `edit` attempting to drop c-d49a32c4 (having supposedly been released by ret
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	lying defect red-lens-evidence found on G4: c-d49a32c4 has the syntax of a citatio
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	g defect red-lens-evidence found on G4: c-d49a32c4 has the syntax of a citation but no sou
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	its own -- so satisfying "that entry" (c-d49a32c4) specifically requires removing it, whi
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	ached a new, genuinely-backed citation (c-4aa1edf3) to the same clause after reading the s
-2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	`'s anchor-drop guard afterward. On gap G4 (a `<!--cite:C-d49a32c4-->` token in th
-2026-09-11_is-91-prime-b9	Log.text	c-d49a32c4 -> C-d49a32c4	d a follow-up `edit` attempting to drop c-d49a32c4 (now that retire had supposedly process
-2026-09-11_is-91-prime-b9	Log.text	c-d49a32c4 -> C-d49a32c4	"your old span contains citation anchor c-d49a32c4 ... never be dropped by [edit]"). I wan
+2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	`'s anchor-drop guard afterward. On gap G4 (a `` token in the report text with no
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G1 -> G-8bd21b5d	ainst my last sitting's memory of them. G1: show report --anchor f-353551d2 --wind
 2026-09-11_is-91-prime-b9	SpotCheck.reason	f-353551d2 -> F-353551d2	emory of them. G1: show report --anchor f-353551d2 --window 2 still shows only the finding
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G2 -> G-3b07168d	ence -- unchanged since I last checked. G2: Catechism item 3 still reads "What is
@@ -6383,30 +6313,21 @@
 2026-09-11_is-91-prime-b9	SpotCheck.reason	G2 -> G-3b07168d	dits this epoch were against G4, not G1/G2. No reopening warranted.
 2026-09-11_is-91-prime-b9	InquiryReview.reason	G4 -> G-ddb5c38b	poch (blue-respond #3) are both against G4, in the Catechism item 4 case-against p
 2026-09-11_is-91-prime-b9	InquiryReview.reason	c-4aa1edf3 -> C-4aa1edf3	the sentence intact plus a new citation c-4aa1edf3, with the original dangling c-d49a32c4
-2026-09-11_is-91-prime-b9	InquiryReview.reason	c-d49a32c4 -> C-d49a32c4	c-4aa1edf3, with the original dangling c-d49a32c4 anchor still present. Nothing else in t
 2026-09-11_is-91-prime-b9	InquiryReview.reason	G4 -> G-ddb5c38b	main textually as I last read them; the G4 dispute is a citation-mechanics questio
 2026-09-11_is-91-prime-b9	Position.text	G1 -> G-8bd21b5d	G1 and G2 re-sampled clean again this sitt
 2026-09-11_is-91-prime-b9	Position.text	G2 -> G-3b07168d	G1 and G2 re-sampled clean again this sitting. G4
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	G2 re-sampled clean again this sitting. G4 is the live question: blue's response i
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	tial fix, not a dodge. The new citation c-4aa1edf3 is sound -- I read its evidence-project
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	it unmentioned. My acceptance_check for G4 asked for "the citation token" to resol
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	; on a literal re-read a reader hitting c-d49a32c4 today still finds nothing. Whether that
 2026-09-11_is-91-prime-b9	Position.text	G4 -> G-ddb5c38b	nd it is dispatched again this epoch on G4 to make it -- I am flagging what I foun
-2026-09-11_is-91-prime-b9	Verify.text	c-d49a32c4 -> C-d49a32c4	genuine, leaf-verified citation: unlike c-d49a32c4, it carries a real url, title and sha25
 2026-09-11_is-91-prime-b9	Regrade.basis	G4 -> G-ddb5c38b	ctual recorded edits (show changes --id G4), not blue's account of them. Blue's tw
 2026-09-11_is-91-prime-b9	Regrade.basis	c-4aa1edf3 -> C-4aa1edf3	, blue authored a genuine NEW citation, c-4aa1edf3, placed immediately before the still-da
-2026-09-11_is-91-prime-b9	Regrade.basis	c-d49a32c4 -> C-d49a32c4	d immediately before the still-dangling c-d49a32c4, and I verified it myself this sitting:
-2026-09-11_is-91-prime-b9	Regrade.basis	c-d49a32c4 -> C-d49a32c4	two things done TO the anchor I named (c-d49a32c4): back it with a real source, or remove
-2026-09-11_is-91-prime-b9	Regrade.basis	c-d49a32c4 -> C-d49a32c4	ce still carries no sources[] entry for c-d49a32c4, and show report confirms the literal t
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	hing to dispute in it: the new citation c-4aa1edf3 is real and independently verified, but
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	is real and independently verified, but c-d49a32c4 is still a dangling token sitting besid
 2026-09-11_is-91-prime-b9	Position.text	c-4aa1edf3 -> C-4aa1edf3	he WORKING anchor at this exact clause (c-4aa1edf3) finds a real, leaf-verified source; th
-2026-09-11_is-91-prime-b9	Position.text	c-d49a32c4 -> C-d49a32c4	eal, leaf-verified source; the dangling c-d49a32c4 sitting beside it is inert bookkeeping
 2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	less-precise defect log on the same gap G4): `edit` and `retire` each name the OTH
 2026-09-11_is-91-prime-b9	Log.text	G4 -> G-ddb5c38b	s no sources[] entry to strike, per gap G4) to be removable through the documented
-2026-09-11_is-91-prime-b9	Motion.basis	c-d49a32c4 -> C-d49a32c4	d to strip the dangling citation anchor c-d49a32c4 from the live text -- each verb's own g
 2026-09-11_is-91-prime-b9	MotionRule.opinion	G4 -> G-ddb5c38b	blue's account alone. show changes --id G4 confirms exactly the pattern blue descr
-2026-09-11_is-91-prime-b9	MotionRule.opinion	f-84381c8e -> F-84381c8e	live report today (show report --anchor f-84381c8e) still carries the dangling <!--cite:C-
+2026-09-11_is-91-prime-b9	MotionRule.opinion	f-84381c8e -> F-84381c8e	live report today (show report --anchor f-84381c8e) still carries the dangling token, unc
 2026-09-11_is-91-prime-b9	MotionRule.opinion	c-4aa1edf3 -> C-4aa1edf3	blue's other work this run (the genuine c-4aa1edf3 citation, the clean G1/G2 repairs) show
 2026-09-11_is-91-prime-b9	MotionRule.opinion	G1 -> G-8bd21b5d	genuine c-4aa1edf3 citation, the clean G1/G2 repairs) shows no pattern of giving
 2026-09-11_is-91-prime-b9	MotionRule.opinion	G2 -> G-3b07168d	nuine c-4aa1edf3 citation, the clean G1/G2 repairs) shows no pattern of giving up

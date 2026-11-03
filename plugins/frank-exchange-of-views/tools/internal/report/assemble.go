@@ -202,7 +202,7 @@ func bibliographyEntry(url string, sources []record.Source) string {
 		if src.SourceCompleteness != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
 			abstractOnly = false
 		}
-		if !found || (pick.Corroborated && !src.Corroborated) {
+		if !found {
 			pick, found = src, true
 		}
 	}

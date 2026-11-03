@@ -20,8 +20,8 @@ import (
 )
 
 // placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
-// spelling, adding only what the source lacks: the Anchor of a gap, a citation, a proof or a
-// corroboration where the source never anchored it, and gap anchors into an edit's old and new
+// spelling, adding only what the source lacks: the Anchor of a gap, a citation or a proof where the
+// source never anchored it, and gap anchors into an edit's old and new
 // where they now stand. With gap anchors removed, every
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
 // rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
@@ -76,14 +76,30 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 	case *recordpb.Computation:
 		return p.owed("computation", b.GetComputationId(), b.GetLocation())
 	case *recordpb.Anchor:
+		if b.GetSentenceOf() != "" {
+			return nil, p.placesAtSentenceOf(b.GetId(), b.GetSentenceOf())
+		}
 		return nil, p.places(b.GetId(), b.GetLocation())
-	case *recordpb.Verify:
-		return p.owed("verify", b.GetLabel(), b.GetClaim())
 	}
 	return nil, nil
 }
 
-// owed is the Anchor an archived citation, computation or corroboration placed by being recorded: the
+// placesAtSentenceOf refuses an Anchor placed at the end of the sentence anchor `of`'s token sits in
+// (a reading of a citation's gap) where the report as it now renders holds no such sentence. Its
+// location is empty, so places would pass it unchecked; it is checked by the token's identity, as
+// the write places it (anchortext.AttachToSentenceOf).
+func (p *placer) placesAtSentenceOf(id, of string) error {
+	text, err := record.RenderAt(p.q)
+	if err != nil {
+		return nil
+	}
+	if _, err := anchortext.AttachToSentenceOf(text, id, of); err != nil {
+		return fmt.Errorf("gap %s's marker ends the sentence citation %s sits in, and the report as the migrated run renders it holds no such sentence: %w", id, of, err)
+	}
+	return nil
+}
+
+// owed is the Anchor an archived citation or computation placed by being recorded: the
 // report read its marker off the event itself, so the Anchor appended right after it holds the same
 // place in the stream and replay inserts it where it always did. An act that named no id or no
 // quote placed nothing. Any other act carrying an id already placed owes a second Anchor, which the
