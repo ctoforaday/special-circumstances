@@ -260,6 +260,8 @@ var tools = []gate{
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
+	{id: "secretsgen", kind: kindTool, dir: "plugins/prosthetic-conscience/tools", args: []string{"run", "./devcmd/secretsgen", "-check"}, ciJob: "debate-sim",
+		why: "the secrets gate builds its detector from a table generated from gitleaks.toml and gitleaks' default configuration; a stale table refuses what the configuration no longer names, or lets through what it now does"},
 	{id: "deadcode", kind: kindTool, dir: "scripts", args: []string{"run", "./deadcode"}, ciJob: "debate-sim",
 		why: "a function nothing reaches reads as part of the design to whoever opens the file; every Go module is analysed with its tests, on each platform it ships on, a generated copy's caller keeps its authored source alive, and every function left is a failure"},
 	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
