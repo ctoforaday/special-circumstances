@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
@@ -98,7 +101,8 @@ func (r *runner) citeForFoundAgainst(seatID string) {
 // and its own re-read. It draws the reading's gap flags as the drawn reading does, and pins the check
 // kind of a gap it mints to a document check; a reading the one-gap rule holds is carried by another
 // lens's gap, whose check kind is that gap's, so each close of the carrier answers a computation check
-// first (answerComputationCheck).
+// first (answerComputationCheck). It reads only a citation whose sentence holds no gap a scenario
+// closes behind a reproduction (foundAgainstCitation), since the chain's close reproduces nothing.
 func (r *runner) forcedFoundAgainstChain(seatID string) {
 	r.mu.Lock()
 	due := r.forceFoundAgainst && seatID == citationOwner && !r.foundAgainstChained
@@ -117,13 +121,9 @@ func (r *runner) forcedFoundAgainstChain(seatID string) {
 		r.reachedFoundAgainstStage("every owner sitting so far was in a plan that readies blue-respond")
 		return
 	}
-	if cite == "" || !r.firstThisSitting(seatID, cite) {
-		r.reachedFoundAgainstStage("no citation of the chain's sentence stood at an owner sitting blue was not readied in")
-		return
-	}
-	classes, notTheWork := r.readingClasses(r.citationURL(cite), "refutes", true)
-	if notTheWork || len(classes) == 0 {
-		r.reachedFoundAgainstStage("the chain's citation reads as no gap class (" + cite + ")")
+	cite, classes, why := r.foundAgainstCitation(seatID, cite)
+	if cite == "" {
+		r.reachedFoundAgainstStage(why)
 		return
 	}
 	run := r.foundAgainstReading(seatID, cite, classes)
@@ -151,6 +151,77 @@ func (r *runner) forcedFoundAgainstChain(seatID string) {
 	r.foundAgainstAnchor = cite
 	r.foundAgainstStage = "found against " + cite + "; the owner has not sat again"
 	r.mu.Unlock()
+}
+
+// scenarioOwnsClose is whether a gap minted with scenario d is one whose scenario oracle judges how it
+// closes: a COMPUTE or COMPUTE-DRIFTS gap closed by red without its computation reproducing fails the
+// run. The chain's close of its carrier answers no reproduction, so it never reads where one carries it.
+func scenarioOwnsClose(d string) bool { return d == dirCompute || d == dirComputeDrifts }
+
+// foundAgainstCitation is the citation the owner's chain reads as refuting at this sitting, and the gap
+// classes that reading mints in: preferred — blue's citation of the chain's sentence — where it
+// qualifies, else the first other citation on the record that does. A citation qualifies where its
+// token stands once in the report, inside a sentence that holds no open gap whose scenario owns its
+// close (scenarioOwnsClose) — the one-gap rule would hold the reading on that gap and the chain would
+// close it unreproduced — where the owner holds no standing found-against check of it, where its
+// reading mints in some class, and where the owner has not read it this sitting. Where none does,
+// cite is "" and why says what held the candidates back: the chain waits for a later sitting.
+func (r *runner) foundAgainstCitation(seatID, preferred string) (cite string, classes []string, why string) {
+	b, ok := r.board()
+	report, err := reportproj.RenderFromRecord(r.run())
+	if !ok || err != nil {
+		return "", nil, "the record or its report could not be read to choose the chain's citation"
+	}
+	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+	owned := map[int]string{}
+	for _, g := range b.Gaps {
+		if g == nil || !g.Open || g.Mint == nil || !scenarioOwnsClose(g.Mint.GetRequiredFix()) {
+			continue
+		}
+		if i, ok := sentenceIndexOf(report, spans, bare, g.ID); ok {
+			owned[i] = g.ID
+		}
+	}
+	candidates := []string{}
+	if preferred != "" {
+		candidates = append(candidates, preferred)
+	}
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+		if s.Anchor != "" && s.Anchor != preferred {
+			candidates = append(candidates, s.Anchor)
+		}
+	}
+	if len(candidates) == 0 {
+		return "", nil, "no citation stood at an owner sitting blue was not readied in"
+	}
+	held := ""
+	for _, c := range candidates {
+		if strings.Count(report, anchor.Token(c)) != 1 {
+			continue
+		}
+		i, ok := sentenceIndexOf(report, spans, bare, c)
+		if !ok {
+			continue
+		}
+		if g := owned[i]; g != "" {
+			if held == "" {
+				held = c + " stands in a sentence holding open gap " + g + ", whose scenario closes it only behind a reproduction"
+			}
+			continue
+		}
+		if _, standing := r.ownFoundAgainstGapOpen(seatID, c, "refutes"); standing {
+			continue
+		}
+		cl, notTheWork := r.readingClasses(r.citationURL(c), "refutes", true)
+		if notTheWork || len(cl) == 0 || !r.firstThisSitting(seatID, c) {
+			continue
+		}
+		return c, cl, ""
+	}
+	if held != "" {
+		return "", nil, "no citation the chain may read stood at an owner sitting blue was not readied in, so it waits for a later one: " + held
+	}
+	return "", nil, "no citation the chain may read stood at an owner sitting blue was not readied in"
 }
 
 // foundAgainstReading is seatID's refuting reading of citation anchorID with the gap flags of classes
@@ -430,4 +501,84 @@ func (r *runner) ownerMintedVerified() bool {
 		}
 	}
 	return false
+}
+
+// THE CHAIN READS NO CITATION WHOSE SENTENCE HOLDS A GAP ITS SCENARIO CLOSES, and reads the first clean
+// one once it stands. A lens's COMPUTE-scenario gap stands in the sentence blue's chain citation sits
+// in: the owner's refuting reading there would be held by that gap, and the chain's close of its
+// carrier — no reproduction behind it — is the close the COMPUTE oracle fails the run on. The chain
+// waits; once blue cites another sentence, it reads that one, and the COMPUTE gap is never closed.
+func TestTheFoundAgainstChainReadsNoCitationAScenarioGapStandsAt(t *testing.T) {
+	r := stagedRunner(t)
+	r.forceFoundAgainst = true
+	if err := r.stagePart(lanePartText("blue-lane-1") + "\n" + lanePartText("blue-lane-2") + "\n" + lanePartText("blue-lane-3")); err != nil {
+		t.Fatalf("record the lanes' parts: %v", err)
+	}
+	const blue, lens = "blue-respond", "red-lens-logic"
+	r.sit("blue", blue)
+	r.citeForFoundAgainst(blue)
+	cite := r.foundAgainstCite
+	if cite == "" {
+		t.Fatalf("blue's chain citation: %s (%s)", r.foundAgainstStage, r.actErr)
+	}
+	classes, _ := r.readingClasses(r.citationURL(cite), "refutes", true)
+	if len(classes) == 0 {
+		t.Fatal("a refuting reading of the chain's citation mints in no class")
+	}
+	r.sit("lens", lens)
+	out, ok := r.admit("--json", "mint", "--seat-id", lens, "--quote", "rising over time", "--class", classes[0],
+		"--problem", "fuzz: the trend's figure is computed wrong", "--check-kind", "computation", "--check", "the figure recomputes",
+		"--fix", dirCompute, "--severity", "high", "--impact", "high", "--likelihood", "high", "--reason", "fuzz reason")
+	var env struct {
+		Result struct {
+			GapID string `json:"gap_id"`
+		} `json:"result"`
+	}
+	if !ok || json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.GapID == "" {
+		t.Fatalf("the COMPUTE gap's mint: %s (%s)", out, r.actErr)
+	}
+	g := env.Result.GapID
+	r.noteMint(lens, g)
+	r.computationGaps.add(g)
+	open := func() bool { return slices.Contains(r.openGaps(), g) }
+	readsOf := func(anchorID string) bool {
+		_, _, read := r.storedReading(citationOwner, anchorID, "", "")
+		return read
+	}
+
+	// THE ONLY CITATION STANDS AT THE COMPUTE GAP: the chain waits, reading nothing.
+	r.sit("lens", citationOwner)
+	r.forcedFoundAgainstChain(citationOwner)
+	if r.actErr != "" {
+		t.Fatalf("the chain: %s", r.actErr)
+	}
+	if readsOf(cite) || r.foundAgainstAnchor != "" {
+		t.Fatalf("the chain read %s, whose sentence holds COMPUTE gap %s (stage %q)", cite, g, r.foundAgainstStage)
+	}
+	if !open() {
+		t.Fatalf("COMPUTE gap %s was closed by the chain", g)
+	}
+	if !strings.Contains(r.foundAgainstStage, g) || !strings.Contains(r.foundAgainstStage, "waits") {
+		t.Errorf("the chain's stage %q does not say it waits on %s", r.foundAgainstStage, g)
+	}
+
+	// A CLEAN CITATION STANDS: the chain reads it, and at the owner's next sitting completes over it.
+	r.sit("blue", blue)
+	clean := r.citeAs(t, blue, "the rise holds in every year measured", "/clean")
+	r.sit("lens", citationOwner)
+	r.forcedFoundAgainstChain(citationOwner)
+	if r.actErr != "" || r.foundAgainstAnchor != clean {
+		t.Fatalf("the chain read %q, want the clean citation %s (stage %q): %s", r.foundAgainstAnchor, clean, r.foundAgainstStage, r.actErr)
+	}
+	r.sit("lens", citationOwner)
+	r.forcedFoundAgainstChain(citationOwner)
+	if r.actErr != "" || !r.foundAgainstChained || r.foundAgainstClearedByOwnReading != 1 {
+		t.Fatalf("the chain over %s reached %q (cleared %d): %s", clean, r.foundAgainstStage, r.foundAgainstClearedByOwnReading, r.actErr)
+	}
+	if readsOf(cite) {
+		t.Errorf("the chain read %s, whose sentence holds COMPUTE gap %s", cite, g)
+	}
+	if !open() {
+		t.Errorf("COMPUTE gap %s was closed by the chain", g)
+	}
 }

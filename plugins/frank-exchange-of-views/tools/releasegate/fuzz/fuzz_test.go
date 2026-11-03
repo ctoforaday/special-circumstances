@@ -746,7 +746,7 @@ type runner struct {
 	// citation completed, foundAgainstRepeatedRead whether its reading of one copy of the twice-held
 	// sentence minted with a --new, and foundAgainstStage the last step either reached, which the
 	// run's error names when the chain did not complete.
-	// foundAgainstCite is blue's citation the chain reads (citeForFoundAgainst), foundAgainstCiteTried
+	// foundAgainstCite is blue's citation the chain prefers to read (citeForFoundAgainst), foundAgainstCiteTried
 	// whether blue's one try at it ran, and foundAgainstAnchor the citation the owner's reading has found
 	// against, awaiting its re-read.
 	forceFoundAgainst                             bool
