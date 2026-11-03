@@ -42,37 +42,37 @@ type Settler interface {
 type Request struct {
 	Engine              Engine
 	Event               string
-	Raw                 []byte          // Exact stdin bytes (preserved for raw scanning)
-	Parsed              bool            // Whether stdin parsed as valid JSON
-	ProjectDir          string          // CLAUDE_PROJECT_DIR -> cwd -> workspacePaths[0] -> tool-arg git root
-	PluginRoot          string          // CLAUDE_PLUGIN_ROOT -> PLUGIN_ROOT -> os.Executable() grandparent -> os.Getwd()
-	PluginDataDir       string          // CLAUDE_PLUGIN_DATA -> PLUGIN_DATA -> <appDataDir>/plugin-data/<plugin> -> <ProjectDir>/.claude
-	SessionID           string          // session_id | conversationId
-	TranscriptPath      string          // transcript_path | transcriptPath
-	ArtifactDirPath     string          // artifactDirectoryPath (Antigravity)
-	AgentID             string          // agent_id | (conversationId when parentConversationId != "")
-	AgentType           string          // agent_type | agentName
-	AgentTranscriptPath string          // agent_transcript_path | (transcriptPath when subagent)
-	ToolName            string          // Canonical ("Bash", "Write", "Edit", "Read", "WebSearch", "WebFetch", "Glob", "Grep")
-	RawToolName         string          // Original wire name ("run_command", "write_to_file", "write_file", ...)
-	ToolInput           json.RawMessage // Normalized JSON carrying canonical snake_case keys + original fields
-	ToolResult          json.RawMessage // tool_response (Claude) | PostToolHookArgs.result (Antigravity 1.4.12+)
-	FilePath            string          // Extracted file path (file_path | path | Path | TargetFile | AbsolutePath)
-	Command             string          // Extracted shell command (command | CommandLine)
-	ToolError           string          // error (PostToolUseFailure on Claude; PostTool.error on Antigravity)
-	LastUserInput       string          // prompt (Claude) | lastUserInput (Antigravity 1.4.7+)
-	IsInterrupt         bool            // is_interrupt | (terminationReason == "USER_CANCELED")
-	StopHookActive      bool            // stop_hook_active | (executionNum > 0)
-	TerminationReason   string          // PostInvocation.terminationReason on Antigravity
-	Trigger             string          // PreCompact/PostCompact trigger
-	CustomInstructions  string          // PreCompact custom_instructions
-	CompactSummary      string          // PostCompact compact_summary
-	CWD                 string          // cwd
-	HookEventName       string          // hook_event_name
-	Reason              string          // reason (SessionEnd: clear|logout|prompt_input_exit|other)
+	Raw                 []byte           // Exact stdin bytes (preserved for raw scanning)
+	Parsed              bool             // Whether stdin parsed as valid JSON
+	ProjectDir          string           // CLAUDE_PROJECT_DIR -> cwd -> workspacePaths[0] -> tool-arg git root
+	PluginRoot          string           // CLAUDE_PLUGIN_ROOT -> PLUGIN_ROOT -> os.Executable() grandparent -> os.Getwd()
+	PluginDataDir       string           // CLAUDE_PLUGIN_DATA -> PLUGIN_DATA -> <appDataDir>/plugin-data/<plugin> -> <ProjectDir>/.claude
+	SessionID           string           // session_id | conversationId
+	TranscriptPath      string           // transcript_path | transcriptPath
+	ArtifactDirPath     string           // artifactDirectoryPath (Antigravity)
+	AgentID             string           // agent_id | (conversationId when parentConversationId != "")
+	AgentType           string           // agent_type | agentName
+	AgentTranscriptPath string           // agent_transcript_path | (transcriptPath when subagent)
+	ToolName            string           // Canonical ("Bash", "Write", "Edit", "Read", "WebSearch", "WebFetch", "Glob", "Grep")
+	RawToolName         string           // Original wire name ("run_command", "write_to_file", "write_file", ...)
+	ToolInput           json.RawMessage  // Normalized JSON carrying canonical snake_case keys + original fields
+	ToolResult          json.RawMessage  // tool_response (Claude) | PostToolHookArgs.result (Antigravity 1.4.12+)
+	FilePath            string           // Extracted file path (file_path | path | Path | TargetFile | AbsolutePath)
+	Command             string           // Extracted shell command (command | CommandLine)
+	ToolError           string           // error (PostToolUseFailure on Claude; PostTool.error on Antigravity)
+	LastUserInput       string           // prompt (Claude) | lastUserInput (Antigravity 1.4.7+)
+	IsInterrupt         bool             // is_interrupt | (terminationReason == "USER_CANCELED")
+	StopHookActive      bool             // stop_hook_active | (executionNum > 0)
+	TerminationReason   string           // PostInvocation.terminationReason on Antigravity
+	Trigger             string           // PreCompact/PostCompact trigger
+	CustomInstructions  string           // PreCompact custom_instructions
+	CompactSummary      string           // PostCompact compact_summary
+	CWD                 string           // cwd
+	HookEventName       string           // hook_event_name
+	Reason              string           // reason (SessionEnd: clear|logout|prompt_input_exit|other)
 	BackgroundTasks     *json.RawMessage // background_tasks (SubagentStop)
 	SessionCrons        *json.RawMessage // session_crons (SubagentStop)
-	FileEvent           string          // event (FileChanged: change|add|unlink)
+	FileEvent           string           // event (FileChanged: change|add|unlink)
 }
 
 // Response holds hook return parameters to be emitted to the harness.
@@ -174,11 +174,11 @@ func DetectEngine(raw []byte) Engine {
 		}
 		return EngineClaude
 	}
-	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
-		return EngineAntigravity
-	}
 	if os.Getenv("CLAUDE_PLUGIN_ROOT") != "" || os.Getenv("CLAUDE_PROJECT_DIR") != "" {
 		return EngineClaude
+	}
+	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
+		return EngineAntigravity
 	}
 	return EngineClaude
 }
@@ -662,7 +662,12 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			out.HookSpecificOutput.PermissionDecisionReason = resp.Reason
 		}
 		if resp.UpdatedCommand != "" {
-			out.HookSpecificOutput.UpdatedInput = map[string]any{"command": resp.UpdatedCommand}
+			updated := map[string]any{}
+			if len(req.ToolInput) > 0 {
+				_ = json.Unmarshal(req.ToolInput, &updated)
+			}
+			updated["command"] = resp.UpdatedCommand
+			out.HookSpecificOutput.UpdatedInput = updated
 		}
 		out.SystemMessage = resp.Say
 		b, _ := json.Marshal(out)
@@ -696,17 +701,21 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		return 0
 
 	case "SessionStart":
-		out := map[string]any{
-			"hookSpecificOutput": map[string]any{
+		if resp.AdditionalContext == "" && len(resp.WatchPaths) == 0 && resp.Say == "" {
+			return 0
+		}
+		out := map[string]any{}
+		if resp.AdditionalContext != "" || len(resp.WatchPaths) > 0 {
+			hso := map[string]any{
 				"hookEventName": "SessionStart",
-			},
-		}
-		hso := out["hookSpecificOutput"].(map[string]any)
-		if resp.AdditionalContext != "" {
-			hso["additionalContext"] = resp.AdditionalContext
-		}
-		if len(resp.WatchPaths) > 0 {
-			hso["watchPaths"] = resp.WatchPaths
+			}
+			if resp.AdditionalContext != "" {
+				hso["additionalContext"] = resp.AdditionalContext
+			}
+			if len(resp.WatchPaths) > 0 {
+				hso["watchPaths"] = resp.WatchPaths
+			}
+			out["hookSpecificOutput"] = hso
 		}
 		if resp.Say != "" {
 			out["systemMessage"] = resp.Say
@@ -719,13 +728,12 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		if resp.AdditionalContext == "" && resp.Say == "" {
 			return 0
 		}
-		out := map[string]any{
-			"hookSpecificOutput": map[string]any{
-				"hookEventName": "Stop",
-			},
-		}
+		out := map[string]any{}
 		if resp.AdditionalContext != "" {
-			out["hookSpecificOutput"].(map[string]any)["additionalContext"] = resp.AdditionalContext
+			out["hookSpecificOutput"] = map[string]any{
+				"hookEventName":     "Stop",
+				"additionalContext": resp.AdditionalContext,
+			}
 		}
 		if resp.Say != "" {
 			out["systemMessage"] = resp.Say
@@ -783,7 +791,12 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 			}
 		}
 		if resp.UpdatedCommand != "" {
-			out.Overwrite = map[string]any{"CommandLine": resp.UpdatedCommand}
+			overwrite := map[string]any{}
+			if len(req.ToolInput) > 0 {
+				_ = json.Unmarshal(req.ToolInput, &overwrite)
+			}
+			overwrite["CommandLine"] = resp.UpdatedCommand
+			out.Overwrite = overwrite
 		}
 		if resp.Say != "" {
 			queuePending(req.PluginDataDir, req.SessionID, pendingItem{Say: resp.Say})
@@ -858,20 +871,19 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		if len(injectSteps) > 0 {
 			out["injectSteps"] = injectSteps
 		}
-		if req.Event == "PreInvocation" {
-			termBehavior := "force_continue"
-			if resp.TerminateTurn {
-				termBehavior = "terminate"
-				if resp.Reason != "" {
-					out["injectSteps"] = append(injectSteps, map[string]any{
-						"errorMessage": map[string]any{
-							"modelMessage": resp.Reason,
-							"userMessage":  resp.Reason,
-						},
-					})
-				}
+		// PreInvocation accepts only "terminate" or an absent terminationBehavior;
+		// the CLI fails the whole turn on any other value ("force_continue" is
+		// PostInvocation's).
+		if req.Event == "PreInvocation" && resp.TerminateTurn {
+			if resp.Reason != "" {
+				out["injectSteps"] = append(injectSteps, map[string]any{
+					"errorMessage": map[string]any{
+						"modelMessage": resp.Reason,
+						"userMessage":  resp.Reason,
+					},
+				})
 			}
-			out["terminationBehavior"] = termBehavior
+			out["terminationBehavior"] = "terminate"
 		}
 
 		b, _ := json.Marshal(out)
@@ -904,7 +916,6 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 						},
 					},
 				},
-				"terminationBehavior": "force_continue",
 			}
 			b, _ := json.Marshal(out)
 			fmt.Fprintln(stdout, string(b))

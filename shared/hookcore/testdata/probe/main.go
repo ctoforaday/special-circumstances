@@ -50,10 +50,21 @@ func main() {
 		code := hookcore.Respond(req, hookcore.Response{}, os.Stdout, os.Stderr, nil)
 		os.Exit(code)
 
-	case "SessionStart":
+	case "SessionStart", "PreInvocation":
 		code := hookcore.Respond(req, hookcore.Response{
-			Say: "HOOKCORE_SESSION_STARTED",
+			Say:               "HOOKCORE_SESSION_STARTED",
+			AdditionalContext: "HOOKCORE_SESSION_STARTED",
 		}, os.Stdout, os.Stderr, nil)
+		os.Exit(code)
+
+	case "Stop", "PostInvocation":
+		if strings.Contains(req.Command, "TRIGGER_STOP_NUDGE") {
+			code := hookcore.Respond(req, hookcore.Response{
+				AdditionalContext: "HOOKCORE_STOP_NUDGE",
+			}, os.Stdout, os.Stderr, nil)
+			os.Exit(code)
+		}
+		code := hookcore.Respond(req, hookcore.Response{}, os.Stdout, os.Stderr, nil)
 		os.Exit(code)
 
 	case "PreCompact":

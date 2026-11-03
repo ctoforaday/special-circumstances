@@ -160,7 +160,21 @@ func TestLiveClaudeContract(t *testing.T) {
 		t.Skipf("claude credentials not found at %s: skipping", credPath)
 	}
 
-	// 1. Set up temporary plugin directory for Claude Code
+	// 1. Isolate test in a dedicated fake home directory
+	fakeHome := t.TempDir()
+	fakeClaudeDir := filepath.Join(fakeHome, ".claude")
+	if err := os.MkdirAll(fakeClaudeDir, 0755); err != nil {
+		t.Fatalf("mkdir fakeHome .claude: %v", err)
+	}
+	credData, err := os.ReadFile(credPath)
+	if err != nil {
+		t.Fatalf("read credentials: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeClaudeDir, ".credentials.json"), credData, 0600); err != nil {
+		t.Fatalf("write fake credentials: %v", err)
+	}
+
+	// Set up temporary plugin directory for Claude Code
 	pluginDir := t.TempDir()
 	probeBin := filepath.Join(pluginDir, "bin", "hookprobe")
 	buildProbeBinary(t, probeBin)
@@ -184,6 +198,16 @@ func TestLiveClaudeContract(t *testing.T) {
 
 	hooksJSON := `{
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "exec \"${CLAUDE_PLUGIN_ROOT}/bin/hookprobe\" -event SessionStart"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -191,6 +215,27 @@ func TestLiveClaudeContract(t *testing.T) {
           {
             "type": "command",
             "command": "exec \"${CLAUDE_PLUGIN_ROOT}/bin/hookprobe\" -event PreToolUse"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "exec \"${CLAUDE_PLUGIN_ROOT}/bin/hookprobe\" -event PostToolUse"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "exec \"${CLAUDE_PLUGIN_ROOT}/bin/hookprobe\" -event Stop"
           }
         ]
       }
@@ -205,18 +250,9 @@ func TestLiveClaudeContract(t *testing.T) {
 		t.Fatalf("write root hooks.json: %v", err)
 	}
 
-	// Snapshot Claude session files before execution to isolate the exact new session
-	projectsDir := filepath.Join(home, ".claude", "projects")
-	beforeSessions := make(map[string]bool)
-	_ = filepath.Walk(projectsDir, func(p string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(p, ".jsonl") {
-			beforeSessions[p] = true
-		}
-		return nil
-	})
-
-	// 2. Execute single session with unified multi-turn prompt
-	prompt := "First, run the shell command echo 'TRIGGER_BLOCK'. When that is blocked, run the shell command echo 'TRIGGER_REWRITE'. Report the exact output of both commands."
+	// 2. Execute single session with unified multi-turn prompt in dedicated workspace
+	workDir := t.TempDir()
+	prompt := "First, run the shell command echo 'TRIGGER_BLOCK'. When that is blocked, run the shell command echo 'TRIGGER_REWRITE'. Next, run the shell command echo 'TRIGGER_FEEDBACK'. Report the exact output of each."
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -226,7 +262,20 @@ func TestLiveClaudeContract(t *testing.T) {
 		"--plugin-dir", pluginDir,
 		"--dangerously-skip-permissions",
 	)
-	cmd.Dir = t.TempDir()
+	cmd.Dir = workDir
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	env = append(env,
+		"HOME="+fakeHome,
+		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+	)
+	cmd.Env = env
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -236,10 +285,11 @@ func TestLiveClaudeContract(t *testing.T) {
 	}
 	output := out.String()
 
-	// 3. Find and archive the new session file, then clean it up from host store
+	// 3. Find and archive the new session file from fakeHome, then clean it up
+	projectsDir := filepath.Join(fakeHome, ".claude", "projects")
 	var newSessionFiles []string
 	_ = filepath.Walk(projectsDir, func(p string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(p, ".jsonl") && !beforeSessions[p] {
+		if err == nil && !info.IsDir() && strings.HasSuffix(p, ".jsonl") {
 			newSessionFiles = append(newSessionFiles, p)
 		}
 		return nil
@@ -282,14 +332,31 @@ func TestLiveAntigravityContract(t *testing.T) {
 		t.Skipf("antigravity oauth token not found at %s: skipping", tokenPath)
 	}
 
-	// 1. Install probe plugin to ~/.gemini/config/plugins/hookprobe
-	pluginDir := filepath.Join(home, ".gemini", "config", "plugins", "hookprobe")
+	// 1. Isolate test in a dedicated fake home directory
+	fakeHome := t.TempDir()
+	fakeAgyDir := filepath.Join(fakeHome, ".gemini", "antigravity-cli")
+	if err := os.MkdirAll(fakeAgyDir, 0755); err != nil {
+		t.Fatalf("mkdir fakeHome .gemini/antigravity-cli: %v", err)
+	}
+	tokenData, err := os.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("read token: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeAgyDir, "antigravity-oauth-token"), tokenData, 0600); err != nil {
+		t.Fatalf("write fake token: %v", err)
+	}
+	for _, extra := range []string{"antigravity_state.pbtxt", "installation_id"} {
+		src := filepath.Join(home, ".gemini", "antigravity-cli", extra)
+		if data, err := os.ReadFile(src); err == nil {
+			_ = os.WriteFile(filepath.Join(fakeAgyDir, extra), data, 0600)
+		}
+	}
+
+	// Install probe plugin into fakeHome's global plugins directory
+	pluginDir := filepath.Join(fakeHome, ".gemini", "config", "plugins", "hookprobe")
 	if err := os.MkdirAll(pluginDir, 0755); err != nil {
 		t.Fatalf("mkdir plugin dir: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.RemoveAll(pluginDir)
-	})
 
 	probeBin := filepath.Join(pluginDir, "bin", "hookprobe")
 	buildProbeBinary(t, probeBin)
@@ -312,6 +379,11 @@ func TestLiveAntigravityContract(t *testing.T) {
 
 	hooksJSON := `{
   "probe-hooks": {
+    "PreInvocation": [
+      {
+        "command": "./bin/hookprobe -event PreInvocation"
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "run_command",
@@ -321,6 +393,21 @@ func TestLiveAntigravityContract(t *testing.T) {
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "command": "./bin/hookprobe -event PostToolUse"
+          }
+        ]
+      }
+    ],
+    "PostInvocation": [
+      {
+        "command": "./bin/hookprobe -event PostInvocation"
+      }
     ]
   }
 }
@@ -329,19 +416,9 @@ func TestLiveAntigravityContract(t *testing.T) {
 		t.Fatalf("write hooks.json: %v", err)
 	}
 
-	// Snapshot Antigravity brain directories before execution
-	brainBase := filepath.Join(home, ".gemini", "antigravity-cli", "brain")
-	beforeBrains := make(map[string]bool)
-	if entries, err := os.ReadDir(brainBase); err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				beforeBrains[e.Name()] = true
-			}
-		}
-	}
-
-	// 2. Execute single session with unified multi-turn prompt
-	prompt := "First, run the shell command echo 'TRIGGER_BLOCK'. When that is denied, run the shell command echo 'TRIGGER_REWRITE'. Report the exact output of both commands."
+	// 2. Execute single session with unified multi-turn prompt in dedicated workspace
+	workDir := t.TempDir()
+	prompt := "First, run the shell command echo 'TRIGGER_BLOCK'. When that is denied, run the shell command echo 'TRIGGER_REWRITE'. Next, run the shell command echo 'TRIGGER_FEEDBACK'. Report the exact output of each."
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -350,7 +427,20 @@ func TestLiveAntigravityContract(t *testing.T) {
 		"--model", "gemini-3.8-flash-low",
 		"--dangerously-skip-permissions",
 	)
-	cmd.Dir = t.TempDir()
+	cmd.Dir = workDir
+	var env []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "CLAUDE_") || strings.HasPrefix(e, "FEOV_") {
+			continue
+		}
+		env = append(env, e)
+	}
+	env = append(env,
+		"HOME="+fakeHome,
+		"PATH=/home/gblock_ctoforaday_com/.local/bin:/usr/local/go/bin:/home/gblock_ctoforaday_com/go/bin:"+os.Getenv("PATH"),
+	)
+	cmd.Env = env
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -360,11 +450,12 @@ func TestLiveAntigravityContract(t *testing.T) {
 	}
 	output := out.String()
 
-	// 3. Find and archive the new conversation directory, then clean it up from host store
+	// 3. Find and archive the new conversation directory from fakeHome, then clean it up
+	brainBase := filepath.Join(fakeHome, ".gemini", "antigravity-cli", "brain")
 	var newBrainDirs []string
 	if entries, err := os.ReadDir(brainBase); err == nil {
 		for _, e := range entries {
-			if e.IsDir() && !beforeBrains[e.Name()] {
+			if e.IsDir() {
 				newBrainDirs = append(newBrainDirs, filepath.Join(brainBase, e.Name()))
 			}
 		}

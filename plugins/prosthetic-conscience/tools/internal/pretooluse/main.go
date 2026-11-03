@@ -61,36 +61,6 @@ func merge(results []hookunit.Result) (decision, warnings, say string) {
 	return decision, strings.Join(warn, "\n"), strings.Join(said, "\n")
 }
 
-// respond writes the ONE object this event answers with. A decision and a message travel together —
-// measured 2026-09-16 against the real client: a PreToolUse response carrying both had the message
-// displayed, the decision honoured and the tool run. The decision is a document a unit composed, so
-// it is decoded and the message added to it rather than wrapped, which would bury the decision one
-// level down where the client does not look.
-func respond(stdout io.Writer, decision, say string) {
-	if decision == "" {
-		hookfailures.Emit(stdout, say)
-		return
-	}
-	if say == "" {
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	var doc map[string]any
-	if err := json.Unmarshal([]byte(decision), &doc); err != nil {
-		// The decision is what protects the session; it goes out intact whatever happened here, and
-		// the message follows on its own line rather than corrupting it.
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	doc["systemMessage"] = say
-	b, err := json.Marshal(doc)
-	if err != nil {
-		fmt.Fprint(stdout, decision)
-		return
-	}
-	fmt.Fprintln(stdout, string(b))
-}
-
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
 	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-pretooluse")) {
 		return 0

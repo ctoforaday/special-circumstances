@@ -1,7 +1,6 @@
 package stopnudge
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -167,28 +166,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir, c
 		AdditionalContext: d.Emit,
 	}
 	return hookcore.Respond(req, resp, stdout, stderr, rec)
-	return 0
-}
-
-// emitResponse writes this event's ONE document: the nudge for the agent, the record's message for
-// the human, or nothing at all. Stop displays a systemMessage, which makes this hook the carrier for
-// every failure recorded on an event that displays none.
-func emitResponse(stdout io.Writer, emit string, rec *hookfailures.Recorder) {
-	msg := rec.Settle()
-	if emit == "" && msg == "" {
-		return // silence is a valid outcome and MUST stay silent
-	}
-	var out hookOutput
-	out.HookSpecificOutput.HookEventName = "Stop"
-	out.HookSpecificOutput.AdditionalContext = emit
-	out.SystemMessage = msg
-	if err := json.NewEncoder(stdout).Encode(out); err != nil {
-		// A response that cannot be encoded is a nudge that never arrives. Recorded rather than
-		// said, because the channel for saying it is the thing that just failed; the next
-		// displaying event reads it out.
-		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
-		rec.Persist()
-	}
 }
 
 // newest is the later of written_at and reaffirmed_at — the note's most recent ANSWER of

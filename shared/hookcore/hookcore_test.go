@@ -491,8 +491,8 @@ func TestRespondAntigravityPostToolAndPreInvocation(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &outPre); err != nil {
 		t.Fatalf("unmarshal PreInvocation output: %v", err)
 	}
-	if outPre.TerminationBehavior != "force_continue" {
-		t.Errorf("TerminationBehavior = %q, want force_continue", outPre.TerminationBehavior)
+	if outPre.TerminationBehavior != "" {
+		t.Errorf("TerminationBehavior = %q, want absent (PreInvocation accepts only \"terminate\")", outPre.TerminationBehavior)
 	}
 	if len(outPre.InjectSteps) != 3 {
 		t.Fatalf("len(InjectSteps) = %d, want 3 (Feedback, AdditionalContext, Say)", len(outPre.InjectSteps))

@@ -212,25 +212,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	return hookcore.Respond(req, resp, stdout, stderr, rec)
 }
 
-// emit writes this event's ONE document: the strike for the agent, the record's message for the
-// human, or nothing.
-func emit(stdout io.Writer, msg string, rec *hookfailures.Recorder) {
-	said := rec.Settle()
-	if msg == "" && said == "" {
-		return
-	}
-	var out hookOutput
-	out.HookSpecificOutput.HookEventName = "PostToolUseFailure"
-	out.HookSpecificOutput.AdditionalContext = msg
-	out.SystemMessage = said
-	if err := json.NewEncoder(stdout).Encode(out); err != nil {
-		// The encode used to be discarded outright (`_ =`): a strike counted and never delivered,
-		// on the one hook whose whole job is to interrupt a loop.
-		rec.Fail(StageEncode, "cannot encode response: "+err.Error())
-		rec.Persist()
-	}
-}
-
 // Main is the process boundary: it wires the real environment in and returns the
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
