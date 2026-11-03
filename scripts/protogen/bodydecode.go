@@ -269,7 +269,7 @@ func emitRowRead(b *bytes.Buffer, s *msgShape, goType, into, bad string, extra [
 		fmt.Fprintf(b, "\t\tvar k%d sql.NullString\n", i)
 		targets = append(targets, fmt.Sprintf("&k%d", i))
 	}
-	fmt.Fprintf(b, "\t\tif err := scanRows(q, %q, `SELECT %s FROM %q t`, []any{%s}, func() {\n",
+	fmt.Fprintf(b, "\t\tif err := scanRows(q, %q, `SELECT %s FROM %q t WHERE t.\"event_id\" > ?`, after, []any{%s}, func() {\n",
 		s.table, strings.Join(sel, ", "), s.table, strings.Join(targets, ", "))
 	fmt.Fprintf(b, "\t\tm := &recordpb.%s{}\n", goType)
 	for _, c := range s.cols {
@@ -294,7 +294,7 @@ func emitListReads(b *bytes.Buffer, s *msgShape, goType, into, bad string) {
 	for _, f := range s.lists {
 		table := s.table + "_" + string(f.Desc.Name())
 		st, _ := scanType(f)
-		fmt.Fprintf(b, "\tif err := scanList(q, %q, `SELECT l.\"event_id\", l.\"value\" FROM %q l ORDER BY l.\"event_id\", l.\"ord\"`, func(id int64, v %s) {\n",
+		fmt.Fprintf(b, "\tif err := scanList(q, %q, `SELECT l.\"event_id\", l.\"value\" FROM %q l WHERE l.\"event_id\" > ? ORDER BY l.\"event_id\", l.\"ord\"`, after, func(id int64, v %s) {\n",
 			table, table, st)
 		fmt.Fprintf(b, "\t\tm := %s[id]\n\t\tif m == nil {\n", into)
 		if s.scalars > 0 {
@@ -348,7 +348,7 @@ func decodeBodyMessage(b *bytes.Buffer, oneof string, arm *gogen.Field) error {
 		}
 	}
 
-	fmt.Fprintf(b, "\n// %s reads the %q table whole, with its lists and oneof arms, keyed by event.\ntype %s struct {\n", name, table, name)
+	fmt.Fprintf(b, "\n// %s reads the %q table's rows past an event id, with its lists and oneof arms, keyed by event.\ntype %s struct {\n", name, table, name)
 	fmt.Fprintf(b, "\trows map[int64]*recordpb.%s\n\tbad  map[int64]error\n", goType)
 	for _, o := range s.oneofs {
 		fmt.Fprintf(b, "\t%sCase map[int64]string\n", lowerFirst(o.GoName))
@@ -359,7 +359,7 @@ func decodeBodyMessage(b *bytes.Buffer, oneof string, arm *gogen.Field) error {
 	}
 	b.WriteString("}\n")
 
-	fmt.Fprintf(b, "\nfunc (t *%s) load(q Querier) error {\n", name)
+	fmt.Fprintf(b, "\nfunc (t *%s) load(q Querier, after int64) error {\n", name)
 	emitRowRead(b, s, goType, "t.rows", "t.bad", caseFields)
 	emitListReads(b, s, goType, "t.rows", "t.bad")
 	for oi, o := range s.oneofs {

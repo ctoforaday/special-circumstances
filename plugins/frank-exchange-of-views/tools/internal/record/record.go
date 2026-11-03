@@ -676,7 +676,7 @@ func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards .
 // reads it (validationReadsReport). Under the lock the render is reused where the report has not
 // moved, so the lock is held for one query rather than a render.
 func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
-	var tx *sql.Tx
+	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
 			_ = tx.Rollback()
@@ -687,7 +687,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 	for _, body := range bodies {
 		readsReport = readsReport || validationReadsReport(id.SeatID, body)
 	}
-	begin := func() (*sql.Tx, error) {
+	begin := func() (*recordsql.Tx, error) {
 		if tx != nil {
 			return tx, nil
 		}
@@ -699,7 +699,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 			*rendering = *renderBefore(id.Run)
 		}
 		WriteBegins()
-		tx, err = db.Begin()
+		tx, err = recordsql.BeginWrite(db)
 		return tx, err
 	}
 	var first *Event
@@ -728,7 +728,7 @@ func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, err
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for. rendering is the
 // write's report (landingReport), nil on a Batch's act.
-func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), guards []Guard, rendering *landingReport) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, rendering *landingReport) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -765,7 +765,7 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
+	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
 		w := writeView{q: tx, files: files, rendering: rendering}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err

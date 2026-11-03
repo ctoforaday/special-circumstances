@@ -47,6 +47,8 @@ func noRecord(q recordsql.Querier) bool {
 		return h == nil
 	case *sql.Tx:
 		return h == nil
+	case *recordsql.Tx:
+		return h == nil
 	}
 	return false
 }
