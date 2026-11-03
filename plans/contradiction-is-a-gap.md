@@ -2408,7 +2408,24 @@ runs it:
   (an identical `--url` repeat in a sitting, refused); `repeatedSentenceGaps` and
   `repeatedSentenceAccepts`; `readingsOverPrescriptions`. Each new field is
   carried through `sweepTally`, the fold and its merge (the sites listed below for the found-against
-  fields). New tally: max open gaps per (class, sentence) — must be ≤ 1.
+  fields). New tally: max open gaps per (class, sentence) — must be ≤ 1; the sentence is the one the
+  rule reads (`gapSentenceIn`: the whole token in the span, a bare anchor in none), and a gap a
+  co-located gap names in `--supersedes` is not counted, as the rule admits that successor by design;
+  a run over the bound names the gaps, the class and the sentence. <!-- CHANGED fix2 -->
+- **The forced found-against run** (`foundAgainstSeed`, fix2). Measured on three sweeps (59adcc3d7,
+  c242e65e4, 2ecae7a9b): `foundAgainstRepeats` and `foundAgainstClearedByOwnReading` zero on all three,
+  `repeatedSentenceAccepts` zero, `verify --new` unpassed on two — the evidence lens's stock of two
+  fresh mints is spent in its first sitting, and blue's remedy lands before the reader sits again. One
+  seed is forced, as the computation chains are: blue cites a sentence at its first sitting; the
+  owner draws no fresh mint until its chain has read; in a sitting whose plan does not ready
+  blue-respond, its refuting reading (with a `--new`) mints the gap and the close is refused; at its
+  next sitting — lenses sit before blue in an epoch, and a sitting holds one reading per citation —
+  the repeat is refused, the close refused again, and its own backing re-read clears the check and the
+  close is admitted; once blue has made the twice-held sentence the owner reads one copy with a
+  `--new`, and blue's next sitting accepts it. The run fails naming the last step reached where any
+  of the three counts is zero. A close refused because a sibling's reading landed between the drive's
+  read of the board and the act (the one-gap rule carrying it by the gap being closed) is tallied as
+  the found-against close refusal it is, not as an admitted act refused. <!-- CHANGED fix2 -->
 - **Every fuzz branch that tells failed checks apart keys on `CheckState()`**, and the `unread*` tallies
   count the `unread` state only. Sweep, run at `9ee7ad95e` (80 hits, `new-fz.txt` beside the other lists):
   `grep -n -E 'BlockerFailedCheck|AnsweredBy\(\)|\.Detail\b|unread(Answers|Repeats|Retires|RetiresJoined|ClosesRefused)|unsound(Answers|Repeats|ClosesRefused)' releasegate/fuzz/*.go`,

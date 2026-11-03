@@ -580,6 +580,10 @@ type runner struct {
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
 	betweenStaleRetries func(seatID, gapID string)
+	// betweenCloseReadAndAct is called after closeGap read that gapID carries no standing failed check
+	// and before its close is issued: a deterministic test lands there the sibling's reading that a
+	// sweep's concurrent lenses land at will. nil in the sweep.
+	betweenCloseReadAndAct func(gapID string)
 	// actErr is the run's first act the tool answered otherwise than the drive expects
 	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
 	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
@@ -727,6 +731,19 @@ type runner struct {
 	// forceAbsentSpan drives one cite of a span its source does not hold on absentSpanSeed's run,
 	// and absentSpanDriven is whether it has fired.
 	forceAbsentSpan, absentSpanDriven bool
+	// forceFoundAgainst drives foundAgainstSeed's run through a found-against check's whole life
+	// (foundagainstseed_test.go): foundAgainstChained is whether the citation owner's chain over one
+	// citation completed, foundAgainstRepeatedRead whether its reading of one copy of the twice-held
+	// sentence minted with a --new, and foundAgainstStage the last step either reached, which the
+	// run's error names when the chain did not complete.
+	// foundAgainstCite is blue's citation the chain reads (citeForFoundAgainst), foundAgainstCiteTried
+	// whether blue's one try at it ran, and foundAgainstAnchor the citation the owner's reading has found
+	// against, awaiting its re-read.
+	forceFoundAgainst                             bool
+	foundAgainstChained, foundAgainstRepeatedRead bool
+	foundAgainstStage                             string
+	foundAgainstCite, foundAgainstAnchor          string
+	foundAgainstCiteTried                         bool
 	// provedExpectedError fires the --expect-error drive once per run. A computation whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering computation beside it, and the sweep had never passed the flag that says so.
@@ -2417,7 +2434,8 @@ func (r *runner) findsFresh() bool {
 // computation each blue sitting leaves it: in the sweep where the owner minted as any lens does, the forced
 // run kept it that way zero times, and the one fold the sweep counted was another run's draw.
 func (r *runner) mintsFresh(seatID string) bool {
-	return r.findsFresh() && (!r.forceOwedComputation || seatID != computationOwner)
+	return r.findsFresh() && (!r.forceOwedComputation || seatID != computationOwner) &&
+		(!r.forceFoundAgainst || seatID != citationOwner || r.foundAgainstForcedRead())
 }
 
 // forcedVerdict is whether this run is forced to a terminal verdict, UNVERIFIED or VERIFIED: the
@@ -4152,12 +4170,38 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		case r.coin(15):
 			r.refuse(feov.Internal, append(args, "--anchor", id)...)
 		case len(held) > 0:
-			if _, ok := r.admit(append(args, "--anchor", held[r.rng.Intn(len(held))])...); ok {
+			if r.admitClose(id, append(args, "--anchor", held[r.rng.Intn(len(held))])) {
 				return
 			}
 		}
 	}
-	r.admit(args...)
+	r.admitClose(id, args)
+}
+
+// admitClose issues a close of gap id that the drive expects admitted, having read that id carries
+// no standing failed check. A refusal is the drive's failure unless a failed check NOW stands on id
+// and the refusal names it (requireFailedCheckAnswered): the closer recorded nothing between the read
+// and the act, so the check is a sibling's — a lens's reading the one-gap rule carried by id, or a
+// carrier closed into id — landed in that window, which concurrent lenses do (seeds 5 and 6 of
+// 2ecae7a9b's sweep). The refusal is then tallied as the standing-check refusal it is. ok is whether
+// the close was admitted.
+func (r *runner) admitClose(id string, args []string) bool {
+	if r.betweenCloseReadAndAct != nil {
+		r.betweenCloseReadAndAct(id)
+	}
+	args = withJSON(args)
+	out, err := r.exec(args...)
+	if err == nil {
+		return true
+	}
+	if b, ok := r.standingFailedCheckOf(id); ok {
+		if r.standingCloseRefused(strings.Join(args, " "), id, out, b) {
+			noteEither(args, "a close of a gap a sibling's check landed on after the drive read it, refused naming the check", false)
+		}
+		return false
+	}
+	r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+	return false
 }
 
 // standingFailedCheckOf is the standing failed check gap id carries (record.Blocker's Carriers), if
@@ -4166,6 +4210,8 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 func (r *runner) standingFailedCheckOf(id string) (record.Blocker, bool) {
 	bs, err := record.PassBlockers(r.runHandle)
 	if err != nil {
+		// A READ THAT FAILED IS NOT "NONE STANDS": the drive would then expect the close admitted.
+		r.noteActErr("the blockers could not be read to say whether gap " + id + " carries a standing failed check: " + err.Error())
 		return record.Blocker{}, false
 	}
 	for _, b := range bs {
@@ -4190,14 +4236,21 @@ func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
 		r.noteActErr(argv + ": admitted, and gap " + id + " carries failed check " + b.Subject + ", which still stands: " + firstLine(out))
 		return
 	}
+	r.standingCloseRefused(argv, id, out, b)
+}
+
+// standingCloseRefused holds a refused close of gap id, under --json, to the refusal of failed check
+// b it carries — conflict, naming the gap and the anchor — and tallies it by the check's kind. ok is
+// whether the refusal was that one; any other is the run's failure.
+func (r *runner) standingCloseRefused(argv, id, out string, b record.Blocker) bool {
 	env, ok := refusalEnvelopeIn(out)
 	switch {
 	case !ok:
 		r.noteActErr(argv + ": refused under --json with no refusal envelope: " + firstLine(out))
-		return
+		return false
 	case env.Code != string(feov.Conflict) || !strings.Contains(env.Error, id) || !strings.Contains(env.Error, b.Subject):
 		r.noteActErr(fmt.Sprintf("%s: refused (%s), and the refusal does not name gap %s and the anchor %s it carries: %s", argv, env.Code, id, b.Subject, firstLine(env.Error)))
-		return
+		return false
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -4212,7 +4265,9 @@ func (r *runner) refuseStandingClose(closer, id, as string, b record.Blocker) {
 		if r.actErr == "" {
 			r.actErr = fmt.Sprintf("close of %s refused over failed check %s in state %q, which the tally does not know", id, b.Subject, b.CheckState())
 		}
+		return false
 	}
+	return true
 }
 
 // carryPrior is the CHAIR's one closure act (roundless §III.B.3): restating a closure the archive
@@ -4503,6 +4558,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.computeOwed(seatID)
 		r.citeAbsentSpan(seatID)
 		r.citeNotTheWork(seatID)
+		r.citeForFoundAgainst(seatID)
 		r.stockRepeatedSentence(seatID)
 		r.acceptRepeated(seatID)
 		r.maybe(45, func() { inquiry("blue") })
@@ -5220,6 +5276,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.answerFailed(seatID)
 				// ITS CLOSING ON EACH GAP OF ITS OWN THAT IS DOCKETED: the lens is one of the gap's two parties.
 				r.fileClosings(seatID)
+				// FOUND-AGAINST SEED'S CHAIN, before the owed checks: its reading checks the citation it
+				// reads, so the owed loop below finds it read this sitting.
+				r.forcedFoundAgainstChain(seatID)
 				if seatID == "red-lens-evidence" || seatID == computationOwner {
 					var owed []anchorRef
 					for _, it := range r.unchecked() {
@@ -5317,8 +5376,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				fresh := r.mintsFresh(seatID) && r.landedMints(seatID) < fuzzLensStock
 				// THE TWICE-HELD SENTENCE, read by one copy's citation (readRepeatedSentence).
 				if seatID == citationOwner && fresh {
-					r.readRepeatedSentence(seatID)
+					r.readRepeatedSentence(seatID, false)
 				}
+				r.forcedRepeatedReading(seatID)
 				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
 				kindless := outcome == "supports_with_bridge" && r.coin(10)
 				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
@@ -5567,6 +5627,9 @@ type outcome struct {
 	// most open gaps of one class standing in one sentence of the report at the run's end.
 	readingsMinted, readingsHeld, foundSourceGaps int
 	maxOpenPerClassSentence                       int
+	// oneGapBreach names the first pair of open gaps of one class in one sentence that no --supersedes
+	// relates, where the run ended holding one: the gaps, the class and the sentence.
+	oneGapBreach string
 	// WHAT HELD THE RUN OPEN, said by the run itself (PR #1642's four, F7): finalBlockers is the last
 	// relayed plan's blockers by kind and finalParties the seats it readied; openByFoundBy is the gaps
 	// open at the end by what surfaced each — a reading's own act (reading), a finding in its found_by
@@ -6102,6 +6165,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnsoundComputation = seed == unsoundComputationSeed
 	r.forceOwedComputation = seed == owedComputationSeed
 	r.forceAbsentSpan = seed == absentSpanSeed
+	r.forceFoundAgainst = seed == foundAgainstSeed
 	r.forceBenchOrders = seed == benchOrdersSeed
 	r.forceParts = seed == partsSeed
 	r.benchOrders = sweepBenchOrders
@@ -6930,6 +6994,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			stage = "nothing: no blue sitting reached the compute"
 		}
 		res.err = fmt.Sprintf("forced unsound computation: no plan readied %s or blue for an unsound computation; the chain reached %s", computationOwner, stage)
+	}
+	if msg := r.foundAgainstForcedErr(); msg != "" && res.err == "" {
+		res.err = msg
 	}
 	if r.forceAbsentSpan && r.spansRefused == 0 && res.err == "" {
 		res.err = "forced absent span: no cite of a span its source does not hold was refused"

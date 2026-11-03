@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -296,21 +297,7 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless bool, a
 		gap, _ := r.readingGapArgs(classes)
 		c := axes(outcome, r.do("verify", seatID)).set("--anchor", anchorID).bare("--json")
 		c.args = append(c.args, gap...)
-		out, err := c.result()
-		env, isEnv := refusalEnvelopeIn(out)
-		switch {
-		case err == nil:
-			r.noteActErr(fmt.Sprintf("%s's repeat %s reading of %s, over its own standing check (event %d) carried by open gap %s, was admitted: %s",
-				seatID, outcome, anchorID, f.Since(), f.AnsweredBy(), firstLine(out)))
-		case !isEnv || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "at event "+strconv.FormatInt(f.Since(), 10)) ||
-			!strings.Contains(env.Error, "gap "+f.AnsweredBy()):
-			r.noteActErr(fmt.Sprintf("%s's repeat %s reading of %s was refused without naming event %d and gap %s: %s",
-				seatID, outcome, anchorID, f.Since(), f.AnsweredBy(), firstLine(out)))
-		default:
-			r.mu.Lock()
-			r.foundAgainstRepeats++
-			r.mu.Unlock()
-		}
+		r.repeatReadingRefused(seatID, anchorID, outcome, f, c)
 		return
 	}
 	classes, notTheWork := r.readingClasses(url, outcome, true)
@@ -383,6 +370,28 @@ func (r *runner) readCitation(seatID, anchorID, outcome string, kindless bool, a
 		}
 	case !kindless && err != nil:
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+	}
+}
+
+// repeatReadingRefused drives c, seatID's repeat reading of citation anchorID with outcome over its own
+// standing found-against check f, to its refusal: a conflict naming the earlier reading's event and
+// the gap that carries it, nothing recorded. It counts foundAgainstRepeats; any other answer fails
+// the run.
+func (r *runner) repeatReadingRefused(seatID, anchorID, outcome string, f record.Blocker, c *cmd) {
+	out, err := c.result()
+	env, isEnv := refusalEnvelopeIn(out)
+	switch {
+	case err == nil:
+		r.noteActErr(fmt.Sprintf("%s's repeat %s reading of %s, over its own standing check (event %d) carried by open gap %s, was admitted: %s",
+			seatID, outcome, anchorID, f.Since(), f.AnsweredBy(), firstLine(out)))
+	case !isEnv || env.Code != string(feov.Conflict) || !strings.Contains(env.Error, "at event "+strconv.FormatInt(f.Since(), 10)) ||
+		!strings.Contains(env.Error, "gap "+f.AnsweredBy()):
+		r.noteActErr(fmt.Sprintf("%s's repeat %s reading of %s was refused without naming event %d and gap %s: %s",
+			seatID, outcome, anchorID, f.Since(), f.AnsweredBy(), firstLine(out)))
+	default:
+		r.mu.Lock()
+		r.foundAgainstRepeats++
+		r.mu.Unlock()
 	}
 }
 
@@ -796,8 +805,9 @@ func readingTally(res *outcome, board record.Family, run record.Run) {
 	}
 	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
 	report, rerr := reportproj.RenderFromRecord(run)
-	spans := anchor.Sentences(report)
-	perClassSentence := map[string]int{}
+	spans, bare := anchor.Sentences(report), claimcount.BareAnchorIDs(report)
+	perClassSentence := map[string][]*record.Gap{}
+	var keys []string
 	for _, g := range board.Gaps {
 		res.mintsByEpoch[g.Epoch]++
 		if g.HasClosed {
@@ -816,20 +826,61 @@ func readingTally(res *outcome, board record.Family, run record.Run) {
 		default:
 			res.openByFoundBy["none"]++
 		}
-		// ONE GAP PER CLASS IN ONE SENTENCE, read off the report: where the gap's token stands.
-		at := strings.Index(report, anchor.Token(g.ID))
-		if rerr != nil || at < 0 {
+		// ONE GAP PER CLASS IN ONE SENTENCE, read off the report: the sentence the gap's token stands
+		// in, as the rule reads it (record's gapSentenceIn) — the whole token inside one sentence span,
+		// and an anchor standing bare in none.
+		if rerr != nil {
 			continue
 		}
-		for i, sp := range spans {
-			if sp[0] <= at && at < sp[1] {
-				k := recordpb.Word(g.Mint.GetClass()) + "@" + strconv.Itoa(i)
-				perClassSentence[k]++
-				res.maxOpenPerClassSentence = max(res.maxOpenPerClassSentence, perClassSentence[k])
-				break
+		if i, ok := sentenceIndexOf(report, spans, bare, g.ID); ok {
+			k := recordpb.Word(g.Mint.GetClass()) + "@" + strconv.Itoa(i)
+			if perClassSentence[k] == nil {
+				keys = append(keys, k)
 			}
+			perClassSentence[k] = append(perClassSentence[k], g)
 		}
 	}
+	// A GAP ITS SUCCESSOR NAMES IN --supersedes IS NOT A SECOND GAP ON THE SUBJECT: the rule admits the
+	// successor over it by design (record.requireOneGapPerClassAndSubject), as checkOneGap does at the
+	// mint. Every other pair is the rule broken, and the run names it.
+	for _, k := range keys {
+		gs := perClassSentence[k]
+		superseded := map[string]bool{}
+		for _, g := range gs {
+			for _, a := range g.Mint.GetSupersedes() {
+				superseded[a] = true
+			}
+		}
+		var standing []string
+		for _, g := range gs {
+			if !superseded[g.ID] {
+				standing = append(standing, g.ID)
+			}
+		}
+		res.maxOpenPerClassSentence = max(res.maxOpenPerClassSentence, len(standing))
+		if len(standing) > 1 && res.oneGapBreach == "" {
+			i, _ := strconv.Atoi(k[strings.LastIndex(k, "@")+1:])
+			res.oneGapBreach = fmt.Sprintf("seed %d: open gaps %s, of class %s, stand in one sentence: %q",
+				res.seed, strings.Join(standing, ", "), k[:strings.LastIndex(k, "@")], plainText(report[spans[i][0]:spans[i][1]]))
+		}
+	}
+}
+
+// sentenceIndexOf is the index in spans of the sentence gap id's token stands in, as the one-gap rule
+// reads it (record's gapSentenceIn): the whole token inside the span, and an anchor standing bare in
+// no sentence.
+func sentenceIndexOf(report string, spans [][2]int, bare []string, id string) (int, bool) {
+	tok := anchor.Token(id)
+	at := strings.Index(report, tok)
+	if at < 0 || slices.Contains(bare, id) {
+		return 0, false
+	}
+	for i, sp := range spans {
+		if sp[0] <= at && at+len(tok) <= sp[1] {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 // planBlockersAndParties is a relayed plan's blockers counted by kind and the seats it readies, in
@@ -998,11 +1049,11 @@ type pendingAccept struct{ gap, cite, other, fixNew string }
 // citation's token sits in — after its last word, before a citation token that ends it — in that
 // copy and no other, read off the rendered report. A found-source reading quoting the sentence is
 // refused as ambiguous.
-func (r *runner) readRepeatedSentence(seatID string) {
+func (r *runner) readRepeatedSentence(seatID string, forced bool) {
 	r.mu.Lock()
 	cites := r.repeatedCites
 	r.mu.Unlock()
-	if cites[0] == "" || !r.coin(30) {
+	if cites[0] == "" || !forced && !r.coin(30) {
 		return
 	}
 	cur, err := reportproj.RenderFromRecord(r.run())
@@ -1026,7 +1077,7 @@ func (r *runner) readRepeatedSentence(seatID string) {
 		set("--reason", "fuzz: the source says otherwise than this copy of the sentence").bare("--json")
 	c.args = append(c.args, gap...)
 	fixNew := ""
-	if r.coin(50) {
+	if forced || r.coin(50) {
 		fixNew = r.citationFixNew(cite)
 	}
 	run := c
@@ -1113,7 +1164,8 @@ func (r *runner) acceptRepeated(seatID string) {
 	r.pendingAccepts = nil
 	r.mu.Unlock()
 	for _, p := range pending {
-		if !slices.Contains(r.openGaps(), p.gap) || !r.coin(50) {
+		// FOUND-AGAINST SEED'S BLUE ACCEPTS EVERY ONE (forceFoundAgainst); a drawn run's, on a coin.
+		if !slices.Contains(r.openGaps(), p.gap) || !r.forceFoundAgainst && !r.coin(50) {
 			continue
 		}
 		if _, ok := r.do("edit", seatID).set("--answers", p.gap).bare("--accept").

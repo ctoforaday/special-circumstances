@@ -137,7 +137,7 @@ func (r *runner) frontierReadsNoPart(seatID string) {
 }
 
 // withholdsPart is whether lane records no part this run: the forced run's third lane, and a drawn run's
-// one time in five.
+// one time in five — never foundAgainstSeed's, whose twice-held sentence needs it.
 func (r *runner) withholdsPart(lane string) bool {
 	if lane != withheldLane {
 		return false
@@ -146,7 +146,8 @@ func (r *runner) withholdsPart(lane string) bool {
 	defer r.mu.Unlock()
 	if r.withheld == nil {
 		r.withheld = map[string]bool{}
-		r.withheld[lane] = r.forceParts || r.rng.Intn(100) < 20
+		// FOUND-AGAINST SEED'S LANES ALL RECORD: its twice-held sentence closes lanes 1 and 3.
+		r.withheld[lane] = r.forceParts || !r.forceFoundAgainst && r.rng.Intn(100) < 20
 	}
 	return r.withheld[lane]
 }

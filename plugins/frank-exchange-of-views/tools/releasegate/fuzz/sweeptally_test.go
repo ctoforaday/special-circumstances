@@ -182,6 +182,7 @@ type runTally struct {
 	ReadingsHeld                    int                       `json:"readings_held"`
 	FoundSourceGaps                 int                       `json:"found_source_gaps"`
 	MaxOpenPerClassSentence         int                       `json:"max_open_per_class_sentence"`
+	OneGapBreach                    string                    `json:"one_gap_breach"`
 	FinalBlockers                   map[string]int            `json:"final_blockers"`
 	FinalParties                    []string                  `json:"final_parties"`
 	OpenByFoundBy                   map[string]int            `json:"open_by_found_by"`
@@ -217,7 +218,7 @@ func tallyOf(o outcome) runTally {
 		HearingsAfterChair: o.hearingsAfter[barrierChair], HearingsAfterLens: o.hearingsAfter[barrierLens], HearingsAfterBlue: o.hearingsAfter[barrierBlue],
 		BenchRegrades: o.benchRegrades, LockRefused: o.lockRefused, LockLifted: o.lockLifted, GroundsRefused: o.groundsRefused, GroundsAdmitted: o.groundsAdmitted,
 		PartRefused: o.partRefused, PartsRecorded: o.partsRecorded,
-		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
+		FoundAgainstClosesRefused: o.foundAgainstClosesRefused, FoundAgainstRepeats: o.foundAgainstRepeats, FoundAgainstEdits: o.foundAgainstEdits, FoundAgainstRetires: o.foundAgainstRetires, FoundAgainstClearedByOwnReading: o.foundAgainstClearedByOwnReading, NotTheWorkFlagsRefused: o.notTheWorkFlagsRefused, NotTheWorkReadingsUnread: o.notTheWorkReadingsUnread, MarkedSentenceRefused: o.markedSentenceRefused, FoundSourceBudgetRefused: o.foundSourceBudgetRefused, FoundSourceRetriesRefused: o.foundSourceRetriesRefused, RepeatedSentenceGaps: o.repeatedSentenceGaps, RepeatedSentenceAccepts: o.repeatedSentenceAccepts, ReadingsOverPrescriptions: o.readingsOverPrescriptions, ReadingsMinted: o.readingsMinted, ReadingsHeld: o.readingsHeld, FoundSourceGaps: o.foundSourceGaps, MaxOpenPerClassSentence: o.maxOpenPerClassSentence, OneGapBreach: o.oneGapBreach, FinalBlockers: o.finalBlockers, FinalParties: o.finalParties, OpenByFoundBy: o.openByFoundBy, MintsByEpoch: o.mintsByEpoch, ClosesByEpoch: o.closesByEpoch,
 	}
 }
 
@@ -588,6 +589,7 @@ type sweepFold struct {
 	readingsOverPrescriptions                        int
 	readingsMinted, readingsHeld, foundSourceGaps    int
 	maxOpenPerClassSentence                          int
+	oneGapBreach                                     string
 	// WHAT HELD EACH RUN OPEN, by its verdict (PR #1642's four, F7): the final plans' blockers by
 	// kind, the seats they readied, and the gaps open at the end by what surfaced each, each summed
 	// over the runs of that verdict; and the gaps minted and closed in each epoch, over every run.
@@ -716,6 +718,10 @@ func foldRuns(runs []runTally) sweepFold {
 		f.readingsHeld += r.ReadingsHeld
 		f.foundSourceGaps += r.FoundSourceGaps
 		f.maxOpenPerClassSentence = max(f.maxOpenPerClassSentence, r.MaxOpenPerClassSentence)
+		// THE LEAST BREACH, so the fold names the same one whatever order the runs arrive in.
+		if b := r.OneGapBreach; b != "" && (f.oneGapBreach == "" || b < f.oneGapBreach) {
+			f.oneGapBreach = b
+		}
 		addUnder(f.finalBlockers, r.Verdict, r.FinalBlockers)
 		parties := map[string]int{}
 		for _, s := range r.FinalParties {
@@ -1061,7 +1067,7 @@ func judgeSweep(t *testing.T, f sweepFold, p processTally) {
 		// ONE GAP PER CLASS IN ONE SENTENCE. The record refuses a second; a run that ended holding two
 		// open gaps of one class in one sentence of its report is the rule broken.
 		if f.maxOpenPerClassSentence > 1 {
-			t.Errorf("a run ended with %d open gaps of one class in one sentence of its report — one gap per class on one sentence is broken", f.maxOpenPerClassSentence)
+			t.Errorf("a run ended with %d open gaps of one class in one sentence of its report — one gap per class on one sentence is broken (%s)", f.maxOpenPerClassSentence, f.oneGapBreach)
 		}
 		// THE CATCH-ALL GATE. A gap no class fits is minted `unclassified` with a reason, and the
 		// record refuses one without. The `mint` verb gate is satisfied by every other class, so a
