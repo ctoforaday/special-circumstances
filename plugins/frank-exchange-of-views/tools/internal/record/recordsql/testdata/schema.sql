@@ -247,8 +247,9 @@ CREATE TABLE "enum_gap_class" (
   "material_default" TEXT NOT NULL REFERENCES "enum_class_material"("value")
 ) STRICT;
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('artifact_preservation', 'an artifact a reader needs to check the report — a computation, program, cached source or data file — is not kept, or does not run, where the report says it is', 'by_grade');
-INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from or contradicted by its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('citation_figure_misattribution', 'a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_own_record', 'the report and the run''s own record disagree: the report states what the record contradicts — an inquiry''s fate, method or reason, an edit, a computation''s result — or a record entry contradicts what the report shows was done', 'always');
+INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('claim_contradicts_source', 'a source read against the sentence — cited by blue or found by red — states otherwise than the report', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('cross_section_contradiction', 'two passages of the report state things that cannot both be true — figures, verdicts, grades, or the reasons given for them', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('derivation_status_overclaim', 'a claim carries more certainty or status than how it was established supports — inferred stated as verified, hedged in one place and flat in another, assumed stated as shown', 'always');
 INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('doctrine_vs_implementation', 'what a system, method or report says it does differs from what its implementation does — a stated rule its code, script or procedure does not follow', 'by_grade');
@@ -279,14 +280,12 @@ INSERT INTO "enum_gap_class" ("value", "means", "material_default") VALUES ('wit
 
 CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL,
-  "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
+  "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread', 1);
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s text or a computation contradicts. The steelman duty''s own anchor', 1);
-INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('anchor', 'a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report''s text or a computation contradicts. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
 CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,
@@ -341,8 +340,8 @@ CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise');
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('unreachable', 'you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read');
@@ -703,7 +702,8 @@ CREATE TABLE "finding" (
 CREATE TABLE "anchor" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "id" TEXT UNIQUE,
-  "location" TEXT
+  "location" TEXT,
+  "sentence_of" TEXT
 ) STRICT;
 
 CREATE TABLE "cite" (
@@ -763,12 +763,16 @@ CREATE TABLE "verify" (
   "copy_substitution" TEXT,
   "copy_url" TEXT,
   "sha256" TEXT,
+  "carried_by" TEXT,
+  "carrier_minted" INTEGER,
+  CHECK ("carrier_minted" IS NULL OR "carrier_minted" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value"),
   FOREIGN KEY ("bridge") REFERENCES "enum_bridge_kind"("value"),
-  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value")
+  FOREIGN KEY ("copy_substitution") REFERENCES "enum_copy_substitution"("value"),
+  FOREIGN KEY ("carried_by") REFERENCES "mint"("gap_id")
 ) STRICT;
 
 CREATE TABLE "computation" (
@@ -1728,9 +1732,12 @@ LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 --   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay);
 --            exact=1 when the edit recorded exact_span, so replay locates a AS WRITTEN.
 --   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote); exact=0.
---            One row per anchor event: every act that places a marker — a finding, a gap, a
---            citation, a computation, a corroboration — appends one after its own event, so where an
---            id is placed is read from one table.
+--            One row per anchor event placed by its quote: every act that places a marker — a
+--            finding, a gap, a citation, a computation, a corroboration — appends one after its own
+--            event, so where an id is placed is read from one table.
+--   sentence_of → a=the id of an anchor already in the text, b=the marker id (Token(b) is spliced
+--            at the end of the sentence Token(a) sits in, found by that token, never by text);
+--            exact=0. One row per anchor event placed by sentence_of — a reading's gap.
 --   remove → a=an anchor id a retire took out with its claim (Token(a) and the husk it leaves
 --            are removed). One row per named anchor; exact=0.
 -- The FOLD itself stays in Go: replaying a splice needs the running text a prior op left, which
@@ -1745,6 +1752,10 @@ CREATE VIEW "report_op" AS
   SELECT e."id", 'insert', a."location", a."id", 0
     FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
     WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
+  UNION ALL
+  SELECT e."id", 'sentence_of', a."sentence_of", a."id", 0
+    FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
+    WHERE COALESCE(a."sentence_of", '') != '' AND COALESCE(a."id", '') != ''
   UNION ALL
   SELECT e."id", 'remove', ra."value", NULL, 0
     FROM "retire_anchors" ra JOIN "events" e ON e."id" = ra."event_id";

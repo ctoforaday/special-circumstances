@@ -279,13 +279,21 @@ type EvidenceVerificationJSON struct {
 	CopyURL          string `json:"copy_url,omitempty"`
 }
 
-// Refuted reports whether this verification found AGAINST the claim — the two outcomes that
-// mean the report is carrying a citation it should not, when the reading stands. A named
-// predicate rather than a string comparison at each call site: every reader of one reading must
-// agree on what "found against" means, and they agree by calling this. Whether it STANDS is the
-// anchor ledger's (CitationsFoundAgainst), which counts.sources_refuted reads.
-func (v EvidenceVerificationJSON) Refuted() bool {
-	return v.Outcome == "refutes" || v.Outcome == "absent"
+// FindsAgainst reports whether this verification found AGAINST the claim — record.FindsAgainst over
+// the row's outcome and the completeness of the copy it read, so a `refutes` of a copy the tool
+// stamped not_the_work, which read nothing, is not one. A named predicate rather than a string
+// comparison at each call site: every reader of one reading must agree on what "found against"
+// means, and they agree by calling this. Whether it STANDS is the anchor ledger's
+// (CitationsFoundAgainst), which counts.sources_refuted reads.
+func (v EvidenceVerificationJSON) FindsAgainst() bool {
+	r := &recordpb.Verify{}
+	if vd, ok := recordpb.BySpelling(recordpb.SourceOutcome(0).Descriptor(), v.Outcome); ok {
+		r.Outcome = recordpb.SourceOutcome(vd.Number()).Enum()
+	}
+	if vd, ok := recordpb.BySpelling(recordpb.SourceCompleteness(0).Descriptor(), v.SourceCompleteness); ok {
+		r.SourceCompleteness = recordpb.SourceCompleteness(vd.Number()).Enum()
+	}
+	return FindsAgainst(r)
 }
 
 // EvidenceJSON is the whole evidence layer of the report.
@@ -303,23 +311,7 @@ type EvidenceJSON struct {
 	// sentence the report no longer carries, which is stale, not refuted. It is the standing set: a
 	// check removes the row. It holds a PASS (passBlockersOf).
 	Unchecked []EvidenceUncheckedJSON `json:"unchecked"`
-	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
-	// not support the report, and nothing has answered it: no gap was minted from the finding that
-	// raised it, and the citation it was read against is neither retired nor backed
-	// (unansweredContradictions).
-	//
-	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the chair's PASS gate,
-	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
-	// blocked at the end of the epoch is one the seat that owes it never sees. An empty array is
-	// the honest "nothing outstanding"; without the field, nothing outstanding and nothing
-	// checked are the same absence.
-	//
-	// EACH CARRIES ITS ID, and naming it is the only act that raises it (`finding --about-kind
-	// contradiction --about <id>`), whether or not the report still holds the sentence. A finding
-	// whose quote contains the claim raises nothing. A raised one carries the raising finding,
-	// which the gap that answers it names in its found_by.
-	UnansweredContradictions []EvidenceContradictionJSON `json:"unanswered_contradictions"`
-	Counts                   struct {
+	Counts    struct {
 		Sources      int `json:"sources"`
 		Computations int `json:"computations"`
 		// ComputationsUnverified is the count whose `verified` is false: the script not reproduced, or the
@@ -339,19 +331,6 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
-// EvidenceContradictionJSON is one contradiction no gap answers. ID is its id — the
-// events.id of the reading that opened it, the value `--about` takes; Claim is the sentence the
-// reading was of; Reader is the seat whose reading last joined it, which owes the finding and the
-// gap; Anchor is the citation that reading checked, "" for a corroboration; RaisedBy is the finding
-// that raised it, "" until one has — the id the answering gap's found_by names.
-type EvidenceContradictionJSON struct {
-	ID       string `json:"id"`
-	Claim    string `json:"claim"`
-	Reader   string `json:"reader"`
-	Anchor   string `json:"anchor"`
-	RaisedBy string `json:"raised_by"`
-}
-
 // EvidenceUncheckedJSON is one unchecked citation or computation. Edit and LastCheck are events.id: the
 // edit that changed its sentence, 0 when none did, and its latest check, 0 when it has none, which
 // does not clear it.
@@ -367,10 +346,6 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		Sources:      []EvidenceSourceJSON{},
 		Computations: []EvidenceComputationJSON{},
 		Independent:  []EvidenceVerificationJSON{},
-	}
-	out.UnansweredContradictions = []EvidenceContradictionJSON{}
-	for _, c := range unansweredContradictions(evs, win) {
-		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor, RaisedBy: c.raisedBy})
 	}
 	out.Unchecked = []EvidenceUncheckedJSON{}
 	for _, u := range uncheckedAnchors(evs, win) {
@@ -390,7 +365,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 			continue
 		}
 		// OUTCOME AND CONFIDENCE ARE ENUMS NOW, AND THIS VIEW RENDERS THE SEAT'S WORD. Every
-		// consumer — Refuted(), the assembly screen, a seat reading the JSON — speaks
+		// consumer — FindsAgainst(), the assembly screen, a seat reading the JSON — speaks
 		// `supports`/`refutes`/`high`, so the value's spelling is what crosses the boundary, not
 		// `SOURCE_OUTCOME_REFUTES`. `Word` maps the UNSPECIFIED zero back to "" for the same
 		// reason the old read did: the pre-migration record had no outcome word for an absent
@@ -574,16 +549,14 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	return out
 }
 
-// evidenceView is the evidence read from the record: the sources, computations and their checks, the
-// findings that raise a contradicting check and the mints that answer it (unanswered_contradictions), and the edits that
-// change an anchor's sentence with the retires that take one out of the report (unchecked).
+// evidenceView is the evidence read from the record: the sources, computations and their checks,
+// and the edits that change an anchor's sentence with the retires that take one out of the report
+// (unchecked).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
 	recordpb.EventType_EVENT_TYPE_COMPUTATION,
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
-	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_MINT,
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
 	recordpb.EventType_EVENT_TYPE_RETIRE)
 
@@ -595,8 +568,8 @@ func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(
 //
 // IT IS A SECOND SHAPE BECAUSE IT ANSWERS A SECOND QUESTION. The table says what backs the report
 // and what has been checked of it; this says what ONE anchor points at, in full. Narrowing the
-// table's own arrays to one row would leave its run-wide counts and its unanswered contradictions
-// beside a single entry, where "0 computations unverified" reads as a fact about that entry.
+// table's own arrays to one row would leave its run-wide counts and its unchecked anchors beside a
+// single entry, where "0 computations unverified" reads as a fact about that entry.
 type EvidenceAtJSON struct {
 	Anchor string `json:"anchor"`
 	// Source is set when the anchor is a citation's (or a labelled corroboration's), Computation

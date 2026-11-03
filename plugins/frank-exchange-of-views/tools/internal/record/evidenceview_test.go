@@ -266,9 +266,22 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
 				recordpb.Word(outcome), got.Counts.SourcesRefuted)
 		}
-		if !got.Sources[0].Verified[0].Refuted() {
-			t.Errorf("outcome %q: Refuted() = false; the screen and the counts must agree on what 'found against' means", outcome)
+		if !got.Sources[0].Verified[0].FindsAgainst() {
+			t.Errorf("outcome %q: FindsAgainst() = false; the screen and the counts must agree on what 'found against' means", outcome)
 		}
+	}
+	// A READING OF A COPY THE TOOL STAMPED not_the_work reads nothing, whatever it found there: its
+	// row is not found against, by the one predicate the ledger reads (record.FindsAgainst).
+	nw := evidenceBoard(
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String("u")}),
+		evidenceEvent(t, 2, "lens-r2", &recordpb.Verify{
+			Anchor: proto.String("c-1"), Claim: proto.String("x"),
+			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("read a sign-in page"),
+			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_THE_WORK.Enum(),
+		}),
+	)
+	if row := evidenceJSONT(t, nw).Sources[0].Verified[0]; row.SourceCompleteness != "not_the_work" || row.FindsAgainst() {
+		t.Errorf("a `refutes` of a copy stamped not_the_work: row %+v, FindsAgainst() = %v — want the stamp on the row and false: it read nothing of the work", row, row.FindsAgainst())
 	}
 	// And the supporting half is NOT counted as found-against.
 	b := evidenceBoard(

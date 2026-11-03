@@ -118,8 +118,6 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 type sittingReads struct {
 	// unverifiable: why no verify can reach a citation (unverifiableIn).
 	unverifiable unverifiableFunc
-	// mintsLeft: a lens's mints left on its budget, and whether that reads (mintBudgetOf).
-	mintsLeft func() (int, bool)
 }
 
 // unverifiableFunc says why a citation's sentence cannot be verified from the report as it renders
@@ -371,10 +369,10 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if id, owed := overruledVerdictOwed(evs, win); owed {
 			add(overruledVerdictItem(id))
 		}
-	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, CHECKING A
-	// CITATION OR COMPUTATION IT OWNS (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS
-	// REACHED, THE GAP ABOUT A CHECK OF ITS THAT FAILED, AND ITS CLOSING ON A GAP OF ITS OWN THAT IS
-	// DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
+	// THE LENS OWES THE PASS BLOCKERS IT OWNS: CHECKING A CITATION OR COMPUTATION IT OWNS
+	// (anchorOwnerOf) THAT NO CHECK OF THE SENTENCE AS IT STANDS HAS REACHED, THE GAP ABOUT A CHECK OF
+	// ITS THAT READ NOTHING OR JUDGED A COMPUTATION UNSOUND, AND ITS CLOSING ON A GAP OF ITS OWN THAT
+	// IS DOCKETED (closingowed.go). Beyond the two duties every seat holds above this switch (the log
 	// channel, and the sitting it was dispatched for), each is a PASS blocker whose owner is that lens
 	// (passBlockersOf), and dispatch readies the lens for it — so it qualifies under the rule at the
 	// top of this file, and it is the kind table's own sentence.
@@ -395,11 +393,13 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			may(what)
 		}
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			// A CHECK OF ITS THAT FAILED IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item stays on
-			// the list as not owed — blue's remedy clears it, or the lens's own check of the sentence
-			// that holds, if it checks it again.
+			// AN UNREAD OR UNSOUND CHECK OF ITS IS ITS DEBT UNTIL ITS GAP IS MINTED; from then the item
+			// stays on the list as not owed — blue's remedy clears it, or the lens's own check of the
+			// sentence that holds, if it checks it again. A FOUND-AGAINST CHECK IS NEVER ITS DEBT: its
+			// reading minted its gap, so it is listed as not owed, carried or not, and no envelope of
+			// the reader's is refused over it.
 			if b.Kind == BlockerFailedCheck && b.Owner == seatID {
-				if b.answeredBy == "" {
+				if b.owed() {
 					add(b.WorkItem())
 				} else {
 					may(b.WorkItem())
@@ -415,7 +415,7 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 				}
 				continue
 			}
-			if (b.Kind != BlockerContradiction && b.Kind != BlockerUnchecked && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
+			if (b.Kind != BlockerUnchecked && b.Kind != BlockerClosingOwed) || b.Owner != seatID {
 				continue
 			}
 			if b.Kind == BlockerUnchecked && b.since != 0 && win.LatestSittingOf(seatID) <= b.since {
@@ -427,15 +427,6 @@ func sittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			if b.Kind == BlockerUnchecked && b.Detail == "" && reads.unverifiable != nil {
 				if why := reads.unverifiable(b.Subject); why != "" {
 					may(b.WorkItem() + " — " + why + ", so no verify of this sitting can clear it")
-					continue
-				}
-			}
-			// A CONTRADICTION ANOTHER LENS RAISED, AT THE READER'S MINT CAP, is not its to clear: the
-			// gap it mints from another seat's finding takes one of its mints (answersOwnRaiseAt), and
-			// it has none left. The raiser's own mint from that finding takes none.
-			if b.Kind == BlockerContradiction && b.raiser != "" && b.raiser != seatID && reads.mintsLeft != nil {
-				if left, read := reads.mintsLeft(); read && left <= 0 {
-					may(b.WorkItem() + " — finding " + b.raisedBy + " that raised it is " + b.raiser + "'s, so a gap you mint from it takes a mint and you have none left; " + b.raiser + "'s own mint from it takes none, so this sitting cannot clear it")
 					continue
 				}
 			}

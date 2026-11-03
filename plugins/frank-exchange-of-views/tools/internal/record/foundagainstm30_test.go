@@ -66,7 +66,7 @@ func TestM30SourcesRefutedCountsOnlyTheStanding(t *testing.T) {
 	refutedRow := false
 	for _, s := range end.Sources {
 		if s.Anchor == "C-4f4b8cfa" {
-			refutedRow = slices.ContainsFunc(s.Verified, EvidenceVerificationJSON.Refuted)
+			refutedRow = slices.ContainsFunc(s.Verified, EvidenceVerificationJSON.FindsAgainst)
 		}
 	}
 	if !refutedRow {

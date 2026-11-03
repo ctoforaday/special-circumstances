@@ -18,8 +18,8 @@ const b6Archive = "2026-09-11_is-91-prime-b6.tar.gz"
 // not about either anchor) and closed it repaired at 178 after blue cited a mirror; the two dead
 // anchors stayed in the report, and the chair's PASS stood. Under the ruling (gblock, 2026-10-25:
 // "Citation checking isn't optional. Ever.") both are on a failed check owned by the lens that read
-// nothing, which owes a gap about each; the PASS is refused naming them; and the gap about either
-// does not close while it stands unread.
+// nothing, which owes a gap about each; the PASS is refused naming them; and the lens's close of the
+// gap about either is refused while it stands unread.
 func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 	whole := archivedEvents(t, b6Archive)
 	unread := []string{"C-b718c6b6", "C-f5782056"}
@@ -63,7 +63,7 @@ func TestB6UnreadCitationsHoldThePassAndTheirGapDoesNotClose(t *testing.T) {
 		}
 	}
 
-	// THE GAP ABOUT AN UNREAD CITATION DOES NOT CLOSE. Before G-782e2cf3's close (event 178), in the
+	// THE LENS'S CLOSE OF THE GAP ABOUT AN UNREAD CITATION IS REFUSED. Before G-782e2cf3's close (event 178), in the
 	// evidence lens's sitting, the lens mints the gap it owes about C-b718c6b6 — outside its budget —
 	// and its close as repaired is refused while the citation stands unread.
 	if c := whole[177].GetClose(); c.GetGapId() != "G-782e2cf3" || whole[177].GetSeatId() != evLens {

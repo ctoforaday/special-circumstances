@@ -32,7 +32,6 @@ var facets = map[string]protoreflect.ExtensionType{
 	"closes":        E_Closes,
 	"mass":          E_Mass,
 	"seat_may_file": E_SeatMayFile,
-	"gap_may_name":  E_GapMayName,
 }
 
 // enumFacets are the facets whose values are WORDS OF ANOTHER ENUM: `material_default` says which

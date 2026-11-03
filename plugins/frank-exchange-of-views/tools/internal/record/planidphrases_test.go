@@ -56,10 +56,9 @@ func TestEveryIDTheVerbPrintsIsTranslated(t *testing.T) {
 		newID[next] = next - 100000
 		return next
 	}
-	word := func() string { return strconv.FormatInt(id(), 10) }
 	const seat = "red-lens-logic"
 	owes := func() []string {
-		return []string{record.OwedBlocker(record.BlockerContradiction, word()), record.OwedBlocker(record.BlockerUnchecked, "C-1")}
+		return []string{record.OwedBlocker(record.BlockerFailedCheck, "C-2"), record.OwedBlocker(record.BlockerUnchecked, "C-1")}
 	}
 	head := id()
 	var why []string
@@ -76,18 +75,10 @@ func TestEveryIDTheVerbPrintsIsTranslated(t *testing.T) {
 		record.LensReadiness(seat, head, 0, 0, 0, nil, ""),
 		record.LensReadiness(seat, head, id(), 1, 0, nil, ""),
 		record.LensReadiness(seat, head, head, record.RetiresAfter, record.RetiresAfter, owes(), ""),
-		record.LensReadiness(seat, head, head, 1, 1, owes(), ""),
-		record.ContradictionReadiness(seat, "the claim", word(), true),
-		record.ContradictionReadiness(seat, "the claim", word(), false))
-	subject := func(k record.BlockerKind) string {
-		if k == record.BlockerContradiction {
-			return word()
-		}
-		return "S-1"
-	}
-	for _, line := range record.BlockerWhy(subject, seat, "the detail", id, id) {
-		why = append(why, line)
-	}
+		record.LensReadiness(seat, head, head, 1, 1, owes(), ""))
+	why = append(why, record.FailedCheckReadiness("blue-respond", seat, "C-1", id)...)
+	why = append(why, record.FailedCheckReadiness(seat, seat, "C-1", id)...)
+	why = append(why, record.BlockerWhy(func(record.BlockerKind) string { return "S-1" }, seat, "the detail", id, id)...)
 
 	got := translated(t, head, why, newID)
 	pairs := []string{}

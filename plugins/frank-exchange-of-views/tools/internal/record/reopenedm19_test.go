@@ -120,7 +120,6 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	owners := map[string]bool{computationSeat: true, evLens: true}
 	var got []unchecked
 	var ready []string
-	unraised := false
 	for _, b := range blockers {
 		if b.Kind == BlockerLensReady {
 			switch {
@@ -132,14 +131,8 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			ready = append(ready, b.Subject)
 			continue
 		}
-		// AND A CONTRADICTION NO FINDING NAMED: the reading at 114. The archive's finding about it
-		// quotes the claim and names no contradiction, and a quote raises nothing.
-		if b.Kind == BlockerContradiction && b.Subject == "114" && b.Owner == evLens && b.raisedBy == "" {
-			unraised = true
-			continue
-		}
 		if b.Kind != BlockerUnchecked {
-			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, their owners' readiness and contradiction 114", b.Kind, b.Subject, b.Owner)
+			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors and their owners' readiness", b.Kind, b.Subject, b.Owner)
 			continue
 		}
 		r := unchecked{anchor: b.Subject, computation: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
@@ -147,9 +140,6 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			t.Errorf("reopened %s is owned by %q, want %s", b.Subject, b.Owner, m19Owner(r))
 		}
 		got = append(got, r)
-	}
-	if !unraised {
-		t.Error("contradiction 114, which no finding named, does not hold the PASS unraised")
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)

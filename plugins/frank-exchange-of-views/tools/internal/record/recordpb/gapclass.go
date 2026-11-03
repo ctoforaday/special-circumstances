@@ -53,5 +53,16 @@ func Neighbor(c GapClass) (GapClass, bool) {
 	return GapClass(nv.Number()), true
 }
 
+// GapClassesOf is the gap classes a reading with outcome o may mint its gap in — the outcome's
+// `gap_classes` option, in declaration order — and nil for an outcome that declares none: an outcome
+// that does not find against a sentence admits no gap.
+func GapClassesOf(o SourceOutcome) []GapClass {
+	vd := o.Descriptor().Values().ByNumber(o.Number())
+	if vd == nil || vd.Options() == nil || !proto.HasExtension(vd.Options(), E_GapClasses) {
+		return nil
+	}
+	return proto.GetExtension(vd.Options(), E_GapClasses).([]GapClass)
+}
+
 // Distinguisher is the question that tells c from its neighbour; empty for the catch-all.
 func Distinguisher(c GapClass) string { return ValueDistinguisher(gapClassValue(c)) }

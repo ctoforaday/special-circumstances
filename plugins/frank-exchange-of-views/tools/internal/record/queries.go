@@ -249,11 +249,12 @@ func SeatsThatSat(run Run) ([]string, error) {
 }
 
 // ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "append"
-// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id) or
-// "remove" (A=anchor id). reportproj folds these from the empty text; the SELECTION and ordering are
+// (A=a lane's part), "edit" (A=old span, B=new span), "insert" (A=anchoring quote, B=marker id),
+// "sentence_of" (A=the anchor whose sentence the marker ends, B=marker id) or "remove" (A=anchor
+// id). reportproj folds these from the empty text; the SELECTION and ordering are
 // the view's, not a Go walk of the event log. EventID is the event the op is of. Exact is an edit's exact_span: the splice replaces A as written rather than the
 // span the ordinary locate finds. False for every insert and remove, and for every edit recorded
-// without the field.
+// without the field, and for every sentence_of.
 type ReportOp struct {
 	EventID int64
 	Kind    string

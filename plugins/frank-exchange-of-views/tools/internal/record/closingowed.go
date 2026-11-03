@@ -222,5 +222,5 @@ func closingBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 // arms (eventBlockersOf) and the closings owed (closingBlockersOf). A lens owes each one it owns
 // (lensOwesOf).
 func owedBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []Blocker {
-	return append(eventBlockersOf(evs, ids, win), closingBlockersOf(evs, ids, win, gaps)...)
+	return append(eventBlockersOf(evs, ids, win, openSet(gaps)), closingBlockersOf(evs, ids, win, gaps)...)
 }

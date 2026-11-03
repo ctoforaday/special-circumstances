@@ -80,8 +80,12 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	}
 	// And a REFUTING one, which must NOT become a footnote: a source that contradicts the
 	// sentence is not a reference backing it, and spliced into the bibliography it reads as
-	// support. It carries no label at all.
-	if _, err := Append(id, corroboration("", "https://example.org/contradicts", "blue's other claim", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
+	// support. It carries no label at all. Written as an archived reading is, with no gap carrying it:
+	// the footnote rule reads the reading alone.
+	Migrating = true
+	_, err := Append(id, corroboration("", "https://example.org/contradicts", "blue's other claim", recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES))
+	Migrating = false
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -124,140 +128,81 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	}
 }
 
-// A CONTRADICTION RED FOUND AND NEVER RAISED BLOCKS A PASS.
+// A CORROBORATION THAT FINDS THE SOURCE AGAINST ITS SENTENCE IS A GAP, and the gap holds the PASS.
 //
-// A supporting corroboration reaches the reader as a footnote. `refutes` and `absent` are not
-// references backing the sentence and are deliberately not spliced — which would leave them in
-// the `evidence` projection alone, seen by red and by nobody else. That is the same defect one
-// axis over: red's strongest finding on this axis, with no reader.
-//
-// The remedy is a FINDING and the tool does not write it: a lens structurally cannot mint, and
-// writing the finding here would mean inventing its severity, likelihood and impact — three
-// grades nobody chose, feeding the mass calculation that decides what a gap is worth.
-func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
-	runDir := newRun(t)
-	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
-	for _, id := range []Identity{lens, merge} {
-		if _, _, err := RegisterSeat(id, "", ""); err != nil {
-			t.Fatal(err)
-		}
+// A supporting corroboration reaches the reader as a footnote. A `refutes` reading backs no sentence
+// and is not spliced; what it found reaches the board as the gap its own act mints, of a class its
+// outcome admits — and `claim_contradicts_source` is material at every grade. Written with no gap, the
+// reading is refused: the defect it found would reach no board.
+func TestACorroborationThatFindsAgainstHoldsThePassThroughItsGap(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+		register("red-chair").register(evLens).seed()
+	lens := Identity{Run: run, SeatID: evLens}
+	const claim = "The claim stands before."
+	reading := func() *recordpb.Verify {
+		return corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)
 	}
-	const claim = "the API returns 200 on every path"
-	if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
-		t.Fatal(err)
+	if _, err := Append(lens, reading()); err == nil || !strings.Contains(err.Error(), "names the gap that carries it") {
+		t.Fatalf("a refuting corroboration written with no gap = %v, want it refused naming its gap", err)
 	}
-
-	err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
-	if err == nil {
-		t.Fatal("a PASS was allowed over a contradiction red recorded and nobody raised")
+	if err := passRefusalOver(t, run, BlockerMaterialGap); err != nil {
+		t.Fatalf("fixture: a material gap holds the PASS before the reading: %v", err)
 	}
-	if !strings.Contains(err.Error(), claim) {
-		t.Errorf("the refusal does not name the claim, so red cannot tell which reading is unanswered: %v", err)
-	}
-	if !strings.Contains(err.Error(), "`finding --about-kind contradiction --about") {
-		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
-	}
-
-	// A FINDING NAMING THE CONTRADICTION RAISES IT. Red grades its own finding; the tool only
-	// reports that one is owed.
-	if _, err := Append(lens, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
-		Text:       proto.String("the source says the opposite at page 9"),
-		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	// RAISED IS NOT ANSWERED: the class default wins, so the finding alone leaves the PASS held.
-	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil || !strings.Contains(err.Error(), "raised by finding F-f0000001, no gap minted from it") {
-		t.Errorf("the contradiction was raised as a finding only, and the PASS is not held naming it: %v", err)
-	}
-	// THE GAP MINTED FROM THE RAISING FINDING ANSWERS IT.
-	if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
-		t.Fatal(err)
-	}
-	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
-		t.Errorf("the gap minted from the raising finding answered nothing: %v", err)
-	}
-
-	// AND A SUPPORTING CORROBORATION NEVER BLOCKS. It is a reference backing the claim; there is
-	// nothing to raise.
-	if _, err := Append(lens, corroboration(NewID("citation"), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
-		t.Fatal(err)
-	}
-	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
-		t.Errorf("a SUPPORTING corroboration blocked a PASS — only a contradiction owes a finding: %v", err)
-	}
-}
-
-// NAME IT OR IT IS NOT RAISED (gblock, 2026-10-23). A finding whose quote contains the
-// contradicted claim — the same words, the sentence holding it, a part of it — raises nothing, and
-// the gap minted from it answers nothing: the tool does not infer what a finding is about from what
-// its quote contains. The finding naming the contradiction's id raises it, and the gap minted from
-// that finding answers it.
-func TestAQuoteRaisesNoContradiction(t *testing.T) {
-	const claim = "so the claim that a base-3 test accepts 91 rests on computation alone."
-	for _, tc := range []struct{ name, quote string }{
-		{"the same words", claim},
-		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin."},
-		{"part of the claim", "a base-3 test accepts 91"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			runDir := newRun(t)
-			lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-			if _, _, err := RegisterSeat(lens, "", ""); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
-				t.Fatal(err)
-			}
-			graded := func(f *recordpb.Finding) *recordpb.Finding {
-				f.Text = proto.String("the source says the opposite")
-				f.Severity, f.Likelihood, f.Impact = recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_HIGH), recordtest.P(recordpb.Grade_GRADE_MEDIUM)
-				return f
-			}
-			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000001"), Location: proto.String(tc.quote)})); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := Append(lens, raisingGap("G-f0000001", "F-f0000001")); err != nil {
-				t.Fatal(err)
-			}
-			if c := onlyContradiction(t, runDir); c.RaisedBy != "" {
-				t.Errorf("a finding quoting %q raised the contradiction of %q (raised_by %s): a quote raises nothing", tc.quote, claim, c.RaisedBy)
-			}
-			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err == nil {
-				t.Errorf("a finding quoting %q and the gap minted from it answered the contradiction of %q, which no finding named", tc.quote, claim)
-			}
-			id := onlyContradiction(t, runDir).ID
-			if _, err := Append(lens, graded(&recordpb.Finding{Id: proto.String("F-f0000002"),
-				AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(id)})); err != nil {
-				t.Fatal(err)
-			}
-			answer := raisingGap("G-f0000002", "F-f0000002")
-			if _, err := Append(lens, answer); err != nil {
-				t.Fatal(err)
-			}
-			if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
-				t.Errorf("the finding naming contradiction %s and the gap minted from it left it unanswered: %v", id, err)
-			}
-		})
-	}
-}
-
-// onlyContradiction is the run's one unanswered contradiction as `show evidence` lists it.
-func onlyContradiction(t *testing.T, runDir string) EvidenceContradictionJSON {
-	t.Helper()
-	b, err := FamilyOf(mustRun(t, runDir))
+	evs, err := AppendReading(lens, reading(), readingGap("G-f0000001"), &recordpb.Anchor{Id: proto.String("G-f0000001"), Location: proto.String(claim)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cs := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
-	if len(cs) != 1 {
-		t.Fatalf("unanswered_contradictions = %+v, want exactly one", cs)
+	v, ok := recordpb.BodyAs[*recordpb.Verify](evs[len(evs)-1])
+	if len(evs) != 3 || !ok || v.GetCarriedBy() != "G-f0000001" || !v.GetCarrierMinted() {
+		t.Fatalf("the reading's act wrote %d event(s), the last %+v — want its Mint, its Anchor and the reading carried by the gap its act minted", len(evs), v)
 	}
-	return cs[0]
+	if err := passRefusalOver(t, run, BlockerMaterialGap); err == nil || !strings.Contains(err.Error(), "G-f0000001") {
+		t.Errorf("the reading's gap does not hold the PASS: %v", err)
+	}
+
+	// AND A SUPPORTING CORROBORATION NEVER BLOCKS, and carries no gap: it is a reference backing the
+	// claim. One naming a gap is refused.
+	backing := corroboration(NewID("citation"), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)
+	backing.CarriedBy, backing.CarrierMinted = proto.String("G-f0000001"), proto.Bool(false)
+	if _, err := Append(lens, backing); err == nil || !strings.Contains(err.Error(), "carried_by and carrier_minted are set by the tool") {
+		t.Errorf("a backing corroboration naming a gap = %v, want it refused", err)
+	}
+	if _, err := Append(lens, corroboration(NewID("citation"), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+		t.Fatal(err)
+	}
+	if err := passRefusalOver(t, run, BlockerFailedCheck); err != nil {
+		t.Errorf("a SUPPORTING corroboration holds the PASS: %v", err)
+	}
+}
+
+// A SECOND READING OF A SENTENCE AN OPEN GAP OF ITS CLASS HOLDS NAMES THAT GAP. Its act's Mint meets
+// the one-gap rule inside the same write; the Mint and its Anchor are dropped and the reading lands
+// alone, carried by the standing gap — not minted by it. A reading of another class mints its own.
+func TestASecondReadingOfAHeldSentenceNamesItsGap(t *testing.T) {
+	const thirdLens = "red-lens-adversary"
+	run := newStage(t).cast(evLens, outsideLens, thirdLens, "red-chair", "blue-respond", "judge").ingestCited().
+		register("red-chair").register(evLens).register(outsideLens).register(thirdLens).seed()
+	const claim = "The claim stands before."
+	read := func(seat, gap string, class recordpb.GapClass) []*Event {
+		t.Helper()
+		m := readingGap(gap)
+		m.Class = class.Enum()
+		evs, err := AppendReading(Identity{Run: run, SeatID: seat}, corroboration("", "https://example.org/"+seat, claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES),
+			m, &recordpb.Anchor{Id: proto.String(gap), Location: proto.String(claim)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return evs
+	}
+	read(evLens, "G-f0000001", recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+	evs := read(outsideLens, "G-f0000002", recordpb.GapClass_GAP_CLASS_CLAIM_CONTRADICTS_SOURCE)
+	v, ok := recordpb.BodyAs[*recordpb.Verify](evs[len(evs)-1])
+	if len(evs) != 1 || !ok || v.GetCarriedBy() != "G-f0000001" || v.GetCarrierMinted() {
+		t.Fatalf("the second reading wrote %d event(s), the last %+v — want the reading alone, carried by G-f0000001 and not minting it", len(evs), v)
+	}
+	if evs := read(thirdLens, "G-f0000003", recordpb.GapClass_GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION); len(evs) != 3 {
+		t.Errorf("a reading of another admitted class wrote %d event(s), want its own Mint, Anchor and reading", len(evs))
+	}
 }
 
 // THE PROTECTED-ANCHOR SET IS ONE SET, and red's citations are in it.
@@ -300,41 +245,29 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	}
 }
 
-// THE DUTY IS VISIBLE WHERE RED LOOKS, not only where the chair is blocked.
-//
-// A contradiction with no finding refuses a PASS — but that is the CHAIR's refusal, at the end
-// of the round, and a duty the owing seat never sees is one it cannot discharge. The evidence
-// projection is where a lens reads its own axis, so the outstanding readings are named there
-// too. The empty array is the point as much as the full one: without the field, "nothing
-// outstanding" and "nobody checked" are the same absence.
-func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
-	runDir := newRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	const claim = "the cache never evicts under load"
-	if _, err := Append(id, corroboration("", "https://example.org/says-no", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
+// A REFUTING READING SPLICES NO FOOTNOTE. The evidence view lists both of a lens's corroborations;
+// the supporting one carries the footnote it minted, and the one that finds the source against its
+// sentence carries none — what it found is on the board as its gap.
+func TestARefutingCorroborationCarriesNoFootnote(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingestCited().
+		register("red-chair").register(evLens).seed()
+	id := Identity{Run: run, SeatID: evLens}
+	const claim = "The claim stands before."
+	if _, err := AppendReading(id, corroboration("", "https://example.org/says-no", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES),
+		readingGap("G-f0000001"), &recordpb.Anchor{Id: proto.String("G-f0000001"), Location: proto.String(claim)}); err != nil {
 		t.Fatal(err)
 	}
 	label := NewID("citation")
 	if _, err := Append(id, corroboration(label, "https://example.org/agrees", "a supported claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
-
-	b, err := FamilyOf(mustRun(t, runDir))
+	b, err := FamilyOf(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := EvidenceJSONOf(b.Events, b.At)
-	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0].Claim != claim {
-		t.Errorf("unanswered_contradictions = %v, want just %q — red cannot discharge a duty it cannot see", ev.UnansweredContradictions, claim)
-	}
-	// The supporting one carries the footnote it minted; the refuting one carries none, because
-	// it spliced none.
 	var supported, refuted EvidenceVerificationJSON
-	for _, v := range ev.Independent {
-		if v.Refuted() {
+	for _, v := range EvidenceJSONOf(b.Events, b.At).Independent {
+		if v.FindsAgainst() {
 			refuted = v
 		} else {
 			supported = v
@@ -343,30 +276,8 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	if supported.Label != label {
 		t.Errorf("the supporting corroboration does not carry the footnote it minted: %+v", supported)
 	}
-	if refuted.Label != "" {
-		t.Errorf("a refuting reading carries a footnote label, so it spliced one after all: %+v", refuted)
-	}
-
-	// Raise it, and the row names the raising finding; answer it with the gap minted from that
-	// finding, and the array empties — an empty array, not a null.
-	if _, err := Append(id, &recordpb.Finding{
-		Id: proto.String("F-f0000001"), AboutKind: recordpb.AboutKind_ABOUT_KIND_CONTRADICTION.Enum(), AboutRef: proto.String(onlyContradiction(t, runDir).ID),
-		Text:     proto.String("the source says otherwise"),
-		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	b, _ = FamilyOf(mustRun(t, runDir))
-	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 1 || got[0].RaisedBy != "F-f0000001" {
-		t.Errorf("unanswered_contradictions = %v after the finding was raised, want the row raised by F-f0000001", got)
-	}
-	if _, err := Append(id, raisingGap("G-f0000001", "F-f0000001")); err != nil {
-		t.Fatal(err)
-	}
-	b, _ = FamilyOf(mustRun(t, runDir))
-	if got := EvidenceJSONOf(b.Events, b.At).UnansweredContradictions; len(got) != 0 {
-		t.Errorf("unanswered_contradictions = %v after the gap minted from the raising finding, want empty", got)
+	if refuted.Claim != claim || refuted.Label != "" {
+		t.Errorf("the refuting reading is not listed, or carries a footnote label, so it spliced one after all: %+v", refuted)
 	}
 }
 

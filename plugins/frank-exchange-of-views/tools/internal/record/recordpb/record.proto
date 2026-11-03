@@ -131,11 +131,8 @@ extend google.protobuf.EnumValueOptions {
   // weight, not an absent one, which is exactly why the column is NOT NULL.
   optional double mass = 50005;
 
-  // gap_may_name IS WHETHER A GAP MAY BE ABOUT THIS KIND OF THING, and it is on the value for the
-  // reason every facet is: an AboutKind cannot be added without answering it. A finding takes every
-  // kind; a gap takes the kinds this admits. `contradiction` is the one it refuses — a
-  // contradiction is raised by a finding, and the gap is minted from that finding.
-  optional bool gap_may_name = 50010;
+  // 50010 held `gap_may_name`, whether a gap may be about an AboutKind. Every kind admits a gap, so
+  // a flag true on every value is a field nothing can refuse. The number is not reused.
 
   // material_default IS WHERE A GAP OF THIS CLASS STARTS ITS MATERIALITY, and it is a facet for the
   // reason every facet is: a GapClass value cannot be added without answering it. The mint's write
@@ -151,6 +148,14 @@ extend google.protobuf.EnumValueOptions {
   // `neighbor` to be another value's word.
   optional string neighbor = 50012;
   optional string distinguisher = 50013;
+
+  // gap_classes ARE THE GAP CLASSES A READING WITH THIS OUTCOME MAY MINT ITS GAP IN, declared on the
+  // SourceOutcome values that find against a sentence (`refutes`, `absent`) and absent on every
+  // other. It says which classes an OUTCOME admits, never that a reading mints: a reading of a copy
+  // that is not the work reads nothing, whatever its outcome (record.FindsAgainst,
+  // record.ReadingGapClasses). An option, not a vocabulary facet: it is a list, and absent is its
+  // answer on a value that admits no gap.
+  repeated GapClass gap_classes = 50014;
 
   // 50007 held `correct`, a type's same-sitting correction tier. No act is corrected: a wrong one is
   // answered by a new act. The number is not reused.
@@ -441,9 +446,9 @@ enum GapClass {
   GAP_CLASS_METRIC_CONFLATION = 24 [(means) = "two quantities or categories that measure or mean different things are treated as one — compared, added or given one label — across different bases, methods or definitions",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "figure_recount_fails",
     (distinguisher) = "is the number wrong on its own definition, or right on it and compared or identified with a figure measured differently?"];
-  GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION = 25 [(means) = "a cited source does not say what the report attributes to it — the figure, statement or support is absent from or contradicted by its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about",
+  GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION = 25 [(means) = "a cited source does not say what the report attributes to it — the figure, statement or support is absent from its text, the cached text is a different document from the one named, or the anchor backs a sentence its source is not about",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "unsourced_claim",
-    (distinguisher) = "is a source recorded against the claim that says something else, or is there no source behind the claim at all?"];
+    (distinguisher) = "is a source recorded against the claim that does not back it, or is there no source behind the claim at all?"];
   GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION = 26 [(means) = "the report carries a source's or model's result outside the conditions under which the source establishes it — a condition, bound, regime or date the source states is dropped",
     (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
     (distinguisher) = "does the source state the result, under a condition the report drops, or not state it at all?"];
@@ -455,9 +460,12 @@ enum GapClass {
     (distinguisher) = "is the artifact present and changed or read live, or missing or broken where the report says it is kept?"];
   GAP_CLASS_UNSOURCED_CLAIM = 29 [(means) = "a claim of fact or a quotation the report states with no source or computation behind it on the record — no anchor, an anchor that resolves to nothing in the evidence, or an appeal to a result it never names",
     (material_default) = CLASS_MATERIAL_BY_GRADE, (neighbor) = "citation_figure_misattribution",
-    (distinguisher) = "is a source recorded against the claim that says something else, or is there no source behind the claim at all?"];
+    (distinguisher) = "is a source recorded against the claim that does not back it, or is there no source behind the claim at all?"];
   GAP_CLASS_UNCLASSIFIED = 30 [(means) = "no other value fits this gap. The mint's reason names the nearest value and what it does not cover",
     (material_default) = CLASS_MATERIAL_BY_GRADE];
+  GAP_CLASS_CLAIM_CONTRADICTS_SOURCE = 31 [(means) = "a source read against the sentence — cited by blue or found by red — states otherwise than the report",
+    (material_default) = CLASS_MATERIAL_ALWAYS, (neighbor) = "citation_figure_misattribution",
+    (distinguisher) = "does the source say otherwise than the sentence, or not say it at all?"];
 }
 
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
@@ -506,8 +514,10 @@ enum SourceOutcome {
   SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows"];
   SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"];
   SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
-  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
-  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise"];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
+  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim. A reading of the work with this outcome mints a gap on the sentence in the same act",
+    (gap_classes) = GAP_CLASS_CLAIM_CONTRADICTS_SOURCE, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION];
+  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise. A reading of the work with this outcome on a citation mints a gap on the sentence in the same act",
+    (gap_classes) = GAP_CLASS_CITATION_FIGURE_MISATTRIBUTION, (gap_classes) = GAP_CLASS_WITHIN_SOURCE_CONDITION_MISATTRIBUTION];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit. On a citation it reads nothing, so the citation stays unread: PASS is refused while the report cites it, and the first lens to read nothing of it owes a gap about it, outside its mint budget, asking blue to retire it or cite a source a lens can read"];
 }
 
@@ -903,8 +913,7 @@ message Mint {
   // A gap has ONE subject, as a finding does: a non-blank `location` or this pair, never both and
   // never neither — the write refuses a gap with no subject (requireMintSubject).
   //
-  // A gap takes every kind but `contradiction`: a contradiction is raised by a finding, and the
-  // gap is minted from that finding (the write refuses it here).
+  // A gap takes every kind a finding takes.
   optional AboutKind about_kind = 23;
   optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
@@ -968,8 +977,8 @@ message Mint {
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
   // `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
-  // answers and a bench weighs. `lens mint` stores --reason here and nowhere else: --problem is
-  // the only flag that states the problem.
+  // answers and a bench weighs. `lens mint` and a reading that mints its gap store --reason
+  // here; --problem is the only flag that states the problem.
   //
   // IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
   // to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place
@@ -1137,11 +1146,12 @@ message SpotCheck {
 // than a slightly longer enum name is for anyone.
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
-  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor", (gap_may_name) = true];
-  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
-  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it even when the sentence has since been edited away, and the gap minted from that finding answers it. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
-  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread", (gap_may_name) = true];
+  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"];
+  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
+  ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread"];
+  reserved 4;
+  reserved "ABOUT_KIND_CONTRADICTION";
 }
 
 message Finding {
@@ -1169,21 +1179,27 @@ message Finding {
   // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
   // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
   //
-  // About a `contradiction`, about_ref is the contradiction's id — the events.id of the reading
-  // that opened it, in decimal — and the write refuses one that names no open contradiction.
-  // `migrate` translates it, because events.id renumbers on replay.
   optional AboutKind about_kind = 9;
   optional string about_ref = 10;
 }
 
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
-// quote `location`. It is the one event that places a marker, of any kind, so an id is placed once
-// on a run: a second Anchor for it would be a second marker for one act.
+// quote `location`, or at the end of the sentence in which the token of the anchor `sentence_of`
+// names sits. It carries exactly one of the two. It is the one event that places a marker, of any
+// kind, so an id is placed once on a run: a second Anchor for it would be a second marker for one
+// act.
 message Anchor {
   optional string id = 1 [(sql) = {unique: true}];
   optional string location = 2;
   reserved 3 to 6;
   reserved "finding_id", "finding_key", "label", "text";
+
+  // sentence_of IS THE ANCHOR WHOSE SENTENCE THIS MARKER ENDS: the id of an anchor already in the
+  // report, found by its token's identity, never by searching the sentence's text — so where the
+  // report holds a sentence's words twice the marker lands at the occurrence that token sits in.
+  // A `verify` that finds its source against the sentence places its gap so. No SQL reference:
+  // the placement guard refuses a sentence_of whose token the landing report does not hold.
+  optional string sentence_of = 7;
 }
 
 // SourceTextOrigin is WHERE THE CITED TEXT CAME FROM, and the tool stamps it; a seat never types
@@ -1414,6 +1430,17 @@ message Verify {
   // source` and `render-page`, and `show source --anchor`.
   optional string sha256 = 20 [(prose) = false];
 
+  // THE GAP THAT CARRIES THIS READING AGAINST ITS SENTENCE, set by the tool on a reading that finds
+  // against (record.ReadingGapClasses non-empty) and refused on any other: the gap the reading's act
+  // minted, or the open gap of the reading's class on that sentence that refused the mint.
+  // carrier_minted says which — true when this reading's own act minted it, false when it names a
+  // standing gap. No flag sets either. Several readings may carry one gap. Their readers: the
+  // failed check (the found-against check's carrier), the mint budget (a gap its reading minted
+  // takes no mint), the reading's result, `show evidence`'s verification row and docket.md's
+  // source line. Not `gap_id`: the idempotency key matches a field by that name first.
+  optional string carried_by = 21 [(sql) = { references: "mint.gap_id" }];
+  optional bool carrier_minted = 22;
+
   // `independent` restated the empty anchor as a bool.
   reserved 2, 4;
   reserved "reference", "independent";
@@ -1616,7 +1643,8 @@ message BlueEdit {
   optional string text = 5;
 
   // applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
-  // on it: red may not open a clean slate against its own words.
+  // on it against a lens's mint: red may not open a clean slate against its own words. A reading's
+  // gap on it is not refused — a source that finds against the text is new evidence.
   optional bool applied_verbatim = 6;
 
   // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
