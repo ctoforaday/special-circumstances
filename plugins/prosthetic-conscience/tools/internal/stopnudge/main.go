@@ -14,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/machinereader"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // hookInput is the Stop payload. Every field here was MEASURED on client 2.1.240
@@ -122,10 +123,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir, c
 	if machinereader.Contracted(contracted) {
 		return 0
 	}
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	req := hookcore.Read("Stop", stdin)
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, "")
+	}
 	rec := hookfailures.New("prosthetic-conscience", "sc-stop", "Stop", now, stderr)
 	if !hookenv.Explain(projectDir, rec, "sc-stop") {
 		// Recorded, and NOT said: a hook with no project root writes nothing to stdout, which
@@ -143,24 +146,27 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir, c
 		// No note: nothing has an age, but the context still has a size. The zero time keeps the
 		// read to a backward scan for the newest usage figure — measured p95 1.2 ms on a 36 MB
 		// transcript, against 6.6 ms for the with-note gauge every noted session already pays.
-		u, _ := ctxusage.Read(in.TranscriptPath, time.Time{})
-		d = DecideContext(rec, projectDir, in.SessionID, in.StopHookActive, u, th)
+		u, _ := ctxusage.Read(req.TranscriptPath, time.Time{})
+		d = DecideContext(rec, projectDir, req.SessionID, req.StopHookActive, u, th)
 	} else {
 		body, err := os.ReadFile(notePath)
 		if err != nil {
 			// The note is THERE — NotePath stat'd it — and unreadable, so the nudge cannot measure
 			// anything. Silence here reads exactly like a session with no note.
 			rec.FailIn(StageNoteRead, projectDir, "cannot read the checkpoint note "+notePath+": "+err.Error())
-			emitResponse(stdout, "", rec)
-			return 0
+			resp := hookcore.Response{}
+			return hookcore.Respond(req, resp, stdout, stderr, rec)
 		}
 		rec.OKIn(StageNoteRead, projectDir)
 		n := checkpoint.Parse(string(body))
-		m := freshness.Of(projectDir, in.TranscriptPath, string(body),
+		m := freshness.Of(projectDir, req.TranscriptPath, string(body),
 			freshness.BranchWork(n.Get("head")), now)
-		d = Decide(rec, projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
+		d = Decide(rec, projectDir, req.SessionID, req.StopHookActive, m, notePath, newest(n), th, now)
 	}
-	emitResponse(stdout, d.Emit, rec)
+	resp := hookcore.Response{
+		AdditionalContext: d.Emit,
+	}
+	return hookcore.Respond(req, resp, stdout, stderr, rec)
 	return 0
 }
 

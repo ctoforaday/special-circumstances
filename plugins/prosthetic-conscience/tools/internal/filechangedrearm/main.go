@@ -37,7 +37,6 @@
 package filechangedrearm
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,6 +49,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // The state format lives in internal/checkpoint, shared with the restore hook
@@ -136,10 +136,21 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	req := hookcore.Read("FileChanged", stdin)
+	in := hookInput{
+		SessionID: req.SessionID,
+		CWD:       req.CWD,
+		FilePath:  req.FilePath,
+		Event:     req.FileEvent,
+	}
+	if in.Event == "" {
+		in.Event = req.Event
+	}
+	if req.ProjectDir != "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, in.CWD)
+	}
 	// FileChanged displays NOTHING, so this hook only ever records: Settle returns "" here, and the
 	// next SessionStart, Stop, PreToolUse, PostToolUse or PostToolUseFailure reads the record out.
 	rec := hookfailures.New("prosthetic-conscience", "sc-filechanged-rearm", "FileChanged", now, stderr)
@@ -281,7 +292,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		// about state must not outrun the state.
 		fmt.Fprintf(stderr, "sc-filechanged-rearm: dropped %d re-arm record(s) whose check no longer appears in the note — the check's text was edited, so those records name a check that is gone. Nothing else changed; the surviving records and this event's re-arm are unaffected.\n", len(dropped))
 	}
-	return 0
+	return hookcore.Respond(req, hookcore.Response{}, stdout, stderr, rec)
 }
 
 // Main is the process boundary: it wires the real environment in and returns the

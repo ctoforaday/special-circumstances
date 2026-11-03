@@ -67,6 +67,12 @@ type Request struct {
 	Trigger             string          // PreCompact/PostCompact trigger
 	CustomInstructions  string          // PreCompact custom_instructions
 	CompactSummary      string          // PostCompact compact_summary
+	CWD                 string          // cwd
+	HookEventName       string          // hook_event_name
+	Reason              string          // reason (SessionEnd: clear|logout|prompt_input_exit|other)
+	BackgroundTasks     *json.RawMessage // background_tasks (SubagentStop)
+	SessionCrons        *json.RawMessage // session_crons (SubagentStop)
+	FileEvent           string          // event (FileChanged: change|add|unlink)
 }
 
 // Response holds hook return parameters to be emitted to the harness.
@@ -118,6 +124,30 @@ func DetectEngine(raw []byte) Engine {
 			if _, ok := probe["hook_event_name"]; ok {
 				return EngineClaude
 			}
+			if _, ok := probe["source"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_name"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_input"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["tool_response"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["permission_mode"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["session_id"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["transcript_path"]; ok {
+				return EngineClaude
+			}
+			if _, ok := probe["custom_instructions"]; ok {
+				return EngineClaude
+			}
 			if _, ok := probe["conversationId"]; ok {
 				return EngineAntigravity
 			}
@@ -131,6 +161,18 @@ func DetectEngine(raw []byte) Engine {
 				return EngineAntigravity
 			}
 		}
+		if bytes.Contains(raw, []byte(`"tool_name"`)) ||
+			bytes.Contains(raw, []byte(`"tool_input"`)) ||
+			bytes.Contains(raw, []byte(`"session_id"`)) ||
+			bytes.Contains(raw, []byte(`"hook_event_name"`)) {
+			return EngineClaude
+		}
+		if bytes.Contains(raw, []byte(`"conversationId"`)) ||
+			bytes.Contains(raw, []byte(`"workspacePaths"`)) ||
+			bytes.Contains(raw, []byte(`"toolCall"`)) {
+			return EngineAntigravity
+		}
+		return EngineClaude
 	}
 	if os.Getenv("ANTIGRAVITY_CONVERSATION_ID") != "" {
 		return EngineAntigravity
@@ -321,6 +363,28 @@ func Read(event string, stdin io.Reader) Request {
 		}
 	}
 
+	if s, ok := env["hook_event_name"].(string); ok {
+		req.HookEventName = s
+	}
+	if s, ok := env["reason"].(string); ok {
+		req.Reason = s
+	}
+	if raw, ok := env["background_tasks"]; ok && raw != nil {
+		if b, err := json.Marshal(raw); err == nil {
+			msg := json.RawMessage(b)
+			req.BackgroundTasks = &msg
+		}
+	}
+	if raw, ok := env["session_crons"]; ok && raw != nil {
+		if b, err := json.Marshal(raw); err == nil {
+			msg := json.RawMessage(b)
+			req.SessionCrons = &msg
+		}
+	}
+	if s, ok := env["event"].(string); ok {
+		req.FileEvent = s
+	}
+
 	if stopActive, ok := env["stop_hook_active"].(bool); ok {
 		req.StopHookActive = stopActive
 	}
@@ -369,6 +433,7 @@ func Read(event string, stdin io.Reader) Request {
 	// Path resolutions
 	var payloadCWD string
 	if cwd, ok := env["cwd"].(string); ok {
+		req.CWD = cwd
 		payloadCWD = cwd
 	}
 	var workspacePaths []string
@@ -377,6 +442,16 @@ func Read(event string, stdin io.Reader) Request {
 			if s, ok := w.(string); ok {
 				workspacePaths = append(workspacePaths, s)
 			}
+		}
+	}
+
+	if req.FilePath == "" {
+		if fp, ok := env["file_path"].(string); ok && fp != "" {
+			req.FilePath = fp
+		} else if fp, ok := env["path"].(string); ok && fp != "" {
+			req.FilePath = fp
+		} else if fp, ok := env["Path"].(string); ok && fp != "" {
+			req.FilePath = fp
 		}
 	}
 
@@ -563,6 +638,15 @@ func Respond(req Request, resp Response, stdout, stderr io.Writer, rec Settler) 
 func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 	switch req.Event {
 	case "PreToolUse":
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && resp.Say == "" {
+			return 0
+		}
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" && resp.Say != "" {
+			out := map[string]any{"systemMessage": resp.Say}
+			b, _ := json.Marshal(out)
+			fmt.Fprintln(stdout, string(b))
+			return 0
+		}
 		var out struct {
 			HookSpecificOutput struct {
 				HookEventName            string         `json:"hookEventName"`
@@ -599,7 +683,7 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 			out := map[string]any{}
 			if resp.AdditionalContext != "" {
 				out["hookSpecificOutput"] = map[string]any{
-					"hookEventName":     "PostToolUse",
+					"hookEventName":     req.Event,
 					"additionalContext": resp.AdditionalContext,
 				}
 			}
@@ -632,6 +716,9 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		return 0
 
 	case "Stop":
+		if resp.AdditionalContext == "" && resp.Say == "" {
+			return 0
+		}
 		out := map[string]any{
 			"hookSpecificOutput": map[string]any{
 				"hookEventName": "Stop",
@@ -656,8 +743,8 @@ func respondClaude(req Request, resp Response, stdout, stderr io.Writer) int {
 		}
 		return 0
 
-	case "SubagentStop", "SessionEnd":
-		// SubagentStop and SessionEnd seal silently and must never write to stdout.
+	case "SubagentStop", "SessionEnd", "FileChanged", "PostCompact":
+		// SubagentStop, SessionEnd, FileChanged, and PostCompact are silent on stdout.
 		return 0
 
 	default:
@@ -700,6 +787,9 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		}
 		if resp.Say != "" {
 			queuePending(req.PluginDataDir, req.SessionID, pendingItem{Say: resp.Say})
+		}
+		if resp.Decision == DecisionNone && resp.UpdatedCommand == "" {
+			return 0
 		}
 		b, _ := json.Marshal(out)
 		fmt.Fprintln(stdout, string(b))
@@ -760,23 +850,30 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 			})
 		}
 
-		termBehavior := "force_continue"
-		if resp.TerminateTurn {
-			termBehavior = "terminate"
-			if resp.Reason != "" {
-				injectSteps = append(injectSteps, map[string]any{
-					"errorMessage": map[string]any{
-						"modelMessage": resp.Reason,
-						"userMessage":  resp.Reason,
-					},
-				})
-			}
+		if req.Event == "SessionStart" && len(injectSteps) == 0 {
+			return 0
 		}
 
-		out := map[string]any{
-			"injectSteps":         injectSteps,
-			"terminationBehavior": termBehavior,
+		out := map[string]any{}
+		if len(injectSteps) > 0 {
+			out["injectSteps"] = injectSteps
 		}
+		if req.Event == "PreInvocation" {
+			termBehavior := "force_continue"
+			if resp.TerminateTurn {
+				termBehavior = "terminate"
+				if resp.Reason != "" {
+					out["injectSteps"] = append(injectSteps, map[string]any{
+						"errorMessage": map[string]any{
+							"modelMessage": resp.Reason,
+							"userMessage":  resp.Reason,
+						},
+					})
+				}
+			}
+			out["terminationBehavior"] = termBehavior
+		}
+
 		b, _ := json.Marshal(out)
 		fmt.Fprintln(stdout, string(b))
 		return 0
@@ -789,8 +886,6 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 			}
 			b, _ := json.Marshal(out)
 			fmt.Fprintln(stdout, string(b))
-		} else {
-			fmt.Fprintln(stdout, "{}")
 		}
 		return 0
 
@@ -818,7 +913,7 @@ func respondAntigravity(req Request, resp Response, stdout, stderr io.Writer) in
 		}
 		return 0
 
-	case "SubagentStop", "SessionEnd":
+	case "SubagentStop", "SessionEnd", "FileChanged", "PostCompact":
 		fmt.Fprintln(stdout, "{}")
 		return 0
 

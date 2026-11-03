@@ -31,8 +31,6 @@
 package posttooluse
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -44,6 +42,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/qualitygate"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikecounter"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/strikes"
+	"github.com/ctoforaday/special-circumstances/shared/hookcore"
 )
 
 // merge is the event's decision policy, kept pure so it can be tested without units.
@@ -74,15 +75,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	raw, _ := io.ReadAll(stdin)
-	var in struct {
-		CWD string `json:"cwd"`
+	req := hookcore.Read("PostToolUse", stdin)
+	if projectDir == "" {
+		projectDir = req.ProjectDir
+	} else {
+		projectDir = hookenv.ProjectDir(projectDir, "")
 	}
-	_ = json.Unmarshal(raw, &in)
 
 	// Parsed once, resolved once — the point of the merge.
 	rec := hookfailures.New("prosthetic-conscience", "sc-posttooluse", "PostToolUse", now, stderr)
-	ctx := hookunit.NewCtx("PostToolUse", raw, hookenv.ProjectDir(projectDir, in.CWD), now, rec)
+	ctx := hookunit.NewCtx("PostToolUse", req.Raw, projectDir, now, rec)
 	hookenv.Note(ctx.ProjectDir, rec)
 
 	feedback, exit, logs, say := merge(hookunit.Run(ctx, units))
@@ -90,13 +92,44 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	// ONE writer, in unit order.
 	hooklog.Append(ctx.ProjectDir, logs...)
 
-	if feedback != "" {
-		fmt.Fprintln(stderr, feedback)
+	// On Antigravity, if the tool call failed, also run strikecounter
+	if req.Engine == hookcore.EngineAntigravity && req.ToolError != "" && !req.IsInterrupt && ctx.ProjectDir != "" {
+		path := strikes.Path(ctx.ProjectDir)
+		state, err := strikes.Load(os.ReadFile, path)
+		if err != nil {
+			rec.FailIn(strikecounter.StageStrikesRead, ctx.ProjectDir, err.Error()+" — strikes are counted from zero until it can be read")
+		} else {
+			rec.OKIn(strikecounter.StageStrikesRead, ctx.ProjectDir)
+		}
+		key := strikes.Key(req.ToolName, req.ToolInput)
+		count, tripped := strikes.Record(&state, key, now)
+		if err := strikes.Save(path, state); err != nil {
+			rec.FailIn(strikecounter.StageStrikesWrite, ctx.ProjectDir, "cannot write "+path+": "+err.Error()+
+				" — strikes are not being kept, so the 3-strike rule cannot trip")
+		} else {
+			rec.OKIn(strikecounter.StageStrikesWrite, ctx.ProjectDir)
+		}
+		if tripped {
+			strikeMsg := strikecounter.Message(req.ToolName, req.ToolError, key, count)
+			if feedback != "" {
+				feedback = feedback + "\n\n" + strikeMsg
+			} else {
+				feedback = strikeMsg
+			}
+			exit = 2
+		}
 	}
-	// EMITTED WHATEVER THE EXIT, and that was measured rather than assumed: on a hook exiting 2 the
-	// client delivered both, the blocking feedback to the model and the systemMessage to the human.
-	hookfailures.Emit(stdout, strings.TrimSpace(say+"\n\n"+rec.Settle()))
-	return exit
+
+	resp := hookcore.Response{
+		Say: say,
+	}
+	if exit == 2 {
+		resp.Feedback = feedback
+	} else {
+		resp.Warnings = feedback
+	}
+
+	return hookcore.Respond(req, resp, stdout, stderr, rec)
 }
 
 // Units are this event's checks, in the order their output should appear.

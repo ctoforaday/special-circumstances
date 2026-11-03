@@ -3,6 +3,7 @@ module github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience
 go 1.27.1
 
 require (
+	github.com/ctoforaday/special-circumstances/shared v0.0.0
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/viper v1.21.0
 	github.com/zricethezav/gitleaks/v8 v8.30.1
@@ -68,3 +69,6 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
+
+replace github.com/ctoforaday/special-circumstances/shared => ../../../shared
+
