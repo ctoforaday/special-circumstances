@@ -12,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/gcpolicy"
 )
 
 // newDashboard is the operator command that renders a run's live dashboard.html — ported from
@@ -32,6 +33,11 @@ func newDashboard() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// --watch and --serve run until the run ends, re-rendering the whole record each time:
+			// a long-running mode, so the GC main turned off comes back on.
+			if watch || serve != 0 {
+				gcpolicy.Long()
+			}
 			// RETURNED, NOT EXITED — see newScorecard for the whole argument. The exit status
 			// moves 1 -> 2 here, which is the point rather than a side effect: every other
 			// refusal in this tool is 2, and 1 was this one site disagreeing.
