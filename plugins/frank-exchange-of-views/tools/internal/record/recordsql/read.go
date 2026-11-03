@@ -140,8 +140,14 @@ func EventAt(db Querier, id int64) (*recordpb.Event, error) {
 }
 
 // eventsWhere is the one read path. withWindows reads each row's Window beside it — the stored
-// sitting_id, sitting and epoch, and the `sittings` view's owner — in one statement; without it the
-// read is the events table alone. A read by one key prints no window and does not ask for one.
+// sitting_id, sitting and epoch, and the sitting's owner — in one statement; without it the read is
+// the events table alone. A read by one key prints no window and does not ask for one.
+//
+// THE OWNER IS LOOKED UP BY KEY, NOT THROUGH THE `sittings` VIEW. The view's owner is the opening
+// event's seat, or the seat its sitting_open body names; the join below asks exactly that of the one
+// opening event each row's sitting_id names — a rowid SEARCH per row. Joined through the view, SQLite
+// materialises every sitting first, a scan of the whole events table that a tail read of five rows
+// paid in full. The migrate package's archived-run test holds each owner to the view's.
 //
 // after bounds the body tables' reads to rows past that event id, and where MUST select no event at
 // or before it: a body row the bound leaves out is a body the event is then refused for lacking. The
@@ -150,9 +156,11 @@ func eventsWhere(db Querier, withWindows bool, after int64, where string, args .
 	q := `SELECT e."id", e."seat_id", e."ts", e."type", e."key" FROM "events" e` + where + ` ORDER BY e."id"`
 	if withWindows {
 		q = `SELECT e."id", e."seat_id", e."ts", e."type", e."key", e."epoch", e."sitting",
-		            COALESCE(e."sitting_id", 0), COALESCE(s."seat_id", '')
+		            COALESCE(e."sitting_id", 0),
+		            CASE WHEN s."id" IS NULL THEN '' ELSE COALESCE(NULLIF(o."seat_id", ''), s."seat_id") END
 		     FROM "events" e
-		     LEFT JOIN "sittings" s ON s."id" = e."sitting_id"` + where + ` ORDER BY e."id"`
+		     LEFT JOIN "events" s ON s."id" = e."sitting_id" AND s."sitting_id" = s."id"
+		     LEFT JOIN "sitting_open" o ON o."event_id" = s."id"` + where + ` ORDER BY e."id"`
 	}
 	rows, err := db.Query(q, args...)
 	if err != nil {

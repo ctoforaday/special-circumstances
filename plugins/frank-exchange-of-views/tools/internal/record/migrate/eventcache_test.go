@@ -82,6 +82,34 @@ func TestTheFoldsLeaveTheCachedStreamAsTheRecordHoldsIt(t *testing.T) {
 			if len(want) != len(cached.Events) {
 				t.Fatalf("the shared stream holds %d events, the record %d", len(cached.Events), len(want))
 			}
+			// The owner the read joins by key is the `sittings` view's, row for row.
+			views, err := sep.Query(`SELECT e."id", COALESCE(s."seat_id", '') FROM "events" e
+				LEFT JOIN "sittings" s ON s."id" = e."sitting_id" ORDER BY e."id"`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			viewOwner := map[int64]string{}
+			for views.Next() {
+				var id int64
+				var owner string
+				if err := views.Scan(&id, &owner); err != nil {
+					t.Fatal(err)
+				}
+				viewOwner[id] = owner
+			}
+			views.Close()
+			owned := 0
+			for _, w := range wantWs {
+				if w.Owner != viewOwner[w.ID] {
+					t.Errorf("event %d reads owner %q, the sittings view %q", w.ID, w.Owner, viewOwner[w.ID])
+				}
+				if w.Owner != "" {
+					owned++
+				}
+			}
+			if owned == 0 {
+				t.Fatalf("%s: no event is in a sitting, so the owners compared nothing", name)
+			}
 			wrong := 0
 			for i, w := range want {
 				if !proto.Equal(cached.Events[i], w) || cached.At.Of(cached.Events[i]) != wantWs[i] {
